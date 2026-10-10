@@ -1,0 +1,26 @@
+{
+  "template": "pocketdungeons:rooms/wardens_deep",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["drowned_vault"],
+  "light": "dim",
+  "corridor": "wide",
+  "biome": "drowned_vault",
+  "dungeons": ["drowned_vault"],
+  "acts": [3],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:gold_ore", "from": [14,1,2], "to": [14,3,4], "count": 3 },
+    { "block": "minecraft:deepslate_gold_ore", "from": [1,1,10], "to": [1,3,12], "count": 2, "chance": 0.7 },
+    { "block": "minecraft:diamond_ore", "from": [14,4,10], "to": [14,5,12], "count": 1, "chance": 0.3 },
+    { "block": "minecraft:clay", "from": [11,1,12], "to": [12,1,13], "count": 4 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

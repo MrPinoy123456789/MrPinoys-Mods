@@ -1,0 +1,17 @@
+{
+  "template": "pocketdungeons:rooms/guard_tower",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "content": "guard_tower",
+  "dungeons": ["kennels"],
+  "acts": [1],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim"
+}

@@ -9,6 +9,7 @@ public class BoardTextTest {
         testTitle();
         testPrices();
         testPalette();
+        testNotes();
         System.out.println("BoardTextTest passed");
     }
 
@@ -20,12 +21,43 @@ public class BoardTextTest {
     }
 
     private static void testPrices() {
-        eq(BoardText.shardText(1), "1 echo shard");
-        eq(BoardText.shardText(2), "2 echo shards");
-        eq(BoardText.costText(1), "costs 1 echo shard");
-        eq(BoardText.costText(2), "costs 2 echo shards");
+        eq(BoardText.costText(1), "costs 1 scrap");
+        eq(BoardText.costText(2), "costs 2 scrap");
         for (String line : List.of(BoardText.titleLine("A", 1, 2), BoardText.lootText(1), BoardText.costText(2))) {
             check(!line.contains("--") && line.indexOf('\u2014') < 0, "no dash punctuation: " + line);
+        }
+    }
+
+    /** The floor info sheet's one sentence: most urgent first, short, and free of dash punctuation. */
+    private static void testNotes() {
+        eq(BoardText.floorLine(3, 4), "Floor 3 of 4");
+        eq(BoardText.floorLine(6), "Floor 6");
+        eq(BoardText.notesLine(false, true, "dark", true, List.of("coal"), true), "Sculk hears every step. Sneak.");
+        eq(BoardText.notesLine(false, false, "dark", true, List.of("coal"), true), "Pitch dark. Bring torches.");
+        eq(BoardText.notesLine(false, false, "dim", false, List.of(), false), "Dim light. Torches help.");
+        eq(BoardText.notesLine(false, false, "lit", true, List.of("coal"), true), "The last floor. Clear it to finish.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of("coal", "copper", "iron", "gold"), true),
+                "Mine the walls for coal, copper and iron.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of("coal"), true), "Mine the walls for coal.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), true), "Mine the walls for ore.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), false), "Clear the spawners to open the way.");
+        eq(BoardText.notesLine(true, true, "dark", true, List.of("coal"), true), "Ore hides in the walls. Deeper pays better.");
+        // The authored note (2026-10-08) is the reason to choose the floor: it wins over every derived
+        // sentence, except the Endless Mine's own line, and a blank note falls back to the derived one.
+        eq(BoardText.notesLine(false, true, "dark", true, List.of("coal"), true, "The Warden sleeps here."),
+                "The Warden sleeps here.");
+        eq(BoardText.notesLine(false, false, "dim", true, List.of("coal"), true, "Glow berries and sandbars."),
+                "Glow berries and sandbars.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), false, "  A detour.  "), "A detour.");
+        eq(BoardText.notesLine(true, false, "lit", false, List.of(), false, "A note"), "Ore hides in the walls. Deeper pays better.");
+        eq(BoardText.notesLine(false, true, "dark", true, List.of("coal"), true, " "), "Sculk hears every step. Sneak.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of(), false, null), "Clear the spawners to open the way.");
+        for (String line : List.of(
+                BoardText.notesLine(false, true, "lit", false, List.of(), false),
+                BoardText.notesLine(false, false, "dark", false, List.of(), false),
+                BoardText.notesLine(false, false, "lit", false, List.of("coal", "iron"), true))) {
+            check(!line.contains("--") && line.indexOf('\u2014') < 0 && line.length() <= 48,
+                    "short and dash free: " + line);
         }
     }
 

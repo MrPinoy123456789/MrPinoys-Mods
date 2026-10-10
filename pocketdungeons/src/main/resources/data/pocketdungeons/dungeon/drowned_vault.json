@@ -1,6 +1,8 @@
 {
   "name": "Drowned Vault",
+  "token": { "mat": "minecraft:dark_prismarine" },
   "act": 3,
+  "baseLevel": 15,
   "kind": "capstone",
   "mainTheme": "drowned_vault",
   "lootBand": {
@@ -57,7 +59,7 @@
       "theme": "prismarine",
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -71,7 +73,8 @@
       "id": "wardens_deep",
       "name": "The Warden's Deep",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["wardens_deep"]
     }
   ],
   "edges": [
@@ -98,7 +101,7 @@
     {
       "from": "drowned_nave",
       "to": "coral_ruins",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "barnacled_vaults",

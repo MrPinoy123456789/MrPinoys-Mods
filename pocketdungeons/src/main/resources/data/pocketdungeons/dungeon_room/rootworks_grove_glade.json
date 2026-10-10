@@ -1,0 +1,11 @@
+{
+  "template": "pocketdungeons:rooms/grove_glade",
+  "processors": "pocketdungeons:theme_rootworks_grove",
+  "footprint": [1, 1],
+  "roles": ["loot", "corridor"],
+  "theme": ["rootworks"],
+  "weight": 2,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "light": "dim"
+}

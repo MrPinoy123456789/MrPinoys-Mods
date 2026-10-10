@@ -56,16 +56,16 @@ final class FirstVisitTutorial {
         },
         ENDER_CHEST("ender_chest", Trigger.FLOOR_CLEARED) {
             List<String> lines() {
-                return List.of("Back in the safe room there is an ender chest set into the wall. It is your Dungeon Storage: "
+                return List.of("Any ender chest in the dungeon is your Dungeon Storage: "
                         + "27 extra slots that stay yours between runs, so you can leave spare things there.");
             }
         },
         SET_OF_THREE("set_of_three", Trigger.FLOOR_CLEARED) {
             List<String> lines() {
-                return List.of("Every dungeon has its own name and a last floor. Finish it and you are paid an echo shard "
-                        + "and a vault. Go home sooner and you keep the charts and the chests, but not the shard.",
+                return List.of("Every dungeon has its own name and a last floor. Finish it and you are paid emeralds "
+                        + "and a vault. Go home sooner and you keep the charts and the chests, but not the finish.",
                         "Right-click the floor history board in the Doors to read the dungeon map: where you are, "
-                        + "the final floor, and which branches cost echo shards.");
+                        + "the final floor, and which branches cost a life.");
             }
         },
         WAY_HOME("way_home", Trigger.HOME_ARRIVAL) {
@@ -140,14 +140,16 @@ final class FirstVisitTutorial {
     }
 
     /**
-     * The party just arrived home: the way-home step when it is due, then
-     * {@link StationTutorial}'s nudge as the tail, so one tour covers both.
+     * The party just arrived home: the way-home step when it is due, the
+     * vendor's gear re-roll (J5a), then {@link StationTutorial}'s nudge as
+     * the tail, so one tour covers all of it.
      */
     static void homeArrival(MinecraftServer server, InstanceRecord record) {
         UUID leader = leaderOf(record);
         if (leader != null) {
             run(server, leader, Trigger.HOME_ARRIVAL, members(server, record));
         }
+        LibrarianNPC.restock(server, record);
         StationTutorial.nagMembers(server, record);
     }
 

@@ -19,18 +19,18 @@ import java.util.Set;
  * The salvage bench (playtest 2026-09-29, A3): what it takes, what it pays,
  * and what it leaves alone. Drives {@link SalvageStation#salvageContents}
  * directly, the screen's Salvage button minus the screen: nothing headless
- * clicks an SGUI chest (DISCOVERIES trap 10). The rates are the shipped
- * defaults (1 emerald per tier, 1 per key, 3 per ominous key, keys to fuel
- * off).
+ * clicks an SGUI chest (DISCOVERIES trap 10). Gear pays the grindstone's
+ * XP and its materials, never emeralds; keys are refused (J7).
  */
 @SuppressWarnings("removal")
 public final class SalvageGameTest {
 
     /**
-     * One screen of mixed surplus: keys pay emeralds, gear pays the
-     * grindstone's XP and its materials but never emeralds (owner request,
-     * 2026-10-03), and everything the bench refuses is still in the screen
-     * afterwards, untouched.
+     * One screen of mixed surplus: gear pays the grindstone's XP and its
+     * materials but never emeralds (owner request, 2026-10-03), and
+     * everything the bench refuses is still in the screen afterwards,
+     * untouched. J7: that includes keys, which the floor now buys back at
+     * clear instead.
      */
     @GameTest
     public void salvagePaysForSurplusAndLeavesTheRest(GameTestHelper helper) {
@@ -61,13 +61,21 @@ public final class SalvageGameTest {
         SalvageStation.Quote paid = SalvageStation.salvageContents(player, input);
         helper.assertTrue(paid != null, "a screen with surplus in it salvages");
 
-        // 3 keys + 3 (one ominous key); the tagged sword and helmet pay no emeralds.
-        helper.assertValueEqual(countIn(player, Items.EMERALD), 6, "emeralds paid for keys only");
-        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 2, "a fresh iron sword and helmet give an ingot each");
+        // J7: keys are refused, so nothing in this screen pays emeralds.
+        helper.assertValueEqual(countIn(player, Items.EMERALD), 0, "gear never pays emeralds");
+        // The salvageMaterialBonus knob adds its count to every piece, so the table is read through it.
+        int bonus = PocketDungeonsConfig.salvageMaterialBonus();
+        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 2 + 2 * bonus,
+                "a fresh iron sword and helmet give an ingot each, plus the bonus");
         helper.assertTrue(player.totalExperience > xpBefore, "the enchanted bow paid the grindstone's XP");
         for (int slot = 0; slot <= 4; slot++) {
+            if (slot == 2 || slot == 3) {
+                continue;
+            }
             helper.assertTrue(input.getItem(slot).isEmpty(), "salvaged slot " + slot + " is empty");
         }
+        helper.assertValueEqual(input.getItem(2).getCount(), 3, "the keys are refused and stay");
+        helper.assertTrue(input.getItem(3).is(Items.OMINOUS_TRIAL_KEY), "the ominous key stays too");
         helper.assertTrue(input.getItem(5).is(Items.DIAMOND_SWORD),
                 "imbued gear is refused and stays in the screen");
         helper.assertValueEqual(input.getItem(6).getCount(), 5, "dirt is refused and stays, all five");
@@ -111,14 +119,13 @@ public final class SalvageGameTest {
         helper.succeed();
     }
 
-    /** PD-108: plain mob armour is salvageable; trimmed armour is refused with a reason the player can read. */
+    /** Owner ruling 2026-10-09: trimmed armour is scrapped like any other armour. */
     @GameTest
-    public void plainDiamondLeggingsSalvageAndTrimmedAreExplained(GameTestHelper helper) {
+    public void trimmedArmourSalvagesLikePlainArmour(GameTestHelper helper) {
         ItemStack plain = new ItemStack(Items.DIAMOND_LEGGINGS);
         helper.assertTrue(SalvageStation.classify(plain).takes(), "plain diamond leggings are taken");
         SalvageStation.Verdict trimmed = SalvageStation.classify(trimmedLeggings(helper));
-        helper.assertTrue(!trimmed.takes() && trimmed.reason().contains("trimmed"),
-                "trimmed leggings are refused and the reason says why: " + trimmed);
+        helper.assertTrue(trimmed.takes(), "trimmed leggings are taken too: " + trimmed);
         helper.succeed();
     }
 
@@ -146,22 +153,31 @@ public final class SalvageGameTest {
 
         SalvageStation.Quote paid = SalvageStation.salvageContents(player, input);
         helper.assertTrue(paid != null, "the gear salvages");
-        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 3, "2 ingots from the chestplate, 1 from the leggings");
-        helper.assertValueEqual(countIn(player, Items.LEATHER), 1, "a half-worn helmet gives 1 leather");
+        // salvageMaterialBonus (default 1) adds to every band, so even the worn-out sword pays the bonus.
+        int bonus = PocketDungeonsConfig.salvageMaterialBonus();
+        helper.assertValueEqual(countIn(player, Items.IRON_INGOT), 3 + 3 * bonus,
+                "2 ingots from the chestplate, 1 from the leggings and 0 from the worn sword, plus the bonus on each");
+        helper.assertValueEqual(countIn(player, Items.LEATHER), 1 + bonus, "a half-worn helmet gives 1 leather plus the bonus");
         helper.assertValueEqual(countIn(player, Items.IRON_NUGGET), 0, "never nuggets");
 
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.CHAINMAIL_CHESTPLATE), 40, 40))
-                .is(Items.IRON_INGOT), "chainmail gives iron");
+                .isEmpty(), "chainmail left the loot and its salvage rule went with it (K2.6)");
         ItemStack scrap = SalvageStation.materialsBack(worn(new ItemStack(Items.NETHERITE_LEGGINGS), 100, 50));
-        helper.assertTrue(scrap.is(Items.NETHERITE_SCRAP) && scrap.getCount() == 1, "worn netherite leggings give 1 scrap");
+        helper.assertTrue(scrap.is(Items.NETHERITE_SCRAP) && scrap.getCount() == 1 + bonus,
+                "worn netherite leggings give 1 scrap plus the bonus");
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_SWORD), 20, 20))
                 .is(Items.OAK_PLANKS), "a fresh wooden sword gives a plank");
         ItemStack sticks = SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_PICKAXE), 20, 10));
-        helper.assertTrue(sticks.is(Items.STICK) && sticks.getCount() == 2, "a half-worn wooden tool gives 2 sticks");
+        helper.assertTrue(sticks.is(Items.STICK) && sticks.getCount() == 2 + bonus,
+                "a half-worn wooden tool gives 2 sticks plus the bonus");
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.SHIELD), 100, 30))
                 .is(Items.OAK_PLANKS), "a shield gives a plank");
-        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.STONE_PICKAXE), 40, 5)).isEmpty(),
-                "a worn-out stone pickaxe gives nothing");
+        ItemStack wornStone = SalvageStation.materialsBack(worn(new ItemStack(Items.STONE_PICKAXE), 40, 5));
+        helper.assertTrue(bonus == 0 ? wornStone.isEmpty()
+                        : wornStone.is(Items.COBBLESTONE) && wornStone.getCount() == bonus,
+                "a worn-out stone pickaxe gives nothing, or just the bonus");
+        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.IRON_SWORD), 64, 3), 0).isEmpty(),
+                "with the bonus at 0 a worn sword gives nothing again");
         helper.assertTrue(SalvageStation.materialsBack(new ItemStack(Items.BOW)).isEmpty(), "a bow gives nothing");
 
         cleanUp(server, player);
@@ -186,9 +202,9 @@ public final class SalvageGameTest {
         return stack;
     }
 
-    /** Below the unlock level nothing is taken and nothing is paid. */
+    /** J7: keys never go through the bench; the floor buys them back at clear. */
     @GameTest
-    public void aKeyBelowTheUnlockLevelSalvagesNothing(GameTestHelper helper) {
+    public void keysAreRefusedNotSalvaged(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         DungeonLog.forServer(server).setKeystone(player.getUUID(), 0, Set.of());
@@ -196,9 +212,12 @@ public final class SalvageGameTest {
 
         SimpleContainer input = new SimpleContainer(18);
         input.setItem(0, new ItemStack(Items.TRIAL_KEY, 2));
-        helper.assertTrue(SalvageStation.salvageContents(player, input) == null, "refused below the unlock level");
-        helper.assertValueEqual(input.getItem(0).getCount(), 2, "the keys are still there");
-        helper.assertValueEqual(countIn(player, Items.EMERALD), 0, "and nothing was paid");
+        input.setItem(1, new ItemStack(Items.OMINOUS_TRIAL_KEY));
+        helper.assertTrue(SalvageStation.salvageContents(player, input) == null,
+                "a screen of only keys salvages nothing");
+        helper.assertValueEqual(input.getItem(0).getCount(), 2, "the keys are still in the screen");
+        helper.assertTrue(input.getItem(1).is(Items.OMINOUS_TRIAL_KEY), "the ominous key too");
+        helper.assertValueEqual(countIn(player, Items.EMERALD), 0, "no emeralds changed hands");
 
         cleanUp(server, player);
         helper.succeed();
@@ -207,8 +226,8 @@ public final class SalvageGameTest {
     /**
      * PD-96: in the dungeon an empty hand opens the bench, so a player who
      * never held the right item still finds it. A sneak is the vanilla
-     * grindstone, and so is any use below the unlock level that holds nothing
-     * the bench takes, and any use at all outside the dungeon.
+     * grindstone, and so is any use at all outside the dungeon. J5 removed
+     * the unlock level, so the bench opens from level 0.
      */
     @GameTest
     public void anyUseOpensTheBenchAndASneakDoesNot(GameTestHelper helper) {
@@ -222,10 +241,10 @@ public final class SalvageGameTest {
                 net.minecraft.world.inventory.ContainerLevelAccess.NULL;
 
         DungeonLog.forServer(server).setKeystone(player.getUUID(), 0, Set.of());
-        helper.assertTrue(!SalvageStation.onUse(player, grindstone, hand, access, true),
-                "below the unlock level an empty hand gets the vanilla grindstone");
+        helper.assertTrue(SalvageStation.onUse(player, grindstone, hand, access, true),
+                "J5: no unlock level, so an empty hand opens the bench from level 0");
+        player.closeContainer();
 
-        DungeonLog.forServer(server).setKeystone(player.getUUID(), 5, Set.of());
         player.setItemInHand(hand, new ItemStack(Items.TRIAL_KEY));
         helper.assertTrue(!SalvageStation.onUse(player, grindstone, hand, access),
                 "outside the dungeon even a vault key gets the vanilla grindstone");

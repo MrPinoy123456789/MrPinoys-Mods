@@ -1,16 +1,51 @@
 {
   "name": "Copper Works",
+  "token": {
+    "mat": "minecraft:copper_block"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:husk",
+        "count": 4
+      },
+      {
+        "type": "minecraft:skeleton",
+        "count": 2
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:vindicator",
+      "name": "The Foreman",
+      "health": 60,
+      "mainhand": "minecraft:copper_axe"
+    }
+  },
+  "mobUniform": {
+    "armour": [
+      "minecraft:copper_helmet",
+      "minecraft:copper_chestplate",
+      "minecraft:copper_leggings",
+      "minecraft:copper_boots"
+    ],
+    "armourPieces": 1,
+    "rangedArmourPieces": 2,
+    "weapon": "minecraft:copper_sword",
+    "chance": 1.0
+  },
+  "notes": "A copper forge full of coal and iron. Smelt as you go.",
   "act": 2,
-  "kind": "story",
+  "baseLevel": 8,
+  "kind": "dungeon",
   "mainTheme": "copper_works",
   "lootBand": {
     "min": 2,
     "max": 3
   },
   "nodePalette": [
-    "copper_ore",
-    "deepslate_copper_ore",
-    "iron_ore"
+    "iron_ore",
+    "coal_ore"
   ],
   "deviation": {
     "chance": 0.2,
@@ -28,31 +63,44 @@
     {
       "id": "boiler_hall",
       "name": "Boiler Hall",
+      "notes": "Boilers and forges. Raid the coal bunkers.",
       "layer": 2,
       "roomBias": [
-        "copper_works_forge"
+        "copper_works_forge",
+        "copper_boiler",
+        "copper_pipe_hall"
       ]
     },
     {
       "id": "pipe_galleries",
       "name": "Pipe Galleries",
-      "layer": 2
+      "notes": "An ore chute and pipe galleries. Coal and iron.",
+      "layer": 2,
+      "roomBias": [
+        "copper_ore_chute"
+      ]
     },
     {
       "id": "gear_loft",
       "name": "Gear Loft",
+      "notes": "A deepslate loft. Different stone, different mobs.",
       "layer": 3,
       "theme": "deepslate",
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
+        },
+        {
+          "item": "gear:armour:2",
+          "count": 1
         }
       ]
     },
     {
       "id": "verdigris_foundry",
       "name": "Verdigris Foundry",
+      "notes": "Old forges, green with age.",
       "layer": 3,
       "roomBias": [
         "copper_works_forge"
@@ -61,8 +109,12 @@
     {
       "id": "master_furnace",
       "name": "The Master Furnace",
+      "notes": "The last floor. Smelt on the spot at the Master Furnace.",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": [
+        "master_furnace"
+      ]
     }
   ],
   "edges": [
@@ -89,7 +141,7 @@
     {
       "from": "boiler_hall",
       "to": "gear_loft",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "verdigris_foundry",

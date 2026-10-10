@@ -1,7 +1,11 @@
 {
   "name": "Cow Pits",
+  "token": { "mat": "minecraft:hay_block" },
+  "notes": "A barn of numbered cows: beef, leather and a mine below.",
   "act": 2,
-  "kind": "resource",
+  "baseLevel": 6,
+  "kind": "dungeon",
+  "minNodeRooms": 0,
   "mainTheme": "cow_pits",
   "lootBand": {
     "min": 2,
@@ -18,19 +22,25 @@
       "layer": 1,
       "light": "dim",
       "roomBias": [
-        "cow_pens"
+        "cow_pens",
+        "cow_ward",
+        "mineshaft_seam",
+        "mineshaft_dead_end",
+        "root_sandbar"
       ]
     },
     {
       "id": "the_big_barn",
       "name": "The Big Barn",
+      "notes": "The last floor. The herd, the lofts and a mine below.",
       "layer": 2,
       "final": true,
       "light": "dim",
       "roomBias": [
         "cow_pens",
         "hay_loft",
-        "cow_yard"
+        "cow_yard",
+        "mineshaft_junction"
       ]
     }
   ],

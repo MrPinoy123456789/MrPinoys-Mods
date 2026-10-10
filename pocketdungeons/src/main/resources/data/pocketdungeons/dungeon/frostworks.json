@@ -1,7 +1,31 @@
 {
   "name": "Frostworks",
+  "token": {
+    "mat": "minecraft:blue_ice"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:stray",
+        "count": 5
+      },
+      {
+        "type": "minecraft:zombie",
+        "count": 2
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:stray",
+      "name": "The Frost Warden",
+      "health": 50,
+      "mainhand": "minecraft:bow"
+    }
+  },
+  "notes": "Ice and powder snow. Iron, lapis and diamond.",
   "act": 2,
-  "kind": "story",
+  "baseLevel": 10,
+  "kind": "dungeon",
   "mainTheme": "frostworks",
   "lootBand": {
     "min": 2,
@@ -29,11 +53,13 @@
     {
       "id": "ice_kitchens",
       "name": "Ice Kitchens",
+      "notes": "Frozen kitchens and cold halls.",
       "layer": 2
     },
     {
       "id": "glaze_furnaces",
       "name": "Glaze Furnaces",
+      "notes": "Molten floors: the only lava you will find.",
       "layer": 2,
       "signatureAffix": "molten",
       "roomBias": [
@@ -43,39 +69,53 @@
     {
       "id": "stray_barracks",
       "name": "Stray Barracks",
+      "notes": "Deepslate barracks hidden in the ice.",
       "layer": 3,
       "theme": "deepslate"
     },
     {
       "id": "powder_snow_fields",
       "name": "Powder Snow Fields",
+      "notes": "Powder snow pits and drifts, with iron beneath.",
       "layer": 3,
       "roomBias": [
-        "powder_snow_field"
+        "powder_snow_field",
+        "frost_snowdrift"
       ]
     },
     {
       "id": "glaze_vault",
       "name": "Glaze Vault",
+      "notes": "A barred vault. Bring a trial key.",
       "layer": 3,
       "roomBias": [
         "barred_vault"
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 3
+        },
+        {
+          "item": "gear:tool:2",
+          "count": 1
         }
       ]
     },
     {
       "id": "cold_storage",
       "name": "Cold Storage",
-      "layer": 4
+      "notes": "Frozen lockers and an ice vault: iron, lapis, diamond.",
+      "layer": 4,
+      "roomBias": [
+        "frost_cold_store",
+        "frost_ice_vault"
+      ]
     },
     {
       "id": "ice_run",
       "name": "Ice Run",
+      "notes": "Slick ice. One slip and you slide.",
       "layer": 4,
       "roomBias": [
         "ice_run"
@@ -84,8 +124,12 @@
     {
       "id": "big_freeze",
       "name": "The Big Freeze",
+      "notes": "The last floor. A frozen cascade of lapis and diamond.",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": [
+        "big_freeze"
+      ]
     }
   ],
   "edges": [
@@ -112,7 +156,7 @@
     {
       "from": "glaze_furnaces",
       "to": "glaze_vault",
-      "cost": 2
+      "lives": 2
     },
     {
       "from": "stray_barracks",

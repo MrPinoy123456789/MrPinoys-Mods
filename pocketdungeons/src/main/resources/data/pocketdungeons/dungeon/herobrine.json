@@ -1,6 +1,8 @@
 {
   "name": "Herobrine",
+  "token": { "mat": "minecraft:obsidian" },
   "act": 5,
+  "baseLevel": 25,
   "kind": "capstone",
   "mainTheme": "herobrine",
   "lootBand": {

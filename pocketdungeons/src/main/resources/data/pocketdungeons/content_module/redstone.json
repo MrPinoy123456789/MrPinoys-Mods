@@ -1,0 +1,32 @@
+{
+  "id": "redstone",
+  "label": "Redstone",
+  "description": "Redstone dust, pistons, repeaters, rails and lightning rods.",
+  "default": false,
+  "loot": {
+    "chests/tier_1": "modules/redstone/chests/redstone",
+    "chests/tier_2": "modules/redstone/chests/redstone",
+    "chests/tier_3": "modules/redstone/chests/redstone",
+    "chests/tier_4": "modules/redstone/chests/redstone",
+    "chests/tier_1_ominous": "modules/redstone/chests/redstone",
+    "chests/tier_2_ominous": "modules/redstone/chests/redstone",
+    "chests/tier_3_ominous": "modules/redstone/chests/redstone",
+    "chests/tier_4_ominous": "modules/redstone/chests/redstone",
+    "chests/supply_tier_1": "modules/redstone/chests/redstone",
+    "chests/supply_tier_2": "modules/redstone/chests/redstone",
+    "chests/supply_tier_3": "modules/redstone/chests/redstone",
+    "chests/supply_tier_4": "modules/redstone/chests/redstone"
+  },
+  "allow": [
+    "redstone",
+    "piston",
+    "sticky_piston",
+    "repeater",
+    "comparator",
+    "rail",
+    "powered_rail",
+    "detector_rail",
+    "activator_rail",
+    "lightning_rod"
+  ]
+}

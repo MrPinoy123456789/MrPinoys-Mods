@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/helmet_3"
+        },
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/chestplate_3"
+        },
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/leggings_3"
+        },
+        {
+          "type": "minecraft:loot_table",
+          "value": "pocketdungeons:gear/boots_3"
+        }
+      ]
+    }
+  ]
+}

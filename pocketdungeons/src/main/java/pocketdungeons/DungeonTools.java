@@ -77,20 +77,41 @@ public final class DungeonTools {
      * craft result taken inside the dungeon dimension.
      */
     public static ItemStack limitDurability(ItemStack stack) {
+        return limitDurability(stack, PocketDungeonsConfig.craftedDurabilityPercent(), 0);
+    }
+
+    /**
+     * {@link #limitDurability(ItemStack)} at a given {@code percent} of the cap table (the loot and
+     * crafted knobs, {@link PocketDungeonsConfig#lootDurabilityPercent}). A stack whose maximum is
+     * already at or below the cap at {@code keepPercent} is left alone, so gear that took the
+     * (higher) loot cap is not cut back to the (lower) crafted cap when it later becomes an item
+     * entity. Pass {@code 0} to keep nothing beyond {@code percent} itself.
+     */
+    public static ItemStack limitDurability(ItemStack stack, int percent, int keepPercent) {
         if (stack.isEmpty()) {
             return stack;
         }
-        int cap = durabilityCap(stack.getItem());
-        if (cap <= 0) {
+        int base = durabilityCap(stack.getItem());
+        if (base <= 0) {
             return stack;
         }
+        int cap = scaledCap(base, percent);
+        int keep = Math.max(cap, scaledCap(base, keepPercent));
         Integer max = stack.get(DataComponents.MAX_DAMAGE);
-        if (max != null && max <= cap) {
+        if (max != null && max <= keep) {
             return stack; // already capped (or a kit item authored lower): never raise it
         }
         ItemStack copy = stack.copy();
-        capInPlace(copy);
+        applyCap(copy, cap);
         return copy;
+    }
+
+    /** {@code base} scaled by {@code percent}, never below 1; {@code base} itself when it is not a cap. */
+    public static int scaledCap(int base, int percent) {
+        if (base <= 0) {
+            return base;
+        }
+        return Math.max(1, (int) Math.round(base * Math.max(1, percent) / 100.0));
     }
 
     /**
@@ -106,14 +127,20 @@ public final class DungeonTools {
         if (stack.isEmpty()) {
             return;
         }
-        int cap = durabilityCap(stack.getItem());
-        if (cap <= 0) {
+        int base = durabilityCap(stack.getItem());
+        if (base <= 0) {
             return;
         }
+        int cap = scaledCap(base, PocketDungeonsConfig.craftedDurabilityPercent());
         Integer max = stack.get(DataComponents.MAX_DAMAGE);
         if (max != null && max <= cap) {
             return;
         }
+        applyCap(stack, cap);
+    }
+
+    private static void applyCap(ItemStack stack, int cap) {
+        Integer max = stack.get(DataComponents.MAX_DAMAGE);
         int damage = stack.getDamageValue();
         stack.set(DataComponents.MAX_DAMAGE, cap);
         if (damage > 0 && max != null) {

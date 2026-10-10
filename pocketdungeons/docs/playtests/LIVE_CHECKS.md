@@ -94,7 +94,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L6. PD-79: Lemon answers in time
 
-- **Status:** passed 2026-10-04 (`2026-10-04-1.md`): about 30 player asks, `wait` returned each in 3 to 13 s, no `lemon unanswered` for a player question. Keep watching one more session; earlier failure (PD-118) not seen.
+- **Status:** partial again 2026-10-08 (`2026-10-08-1.md`): about 25 player asks, but five hit the 45 s fallback and journaled `llm_late` and one went fully unanswered (wait_s 117). Every miss was agent-side latency between watcher polls, not a server fault; `lemon_think` auto-hold works but cannot beat an agent that is between polls. Harness fix wanted: the watcher should auto-reply a hold line, not just think. Earlier: partial again 2026-10-07 (`2026-10-07-1.md`): most asks answered in seconds, but `lemon_reply` intermittently returned "No player was found" with the player online (PD-163), and one ask hit `lemon unanswered` over it; a second raced the 45 s fallback after slow investigation. Keep watching. Earlier: passed 2026-10-04 (`2026-10-04-1.md`): about 30 player asks, `wait` returned each in 3 to 13 s, no `lemon unanswered` for a player question. Keep watching one more session; earlier failure (PD-118) not seen.
 - **Fixed:** 2026-10-01: `lemon think` now really holds the question (it used to
   be ignored, so the fallback fired at 45 seconds anyway), and `wait` no longer
   skips a log line caught mid-write. Most past timeouts were the agent
@@ -108,7 +108,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L7. PD-80: quiet waits report correctly
 
-- **Status:** passed 2026-10-01 (`2026-10-01-2.md`): a full session on the new `lemonwatch.mjs` loop printed only clean `no new events (timeout)` lines while the server was up. Keep watching for one more session before retiring.
+- **Status:** passed 2026-10-07 (`2026-10-07-1.md`): clean quiet waits on the remote Kinetic server too, no false `server is down`. Earlier: passed 2026-10-01 (`2026-10-01-2.md`): a full session on the new `lemonwatch.mjs` loop printed only clean `no new events (timeout)` lines while the server was up. Keep watching for one more session before retiring.
 - **Fixed:** 2026-09-30; two clean quiet waits on 2026-10-01-1.
 - **Do:** nothing extra.
 - **Pass:** a quiet `wait` prints `no new events (timeout)` while the server is
@@ -186,7 +186,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L13. 2026-10-02: economy changes (stack caps, echo shards, armour, fountain)
 
-- **Status:** partial, 2026-10-02-2.md: a dead-end fountain was used once (food boon, `fountain` event at 20:42 local) and worked; `echo_shards` events seen with sources `floor`, `interval` and `ordeal`. No stack-merge complaint. Failed on design: the player does not want the `floor` source (0.5 per floor); he wants one shard per full interval plus Ordeal chance only. Not seen: armour drop volume, ender chest as obsidian, the Guard's Bag, fountain reuse.
+- **Status:** partial, 2026-10-07-1.md: another dead-end fountain use (food boon, journal `fountain` 00:47:25), unremarked on. 2026-10-02-2.md: a dead-end fountain was used once (food boon, `fountain` event at 20:42 local) and worked; `echo_shards` events seen with sources `floor`, `interval` and `ordeal`. No stack-merge complaint. Failed on design: the player does not want the `floor` source (0.5 per floor); he wants one shard per full interval plus Ordeal chance only. Not seen: armour drop volume, ender chest as obsidian, the Guard's Bag, fountain reuse.
 - **Changed:** 2026-10-02: no stack caps; echo shards from every full interval, from floors (50 percent) and from Ordeals (25 percent); fewer armour drops; ender chests in loot are obsidian; dead-end fountains (15 percent); a Guard's Bag (sword, shield, bread).
 - **Do:** watch. Count echo shards gained per interval from the `echo_shards` journal events. Ask the player whether shards now feel plentiful. If a dead end holds a fountain (a water cauldron on a chiseled block: quartz heals, sandstone feeds, deepslate cleanses omen) note whether they find and use it. Offer the Guard's Bag only if the player asks about kits.
 - **Pass:** `echo_shards` events with sources `interval`, `floor` and `ordeal`; blocks, torches and arrows stack to 64; no ender chest in loot; the fountain empties after one use, gives its boon, and its pedestal turns to plain chiseled stone bricks.
@@ -288,7 +288,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L25. 2026-10-05: finishing pulls (Stage 1 hypothesis 2, A7 and A2)
 
-- **Status:** partial pass 2026-10-06 (`2026-10-06-1.md`): he finished the Mineshaft (3 floors, `dungeon_finished`, first clear) and the diary page arrived (entry 8, which he read and reported clipped, PD-157). Caveat: `dungeon_finished` journaled `shards:0`; under the new barrel model vault rolls merge so `vault_chests:0` is expected, but confirm the finish shard paid. Earlier: owed, 2026-10-05-1.md: inconclusive, quit on the final floor for real-life reasons.
+- **Status:** pass 2026-10-08 (`2026-10-08-1.md`): three finishes in one session (Infestation 4 floors, Spawner Dungeon capstone 3 floors, Copper Works 4 floors), all unprompted; the Spawner milestone title landed ("The Spawner Dungeon Cleared Go Home worked", PD-165 verified live). Remaining caveat: the finish's flat ending now reads as missing a finale (PD-184). Earlier: partial pass 2026-10-07 (`2026-10-07-1.md`): two more unprompted first finishes (Copper Works 4 floors, Cow Pits 2 floors), diary pages 13 and 15 arrived, vault_chests 2 each. New caveat: he does not recall any "<Dungeon> cleared" milestone title on either (PD-165). Earlier: partial pass 2026-10-06 (`2026-10-06-1.md`): he finished the Mineshaft (3 floors, `dungeon_finished`, first clear) and the diary page arrived (entry 8, which he read and reported clipped, PD-157). Caveat: `dungeon_finished` journaled `shards:0`; under the new barrel model vault rolls merge so `vault_chests:0` is expected, but confirm the finish shard paid. Earlier: owed, 2026-10-05-1.md: inconclusive, quit on the final floor for real-life reasons.
 - **Changed:** 2026-10-05: clearing a final node pays one echo shard per member, a themed vault of two top tier chests and, on a first finish, a diary page. Going home early pays none of it.
 - **Do:** discovery check. Count floors per trip (it used to be three every time) and note why he went on or went home at each staging room. Journal events: `door_commit`, `bank`, `dungeon_finished`. Ask about the vault and the page only after he has seen them.
 - **Pass:** he plays past three floors to finish at least once, or names the vault or the page as the reason.
@@ -296,7 +296,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L26. 2026-10-05: dungeon length is right (Stage 1 hypothesis 3, A8)
 
-- **Status:** pass 2026-10-06 (`2026-10-06-1.md`): full Mineshaft clear (3 floors) took about 30 minutes door to bank (entry ~04:58, `dungeon_finished` 05:28), floors at 364 s and 633 s bookends with chat inflation. No drag complaint. Earlier: owed, 2026-10-05-1.md.
+- **Status:** pass 2026-10-07 (`2026-10-07-1.md`): Copper Works 4 floors in about 25 minutes of play (clears 119/77/81/187 s) and Cow Pits 2 floors in about 8 minutes; no drag complaint, both finished unprompted. Earlier: pass 2026-10-06 (`2026-10-06-1.md`): full Mineshaft clear (3 floors) took about 30 minutes door to bank (entry ~04:58, `dungeon_finished` 05:28), floors at 364 s and 633 s bookends with chat inflation. No drag complaint. Earlier: owed, 2026-10-05-1.md.
 - **Changed:** 2026-10-05: 3 to 6 layers per dungeon (the Act 1 story dungeons have 3 to 4), one floor per layer; resource dungeons have 1 to 3.
 - **Do:** time a full dungeon from the first door to HOME with the journal (`node_entered` to `dungeon_finished`). Note seconds per floor (floor 1 was the slowest at 218 to 828 s) and where he slows or asks to stop.
 - **Pass:** a full Act 1 dungeon fits in about 45 minutes or less with no strong complaint of drag.
@@ -304,7 +304,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L27. 2026-10-05: shards buy branches (Stage 1 hypothesis 4, A3 and A6)
 
-- **Status:** owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
+- **Status:** owed, 2026-10-07-1.md: still not exercised (no priced edge taken), but the currency has moved to scrap: a side-branch refusal "2 scrap short" was seen live (PD-162: it names the gap, not the holding). This row's shard wording is stale. Earlier: owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
 - **Changed:** 2026-10-05: a side edge costs echo shards (authored per edge, usually 1), paid by the member who pulls the lever; shards come only from finishing a dungeon and from Ordeals.
 - **Do:** watch shards held at each staging room, side branches taken and shards left unspent. Journal: `edge_taken` with its cost.
 - **Pass:** he takes a side branch at least once and weighs it aloud, with some shards spent and some kept.
@@ -312,7 +312,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L28. 2026-10-05: random steps and the doors screen
 
-- **Status:** still owed 2026-10-06 (`2026-10-06-1.md`): the new one-layout board was seen and read (he asked what "Same as door 1" meant, then rejected duplicates outright, superseding PD-153: "if they are the same then they should have different affixes"). Door-choice weighing still not observed closely. Earlier: failed for resource dungeons 2026-10-05 (`2026-10-05-1.md`).
+- **Status:** superseded by design 2026-10-08 (`2026-10-08-1.md`): he rejected the three-random-door model entirely ("The 3 random doors doesn't really work with the new dungeon act system", "players should be able to choose the act and dungeon"; his top pick for "first thing you'd change" at wrap). The door-screen question is now PD-181: replace the front offer with act/dungeon selection. Earlier: still owed 2026-10-06 (`2026-10-06-1.md`): the new one-layout board was seen and read (he asked what "Same as door 1" meant, then rejected duplicates outright, superseding PD-153: "if they are the same then they should have different affixes"). Door-choice weighing still not observed closely. Earlier: failed for resource dungeons 2026-10-05 (`2026-10-05-1.md`).
 - **Changed:** 2026-10-05: each door is dealt +1, +2 or +3 (seeded, the same for a preview and its commit); a resource dungeon deals 0. A door shows its floor name, step, loot tier and shard cost; later steps are never shown.
 - **Do:** at three staging rooms, ask which door he is picking and why; note whether he always takes +3.
 - **Pass:** the choice reads as meaningful, the door text is read, and the same door shows the same step on a second look.
@@ -336,7 +336,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L31. 2026-10-05: the Spawner Dungeon and Ancient City capstones
 
-- **Status:** owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
+- **Status:** half passed 2026-10-08 (`2026-10-08-1.md`): Spawner Dungeon cleared live at floor omen 4, lives 1, all 4 spawners then the brood wave; `dungeon_finished` journaled and the milestone title landed ("The Spawner Dungeon Cleared Go Home worked"). Difficulty verdict: "just barely enough resources to succeed". Ancient City still owed. Earlier: owed, 2026-10-07-1.md: he cleared two Act 2 dungeons tonight (Copper Works, Cow Pits), so Act 2 is open for him, but whether that came from a legitimate capstone clear or bypassed gating is unverified (no /dungeon map opened, dungeonsFinished unread). Neither capstone was entered. Earlier: owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
 - **Changed:** 2026-10-05: Spawner Dungeon (Act 1): four classic spawners, then a final wave; the pad stays shut until both stages are done. Ancient City (Act 2): every sculk sensor and shrieker raises omen, a real Warden arrives at omen 4 and does not gate the pad.
 - **Do:** solo and in a party of two, clear each. Note the brood size, how the spawner break and the exhaust rule feel, and what the omen bar does in the Ancient City.
 - **Pass:** the pad opens only after the brood, a clear unlocks the next act with a title, the Warden arrives and the party can still finish by reaching the terminal.
@@ -368,7 +368,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L35. 2026-10-05: Cow Pits finite cows and resource dungeon rewards
 
-- **Status:** owed, 2026-10-05-1.md: Mineshaft half exercised. Two of three floors rolled zero nodes (PD-149) and the one themed ore room was too generous (PD-155). Diary page not seen (no finish). Cow Pits untouched: it is Act 2.
+- **Status:** partial, 2026-10-07-1.md: Cow Pits finished for the first time (2 floors, `dungeon_finished first:true`, diary entry_15 arrived in the pack). Finite-cow limit not exercised (no breeding attempted). Copper Works x4 floors rolled `nodes_total` 0 with its palette advertised on the doors (PD-161). Earlier: owed, 2026-10-05-1.md: Mineshaft half exercised. Two of three floors rolled zero nodes (PD-149) and the one themed ore room was too generous (PD-155). Diary page not seen (no finish). Cow Pits untouched: it is Act 2.
 - **Changed:** 2026-10-05 (D11, D12): resource dungeons deal step 0, pay no shard or vault, and give a diary page on the first finish. Cow Pits has 6 to 10 adult cows, no wheat and no breeding.
 - **Do:** run Mineshaft and Cow Pits; try to breed or feed cows, count the beef and leather, and note ore mined against durability spent (a farming risk).
 - **Pass:** cows cannot be multiplied, the haul is real but bounded, the key does not climb, the diary page arrives on the first finish only.
@@ -392,7 +392,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L38. 2026-10-06: the Store is one row you click
 
-- **Status:** owed
+- **Status:** passed 2026-10-08 (`2026-10-08-1.md`): used unprompted many times across the session (7 `shop_sale` events on one floor, more at home); verdict "The shop works perfectly". Sold-out and short-price edge cases not specifically probed but nothing failed in normal use.
 - **Changed:** 2026-10-06 (PD-159, `StoreNPC.openShop`): the Store opens a one row shop; a click takes one, the stock is claimed with the delivery, and a bought stack is the plain item.
 - **Do:** Open a Store. Left click and right click an item. Buy a log twice with a log already in the pack. Stand with too little of the currency. Buy a line out.
 - **Pass:** Both clicks buy one and hand it over; the log stacks with the one you had; the price reads red when you cannot pay; a sold out line becomes a gray pane named sold out and refuses.
@@ -408,7 +408,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L40. 2026-10-06: a Mineshaft floor 1 has ore
 
-- **Status:** owed
+- **Status:** passed 2026-10-08 (`2026-10-08-1.md`): Mineshaft floor 1 rolled `nodes_total` 31, `nodes_mined` 25, `floor_pay` scrap 1; the ore is real and mined. Only one floor 1 sampled (the check asked for three), but the zero-node failure mode did not appear.
 - **Changed:** 2026-10-06 (PD-149, `LayoutPlanner.plan`): a resource floor whose plan fits none of its ore rooms retries the next seed.
 - **Do:** Start the Mineshaft three times and read the floor_complete line of floor 1 each time.
 - **Pass:** `nodes_total` is above 0 on floor 1 every time, and the player can see ore.
@@ -440,7 +440,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L44. 2026-10-06: doors behind one edge differ in affixes
 
-- **Status:** owed
+- **Status:** passed 2026-10-07 (`2026-10-07-1.md`): one Doors screen dealt Ominous, Silenced and Feral over steps 2/1/3 on the same node, and an earlier pair dealt Overclocked and Molten; no "Same as door" line seen. Earlier: owed
 - **Changed:** 2026-10-06 (design item 3, `DoorAffixes`): doors that lead to the same floor reroll their seeded affixes until no two are twins.
 - **Do:** At a node with one edge, at compass 5 or higher, preview the three doors.
 - **Pass:** The three doors show different affixes (at compass 5 only the step differs, by design); no `Same as door` line.
@@ -448,7 +448,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L45. 2026-10-06: resource doors show scrap and ore
 
-- **Status:** owed
+- **Status:** partial 2026-10-07 (`2026-10-07-1.md`): the two-sheet board replaced this wording; on Copper Works the right sheet read "Boiler Hall, Explosive, 6 emeralds iron coal, lootx3" (emerald pay while overleveled, ore as plain words, loot count in green). But PD-161: the ore promise lied, all four floors had `nodes_total` 0. Mineshaft doors still unseen this build; em-dash-era "MINESHAFT - floor N of 3" title not rechecked. Earlier: owed
 - **Changed:** 2026-10-06 (design items 1 and 6, `DungeonScreen.previewContent`): Mineshaft floors pay chart scrap like any floor, and the door board shows the ore as plain words.
 - **Do:** Preview each Mineshaft door. Read the title, the name, the cyan line and the loot line. On a capstone door read the title width.
 - **Pass:** Title `MINESHAFT - floor N of 3` (middle dot) in yellow; cyan line `2 scrap` then coal, copper, iron, gold; `loot x3` in green; dim or dark on its own line. Titles fit the backdrop; the Wither's Keep and Spawner Dungeon titles measure about 8.4 and 9.3 blocks on an 8 block backdrop, so note how they look.
@@ -456,7 +456,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L46. 2026-10-06: GO HOME reads scrap and charts
 
-- **Status:** owed
+- **Status:** wording superseded; seen live 2026-10-07 (`2026-10-07-1.md`): the board now shows title plus "Lives N" (and "Unfinished: vault, page" while owed) per J1; the player saw it and asked for his scrap count on it ("The home board should be showing me my current scrap"), a design note now folded into PD-162. Earlier: owed
 - **Changed:** 2026-10-06 (design item 2, `IntervalBanking.homeScreen`): the GO HOME board is a title and a body: scrap carried, then what it comes to.
 - **Do:** Go home with 3, 5, 7 and 10 scrap carried (or read the board at each step of a trip).
 - **Pass:** 3 scrap over 2 more for a chart (gold); 5 scrap over 1 chart (green); 7 scrap over 1 chart, a middle dot, 2 scrap lost (gray); 10 scrap over 2 charts. Nothing carried reads no scrap yet. The banked chat line says N scrap lost.
@@ -472,8 +472,108 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L48. 2026-10-06: Dungeon Storage survives a logout and a teardown
 
+- **Status:** passed 2026-10-07 (`2026-10-07-1.md`): he used it unprompted and heavily (stashed 64 emeralds plus gear and mats mid-trip); the same contents rode through the 00:04 disconnect plus purge, two banked trips and two dungeon finishes (`inventory_snapshot` shows the stacks carried across all of it). The safe-room ender chest opening the same storage was not separately watched, but the storage is a `DungeonLog` record now, so the chest is only a door to it. Earlier: owed
+- **Changed:** 2026-10-06 (design item 5 and J6, `RunStorage`): the storage chest is a 27 slot container saved in `DungeonLog`; any ender chest in a live instance's safe room or at the Doors opens it, and nothing moves it when a run ends.
+- **Do:** Put items in the staging room's ender chest (titled Dungeon Storage), log out and back in, finish or fail a run, start another and open it again. Try the same from an ender chest inside the safe room at the far end.
+- **Pass:** The items are still in their slots after the logout, the teardown and a max omen death; the safe room chest opens the same storage as the one at the Doors.
+- **Fail signs:** An empty storage after a run closes; a stored item in the pack instead; an ender chest in the dungeon opening the vanilla ender chest.
+
+## L49. 2026-10-06: five bags at the lectern
+
 - **Status:** owed
-- **Changed:** 2026-10-06 (design item 5, `RunStorage`): the storage chest is a 27 slot container saved in `DungeonLog`; nothing moves it when a run ends.
-- **Do:** Put items in the staging room's ender chest (titled Dungeon Storage), log out and back in, finish or fail a run, start another and open it again. Then die at max omen after adding loot.
-- **Pass:** The items are still in their slots after the logout and the teardown and nothing went to the pack; a max omen death returns the storage to how it was when the interval began (earlier trips' items safe, this interval's stashed loot gone).
-- **Fail signs:** An empty storage after a run closes; a stored item in the pack instead; a duplicate after the death.
+- **Changed:** 2026-10-06 (L1, `BagIds.CORE`): the bag picker offers Guard, Ranger, Sapper, Lumberjack and Innkeeper. Pilgrim, Shepherd, Mason, Magician and Plumber sit behind the `extra_bags` content module, off by default.
+- **Do:** Open the bag lectern on a fresh world and read the five blurbs. Kit out as each bag and check the kit matches the blurb.
+- **Pass:** Exactly five bags; Sapper's kit holds a stone pickaxe, Lumberjack's an axe and oak logs, Innkeeper's a Rolling Pin named item; no module, no cut bag appears.
+- **Fail signs:** Nine or ten bags; a missing kit item; Plumber in the list.
+
+## L50. 2026-10-06: the Store is a villager's trade screen
+
+- **Status:** pass 2026-10-08 (`2026-10-07-2.md`): completed trades now journaled from two vendors: `shop_sale` x2 (Web Trader, 1 emerald for 3 string) and `shop_purchase` (Wandering Merchant, bow for 3 emeralds; home Librarian, diamond leggings for 18). Earlier: partial 2026-10-07 (`2026-10-07-1.md`, screen opened, no journaled trade); owed
+- **Changed:** 2026-10-06 (J4, `StoreNPC`, `MerchantThemes`): each themed merchant is a tagged villager with real `MerchantOffer`s. Leftover drops go in as bundles, the pool pays out in the merchant's currency.
+- **Do:** Trade at two different themed merchants; buy something and watch the journal.
+- **Pass:** The vanilla merchant screen opens, not a chest menu; offers are real trades; a completed trade writes a `shop_sale` journal row with the item.
+- **Fail signs:** A chest interface; an offer that cannot complete; trades that vanish after a floor.
+
+## L51. 2026-10-06: the stations that remain
+
+- **Status:** owed, 2026-10-07-1.md: not exercised (no station used this session). Incidental: the safe room's station list showed crafting_table, damaged_anvil, furnace, grindstone, smithing_table and no enchanting table; if reroll lives at an enchanting table the home set may be missing it (unconfirmed, the list may only count placed blocks). Earlier: owed
+- **Changed:** 2026-10-06 (J5, `RitualListener`, `StationTutorial`): four stations remain: Salvage at the anvil, Reroll at the enchanting table, the Home Vendor, the Bag Chest. No level gates. Gamble, Blacksmith and Lock In are gone.
+- **Do:** Visit a station room in the dungeon and try each station. Put a scrapable drop on the anvil; put a gear piece on the enchanting table.
+- **Pass:** Salvage opens regardless of level; the enchanting table rerolls; no gamble screen, no blacksmith villager, no lock-in prompt.
+- **Fail signs:** A "too low level" refusal; the smithing table opening reroll; the Cube answering a use.
+
+## L52. 2026-10-06: the librarian sells rolled gear
+
+- **Status:** partial 2026-10-10 (`2026-10-09-1.md`): Mending offer confirmed live: `shop_purchase` enchanted_book from the home Librarian for 64 emeralds (the L52 price point). Buy-back used heavily same trip (40 rotten flesh, 8 lapis). Offer count and restock-on-homecoming still unverified. Earlier: partial 2026-10-08 (`2026-10-07-2.md`): he built the lectern (and enchanting table, grindstone, smithing table) in his safe room and bought rolled gear from the Librarian: `shop_purchase` diamond_leggings for 18 emeralds. Offer count, Mending price and restock-on-homecoming still unverified. Earlier: owed, 2026-10-07-1.md: not exercised
+- **Changed:** 2026-10-06 (J5a, `LibrarianNPC`, `VendorMath`, `VendorStock`): the home librarian is a real villager whose offers are rolled gear tiers up to the owner's act, plus Mending for 64 emeralds, plus a buy-back of surplus drops.
+- **Do:** Open the librarian after finishing an Act 1 floor and again after an Act 2 unlock. Buy a gear offer.
+- **Pass:** Act 1 shows six offers (tiers I and II); Act 2 adds tier III for nine; never tier IV; every reroll on a homecoming changes the stock; Mending costs 64 emeralds.
+- **Fail signs:** Vanilla librarian enchanted book trades; stock that never changes; tier IV before a capstone.
+
+## L53. 2026-10-06: keys settle on the clear line
+
+- **Status:** partial 2026-10-08 (`2026-10-07-2.md`): key redemption on the clear line confirmed by `floor_pay` emerald payloads of 3, 4 and 1 emeralds alongside scrap (matching the J7 rates: 1 plain, 3 ominous). New related break: ominous trial keys cannot pay the barred_vault toll, so on ominous floors keys can only ever redeem (PD-170). Mob gear drops not rechecked this session. Earlier: owed, 2026-10-07-1.md
+- **Changed:** 2026-10-06 (J7, `DungeonDrops`, `RunLifecycle.redeemKeys`): mobs drop no gear in the dungeon, and trial keys never leave their floor. The salvage bench refuses keys; at a floor clear each unused key becomes emeralds.
+- **Do:** Kill dungeon mobs and check the drops; put a trial key in the salvage input; clear a floor holding a plain and an ominous trial key.
+- **Pass:** No weapons, armour or bows drop; the bench refuses the key; the clear line pays 1 emerald for the plain key and 3 for the ominous, and the keys are gone.
+- **Fail signs:** A mob dropping a bow; a key salvaging at the bench; a key still in hand after the clear.
+
+## L54. 2026-10-07: Haul and Blood Doors
+
+- **Status:** partial 2026-10-08 (`2026-10-08-1.md`): the model is no longer invisible: three lever banks and three finishes all journaled correctly, and lives pressure landed ("It was definitely pressure" at lives 2, two rescues). New legibility breaks: "Haul 0 scrap" on the GO HOME board after a finish (PD-179) and "Home 4 chests" unreadable (PD-180). Still untested: blood door taken, last-life refusal, disconnect/grace, party compasses. Earlier: partial 2026-10-08 (`2026-10-07-2.md`): every bank path verified in the journal (home lever x2, finish "banked 5", fifth-death fail "banked 4 of 8"), compass lore correct in and out of trip, GO HOME board shows per-member haul, lives, unfinished and the half-loss line, and floor clears pay zero emeralds. Model mechanics pass. Failed checks: blood door never taken (lives:1 edge previewed only), last-life refusal untested, disconnect/grace untested, milestone title not reached (first:false finishes), migration join message unverified. New breaks filed: owner death purges the party run at any lives count (PD-167), quit and purge never settle the haul (PD-168), quit strands dungeon gear in the overworld (PD-169), ominous keys cannot pay the vault toll (PD-170). Player's one-sentence explain: "I can't tell yet, feels like it doesn't exist": the model works but is invisible; his proposal "pull the lever is the payout ritual" is logged in the report. Earlier: owed
+- **Changed:** 2026-10-07 (`docs/decision-2026-10-07-haul-and-blood-doors.md`, PD-162): scrap rides in a per-trip haul that banks into the compass bar at home or a finish and is half lost to a failed dungeon; a side door costs the party a life; floors below your compass pay 1; no overlevel emeralds.
+- **Do:** (1) As a migrated compass 12 player: read the compass lore (`Compass 12: 0/5 scrap to 13`) and the one time join message; clear a Copper Works floor and read the clear line (`+1 scrap (you are above this floor). Haul 1.`). (2) Take a side door and watch Lives drop; try it at Lives 1. (3) Go home with a haul. (4) Fail on purpose with a haul. (5) Party of two with different compasses. (6) Disconnect mid trip, rejoin inside the grace, then let a grace expire. (7) Count emeralds over the session and deaths per trip. (8) Ask the player to explain the system in one sentence.
+- **Pass:** the lore, clear line, GO HOME board (`Haul N scrap`, `Lives N`, `Unfinished: ...`, footer while a haul is at risk) and door board (`Costs 1 life`) agree; going home says `Home. Banked N scrap: compass X, y/5 to Z.`; a failure says `Half your haul made it out: banked A of B scrap.`; the last life is never for sale; emeralds no longer come from floor clears.
+- **Fail signs:** the player still asks which of two numbers is their level; a side door is taken without thought (the price of a life is too low); a failure feels like nothing; an absent member's haul vanishes.
+
+## L55: the Astrolabe Room (wave B, 2026-10-09)
+- Does a first-time player find the astrolabe unprompted, and does right-click turn to the next open act (sneak turns back)?
+- Do the sign, doormat and bulb tell a dungeon and its state apart without reading the door screen? Does the oxidized bulb read as finished and the iron door as locked?
+- Does opening a door still show the first room through the window, and does the lever still descend into the room that was previewed?
+- Does the Endless Mine door appear at an end of the row when its compass is reached?
+- Is a repeat finish paying half the emeralds, and does `/dungeon reroll` explain itself?
+- With `hallEnabled` false, do the three random doors come back?
+
+## L56: the scrap curve (wave C, 2026-10-09)
+- Does the compass lore read `Compass N: p/price`, and does the price rise as the compass climbs?
+- At compass 10 to 15, does one trip through a dungeon of the right act gain about 2 levels?
+- Does a floor below your compass reading `+1 scrap (below your compass)` feel fair rather than an insult?
+- Does a final floor pay a visible extra scrap, and a deeper act pay more than Act 1?
+- Does an Endless Mine trip pay more the deeper it goes?
+
+## L57: finales and uniforms (wave D, 2026-10-09)
+- Copper Works: clearing the last floor\u0027s spawners brings the title, then The Foreman and his crew; does it land like the brood wave ("barely enough"), and does the boss bar read?
+- An Act 1 dungeon (Infestation, Ossuary): is a wave with no elite enough of an ending? Does the pad refuse until it is dead, saying why?
+- In a party, does the wave grow without becoming a slog? Does a won finale pay the extra chest?
+- Copper Works mobs: do zombies and husks wear one copper piece and a copper sword, skeletons two pieces, and does nothing drop?
+- Does the copper gear lengthen a Copper Works clear noticeably?
+
+## L58: sculk and the vault (wave E, 2026-10-09)
+- Does `Heard 2/4` on the sidebar read as stealth? Does a full meter (darkness, a wave, the Heard title) feel like the sculk answering?
+- Hush Gallery: can the wool ring be crossed without filling the meter? Is the straight dripstone way noisy enough to tempt and punish? Does clearing it unheard pay +1 scrap?
+- Ancient City: does the Warden wake on the second answer, and is crossing the final floor unheard a win?
+- Barred Vault: does the trial key work on the vault with no explanation, and does an ominous floor's vault want the ominous key? Does it give the relief life?
+- Ominous Bargain: is taking from the open chest still readable as the bargain?
+
+## L59: wolves and Restless (wave F, 2026-10-09)
+- Does Restless read from the door board ("the dead get up once. Burn them.")? Do you see the souls and hear the groan before the mob stands? Is fire reachable as counterplay?
+- The Kennels: is it worth choosing before the Spawner Dungeon? Do the Kennel Run's stray wolves take bones without being hit? Does The Alpha's finale land?
+- Wolf Hollow (Rootworks) and the Lost Dog: does clearing the camp tame the dog with no bones? Does a fourth wolf sit with the pack-full message?
+- Does the Spawner Dungeon capstone now correctly wait for the Kennels?
+
+## L60: ore (wave G, 2026-10-09)
+- Endless Mine: do the walls hide coal and iron, and does digging find it? Is it richer four floors down?
+- Deepslate: does `deep_shaft_landing` show enough ore on the landing?
+
+## L61: the Kennels rework (2026-10-09)
+- **Status:** failed 2026-10-10 (`2026-10-09-1.md`): the Kennels cannot be played through. A `kennels_tier_2` spawner queued wolves it could never place on a stone hall floor and soft-locked the gate (PD-194; admin removed it, grass+light proved the cause), and on the second trip fire spread burned the wooden kennel rooms (PD-195). Session ended on his call. Kennel Run, Guard Tower, the calm line, strays and The Alpha all remain owed.
+- Do the Kennel Run wolves charge as you enter? Is the room survivable at Act 1 level?
+- Guard Tower: can you run past, shoot the guard, and does "The pack goes quiet." fire when it falls? Does the ladder climb work with wolves biting?
+- Do the Kennels spawners (pillagers, wolves, vindicators from tier 2) read as breeders and their dogs? Any raid banner, Bad Omen or patrol behaviour from the pillagers?
+- Lost wolves (Wolf Hollow, Lost Dog): still friendly and tameable?
+- Warden whelp (L58): does it skip the roar, is 0.3 speed about the player, does the Heard meter hold while it is out?
+
+## L62: promised gear and carried keys (2026-10-10)
+- Deepslate Collapsed Landing's door names an enchanted weapon beside its 2 emeralds; the copper chest holds that same piece after the clear.
+- A vault key found on floor 2 opens a vault on floor 3 of the same dungeon, and is paid as emeralds when you bank (Home or finish), not at the floor clear.
+- A failed dungeon pays half the key emeralds, matching the haul share.

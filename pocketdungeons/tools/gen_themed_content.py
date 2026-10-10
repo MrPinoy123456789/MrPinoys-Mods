@@ -25,8 +25,19 @@ touched.
 
 import json
 import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import loot_rules
 
 SPAWNER_DIR = 'src/main/resources/data/pocketdungeons/trial_spawner'
+
+# The key share of a spawner's eject comes from tools/loot_knobs.json (spawnerKeyPercent), the same value
+# tools/tune_loot.py writes into the shipped files, so regenerating does not undo the tuning.
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'loot_knobs.json'), encoding='utf-8') as _handle:
+    _KNOBS = json.load(_handle)
+KEY_EJECT_WEIGHT = max(0, min(10, round(_KNOBS['spawnerKeyPercent'] / 10)))
+EMERALD_EJECT_WEIGHT = 10 - KEY_EJECT_WEIGHT
 CHESTS_DIR = 'src/main/resources/data/pocketdungeons/loot_table/chests'
 
 # Tier scaling: (total_mobs, simultaneous_mobs, total_added, sim_added, ticks)
@@ -34,15 +45,15 @@ NORMAL = {1: (4, 2, 2, 1, 40), 2: (6, 3, 2, 1, 30), 3: (8, 4, 3, 1, 20)}
 # Ominous adds +2 total, +1 simultaneous over normal, same ticks and adds.
 OMINOUS = {1: (6, 3, 2, 1, 40), 2: (8, 4, 2, 1, 30), 3: (10, 5, 3, 1, 20)}
 
-# Equipment loot tables per tier, keyed by melee/ranged. Tier 3 uses vanilla
-# trial chamber equipment, matching the crypt configs.
+# Equipment loot tables per tier, keyed by melee/ranged. All three tiers use
+# our own untrimmed tables (PD-106), matching the crypt configs.
 EQUIP = {
     1: {'melee': 'pocketdungeons:equipment/tier_1_melee',
         'ranged': 'pocketdungeons:equipment/tier_1_ranged'},
     2: {'melee': 'pocketdungeons:equipment/tier_2_melee',
         'ranged': 'pocketdungeons:equipment/tier_2_ranged'},
-    3: {'melee': 'minecraft:equipment/trial_chamber_melee',
-        'ranged': 'minecraft:equipment/trial_chamber_ranged'},
+    3: {'melee': 'pocketdungeons:equipment/tier_3_melee',
+        'ranged': 'pocketdungeons:equipment/tier_3_ranged'},
 }
 
 
@@ -73,9 +84,10 @@ def spawner_config(prefix, tier, ominous, roster):
         'ticks_between_spawn': ticks,
         'spawn_potentials': spawns,
         'loot_tables_to_eject': [
-            {'data': eject_key, 'weight': 5},
-            {'data': 'pocketdungeons:spawners/emeralds', 'weight': 5},
+            {'data': eject_key, 'weight': KEY_EJECT_WEIGHT},
+            {'data': 'pocketdungeons:spawners/emeralds', 'weight': EMERALD_EJECT_WEIGHT},
         ],
+        # The sky drops are vanilla's splash potions (buffs and debuffs), not loot.
         'items_to_drop_when_ominous':
             'minecraft:spawners/trial_chamber/items_to_drop_when_ominous',
     }
@@ -112,8 +124,6 @@ def item_entry(name, weight, count=None, damage=False, custom_data=None):
     if custom_data:
         mine.update(custom_data)
     components = {'minecraft:custom_data': {'pocketdungeons': mine}} if mine else {}
-    if isinstance(count, tuple):
-        components['minecraft:max_stack_size'] = 8
     if components:
         functions.append({'function': 'minecraft:set_components',
                           'components': components})
@@ -134,9 +144,10 @@ def themed_pool(items):
     return {'rolls': 1, 'entries': items}
 
 
-def layered_chest(base_path, pool):
-    """A layered chest table: base table reference + themed pool."""
-    return {
+def layered_chest(base_path, pool, rel_name=None):
+    """A layered chest table: base table reference + themed pool, rewritten
+    through the K and K2 rules so a themed pool cannot smuggle a cut item back."""
+    table = {
         'type': 'minecraft:chest',
         'pools': [
             {'rolls': 1, 'entries': [
@@ -144,6 +155,9 @@ def layered_chest(base_path, pool):
             pool,
         ],
     }
+    if rel_name is not None:
+        table = loot_rules.rewrite_table('chests/' + rel_name, table)
+    return table
 
 
 def write_json(path, obj):
@@ -156,7 +170,10 @@ def write_json(path, obj):
 
 # ---- Per-theme config ------------------------------------------------------
 # roster: dict tier -> list of (entity_id, weight, equip_kind|None)
-# pool_items: list of item_entry(...) for the themed pool (same across tiers)
+# pool_items: list of item_entry(...) for the themed pool (same across tiers).
+# Under K and K2 the signature is expressed in legal items: the wart, rods and
+# bottles a foundry used to pay are the alchemy module's loot now, and the
+# module carries its own tables for these targets.
 
 THEMES = {
     'rootworks': {
@@ -166,11 +183,10 @@ THEMES = {
             3: [('cave_spider', 5, None), ('witch', 3, None)],
         },
         'pool_items': [
-            item_entry('string', 5, (1, 3)),
-            item_entry('vine', 4, (1, 2)),
-            item_entry('moss_block', 4, (1, 3)),
-            item_entry('shears', 2, damage=True),
-            item_entry('spore_blossom', 1),
+            item_entry('oak_log', 5, (1, 3)),
+            item_entry('oak_planks', 4, (2, 6)),
+            item_entry('arrow', 3, (3, 9)),
+            item_entry('bread', 2, (1, 2)),
         ],
     },
     'frostworks': {
@@ -180,11 +196,10 @@ THEMES = {
             3: [('stray', 5, 'ranged'), ('zombie', 4, 'melee')],
         },
         'pool_items': [
-            item_entry('snowball', 5, 16),
-            item_entry('ice', 4, (1, 3)),
-            item_entry('packed_ice', 3, (1, 2)),
-            item_entry('blue_ice', 2, (1, 2)),
-            item_entry('powder_snow_bucket', 1),
+            item_entry('cooked_beef', 5, (1, 2)),
+            item_entry('cobblestone', 4, (1, 3)),
+            item_entry('torch', 3, (1, 2)),
+            item_entry('flint_and_steel', 1, damage=True),
         ],
     },
     'copper_works': {
@@ -194,11 +209,10 @@ THEMES = {
             3: [('zombie', 5, 'melee'), ('creeper', 3, None)],
         },
         'pool_items': [
-            item_entry('redstone', 5, (2, 4)),
-            item_entry('copper_ingot', 4, (1, 3)),
-            item_entry('repeater', 3, 1),
-            item_entry('piston', 2, 1),
-            item_entry('lightning_rod', 1),
+            item_entry('iron_ingot', 5, (1, 3)),
+            item_entry('coal', 4, (2, 5)),
+            item_entry('iron_pickaxe', 2, damage=True),
+            item_entry('obsidian', 1),
         ],
     },
     'ossuary': {
@@ -208,12 +222,12 @@ THEMES = {
             3: [('skeleton', 5, 'ranged'), ('stray', 3, 'ranged')],
         },
         'pool_items': [
-            item_entry('arrow', 7, (3, 9)),
-            item_entry('bone', 5, (2, 5)),
-            item_entry('bone_block', 3, (1, 2)),
-            # Playtest 2026-09-29-2: bows were disposable next to scarce arrows.
-            item_entry('bow', 1, damage=True),
-            item_entry('wither_skeleton_skull', 1),
+            # Playtest 2026-09-29-2: arrows stay plentiful where archers live;
+            # the bow itself is vault gear now (K2.4), not chest loot.
+            item_entry('arrow', 8, (4, 12)),
+            item_entry('cooked_beef', 4, (1, 2)),
+            item_entry('iron_ingot', 2, (1, 3)),
+            item_entry('emerald', 1),
         ],
     },
     'basalt_foundry': {
@@ -223,12 +237,10 @@ THEMES = {
             3: [('blaze', 5, None), ('magma_cube', 3, None)],
         },
         'pool_items': [
-            item_entry('nether_bricks', 5, (1, 3)),
-            item_entry('quartz', 4, (1, 3)),
-            item_entry('magma_cream', 3, (1, 2)),
-            item_entry('nether_wart', 3, (1, 2)),
-            item_entry('blaze_rod', 1, (1, 2)),
-            item_entry('glass_bottle', 3, 2),  # brewing: wart + magma cream is Fire Resistance
+            item_entry('obsidian', 4, (1, 2)),
+            item_entry('iron_ingot', 4, (1, 2)),
+            item_entry('coal', 4, (2, 4)),
+            item_entry('netherite_ingot', 1),
         ],
     },
     'ender_archive': {
@@ -238,11 +250,10 @@ THEMES = {
             3: [('enderman', 5, None), ('silverfish', 3, None)],
         },
         'pool_items': [
-            item_entry('end_stone', 5, (1, 3)),
-            item_entry('ender_pearl', 3, (1, 2)),
-            item_entry('chorus_fruit', 4, (1, 3)),
-            item_entry('end_rod', 2, (1, 2)),
-            item_entry('eye_armor_trim_smithing_template', 1),
+            item_entry('obsidian', 4, (1, 2)),
+            item_entry('experience_bottle', 4, (1, 2)),
+            item_entry('book', 3, (1, 2)),
+            item_entry('emerald', 2),
         ],
     },
 }
@@ -268,10 +279,11 @@ def main():
             base_normal = 'pocketdungeons:chests/tier_%d' % tier
             base_ominous = 'pocketdungeons:chests/tier_%d_ominous' % tier
             write_json(os.path.join(CHESTS_DIR, 'tier_%d%s.json' % (tier, suffix)),
-                       layered_chest(base_normal, pool))
+                       layered_chest(base_normal, pool, 'tier_%d%s.json' % (tier, suffix)))
             write_json(os.path.join(CHESTS_DIR,
                                    'tier_%d_ominous%s.json' % (tier, suffix)),
-                       layered_chest(base_ominous, pool))
+                       layered_chest(base_ominous, pool,
+                                     'tier_%d_ominous%s.json' % (tier, suffix)))
     print('done')
 
 

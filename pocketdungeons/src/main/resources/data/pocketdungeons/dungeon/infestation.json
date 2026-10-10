@@ -1,7 +1,25 @@
 {
   "name": "Infestation",
+  "token": {
+    "mat": "minecraft:mossy_stone_bricks"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:silverfish",
+        "count": 10
+      },
+      {
+        "type": "minecraft:cave_spider",
+        "count": 4
+      }
+    ],
+    "perMemberPercent": 50
+  },
+  "notes": "Silverfish, webs and string. Coal and iron in gnawed veins.",
   "act": 1,
-  "kind": "story",
+  "baseLevel": 2,
+  "kind": "dungeon",
   "mainTheme": "infestation",
   "lootBand": {
     "min": 1,
@@ -9,8 +27,7 @@
   },
   "nodePalette": [
     "coal_ore",
-    "iron_ore",
-    "copper_ore"
+    "iron_ore"
   ],
   "deviation": {
     "chance": 0.2,
@@ -28,16 +45,19 @@
     {
       "id": "chewed_corridors",
       "name": "Chewed Corridors",
+      "notes": "Gnawed veins of coal and iron. Mind the stone.",
       "layer": 2,
       "roomBias": [
         "infested_wall",
-        "burrow_tunnel"
+        "burrow_tunnel",
+        "gnawed_vein"
       ],
       "light": "dim"
     },
     {
       "id": "silverfish_nests",
       "name": "Silverfish Nests",
+      "notes": "Slime pits and silverfish nests. Loot, not ore.",
       "layer": 2,
       "roomBias": [
         "slime_pit"
@@ -47,6 +67,7 @@
     {
       "id": "hollow_walls",
       "name": "Hollow Walls",
+      "notes": "Webs and thickets. String for the taking.",
       "layer": 3,
       "theme": "rootworks",
       "roomBias": [
@@ -54,21 +75,30 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
+        },
+        {
+          "item": "gear:tool:1",
+          "count": 1
         }
       ]
     },
     {
       "id": "stone_larder",
       "name": "Stone Larder",
+      "notes": "Plain halls. The quiet choice.",
       "layer": 3
     },
     {
       "id": "queens_nest",
       "name": "The Queen's Nest",
+      "notes": "The last floor. The nest: eggs, webs, coal and iron.",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": [
+        "queens_nest"
+      ]
     }
   ],
   "edges": [
@@ -95,7 +125,7 @@
     {
       "from": "silverfish_nests",
       "to": "hollow_walls",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "hollow_walls",

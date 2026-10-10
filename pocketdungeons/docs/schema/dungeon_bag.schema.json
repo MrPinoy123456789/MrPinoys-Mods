@@ -46,7 +46,7 @@
         "kit_baseline": {
             "type": "array",
             "default": [],
-            "$comment": "The deterministic kit a safe visit tops up toward: deficit = count minus what the player holds of that item type (tagged or not) in their dungeon inventory and in their saved rooms. Stackable lines restore floor(deficit x band fraction x zone kit_top_up_scale); durability lines are replaced only when missing, only at the calm band, and never repaired. Omitted or empty means the bag is never topped up. /dungeon admin validate reports a line above what one roll of loot_table gives, an unknown item, and a durability mark that does not match the item.",
+            "$comment": "The declared kit contents, a validation target only: nothing refills a kit at runtime. /dungeon admin validate reports a line above what one roll of loot_table gives, an unknown item, and a durability mark that does not match the item.",
             "items": {
                 "type": "object",
                 "additionalProperties": false,
@@ -71,7 +71,7 @@
                     "empties_into": {
                         "type": "string",
                         "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
-                        "$comment": "The item a used one leaves behind (minecraft:bucket for a water, lava or milk bucket). The top-up turns a held empty back into the kit item instead of minting a new one beside it, and mints only when no empty is held anywhere."
+                        "$comment": "The item a used one leaves behind (minecraft:bucket for a water, lava or milk bucket)."
                     }
                 }
             }

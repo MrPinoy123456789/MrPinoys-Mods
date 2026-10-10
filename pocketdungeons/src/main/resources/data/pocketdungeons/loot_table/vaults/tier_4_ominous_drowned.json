@@ -9,55 +9,6 @@
           "value": "pocketdungeons:vaults/tier_4_ominous"
         }
       ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:heart_of_the_sea",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": 1
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:trident",
-          "functions": [
-            {
-              "function": "minecraft:enchant_with_levels",
-              "levels": 30
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            }
-          ],
-          "weight": 2
-        }
-      ]
     }
   ]
 }

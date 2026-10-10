@@ -6,8 +6,8 @@ import java.util.Set;
  * The reroll station's arithmetic, with no Minecraft imports: same discipline
  * as {@link KeystoneMath}, for the same reason.
  *
- * <p>M14: a lapis sink orthogonal to fuel (M12). Fuel scales with the ladder;
- * this scales with the gear's own tier, read off the {@code pocketdungeons.tier}
+ * <p>M14: a lapis sink orthogonal to the old fuel sink (M12, retired by J1).
+ * This scales with the gear's own tier, read off the {@code pocketdungeons.tier}
  * custom_data tag M13's loot writes.
  */
 final class RerollMath {

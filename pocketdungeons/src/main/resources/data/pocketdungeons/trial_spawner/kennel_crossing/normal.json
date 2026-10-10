@@ -1,4 +1,4 @@
-﻿{
+{
   "spawn_range": 1,
   "total_mobs": 3.0,
   "simultaneous_mobs": 2.0,
@@ -18,11 +18,11 @@
   "loot_tables_to_eject": [
     {
       "data": "pocketdungeons:spawners/trial_key",
-      "weight": 5
+      "weight": 6
     },
     {
       "data": "pocketdungeons:spawners/emeralds",
-      "weight": 5
+      "weight": 4
     }
   ],
   "items_to_drop_when_ominous": "minecraft:spawners/trial_chamber/items_to_drop_when_ominous"

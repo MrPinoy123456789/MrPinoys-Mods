@@ -18,12 +18,15 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gen_themed_content as g
+import loot_rules
 
 CHESTS = g.CHESTS_DIR
-# Items that would feed or breed a cow, or grow into wheat.
+# Items that would feed or breed a cow, or grow into wheat. Bread is allowed:
+# cows do not eat it (K). Most of this is already out of the base tables under
+# the K rules; the filter stays as the Cow Pits-specific guard.
 FORBIDDEN_EXACT = {
     'minecraft:wheat', 'minecraft:hay_block', 'minecraft:potato', 'minecraft:poisonous_potato',
-    'minecraft:carrot', 'minecraft:golden_carrot', 'minecraft:baked_potato', 'minecraft:bread',
+    'minecraft:carrot', 'minecraft:golden_carrot', 'minecraft:baked_potato',
 }
 
 
@@ -55,16 +58,17 @@ def load(path):
 
 MINESHAFT = {
     'roster': {
-        1: [('zombie', 5, 'melee'), ('cave_spider', 3, None)],
-        2: [('zombie', 4, 'melee'), ('skeleton', 4, 'ranged'), ('cave_spider', 3, None)],
-        3: [('skeleton', 4, 'ranged'), ('cave_spider', 5, None), ('zombie', 3, 'melee')],
+        1: [('zombie', 5, 'melee'), ('cave_spider', 3, None), ('creeper', 1, None)],
+        2: [('zombie', 4, 'melee'), ('skeleton', 4, 'ranged'), ('cave_spider', 3, None),
+            ('creeper', 1, None)],
+        3: [('skeleton', 4, 'ranged'), ('cave_spider', 5, None), ('zombie', 3, 'melee'),
+            ('creeper', 1, None)],
     },
     'pool_items': [
         g.item_entry('coal', 6, (2, 5)),
         g.item_entry('oak_planks', 6, (2, 6)),
-        g.item_entry('rail', 4, (3, 8)),
-        g.item_entry('oak_fence', 3, (2, 4)),
-        g.item_entry('raw_iron', 2, (1, 3)),
+        g.item_entry('torch', 4, (2, 4)),
+        g.item_entry('iron_ingot', 3, (1, 3)),
         g.item_entry('stone_pickaxe', 2, damage=True),
     ],
 }
@@ -76,11 +80,9 @@ COW_PITS = {
         3: [('zombie', 5, 'melee'), ('skeleton', 4, 'ranged')],
     },
     'pool_items': [
-        g.item_entry('beef', 6, (2, 4)),
-        g.item_entry('cooked_beef', 4, (1, 3)),
-        g.item_entry('leather', 6, (2, 5)),
-        g.item_entry('bucket', 2, 1),
-        g.item_entry('lead', 2, (1, 2)),
+        g.item_entry('cooked_beef', 8, (2, 5)),
+        g.item_entry('bread', 4, (1, 2)),
+        g.item_entry('arrow', 2, (2, 5)),
     ],
 }
 
@@ -97,20 +99,26 @@ def main():
     pool = g.themed_pool(MINESHAFT['pool_items'])
     for tier in (1, 2, 3):
         g.write_json(os.path.join(CHESTS, 'tier_%d_mineshaft.json' % tier),
-                     g.layered_chest('pocketdungeons:chests/tier_%d' % tier, pool))
+                     g.layered_chest('pocketdungeons:chests/tier_%d' % tier, pool,
+                                     'tier_%d_mineshaft.json' % tier))
         g.write_json(os.path.join(CHESTS, 'tier_%d_ominous_mineshaft.json' % tier),
-                     g.layered_chest('pocketdungeons:chests/tier_%d_ominous' % tier, pool))
+                     g.layered_chest('pocketdungeons:chests/tier_%d_ominous' % tier, pool,
+                                     'tier_%d_ominous_mineshaft.json' % tier))
 
     spawners('cow_pits', COW_PITS)
     themed = g.themed_pool(COW_PITS['pool_items'])
     for tier in (1, 2, 3, 4):
         for ominous in (False, True):
+            rel = 'tier_%d%s_cow_pits.json' % (tier, '_ominous' if ominous else '')
             base = load(os.path.join(CHESTS, 'tier_%d%s.json' % (tier, '_ominous' if ominous else '')))
             table = filtered(base)
             table['pools'].append(themed)
-            g.write_json(os.path.join(CHESTS, 'tier_%d%s_cow_pits.json' % (tier, '_ominous' if ominous else '')), table)
+            g.write_json(os.path.join(CHESTS, rel),
+                         loot_rules.rewrite_table('chests/' + rel, table))
         base = load(os.path.join(CHESTS, 'supply_tier_%d.json' % tier))
-        g.write_json(os.path.join(CHESTS, 'supply_tier_%d_cow_pits.json' % tier), filtered(base))
+        rel = 'supply_tier_%d_cow_pits.json' % tier
+        g.write_json(os.path.join(CHESTS, rel),
+                     loot_rules.rewrite_table('chests/' + rel, filtered(base)))
     print('done')
 
 

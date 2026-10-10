@@ -110,8 +110,19 @@ final class DungeonCommands {
 
                     // The staging room's dungeon map, typed (also opened by clicking
                     // the floor history board). Read only.
+                    // Re-deals the first staging room's dungeons (the owner, before a door is taken).
+                    .then(Commands.literal("reroll")
+                            .executes(ctx -> rerollDoors(ctx.getSource().getPlayerOrException())))
+
                     .then(Commands.literal("map")
                             .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
+
+                    // The trip sidebar (Q7): floor, lives, spawners, haul and compass down the right edge.
+                    .then(Commands.literal("display")
+                            .then(Commands.literal("on")
+                                    .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), false)))
+                            .then(Commands.literal("off")
+                                    .executes(ctx -> setDisplay(ctx.getSource().getPlayerOrException(), true))))
 
                     .then(Commands.literal("party")
                             // Bare /dungeon party opens the roster. New surface, not a
@@ -182,15 +193,9 @@ final class DungeonCommands {
                                     .executes(ctx -> join(ctx.getSource().getPlayerOrException(),
                                             EntityArgument.getPlayer(ctx, "leader")))))
 
-                    // M75: mint an optional written memento of the caller's
-                    // most recent completed run, from the server-side run
-                    // record kept on every safe visit. The memento is a
-                    // vanilla written book the owner can place on a lectern;
-                    // it carries no progression credit. No record, no
-                    // memento: a player who has not finished a run gets a
-                    // refusal line, not a blank book.
-                    .then(Commands.literal("memento")
-                            .executes(ctx -> memento(ctx.getSource().getPlayerOrException())))
+                    // J7: /dungeon memento is hidden for now (no playtest has
+                    // met it). The minting method stays, the command does not
+                    // register.
 
                     // M2 T2.2: an owner's own guest list for their room.
                     // M20: the lobby directory replaces the calling card, so the
@@ -334,6 +339,46 @@ final class DungeonCommands {
 
                             .then(Commands.literal("coverage")
                                     .executes(ctx -> coverage(ctx.getSource())))
+
+                            // Playtest tooling: scrap is a log value, not an item. The compass may be set
+                            // to any level (even lower) with the bar; the haul is what a trip carries.
+                            .then(Commands.literal("compass")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .then(Commands.literal("set")
+                                                    .then(Commands.argument("level", IntegerArgumentType.integer(0, 1000))
+                                                            .executes(ctx -> adminCompass(ctx.getSource(),
+                                                                    EntityArgument.getPlayer(ctx, "target"),
+                                                                    IntegerArgumentType.getInteger(ctx, "level"), 0))
+                                                            .then(Commands.argument("progress", IntegerArgumentType.integer(0, 4))
+                                                                    .executes(ctx -> adminCompass(ctx.getSource(),
+                                                                            EntityArgument.getPlayer(ctx, "target"),
+                                                                            IntegerArgumentType.getInteger(ctx, "level"),
+                                                                            IntegerArgumentType.getInteger(ctx, "progress"))))))))
+                            .then(Commands.literal("haul")
+                                    .then(Commands.argument("target", EntityArgument.player())
+                                            .then(Commands.literal("set")
+                                                    .then(Commands.argument("amount", IntegerArgumentType.integer(0, 100000))
+                                                            .executes(ctx -> adminHaul(ctx.getSource(),
+                                                                    EntityArgument.getPlayer(ctx, "target"),
+                                                                    IntegerArgumentType.getInteger(ctx, "amount")))))))
+
+                            // L2 (D41): content module listing and toggles.
+                            // The toggle writes pocketdungeons.json and lands
+                            // on the next /reload for manifest surfaces.
+                            .then(Commands.literal("modules")
+                                    .executes(ctx -> contentModules(ctx.getSource())))
+                            .then(Commands.literal("module")
+                                    .then(Commands.argument("id", StringArgumentType.word())
+                                            .then(Commands.literal("on")
+                                                    .executes(ctx -> contentModuleSet(
+                                                            ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "id"),
+                                                            true)))
+                                            .then(Commands.literal("off")
+                                                    .executes(ctx -> contentModuleSet(
+                                                            ctx.getSource(),
+                                                            StringArgumentType.getString(ctx, "id"),
+                                                            false)))))
 
                             // Playtest tooling: steer room selection toward rooms under test.
                             .then(Commands.literal("bias")
@@ -735,6 +780,87 @@ final class DungeonCommands {
      * that each looked locally correct disagreeing about the same concept.
      */
     /** {@code /dungeon map}: opens the dungeon map for a player standing in a staging room's run. */
+    /**
+     * {@code /dungeon reroll}: deals the first staging room's three dungeons
+     * again. Only the owner, only before the trip's first door is taken, and
+     * only for the dungeon choice (never a later floor's branches). An open
+     * preview is cleared first so the new deal starts clean.
+     */
+    private static int rerollDoors(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        String refusal = null;
+        if (record == null || record.stagingCellOrigin == null || !RunSession.canChooseDoor(record)) {
+            refusal = "The doors can be re-dealt in the first staging room, before you pick one.";
+        } else if (!player.getUUID().equals(record.owner)) {
+            refusal = "Only the owner of the trip can re-deal the doors.";
+        } else if (!record.interval.dungeonId.isEmpty() || record.interval.endlessMine
+                || record.interval.floorIndex > 0 || record.floor.doorTaken) {
+            refusal = "Only the first set of dungeons can be re-dealt, before a door is taken.";
+        }
+        if (refusal != null) {
+            player.sendSystemMessage(Component.literal(refusal).withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        net.minecraft.server.MinecraftServer server = player.level().getServer();
+        net.minecraft.server.level.ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            return 0;
+        }
+        if (HallRoom.isHallStaging(record)) {
+            // Doors are chosen now, not dealt.
+            player.sendSystemMessage(Component.literal(
+                    "The doors are no longer dealt. Turn the astrolabe to change act, then open a door.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+        Instances.clearPreview(level, record, true);
+        record.floor.selectedStep = 0;
+        record.interval.doorReroll++;
+        DungeonScreen.refreshDoorScreens(server);
+        Keystone.Offer[] offers = Keystone.offers(server, record, record.owner,
+                Math.max(1, DungeonLog.forServer(server).get(record.owner).keystoneLevel()));
+        List<String> names = new ArrayList<>();
+        for (Keystone.Offer offer : offers) {
+            DungeonDef def = offer.door() == null ? null : DungeonDefs.current().byId(offer.door().dungeonId());
+            names.add(def == null ? "?" : def.name());
+        }
+        Instances.announce(server, record, "The doors shift: " + String.join(", ", names) + ".", null);
+        return 1;
+    }
+
+    /** {@code /dungeon admin compass <player> set <level> [progress]}: the compass and its bar, up or down. */
+    private static int adminCompass(net.minecraft.commands.CommandSourceStack source, ServerPlayer target,
+                                    int level, int progress) {
+        net.minecraft.server.MinecraftServer server = source.getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        java.util.UUID id = target.getUUID();
+        log.setCompass(id, level, progress);
+        DungeonLog.Entry entry = log.get(id);
+        // The keystone item follows the compass in either direction, like a grant.
+        Keystones.grantLevel(server, id, target, Math.max(1, entry.highestCharts()));
+        Keystone.showCompass(target, entry, InstanceRegistry.byMember.containsKey(id));
+        source.sendSuccess(() -> Component.literal(target.getName().getString() + " is at compass "
+                + entry.highestCharts() + ", " + entry.chartProgress() + "/" + ScrapMath.levelCost(entry.highestCharts()) + "."), true);
+        return 1;
+    }
+
+    /** {@code /dungeon admin haul <player> set <n>}: the scrap a trip carries. */
+    private static int adminHaul(net.minecraft.commands.CommandSourceStack source, ServerPlayer target, int amount) {
+        DungeonLog log = DungeonLog.forServer(source.getServer());
+        log.setHaul(target.getUUID(), amount);
+        Keystone.showCompass(target, log.get(target.getUUID()), InstanceRegistry.byMember.containsKey(target.getUUID()));
+        source.sendSuccess(() -> Component.literal(target.getName().getString() + " carries a haul of " + amount + "."), true);
+        return 1;
+    }
+
+    private static int setDisplay(ServerPlayer player, boolean hidden) {
+        SidebarDisplay.setHidden(player, hidden);
+        player.sendSystemMessage(Component.literal(hidden
+                ? "The trip sidebar is hidden. /dungeon display on brings it back."
+                : "The trip sidebar is on. /dungeon display off hides it.").withStyle(ChatFormatting.GRAY));
+        return 1;
+    }
+
     private static int showMap(ServerPlayer player) {
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null || !record.inFloorLoop() || record.stagingCellOrigin == null) {
@@ -1781,6 +1907,48 @@ final class DungeonCommands {
             source.sendFailure(Component.literal("  " + hole));
         }
         return 0;
+    }
+
+    /**
+     * {@code /dungeon admin modules}: every loaded content module, its
+     * resolved state, and whether that state came from the manifest default
+     * or a config override (L2, D41).
+     */
+    private static int contentModules(CommandSourceStack source) {
+        if (ContentModules.modules().isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No content modules loaded."), false);
+            return 1;
+        }
+        for (ContentModules.Module module : ContentModules.modules()) {
+            boolean on = ContentModules.enabled(module.id());
+            String state = (on ? "on" : "off")
+                    + (ContentModules.overrides().containsKey(module.id()) ? " (config)" : " (default)");
+            source.sendSuccess(() -> Component.literal(
+                    module.label() + " (" + module.id() + "): " + state
+                            + " - " + module.description()), false);
+        }
+        return 1;
+    }
+
+    /**
+     * {@code /dungeon admin module <id> on|off}: writes the override to
+     * {@code pocketdungeons.json}. Loot changes apply to new rolls at once;
+     * manifest surfaces (module bags in the picker, gated stations) settle
+     * on the next {@code /reload}, which the command reports.
+     */
+    private static int contentModuleSet(CommandSourceStack source, String id, boolean on) {
+        ContentModules.Module module = ContentModules.module(id);
+        if (module == null) {
+            source.sendFailure(Component.literal(
+                    "No content module named " + id + "; /dungeon admin modules lists them."));
+            return 0;
+        }
+        PocketDungeonsConfig.setModuleOverride(module.id(), on);
+        source.sendSuccess(() -> Component.literal(
+                "Content module " + module.id() + " is now " + (on ? "on" : "off")
+                        + " (saved to pocketdungeons.json; manifest surfaces update on /reload)"),
+                true);
+        return 1;
     }
 
     private static int plan(CommandSourceStack source, long seed) {

@@ -1,1 +1,1 @@
-{"version": 1, "label": "Feral", "blurb": "Feral: wolves in the halls. Swing and they are lost, feed them and they are yours.", "order": 1, "min_level": 0, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"neutral_wolf_spawn": true}}
+{"version": 1, "label": "Feral", "blurb": "Feral: wolves in the halls. Swing and they are lost, feed them and they are yours.", "order": 1, "min_level": 999, "weight": 1, "depletion_multiplier": 1, "incompatible": [], "effects": {"neutral_wolf_spawn": true}}

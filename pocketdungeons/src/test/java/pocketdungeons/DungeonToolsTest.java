@@ -28,11 +28,29 @@ public class DungeonToolsTest {
         net.minecraft.server.Bootstrap.bootStrap();
 
         testDurabilityCaps();
+        testLootDurabilityKnob();
         testPlayerPlacedOwnership();
 
         InstanceRegistry.bySlot.clear();
         InstanceRegistry.byMember.clear();
         System.out.println("DungeonToolsTest passed");
+    }
+
+    // ---- durability knobs (2026-10-08) -------------------------------------
+
+    /**
+     * lootDurabilityPercent (default 110) lifts the cap table by 10 percent for gear from the mod's
+     * chests and vaults; craftedDurabilityPercent (default 100) leaves crafted gear on the table. The
+     * ItemStack behaviour (a half worn sword stays half worn, loot gear is not cut back) is in
+     * DurabilityKnobGameTest: item components are not bound in a bootstrapped main().
+     */
+    private static void testLootDurabilityKnob() {
+        check(DungeonTools.scaledCap(64, 100), 64, "100 percent is the table");
+        check(DungeonTools.scaledCap(64, 110), 70, "110 percent of an iron sword's 64 is 70");
+        check(DungeonTools.scaledCap(8, 110), 9, "110 percent of a wooden pickaxe's 8 rounds to 9");
+        check(DungeonTools.scaledCap(192, 110), 211, "110 percent of 192 is 211");
+        check(DungeonTools.scaledCap(-1, 110), -1, "an uncapped item stays uncapped");
+        check(DungeonTools.scaledCap(1, 10), 1, "a cap never falls below 1");
     }
 
     // ---- durability caps ---------------------------------------------------

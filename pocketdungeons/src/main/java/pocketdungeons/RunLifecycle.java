@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -424,7 +425,7 @@ final class RunLifecycle {
         if (server == null) {
             return false;
         }
-        if (step < 1 || step > 3) {
+        if (step < 1 || step > HallLayout.MAX_ACT_DOORS + HallLayout.MAX_SPECIALS) {
             return false;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
@@ -468,15 +469,11 @@ final class RunLifecycle {
             return false;
         }
 
-        // A side branch costs echo shards (design D5). The door screen names the
-        // shortfall (RitualListener.doorRefusal); re-check here for safety.
+        // A side branch costs lives (Haul and Blood Doors): the party's, never the last one.
+        // The door screen names it (RitualListener.doorRefusal); re-check here for safety.
         int previewCost = offer.cost();
-        if (previewCost > 0) {
-            Fuel.refundBanked(player);
-            // The member who right-clicks the door is the one who would pay.
-            if (!SideBranchPay.affordable(previewCost, Fuel.carried(player))) {
-                return false;
-            }
+        if (previewCost > 0 && !DoorLives.affordable(Omen.lives(record.interval.omen), previewCost)) {
+            return false;
         }
 
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -574,16 +571,23 @@ final class RunLifecycle {
         }
         Keystone.Offer offer = offers[step - 1];
 
-        // Re-check the side branch's shard cost at commit time, since the
-        // player's pack may have changed since the preview. The member who commits
-        // (the one pulling the lever) pays from their own pack, never the owner's
-        // (dungeon structure W5, SideBranchPay).
+        // The Astrolabe Room: a locked door (compass short, capstone not yet open) cannot be committed.
+        if (HallRoom.isHallStaging(record)) {
+            String lock = HallOffers.lockedMessage(server, record, step);
+            if (lock != null) {
+                player.sendSystemMessage(Component.literal(lock).withStyle(ChatFormatting.RED));
+                return false;
+            }
+        }
+
+        // Re-check the side branch's life cost at commit time, since a death may have
+        // happened since the preview. Lives are the party's (the trip's omen), so whoever
+        // pulls the lever spends everyone's life, and the last life is never for sale.
         int doorCost = offer.cost();
         if (doorCost > 0) {
-            Fuel.refundBanked(player);
-            int carried = Fuel.carried(player);
-            if (!SideBranchPay.affordable(doorCost, carried)) {
-                player.sendSystemMessage(Component.literal(SideBranchPay.refusal(doorCost, carried))
+            int livesLeft = Omen.lives(record.interval.omen);
+            if (!DoorLives.affordable(livesLeft, doorCost)) {
+                player.sendSystemMessage(Component.literal(DoorLives.refusal(livesLeft, doorCost))
                         .withStyle(ChatFormatting.RED));
                 return false;
             }
@@ -667,16 +671,17 @@ final class RunLifecycle {
             CubeRecipe.clearCatalystEscrow(keystone);
         }
 
-        // The spend happens only once the commit has actually succeeded,
-        // straight from the pack; the gate above checked it was there.
+        // The price is paid only once the commit has actually succeeded: the door takes
+        // its lives from the trip (omen, the same lives a death spends), the gate above
+        // checked there is one to spare.
         if (doorCost > 0) {
-            Fuel.take(player, doorCost);
+            record.interval.omen = Omen.add(record.interval.omen, doorCost);
+            int livesLeft = Omen.lives(record.interval.omen);
+            PlaytestJournal.omenRise(server, record, Omen.Source.DOOR, doorCost, record.interval.omen,
+                    player.blockPosition());
+            OmenBar.cue(server, record, Omen.Source.DOOR);
+            Instances.announce(server, record, DoorLives.paidLine(player.getName().getString(), livesLeft), null);
         }
-
-        // PD-121: retake the interval snapshot at the first door commit, after
-        // the bag kit has been applied and the door cost paid, so a max-omen
-        // fail reverts to what the player actually carried into the first floor.
-        InventorySwap.snapshotAtFirstCommit(server, record);
 
         // A trip has begun (the first door of a dungeon): count it for the leader, which
         // changes the first door's deal for their next trip even if this one is quit early.
@@ -924,6 +929,26 @@ final class RunLifecycle {
                 && betweenFloors(record)) {
             return leaveAtCheckpoint(server, record, player);
         }
+        // Design pass 2026-10-09 (PD-191 ruling, applied to every voluntary leave): walking out of a
+        // floor in progress is a failed dungeon for what the leaver carries, so leaving can never beat
+        // failing. A rider banks their own haul (the fail share mid-floor, in full at a checkpoint); an
+        // owner with a party still inside fails the dungeon for everyone. A solo owner just steps out of
+        // a run that waits for them (free re-entry), and their haul stays at risk in it.
+        if (record.isKeystoneRun() && record.inFloorLoop() && !record.visitInstance) {
+            boolean between = betweenFloors(record);
+            boolean isOwner = player.getUUID().equals(record.owner);
+            boolean othersRemainHere = record.members.keySet().stream()
+                    .anyMatch(m -> !m.equals(player.getUUID()));
+            if (isOwner && !between && othersRemainHere) {
+                PlaytestJournal.inventorySnapshot(player, record, "exit");
+                PlaytestJournal.hintLeave(player.getUUID(), "exit", record);
+                Instances.failRunLeft(server, record, player, "left the dungeon.");
+                return true;
+            }
+            if (!isOwner) {
+                leaveSettle(server, record, player.getUUID());
+            }
+        }
         PlaytestJournal.inventorySnapshot(player, record, "exit");
         PlaytestJournal.hintLeave(player.getUUID(), "exit", record);
 
@@ -972,12 +997,11 @@ final class RunLifecycle {
     /**
      * The owner leaving between floors ({@code /dungeon exit}, the
      * lodestone's Leave, or {@code /dungeon quit} with nothing left to quit):
-     * the interval is not forfeited but settles
-     * {@link IntervalBanking#LEAVE_PENALTY} band worse for every member
-     * present, and the run ends, as a party leader leaving always has ended
-     * it. The room was saved at the first commit and stays despawned, so the
-     * next run opens at home. A preview still open is cancelled first, its
-     * catalyst refunded.
+     * the interval settles for every member present (D24: exactly like the
+     * home lever, no band penalty), and the run ends, as a party leader
+     * leaving always has ended it. The room was saved at the first commit and
+     * stays despawned, so the next run opens at home. A preview still open is
+     * cancelled first, its catalyst refunded.
      */
     private static boolean leaveAtCheckpoint(MinecraftServer server, InstanceRecord record, ServerPlayer owner) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -991,9 +1015,9 @@ final class RunLifecycle {
             }
             PlaytestJournal.hintLeave(member, "checkpoint_exit", record);
         }
-        settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "checkpoint_exit");
+        settleOnce(server, record, "checkpoint_exit");
         Instances.announce(server, record, owner.getName().getString()
-                + " leaves at the checkpoint. The run ends, and the trip banks one band worse.",
+                + " leaves at the checkpoint. The run ends.",
                 owner.getUUID());
         InstanceTeardown.purge(server, record, "owner left at a checkpoint", owner.getUUID());
         return true;
@@ -1101,6 +1125,10 @@ final class RunLifecycle {
                 firstCompletion ? record.interval.floorIndex + 1 : record.interval.floorIndex);
 
         if (firstCompletion) {
+            // J1: the floor pays on the spot, before the physical advance:
+            // each member present gets the dealt step as scrap, or emeralds
+            // when their permanent chart level stands above the floor.
+            payFloorMembers(server, record);
             // M65: advanceFloor replaces completeDungeon. It does the
             // physical floor advance (increment floorIndex, bank omen,
             // place chests, stamp new staging room) and transitions the
@@ -1120,14 +1148,10 @@ final class RunLifecycle {
                 record.layout.keystoneLevel());
         DungeonLog.Entry entry = log.recordTheme(player.getUUID(), record.floor.theme);
 
-        int floorsPerVisit = PocketDungeonsConfig.floorsPerSafeVisit();
         int floorsCleared = record.interval.floorIndex;
         ZoneRules rules = ZoneRules.of(record);
-        // The band the interval stands in now that this floor is banked, over
-        // the floors actually cleared: what the chests beyond the door were
-        // counted from, and what going home would settle if nothing else rises.
-        int band = Omen.band(record.interval.bankedOmenSum(), Math.max(1, floorsCleared));
-        String verdict = OmenBarText.completionVerdict(band,
+        // J3: the verdict is lives, not a band; omen is danger only.
+        String verdict = OmenBarText.completionVerdict(record.interval.omen,
                 record.floor.rewardChests >= 0 ? record.floor.rewardChests : Omen.baseRewardChests());
         if (EndlessMineRules.isMine(record)) {
             // M78: the Mine checkpoint is the commitment surface. The player
@@ -1145,7 +1169,7 @@ final class RunLifecycle {
             player.sendSystemMessage(Component.literal(
                     "You clear the last floor of " + TripView.dungeonName(record) + ". " + verdict
                             + " The barrel waits beyond the door"
-                            + (isRewardKind(TripView.def(record)) ? ", the vault's rolls in with it" : "")
+                            + (TripView.def(record) != null ? ", the vault's rolls in with it" : "")
                             + ". Only the way home is open: pull the HOME lever to bank your charts.")
                     .withStyle(ChatFormatting.AQUA));
         } else {
@@ -1153,17 +1177,14 @@ final class RunLifecycle {
                     "You reach the end of this floor. " + verdict
                             + " The barrel waits beyond the door. GO HOME banks your charts;"
                             + " DESCEND for bonus chests and better loot."
-                            + (TripView.finalAhead(record) ? " The final floor is ahead." : "")
-                            + (rules.baseOmen(floorsCleared + 1, floorsPerVisit) > 0
-                                    ? " Every floor deeper starts with the omen already risen."
-                                    : ""))
+                            + (TripView.finalAhead(record) ? " The final floor is ahead." : ""))
                     .withStyle(ChatFormatting.AQUA));
         }
         // Playtest 2026-09-27 (A1): the floor count on the bar went unnoticed at
         // the decision point, so a floor clear also gets a title.
-        showFloorClearedTitle(player, OmenBarText.clearedHeadline(floorsCleared, TripView.dungeonName(record),
-                EndlessMineRules.isMine(record), record.interval.finished, TripView.finalAhead(record)),
-                record.interval.finished ? "GO HOME" : "GO HOME or DESCEND");
+        showFloorClearedTitle(player, OmenBarText.clearedScreenTitle(floorsCleared, TripView.dungeonName(record),
+                EndlessMineRules.isMine(record), record.interval.finished),
+                OmenBarText.clearedSubtitle(record.interval.finished, TripView.finalAhead(record)));
         // M66: the compass recipe promises a completion study list. The
         // list is the run's situations by name, emitted on the first
         // completion of the floor.
@@ -1239,7 +1260,13 @@ final class RunLifecycle {
         if (EndlessMineRules.isMine(record)) {
             DungeonLog mineLog = DungeonLog.forServer(server);
             for (UUID member : record.members.keySet()) {
-                mineLog.recordMineFloor(member, floorsCleared);
+                if (mineLog.recordMineFloor(member, floorsCleared)) {
+                    // D29: a new deepest floor may complete the act's Mine leg.
+                    ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+                    if (memberPlayer != null) {
+                        DungeonProgress.onProgress(server, record, memberPlayer, false);
+                    }
+                }
             }
             int sealed = EndlessMineRules.sealedAct(floorsCleared + 1,
                     DungeonProgress.unlockedActs(server, record.owner));
@@ -1249,12 +1276,13 @@ final class RunLifecycle {
             }
         }
 
-        // Omen no longer reduces chests or key progress; it adds danger. The
+        // J3: omen adds danger only, never reward cuts. The
         // base reward is always three chests, plus the zone's depth bonus on
-        // deeper floors. The band still colours the bar and the kit refill.
+        // deeper floors.
         ZoneRules rules = ZoneRules.of(record);
-        int band = bankFloorOmen(record);
-        int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
+        bankFloorOmen(record);
+        // A won finale pays one more chest (design pass 2026-10-09, Q4).
+        int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared) + FinaleWave.rewardChests(record);
         record.floor.rewardChests = chests;
 
         // The reward corner on the far side of the terminal cell: one barrel
@@ -1262,7 +1290,7 @@ final class RunLifecycle {
         // one copper chest holding the floor's promised rewards.
         ThemeManifest.Entry completionTheme = record.floor.theme == null ? null
                 : ThemeManifest.current().byId(record.floor.theme);
-        int vaultRolls = finishedNow && isRewardKind(tripDef)
+        int vaultRolls = finishedNow && tripDef != null
                 ? PocketDungeonsConfig.finishVaultChests() : 0;
         int vaultTier = tripDef == null ? LootBands.floorTier(record, rules, floorsCleared)
                 : tripDef.lootBand().max();
@@ -1271,7 +1299,7 @@ final class RunLifecycle {
                 record.floor.affixes.contains(AffixIds.OMINOUS), record.layout.seed(),
                 completionTheme == null ? null : completionTheme.meta().lootSuffix,
                 completionTheme == null ? null : completionTheme.meta().lootTable,
-                promisedItems(tripDef, record));
+                promisedItems(level, tripDef, record));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
         }
@@ -1308,39 +1336,24 @@ final class RunLifecycle {
     }
 
     /**
-     * Whether finishing {@code def} pays rewards: story and capstone dungeons do; a
-     * resource dungeon pays only what is mined or harvested (design D11, D12).
-     */
-    static boolean isRewardKind(DungeonDef def) {
-        return def != null && (def.kind() == DungeonDef.Kind.STORY || def.kind() == DungeonDef.Kind.CAPSTONE);
-    }
-
-    /**
-     * Finishing a dungeon (design D11), run once when the final node's floor is
-     * cleared: the dungeon is recorded as finished for each member present, and a
-     * story or capstone dungeon pays its guaranteed echo shard per member, the themed
-     * vault (extra completion chests at the dungeon's top loot tier) and, on a
-     * member's first finish of it, the dungeon's diary page if it names one.
-     *
-     * <p>The trip then settles as a bank through the ordinary HOME lever: the staging
-     * room offers nothing else ({@code record.interval.finished}). That is the
-     * simpler and sturdier of the two ways to end a trip: banking, the homecoming and
-     * the return trip stay one code path, and the party can still loot the chests and
-     * the vault before it walks home. Going home early (any earlier staging room)
-     * banks steps and chests only, with no shard, vault or page.
-     */
-    /**
      * The cleared node's authored {@code rewards}, as stacks for the copper
      * chest. Unknown item ids are logged and skipped, a content typo never
      * failing a floor's rewards.
      */
-    private static List<ItemStack> promisedItems(DungeonDef def, InstanceRecord record) {
+    private static List<ItemStack> promisedItems(ServerLevel level, DungeonDef def, InstanceRecord record) {
         DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
         List<ItemStack> promised = new ArrayList<>();
         if (node == null) {
             return promised;
         }
         for (DungeonDef.Node.Reward reward : node.rewards()) {
+            if (PromisedGear.isGear(reward.item())) {
+                ItemStack gear = PromisedGear.roll(level, record.owner, record.interval, node.id(), reward.item());
+                if (!gear.isEmpty()) {
+                    promised.add(gear);
+                }
+                continue;
+            }
             net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM
                     .getValue(net.minecraft.resources.Identifier.parse(reward.item()));
             if (item == null || item == net.minecraft.world.item.Items.AIR) {
@@ -1353,41 +1366,67 @@ final class RunLifecycle {
         return promised;
     }
 
+    /**
+     * Finishing a dungeon (design D11, D12 revised, J1), run once when the final node's floor is
+     * cleared: the dungeon is recorded as finished for each member present, and every
+     * dungeon pays its {@code finishEmeralds} per member, the themed
+     * vault (extra completion chests at the dungeon's top loot tier) and, on a
+     * member's first finish of it, the dungeon's diary page if it names one.
+     *
+     * <p>The trip then settles as a bank through the ordinary HOME lever: the staging
+     * room offers nothing else ({@code record.interval.finished}). That is the
+     * simpler and sturdier of the two ways to end a trip: banking, the homecoming and
+     * the return trip stay one code path, and the party can still loot the chests and
+     * the vault before it walks home. Going home early (any earlier staging room)
+     * banks chests only, with no emeralds, vault or page.
+     */
     private static void finishDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record,
                                       DungeonDef def, BlockPos terminalOrigin, DoorMask.Direction entranceDir,
                                       ThemeManifest.Entry completionTheme) {
-        boolean rewards = isRewardKind(def);
-        int vaultChests = rewards ? PocketDungeonsConfig.finishVaultChests() : 0;
+        int vaultChests = PocketDungeonsConfig.finishVaultChests();
         DungeonLog log = DungeonLog.forServer(server);
+        // The finish banks the haul before anything else, present members and absent ones alike.
+        for (UUID member : record.members.keySet()) {
+            record.interval.finishBanked.put(member, bankHaul(server, record, member, BankContext.FINISH).banked());
+        }
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null) {
                 continue;
             }
             boolean first = log.addDungeonFinished(member, def.id());
-            // D8, D16: every member present at a capstone clear opens the next act.
-            if (def.kind() == DungeonDef.Kind.CAPSTONE) {
-                DungeonProgress.onCapstoneCleared(server, record, memberPlayer, def);
+            // D8, D16, D29: every finish re-evaluates the member's acts; a
+            // finish that opens nothing names what is left.
+            DungeonProgress.onProgress(server, record, memberPlayer, true, first);
+            // J1: the finish pays emeralds now; the echo shard is retired.
+            int emeralds = PocketDungeonsConfig.finishEmeralds();
+            if (!first) {
+                // Design pass 2026-10-09 (Q1): the picker lets a player replay a favourite, so a repeat finish
+                // pays a share of the emeralds. The vault and the diary page are first finish only.
+                emeralds = emeralds * PocketDungeonsConfig.repeatFinishEmeraldPercent() / 100;
             }
-            int shards = 0;
             String diaryId = "";
-            if (rewards) {
-                shards = PocketDungeonsConfig.echoShardsPerFinish();
-                Fuel.grantFrom(memberPlayer, shards, "dungeon_finish");
-                // Lemon's archive: all diaries handed over earns one more.
-                if (LemonArchive.complete(server, member)) {
-                    Fuel.grantFrom(memberPlayer, 1, "lemon_archive");
-                }
+            if (emeralds > 0) {
+                Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, emeralds));
+                memberPlayer.sendSystemMessage(Component.literal(
+                        "+" + emeralds + " emeralds (dungeon finish)")
+                        .withStyle(ChatFormatting.AQUA));
+                PlaytestJournal.emeralds(memberPlayer, emeralds, "dungeon_finish");
             }
-            // W6: every dungeon's first finish hands over its diary page, a resource dungeon
-            // included (the page is a memory, not a payout).
+            // Lemon's archive: all diaries handed over earns a bonus.
+            if (LemonArchive.complete(server, member)) {
+                Payout.deliver(memberPlayer, new ItemStack(Items.EMERALD, 8));
+                PlaytestJournal.emeralds(memberPlayer, 8, "lemon_archive");
+            }
+            // W6: every dungeon's first finish hands over its diary page (the page is
+            // a memory, not a payout).
             if (first && !def.diary().isBlank()) {
                 Diaries.Entry page = Diaries.current().byId(def.diary());
                 if (page != null && DiaryDelivery.deliverEntry(log, memberPlayer, page)) {
                     diaryId = page.id();
                 }
             }
-            PlaytestJournal.dungeonFinished(memberPlayer, record, shards, vaultChests, first, diaryId);
+            PlaytestJournal.dungeonFinished(memberPlayer, record, emeralds, vaultChests, first, diaryId);
         }
     }
 
@@ -1407,6 +1446,7 @@ final class RunLifecycle {
         BlockPos oldStagingOrigin = record.stagingCellOrigin;
         RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
         RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
+        HallRoom.dismantle(level, oldStagingOrigin, record.roomDungeonDoor);
         for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
                 e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
             leftover.discard();
@@ -1435,24 +1475,227 @@ final class RunLifecycle {
      * floors banked. The sum only resets when the interval ends
      * ({@link InstanceRecord#beginInterval}).
      */
-    static int bankFloorOmen(InstanceRecord record) {
-        record.interval.floorOmens.add(Omen.clamp(record.interval.omen));
-        record.interval.omen = 0;
-        return Omen.band(record.interval.bankedOmenSum(), record.interval.floorOmens.size());
+    /**
+     * Pays every member present for the floor just cleared into their haul
+     * ({@link ScrapMath#floorPay}): the dealt step at or above their compass, 1 below it. The haul
+     * is banked at home or a finish and half lost to a failed dungeon. Unused trial keys settle
+     * for emeralds on the same line (J7). The journal gets a {@code floor_pay} event per member.
+     */
+    private static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
+        DungeonLog log = DungeonLog.forServer(server);
+        int step = record.floor.chosenStep;
+        int floorLevel = record.floor.chosenLevel;
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer == null) {
+                continue;
+            }
+            int compass = log.get(member).highestCharts();
+            // advanceFloor has already counted this floor, so floorIndex is how many floors deep it was.
+            int pay = ScrapMath.floorPay(step, floorLevel, compass, FloorPay.bonus(TripView.def(record),
+                    record.interval.nodeId, EndlessMineRules.isMine(record), record.interval.floorIndex));
+            log.addHaul(member, pay);
+            if (pay > 0) {
+                Chime.scrapEarned(memberPlayer);
+            }
+            Keystone.showCompass(memberPlayer, log.get(member), true);
+            // PD-196 (owner ruling 2026-10-10): unused trial keys last the dungeon's life; they settle for
+            // emeralds when the haul banks, the same moment scrap is paid out ({@link #bankHaul}).
+            int keyEmeralds = 0;
+            StringBuilder line = new StringBuilder();
+            if (pay > 0) {
+                line.append(floorLevel >= compass ? "+" + pay + " scrap."
+                        : "+" + pay + " scrap (below your compass).");
+                line.append(" Haul ").append(log.get(member).haul()).append(".");
+            }
+            if (!line.isEmpty()) {
+                memberPlayer.sendSystemMessage(Component.literal(line.toString())
+                        .withStyle(ChatFormatting.AQUA));
+            }
+            PlaytestJournal.floorPay(memberPlayer, record, pay, keyEmeralds);
+        }
     }
 
     /**
-     * What {@code member} would bank if the interval settled right now with
-     * {@code penalty} bands of penalty: the go-home screen's numbers, and the
-     * same arithmetic {@link #settleInterval} applies.
+     * On join: an orphaned haul (scrap carried by a member who is in no live trip) banks in full;
+     * a migrated player is told once what scrap is now; the compass lore is repainted.
+     */
+    /**
+     * The leaving rule for a rider (owner ruling 2026-10-09, PD-191 and PD-192): a member who leaves for
+     * any reason (walks out, joins another party, loses their connection, leaves the dimension) between
+     * floors cashes out in full, as at the home lever; leaving on a floor is a failed dungeon for them, the
+     * fail share. Works from the log alone. The owner is not covered: an owner leaving ends the run
+     * ({@link #settleLeaderLeft}).
+     */
+    static void leaveSettle(MinecraftServer server, InstanceRecord record, UUID member) {
+        if (!record.isKeystoneRun() || !record.inFloorLoop() || record.visitInstance || record.tearingDown
+                || member.equals(record.owner)) {
+            return;
+        }
+        bankHaul(server, record, member, betweenFloors(record) ? BankContext.HOME : BankContext.FAIL);
+    }
+
+    /**
+     * An owner has left a floor in progress and the run is ending: it is a failed dungeon for everyone,
+     * the owner included.
+     */
+    static void settleLeaderLeft(MinecraftServer server, InstanceRecord record, UUID leaver) {
+        bankHaul(server, record, leaver, BankContext.FAIL);
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            if (!member.equals(leaver)) {
+                bankHaul(server, record, member, BankContext.FAIL);
+            }
+        }
+    }
+
+    /**
+     * Whether {@code id} owns a run that is still standing and can be re-entered (free re-entry, or the
+     * reconnect grace). Their haul is still at risk in it, so it is not an orphan to bank in full.
+     */
+    static boolean ownsLiveRun(UUID id) {
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
+            if (id.equals(record.owner) && record.isKeystoneRun() && record.inFloorLoop()
+                    && !record.tearingDown && !record.visitInstance
+                    && record.phase != RunSession.Phase.HOME) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static void onJoinHaul(MinecraftServer server, ServerPlayer player) {
+        DungeonLog log = DungeonLog.forServer(server);
+        UUID id = player.getUUID();
+        boolean inTrip = InstanceRegistry.byMember.containsKey(id) || ownsLiveRun(id);
+        if (!inTrip && log.haulOf(id) > 0) {
+            bankHaul(server, null, id, BankContext.ORPHAN);
+        }
+        DungeonLog.Entry entry = log.get(id);
+        if (log.markHaulIntroSeen(id) && entry.highestCharts() > 0) {
+            player.sendSystemMessage(Component.literal("Your compass keeps its level " + entry.highestCharts()
+                    + ". Scrap now rides in your haul and fills your compass when you bring it home."
+                    + " Side doors cost a life.").withStyle(ChatFormatting.GOLD));
+        }
+        Keystone.showCompass(player, log.get(id), inTrip);
+    }
+
+    /** Which exit is banking a haul; picks the member's message. */
+    enum BankContext { HOME, FINISH, FAIL, ORPHAN }
+
+    /**
+     * Banks one member's haul (see {@link DungeonLog#bankHaul}): {@code keepPercent} 100 for going
+     * home or finishing, {@link ScrapMath#FAIL_KEEP_PERCENT} for a failed dungeon. Works from the log
+     * alone, so a member who is not online banks too; a raised compass is granted to the keystone,
+     * and an online member is told what happened. A member with nothing carried is told nothing.
+     */
+    static DungeonLog.BankResult bankHaul(MinecraftServer server, InstanceRecord record, UUID member,
+                                          BankContext context) {
+        DungeonLog log = DungeonLog.forServer(server);
+        int keep = context == BankContext.FAIL ? PocketDungeonsConfig.failHaulKeepPercent() : 100;
+        DungeonLog.BankResult result = log.bankHaul(member, keep);
+        ServerPlayer player = server.getPlayerList().getPlayer(member);
+        if (result.compassAfter() > log.get(member).keystoneLevel()) {
+            Keystones.grantLevel(server, member, player, result.compassAfter());
+        }
+        if (player == null) {
+            return result;
+        }
+        // PD-196: keys settle for emeralds when scrap is paid out; a failed dungeon pays the same share it keeps.
+        int keyEmeralds = redeemKeys(player, keep);
+        if (keyEmeralds > 0) {
+            player.sendSystemMessage(Component.literal("+" + keyEmeralds + (keyEmeralds == 1 ? " emerald" : " emeralds")
+                    + " for vault keys.").withStyle(ChatFormatting.AQUA));
+        }
+        int total = result.banked() + result.lost();
+        if (total > 0) {
+            String bar = "compass " + result.compassAfter() + ", " + result.progress() + "/"
+                    + ScrapMath.levelCost(result.compassAfter()) + " to " + (result.compassAfter() + 1);
+            String text = switch (context) {
+                case HOME -> "Home. Banked " + result.banked() + " scrap: " + bar + ".";
+                case FINISH -> "Dungeon finished. Banked " + result.banked() + " scrap: " + bar + ".";
+                case ORPHAN -> "Your last trip's haul came home: banked " + result.banked() + " scrap.";
+                case FAIL -> result.banked() > 0
+                        ? "Half your haul made it out: banked " + result.banked() + " of " + total + " scrap."
+                        : "Your haul was lost: " + total + " scrap.";
+            };
+            player.sendSystemMessage(Component.literal(text)
+                    .withStyle(context == BankContext.FAIL ? ChatFormatting.RED : ChatFormatting.GOLD));
+            // PD-190: the player never reads chat live. A failed dungeon says what it cost on a title, and a
+            // bank says what it paid on the action bar (chat stays the log).
+            if (context == BankContext.FAIL) {
+                showBigTitle(player, "The dungeon claims you", result.banked() > 0
+                        ? "Kept " + result.banked() + " of " + total + " scrap" : "Lost " + total + " scrap");
+
+            } else if (context == BankContext.HOME || context == BankContext.ORPHAN) {
+                player.sendOverlayMessage(Component.literal("Banked " + result.banked() + " scrap. Compass "
+                        + result.compassAfter() + ", " + result.progress() + "/" + ScrapMath.levelCost(result.compassAfter()))
+                        .withStyle(ChatFormatting.GOLD));
+            }
+        }
+        if (record != null) {
+            PlaytestJournal.haulBanked(player, record, context.name().toLowerCase(java.util.Locale.ROOT),
+                    result.banked(), result.lost(), result.compassAfter(), result.progress());
+        }
+        Keystone.showCompass(player, log.get(member), false);
+        return result;
+    }
+
+    /**
+     * J7: buys back every trial key {@code player} still holds at the salvage
+     * rates (plain keys at {@code salvageKeyEmeralds}, ominous at
+     * {@code salvageOminousKeyEmeralds}), removes them, and returns the
+     * emeralds paid; 0 when there were none. Keys last the dungeon and settle when the haul banks (PD-196).
+     * Package private so a gametest can drive it without a floor clear.
+     */
+    static int redeemKeys(ServerPlayer player) {
+        return redeemKeys(player, 100);
+    }
+
+    /** {@link #redeemKeys(ServerPlayer)} paying only {@code keepPercent} of the emeralds (a failed dungeon). */
+    static int redeemKeys(ServerPlayer player, int keepPercent) {
+        int keys = 0, ominous = 0;
+        for (int i = 0; i < InventorySwap.LIVE_SLOTS; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.is(Items.TRIAL_KEY)) {
+                keys += stack.getCount();
+                player.getInventory().setItem(i, ItemStack.EMPTY);
+            } else if (stack.is(Items.OMINOUS_TRIAL_KEY)) {
+                ominous += stack.getCount();
+                player.getInventory().setItem(i, ItemStack.EMPTY);
+            }
+        }
+        int emeralds = (SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds())
+                + SalvageMath.keyEmeralds(ominous, PocketDungeonsConfig.salvageOminousKeyEmeralds()))
+                * Math.clamp(keepPercent, 0, 100) / 100;
+        int left = emeralds;
+        int max = new ItemStack(Items.EMERALD).getMaxStackSize();
+        while (left > 0) {
+            int n = Math.min(max, left);
+            Payout.deliver(player, new ItemStack(Items.EMERALD, n));
+            left -= n;
+        }
+        return emeralds;
+    }
+
+    /**
+     * Records the trip's omen at this floor's clear for the journal (J3: the
+     * omen itself carries across floors, it is lives, not per-floor pressure).
+     */
+    static void bankFloorOmen(InstanceRecord record) {
+        record.interval.floorOmens.add(Omen.clamp(record.interval.omen));
+    }
+
+    /**
+     * What {@code member} would bank if the interval settled right now: the
+     * go-home screen's numbers, and the same arithmetic
+     * {@link #settleInterval} applies.
      */
     static IntervalBanking.Settlement settlementFor(MinecraftServer server, InstanceRecord record,
-                                                    UUID member, int penalty) {
+                                                    UUID member) {
         int floors = record.interval.floorSteps.size();
         return IntervalBanking.settle(record.interval.floorSteps, record.interval.floorLevels,
-                record.interval.bankedOmenSum(),
                 DungeonLog.forServer(server).get(member).keystoneLevel(),
-                penalty, ZoneRules.of(record).bonusChests(floors));
+                ZoneRules.of(record).bonusChests(floors));
     }
 
     /**
@@ -1470,8 +1713,8 @@ final class RunLifecycle {
      * 2026-09-29: the player liked the floor-clear title as a channel and
      * asked for the same at the moment of going home.
      */
-    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled) {
-        showBigTitle(player, "HOME", IntervalBanking.takeHomeLine(settled).replace('\n', ' '));
+    private static void showHomeTitle(ServerPlayer player, IntervalBanking.Settlement settled, int scrap) {
+        showBigTitle(player, "HOME", IntervalBanking.homeSubtitle(scrap, settled.chests()));
     }
 
     /**
@@ -1489,36 +1732,33 @@ final class RunLifecycle {
      * Settles the interval once: the guard is set before the settlement runs,
      * so one that throws partway is not repeated in full by a retry.
      */
-    private static void settleOnce(MinecraftServer server, InstanceRecord record, int penalty, String trigger) {
+    private static void settleOnce(MinecraftServer server, InstanceRecord record, String trigger) {
         if (!record.interval.safeVisitSettled) {
             record.interval.safeVisitSettled = true;
-            settleInterval(server, record, penalty, trigger);
+            settleInterval(server, record, trigger);
         }
     }
 
-    /** The settlement of going home: {@link #settleInterval} with no penalty. */
+    /** The settlement of going home, as the home lever. */
     static void settleSafeVisit(MinecraftServer server, InstanceRecord record) {
-        settleInterval(server, record, 0);
+        settleInterval(server, record, "home_lever");
+    }
+
+    /** {@link #settleInterval(MinecraftServer, InstanceRecord, String)} with the default trigger. */
+    static void settleInterval(MinecraftServer server, InstanceRecord record) {
+        settleInterval(server, record, "home_lever");
     }
 
     /**
-     * The settlement that ends an interval, for every member present: the
-     * omen band over the floors actually cleared (made {@code penalty} bands
-     * worse for a checkpoint exit), each member's keystone by
-     * {@link IntervalBanking}'s average-of-doors rule from their own key and
-     * their own carried progress, free-door fuel, the payout command, the
-     * kit top-up ({@link KitTopUp}), prestige, the diary and the run record.
+     * The settlement that ends an interval, for every member present. The
+     * home lever, a checkpoint exit and a grace expiry settle identically
+     * (D24); {@code trigger} only names what ended the interval for the
+     * journal's {@code bank} event: {@code home_lever},
+     * {@code checkpoint_exit} or {@code grace_expiry}. Runs the payout
+     * command, prestige, the diary and the
+     * run record.
      */
-    static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty) {
-        settleInterval(server, record, penalty, penalty > 0 ? "checkpoint_exit" : "home_lever");
-    }
-
-    /**
-     * {@link #settleInterval(MinecraftServer, InstanceRecord, int)}, naming what
-     * ended the interval for the journal's {@code bank} event: {@code home_lever},
-     * {@code checkpoint_exit} or {@code grace_expiry}.
-     */
-    static void settleInterval(MinecraftServer server, InstanceRecord record, int penalty, String trigger) {
+    static void settleInterval(MinecraftServer server, InstanceRecord record, String trigger) {
         if (!record.isKeystoneRun()) {
             return;
         }
@@ -1526,49 +1766,50 @@ final class RunLifecycle {
         int floors = interval.floorSteps.size();
         int bonusChests = ZoneRules.of(record).bonusChests(floors);
         IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
-                interval.floorLevels, interval.bankedOmenSum(), 0, penalty, bonusChests);
+                interval.floorLevels, 0, bonusChests);
 
-        // Per-member settlement: keystone levels and carried progress,
-        // free-door fuel, payout, prestige, diary.
+        // Every way home banks the haul (D24), for members who are not online too.
+        java.util.Map<UUID, DungeonLog.BankResult> banked = new java.util.HashMap<>();
+        for (UUID member : record.members.keySet()) {
+            banked.put(member, bankHaul(server, record, member, BankContext.HOME));
+        }
+
+        // Per-member settlement: the journal row, payout, prestige, diary.
         DungeonLog log = DungeonLog.forServer(server);
-        int maxLevel = PocketDungeonsConfig.keystoneMaxLevel();
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null) {
                 continue;
             }
-            // Each member banks against their own compass level, so a member
-            // riding along at a lower level climbs from where they stand.
+            // The settlement supplies the chest count for the journal and the home title.
             if (!interval.floorSteps.isEmpty()) {
                 DungeonLog.Entry memberEntry = log.get(member);
-                IntervalBanking.Settlement settled = IntervalBanking.settle(interval.floorSteps,
-                        interval.floorLevels, interval.bankedOmenSum(), memberEntry.keystoneLevel(),
-                        penalty, bonusChests);
-                int keyLevel = memberEntry.keystoneLevel();
-                if (settled.levels() > 0) {
-                    keyLevel = KeystoneMath.upgrade(memberEntry.keystoneLevel(), settled.levels(), maxLevel);
-                    Keystones.grantLevel(server, member, memberPlayer, keyLevel);
-                    record.floor.keystoneReturned.add(member);
-                }
+                IntervalBanking.Settlement settled = new IntervalBanking.Settlement(
+                        0, 0, shared.chests());
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
-                        bonusChests, keyLevel);
+                        bonusChests, memberEntry.keystoneLevel());
                 PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
-                memberPlayer.sendSystemMessage(Component.literal(
-                        IntervalBanking.bankedLine(settled, penalty > 0))
-                        .withStyle(ChatFormatting.GOLD));
+                DungeonLog.BankResult homeBank = banked.get(member);
+                if (homeBank == null || homeBank.banked() + homeBank.lost() == 0) {
+                    // bankHaul said what it banked; with nothing carried the line is just the word.
+                    memberPlayer.sendSystemMessage(Component.literal("Home.")
+                            .withStyle(ChatFormatting.GOLD));
+                }
                 if ("home_lever".equals(trigger)) {
-                    showHomeTitle(memberPlayer, settled);
+                    int scrap = (homeBank == null ? 0 : homeBank.banked())
+                            + interval.finishBanked.getOrDefault(member, 0);
+                    showHomeTitle(memberPlayer, settled, scrap);
                 }
             }
 
-            // Dungeon structure W2: no shard is paid at the bank. The guaranteed echo shard
-            // comes from finishing a dungeon (finishDungeon); going home early banks key
-            // steps and chests only (design D11).
+            // J1: nothing is paid at the bank. The finish emeralds come from
+            // finishing a dungeon (finishDungeon); going home early banks
+            // chests only (design D11).
 
             Payout.runPayoutCommand(memberPlayer, record.layout.keystoneLevel(), shared.chests());
 
             // Dungeon structure W5 (design D14): no kit refill at the bank. The kit is granted
-            // once; resource dungeons are the restock.
+            // once; the Mineshaft and the other node dungeons are the restock.
 
             // M26: reads log fresh, after every keystone-level change.
             DiaryDelivery.deliverIfEligible(log, memberPlayer);
@@ -1718,7 +1959,7 @@ final class RunLifecycle {
         }
 
         // M65: settle the interval before tearing down the dungeon, once.
-        settleOnce(server, record, 0, "home_lever");
+        settleOnce(server, record, "home_lever");
 
         // M65: silent homecoming. Stamp the saved room behind the final
         // staging door, open the door, and let the party walk through.
@@ -1791,6 +2032,7 @@ final class RunLifecycle {
         // the doorway is the way home now, and nothing here chooses a floor.
         RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDir);
         RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, dungeonDir);
+        HallRoom.dismantle(level, record.stagingCellOrigin, dungeonDir);
         RoomTemplateGenerator.clearHomeControl(level, record.stagingCellOrigin, dungeonDir);
         DungeonScreen.clearHome(level, record.stagingCellOrigin, dungeonDir);
 
@@ -1816,7 +2058,6 @@ final class RunLifecycle {
     static void beginHomecoming(InstanceRecord record, MinecraftServer server, long now) {
         record.homecoming = new InstanceRecord.Homecoming(record.stagingCellOrigin, record.layout, now);
         record.beginInterval(Instances.lobbyLayout(record.roomCellOrigin));
-        InventorySwap.captureIntervalSnapshot(server, record);
     }
 
     /**
@@ -1888,7 +2129,6 @@ final class RunLifecycle {
         // no homecoming left to wait for.
         record.homecoming = null;
         record.beginInterval(Instances.lobbyLayout(safeOrigin));
-        InventorySwap.captureIntervalSnapshot(server, record);
 
         RunSession.transition(record, RunSession.Phase.HOME);
 
@@ -1942,6 +2182,9 @@ final class RunLifecycle {
         // an instance died with its last member; U8 made instances outlive
         // everyone, so what detach also clears (onPad, Trial Omen)
         // matters for the rest of the run, not just at teardown.
+        // Owner ruling 2026-10-09: a rider who drops out (disconnect, left the dimension) settles by the
+        // leaving rule: cash out between floors, fail on a floor.
+        leaveSettle(server, record, member);
         Instances.detach(server, record, member, player);
 
         // record.members has already had `member` removed above, so a non-empty
@@ -1949,6 +2192,14 @@ final class RunLifecycle {
         if (leadershipChanged(record, member, !record.members.isEmpty())) {
             if (disconnected && holdForOwner(server, record)) {
                 return;
+            }
+            if (record.isKeystoneRun() && record.inFloorLoop() && !record.visitInstance) {
+                if (betweenFloors(record)) {
+                    bankHaul(server, record, member, BankContext.HOME);
+                    settleOnce(server, record, "owner_left_checkpoint");
+                } else {
+                    settleLeaderLeft(server, record, member);
+                }
             }
             InstanceTeardown.purge(server, record, "party leader left", member);
             return;
@@ -2015,7 +2266,10 @@ final class RunLifecycle {
             if (record.phase == RunSession.Phase.PREVIEW && level != null) {
                 Instances.clearPreview(level, record, true);
             }
-            settleOnce(server, record, IntervalBanking.LEAVE_PENALTY, "grace_expiry");
+            settleOnce(server, record, "grace_expiry");
+        } else if (record.isKeystoneRun() && record.inFloorLoop() && !record.visitInstance) {
+            // The owner is not in the party at the end of a floor in progress: it is a failed dungeon.
+            settleLeaderLeft(server, record, record.owner);
         }
         Instances.announce(server, record, "Your party leader did not come back in time. The run ends.", null);
         InstanceTeardown.purge(server, record, "party leader did not reconnect");
@@ -2051,11 +2305,16 @@ final class RunLifecycle {
      * opened the floor, the free door included.
      */
     private static void applyQuitPenalty(MinecraftServer server, InstanceRecord record, ServerPlayer owner) {
-        int cost = PocketDungeonsConfig.timedOutDepletion();
-        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.QUIT);
+        // PD-168 (owner ruling 2026-10-08): a quit is a fail for the haul. Every member's haul banks
+        // at the fail share and the rest is lost, exactly as a fifth death; the compass is no
+        // longer lowered, so walking away can never beat failing.
+        for (UUID member : new ArrayList<>(record.members.keySet())) {
+            bankHaul(server, record, member, BankContext.FAIL);
+        }
+        returnKeystone(server, record, record.owner, owner, Keystones.Outcome.NO_CHANGE);
         owner.sendSystemMessage(Component.literal(
-                "You quit the door. Your compass is downgraded by " + cost
-                        + (cost == 1 ? " level." : " levels."))
+                "You quit the door. It counts as a failed dungeon: your haul keeps "
+                        + PocketDungeonsConfig.failHaulKeepPercent() + " percent. Your compass is unchanged.")
                 .withStyle(ChatFormatting.YELLOW));
         Chime.doorQuit(owner);
     }
@@ -2121,7 +2380,7 @@ final class RunLifecycle {
         // state. The player stays in the safe room and picks a new door.
         FloorHistory.quit(player, record);
         applyQuitPenalty(server, record, player);
-        PlaytestJournal.quitFloor(player, PocketDungeonsConfig.timedOutDepletion());
+        PlaytestJournal.quitFloor(player, 0);
         Instances.resetToLobby(server, record, true);
         return true;
     }

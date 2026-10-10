@@ -8,7 +8,7 @@ import java.util.function.Function;
 /**
  * The staging room's dungeon map as plain text lines (design D6): the layers of
  * the dungeon the trip is in, the node the party stands at, the final floor,
- * each edge's shard cost, and which floors each door can still reach. Pure
+ * each edge's scrap cost, and which floors each door can still reach. Pure
  * strings with a {@link Tone} per line; {@code DialogScreens} turns them into
  * a dialog. No Minecraft imports, so {@code DungeonMapTextTest} pins the shape.
  *
@@ -37,7 +37,7 @@ final class DungeonMapText {
         List<Line> out = new ArrayList<>();
         out.add(new Line(def.name().toUpperCase(), Tone.TITLE));
         out.add(new Line("Act " + def.act() + ", " + def.layers() + " layers. "
-                + "You are here: >> <<. Visited: *. Some doors cost echo shards.", Tone.NOTE));
+                + "You are here: >> <<. Visited: *. Some doors cost a life.", Tone.NOTE));
 
         Set<String> ahead = TripDoors.reachableFrom(def, current);
         for (int layer = 1; layer <= def.layers(); layer++) {
@@ -75,7 +75,7 @@ final class DungeonMapText {
                     if (edge.free()) {
                         out.add(new Line("    to " + name, Tone.NORMAL));
                     } else {
-                        out.add(new Line("    to " + name + " (side branch: " + shards(edge.cost()) + ")",
+                        out.add(new Line("    to " + name + " (side branch: " + scrap(edge.cost()) + ")",
                                 Tone.SIDE));
                     }
                 }
@@ -93,7 +93,7 @@ final class DungeonMapText {
                 StringBuilder text = new StringBuilder("Door ").append(slot + 1).append(": ").append(name)
                         .append(", ").append(stepWord(door.step()));
                 if (door.sideBranch()) {
-                    text.append(", side branch: ").append(shards(door.cost()));
+                    text.append(", side branch: ").append(scrap(door.cost()));
                 }
                 out.add(new Line(text.toString(), door.sideBranch() ? Tone.SIDE : Tone.NORMAL));
                 List<String> reach = new ArrayList<>();
@@ -112,9 +112,16 @@ final class DungeonMapText {
 
     /**
      * The map before a dungeon is chosen: each door offers a dungeon. {@code
-     * lookup} resolves a dungeon id to its definition.
+     * lookup} resolves a dungeon id to its definition. {@code locked} lists
+     * the open act's dungeons the leader's compass has not reached (D23),
+     * each with its unlock level.
      */
     static List<Line> firstLines(TripDoors.Door[] doors, Function<String, DungeonDef> lookup) {
+        return firstLines(doors, lookup, List.of());
+    }
+
+    static List<Line> firstLines(TripDoors.Door[] doors, Function<String, DungeonDef> lookup,
+                                 List<DungeonDef> locked) {
         List<Line> out = new ArrayList<>();
         out.add(new Line("CHOOSE A DUNGEON", Tone.TITLE));
         out.add(new Line("The door you take picks the dungeon. Going home early banks what you cleared.",
@@ -137,6 +144,51 @@ final class DungeonMapText {
                 out.add(new Line("    ends at " + String.join(", ", finals), Tone.FINAL));
             }
         }
+        if (!locked.isEmpty()) {
+            out.add(new Line("Locked", Tone.HEADING));
+            for (DungeonDef def : locked) {
+                out.add(new Line("    " + def.name() + " · compass " + def.unlockLevel(), Tone.NOTE));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The act checklist for the first staging map (D29): each dungeon of
+     * {@code act} with a tick when finished or its unlock level when locked,
+     * the Endless Mine's depth against the act's target, then nothing for a
+     * complete act. Sorted by dungeon id so the order is stable.
+     */
+    static List<Line> actChecklist(int act, java.util.Collection<DungeonDef> all, Set<String> finished,
+                                 int compass, int deepestMineFloor) {
+        List<Line> out = new ArrayList<>();
+        Set<String> done = new java.util.LinkedHashSet<>();
+        for (String id : finished) {
+            done.add(DungeonDef.qualify(id));
+        }
+        List<DungeonDef> dungeons = new ArrayList<>(ActProgress.actDungeons(act, all));
+        dungeons.sort(java.util.Comparator.comparing(DungeonDef::id));
+        if (dungeons.isEmpty()) {
+            return out;
+        }
+        out.add(new Line("Act " + act + " checklist", Tone.HEADING));
+        for (DungeonDef def : dungeons) {
+            if (done.contains(DungeonDef.qualify(def.id()))) {
+                out.add(new Line("    " + def.name() + " (done)", Tone.VISITED));
+            } else if (def.kind() == DungeonDef.Kind.CAPSTONE
+                    && !ActProgress.capstoneReady(act, finished, deepestMineFloor, all)) {
+                out.add(new Line("    " + def.name() + " · after the rest of the act", Tone.NOTE));
+            } else if (def.unlockLevel() > compass) {
+                out.add(new Line("    " + def.name() + " · compass " + def.unlockLevel(), Tone.NOTE));
+            } else {
+                out.add(new Line("    " + def.name(), Tone.NORMAL));
+            }
+        }
+        int target = ActProgress.mineTarget(act);
+        if (target > 0) {
+            out.add(new Line("    Endless Mine · floor " + Math.min(deepestMineFloor, target)
+                    + " of " + target + (deepestMineFloor >= target ? " (done)" : ""), Tone.NOTE));
+        }
         return out;
     }
 
@@ -150,7 +202,7 @@ final class DungeonMapText {
         return step <= 0 ? "+0 scrap" : "+" + step + " scrap";
     }
 
-    static String shards(int cost) {
-        return cost + (cost == 1 ? " shard" : " shards");
+    static String scrap(int cost) {
+        return cost + (cost == 1 ? " life" : " lives");
     }
 }

@@ -18,14 +18,15 @@ import java.util.List;
 /**
  * The dead-end fountain (playtest 2026-10-02-1: dead end rooms that only had a
  * vault, maybe a chest and a chiseled stone wall, should sometimes hold a
- * fountain that gives a boon: a full heal, food, or a clean omen).
+ * fountain that gives a boon: a full heal, food, or a life back).
  *
  * <p>A full water cauldron on a chiseled pedestal. The pedestal block says which
  * boon it holds, so the fountain needs no saved state: quartz is a full heal,
- * sandstone is food, deepslate cleanses the omen. Using it empties the cauldron,
+ * sandstone is food, deepslate restores a life (it takes one omen off the trip,
+ * J3). Using it empties the cauldron,
  * and turns the pedestal plain, which is the whole "one use" rule (a cauldron
  * refilled from a bucket is just a cauldron): the first player to drink takes the boon
- * for themselves (the omen cleanse is the floor's, so it helps the party).
+ * for themselves (the life back is the trip's, so it helps the party).
  */
 final class Fountain {
 
@@ -90,7 +91,7 @@ final class Fountain {
     /** Whether a cell holds a fountain and which boon, from the plan seed and the cell alone. */
     static Boon roll(long seed, BlockPos cellOrigin, double chance) {
         RandomSource random = RandomSource.create(seed ^ (cellOrigin.asLong() * 0x9E3779B97F4A7C15L) ^ 0xF0F7A1DL);
-        if (!Fuel.rollChance(random, chance)) {
+        if (!Rolls.chance(random, chance)) {
             return null;
         }
         return Boon.values()[random.nextInt(Boon.values().length)];
@@ -146,10 +147,10 @@ final class Fountain {
             case CLEANSE -> {
                 InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
                 if (record != null) {
-                    OmenSources.relieve(player.level().getServer(), record,
-                            PocketDungeonsConfig.fountainOmenRelief());
+                    // J3: a life back, never below zero.
+                    PressureSources.relieve(player.level().getServer(), record, 1);
                 }
-                say(player, "The water washes the omen out of the air.");
+                say(player, "The water washes a bad omen away. A life back.");
             }
         }
         PlaytestJournal.fountain(player, boon.name().toLowerCase(java.util.Locale.ROOT));

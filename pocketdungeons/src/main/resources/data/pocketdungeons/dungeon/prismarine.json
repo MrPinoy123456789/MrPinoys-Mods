@@ -1,7 +1,9 @@
 {
   "name": "Prismarine",
+  "token": { "mat": "minecraft:prismarine" },
   "act": 3,
-  "kind": "story",
+  "baseLevel": 13,
+  "kind": "dungeon",
   "mainTheme": "prismarine",
   "lootBand": {
     "min": 3,
@@ -46,7 +48,7 @@
       "theme": "copper_works",
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -63,7 +65,8 @@
       "id": "monument_heart",
       "name": "Heart of the Monument",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["monument_heart"]
     }
   ],
   "edges": [
@@ -90,7 +93,7 @@
     {
       "from": "kelp_tunnels",
       "to": "rusted_pumps",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "sunken_archives",

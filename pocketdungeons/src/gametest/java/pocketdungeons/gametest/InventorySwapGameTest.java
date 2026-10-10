@@ -8,6 +8,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 
@@ -18,8 +19,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The five scenarios SITUATIONS_SPEC section 10 step 1 asks for, plus the PD-92
- * max-omen revert, run against a
+ * The five scenarios SITUATIONS_SPEC section 10 step 1 asks for, plus the J2
+ * keep-what-you-carry ejection, run against a
  * real dedicated server with a real {@code ServerPlayer}.
  *
  * <p>No Carpet. {@code GameTestHelper.makeMockServerPlayerInLevel} builds a
@@ -78,12 +79,12 @@ public final class InventorySwapGameTest {
      * Scenario 2: leaving the void restores the survival inventory exactly,
      * cursor included.
      *
-     * <p>The expectation accounts for something the spec does not: on a
+     * <p>The expectation accounts for something the spec does not: on a raw
      * teleport, vanilla has already dealt with the carried stack before any
-     * Fabric event fires. See {@link #cursorItemSurvivesAReconcile} for the
-     * detail and for the path this mod does own. Either way the stack ends up
-     * in the first free main slot, so that is what the round trip has to
-     * reproduce.
+     * Fabric event fires; on a mod-driven one, {@code Instances.teleport}
+     * lifts it into the record first. See {@link #cursorItemSurvivesAReconcile}
+     * for the detail. Either way the stack ends up in the first free main
+     * slot, so that is what the round trip has to reproduce.
      */
     @GameTest
     public void exitRestoresSurvivalExactly(GameTestHelper helper) {
@@ -233,8 +234,11 @@ public final class InventorySwapGameTest {
      * inventory slot, or dropped it at the origin if there was no free slot.
      * Fabric ships no BEFORE variant of that event (checked in
      * fabric-entity-events-v1 5.0.5: {@code AfterEntityChange} and
-     * {@code AfterPlayerChange} are the only two), so getting ahead of it would
-     * take a mixin, and this mod's mixin budget is spent.
+     * {@code AfterPlayerChange} are the only two), so getting ahead of a
+     * teleport this mod does not drive would take a mixin, and this mod's
+     * mixin budget is spent. For the moves it does drive the answer is
+     * {@code InventorySwap.liftCursorBeforeCrossing}, called from
+     * {@code Instances.teleport} before the transition starts.
      *
      * <p>What this mod does own is every reconcile that is <em>not</em>
      * preceded by a vanilla teleport: the tick sweep and the join handler. That
@@ -280,17 +284,22 @@ public final class InventorySwapGameTest {
     }
 
     /**
-     * PD-92: a max-omen ejection reverts the pack to the interval-start
-     * snapshot, sends the player home, and the next entry hands back every
-     * stack exactly once.
+     * J2: an ejection keeps the pack as carried, sends the player home, and
+     * the next entry hands back every stack exactly once.
      *
-     * <p>The snapshot fills the main inventory, so its cursor stack has to go
+     * <p>The pack fills the main inventory, so its cursor stack has to go
      * loose, and the record already holds a loose stack from before the
-     * failure, which the revert must not wipe. Loot picked up during the
-     * interval must not survive it.
+     * failure, which the ejection must not wipe. Unbanked loot is kept.
+     *
+     * <p>The exit drives {@link InventorySwap.Probe#modTeleport} rather than a
+     * raw {@code teleportTo}, because production ejections always go through
+     * {@code Instances.teleport}: that path lifts the cursor stack into the
+     * record before {@code Player.remove(CHANGED_DIMENSION)} can resolve it
+     * through {@code placeItemBackInInventory}, which on a full pack would
+     * drop it on the void floor (scenario 5's javadoc has the jar references).
      */
     @GameTest
-    public void maxOmenEjectionKeepsEachStackOnce(GameTestHelper helper) {
+    public void ejectionKeepsEachStackOnce(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         ServerLevel dungeon = requireDungeon(helper, server);
         ServerLevel overworld = server.overworld();
@@ -299,21 +308,20 @@ public final class InventorySwapGameTest {
         emptyInventory(player);
         intoVoid(helper, player, dungeon);
 
-        List<ItemStack> snapshot = new ArrayList<>();
-        for (int slot = 0; slot < InventorySwap.Probe.SLOTS; slot++) {
-            snapshot.add(slot < 36 ? new ItemStack(Items.COBBLESTONE, 64) : ItemStack.EMPTY);
+        for (int slot = 0; slot < 36; slot++) {
+            player.getInventory().setItem(slot, new ItemStack(Items.COBBLESTONE, 64));
         }
-        snapshot.set(0, new ItemStack(Items.DIAMOND_SWORD));
-        snapshot.set(8, new ItemStack(Items.COOKED_BEEF, 32));
-        snapshot.set(36, new ItemStack(Items.NETHERITE_BOOTS));
-        snapshot.set(InventorySwap.Probe.SLOTS - 1, new ItemStack(Items.NETHERITE_INGOT, 3));
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND_SWORD));
+        player.getInventory().setItem(8, new ItemStack(Items.COOKED_BEEF, 32));
+        player.getInventory().setItem(36, new ItemStack(Items.NETHERITE_BOOTS));
+        player.containerMenu.setCarried(new ItemStack(Items.NETHERITE_INGOT, 3));
 
-        // The interval's loot, and a top-up that did not fit earlier.
+        // Unbanked loot, and a top-up that did not fit earlier.
         player.getInventory().setItem(5, new ItemStack(Items.GOLD_INGOT, 7));
         InventorySwap.Probe.keepLoose(player, List.of(new ItemStack(Items.EMERALD, 5)));
 
-        InventorySwap.Probe.restoreIntervalSnapshotNow(player, snapshot);
-        outOfVoid(helper, player, overworld);
+        InventorySwap.Probe.modTeleport(player, overworld, new Vec3(0.5, 80.0, 0.5));
+        InventorySwap.Probe.reconcileNow(player);
         helper.assertFalse(InventorySwap.Probe.isStashed(player), "the ejection restored survival");
         intoVoid(helper, player, dungeon);
 
@@ -322,11 +330,11 @@ public final class InventorySwapGameTest {
         helper.assertValueEqual(countOf(held, Items.DIAMOND_SWORD), 1, "the sword exists once");
         helper.assertValueEqual(countOf(held, Items.COOKED_BEEF), 32, "the food exists once");
         helper.assertValueEqual(countOf(held, Items.NETHERITE_BOOTS), 1, "the boots exist once");
-        helper.assertValueEqual(countOf(held, Items.COBBLESTONE), 34 * 64, "the filler exists once");
+        helper.assertValueEqual(countOf(held, Items.COBBLESTONE), 33 * 64, "the filler exists once");
         helper.assertValueEqual(countOf(held, Items.NETHERITE_INGOT), 3,
                 "the cursor stack went loose and exists once");
         helper.assertValueEqual(countOf(held, Items.EMERALD), 5, "the earlier loose stack survived");
-        helper.assertValueEqual(countOf(held, Items.GOLD_INGOT), 0, "the interval's loot was reverted");
+        helper.assertValueEqual(countOf(held, Items.GOLD_INGOT), 7, "the unbanked loot was kept");
 
         InventorySwap.Probe.clearKept(player);
         cleanUp(server, player);

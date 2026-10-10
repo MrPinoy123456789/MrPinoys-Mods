@@ -1,0 +1,7 @@
+{
+  "id": "extra_bags",
+  "label": "Extra bags",
+  "description": "The five cut bags; only exist while this module is on.",
+  "default": false,
+  "bags": ["pilgrim", "shepherd", "mason", "magician", "plumber"]
+}

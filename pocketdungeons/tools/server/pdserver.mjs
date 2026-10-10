@@ -29,11 +29,11 @@
 // Either way it is a TEST server, never the live server.
 
 import { spawn } from 'node:child_process'
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { createConnection } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { freemem, platform } from 'node:os'
+import { freemem, platform, tmpdir } from 'node:os'
 import { dedupeHeard, eventOf, isVanillaNoise, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
 import { Kinetic, remoteConfig } from './kinetic.mjs'
 
@@ -140,8 +140,40 @@ const isUp = () => panel
  */
 const announceTarget = action => console.log(`Remote: ${action} panel server ${remote.serverId} (id from ${remote.source}).`)
 
+/**
+ * PD-163: remotely, a command's reply is read back out of the shared server log, so two
+ * commands in flight at once (a lemon_reply and the MCP server's llm keepalive, which are
+ * separate processes) can steal each other's feedback: a stray "No player was found" from one
+ * lands in the other's reply window. Every panel command therefore takes a cross process lock
+ * (a lock file in the temp directory, stale after 30 s) for as long as its reply is being read.
+ * Local RCON replies are per connection and need none.
+ */
+async function withPanelLock(task) {
+  if (!panel) return task()
+  const lock = join(tmpdir(), `pd-panel-${remote.serverId}.lock`)
+  const giveUp = Date.now() + 60000
+  for (;;) {
+    try {
+      closeSync(openSync(lock, 'wx'))
+      break
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e
+      try {
+        if (Date.now() - statSync(lock).mtimeMs > 30000) { unlinkSync(lock); continue }
+      } catch { /* the holder just released it */ }
+      if (Date.now() > giveUp) throw new Error('another panel command has held the console for a minute; try again')
+      await sleep(120)
+    }
+  }
+  try {
+    return await task()
+  } finally {
+    try { unlinkSync(lock) } catch { /* already gone */ }
+  }
+}
+
 /** Runs one console command and resolves with its reply, on whichever server is configured. */
-const run = (command, timeoutMs) => (panel ? remoteCommand(command, timeoutMs) : rcon(command, timeoutMs))
+const run = (command, timeoutMs) => (panel ? withPanelLock(() => remoteCommand(command, timeoutMs)) : rcon(command, timeoutMs))
 
 /**
  * Sends one console command and does not wait for its reply. Remotely a reply costs a
@@ -149,7 +181,7 @@ const run = (command, timeoutMs) => (panel ? remoteCommand(command, timeoutMs) :
  * (PD-148), so anything repeated that nobody reads (the llm keepalive, a chat line) goes
  * through here instead.
  */
-const fire = command => (panel ? panel.command(command) : rcon(command, 5000))
+const fire = command => (panel ? withPanelLock(() => panel.command(command)) : rcon(command, 5000))
 
 // A logged line's prefix: time, thread and level, then Fabric's "(logger)" (vanilla has ": " instead).
 const LOG_PREFIX = /^\[\d\d:\d\d:\d\d\] \[[^\]]+\](?: \(([^)]+)\))?:? /

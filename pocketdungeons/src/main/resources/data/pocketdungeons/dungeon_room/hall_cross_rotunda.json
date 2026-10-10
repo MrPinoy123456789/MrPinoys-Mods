@@ -1,0 +1,13 @@
+{
+  "template": "pocketdungeons:rooms/hall_cross_rotunda",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "light": "lit",
+  "corridor": "wide",
+  "tier": 1,
+  "access": "open",
+  "window": "bars"
+}

@@ -145,6 +145,7 @@ final class TrialContent {
         VAULT_KEY.get();
         OMINOUS_VAULT_KEY.get();
         KnowledgeSpecs.registerHandlers();
+        KennelSpecs.registerHandlers();
         MechanismSpecs.registerHandlers();
         PressureSpecs.registerHandlers();
         SpurSpecs.registerHandlers();

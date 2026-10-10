@@ -1,0 +1,24 @@
+{
+  "template": "pocketdungeons:rooms/frost_ice_vault",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["frostworks"],
+  "dungeons": ["frostworks"],
+  "acts": [2],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "frostworks",
+  "nodes": [
+    { "block": "minecraft:lapis_ore", "from": [3, 2, 11], "to": [7, 2, 11], "count": 3 },
+    { "block": "minecraft:iron_ore", "from": [3, 2, 4], "to": [7, 2, 4], "count": 2 },
+    { "block": "minecraft:diamond_ore", "from": [11, 2, 13], "to": [12, 2, 13], "count": 1, "chance": 0.3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

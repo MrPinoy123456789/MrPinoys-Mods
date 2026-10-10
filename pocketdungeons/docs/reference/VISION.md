@@ -5,6 +5,12 @@
 > `MYTHIC_PLUS_RECONCILIATION.md` holds the design decisions and their reasoning.
 > **This document answers what the mod is for and why it should exist.**
 
+> **Superseded in part (2026-10-06).** Sections 2 and 3.2 to 3.4 predate
+> `DUNGEON_STRUCTURE_DESIGN.md`: acts, the compass, omen as danger only and
+> failure costing the trip are all restated there in current form, and the
+> campaign this document describes is now structural fiction, not the shape
+> of a run. The hook and the pillars still stand.
+
 ---
 
 ## 1. The hook

@@ -305,7 +305,36 @@ for ((taskName, testClass) in mapOf(
     "resourceNodeTest" to "ResourceNodeTest",
     // Dungeon structure W5: five kits with hidden bags, the side branch payer, structural palette blocks and room eligibility.
     "kitHiddenBagTest" to "KitHiddenBagTest",
-    "sideBranchPayTest" to "SideBranchPayTest",
+    "doorLivesTest" to "DoorLivesTest",
+    // Playtest 2026-10-07-2 (PD-175): no loot entry enchants an already enchanted book.
+    "bookLootTest" to "BookLootTest",
+    // Tuning knobs (2026-10-08): every trial spawner gives at least the key share in tools/loot_knobs.json.
+    "spawnerEjectOddsTest" to "SpawnerEjectOddsTest",
+    // Floor and dungeon notes (2026-10-08): the reason to choose a door, present, distinct and honest about ore.
+    "floorNotesTest" to "FloorNotesTest",
+    // Playtest 2026-10-08-1 (PD-178, Q10e): poison, wither, slowness and mining fatigue never last past their caps.
+    "effectCapsTest" to "EffectCapsTest",
+    // Design pass 2026-10-09 (Q7): the trip sidebar lines.
+    "sidebarLinesTest" to "SidebarLinesTest",
+    // Design pass 2026-10-09 (Q1): the Astrolabe Room door row and door states.
+    "hallLayoutTest" to "HallLayoutTest",
+    "hallDataTest" to "HallDataTest",
+    // Design pass 2026-10-09 (Q4, Q5): the finale wave rules, the mob uniform and the authored data.
+    "finaleRulesTest" to "FinaleRulesTest",
+    "mobUniformsTest" to "MobUniformsTest",
+    "finaleDataTest" to "FinaleDataTest",
+    // Design pass 2026-10-09 (Q3): the Heard meter.
+    "sculkHeardTest" to "SculkHeardTest",
+    // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
+    "restlessRulesTest" to "RestlessRulesTest",
+    // Design pass 2026-10-09 (Q9): hidden ore that deepens with the floor.
+    "hiddenOreDepthTest" to "HiddenOreDepthTest",
+    // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
+    "floorTitleTest" to "FloorTitleTest",
+    // Playtest 2026-10-07-2 (PD-171): rubble never cuts off a room that holds a spawner.
+    "rubbleRulesTest" to "RubbleRulesTest",
+    // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
+    "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
     "roomEligibilityTest" to "RoomEligibilityTest",
     // Dungeon structure W7a: brood wave sizing and phases, the sculk omen rule, the Warden summon rule, the capstone offer rule.
@@ -321,14 +350,15 @@ for ((taskName, testClass) in mapOf(
     "roomScanTest" to "RoomScanTest",
     "floorHistoryTest" to "FloorHistoryTest",
     "rerollMathTest" to "RerollMathTest",
-    "gambleMathTest" to "GambleMathTest",
+    // Step 14 (J5a): the gamble station's math became the home vendor's.
+    "vendorMathTest" to "VendorMathTest",
+    "vendorStockTest" to "VendorStockTest",
     "salvageMathTest" to "SalvageMathTest",
     "storePricingTest" to "StorePricingTest",
     "powerEquipMathTest" to "PowerEquipMathTest",
     "pocket2Test" to "Pocket2Test",
     "trialContentConfigIdTest" to "TrialContentConfigIdTest",
     "connectorTest" to "ConnectorTest",
-    "cubeStationTest" to "CubeStationTest",
     "roomStoreTest" to "RoomStoreTest",
     "payoutTest" to "PayoutTest",
     // Situations round, registered here by M46B so no other milestone in the
@@ -364,8 +394,6 @@ for ((taskName, testClass) in mapOf(
     "configSaveTest" to "ConfigSaveTest",
     "zoneRulesTest" to "ZoneRulesTest",
     "intervalBankingTest" to "IntervalBankingTest",
-    // Audit wave 2c: the safe-visit kit top-up's pure core.
-    "kitTopUpTest" to "KitTopUpTest",
     // Lemon steps 1 and 2: the playtest journal line format, the context
     // snapshot builder, and Lemon's chat routing and bubbles.
     "journalFormatTest" to "JournalFormatTest",
@@ -383,7 +411,14 @@ for ((taskName, testClass) in mapOf(
     // Design item 1: the door board words and the palette simplification.
     "boardTextTest" to "BoardTextTest",
     // Design item 7: hidden ore pockets are buried, bounded and seeded.
-    "hiddenOrePlannerTest" to "HiddenOrePlannerTest"
+    "hiddenOrePlannerTest" to "HiddenOrePlannerTest",
+    // Haul and Blood Doors (2026-10-07): the haul ledger.
+    "scrapMathTest" to "ScrapMathTest",
+    // Simplification step 11 (L2, D41): content module defaults, overrides and allow lists.
+    "contentModulesTest" to "ContentModulesTest",
+    // Simplification step 12 (K, K2, K3): the simple-loot allow list, the cuts,
+    // copper out of the palettes, and the dungeon barter table's contents.
+    "lootRulesTest" to "LootRulesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -401,7 +436,23 @@ tasks.test {
     dependsOn("actUnlockTest")
     dependsOn("resourceNodeTest")
     dependsOn("kitHiddenBagTest")
-    dependsOn("sideBranchPayTest")
+    dependsOn("doorLivesTest")
+    dependsOn("bookLootTest")
+    dependsOn("spawnerEjectOddsTest")
+    dependsOn("floorNotesTest")
+    dependsOn("effectCapsTest")
+    dependsOn("sidebarLinesTest")
+    dependsOn("hallLayoutTest")
+    dependsOn("hallDataTest")
+    dependsOn("finaleRulesTest")
+    dependsOn("mobUniformsTest")
+    dependsOn("finaleDataTest")
+    dependsOn("sculkHeardTest")
+    dependsOn("restlessRulesTest")
+    dependsOn("hiddenOreDepthTest")
+    dependsOn("floorTitleTest")
+    dependsOn("rubbleRulesTest")
+    dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
     dependsOn("bossRulesTest")
@@ -412,12 +463,13 @@ tasks.test {
     dependsOn("floorHistoryTest")
     dependsOn("salvageMathTest")
     dependsOn("rerollMathTest")
-    dependsOn("gambleMathTest")
+    dependsOn("vendorMathTest")
+    dependsOn("vendorStockTest")
+    dependsOn("storePricingTest")
     dependsOn("powerEquipMathTest")
     dependsOn("pocket2Test")
     dependsOn("trialContentConfigIdTest")
     dependsOn("connectorTest")
-    dependsOn("cubeStationTest")
     dependsOn("roomStoreTest")
     dependsOn("payoutTest")
     dependsOn("doorMaskTest")
@@ -462,13 +514,15 @@ tasks.test {
     dependsOn("configSaveTest")
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
-    dependsOn("kitTopUpTest")
     dependsOn("journalFormatTest")
     dependsOn("lemonSpeechTest")
     dependsOn("bookPagesTest")
     dependsOn("doorAffixesTest")
     dependsOn("boardTextTest")
     dependsOn("hiddenOrePlannerTest")
+    dependsOn("scrapMathTest")
+    dependsOn("contentModulesTest")
+    dependsOn("lootRulesTest")
     failOnNoDiscoveredTests = false
 }
 

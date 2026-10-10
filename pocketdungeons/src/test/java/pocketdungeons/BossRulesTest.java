@@ -22,7 +22,7 @@ public class BossRulesTest {
     private static final Path DATA = Path.of("src/main/resources/data/pocketdungeons");
 
     private static final String SHAPE = """
-            {"name": "NAME", "act": 4, "kind": "KIND", "mainTheme": "frostworks",
+            {"name": "NAME", "act": 4, "baseLevel": 1, "kind": "KIND", "mainTheme": "frostworks",
              "lootBand": {"min": 3, "max": 4},
              "nodes": [
                {"id": "gate", "name": "Gate", "layer": 1},
@@ -168,22 +168,16 @@ public class BossRulesTest {
         check(!HerobrineRules.shouldStart(false, false, 2), "never off the final floor");
     }
 
-    // ---- the capstone start omen ---------------------------------------------------------------
+    // ---- the capstone level head start (J3: +2, not omen) -------------------------------------
 
     private static void testCapstoneStart() {
         DungeonDef capstone = def("c", "capstone");
-        DungeonDef story = def("s", "story");
-        check(CapstoneStart.amount(capstone, "end", 1) == 1, "a capstone's final floor starts with 1 omen");
-        check(CapstoneStart.amount(capstone, "mid", 1) == 0, "a capstone's other floors start clean");
-        check(CapstoneStart.amount(capstone, "gate", 1) == 0, "the entry floor starts clean");
-        check(CapstoneStart.amount(story, "end", 1) == 0, "a story dungeon's final floor starts clean");
-        check(CapstoneStart.amount(null, "end", 1) == 0, "no dungeon, no head start");
-        check(CapstoneStart.amount(capstone, "end", 0) == 0, "zero in the config turns it off");
-        check(CapstoneStart.amount(capstone, "end", 9) == Omen.MAX_OMEN, "the config value is clamped to the omen cap");
-        check(CapstoneStart.amount(capstone, "end", -2) == 0, "a negative config value is zero");
-        check(CapstoneStart.raise(0, 1) == 1, "the head start raises omen from 0 to 1");
-        check(CapstoneStart.raise(3, 1) == 3, "it never lowers omen");
-        check(CapstoneStart.raise(1, 1) == 1, "it does not stack on equal omen");
+        DungeonDef ordinary = def("s", "dungeon");
+        check(CapstoneStart.levelBonus(capstone, "end") == 2, "a capstone's final floor opens +2 levels");
+        check(CapstoneStart.levelBonus(capstone, "mid") == 0, "a capstone's other floors open flat");
+        check(CapstoneStart.levelBonus(capstone, "gate") == 0, "the entry floor opens flat");
+        check(CapstoneStart.levelBonus(ordinary, "end") == 0, "an ordinary dungeon's final floor opens flat");
+        check(CapstoneStart.levelBonus(null, "end") == 0, "no dungeon, no head start");
     }
 
     // ---- shipped data ------------------------------------------------------------------------

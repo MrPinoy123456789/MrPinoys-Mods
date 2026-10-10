@@ -1,6 +1,9 @@
 {
   "name": "Ancient City",
+  "token": { "mat": "minecraft:sculk" },
+  "notes": "Sculk hears every step. Deepslate ore for the quiet.",
   "act": 2,
+  "baseLevel": 12,
   "kind": "capstone",
   "mainTheme": "ancient_city",
   "lootBand": {
@@ -30,6 +33,7 @@
     {
       "id": "silent_avenue",
       "name": "The Silent Avenue",
+      "notes": "A sculk causeway. Every step is heard.",
       "layer": 2,
       "light": "dark",
       "roomBias": [
@@ -39,6 +43,7 @@
     {
       "id": "echo_cloister",
       "name": "Echo Cloister",
+      "notes": "A sculk nave. The echoes call company.",
       "layer": 2,
       "light": "dark",
       "roomBias": [
@@ -48,6 +53,7 @@
     {
       "id": "deepslate_barracks",
       "name": "The Deepslate Barracks",
+      "notes": "Deepslate barracks, away from the sculk.",
       "layer": 3,
       "light": "dark",
       "theme": "deepslate"
@@ -55,10 +61,11 @@
     {
       "id": "sensor_hall",
       "name": "The Sensor Hall",
+      "notes": "Sensor halls. One loud step and they come.",
       "layer": 3,
       "light": "dark",
       "roomBias": [
-        "sensor_gallery",
+        "hush_gallery",
         "sculk_causeway",
         "sculk_nave"
       ]
@@ -66,6 +73,7 @@
     {
       "id": "wardens_rest",
       "name": "The Warden's Rest",
+      "notes": "The Warden sleeps here. Do not wake it.",
       "layer": 4,
       "final": true,
       "light": "dark",

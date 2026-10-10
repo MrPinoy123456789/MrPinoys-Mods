@@ -1,6 +1,8 @@
 {
   "name": "The Wither's Keep",
+  "token": { "mat": "minecraft:soul_sand" },
   "act": 4,
+  "baseLevel": 20,
   "kind": "capstone",
   "mainTheme": "wither_keep",
   "lootBand": {
@@ -72,7 +74,7 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -104,7 +106,7 @@
     {
       "from": "fortress_bridges",
       "to": "blaze_spire",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "warped_grove",

@@ -60,14 +60,11 @@ final class DiscoveryFloor {
             return false;
         }
 
-        // The floor fires at the Cube station's unlock level. A player who
-        // has not yet reached that level has no Cube to try the catalyst at,
-        // so delivering one would be a loose item with no context.
-        int level = log.get(playerId).keystoneLevel();
-        int unlock = PocketDungeonsConfig.cubeUnlockLevel();
-        if (level < unlock) {
-            return false;
-        }
+        // J5/14d: the Cube station is unregistered until the J8 door-crafting
+        // redesign, and this floor went dark with it (no caller). The gate that
+        // used to delay the catalyst until the Cube unlocked is gone with the
+        // unlock levels; when J8 wires the floor back in it can pick its own
+        // moment.
 
         // Deliver the catalyst. A bone is the Feral recipe's catalyst, chosen
         // as the most accessible first experiment: it is common, the effect

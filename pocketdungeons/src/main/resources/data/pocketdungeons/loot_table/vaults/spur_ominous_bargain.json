@@ -2,16 +2,6 @@
   "type": "minecraft:chest",
   "pools": [
     {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:ominous_bottle",
-          "weight": 1
-        }
-      ]
-    },
-    {
       "rolls": {
         "min": 3,
         "max": 5
@@ -41,20 +31,6 @@
               "count": {
                 "min": 2,
                 "max": 5
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:gold_ingot",
-          "weight": 10,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 3,
-                "max": 6
               }
             }
           ]
@@ -166,7 +142,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:enchanted_book",
+          "name": "minecraft:book",
           "weight": 5,
           "functions": [
             {
@@ -182,7 +158,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:netherite_scrap",
+          "name": "minecraft:netherite_ingot",
           "weight": 1,
           "functions": [
             {

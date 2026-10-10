@@ -1,6 +1,9 @@
 {
   "name": "The Spawner Dungeon",
+  "token": { "mat": "minecraft:mossy_cobblestone" },
+  "notes": "Spawners everywhere. Three floors to the brood.",
   "act": 1,
+  "baseLevel": 5,
   "kind": "capstone",
   "mainTheme": "spawner_dungeon",
   "lootBand": {
@@ -28,6 +31,7 @@
     {
       "id": "mossy_halls",
       "name": "The Mossy Halls",
+      "notes": "Mossy halls and spawner dens.",
       "layer": 2,
       "roomBias": [
         "spawner_den",
@@ -37,12 +41,14 @@
     {
       "id": "bone_gallery",
       "name": "The Bone Gallery",
+      "notes": "A gallery of bones. Skeletons wait.",
       "layer": 2,
       "theme": "ossuary"
     },
     {
       "id": "brood_chamber",
       "name": "The Brood Chamber",
+      "notes": "The last floor. The brood chamber.",
       "layer": 3,
       "final": true,
       "roomBias": [

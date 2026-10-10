@@ -3,7 +3,11 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -163,6 +167,15 @@ final class FloorState {
      */
     RunRecipePlan previewRecipePlan;
 
+    /**
+     * The Astrolabe Room's wide preview window (owner, 2026-10-09): the entrance cell's wall blocks the glass
+     * replaced, so the commit can give them back. Empty with no preview and outside the Astrolabe Room.
+     */
+    final Map<BlockPos, BlockState> previewWallOriginal = new HashMap<>();
+
+    /** Whether this floor\u0027s finale was won, so the floor count pays its extra chest. */
+    boolean finaleWon;
+
     /** The door step (1, 2 or 3) of the current preview, or {@code 0}. */
     int previewOfferStep;
 
@@ -198,4 +211,19 @@ final class FloorState {
 
     /** How many nodes have been mined on this floor, any member. */
     int nodesMined;
+
+    // ---- J3: pressure, not omen ------------------------------------------------
+
+    /**
+     * Extra levels this floor fights at, on top of the layout's keystone
+     * level: the Ominous Bargain's +2, or the +2 a capstone's final floor
+     * opens with (J3; {@code PressureSources} and {@code CapstoneStart}).
+     */
+    int levelBonus;
+
+    /**
+     * Sculk sensor pulses counted on this floor, Ancient City only: the
+     * fourth on the final floor wakes the Warden ({@link SculkOmen}).
+     */
+    int sculkAnswers;
 }

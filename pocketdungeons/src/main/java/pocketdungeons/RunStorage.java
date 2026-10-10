@@ -27,8 +27,8 @@ import java.util.UUID;
  * to give players a bit of extra inventory space during runs"; made permanent in the
  * 2026-10-06 design, item 5). Every staging room is stamped with an ender chest set
  * into its wall ({@link RoomTemplateGenerator#placeRunStorage}); right-clicking it, or
- * any other ender chest in the dungeon, opens the player's own 27 slots, so it feels
- * vanilla while being gated behind the scenes.
+ * any other ender chest in the safe room, at the Doors or mid-run (J6), opens the
+ * player's own 27 slots, so it feels vanilla while being gated behind the scenes.
  *
  * <p>The contents belong to the player, not the run: they live in {@link DungeonLog}
  * ({@link DungeonLog#storageOf}), the way the dungeon pack does, and survive floors,
@@ -37,9 +37,8 @@ import java.util.UUID;
  * storage is part of the dungeon, never of the survival inventory. The block is only
  * a handle (the chest's own inventory is never opened), so breaking it loses nothing.
  *
- * <p>An omen death still rolls the storage back to what it held when the interval began
- * ({@link #rollBackToInterval}), with the pack, so stashing the unbanked floors' loot
- * here does not keep it. What was stored on earlier intervals is safe.
+ * <p>A failed run does not roll it back (J2): the storage belongs to the player,
+ * so stashing the unbanked floors' loot here keeps it, the same as the pack.
  */
 final class RunStorage {
 
@@ -89,24 +88,17 @@ final class RunStorage {
     }
 
     /**
-     * A right-click on a block in the dungeon. Claimed when it is the storage
-     * block and the player is in a run's floor loop; the vanilla chest never
-     * opens. A visit, a build room, an untimed run or a Pocket2 child has no
-     * storage, and falls through to the ender chest denial.
+     * A right-click on a block in the dungeon. J6 (D38, owner amendment): any
+     * ender chest anywhere in the dungeon world, the safe room, the Doors or
+     * a floor, opens the player's Dungeon Storage whether a run is up or not.
+     * The vanilla ender chest never opens there.
      */
     static boolean onUse(ServerPlayer player, BlockState state, boolean inDungeon) {
         if (!inDungeon || !matchesStation(state)) {
             return false;
         }
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || !record.inFloorLoop()) {
-            return false;
-        }
         MinecraftServer server = player.level().getServer();
         StorageContainer storage = openFor(server, player.getUUID());
-        // Storage only changes while it is open, so a copy taken at the first open of an
-        // interval is what the interval started with (see rollBackToInterval).
-        record.interval.storageSnapshot.computeIfAbsent(player.getUUID(), id -> copyOf(storage));
         player.openMenu(new SimpleMenuProvider(
                 (id, inventory, p) -> ChestMenu.threeRows(id, inventory, storage),
                 Component.literal(TITLE)));
@@ -131,36 +123,6 @@ final class RunStorage {
             copy.add(container.getItem(i).copy());
         }
         return copy;
-    }
-
-    /**
-     * A max-omen death: every member's storage goes back to what it held when
-     * the interval began, the same as their pack, so stashing the unbanked
-     * floors' loot here does not keep it.
-     *
-     * <p>The snapshot is taken on the first open in each interval
-     * ({@link #onUse}); a storage with no snapshot was not touched this interval and
-     * needs no rollback. A member who has the menu open has it closed first, before
-     * the contents are replaced: a menu left open over a rewritten container would
-     * write its old stacks back (a duplication on a race).
-     */
-    static void rollBackToInterval(MinecraftServer server, InstanceRecord record) {
-        DungeonLog log = DungeonLog.forServer(server);
-        for (UUID member : record.members.keySet()) {
-            List<ItemStack> snapshot = record.interval.storageSnapshot.get(member);
-            if (snapshot == null) {
-                continue;
-            }
-            StorageContainer open = live.get(member);
-            if (open != null) {
-                ServerPlayer player = server.getPlayerList().getPlayer(member);
-                if (player != null) {
-                    player.closeContainer();
-                }
-                live.remove(member);
-            }
-            log.setStorage(member, snapshot);
-        }
     }
 
     /** Every non-empty stack the record's legacy live storage held, per member, emptying it. */

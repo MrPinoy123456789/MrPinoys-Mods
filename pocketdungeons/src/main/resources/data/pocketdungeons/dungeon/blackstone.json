@@ -1,7 +1,9 @@
 {
   "name": "Blackstone",
+  "token": { "mat": "minecraft:gilded_blackstone" },
   "act": 4,
-  "kind": "story",
+  "baseLevel": 18,
+  "kind": "dungeon",
   "mainTheme": "blackstone",
   "lootBand": {
     "min": 3,
@@ -61,7 +63,7 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -78,7 +80,8 @@
       "id": "bastion_keep",
       "name": "The Bastion Keep",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": ["bastion_keep"]
     },
     {
       "id": "crimson_grove",
@@ -114,7 +117,7 @@
     {
       "from": "piglin_barracks",
       "to": "slag_vents",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "chain_bridge",

@@ -1,0 +1,20 @@
+{
+  "template": "pocketdungeons:rooms/copper_boiler",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["copper_works"],
+  "dungeons": ["copper_works"],
+  "acts": [2],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "copper_works",
+  "tier": 1,
+  "access": "open",
+  "window": "bars",
+  "nodes": [
+    { "block": "minecraft:coal_ore", "from": [14, 1, 12], "to": [14, 2, 13], "count": 4 }
+  ]
+}

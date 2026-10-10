@@ -23,8 +23,22 @@ final class FloorStartTitle {
         if (server == null || record == null) {
             return;
         }
-        Component title = Component.literal(titleFor(record.floor.theme)).withStyle(ChatFormatting.GOLD);
-        List<String> affixes = isHome(record.floor.theme) ? List.of() : affixLabels(record.floor.affixes);
+        DungeonDef def = isHome(record.floor.theme) || record.interval.dungeonId == null
+                ? null : DungeonDefs.current().byId(record.interval.dungeonId);
+        DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
+        String themeName = titleFor(record.floor.theme);
+        String floorName = node == null ? null : node.name();
+        Component title = Component.literal(titleFor(themeName, floorName)).withStyle(ChatFormatting.GOLD);
+        List<String> affixes = new ArrayList<>();
+        // PD-173: the title is the floor's own name now, so the first floor of a trip names the
+        // dungeon under it; later floors already know where they are.
+        String dungeonLine = dungeonLine(themeName, floorName, record.interval.path.size());
+        if (dungeonLine != null) {
+            affixes.add(dungeonLine);
+        }
+        if (!isHome(record.floor.theme)) {
+            affixes.addAll(affixLabels(record.floor.affixes));
+        }
         for (UUID member : record.members.keySet()) {
             StaggeredTitle.show(server, member, title, affixes, ChatFormatting.LIGHT_PURPLE);
         }
@@ -39,6 +53,28 @@ final class FloorStartTitle {
      */
     static String titleFor(String theme) {
         return isHome(theme) ? "HOME" : DungeonScreen.themeName(theme).toUpperCase();
+    }
+
+    /**
+     * PD-173: the big title of a floor. The floor's own node name when it has one (the player
+     * asked twice what a floor was called; the dungeon name alone repeated on every floor), else
+     * the dungeon's name as before.
+     */
+    static String titleFor(String themeTitle, String floorName) {
+        return floorName == null || floorName.isBlank() || "HOME".equals(themeTitle)
+                ? themeTitle : floorName.toUpperCase();
+    }
+
+    /**
+     * The line under the floor name that says which dungeon this is, on the first floor of a trip
+     * only; {@code null} when there is nothing to add.
+     */
+    static String dungeonLine(String themeTitle, String floorName, int floorsOnPath) {
+        if (floorName == null || floorName.isBlank() || "HOME".equals(themeTitle) || floorsOnPath > 1
+                || floorName.equalsIgnoreCase(themeTitle)) {
+            return null;
+        }
+        return themeTitle;
     }
 
     private static boolean isHome(String theme) {

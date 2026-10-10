@@ -117,3 +117,57 @@ playtest journal once it exists; blank means not recorded.
 - Full Mineshaft clear paid 0 charts under the no-scrap-on-resource rule; owner decided resource floors should pay like normal floors.
 - Mineshaft floor 1 again generated with nodes_total 0 (PD-149 reopened). Floor 2 placed mineshaft_seam; floor 3 mined 5/8 nodes.
 - Player noted diamond pick durability (max 20) feels too low with interiors mineable.
+| 2026-10-07 | copper_works | 1 | 1 | 119 | 0 | 0 | 0 | 76 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works | 2 | 1 | 77 | 0 | 0 | 2 | 30 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works | 3 | 1 | 81 | 0 | 0 | 0 | 46 | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | copper_works (master_furnace) | 4 (final) | 1 | 187 | 0 | 0 | 1 | 476 | 4 | banked 00:43, first clear | entry_13 diary, +8 em | 2026-10-07-1.md |
+| 2026-10-07 | cow_pits | 1 | 1 | ~272 | 0 | 0 | n/a | n/a | 3 | finished later | | 2026-10-07-1.md |
+| 2026-10-07 | cow_pits (the_big_barn) | 2 (final) | 1 | 200 | 0 | 0 | 9 | 0 | 3 | finished 00:53, first clear | entry_15 diary, +8 em | 2026-10-07-1.md |
+| 2026-10-08 | deepslate | 1 | 1 | 918 | 0 | 0 | 0 | 96 | 3 | cleared (self-issued key+TNT) | toll blocked on ominous floor | 2026-10-07-2.md |
+| 2026-10-08 | deepslate | 2 | 1 | 393 | 1 | 1 | 0 | 291 | 3 | cleared | the_herd gold unmineable | 2026-10-07-2.md |
+| 2026-10-08 | ossuary | 3 | 1 | n/a | n/a | n/a | n/a | n/a | n/a | quit (penalty 1) | quit kept haul, gear bug | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft | 1 | 2 | 147 | 0 | 0 | 5 | 63 | 3 | cleared, home bank | seam 5/13 nodes | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 1 (run 2) | 2 | n/a | n/a | n/a | n/a | n/a | 3 | cleared | | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 2 (run 2) | 2 | n/a | 1 | 1 | n/a | n/a | n/a | owner death: purged | PD-167 live | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 1 (run 3) | 2 | 136 | 0 | 0 | 0 | n/a | 3 | cleared | nodes 0/19 palette-only | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 2 (run 3) | 2 | 176 | 1 | 0 | 0 | 139 | 3 | cleared | member death = 1 life, ok | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 3 (run 3) | 2 | 425 | 1 | 0 | 0 | 0 | 3 | cleared | 2 shop_sales (Web Trader) | 2026-10-07-2.md |
+| 2026-10-08 | rootworks (great_taproot) | 4 (final, ominous) | 2 | n/a | 4 | n/a | n/a | n/a | n/a | FAILED at 5th death | haul 8: banked 4 lost 4, compass 0->1 | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft | 1 (trip 3) | 2 | 249 | 0 | 0 | 6 | 119 | 3 | cleared | seam 6/10, bought bow 3em | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft | 2 (trip 3) | 2 | n/a | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-07-2.md |
+| 2026-10-08 | mineshaft (deep_face) | 3 (final) | 2 | n/a | 0 | 0 | 3 | 0 | 3 | FINISHED: banked 5, compass 1->2, +8em | first:false | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 1 (run 4) | 2 | 201 | 0 | 0 | 0 | 88 | 3 | cleared | nodes 0/23 | 2026-10-07-2.md |
+| 2026-10-08 | rootworks | 2 (run 4) | 2 | n/a | n/a | n/a | n/a | n/a | 3 | cleared | | 2026-10-07-2.md |
+| 2026-10-08 | infestation (deviated f3) | 3 | 2 | n/a | 1 | n/a | n/a | n/a | n/a | in progress at wrap | deviation live, blank book bug | 2026-10-07-2.md |
+
+- 2026-10-08 haul session: every exit kind observed (home lever x2, finish, fifth-death fail, quit, purge). Fail is the only one that halves; quit and purge move the whole haul.
+- Deaths: 1 owner death ended a run early (PD-167); ~4 member/non-fatal deaths cost a life each correctly; the fifth death failed the run as designed.
+- Emerald sources seen: J7 key redemption on clear lines (3, 4, 1), +8 finish, merchant buys (he spent 3em bow, 18em leggings). No emerald floor pay.
+| 2026-10-08 | infestation | 1 | 1 | ~300 | 0 | 0 | n/a | n/a | 3 | cleared | burrow_tunnel start | 2026-10-08-1.md |
+| 2026-10-08 | infestation | 2 | 1 | ~2416 | 0 | 0 | n/a | n/a | 3 | cleared | includes Store visit and chat | 2026-10-08-1.md |
+| 2026-10-08 | infestation (deviated rootworks) | 3 | 1 | ~768 | 0 | 0 | n/a | n/a | 3 | cleared | sensor_gallery rejected; 7 shop_sales | 2026-10-08-1.md |
+| 2026-10-08 | infestation (queens_nest) | 4 (final) | 1 | ~400 | 0 | 0 | n/a | n/a | n/a | FINISHED, auto-bank | compass 5 to 6; "Haul 0 scrap" confusion | 2026-10-08-1.md |
+| 2026-10-08 | endless_mine | 1 | 1 | ~570 | 1 | 1 | n/a | n/a | 3 | cleared | Plate Relay ordeal; hidden ore expected | 2026-10-08-1.md |
+| 2026-10-08 | endless_mine | 2 | 1 | ~660 | 3 | 2 | n/a | n/a | 3 | cleared at lives 2 | "definitely pressure" | 2026-10-08-1.md |
+| 2026-10-08 | mineshaft | 1 | 1 | 527 | 0 | 0 | n/a | n/a | n/a | cleared, home bank | nodes 25/31 mined, L40 pass | 2026-10-08-1.md |
+| 2026-10-08 | spawner_dungeon | 1 | 1 | 431 | 0 | 0 | n/a | n/a | 3 | cleared | 4/4 spawners | 2026-10-08-1.md |
+| 2026-10-08 | spawner_dungeon (bone_gallery, Feral) | 2 | 1 | ~420 | 1 | 1 | n/a | n/a | 3 | cleared | | 2026-10-08-1.md |
+| 2026-10-08 | spawner_dungeon | 3 (capstone) | 1 | ~800 | 4 | ~3 | n/a | n/a | 3 | FINISHED at lives 1 | brood wave; milestone title seen | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 1 | 1 | ~600 | 0 | 0 | n/a | n/a | 3 | cleared | forge = "coolest room so far" | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 2 | 1 | ~727 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 3 | 1 | ~600 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-08-1.md |
+| 2026-10-08 | copper_works | 4 (final) | 1 | ~440 | 0 | 0 | n/a | n/a | 4 | FINISHED, banked | compass 8 to 10; no finale (PD-184) | 2026-10-08-1.md |
+| 2026-10-08 | frostworks | 1 | 1 | n/a | 0 | 0 | n/a | n/a | n/a | in progress at wrap | | 2026-10-08-1.md |
+
+- 2026-10-08-1 session: five runs, three full finishes (Infestation 4f, Spawner Dungeon 3f capstone, Copper Works 4f). Keystone 5 to 10. Blood-door pressure confirmed at lives 2. No run failed; ~4 rescues all session, none fatal.
+- Economy: merchant sinks heavily used (7 shop_sales one floor, junk to Librarian at home). Compass gains: +1 (Infestation finish), +2 (Copper Works finish w/ depth bonus).
+- Difficulty peak: Spawner capstone at floor omen 4 and lives 1; player verdict "barely enough resources", dogs mattered.
+| 2026-10-10 | deepslate | 2 | 1 | ~160 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-09-1.md |
+| 2026-10-10 | deepslate | 3 | 1 | ~162 | 0 | 0 | n/a | n/a | 3 | cleared | | 2026-10-09-1.md |
+| 2026-10-10 | deepslate | 4 | 1 | ~511 | 0 | 0 | n/a | n/a | 4 | cleared | "new build is very good" | 2026-10-09-1.md |
+| 2026-10-10 | deepslate | 5 | 1 | ~440 | 0 | 0 | n/a | n/a | 5 | cleared | banked at home: compass 13 to 14, depth bonus 1 | 2026-10-09-1.md |
+| 2026-10-10 | kennels | 1 | 1 | ~1050 | 0 | 0 | n/a | n/a | 3 | cleared w/ admin unstick | wolf spawner soft-lock (PD-194); grass+light proved cause | 2026-10-09-1.md |
+| 2026-10-10 | infestation | 1 | 1 | n/a | 0 | 0 | n/a | n/a | 3 | banked 1 floor | second 1-floor bank in a row | 2026-10-09-1.md |
+| 2026-10-10 | kennels | 1 (second trip) | 1 | ~250 | 0 | 0 | n/a | n/a | 0 | abandoned | fire spread destroyed rooms; player left (PD-195) | 2026-10-09-1.md |
+
+- 2026-10-09-1 session: one real delve (deepslate to floor 5, banked), plus short trips. Keystone 13 to 14. Two sessions of evidence now that wolf-potential spawners need spawnable ground or a spawn-rule bypass; fire spread inside authored wooden rooms is a build integrity problem, not a balance one.

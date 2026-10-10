@@ -15,7 +15,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:string",
+          "name": "minecraft:oak_log",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -30,7 +30,37 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:vine",
+          "name": "minecraft:oak_planks",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 6
+              }
+            }
+          ],
+          "weight": 4
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:arrow",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 3,
+                "max": 9
+              }
+            }
+          ],
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:bread",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -41,52 +71,7 @@
               }
             }
           ],
-          "weight": 4
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:moss_block",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "type": "minecraft:uniform",
-                "min": 1,
-                "max": 3
-              }
-            }
-          ],
-          "weight": 4
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:shears",
-          "functions": [
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
-            },
-            {
-              "function": "minecraft:set_damage",
-              "damage": {
-                "type": "minecraft:uniform",
-                "min": 0.1,
-                "max": 0.6
-              }
-            }
-          ],
           "weight": 2
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:spore_blossom",
-          "weight": 1
         }
       ]
     }

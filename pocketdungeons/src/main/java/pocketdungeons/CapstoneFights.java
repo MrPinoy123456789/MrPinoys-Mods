@@ -44,8 +44,8 @@ import java.util.UUID;
  * in the room, and the pad opens when the wave is dead.
  *
  * <h2>The Ancient City (Warden)</h2>
- * Every sculk sensor and shrieker raises omen ({@link OmenSources}). On the final floor, when the
- * floor's omen reaches {@link Omen#MAX_OMEN}, one real vanilla Warden is summoned and set on the
+ * Every sculk sensor and shrieker answers ({@link PressureSources}). On the final floor, the
+ * {@code ancientWardenAnswers}-th answer of a sculk room summons one real vanilla Warden, set on the
  * nearest member. It is the only Warden the mod ever spawns. It has no part in the gate: the floor
  * completes by reaching the terminal pad, and the Warden is discarded when the floor ends or the
  * instance is torn down.
@@ -203,6 +203,8 @@ final class CapstoneFights {
         }
         Fight fight = fightOf(record);
         if (fight == Fight.NONE) {
+            // An ordinary dungeon\u0027s final floor ends in its finale, if it has one (design pass 2026-10-09, Q4).
+            FinaleWave.tick(server, record);
             return;
         }
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -373,6 +375,9 @@ final class CapstoneFights {
         if (fight == Fight.HEROBRINE) {
             return HerobrineFight.padRefusal(server, record);
         }
+        if (fight == Fight.NONE) {
+            return FinaleWave.padRefusal(server, record);
+        }
         if (fight != Fight.BROOD) {
             return null;
         }
@@ -396,7 +401,7 @@ final class CapstoneFights {
 
     private static void tickWarden(MinecraftServer server, ServerLevel level, InstanceRecord record, State state) {
         state.initialised = true;
-        if (!SculkOmen.shouldSummonWarden(true, true, Omen.clamp(record.interval.omen), state.wardenSummoned)) {
+        if (!SculkOmen.shouldSummonWarden(true, true, record.floor.sculkAnswers, state.wardenSummoned)) {
             return;
         }
         List<ServerPlayer> members = onlineMembers(server, record);
@@ -465,6 +470,8 @@ final class CapstoneFights {
             discardTagged(level, record.layout.bounds());
         }
         STATES.remove(record.slot);
+        Whelp.clear(level, record.slot);
+        FinaleWave.floorEnded(level, record);
         WitherFight.floorEnded(level, record);
         HerobrineFight.floorEnded(level, record);
     }
@@ -475,6 +482,8 @@ final class CapstoneFights {
             discardTagged(level, layout.bounds());
         }
         STATES.remove(slot);
+        Whelp.clear(level, slot);
+        FinaleWave.teardown(level, slot);
         WitherFight.teardown(level, slot, layout);
         HerobrineFight.teardown(level, slot, layout);
     }

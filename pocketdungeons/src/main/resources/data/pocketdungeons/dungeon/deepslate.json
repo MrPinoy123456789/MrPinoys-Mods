@@ -1,7 +1,31 @@
 {
   "name": "Deepslate",
+  "token": {
+    "mat": "minecraft:polished_deepslate"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:skeleton",
+        "count": 4
+      },
+      {
+        "type": "minecraft:zombie",
+        "count": 3
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:skeleton",
+      "name": "The Deep Sentry",
+      "health": 50,
+      "mainhand": "minecraft:bow"
+    }
+  },
+  "notes": "Deep ore: iron, lapis, redstone and a chance of diamond.",
   "act": 2,
-  "kind": "story",
+  "baseLevel": 6,
+  "kind": "dungeon",
   "mainTheme": "deepslate",
   "lootBand": {
     "min": 2,
@@ -29,24 +53,34 @@
     {
       "id": "lantern_stairs",
       "name": "Lantern Stairs",
-      "layer": 2
+      "notes": "A broken shaft landing. Iron and lapis.",
+      "layer": 2,
+      "roomBias": [
+        "deep_shaft_landing"
+      ]
     },
     {
       "id": "sculk_shallows",
       "name": "Sculk Shallows",
+      "notes": "Sculk sensors in the halls. Quiet feet.",
       "layer": 2,
       "roomBias": [
-        "sensor_gallery"
+        "hush_gallery"
       ]
     },
     {
       "id": "deep_quarry",
       "name": "Deep Quarry",
-      "layer": 3
+      "notes": "A geode of lapis, and a chance of diamond.",
+      "layer": 3,
+      "roomBias": [
+        "deep_geode"
+      ]
     },
     {
       "id": "cracked_barracks",
       "name": "Cracked Barracks",
+      "notes": "Bones in the barracks. Skeletons wait.",
       "layer": 3,
       "theme": "ossuary",
       "roomBias": [
@@ -56,14 +90,17 @@
     {
       "id": "tuff_cellars",
       "name": "Tuff Cellars",
+      "notes": "Barred vaults and fossil galleries. Iron and lapis.",
       "layer": 3,
       "roomBias": [
-        "barred_vault"
+        "barred_vault",
+        "deep_fossil_gallery"
       ]
     },
     {
       "id": "pale_gallery",
       "name": "Pale Gallery",
+      "notes": "The deep dark landing. A shrieker waits.",
       "layer": 4,
       "roomBias": [
         "deep_dark_landing"
@@ -72,19 +109,28 @@
     {
       "id": "collapsed_landing",
       "name": "Collapsed Landing",
+      "notes": "A detour off the main way down.",
       "layer": 4,
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
+        },
+        {
+          "item": "gear:weapon:2",
+          "count": 1
         }
       ]
     },
     {
       "id": "silent_deep",
       "name": "The Silent Deep",
+      "notes": "The last floor. A silent hall of lapis, iron and diamond.",
       "layer": 5,
-      "final": true
+      "final": true,
+      "roomBias": [
+        "silent_deep"
+      ]
     }
   ],
   "edges": [
@@ -131,7 +177,7 @@
     {
       "from": "deep_quarry",
       "to": "collapsed_landing",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "pale_gallery",

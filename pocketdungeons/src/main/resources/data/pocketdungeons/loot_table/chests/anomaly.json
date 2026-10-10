@@ -53,7 +53,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:sandstone",
+          "name": "minecraft:cobblestone",
           "weight": 1,
           "functions": [
             {
@@ -91,7 +91,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:deepslate",
+          "name": "minecraft:cobblestone",
           "weight": 1,
           "functions": [
             {

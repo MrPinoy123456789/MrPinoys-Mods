@@ -1,70 +1,56 @@
 package pocketdungeons;
 
 /**
- * Pure-JDK regression for the omen bar's words and numbers: the band progress
- * fill, the titles during and between floors, the completion verdict, the door
- * screen's floor line, the spawner gate's "need" count, and the interval sum
- * the bar reads. No Minecraft classpath, run from {@code tasks.test}.
+ * Pure-JDK regression for the lives bar's words and numbers (J3): the titles
+ * during and between floors, the completion verdict, the death cue, the wave
+ * cue lines, the door screen's floor line, the spawner gate's "need" count,
+ * and the interval's omen read. No Minecraft classpath, run from
+ * {@code tasks.test}.
  */
 public class OmenBarTextTest {
 
     public static void main(String[] args) {
         testOutcome();
-        testBandCeilingAndProgress();
+        testLivesText();
         testActiveTitle();
         testClearedTitle();
         testCompletionVerdict();
+        testDeathCue();
         testPreviewFloor();
-        testRiseLine();
+        testCueLine();
+        testIntervalOmen();
         testSpawnersNeeded();
-        testIntervalSum();
         System.out.println("OmenBarTextTest passed");
     }
 
     private static void testOutcome() {
-        checkEquals(OmenBarText.outcome(0), "3 loot rolls, chart scrap");
-        checkEquals(OmenBarText.outcome(1), "3 loot rolls, chart scrap");
-        checkEquals(OmenBarText.outcome(2), "3 loot rolls, chart scrap");
-        // The depth bonus rides on the chest count.
-        checkEquals(OmenBarText.outcome(1, 3), "3 loot rolls, chart scrap");
-        checkEquals(OmenBarText.outcome(2, 1), "1 loot roll, chart scrap");
+        checkEquals(OmenBarText.outcome(), "3 loot rolls, chart scrap");
+        checkEquals(OmenBarText.outcome(3), "3 loot rolls, chart scrap");
+        checkEquals(OmenBarText.outcome(1), "1 loot roll, chart scrap");
     }
 
-    private static void testBandCeilingAndProgress() {
-        // Three floors per visit: 0 to 3 low, 4 to 9 mid, 10 to 12 high.
-        check(Omen.bandCeiling(0, 3), 3);
-        check(Omen.bandCeiling(1, 3), 9);
-        check(Omen.bandCeiling(2, 3), 12);
-        // Every ceiling agrees with the band it closes, and one more is the next band.
-        for (int floors = 1; floors <= 5; floors++) {
-            check(Omen.band(Omen.bandCeiling(0, floors), floors), 0);
-            check(Omen.band(Omen.bandCeiling(0, floors) + 1, floors), 1);
-            check(Omen.band(Omen.bandCeiling(1, floors), floors), 1);
-            check(Omen.band(Omen.bandCeiling(1, floors) + 1, floors), 2);
-        }
-        // The fill is the sum against the next band's first value.
-        checkClose(Omen.bandProgress(0, 3), 0.0f);
-        checkClose(Omen.bandProgress(2, 3), 0.5f);   // 2 of 4
-        checkClose(Omen.bandProgress(5, 3), 0.5f);   // 5 of 10
-        checkClose(Omen.bandProgress(12, 3), 1.0f);  // the most three floors can gather
-        checkClose(Omen.bandProgress(99, 3), 1.0f);  // clamped
-        checkClose(Omen.bandProgress(-3, 3), 0.0f);  // clamped
+    private static void testLivesText() {
+        checkEquals(OmenBarText.livesText(0), "Lives 5");
+        checkEquals(OmenBarText.livesText(2), "Lives 3");
+        checkEquals(OmenBarText.livesText(4), "Lives 1");
+        checkEquals(OmenBarText.livesText(9), "Lives 1");
     }
 
     private static void testActiveTitle() {
-        // The spawner gate leads (playtest 2026-09-26, A1), counted as remaining.
-        checkEquals(OmenBarText.activeTitle(2, 2, 5, 8, 6), "1 Spawner remaining | Omen 2/4 | Loot x2");
-        checkEquals(OmenBarText.activeTitle(2, 2, 6, 8, 6), "Spawners done | Omen 2/4 | Loot x2");
-        checkEquals(OmenBarText.activeTitle(2, 2, 4, 8, 6), "2 Spawners remaining | Omen 2/4 | Loot x2");
-        // Omen 0 is hidden; a floor without spawners still shows done.
-        checkEquals(OmenBarText.activeTitle(0, 3, -1, -1, 0), "Spawners done | Loot x3");
-        checkEquals(OmenBarText.activeTitle(0, 3, 0, 0, 0), "Spawners done | Loot x3");
-        // The floor's omen is shown clamped; the death warning follows the floor omen (PD-158):
-        // a death adds 1 and 4 ends the run, so it shows from 3, not from band 2.
-        checkEquals(OmenBarText.activeTitle(9, 1, 0, 0, 0), "Spawners done | Omen 4/4 | Loot x1 | one more fall ends the run");
-        checkEquals(OmenBarText.activeTitle(3, 1, 0, 0, 0), "Spawners done | Omen 3/4 | Loot x1 | one more fall ends the run");
-        checkEquals(OmenBarText.activeTitle(2, 1, 0, 0, 0), "Spawners done | Omen 2/4 | Loot x1");
-        // The bar's colour during a floor follows the floor omen: 0 to 1 green, 2 to 3 yellow, 4 red.
+        // J3: the spawner gate leads, lives follow ("Spawners 2/3 | Lives 3").
+        checkEquals(OmenBarText.activeTitle(2, 2, 2, 8, 3), "Spawners 2/3 | Lives 3");
+        checkEquals(OmenBarText.activeTitle(2, 2, 5, 8, 6), "Spawners 5/6 | Lives 3");
+        checkEquals(OmenBarText.activeTitle(2, 2, 6, 8, 6), "Spawners done | Lives 3");
+        // A floor without spawners still shows done; lives are always shown.
+        checkEquals(OmenBarText.activeTitle(0, 3, -1, -1, 0), "Spawners done | Lives 5");
+        checkEquals(OmenBarText.activeTitle(0, 3, 0, 0, 0), "Spawners done | Lives 5");
+        // One life warns that the next death ends the run.
+        checkEquals(OmenBarText.activeTitle(9, 1, 0, 0, 0),
+                "Spawners done | Lives 1 | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(4, 1, 0, 0, 0),
+                "Spawners done | Lives 1 | one more fall ends the run");
+        checkEquals(OmenBarText.activeTitle(3, 1, 0, 0, 0), "Spawners done | Lives 2");
+        // The bar's colour follows the lives: 5 and 4 green, 3 and 2 yellow, 1 red.
         int[] expected = {0, 0, 1, 1, 2};
         for (int omen = 0; omen <= 4; omen++) {
             checkEquals(String.valueOf(OmenBarText.omenColourIndex(omen)), String.valueOf(expected[omen]));
@@ -74,24 +60,44 @@ public class OmenBarTextTest {
     }
 
     private static void testClearedTitle() {
-        // Dungeon structure W2: the trip length is the dungeon's, so the bar names the dungeon.
+        // Between floors: the headline, what going home pays, and the lives left.
+        // PD-174: the bar keeps the floor and the lives; the loot outcome is in chat.
         checkEquals(OmenBarText.clearedTitle(2, "Frostworks", false, false, false, 1, 2),
-                "Floor 2 of Frostworks cleared | 2 loot rolls, chart scrap");
+                "Floor 2 of Frostworks cleared | Lives 4");
         checkEquals(OmenBarText.clearedTitle(4, "Frostworks", false, false, true, 0, 3),
-                "Floor 4 of Frostworks cleared, final floor ahead | 3 loot rolls, chart scrap");
+                "Floor 4 of Frostworks cleared, final floor ahead | Lives 5");
         checkEquals(OmenBarText.clearedTitle(5, "Frostworks", false, true, false, 1, 3),
-                "Frostworks cleared | 3 loot rolls, chart scrap");
+                "Frostworks cleared | Lives 4");
         // No dungeon (a run outside the graph) just counts floors; never a trip length.
         checkEquals(OmenBarText.clearedTitle(4, "", false, false, false, 1, 3),
-                "Floor 4 cleared | 3 loot rolls, chart scrap");
+                "Floor 4 cleared | Lives 4");
         checkEquals(OmenBarText.clearedTitle(5, "", true, false, false, 2, 2),
-                "Mine floor 5 cleared | 2 loot rolls, chart scrap");
+                "Mine floor 5 cleared | Lives 3");
+        // The big screen title never carries the final-floor tail; the subtitle does.
+        checkEquals(OmenBarText.clearedScreenTitle(4, "Frostworks", false, false), "Floor 4 of Frostworks cleared");
+        checkEquals(OmenBarText.clearedSubtitle(false, true), "Final floor ahead: GO HOME or DESCEND");
+        checkEquals(OmenBarText.clearedSubtitle(false, false), "GO HOME or DESCEND");
+        checkEquals(OmenBarText.clearedSubtitle(true, false), "LEAVE");
+        for (String line : new String[] {
+                OmenBarText.clearedTitle(4, "Ancient City", false, false, true, 0, 3),
+                OmenBarText.clearedScreenTitle(4, "Ancient City", false, false)}) {
+            if (line.contains(" | ") && line.length() > 60) {
+                throw new AssertionError("too long for one line: " + line);
+            }
+        }
     }
 
     private static void testCompletionVerdict() {
-        checkEquals(OmenBarText.completionVerdict(0, 3), "The omen sits calm: 3 loot rolls, chart scrap so far.");
-        checkEquals(OmenBarText.completionVerdict(1, 2), "The omen sits uneasy: 2 loot rolls, chart scrap so far.");
-        checkEquals(OmenBarText.completionVerdict(2, 1), "The omen sits dire: 1 loot roll, chart scrap so far.");
+        checkEquals(OmenBarText.completionVerdict(0, 3), "5 lives left: 3 loot rolls, chart scrap so far.");
+        checkEquals(OmenBarText.completionVerdict(1, 2), "4 lives left: 2 loot rolls, chart scrap so far.");
+        checkEquals(OmenBarText.completionVerdict(4, 1), "1 life left: 1 loot roll, chart scrap so far.");
+    }
+
+    private static void testDeathCue() {
+        // J3's example: "A bad omen. 2 lives left."
+        checkEquals(OmenBarText.deathCue(3), "A bad omen. 2 lives left.");
+        checkEquals(OmenBarText.deathCue(1), "A bad omen. 4 lives left.");
+        checkEquals(OmenBarText.deathCue(4), "A bad omen. 1 life left.");
     }
 
     private static void testPreviewFloor() {
@@ -104,9 +110,13 @@ public class OmenBarTextTest {
         checkEquals(OmenBarText.previewFloor(7, "Frostworks", true, false), "MINE FLOOR 7");
     }
 
-    private static void testRiseLine() {
-        checkEquals(OmenBarText.riseLine(Omen.Source.DWELL, 2), "The walls notice you lingering; more enemies are coming. Omen 2/4.");
-        checkEquals(OmenBarText.riseLine(Omen.Source.SHRIEK, 7), "Something below heard that; it is sending company. Omen 4/4.");
+    private static void testCueLine() {
+        checkEquals(OmenBarText.cueLine(Omen.Source.DWELL),
+                "The walls notice you lingering; more enemies are coming.");
+        checkEquals(OmenBarText.cueLine(Omen.Source.SHRIEK),
+                "Something below heard that; it is sending company.");
+        checkEquals(OmenBarText.cueLine(Omen.Source.BARGAIN),
+                "The bargain is struck; the floor fights two levels harder.");
         // Dwell is held back hardest; a bargain is never held back.
         check(OmenBarText.cueCooldownTicks(Omen.Source.BARGAIN), 0);
         if (OmenBarText.cueCooldownTicks(Omen.Source.DWELL) <= OmenBarText.cueCooldownTicks(Omen.Source.SENSOR)) {
@@ -118,6 +128,18 @@ public class OmenBarTextTest {
             throw new AssertionError("the sensor line should be held long enough to read");
         }
         check(OmenBarText.holdTicks(Omen.Source.DWELL), 0);
+    }
+
+    private static void testIntervalOmen() {
+        // J3: the interval's omen is the trip's death count; floorOmens are a
+        // journal record and never feed it back.
+        IntervalState interval = new IntervalState();
+        check(interval.omenSum(), 0);
+        interval.floorOmens.add(2);
+        interval.floorOmens.add(9);
+        interval.omen = 1;
+        check(interval.bankedOmenSum(), 1);
+        check(interval.omenSum(), 1);
     }
 
     private static void testSpawnersNeeded() {
@@ -138,16 +160,6 @@ public class OmenBarTextTest {
         }
     }
 
-    private static void testIntervalSum() {
-        IntervalState interval = new IntervalState();
-        check(interval.omenSum(), 0);
-        interval.floorOmens.add(2);
-        interval.floorOmens.add(9); // banked clamped
-        interval.omen = 1;
-        check(interval.bankedOmenSum(), 6);
-        check(interval.omenSum(), 7);
-    }
-
     private static void check(int actual, int expected) {
         if (actual != expected) {
             throw new AssertionError("expected " + expected + " but was " + actual);
@@ -157,12 +169,6 @@ public class OmenBarTextTest {
     private static void checkTrue(boolean condition) {
         if (!condition) {
             throw new AssertionError("expected true");
-        }
-    }
-
-    private static void checkClose(float actual, float expected) {
-        if (Math.abs(actual - expected) > 1e-6f) {
-            throw new AssertionError("expected " + expected + " but was " + actual);
         }
     }
 

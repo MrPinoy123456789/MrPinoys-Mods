@@ -1,0 +1,16 @@
+{
+  "template": "pocketdungeons:rooms/hush_gallery",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "dungeons": ["deepslate", "ancient_city"],
+  "acts": [2],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "light": "dim",
+  "window": "bars"
+}

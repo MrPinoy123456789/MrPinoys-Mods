@@ -9,25 +9,6 @@
           "value": "pocketdungeons:vaults/tier_1_ominous"
         }
       ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:nautilus_shell",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "type": "minecraft:uniform",
-                "min": 1,
-                "max": 1
-              }
-            }
-          ]
-        }
-      ]
     }
   ]
 }

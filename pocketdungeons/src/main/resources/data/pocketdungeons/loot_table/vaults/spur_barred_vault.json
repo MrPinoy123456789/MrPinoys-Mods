@@ -33,20 +33,6 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:gold_ingot",
-          "weight": 10,
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "min": 2,
-                "max": 4
-              }
-            }
-          ]
-        },
-        {
-          "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 10,
           "functions": [
@@ -145,7 +131,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:enchanted_book",
+          "name": "minecraft:book",
           "weight": 2,
           "functions": [
             {

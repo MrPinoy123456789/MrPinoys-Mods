@@ -1,0 +1,17 @@
+{
+  "template": "pocketdungeons:rooms/alphas_den",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "graphRole": ["final"],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "dungeons": ["kennels"],
+  "acts": [1],
+  "tier": 2,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim"
+}

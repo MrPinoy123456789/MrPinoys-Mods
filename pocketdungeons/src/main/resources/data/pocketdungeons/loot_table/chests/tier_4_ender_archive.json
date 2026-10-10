@@ -15,7 +15,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:end_stone",
+          "name": "minecraft:cobblestone",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -30,22 +30,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:ender_pearl",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": {
-                "type": "minecraft:uniform",
-                "min": 1,
-                "max": 2
-              }
-            }
-          ],
-          "weight": 3
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:chorus_fruit",
+          "name": "minecraft:bread",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -60,7 +45,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:end_rod",
+          "name": "minecraft:torch",
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -71,11 +56,31 @@
               }
             }
           ],
-          "weight": 2
+          "weight": 2,
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.34
+            }
+          ]
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:eye_armor_trim_smithing_template",
+          "name": "minecraft:lapis_lazuli",
+          "weight": 4,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "min": 1,
+                "max": 2
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cake",
           "weight": 1
         }
       ]

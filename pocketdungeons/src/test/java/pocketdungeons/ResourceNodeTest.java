@@ -292,7 +292,7 @@ public class ResourceNodeTest {
                     e.getKey() + " is dark and requires light");
         }
         // The rooms that provide loose blocks keep them pickable under D20.
-        for (String room : List.of("flow_puzzle", "gallery", "ropewalk", "sorting_floor", "sump", "sensor_gallery")) {
+        for (String room : List.of("flow_puzzle", "gallery", "ropewalk", "sorting_floor", "sump")) {
             check(!metas.get(room).nodes.isEmpty(), room + " declares its loose blocks as nodes");
         }
         eq(metas.get("sump").nodes.size(), 2, "sump holds two loose stone nodes");

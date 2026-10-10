@@ -1,7 +1,9 @@
 {
   "name": "Basalt Foundry",
+  "token": { "mat": "minecraft:polished_basalt" },
   "act": 4,
-  "kind": "story",
+  "baseLevel": 16,
+  "kind": "dungeon",
   "mainTheme": "basalt_foundry",
   "lootBand": {
     "min": 3,
@@ -11,6 +13,7 @@
     "nether_gold_ore",
     "nether_quartz_ore",
     "ancient_debris",
+    "red_sand",
     "warped_stem",
     "crimson_stem",
     "warped_wart_block",
@@ -61,7 +64,7 @@
       "theme": "blackstone",
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
         }
       ]
@@ -70,7 +73,8 @@
       "id": "great_crucible",
       "name": "The Great Crucible",
       "layer": 4,
-      "final": true
+      "final": true,
+      "roomBias": ["great_crucible"]
     },
     {
       "id": "warped_grove",
@@ -106,7 +110,7 @@
     {
       "from": "slag_channels",
       "to": "gilded_annex",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "crucible_row",

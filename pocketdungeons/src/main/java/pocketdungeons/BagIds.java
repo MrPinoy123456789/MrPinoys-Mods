@@ -32,15 +32,22 @@ final class BagIds {
     static final String INNKEEPER = "pocketdungeons:innkeeper";
     static final String PILGRIM = "pocketdungeons:pilgrim";
     static final String GUARD = "pocketdungeons:guard";
+    static final String LUMBERJACK = "pocketdungeons:lumberjack";
 
     /**
      * The built-in ids in the order the enum declared them, which is the
      * stable picker order M70 preserves. A third-party definition declares
      * its own {@code order} field; the manifest sorts by order then id, so
      * this list is the order-zero baseline.
+     *
+     * <p>L1 (D40) added {@link #LUMBERJACK} where the enum would have put it,
+     * next to the Plumber slot it replaces. The five ids claimed by the
+     * {@code extra_bags} content module stay in this list: they are still
+     * built-in files, just gated, and {@link BagManifest#hasBuiltInCoverage}
+     * excuses the ids its parse was told to skip.
      */
     static final List<String> BUILT_IN_ORDER = List.of(
-            MASON, PLUMBER, SAPPER, MAGICIAN, RANGER, SHEPHERD, INNKEEPER, PILGRIM, GUARD);
+            MASON, PLUMBER, LUMBERJACK, SAPPER, MAGICIAN, RANGER, SHEPHERD, INNKEEPER, PILGRIM, GUARD);
 
     /**
      * Legacy bare enum name to namespaced id. {@code "mason"} (a pre-M70
@@ -61,6 +68,7 @@ final class BagIds {
         map.put("innkeeper", INNKEEPER);
         map.put("pilgrim", PILGRIM);
         map.put("guard", GUARD);
+        map.put("lumberjack", LUMBERJACK);
         return map;
     }
 

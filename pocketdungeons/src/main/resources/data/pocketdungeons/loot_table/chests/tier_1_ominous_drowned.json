@@ -7,21 +7,11 @@
         {
           "type": "minecraft:loot_table",
           "value": "pocketdungeons:chests/tier_1_ominous"
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
-          "name": "minecraft:nautilus_shell",
-          "functions": [
-            {
-              "function": "minecraft:set_count",
-              "count": 1
-            }
-          ]
+          "name": "minecraft:cake",
+          "weight": 1
         }
       ]
     }

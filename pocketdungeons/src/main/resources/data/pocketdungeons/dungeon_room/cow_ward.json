@@ -1,0 +1,19 @@
+{
+  "template": "pocketdungeons:rooms/cow_ward",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 4,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "theme": ["cow_pits"],
+  "content": "cow_ward",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim",
+  "biome": "cow_pits",
+  "dungeons": ["cow_pits"],
+  "acts": [2]
+}

@@ -960,12 +960,12 @@ public final class HandlerGameTest {
     }
 
     /**
-     * PD-103: the blacksmith sweep's scan covers the staging room. A
-     * blacksmith past the doorway, outside the old 12 block box, is still
+     * PD-103: the librarian sweep's scan covers the staging room. A
+     * librarian past the doorway, outside the old 12 block box, is still
      * found, so the sweep anchors it instead of spawning a second one.
      */
     @GameTest(maxTicks = 100)
-    public void blacksmithSweepSeesIntoTheStagingRoom(GameTestHelper helper) {
+    public void librarianSweepSeesIntoTheStagingRoom(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos roomOrigin = new BlockPos(10240, 120, 10240);
         for (int dx = -16; dx <= 2 * RoomGeometry.CELL; dx += 16) {
@@ -977,14 +977,14 @@ public final class HandlerGameTest {
                             net.minecraft.world.entity.EntitySpawnReason.EVENT);
             villager.setPos(roomOrigin.getX() + RoomGeometry.CELL / 2.0 + 18, roomOrigin.getY() + 1,
                     roomOrigin.getZ() + RoomGeometry.CELL / 2.0);
-            villager.addTag(BlacksmithNPC.BLACKSMITH_TAG);
+            villager.addTag(LibrarianNPC.LIBRARIAN_TAG);
             level.addFreshEntity(villager);
-            boolean found = BlacksmithNPC.findAllBlacksmiths(level, roomOrigin).contains(villager);
+            boolean found = LibrarianNPC.findAllLibrarians(level, roomOrigin).contains(villager);
             villager.discard();
             for (int dx = -16; dx <= 2 * RoomGeometry.CELL; dx += 16) {
                 level.setChunkForced((roomOrigin.getX() + dx) >> 4, roomOrigin.getZ() >> 4, false);
             }
-            helper.assertTrue(found, "a blacksmith 18 blocks past the room centre, in the staging room, is found");
+            helper.assertTrue(found, "a librarian 18 blocks past the room centre, in the staging room, is found");
             helper.succeed();
         });
     }
@@ -1315,6 +1315,33 @@ public final class HandlerGameTest {
                 java.util.List.of("one", "two", "three"), net.minecraft.ChatFormatting.GRAY);
         helper.runAfterDelay(4 * StaggeredTitle.BEAT_TICKS, () -> {
             helper.assertFalse(StaggeredTitle.isRunning(player.getUUID()), "the sequence drained");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * PD-165: a milestone title is queued behind the floor clear's own title,
+     * not shown at once (a new sequence replaces a running one, which is how the
+     * first-clear title was overwritten unseen). It waits, and when due it leaves
+     * the queue, shows and calls its fanfare.
+     */
+    @GameTest(maxTicks = 160)
+    public void aMilestoneTitleWaitsBehindTheFloorClear(GameTestHelper helper) {
+        net.minecraft.server.level.ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        boolean[] fanfare = {false};
+        StaggeredTitle.showMilestone(helper.getLevel().getServer(), player.getUUID(),
+                net.minecraft.network.chat.Component.literal("Copper Works cleared"),
+                java.util.List.of("Act 1: 1 of 5 dungeons"), net.minecraft.ChatFormatting.GRAY,
+                p -> fanfare[0] = true);
+        helper.assertValueEqual(StaggeredTitle.pendingFor(player.getUUID()), 1, "queued at once");
+        helper.assertFalse(StaggeredTitle.isRunning(player.getUUID()), "and not shown at once");
+        helper.runAfterDelay(StaggeredTitle.MILESTONE_DELAY_TICKS / 2, () -> {
+            helper.assertValueEqual(StaggeredTitle.pendingFor(player.getUUID()), 1, "still waiting halfway");
+            helper.assertFalse(fanfare[0], "no fanfare before it is due");
+        });
+        helper.runAfterDelay(StaggeredTitle.MILESTONE_DELAY_TICKS + 20, () -> {
+            helper.assertValueEqual(StaggeredTitle.pendingFor(player.getUUID()), 0, "out of the queue when due");
+            helper.assertTrue(fanfare[0], "the fanfare played when it showed");
             helper.succeed();
         });
     }

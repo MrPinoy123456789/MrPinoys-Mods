@@ -1,0 +1,16 @@
+{
+  "template": "pocketdungeons:rooms/lost_dog",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "weight": 1,
+  "minDepth": 1,
+  "maxPerDungeon": 1,
+  "content": "lost_dog",
+  "acts": [1, 2],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim"
+}

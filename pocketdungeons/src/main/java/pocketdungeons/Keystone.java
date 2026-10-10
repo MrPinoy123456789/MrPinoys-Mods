@@ -9,6 +9,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.component.ItemLore;
 
 import java.util.ArrayList;
@@ -74,6 +75,7 @@ final class Keystone {
             case AffixIds.EXPLOSIVE -> ChatFormatting.RED;
             case AffixIds.VOIDED -> ChatFormatting.DARK_PURPLE;
             case AffixIds.LOADED -> ChatFormatting.DARK_RED;
+            case AffixIds.RESTLESS -> ChatFormatting.GRAY;
             default -> ChatFormatting.AQUA;
         };
     }
@@ -82,7 +84,7 @@ final class Keystone {
      * M27 27.1: EXPERIMENTAL marks the operator-set door 3 offer while one is
      * active. {@code FREE} is every ordinary door. {@code GREATER} is unused since
      * the dungeon structure waves: the Greater door tier, its level gates and its
-     * shard cost are gone (design D4, D5); a door's only price is its edge's
+     * fuel cost are gone (design D4, D5); a door's only price is its edge's
      * {@link TripDoors.Door#cost()}. The constant stays so a stale reference
      * still compiles.
      */
@@ -94,7 +96,7 @@ final class Keystone {
      * <p>{@code step} is the keystone steps this door adds (the floor runs at
      * keystone plus step; 0 for a resource dungeon floor), dealt by a seeded shuffle
      * and independent of which door slot the offer sits in. {@code door} says which
-     * dungeon floor lies behind it and what it costs in echo shards; it is
+     * dungeon floor lies behind it and what it costs in scrap; it is
      * {@code null} for the operator's experimental offer and for an Endless Mine run,
      * which stand outside any dungeon graph.
      *
@@ -113,12 +115,12 @@ final class Keystone {
             return affixes.contains(AffixIds.OMINOUS);
         }
 
-        /** Echo shards this door takes at the lever; 0 for a main path door. */
+        /** Scrap this door takes at the lever; 0 for a main path door. */
         int cost() {
             return door == null ? 0 : door.cost();
         }
 
-        /** Whether this door costs no shards. Kept for older callers; doors have no level gate any more. */
+        /** Whether this door costs no scrap. Kept for older callers; doors have no level gate any more. */
         boolean free() {
             return cost() == 0;
         }
@@ -150,8 +152,8 @@ final class Keystone {
      * </ul>
      *
      * <p>Pure of side effects and stable for the same state, because it is called to
-     * render a screen as often as to settle a choice. The shard cost and the refusal
-     * for being short of shards happen where a door is actually chosen
+     * render a screen as often as to settle a choice. The scrap cost and the refusal
+     * for being short of scrap happen where a door is actually chosen
      * ({@link RunLifecycle#commitDoor}), not here. No door promises {@code OMINOUS}
      * (a floor turns ominous by a roll at commit time, {@link Omen#ominousChance});
      * {@link Offer#ominous()} stays for an operator's fixed experimental offer.
@@ -167,19 +169,27 @@ final class Keystone {
                 && dungeons.byId(record.interval.dungeonId) != null) {
             DungeonDef def = dungeons.byId(record.interval.dungeonId);
             doors = TripDoors.dealNext(owner, def, record.interval.nodeId, record.interval.path.size());
+        } else if (PocketDungeonsConfig.hallEnabled()) {
+            // Design pass 2026-10-09 (Q1): the first staging room shows the dungeons of one act, chosen at the
+            // astrolabe, instead of three random doors.
+            return HallOffers.offers(server, record, owner, level);
         } else {
             DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
             java.util.Set<Integer> acts = DungeonProgress.unlockedActs(server, owner);
+            // D23: the leader's compass (their permanent chart level) gates which dungeons deal.
+            int compass = Math.max(1, entry.highestCharts());
             // Design section 11: an open act whose capstone is not cleared keeps its capstone on door 1
             // or 2 of every first staging room, so the Endless Mine's door 3 never hides it.
-            doors = TripDoors.dealFirst(owner, TripDoors.eligibleFirst(dungeons.all(), acts),
-                    entry.campaign().tripCounter(),
-                    TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished()));
-            // D13: once Act 1's capstone has opened Act 2, the Endless Mine replaces door 3 of the
-            // first staging room. It never appears later in a trip (a trip is one dungeon).
+            doors = TripDoors.dealFirst(owner, TripDoors.eligibleFirst(dungeons.all(), acts, compass,
+                            entry.dungeonsFinished(), entry.campaign().deepestMineFloor()),
+                    entry.campaign().tripCounter() + 7919 * (record == null ? 0 : record.interval.doorReroll),
+                    TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished(), compass,
+                            true, entry.campaign().deepestMineFloor()));
+            // D13, D29: the Endless Mine is in act 1, but its door 3 waits for the leader's
+            // compass to reach endlessMineUnlockLevel. It never appears later in a trip.
             DungeonDef mineDef = dungeons.byId(EndlessMineRules.MINE_DUNGEON_ID);
             if (doors.length == TripDoors.DOOR_COUNT && mineDef != null && mineDef.entry() != null
-                    && EndlessMineRules.opensFor(acts)) {
+                    && EndlessMineRules.opensFor(acts, compass)) {
                 doors[TripDoors.DOOR_COUNT - 1] = new TripDoors.Door(mineDef.id(), mineDef.entry().id(),
                         doors[TripDoors.DOOR_COUNT - 1].step(), 0);
             }
@@ -192,8 +202,10 @@ final class Keystone {
             String theme = mine ? EndlessMineRules.MINE_THEME_ID : null;
             offers = new Offer[TripDoors.DOOR_COUNT];
             for (int i = 0; i < offers.length; i++) {
-                offers[i] = new Offer(KeystoneMath.upgrade(level, steps[i], max), Set.of(), steps[i], theme,
-                        Tier.FREE);
+                int floorLevel = mine
+                        ? EndlessMineRules.floorLevel(record.interval.floorIndex + 1, steps[i])
+                        : KeystoneMath.upgrade(level, steps[i], max);
+                offers[i] = new Offer(floorLevel, Set.of(), steps[i], theme, Tier.FREE);
             }
         } else {
             offers = new Offer[doors.length];
@@ -230,13 +242,14 @@ final class Keystone {
                 set -> NodeStamper.dealtAffixes(set, dungeonId, nodeId));
     }
 
-    private static Offer fromDoor(DungeonDefs dungeons, TripDoors.Door door, int level, int max) {
+    static Offer fromDoor(DungeonDefs dungeons, TripDoors.Door door, int level, int max) {
         DungeonDef def = dungeons.byId(door.dungeonId());
         DungeonDef.Node node = def == null ? null : def.node(door.nodeId());
         String theme = node == null ? null : node.overridesTheme() ? node.theme() : def.mainTheme();
         Set<String> signature = node == null || node.signatureAffix().isEmpty()
                 ? Set.of() : Set.of(node.signatureAffix());
-        return new Offer(KeystoneMath.upgrade(level, door.step(), max), signature, door.step(), theme,
+        int floorLevel = FloorLevels.of(def, door.nodeId());
+        return new Offer(KeystoneMath.upgrade(floorLevel, door.step(), max), signature, door.step(), theme,
                 Tier.FREE, door);
     }
 
@@ -282,7 +295,7 @@ final class Keystone {
         List<Component> lore = new ArrayList<>();
         lore.add(grey("Right-click a lodestone to use it."));
         if (ordered.isEmpty()) {
-            lore.add(grey("Clear floors and bank them at home to trade up."));
+            lore.add(grey("Clear floors for scrap. Bring it home to raise your compass."));
         } else {
             for (AffixDefinition def : ordered) {
                 lore.add(grey(def.blurb));
@@ -290,6 +303,40 @@ final class Keystone {
         }
         stack.set(DataComponents.LORE, new ItemLore(lore));
         return stack;
+    }
+
+    /**
+     * Shows the member's standing on every compass they carry, as lore lines: the compass level
+     * with the bar to the next ({@code Compass 12: 3/5 scrap to 13}) and, during a trip, the haul
+     * ({@code Haul 5 scrap. Home banks it; a failed dungeon keeps half.}). Replaces those two lines
+     * and leaves the rest of the lore alone. Call after the haul or the bar changes.
+     */
+    static void showCompass(ServerPlayer player, DungeonLog.Entry entry, boolean duringTrip) {
+        String compass = "Compass " + entry.highestCharts() + ": " + entry.chartProgress() + "/"
+                + ScrapMath.levelCost(entry.highestCharts()) + " scrap to " + (entry.highestCharts() + 1);
+        String haul = "Haul " + entry.haul() + " scrap. Home banks it; a failed dungeon keeps half.";
+        net.minecraft.world.entity.player.Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!isKeystone(stack)) {
+                continue;
+            }
+            ItemLore existing = stack.get(DataComponents.LORE);
+            List<Component> lines = new ArrayList<>();
+            if (existing != null) {
+                for (Component component : existing.lines()) {
+                    String text = component.getString();
+                    if (!text.startsWith("Compass ") && !text.startsWith("Haul ") && !text.startsWith("Scrap ")) {
+                        lines.add(component);
+                    }
+                }
+            }
+            lines.add(grey(compass));
+            if (duringTrip) {
+                lines.add(grey(haul));
+            }
+            stack.set(DataComponents.LORE, new ItemLore(lines));
+        }
     }
 
     private static Component grey(String text) {

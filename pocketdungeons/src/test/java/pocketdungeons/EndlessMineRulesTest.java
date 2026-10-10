@@ -152,11 +152,13 @@ public class EndlessMineRulesTest {
                 && EndlessMineRules.actForLayer(3) == 3 && EndlessMineRules.actForLayer(4) == 4, "a layer needs its act");
     }
 
-    /** The mine opens with act 2; each layer needs its act, and the sealed line names it. */
+    /** The mine is in act 1, gated on the compass; each layer needs its act, and the sealed line names it. */
     private static void testLayerGating() {
-        check(!EndlessMineRules.opensFor(Set.of(1)), "act 1 alone does not open the Mine");
-        check(EndlessMineRules.opensFor(Set.of(1, 2)), "act 2 opens the Mine");
-        check(!EndlessMineRules.opensFor(null), "null acts do not");
+        int gate = PocketDungeonsConfig.endlessMineUnlockLevel();
+        check(gate == 3, "the Mine's door waits for compass 3 by default");
+        check(!EndlessMineRules.opensFor(Set.of(1), gate - 1), "act 1 below the compass gate does not open the Mine");
+        check(EndlessMineRules.opensFor(Set.of(1), gate), "act 1 at the compass gate opens it");
+        check(!EndlessMineRules.opensFor(null, 25), "null acts do not");
         Set<Integer> two = Set.of(1, 2);
         for (int floor = 1; floor <= 11; floor++) {
             check(EndlessMineRules.sealedAct(floor, two) == 0, "floor " + floor + " is open with act 2");

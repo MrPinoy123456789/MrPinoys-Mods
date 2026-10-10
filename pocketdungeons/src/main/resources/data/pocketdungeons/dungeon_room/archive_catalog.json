@@ -1,0 +1,23 @@
+{
+  "template": "pocketdungeons:rooms/archive_catalog",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["ender_archive"],
+  "dungeons": ["ender_archive"],
+  "acts": [5],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "ender_archive",
+  "nodes": [
+    { "block": "minecraft:ancient_debris", "from": [4, 1, 14], "to": [4, 2, 14], "count": 1, "chance": 0.2 },
+    { "block": "minecraft:diamond_ore", "from": [11, 1, 14], "to": [11, 2, 14], "count": 1, "chance": 0.4 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

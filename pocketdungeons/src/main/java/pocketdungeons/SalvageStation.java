@@ -31,9 +31,11 @@ import java.util.Map;
 /**
  * The salvage bench (playtest 2026-09-29, A3: "I'm accumulating too much gear
  * and vault keys"): a room station that turns the surplus into something the
- * other stations take. Tagged gear pays emeralds by tier, vault keys pay
- * emeralds (or fuel, when {@code salvageKeysPerFuel} is on), and untagged mob
- * gear pays XP only. The rates and the reasoning behind them are in
+ * other stations take. Gear, tagged or a mob drop, pays the grindstone's XP
+ * and its materials. Vault keys stopped paying at the bench with J7: they
+ * settle for emeralds at the floor clear instead
+ * ({@link RunLifecycle#payFloorMembers}), so the bench refuses them.
+ * The rates and the reasoning behind them are in
  * {@code docs/reference/SALVAGE_PROPOSAL.md}; the arithmetic is
  * {@link SalvageMath}.
  *
@@ -48,9 +50,9 @@ import java.util.Map;
  * click at a time is the chore the player complained about, so the bench is
  * an 18-slot SGUI chest with a summary button underneath. A plain use only
  * opens it and leaves the held stack alone (PD-101); the player drops items
- * in from the inventory. Things the bench refuses (imbued or
- * trimmed gear, anything that goes home with the player, anything that is
- * not gear or a key) may be dropped in but stay put and are named on the
+ * in from the inventory. Things the bench refuses (imbued gear,
+ * anything that goes home with the player, anything that is
+ * not gear) may be dropped in but stay put and are named on the
  * summary. Closing the screen by any path, disconnect included, hands back
  * whatever is still in it.
  */
@@ -77,7 +79,7 @@ final class SalvageStation {
 
     // ---- sorting -----------------------------------------------------------------
 
-    enum Kind { GEAR, KEY, OMINOUS_KEY, MOB_GEAR, REFUSED }
+    enum Kind { GEAR, MOB_GEAR, REFUSED }
 
     /** What the bench makes of one stack, and for a refusal, why. */
     record Verdict(Kind kind, String reason) {
@@ -96,26 +98,23 @@ final class SalvageStation {
 
     /**
      * Sorts one stack. Order matters: the keep-safe refusals come before any
-     * payout, so an imbued or trimmed piece of tagged gear is refused rather
-     * than scrapped for its tier.
+     * payout, so an imbued piece of tagged gear is refused rather than scrapped for its tier.
+     * Trimmed armour is scrapped like any other (owner ruling 2026-10-09).
      */
     static Verdict classify(ItemStack stack) {
         if (stack.isEmpty()) {
             return refuse("empty");
         }
-        if (stack.is(TrialContent.keyStack(true).getItem())) {
-            return take(Kind.OMINOUS_KEY);
-        }
-        if (stack.is(TrialContent.keyStack(false).getItem())) {
-            return take(Kind.KEY);
+        // J7: keys never leave their floor; the floor clear buys them back
+        // at the same rates, so the bench refuses them.
+        if (stack.is(TrialContent.keyStack(true).getItem())
+                || stack.is(TrialContent.keyStack(false).getItem())) {
+            return refuse("vault keys cash in when you bank");
         }
         // Owner request (2026-10-03): kit can be scrapped like any other gear;
         // the safe room tops the kit back up. Only the keystone is kept.
         if (Keystone.isKeystone(stack)) {
             return refuse("your compass, it goes home with you");
-        }
-        if (LockInStation.isLocked(stack)) {
-            return refuse("locked in, kept safe");
         }
         if (!CubeStation.powerOf(stack).isBlank()) {
             return refuse("imbued with a power, kept safe");
@@ -123,16 +122,13 @@ final class SalvageStation {
         if (!CubeStation.rewardOf(stack).isBlank()) {
             return refuse("a rare Cube reward, kept safe");
         }
-        if (stack.has(DataComponents.TRIM)) {
-            return refuse("trimmed armour is kept safe, never scrapped");
-        }
         if (RerollStation.tierOf(stack) > 0) {
             return take(Kind.GEAR);
         }
         if (stack.isDamageableItem()) {
             return take(Kind.MOB_GEAR);
         }
-        return refuse("not gear or a vault key");
+        return refuse("not gear");
     }
 
     /**
@@ -140,40 +136,60 @@ final class SalvageStation {
      * 2026-10-03), by its material and how worn it is
      * ({@link SalvageMath#band}):
      * <ul>
-     *   <li>leather, iron, chainmail (as iron), gold, copper, diamond and
-     *       netherite (as scrap) armour, weapons and tools:
-     *       {@link SalvageMath#materials};</li>
+     *   <li>leather, iron, gold, diamond and netherite (as scrap) armour,
+     *       weapons and tools: {@link SalvageMath#materials}. Chainmail and
+     *       copper gear left the loot tables with K2, and their rules left
+     *       with them;</li>
      *   <li>wooden tools: 1 plank in the high band, 2 sticks in the middle;</li>
      *   <li>stone tools: 1 cobblestone in the high or middle band;</li>
      *   <li>a shield: 1 plank in the high or middle band.</li>
      * </ul>
-     * Under 25 percent, and for anything else (bows, flint and steel),
-     * nothing: {@link ItemStack#EMPTY}. Never nuggets.
+     * Under 25 percent nothing, before the {@code salvageMaterialBonus} knob (default 1)
+     * adds its count to every band; anything else (bows, flint and steel) gives
+     * {@link ItemStack#EMPTY}. Never nuggets.
      */
     static ItemStack materialsBack(ItemStack stack) {
+        return materialsBack(stack, PocketDungeonsConfig.salvageMaterialBonus());
+    }
+
+    /**
+     * As {@link #materialsBack(ItemStack)}, with the bonus given: every count is raised by
+     * {@code bonus} in every band (the {@code salvageMaterialBonus} knob), so a piece that paid
+     * nothing under 25 percent pays {@code bonus}, one that paid 1 pays {@code 1 + bonus}, and so on.
+     * Pieces that give nothing at any wear (bows, flint and steel) still give nothing.
+     */
+    static ItemStack materialsBack(ItemStack stack, int bonus) {
         SalvageMath.Band band = SalvageMath.band(stack.getMaxDamage() - stack.getDamageValue(),
                 stack.getMaxDamage());
-        if (band == SalvageMath.Band.LOW) {
-            return ItemStack.EMPTY;
-        }
+        boolean low = band == SalvageMath.Band.LOW;
         String path = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         if (path.equals("shield")) {
-            return new ItemStack(Items.OAK_PLANKS);
+            return counted(Items.OAK_PLANKS, low ? 0 : 1, bonus);
         }
         if (!isArmourOrTool(path)) {
             return ItemStack.EMPTY;
         }
         if (path.startsWith("wooden_")) {
-            return band == SalvageMath.Band.HIGH ? new ItemStack(Items.OAK_PLANKS) : new ItemStack(Items.STICK, 2);
+            return switch (band) {
+                case HIGH -> counted(Items.OAK_PLANKS, 1, bonus);
+                case MID -> counted(Items.STICK, 2, bonus);
+                case LOW -> counted(Items.STICK, 0, bonus);
+            };
         }
         if (path.startsWith("stone_")) {
-            return new ItemStack(Items.COBBLESTONE);
+            return counted(Items.COBBLESTONE, low ? 0 : 1, bonus);
         }
         Item material = metalOf(path);
         if (material == null) {
             return ItemStack.EMPTY;
         }
-        return new ItemStack(material, SalvageMath.materials(isLarge(stack), band));
+        return counted(material, SalvageMath.materials(isLarge(stack), band), bonus);
+    }
+
+    /** {@code base} plus {@code bonus} of {@code item}, or nothing when that is not positive. */
+    private static ItemStack counted(Item item, int base, int bonus) {
+        int count = SalvageMath.withBonus(base, bonus);
+        return count <= 0 ? ItemStack.EMPTY : new ItemStack(item, count);
     }
 
     /** The material of leather, metal and gem gear, read from its id; {@code null} for anything else. */
@@ -181,14 +197,11 @@ final class SalvageStation {
         if (path.startsWith("leather_")) {
             return Items.LEATHER;
         }
-        if (path.startsWith("iron_") || path.startsWith("chainmail_")) {
+        if (path.startsWith("iron_")) {
             return Items.IRON_INGOT;
         }
         if (path.startsWith("golden_")) {
             return Items.GOLD_INGOT;
-        }
-        if (path.startsWith("copper_")) {
-            return Items.COPPER_INGOT;
         }
         if (path.startsWith("diamond_")) {
             return Items.DIAMOND;
@@ -238,9 +251,7 @@ final class SalvageStation {
      * Called from {@link RitualListener#onUseBlock} with the other stations.
      * Returns whether this click was handled; {@code false} means not our
      * block, not the dungeon, or a sneak, and the vanilla grindstone runs as
-     * usual. Below the unlock level the vanilla grindstone runs too, unless
-     * the hand holds something the bench takes, which earns the "needs level
-     * N" line.
+     * usual. There is no level gate (J5): a placed grindstone is the bench.
      */
     static boolean onUse(ServerPlayer player, BlockState state, InteractionHand hand,
                          ContainerLevelAccess access) {
@@ -254,25 +265,11 @@ final class SalvageStation {
         if (!inDungeon || !matchesStation(state) || player.isShiftKeyDown()) {
             return false;
         }
-        ItemStack held = player.getItemInHand(hand);
-        boolean takes = classify(held).takes();
-        if (keystoneLevel(player) < PocketDungeonsConfig.salvageUnlockLevel()) {
-            return takes && levelTooLow(player);
-        }
         // PD-101: opening never moves the held stack; depositing is a
         // deliberate click inside the screen.
         StationTutorial.used(player, StationTutorial.Step.SALVAGE);
         open(player, new Input(), access);
         return true;
-    }
-
-    private static int keystoneLevel(ServerPlayer player) {
-        return DungeonLog.forServer(player.level().getServer()).get(player.getUUID()).keystoneLevel();
-    }
-
-    private static boolean levelTooLow(ServerPlayer player) {
-        return StationSupport.levelTooLow(player, keystoneLevel(player),
-                PocketDungeonsConfig.salvageUnlockLevel(), "salvage bench");
     }
 
     // ---- the screen ----------------------------------------------------------------
@@ -329,7 +326,7 @@ final class SalvageStation {
      * payout, the way the grindstone rolls it, and {@link #xpMin} and
      * {@link #xpMax} are what the screen quotes.
      */
-    record Quote(int gear, int keys, int ominousKeys, int mobGear, List<Integer> grindHalves,
+    record Quote(int gear, int mobGear, List<Integer> grindHalves,
                          int refused, String firstRefusal, Map<Item, Integer> materials) {
         int xpMin() {
             return grindHalves.stream().mapToInt(Integer::intValue).sum();
@@ -339,29 +336,13 @@ final class SalvageStation {
             return grindHalves.stream().mapToInt(c -> 2 * c - 1).sum();
         }
 
-        int keyFuel() {
-            return SalvageMath.keyFuel(keys, PocketDungeonsConfig.salvageKeysPerFuel());
-        }
-
-        int keysTaken() {
-            int perFuel = PocketDungeonsConfig.salvageKeysPerFuel();
-            return perFuel > 0 ? SalvageMath.keysForFuel(keys, perFuel) : keys;
-        }
-
-        int emeralds() {
-            int keyEmeralds = PocketDungeonsConfig.salvageKeysPerFuel() > 0 ? 0
-                    : SalvageMath.keyEmeralds(keys, PocketDungeonsConfig.salvageKeyEmeralds());
-            return keyEmeralds
-                    + SalvageMath.keyEmeralds(ominousKeys, PocketDungeonsConfig.salvageOminousKeyEmeralds());
-        }
-
         boolean anything() {
-            return gear + ominousKeys + mobGear + keysTaken() > 0;
+            return gear + mobGear > 0;
         }
     }
 
     static Quote quote(SimpleContainer input) {
-        int gear = 0, keys = 0, ominousKeys = 0, mobGear = 0, refused = 0;
+        int gear = 0, mobGear = 0, refused = 0;
         List<Integer> grindHalves = new ArrayList<>();
         String firstRefusal = "";
         Map<Item, Integer> materials = new LinkedHashMap<>();
@@ -386,8 +367,6 @@ final class SalvageStation {
                         grindHalves.add(half);
                     }
                 }
-                case KEY -> keys += count;
-                case OMINOUS_KEY -> ominousKeys += count;
                 case REFUSED -> {
                     refused += count;
                     if (firstRefusal.isEmpty()) {
@@ -407,8 +386,7 @@ final class SalvageStation {
                 }
             }
         }
-        return new Quote(gear, keys, ominousKeys, mobGear, List.copyOf(grindHalves), refused, firstRefusal,
-                materials);
+        return new Quote(gear, mobGear, List.copyOf(grindHalves), refused, firstRefusal, materials);
     }
 
     private static void refresh(SimpleGui gui, ServerPlayer player, SimpleContainer input,
@@ -418,21 +396,6 @@ final class SalvageStation {
         if (q.gear() + q.mobGear() > 0) {
             int pieces = q.gear() + q.mobGear();
             lore.add(line("Gear: " + pieces + " piece" + plural(pieces) + " for " + xpText(q)));
-        }
-        if (q.keys() > 0) {
-            int perFuel = PocketDungeonsConfig.salvageKeysPerFuel();
-            if (perFuel > 0) {
-                int left = q.keys() - q.keysTaken();
-                lore.add(line("Vault keys: " + q.keysTaken() + " for " + q.keyFuel() + " fuel"
-                        + (left > 0 ? " (" + left + " short of the next, they stay)" : "")));
-            } else {
-                int paid = SalvageMath.keyEmeralds(q.keys(), PocketDungeonsConfig.salvageKeyEmeralds());
-                lore.add(line("Vault keys: " + q.keys() + " for " + paid + " emerald" + plural(paid)));
-            }
-        }
-        if (q.ominousKeys() > 0) {
-            int paid = SalvageMath.keyEmeralds(q.ominousKeys(), PocketDungeonsConfig.salvageOminousKeyEmeralds());
-            lore.add(line("Ominous keys: " + q.ominousKeys() + " for " + paid + " emerald" + plural(paid)));
         }
         if (!q.materials().isEmpty()) {
             lore.add(line("Materials back: " + materialsText(q.materials())));
@@ -457,12 +420,12 @@ final class SalvageStation {
             button.setName(Component.literal("Put gear here to salvage").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
             lore.add(line("Click gear in your pack to move it in."));
-            lore.add(line("Gear pays XP and materials; keys pay fuel."));
+            lore.add(line("Gear pays XP and materials."));
         } else {
             button.setName(Component.literal("Nothing here can be salvaged").withStyle(ChatFormatting.GRAY)
                     .withStyle(s -> s.withItalic(false)));
-            lore.add(line("Drop in gear or vault keys."));
-            lore.add(line("Gear pays XP and materials; keys pay fuel."));
+            lore.add(line("Drop in gear."));
+            lore.add(line("Gear pays XP and materials."));
         }
         lore.add(Component.literal("Sneak and use the grindstone for the plain one.")
                 .withStyle(ChatFormatting.DARK_GRAY).withStyle(s -> s.withItalic(false)));
@@ -600,44 +563,27 @@ final class SalvageStation {
 
     /**
      * Takes everything the bench accepts out of {@code input} and pays for it.
-     * Re-sorts the live contents rather than trusting the last summary, and
-     * re-checks the unlock level, the same staleness discipline the reroll
-     * station follows. Refused items and keys short of a whole fuel unit stay.
+     * Re-sorts the live contents rather than trusting the last summary.
+     * Refused items stay.
      * Package private so {@code SalvageGameTest} can drive it without a screen.
      *
      * @return what was paid for, or {@code null} if nothing was
      */
     static Quote salvageContents(ServerPlayer player, SimpleContainer input) {
-        if (levelTooLow(player)) {
-            return null;
-        }
         Quote q = quote(input);
         if (!q.anything()) {
             return null;
         }
-        int keysToTake = q.keysTaken();
         for (int i = 0; i < INPUT_SLOTS; i++) {
             ItemStack stack = input.getItem(i);
             if (stack.isEmpty()) {
                 continue;
             }
-            Kind kind = classify(stack).kind();
-            if (kind == Kind.KEY) {
-                int taken = Math.min(keysToTake, stack.getCount());
-                keysToTake -= taken;
-                stack.shrink(taken);
-                input.setItem(i, stack.isEmpty() ? ItemStack.EMPTY : stack);
-            } else if (kind != Kind.REFUSED) {
+            if (classify(stack).kind() != Kind.REFUSED) {
                 input.setItem(i, ItemStack.EMPTY);
             }
         }
 
-        int emeralds = q.emeralds();
-        int fuel = q.keyFuel();
-        deliverEmeralds(player, emeralds);
-        if (fuel > 0) {
-            Fuel.grant(player, fuel);
-        }
         int xp = 0;
         for (int half : q.grindHalves()) {
             xp += half + player.getRandom().nextInt(half);
@@ -652,12 +598,6 @@ final class SalvageStation {
                 SoundSource.BLOCKS, 1.0f, 1.0f);
 
         List<String> parts = new ArrayList<>();
-        if (emeralds > 0) {
-            parts.add(emeralds + " emerald" + plural(emeralds));
-        }
-        if (fuel > 0) {
-            parts.add(fuel + " fuel");
-        }
         if (xp > 0) {
             parts.add(xp + " XP");
         }
@@ -669,11 +609,7 @@ final class SalvageStation {
 
         Map<String, Object> extras = new LinkedHashMap<>();
         extras.put("gear", q.gear());
-        extras.put("keys", q.keysTaken());
-        extras.put("ominous_keys", q.ominousKeys());
         extras.put("mob_gear", q.mobGear());
-        extras.put("emeralds", emeralds);
-        extras.put("fuel", fuel);
         extras.put("xp", xp);
         Map<String, Integer> materialIds = new LinkedHashMap<>();
         for (Map.Entry<Item, Integer> m : q.materials().entrySet()) {
@@ -683,17 +619,6 @@ final class SalvageStation {
         extras.put("materials", materialIds);
         PlaytestJournal.salvage(player, extras);
         return q;
-    }
-
-    /** Emeralds in whole stacks, through {@link Payout#deliver} so a full inventory drops the rest. */
-    private static void deliverEmeralds(ServerPlayer player, int emeralds) {
-        Item emerald = Items.EMERALD;
-        int max = new ItemStack(emerald).getMaxStackSize();
-        while (emeralds > 0) {
-            int n = Math.min(max, emeralds);
-            Payout.deliver(player, new ItemStack(emerald, n));
-            emeralds -= n;
-        }
     }
 
     /**

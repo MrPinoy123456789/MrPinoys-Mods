@@ -12,6 +12,10 @@
     {
       "theme": "infestation",
       "weight": 2
+    },
+    {
+      "theme": "kennels",
+      "weight": 1
     }
   ]
 }

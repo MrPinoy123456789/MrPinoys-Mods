@@ -98,8 +98,10 @@ final class Ordeals {
                     player.sendOverlayMessage(Component.literal(line).withStyle(ChatFormatting.GREEN));
                 }
                 PlaytestJournal.ordealResolved(player, kind.id, seconds);
-                if (Fuel.rollChance(player.getRandom(), PocketDungeonsConfig.echoShardOrdealChance())) {
-                    Fuel.grantFrom(player, 1, "ordeal");
+                if (Rolls.chance(player.getRandom(), PocketDungeonsConfig.ordealEmeraldChance())) {
+                    Payout.deliver(player, new net.minecraft.world.item.ItemStack(
+                            net.minecraft.world.item.Items.EMERALD, 2));
+                    PlaytestJournal.emeralds(player, 2, "ordeal");
                 }
             }
             PocketDungeonsMod.LOG.info("Ordeal {} at {} resolved", kind.id, origin.toShortString());

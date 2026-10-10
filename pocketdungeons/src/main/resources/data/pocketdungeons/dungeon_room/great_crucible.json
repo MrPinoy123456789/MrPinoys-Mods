@@ -1,0 +1,25 @@
+{
+  "template": "pocketdungeons:rooms/great_crucible",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["basalt_foundry"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "basalt_foundry",
+  "dungeons": ["basalt_foundry"],
+  "acts": [4],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:nether_gold_ore", "from": [1,1,2], "to": [1,3,5], "count": 3 },
+    { "block": "minecraft:nether_quartz_ore", "from": [14,1,2], "to": [14,3,5], "count": 3 },
+    { "block": "minecraft:ancient_debris", "from": [14,1,9], "to": [14,3,11], "count": 1, "chance": 0.3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

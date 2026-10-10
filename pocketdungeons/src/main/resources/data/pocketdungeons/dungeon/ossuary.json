@@ -1,7 +1,25 @@
 {
   "name": "Ossuary",
+  "token": {
+    "mat": "minecraft:bone_block"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:skeleton",
+        "count": 5
+      },
+      {
+        "type": "minecraft:zombie",
+        "count": 2
+      }
+    ],
+    "perMemberPercent": 50
+  },
+  "notes": "A catacomb of skeletons. Bone meal, coal and iron.",
   "act": 1,
-  "kind": "story",
+  "baseLevel": 4,
+  "kind": "dungeon",
   "mainTheme": "ossuary",
   "lootBand": {
     "min": 1,
@@ -9,8 +27,7 @@
   },
   "nodePalette": [
     "coal_ore",
-    "iron_ore",
-    "copper_ore"
+    "iron_ore"
   ],
   "deviation": {
     "chance": 0.15,
@@ -27,16 +44,19 @@
     {
       "id": "skull_galleries",
       "name": "Skull Galleries",
+      "notes": "Burial niches of bone, coal and iron.",
       "layer": 2,
       "roomBias": [
         "crypt_corner",
-        "ossuary_passage"
+        "ossuary_passage",
+        "charnel_niches"
       ],
       "light": "dim"
     },
     {
       "id": "bone_pits",
       "name": "Bone Pits",
+      "notes": "A crypt where skeletons guard the loot.",
       "layer": 2,
       "roomBias": [
         "ossuary_crypt"
@@ -46,6 +66,7 @@
     {
       "id": "sealed_reliquary",
       "name": "Sealed Reliquary",
+      "notes": "Silverfish in the walls. Break stone with care.",
       "layer": 2,
       "theme": "infestation",
       "roomBias": [
@@ -53,16 +74,24 @@
       ],
       "rewards": [
         {
-          "item": "echo_shard",
+          "item": "emerald",
           "count": 2
+        },
+        {
+          "item": "gear:weapon:1",
+          "count": 1
         }
       ]
     },
     {
       "id": "last_rest",
       "name": "The Last Rest",
+      "notes": "The last floor. A burial hall of bone, coal and iron.",
       "layer": 3,
-      "final": true
+      "final": true,
+      "roomBias": [
+        "last_rest"
+      ]
     }
   ],
   "edges": [
@@ -77,7 +106,7 @@
     {
       "from": "charnel_steps",
       "to": "sealed_reliquary",
-      "cost": 1
+      "lives": 1
     },
     {
       "from": "skull_galleries",

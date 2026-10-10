@@ -195,7 +195,7 @@ final class InstanceTeardown {
         for (BlockPos cellOrigin : cellOrigins) {
             Locks.clear(cellOrigin);
             AltarOffering.clear(cellOrigin);
-            OmenSources.clear(cellOrigin);
+            PressureSources.clear(cellOrigin);
             Ordeals.clear(cellOrigin);
         }
 

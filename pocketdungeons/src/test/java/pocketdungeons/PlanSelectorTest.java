@@ -23,64 +23,72 @@ public class PlanSelectorTest {
         testBudgetValidation();
         testConfiguredGridSpan();
         testThemeFilter();
-        testRubbleNeedsAnExplosiveBeforeIt();
+        testRubbleOnlyOnSpurEdges();
         testTierGate();
         testResourceFloorGuaranteesANodeRoom();
         System.out.println("PlanSelectorTest passed");
     }
 
     /**
-     * Rubble doorways ({@link RoomSelector#pickRubbleEdges}): none without an
-     * explosive, never on the entrance's door, at most one per plan, and with
-     * a creeper room at depth 2 only on a door whose deeper side is past it.
+     * Rubble doorways ({@link RoomSelector#pickRubbleEdges}): never on a spine
+     * edge, never on the entrance's door, at most one per plan, and about a
+     * third of seeds get one regardless of the bag (E, D25).
      */
-    private static void testRubbleNeedsAnExplosiveBeforeIt() {
+    private static void testRubbleOnlyOnSpurEdges() {
         PlanCell c0 = new PlanCell(0, 0);
         PlanCell c1 = new PlanCell(1, 0);
         PlanCell c2 = new PlanCell(2, 0);
         PlanCell c3 = new PlanCell(3, 0);
+        PlanCell c4 = new PlanCell(1, 1);
         PlanEdge e01 = new PlanEdge(c0, c1);
         PlanEdge e12 = new PlanEdge(c1, c2);
         PlanEdge e23 = new PlanEdge(c2, c3);
-        Set<PlanEdge> doors = Set.of(e01, e12, e23);
-        Map<PlanCell, Integer> depths = Map.of(c0, 0, c1, 1, c2, 2, c3, 3);
+        PlanEdge e14 = new PlanEdge(c1, c4);
+        Set<PlanEdge> doors = Set.of(e01, e12, e23, e14);
 
         int picked = 0;
         for (long seed = 0; seed < 300; seed++) {
-            if (!RoomSelector.pickRubbleEdges(seed, doors, depths, c0, Map.of(), Set.of()).isEmpty()) {
-                throw new AssertionError("no explosive anywhere, yet seed " + seed + " placed rubble");
-            }
-            Set<PlanEdge> bag = RoomSelector.pickRubbleEdges(seed, doors, depths, c0, Map.of(),
-                    Set.of(SituationTags.EXPLOSIVE));
-            if (bag.size() > 1 || bag.contains(e01)) {
-                throw new AssertionError("seed " + seed + " placed " + bag + "; at most one, never the entrance's");
+            // The spine runs c0 to c3, so only the c1-c4 spur door can seal.
+            Set<PlanEdge> spine = Set.of(e01, e12, e23);
+            Set<PlanEdge> bag = RoomSelector.pickRubbleEdges(seed, doors, c0, spine, Set.of());
+            if (bag.size() > 1 || bag.contains(e01) || bag.stream().anyMatch(spine::contains)) {
+                throw new AssertionError("seed " + seed + " placed " + bag
+                        + "; at most one, never the entrance's, never a spine edge");
             }
             picked += bag.size();
-            Set<PlanEdge> creeper = RoomSelector.pickRubbleEdges(seed, doors, depths, c0,
-                    Map.of(c2, List.of(SituationTags.EXPLOSIVE)), Set.of());
-            if (!creeper.isEmpty() && !creeper.equals(Set.of(e23))) {
-                throw new AssertionError("seed " + seed + " put rubble at " + creeper
-                        + " before the creeper room it needs");
-            }
         }
         if (picked < 50 || picked > 160) {
-            throw new AssertionError("with the Sapper's TNT about a third of plans should get rubble, got "
+            throw new AssertionError("about a third of plans should get rubble, got "
                     + picked + " of 300");
         }
 
-        // Sealed two-story cells: all of them with the Sapper's TNT, none without
-        // an explosive, and with a creeper room at depth 2 only those deeper.
+        // A required cell (a trial spawner room) behind the only spur door
+        // forbids the plug on every seed: rubble gates optional rooms only.
+        for (long seed = 0; seed < 300; seed++) {
+            Set<PlanEdge> spine = Set.of(e01, e12, e23);
+            if (!RoomSelector.pickRubbleEdges(seed, doors, c0, spine, Set.of(c4)).isEmpty()) {
+                throw new AssertionError("seed " + seed + " plugged the door to a required spawner room");
+            }
+        }
+        // A shortcut (a door whose far side stays reachable another way) may still plug.
+        PlanEdge e04 = new PlanEdge(c4, c2);
+        Set<PlanEdge> loop = Set.of(e01, e12, e23, e14, e04);
+        int shortcuts = 0;
+        for (long seed = 0; seed < 300; seed++) {
+            shortcuts += RoomSelector.pickRubbleEdges(seed, loop, c0, Set.of(e01, e12, e23), Set.of(c4)).size();
+        }
+        if (shortcuts == 0) {
+            throw new AssertionError("a loop door that cuts nothing off should still be pluggable");
+        }
+
+        // Sealed two-story cells: every one, bag or not (E, D25). The lower
+        // story never holds the way on, so it is always a bonus pocket.
         Set<PlanCell> twoStory = Set.of(c1, c3);
-        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(), Set.of()).isEmpty()) {
-            throw new AssertionError("no explosive, yet a floor was sealed");
+        if (!RoomSelector.pickSealedCells(twoStory).equals(twoStory)) {
+            throw new AssertionError("every two-story cell's lower story seals");
         }
-        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(), Set.of(SituationTags.EXPLOSIVE))
-                .equals(twoStory)) {
-            throw new AssertionError("with the Sapper's TNT every two-story cell is sealed");
-        }
-        if (!RoomSelector.pickSealedCells(twoStory, depths, Map.of(c2, List.of(SituationTags.EXPLOSIVE)), Set.of())
-                .equals(Set.of(c3))) {
-            throw new AssertionError("a creeper room at depth 2 can only open floors deeper than it");
+        if (!RoomSelector.pickSealedCells(Set.of()).isEmpty()) {
+            throw new AssertionError("no two-story cells, nothing to seal");
         }
     }
 
@@ -222,21 +230,22 @@ public class PlanSelectorTest {
     }
 
     /**
-     * PD-149 (playtest 2026-10-05-1): a resource dungeon's floor must place at
-     * least one room that stamps nodes. With a manifest whose only node room is
-     * outnumbered by generic halls, every seed still lands one.
+     * PD-149 (playtest 2026-10-05-1), as data: a floor whose dungeon sets
+     * {@code minNodeRooms} must place that many node rooms. With a manifest
+     * whose only node room is outnumbered by generic halls, every seed still
+     * lands one.
      */
     private static void testResourceFloorGuaranteesANodeRoom() {
         DungeonShape shape = straightShape(5);
         RoomManifest manifest = makeResourceManifest();
         RoomEligibility.Floor floor = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
-                false, "test_mine", "", false, false, false, true);
+                false, "test_mine", "", false, false, false, 1);
         for (long seed = 0; seed < 40; seed++) {
             DungeonShape seeded = new DungeonShape(seed, shape.cells(), shape.openEdges(),
                     shape.entrance(), shape.terminal(), shape.criticalPath(), shape.roles());
             DungeonPlan plan = RoomSelector.resolveDetailed(seeded, manifest, null, Set.of(), null, floor).plan();
             if (plan == null) {
-                throw new AssertionError("resource floor " + seed + " did not resolve");
+                throw new AssertionError("node floor " + seed + " did not resolve");
             }
             boolean oreRoom = false;
             for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
@@ -245,7 +254,7 @@ public class PlanSelectorTest {
                 }
             }
             if (!oreRoom) {
-                throw new AssertionError("resource floor " + seed + " placed no node room");
+                throw new AssertionError("node floor " + seed + " placed no node room");
             }
         }
         // PD-149 (reopened 2026-10-06-1): a floor of corners has no cell the
@@ -264,9 +273,26 @@ public class PlanSelectorTest {
             throw new AssertionError("a straight floor that holds the ore room is not short");
         }
 
-        // A non-resource floor never forces the room in: the guarantee is scoped.
+        // The number is a count, not a flag: two asked for means two forced in.
+        RoomEligibility.Floor twoNodes = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
+                false, "test_mine", "", false, false, false, 2);
+        DungeonPlan doubled = RoomSelector.resolveDetailed(shape, manifest, null, Set.of(), null, twoNodes).plan();
+        if (doubled == null) {
+            throw new AssertionError("a two node room floor did not resolve");
+        }
+        int oreRooms = 0;
+        for (DungeonPlan.PlacedRoom room : doubled.rooms().values()) {
+            if ("ore_room".equals(room.name())) {
+                oreRooms++;
+            }
+        }
+        if (oreRooms < 2) {
+            throw new AssertionError("minNodeRooms 2 placed " + oreRooms + " node rooms");
+        }
+
+        // A floor asking for no node rooms never forces one in: the guarantee is scoped.
         RoomEligibility.Floor story = new RoomEligibility.Floor("test_mine", "test_mine", null, 1,
-                false, "test_mine", "", false, false, false, false);
+                false, "test_mine", "", false, false, false, 0);
         DungeonPlan plan = RoomSelector.resolveDetailed(shape, manifest, null, Set.of(), null, story).plan();
         if (plan == null) {
             throw new AssertionError("story floor did not resolve");

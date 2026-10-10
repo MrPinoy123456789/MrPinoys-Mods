@@ -13,16 +13,23 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Dungeon structure W5 (D14): five kits are offered at the bag chest; the other four bag files
- * carry {@code "hidden": true}. A hidden bag is not offered, but a player who already holds one
- * keeps it working (it still resolves). Headless: the picker list is read from a published
- * synthetic manifest and the shipped bag files are read from the source tree.
+ * Dungeon structure W5 (D14), amended by L1 (D40): five kits are offered at
+ * the bag chest and no shipped bag file is {@code "hidden": true}. The five
+ * cut bags belong to the {@code extra_bags} content module: while it is off
+ * they never reach the manifest, and while it is on they load with their
+ * shipped hidden flags (all false, so all five are offered). Headless: the
+ * picker list is read from a published synthetic manifest and the shipped
+ * bag files and module manifest are read from the source tree.
  */
 public class KitHiddenBagTest {
 
     private static final Path BAGS = Path.of("src/main/resources/data/pocketdungeons/dungeon_bag");
-    private static final Set<String> OFFERED = Set.of("guard", "ranger", "mason", "sapper", "shepherd");
-    private static final Set<String> HIDDEN = Set.of("innkeeper", "magician", "pilgrim", "plumber");
+    private static final Path EXTRA_BAGS = Path.of(
+            "src/main/resources/data/pocketdungeons/content_module/extra_bags.json");
+    private static final Set<String> OFFERED = Set.of(
+            "guard", "ranger", "sapper", "lumberjack", "innkeeper");
+    private static final Set<String> MODULE_BAGS = Set.of(
+            "mason", "plumber", "magician", "shepherd", "pilgrim");
 
     public static void main(String[] args) throws IOException {
         net.minecraft.SharedConstants.setVersion(net.minecraft.DetectedVersion.BUILT_IN);
@@ -58,10 +65,27 @@ public class KitHiddenBagTest {
         for (String name : OFFERED) {
             check(!hiddenIn(name), name + " is offered");
         }
-        for (String name : HIDDEN) {
-            check(hiddenIn(name), name + " is hidden");
+        for (String name : MODULE_BAGS) {
+            check(!hiddenIn(name), name + " is not hidden; extra_bags restores the whole kit");
         }
-        check(OFFERED.size() == 5, "five kits are offered");
+        Set<String> claimed = moduleClaimed();
+        for (String name : MODULE_BAGS) {
+            check(claimed.contains(name), "extra_bags claims the cut bag " + name);
+        }
+        for (String name : OFFERED) {
+            check(!claimed.contains(name), "extra_bags must not claim the offered bag " + name);
+        }
+        check(OFFERED.size() == 5 && MODULE_BAGS.size() == 5, "five kits are offered, five gated");
+    }
+
+    private static Set<String> moduleClaimed() throws IOException {
+        JsonObject manifest = JsonParser.parseString(
+                Files.readString(EXTRA_BAGS, StandardCharsets.UTF_8)).getAsJsonObject();
+        Set<String> claimed = new java.util.HashSet<>();
+        for (var element : manifest.getAsJsonArray("bags")) {
+            claimed.add(element.getAsString());
+        }
+        return claimed;
     }
 
     private static boolean hiddenIn(String name) throws IOException {
@@ -79,7 +103,7 @@ public class KitHiddenBagTest {
         for (String id : BagIds.BUILT_IN_ORDER) {
             String name = id.substring(id.indexOf(':') + 1);
             BagDefinition def = new BagDefinition(id, name, "blurb " + name, order++, List.of(), Set.of(),
-                    BagMeta.defaultLootTable(id), List.of(), HIDDEN.contains(name));
+                    BagMeta.defaultLootTable(id), List.of(), !OFFERED.contains(name));
             entries.put(id, new BagManifest.Entry(id, def));
         }
         BagManifest.publish(BagManifest.create(entries, List.of()));
@@ -90,10 +114,10 @@ public class KitHiddenBagTest {
             String name = option.bagId().substring(option.bagId().indexOf(':') + 1);
             check(OFFERED.contains(name), "the picker offers only the five kits: " + name);
         }
-        // A player who already holds a hidden bag keeps it working: it still resolves.
-        for (String name : HIDDEN) {
-            BagDefinition held = Bags.byId("pocketdungeons:" + name);
-            check(held != null && held.hidden, "a held hidden bag still resolves: " + name);
+        // A player who already holds a cut bag keeps it working: it still resolves.
+        for (String name : MODULE_BAGS) {
+            check(Bags.byId("pocketdungeons:" + name) != null,
+                    "a held module bag still resolves: " + name);
             check(Bags.byId(name) != null, "and by its legacy bare id: " + name);
         }
     }

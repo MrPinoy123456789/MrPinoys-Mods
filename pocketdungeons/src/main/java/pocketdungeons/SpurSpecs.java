@@ -126,14 +126,12 @@ final class SpurSpecs {
         set(level, o, x, y, z, Blocks.REDSTONE_WIRE.defaultBlockState());
     }
 
-    /** Fills 4 of a hopper's 5 slots with 64 of {@code item}, leaving slot 4 empty (vanilla item filter). */
-    private static void fillFilter(ServerLevel level, BlockPos o, int x, int y, int z, ItemStack item) {
-        BlockEntity be = level.getBlockEntity(o.offset(x, y, z));
-        if (be instanceof HopperBlockEntity hopper) {
-            for (int i = 0; i < 4; i++) {
-                hopper.setItem(i, new ItemStack(item.getItem(), 64));
+    /** A wall across the whole room at z={@code zLine}, floor to the last interior row (the door replaces its part). */
+    private static void placePartition(ServerLevel level, BlockPos o, int zLine) {
+        for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
+            for (int y = 1; y < RoomGeometry.CEILING_Y; y++) {
+                set(level, o, x, y, zLine, RoomBuilder.WALL);
             }
-            hopper.setChanged();
         }
     }
 
@@ -191,19 +189,18 @@ final class SpurSpecs {
         return new RoomSpec("barred_vault", EnumSet.of(DOOR))
                 .spawner(new BlockPos(8, 1, 4))
                 .decor((level, o) -> {
-                    // Iron door across the room at z=8.
-                    placeInteriorDoor(level, o, 8);
-                    // Filter hopper at z=7 facing south into the chest. Four
-                    // slots pre-filled with trial keys make it a trial-key filter.
-                    placeHopper(level, o, 8, 1, 7, Direction.SOUTH);
-                    fillFilter(level, o, 8, 1, 7, new ItemStack(Items.TRIAL_KEY));
-                    // Chest behind the door at z=10, facing north (toward the
-                    // player coming through). Draws from the spur vault table.
-                    placeChest(level, o, 8, 1, 10, Direction.NORTH, "vaults/spur_barred_vault");
-                    // Comparator reads the chest, outputs north to power the door.
-                    placeComparator(level, o, 9, 1, 10, Direction.NORTH);
-                    placeDust(level, o, 9, 1, 9);
-                    placeDust(level, o, 9, 1, 8);
+                    // Design pass 2026-10-09 (Q6): a vanilla vault block on a dais at the back of the room, with
+                    // iron bars either side. It already means "use a trial key here"; SpurVault sets its key and
+                    // reward at each stamp. No door, hopper or partition: the room is open.
+                    for (int x = 7; x <= 9; x++) {
+                        set(level, o, x, 1, 11, Blocks.CHISELED_STONE_BRICKS.defaultBlockState());
+                    }
+                    set(level, o, 8, 1, 10, Blocks.VAULT.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.VaultBlock.FACING, Direction.NORTH));
+                    for (int y = 1; y <= 2; y++) {
+                        set(level, o, 7, y, 10, Blocks.IRON_BARS.defaultBlockState());
+                        set(level, o, 9, y, 10, Blocks.IRON_BARS.defaultBlockState());
+                    }
                 });
     }
 
@@ -232,17 +229,10 @@ final class SpurSpecs {
                         dropper.setItem(0, new ItemStack(Items.OMINOUS_BOTTLE));
                         dropper.setChanged();
                     }
-                    // Iron door across the room at z=8.
-                    placeInteriorDoor(level, o, 8);
-                    // Filter hopper at z=7 facing south; gold ingot filter.
-                    placeHopper(level, o, 8, 1, 7, Direction.SOUTH);
-                    fillFilter(level, o, 8, 1, 7, new ItemStack(Items.GOLD_INGOT));
-                    // Chest behind the door with the ominous reward table.
+                    // Design pass 2026-10-09 (Q6): the gold toll is gone (gold is scarce, and a toll in a scarce
+                    // resource is what the scarcity rule forbids). The chest stands open behind the bottle;
+                    // taking from it is the bargain.
                     placeChest(level, o, 8, 1, 10, Direction.NORTH, "vaults/spur_ominous_bargain");
-                    // Comparator reads the chest, powers the door.
-                    placeComparator(level, o, 9, 1, 10, Direction.NORTH);
-                    placeDust(level, o, 9, 1, 9);
-                    placeDust(level, o, 9, 1, 8);
                 });
     }
 

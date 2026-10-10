@@ -405,6 +405,24 @@ final class RoomProtection {
         if (perp == doorPlane && along >= 7 && along <= 9 && (y == 1 || y == 2)) {
             return true;
         }
+        // The Astrolabe Room's row (design pass 2026-10-09, Q1): its doors, the name sign standing in front of
+        // each and its bulb. Their places are fixed, so the protection does not need to know which are in use.
+        if (HallLayout.isHallAlong(RoomGeometry.mirrorsAlong(wall), along)) {
+            int inwardPlane = (doorPlane == 1) ? 2 : RoomGeometry.CELL - 3;
+            if (perp == doorPlane && (y == 1 || y == 2)) {
+                return true;
+            }
+            if (perp == inwardPlane && y == 1) {
+                return true;
+            }
+            if (perp == wallPlane && y == 3) {
+                return true;
+            }
+        }
+        // The Astrolabe Room's DESCEND lever and its sign stand at one of four places beside the selected door.
+        if (perp == doorPlane && (y == 2 || y == 3) && HallLayout.isLeverAlong(along)) {
+            return true;
+        }
         // PD-70: the levers and the go-home control are placed viewer-relative
         // (RoomGeometry.viewerAlong), so test them in the same frame.
         int seen = RoomGeometry.viewerAlong(wall, along);
@@ -426,7 +444,8 @@ final class RoomProtection {
             if (y == 3 && along >= 7 && along <= 9) {
                 return true; // the three copper bulbs, one over each door
             }
-            if (y >= 4 && y <= 5 && along >= 4 && along <= 11) {
+            if (y >= 4 && y <= 5 && along >= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN
+                    && along <= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX) {
                 return true; // the door screen blocks
             }
         }

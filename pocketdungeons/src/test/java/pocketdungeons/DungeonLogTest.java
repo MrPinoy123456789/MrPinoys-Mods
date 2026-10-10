@@ -223,6 +223,65 @@ public class DungeonLogTest {
         check(legacyRunsDecoded.runRecordsOf(player).isEmpty(), true,
                 "pre-M75 save defaults run records to empty");
 
+        // Haul and Blood Doors: the haul, banking into the compass bar, the half kept on failure.
+        DungeonLog haulLog = new DungeonLog();
+        check(haulLog.haulOf(player), 0, "no haul before the first clear");
+        check(haulLog.get(player).highestCharts(), 0, "no compass before the first bank");
+        haulLog.addHaul(player, 4);
+        haulLog.addHaul(player, 0);
+        haulLog.addHaul(player, -3);
+        check(haulLog.haulOf(player), 4, "earning adds, zero and negative amounts do nothing");
+        check(haulLog.get(player).highestCharts(), 0, "a haul does not move the compass");
+        DungeonLog.BankResult homeBank = haulLog.bankHaul(player, 100);
+        check(homeBank.banked(), 4, "home banks the whole haul");
+        check(homeBank.lost(), 0, "and loses none of it");
+        check(haulLog.haulOf(player), 0, "the haul is empty after a bank");
+        // The scrap curve (design pass 2026-10-09): a new player's first level costs 4, and compass 1 costs 4 too.
+        check(haulLog.get(player).highestCharts(), 1, "4 scrap is the first level at the new price");
+        check(haulLog.get(player).chartProgress(), 0, "and leaves the bar empty");
+        check(homeBank.raisedCompass(), true, "the home bank raised the compass");
+        haulLog.addHaul(player, 7);
+        DungeonLog.BankResult failBank = haulLog.bankHaul(player, ScrapMath.FAIL_KEEP_PERCENT);
+        check(failBank.banked(), 3, "a failed dungeon keeps half of 7, rounded down");
+        check(failBank.lost(), 4, "and loses the rest");
+        check(haulLog.get(player).highestCharts(), 1, "3 is not a level at compass 1 (4 to go)");
+        check(haulLog.get(player).chartProgress(), 3, "it fills the bar to 3");
+        check(failBank.raisedCompass(), false, "so the fail bank did not raise the compass");
+        check(haulLog.bankHaul(player, 100).banked(), 0, "banking an empty haul banks nothing");
+        haulLog.setCompass(player, 0, 0);
+        check(haulLog.get(player).highestCharts(), 0, "an operator may lower the compass");
+        check(haulLog.markHaulIntroSeen(player), true, "the intro shows once");
+        check(haulLog.markHaulIntroSeen(player), false, "and not again");
+
+        // Round trip, and the migration of a save written by the spendable pool model.
+        DungeonLog roundTrip = new DungeonLog();
+        roundTrip.setCompass(player, 12, 3);
+        roundTrip.addHaul(player, 5);
+        com.google.gson.JsonElement haulJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, roundTrip).result().orElseThrow();
+        DungeonLog haulDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, haulJson).result().orElseThrow().getFirst();
+        check(haulDecoded.get(player).highestCharts(), 12, "the compass round trips");
+        check(haulDecoded.get(player).chartProgress(), 3, "the bar round trips");
+        check(haulDecoded.haulOf(player), 5, "the haul round trips");
+
+        com.google.gson.JsonObject legacyEntry = haulJson.getAsJsonObject().getAsJsonArray("players")
+                .get(0).getAsJsonObject().getAsJsonObject("entry");
+        legacyEntry.remove("chart_progress");
+        legacyEntry.remove("haul");
+        legacyEntry.addProperty("highest_charts", 3);
+        legacyEntry.addProperty("scrap", 16);
+        DungeonLog migrated = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, haulJson).result().orElseThrow().getFirst();
+        check(migrated.get(player).highestCharts(), 3, "a pool model save keeps its compass");
+        check(migrated.get(player).chartProgress(), 1, "a never spent pool of 16 at compass 3 keeps 1/5");
+        check(migrated.haulOf(player), 0, "and starts with no haul");
+        legacyEntry.addProperty("highest_charts", 12);
+        legacyEntry.addProperty("scrap", 0);
+        DungeonLog migratedEmpty = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, haulJson).result().orElseThrow().getFirst();
+        check(migratedEmpty.get(player).chartProgress(), 0, "a migrated compass 12 with an empty pool lands on 0/5");
+
         System.out.println("DungeonLogTest passed");
     }
 

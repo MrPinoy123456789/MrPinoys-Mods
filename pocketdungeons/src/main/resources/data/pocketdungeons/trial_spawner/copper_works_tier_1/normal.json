@@ -30,11 +30,11 @@
   "loot_tables_to_eject": [
     {
       "data": "pocketdungeons:spawners/trial_key",
-      "weight": 8
+      "weight": 6
     },
     {
       "data": "pocketdungeons:spawners/emeralds",
-      "weight": 2
+      "weight": 4
     }
   ],
   "items_to_drop_when_ominous": "minecraft:spawners/trial_chamber/items_to_drop_when_ominous"

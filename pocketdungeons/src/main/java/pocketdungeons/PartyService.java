@@ -99,6 +99,11 @@ final class PartyService {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
+        if (bannedFrom(leader.level().getServer(), leader.getUUID(), target.getUUID())) {
+            leader.sendSystemMessage(Component.literal(target.getName().getString() + " is banned.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
 
         Set<UUID> companions = pendingParty.computeIfAbsent(leader.getUUID(), k -> new LinkedHashSet<>());
         if (companions.contains(target.getUUID())) {
@@ -115,6 +120,7 @@ final class PartyService {
         }
 
         companions.add(target.getUUID());
+        RoomCompany.forServer(leader.level().getServer()).note(leader.getUUID(), target.getUUID());
         leader.sendSystemMessage(Component.literal(
                 target.getName().getString() + " will come with you when you open a dungeon.")
                 .withStyle(ChatFormatting.GOLD));
@@ -240,8 +246,48 @@ final class PartyService {
         return removed > 0;
     }
 
+    /** Whether {@code owner} has banned {@code target} (Manage Party). */
+    static boolean bannedFrom(MinecraftServer server, UUID owner, UUID target) {
+        return server != null && RoomBans.forServer(server).isBanned(owner, target);
+    }
+
     /**
-     * Read-only view of a leader's pre-registered companions, in the order they
+     * Everyone in {@code owner}\u0027s party right now: the companions they pre-registered at Home plus the
+     * members of their live dungeon, the owner left out. Pre-registered first, in the order they were added.
+     */
+    static List<UUID> currentParty(UUID owner) {
+        java.util.LinkedHashSet<UUID> party = new java.util.LinkedHashSet<>(partyCompanions(owner));
+        InstanceRecord record = InstanceRegistry.byMember.get(owner);
+        if (record != null && record.owner.equals(owner)) {
+            party.addAll(record.members.keySet());
+        }
+        party.remove(owner);
+        return List.copyOf(party);
+    }
+
+    /**
+     * A ban takes effect (Manage Party): {@code target} leaves the owner\u0027s pre-registered party and, if they
+     * are standing in the owner\u0027s dungeon or room, they are sent out under the ordinary leaving rules.
+     */
+    static void evict(MinecraftServer server, UUID owner, UUID target) {
+        Set<UUID> companions = pendingParty.get(owner);
+        if (companions != null) {
+            companions.remove(target);
+            if (companions.isEmpty()) {
+                pendingParty.remove(owner);
+            }
+        }
+        invites.remove(target);
+        ServerPlayer player = server.getPlayerList().getPlayer(target);
+        InstanceRecord record = InstanceRegistry.byMember.get(target);
+        if (player != null && record != null && record.owner.equals(owner) && !target.equals(owner)) {
+            player.sendSystemMessage(Component.literal("You can't stay here.").withStyle(ChatFormatting.RED));
+            RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
+        }
+    }
+
+    /**
+     * Read-only view of a leader\u0027s pre-registered companions, in the order they
      * were added, for the roster screen. A copy: {@code pendingParty}'s sets are
      * mutated in place by {@code party} and {@code confirmKick}.
      */
@@ -277,9 +323,16 @@ final class PartyService {
                     .withStyle(ChatFormatting.RED));
             return false;
         }
-        if (InstanceRegistry.byMember.containsKey(target.getUUID())) {
+        // PD-191: a player inside a different dungeon may be invited; joining ends their own as a fail.
+        InstanceRecord targetRecord = InstanceRegistry.byMember.get(target.getUUID());
+        if (targetRecord == record) {
             inviter.sendSystemMessage(Component.literal(
-                    target.getName().getString() + " is already in a dungeon.")
+                    target.getName().getString() + " is already in this dungeon.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+        if (bannedFrom(inviter.level().getServer(), record.owner, target.getUUID())) {
+            inviter.sendSystemMessage(Component.literal(target.getName().getString() + " is banned.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
@@ -306,10 +359,30 @@ final class PartyService {
         target.sendSystemMessage(Component.literal(
                 inviterName + " invites you into their dungeon. "
                         + "Run /dungeon join " + inviterName
-                        + " within two minutes to go in.")
+                        + " within two minutes to go in."
+                        + (targetRecord == null ? "" : " Joining ends your own dungeon as a failed dungeon: "
+                                + "your haul keeps " + PocketDungeonsConfig.failHaulKeepPercent() + " percent"
+                                + (target.getUUID().equals(targetRecord.owner)
+                                        && targetRecord.members.size() > 1 ? ", and your party is sent home." : ".")))
                 .withStyle(s -> s.withColor(ChatFormatting.GOLD)
                         .withClickEvent(DialogKit.open(DialogScreens.inviteOffer(inviterName)))));
         return true;
+    }
+
+    /**
+     * PD-191 (owner ruling 2026-10-09): joining another party counts as having left one's own dungeon
+     * first, so the same leaving rules apply: between floors the haul is cashed out, on a floor it fails.
+     */
+    static void leaveOwnDungeon(MinecraftServer server, ServerPlayer player, InstanceRecord own) {
+        // Joining another party is leaving this one, so the leaving rules apply (owner ruling 2026-10-09):
+        // between floors a member cashes out, on a floor they fail. An owner between floors ends the
+        // run as at a checkpoint; on a floor they fail it for the party.
+        if (own.isKeystoneRun() && player.getUUID().equals(own.owner)
+                && !RunLifecycle.betweenFloors(own)) {
+            Instances.failRunLeft(server, own, player);
+            return;
+        }
+        RunLifecycle.exit(player, RunLifecycle.ExitReason.COMMAND);
     }
 
     /** @return whether the player actually joined (PD-38). */
@@ -318,9 +391,9 @@ final class PartyService {
         if (server == null) {
             return false;
         }
-        if (InstanceRegistry.hasInstance(player)) {
-            player.sendSystemMessage(Component.literal(
-                    "You are already in a dungeon. Use /dungeon exit first.")
+        InstanceRecord own = InstanceRegistry.byMember.get(player.getUUID());
+        if (own != null && own.members.containsKey(leader.getUUID())) {
+            player.sendSystemMessage(Component.literal("You are already in that dungeon.")
                     .withStyle(ChatFormatting.RED));
             return false;
         }
@@ -349,10 +422,22 @@ final class PartyService {
             return false;
         }
 
+        if (bannedFrom(server, record.owner, player.getUUID())) {
+            invites.remove(player.getUUID());
+            player.sendSystemMessage(Component.literal("You can't join this party.")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
         invites.remove(player.getUUID());
+        // PD-191: the invite is good, so leave the player's own dungeon first, as a failed one.
+        if (own != null) {
+            leaveOwnDungeon(server, player, own);
+        }
         PlaytestJournal.hintEnter(player.getUUID(), "invite");
         record.guests.remove(player.getUUID());
         Instances.admit(server, record, player);
+        RoomCompany.forServer(server).note(record.owner, player.getUUID());
 
         player.sendSystemMessage(Component.literal("You step into the dungeon.")
                 .withStyle(ChatFormatting.GOLD));

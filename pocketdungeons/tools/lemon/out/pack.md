@@ -21,6 +21,8 @@ Rules:
 
 # Game guide
 
+# Lemon game guide
+
 Plain-words mechanics Lemon may explain freely. Draft seeded from the owner
 decisions log (AUDIT_2026-09.md section 11); the owner corrects and extends it.
 Keep each entry to what a player needs, in the words Lemon would use.
@@ -263,19 +265,11 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ### L27. 2026-10-05: shards buy branches (Stage 1 hypothesis 4, A3 and A6)
 
-- **Status:** owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
+- **Status:** owed, 2026-10-07-1.md: still not exercised (no priced edge taken), but the currency has moved to scrap: a side-branch refusal "2 scrap short" was seen live (PD-162: it names the gap, not the holding). This row's shard wording is stale. Earlier: owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
 - **Changed:** 2026-10-05: a side edge costs echo shards (authored per edge, usually 1), paid by the member who pulls the lever; shards come only from finishing a dungeon and from Ordeals.
 - **Do:** watch shards held at each staging room, side branches taken and shards left unspent. Journal: `edge_taken` with its cost.
 - **Pass:** he takes a side branch at least once and weighs it aloud, with some shards spent and some kept.
 - **Fail signs:** a branch is never affordable (raise income); every branch is always taken (raise the cost); the action bar balance line is missed.
-
-### L31. 2026-10-05: the Spawner Dungeon and Ancient City capstones
-
-- **Status:** owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
-- **Changed:** 2026-10-05: Spawner Dungeon (Act 1): four classic spawners, then a final wave; the pad stays shut until both stages are done. Ancient City (Act 2): every sculk sensor and shrieker raises omen, a real Warden arrives at omen 4 and does not gate the pad.
-- **Do:** solo and in a party of two, clear each. Note the brood size, how the spawner break and the exhaust rule feel, and what the omen bar does in the Ancient City.
-- **Pass:** the pad opens only after the brood, a clear unlocks the next act with a title, the Warden arrives and the party can still finish by reaching the terminal.
-- **Fail signs:** the pad opens early or never opens; the Warden spawns twice or elsewhere; a brood that is trivial or unwinnable for two.
 
 ### L32. 2026-10-05: the Wither and the Herobrine fight
 
@@ -301,14 +295,6 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** off: the companion can; on: refused with "The party leader has limited who decides here"; listed: allowed. Watch whether a companion ends a trip the leader wanted to continue.
 - **Fail signs:** a refused leader; a companion who can still pull a lever with the whitelist on; the door screen not saying why.
 
-### L35. 2026-10-05: Cow Pits finite cows and resource dungeon rewards
-
-- **Status:** owed, 2026-10-05-1.md: Mineshaft half exercised. Two of three floors rolled zero nodes (PD-149) and the one themed ore room was too generous (PD-155). Diary page not seen (no finish). Cow Pits untouched: it is Act 2.
-- **Changed:** 2026-10-05 (D11, D12): resource dungeons deal step 0, pay no shard or vault, and give a diary page on the first finish. Cow Pits has 6 to 10 adult cows, no wheat and no breeding.
-- **Do:** run Mineshaft and Cow Pits; try to breed or feed cows, count the beef and leather, and note ore mined against durability spent (a farming risk).
-- **Pass:** cows cannot be multiplied, the haul is real but bounded, the key does not climb, the diary page arrives on the first finish only.
-- **Fail signs:** an infinite cow loop; durability not a real cost so the resource dungeon is farmed; a shard or vault from a resource dungeon.
-
 ### L36. 2026-10-05: Endless Mine seal and the deepest floor
 
 - **Status:** owed, 2026-10-05-1.md: not seen; the Mine only appears on door 3 once Act 2 is unlocked, and the Act 1 capstone was not cleared.
@@ -317,26 +303,96 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** floors 1 to 5 enter freely; a sealed layer offers only HOME with the act named; the deepest floor persists across trips.
 - **Fail signs:** the Mine on door 3 before act 2; a shaft that lets you past a sealed layer; the Mine hiding the capstone door.
 
+### L39. 2026-10-06: diary entry 8 reads whole
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-157, `BookPages`): a long diary page is split over as many book pages as it needs, at a paragraph, then a sentence, then a word.
+- **Do:** Finish the Mineshaft (or have the owner hand over entry 8, The First Pick) and open the book.
+- **Pass:** Every sentence is there, none cut off at the foot of a page, no blank page.
+- **Fail signs:** Text that stops at the bottom of page 1; a blank page.
+
+### L41. 2026-10-06: a flooded hall entered from outside
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-160, `IronDoorLatch`): the flooded hall's containment doors are latches. The button they used to have sat in the water and was washed off.
+- **Do:** Bias to `flooded_hall` and enter it from the west door, then from the east. Click the iron door from the dry side.
+- **Pass:** Both leaves open on a click from either side, stay open about three seconds, then close; no button anywhere; the water stays in.
+- **Fail signs:** A door that will not open from outside; water pouring out through an open door for longer than three seconds.
+
+### L42. 2026-10-06: the connector lever is on another wall
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-160, PD-55, `ConnectorStamper.applyIronDoor`): a connector iron door's lever moves off the frame to another wall of the near room, and the far room gets a stone button.
+- **Do:** Find a connector iron door (about one door edge in ten). Look for the lever in the room before it; walk through, turn round and find the button.
+- **Pass:** The lever is on a different wall at head height and works the door; the stone button on the far side opens it too; clicking the shut door with neither says The lever is in this room.
+- **Fail signs:** A lever on the frame again; a lever in water or inside a wall; a far side with no way to open.
+
+### L43. 2026-10-06: the omen bar is full and red at 4/4
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (PD-158, `OmenBar.sync`): during a floor the bar fills by floor omen over 4 and colours green (0 to 1), yellow (2 to 3), red (4).
+- **Do:** Raise the floor omen to 2, 3 and 4 by dying, eating and lingering, and watch the bar.
+- **Pass:** The fill steps in quarters and is full at 4/4; the colour goes green, yellow, red; one more fall ends the run shows from omen 3.
+- **Fail signs:** A part filled bar at 4/4.
+
+### L47. 2026-10-06: hidden ore is found by digging
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (design item 7, `HiddenOrePlanner`): Mineshaft rock holds a few buried pockets of one to three ore blocks, counted as nodes.
+- **Do:** Dig into the walls of mineshaft_seam and other Mineshaft rooms with the right pick.
+- **Pass:** Some digs find a pocket of 1 to 3 ore; none shows from the corridor before it is dug; `nodes_total` counts it and `nodes_mined` rises when it is mined.
+- **Fail signs:** Ore visible from inside the room before digging; ore in the wall ring.
+
+### L49. 2026-10-06: five bags at the lectern
+
+- **Status:** owed
+- **Changed:** 2026-10-06 (L1, `BagIds.CORE`): the bag picker offers Guard, Ranger, Sapper, Lumberjack and Innkeeper. Pilgrim, Shepherd, Mason, Magician and Plumber sit behind the `extra_bags` content module, off by default.
+- **Do:** Open the bag lectern on a fresh world and read the five blurbs. Kit out as each bag and check the kit matches the blurb.
+- **Pass:** Exactly five bags; Sapper's kit holds a stone pickaxe, Lumberjack's an axe and oak logs, Innkeeper's a Rolling Pin named item; no module, no cut bag appears.
+- **Fail signs:** Nine or ten bags; a missing kit item; Plumber in the list.
+
+### L51. 2026-10-06: the stations that remain
+
+- **Status:** owed, 2026-10-07-1.md: not exercised (no station used this session). Incidental: the safe room's station list showed crafting_table, damaged_anvil, furnace, grindstone, smithing_table and no enchanting table; if reroll lives at an enchanting table the home set may be missing it (unconfirmed, the list may only count placed blocks). Earlier: owed
+- **Changed:** 2026-10-06 (J5, `RitualListener`, `StationTutorial`): four stations remain: Salvage at the anvil, Reroll at the enchanting table, the Home Vendor, the Bag Chest. No level gates. Gamble, Blacksmith and Lock In are gone.
+- **Do:** Visit a station room in the dungeon and try each station. Put a scrapable drop on the anvil; put a gear piece on the enchanting table.
+- **Pass:** Salvage opens regardless of level; the enchanting table rerolls; no gamble screen, no blacksmith villager, no lock-in prompt.
+- **Fail signs:** A "too low level" refusal; the smithing table opening reroll; the Cube answering a use.
+
 # Rooms (id: roles, tier, depth, requirements)
 
+- alphas_den: encounter, tier 2, depth 0+
+- archive_catalog: encounter/loot/corridor, tier 1, depth 1+
+- archive_reading_nook: encounter/loot/corridor, tier 1, depth 1+
+- archive_stacks: encounter/loot/corridor, tier 1, depth 1+
 - barred_vault: loot, tier 2, depth 2+, needs trial_key, pressure omen
 - basalt_foundry_crucible: loot, depth 1+
+- bastion_keep: encounter/loot/corridor, tier 1, depth 0+
 - bazaar: corridor, tier 2, depth 1+
+- big_freeze: encounter/loot/corridor, tier 1, depth 0+
 - blaze_cellar: encounter, tier 3, depth 2+
 - blaze_loft: corridor, tier 2, depth 1+
 - bogged_marsh: encounter, tier 2, depth 1+
 - breeze_arena: encounter, tier 2, depth 1+, access gated
 - brood_chamber: exit, tier 1, depth 0+
 - burrow_tunnel: encounter/loot/corridor, tier 1, depth 0+
+- charnel_niches: encounter/loot/corridor, tier 1, depth 0+
 - chasm: corridor, tier 1, depth 0+
 - collapsing_bridge: corridor, tier 2, depth 2+, pressure local
+- copper_boiler: encounter/loot/corridor, tier 1, depth 1+
+- copper_ore_chute: encounter/loot/corridor, tier 1, depth 1+
+- copper_pipe_hall: encounter/loot/corridor, tier 1, depth 1+
 - copper_works_forge: encounter, depth 1+
 - cow_pens: corridor, tier 1, depth 0+
+- cow_ward: corridor, tier 1, depth 1+
 - cow_yard: corridor, tier 1, depth 0+
 - creeper_kennel: encounter, tier 2, depth 1+
 - crimson_forest: encounter/loot/corridor, tier 2, depth 0+
 - crypt_corner: encounter, depth 1+
 - deep_dark_landing: corridor, tier 3, depth 2+, pressure omen
+- deep_fossil_gallery: encounter/loot/corridor, tier 1, depth 1+
+- deep_geode: encounter/loot/corridor, tier 1, depth 1+
+- deep_shaft_landing: encounter/loot/corridor, tier 1, depth 1+
 - dont_look: corridor, tier 2, depth 1+
 - elders_chamber: corridor, tier 3, depth 2+, access gated
 - encounter_zombie: encounter, depth 0+
@@ -350,29 +406,50 @@ tool on the MCP server (`mcp.mjs --admin`).
 - flow_puzzle: corridor, tier 2, depth 0+, access gated
 - fracture_hall: exit, tier 1, depth 0+
 - frame_lock: corridor, tier 1, depth 0+, pressure omen, access gated
+- frost_cold_store: encounter/loot/corridor, tier 1, depth 1+
+- frost_ice_vault: encounter/loot/corridor, tier 1, depth 1+
+- frost_snowdrift: encounter/loot/corridor, tier 1, depth 1+
 - frostworks_glaze: corridor, depth 1+
 - gallery: corridor, tier 2, depth 0+
+- gnawed_vein: encounter/loot/corridor, tier 1, depth 0+
+- great_crucible: encounter/loot/corridor, tier 1, depth 0+
+- great_drip_cavern: encounter/loot/corridor, tier 1, depth 0+
 - grove: corridor, depth 1+
+- grove_glade: loot/corridor, depth 1+
+- grove_path: corridor/encounter/loot, depth 1+
+- guard_tower: corridor, tier 1, depth 0+
 - hall_corner: encounter/loot/corridor, depth 0+
 - hall_cross: encounter/loot/corridor, depth 0+
+- hall_cross_rotunda: encounter/loot/corridor, tier 1, depth 0+
 - hall_dead_end: encounter/loot/corridor, depth 0+
+- hall_dead_end_alcoves: encounter/loot/corridor, tier 1, depth 0+
 - hall_straight: encounter/loot/corridor, depth 0+
+- hall_straight_colonnade: encounter/loot/corridor, tier 1, depth 0+
 - hall_tee: encounter/loot/corridor, depth 0+
 - hay_loft: corridor, tier 1, depth 0+
 - hold_the_plate: corridor, tier 1, depth 1+, pressure local, access gated
+- hush_gallery: encounter, tier 2, depth 1+
 - ice_run: corridor, tier 2, depth 0+, pressure local
 - infested_wall: corridor, tier 2, depth 1+, access gated
 - item_plate: corridor, tier 1, depth 0+, access gated
 - kennel_crossing: encounter, tier 2, depth 1+
+- kennel_run: corridor, tier 1, depth 0+
+- last_index: encounter/loot/corridor, tier 1, depth 0+
+- last_rest: encounter/loot/corridor, tier 1, depth 0+
 - ledge_archers: encounter, tier 1, depth 0+
 - loot_vault: loot, depth 0+
+- lost_dog: encounter, tier 1, depth 1+
 - lush_clay_pool: encounter/loot/corridor, tier 1, depth 1+
 - lush_hollow: encounter/loot/corridor, tier 1, depth 0+
 - lush_root_gallery: encounter/loot/corridor, tier 1, depth 0+
+- master_furnace: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_collapse: encounter/loot/corridor, tier 1, depth 1+
 - mineshaft_crossing: encounter/loot/corridor, tier 1, depth 0+
+- mineshaft_dead_end: encounter/loot/corridor, tier 1, depth 1+
+- mineshaft_junction: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_seam: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_tunnel: encounter/loot/corridor, tier 1, depth 0+
+- monument_heart: encounter/loot/corridor, tier 1, depth 0+
 - mossy_tee: encounter/corridor, depth 2+
 - ominous_bargain: loot, tier 3, depth 3+, pressure omen
 - ossuary_crypt: encounter, depth 1+
@@ -381,13 +458,17 @@ tool on the MCP server (`mcp.mjs --admin`).
 - plate_pair: corridor, tier 1, depth 0+, needs mob, access gated
 - pot_room: corridor, tier 1, depth 0+, pressure omen
 - powder_snow_field: corridor, tier 2, depth 0+, pressure local
+- queens_nest: encounter/loot/corridor, tier 1, depth 0+
 - rising_lava: corridor, tier 2, depth 2+, pressure local
+- root_sandbar: encounter/loot/corridor, tier 1, depth 0+
 - rootworks_grove: corridor, depth 1+
+- rootworks_grove_glade: loot/corridor, depth 1+
+- rootworks_grove_path: corridor/encounter/loot, depth 1+
 - ropewalk: corridor, tier 1, depth 0+
 - rotation_lock: corridor, tier 2, depth 0+, access gated
 - sculk_causeway: corridor, tier 2, depth 0+
 - sculk_nave: corridor, tier 2, depth 0+
-- sensor_gallery: encounter, tier 2, depth 1+, access gated
+- silent_deep: encounter/loot/corridor, tier 1, depth 0+
 - slime_pit: encounter, tier 1, depth 0+
 - sorting_floor: corridor, tier 2, depth 0+, access gated
 - soul_sand_valley: encounter/corridor, tier 2, depth 0+
@@ -401,6 +482,8 @@ tool on the MCP server (`mcp.mjs --admin`).
 - treasure_alcove: loot, depth 1+
 - tripwire_hall: corridor, tier 1, depth 0+, pressure local
 - warden_hall: exit, tier 1, depth 0+
+- wardens_deep: encounter/loot/corridor, tier 1, depth 0+
 - warped_forest: encounter/loot/corridor, tier 2, depth 0+
 - wither_hall: exit, tier 1, depth 0+
 - wither_loft: encounter, tier 3, depth 2+, access gated
+- world_rim: encounter/loot/corridor, tier 1, depth 0+

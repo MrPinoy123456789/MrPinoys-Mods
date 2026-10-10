@@ -19,7 +19,7 @@ public class CapstoneRulesTest {
     private static final UUID OWNER = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
 
     private static final String SHAPE = """
-            {"name": "NAME", "act": ACT, "kind": "KIND", "mainTheme": "frostworks",
+            {"name": "NAME", "act": ACT, "baseLevel": 1, "kind": "KIND", "mainTheme": "frostworks",
              "lootBand": {"min": 1, "max": 2},
              "nodes": [
                {"id": "gate", "name": "Gate", "layer": 1},
@@ -45,6 +45,7 @@ public class CapstoneRulesTest {
         testWardenSummonRule();
         testWardenOnlyInAncientCity();
         testPendingCapstone();
+        testCapstoneWaitsForTheRestOfTheAct();
         testCapstoneGuaranteeStaysOffDoorThree();
         testNoGuaranteeWhenNothingPending();
         testRoomNarrowing();
@@ -99,13 +100,14 @@ public class CapstoneRulesTest {
     // ---- sculk omen --------------------------------------------------------------------
 
     private static void testSculkPulseRule() {
-        check(SculkOmen.pulsesPerOmen(false) == 5, "elsewhere a sensor needs five pulses per omen");
-        check(SculkOmen.pulsesPerOmen(true) == 1, "in the Ancient City every pulse is an omen");
-        check(SculkOmen.omenFromPulses(4, false) == 0 && SculkOmen.omenFromPulses(5, false) == 1, "legacy rule intact");
-        check(SculkOmen.omenFromPulses(1, true) == 1 && SculkOmen.omenFromPulses(3, true) == 3, "every pulse counts");
-        check(SculkOmen.remainingPulses(7, 1, false) == 2, "legacy remainder");
-        check(SculkOmen.remainingPulses(3, 3, true) == 0, "ancient pulses are all paid out");
-        check(SculkOmen.omenFromPulses(-2, true) == 0, "negative pulses are nothing");
+        // J3: pulses answer with waves, not omen; five elsewhere, every one in the Ancient City.
+        check(Omen.pulsesPerWave(false) == 5, "elsewhere a sensor needs five pulses per wave");
+        check(Omen.pulsesPerWave(true) == 1, "in the Ancient City every pulse answers");
+        check(Omen.wavesFromPulses(4, false) == 0 && Omen.wavesFromPulses(5, false) == 1, "five per wave");
+        check(Omen.wavesFromPulses(1, true) == 1 && Omen.wavesFromPulses(3, true) == 3, "every pulse counts");
+        check(Omen.remainingPulses(7, 1, false) == 2, "the remainder banks toward the next wave");
+        check(Omen.remainingPulses(3, 3, true) == 0, "ancient pulses are all paid out");
+        check(Omen.wavesFromPulses(-2, true) == 0, "negative pulses are nothing");
         check(SculkOmen.armsAllSculk("ancient_city") && SculkOmen.armsAllSculk(T + "ancient_city"),
                 "the Ancient City arms every sculk block, bare or namespaced");
         check(!SculkOmen.armsAllSculk("deepslate") && !SculkOmen.armsAllSculk(null) && !SculkOmen.armsAllSculk(""),
@@ -113,11 +115,12 @@ public class CapstoneRulesTest {
     }
 
     private static void testWardenSummonRule() {
-        check(SculkOmen.shouldSummonWarden(true, true, Omen.MAX_OMEN, false), "omen 4 on the final floor summons");
-        check(!SculkOmen.shouldSummonWarden(true, true, Omen.MAX_OMEN - 1, false), "omen 3 does not");
-        check(!SculkOmen.shouldSummonWarden(true, false, Omen.MAX_OMEN, false), "not on an earlier floor");
-        check(!SculkOmen.shouldSummonWarden(false, true, Omen.MAX_OMEN, false), "not in another dungeon");
-        check(!SculkOmen.shouldSummonWarden(true, true, Omen.MAX_OMEN, true), "only once");
+        // J3: the Warden counts the final floor's pulses and wakes on the fourth.
+        check(SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_ANSWERS, false), "the fourth pulse summons");
+        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_ANSWERS - 1, false), "the third does not");
+        check(!SculkOmen.shouldSummonWarden(true, false, SculkOmen.WARDEN_ANSWERS, false), "not on an earlier floor");
+        check(!SculkOmen.shouldSummonWarden(false, true, SculkOmen.WARDEN_ANSWERS, false), "not in another dungeon");
+        check(!SculkOmen.shouldSummonWarden(true, true, SculkOmen.WARDEN_ANSWERS, true), "only once");
     }
 
     private static void testWardenOnlyInAncientCity() {
@@ -132,29 +135,71 @@ public class CapstoneRulesTest {
 
     // ---- the capstone offer rule -------------------------------------------------------
 
+    /**
+     * The capstone is the act's last trial: it is only offered once every other
+     * dungeon of the act is finished and the Mine has reached the act's target.
+     */
+    private static void testCapstoneWaitsForTheRestOfTheAct() {
+        DungeonDef spawner = def("spawner_dungeon", 1, "capstone");
+        DungeonDef mineshaft = def("mineshaft", 1, "dungeon");
+        DungeonDef ossuary = def("ossuary", 1, "dungeon");
+        List<DungeonDef> all = List.of(spawner, mineshaft, ossuary);
+        Set<Integer> act1 = Set.of(1);
+
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of(), 0).contains(spawner),
+                "nothing done: the capstone is not dealt");
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 4).contains(spawner),
+                "the Mine short of its target: still locked");
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft"), 5).contains(spawner),
+                "a dungeon unfinished: still locked");
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 5).contains(spawner),
+                "the rest of the act done and the Mine at 5: the capstone is dealt");
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 5).contains(mineshaft),
+                "ordinary dungeons stay dealt");
+        check(TripDoors.pendingCapstone(all, act1, Set.of(), 25, true, 0) == null,
+                "locked, so not pending either");
+        check(TripDoors.pendingCapstone(all, act1, Set.of("mineshaft", "ossuary"), 25, true, 5) == spawner,
+                "unlocked and pending");
+        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), 5, all), "ready");
+        check(!ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), 4, all), "Mine short, not ready");
+    }
+
     private static void testPendingCapstone() {
         DungeonDef spawner = def("spawner_dungeon", 1, "capstone");
         DungeonDef city = def("ancient_city", 2, "capstone");
         DungeonDef vault = def("drowned_vault", 3, "capstone");
-        DungeonDef story = def("frostworks", 2, "story");
+        DungeonDef story = def("frostworks", 2, "dungeon");
         List<DungeonDef> all = List.of(vault, story, city, spawner);
 
-        check(TripDoors.pendingCapstone(all, Set.of(1), Set.of()) == spawner, "act 1 open: the spawner dungeon");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of()) == spawner,
+        check(TripDoors.pendingCapstone(all, Set.of(1), Set.of(), 25) == spawner, "act 1 open: the spawner dungeon");
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of(), 25) == spawner,
                 "the lowest uncleared capstone wins while act 1's is pending");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of(T + "spawner_dungeon")) == city,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of(T + "spawner_dungeon"), 25) == city,
                 "act 1 cleared: the Ancient City is next");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon")) == city,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon"), 25) == city,
                 "a bare id in the finished set counts as the namespaced dungeon");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon", "ancient_city")) == null,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2), Set.of("spawner_dungeon", "ancient_city"), 25) == null,
                 "act 3 is not open, so its capstone is never pending");
-        check(TripDoors.pendingCapstone(all, Set.of(1, 2, 3), Set.of("spawner_dungeon", "ancient_city")) == vault,
+        check(TripDoors.pendingCapstone(all, Set.of(1, 2, 3), Set.of("spawner_dungeon", "ancient_city"), 25) == vault,
                 "act 3 open: the Drowned Vault");
         check(TripDoors.pendingCapstone(all, Set.of(1, 2, 3),
-                Set.of("spawner_dungeon", "ancient_city", T + "drowned_vault")) == null, "all cleared: nothing pending");
-        check(TripDoors.pendingCapstone(List.of(story), Set.of(2), Set.of()) == null, "a story dungeon is never a capstone");
-        check(TripDoors.pendingCapstone(List.of(), Set.of(1), Set.of()) == null, "no dungeons, nothing pending");
-        check(TripDoors.pendingCapstone(all, Set.of(), Set.of()) == null, "no open act, nothing pending");
+                Set.of("spawner_dungeon", "ancient_city", T + "drowned_vault"), 25) == null,
+                "all cleared: nothing pending");
+        check(TripDoors.pendingCapstone(List.of(story), Set.of(2), Set.of(), 25) == null,
+                "an ordinary dungeon is never a capstone");
+        check(TripDoors.pendingCapstone(List.of(), Set.of(1), Set.of(), 25) == null,
+                "no dungeons, nothing pending");
+        check(TripDoors.pendingCapstone(all, Set.of(), Set.of(), 25) == null, "no open act, nothing pending");
+        // D23: a capstone whose unlock level the compass has not reached is not yet guaranteed.
+        DungeonDef high = DungeonDef.fromJson(T + "high_capstone", JsonParser.parseString(
+                SHAPE.replace("NAME", "high_capstone").replace("ACT", "1").replace("KIND", "capstone")
+                        .replace("\"baseLevel\": 1", "\"baseLevel\": 12")).getAsJsonObject());
+        check(TripDoors.pendingCapstone(List.of(spawner, high), Set.of(1), Set.of(), 4) == spawner,
+                "a locked capstone is not pending");
+        check(TripDoors.pendingCapstone(List.of(high), Set.of(1), Set.of(), 4) == null,
+                "a locked capstone alone means nothing pending");
+        check(TripDoors.pendingCapstone(List.of(high), Set.of(1), Set.of(), 12) == high,
+                "it becomes pending when the compass reaches it");
     }
 
     private static void testCapstoneGuaranteeStaysOffDoorThree() {
@@ -162,7 +207,7 @@ public class CapstoneRulesTest {
         List<DungeonDef> pool = new ArrayList<>();
         pool.add(spawner);
         for (int i = 0; i < 6; i++) {
-            pool.add(def("story" + i, 1, "story"));
+            pool.add(def("dungeon" + i, 1, "dungeon"));
         }
         Set<Integer> slotsUsed = new HashSet<>();
         for (int salt = 0; salt < 300; salt++) {
@@ -198,11 +243,11 @@ public class CapstoneRulesTest {
     }
 
     private static void testNoGuaranteeWhenNothingPending() {
-        List<DungeonDef> pool = List.of(def("a", 1, "story"), def("b", 1, "story"), def("c", 1, "story"),
-                def("d", 1, "story"));
+        List<DungeonDef> pool = List.of(def("a", 1, "dungeon"), def("b", 1, "dungeon"), def("c", 1, "dungeon"),
+                def("d", 1, "dungeon"));
         for (int salt = 0; salt < 20; salt++) {
             check(sameDoors(TripDoors.dealFirst(OWNER, pool, salt), TripDoors.dealFirst(OWNER, pool, salt, null)),
-                    "no capstone pending: the deal is the plain one");
+                    "no capstone pending: the deal is the story one");
         }
         // A guaranteed dungeon that is not in the eligible pool is ignored.
         DungeonDef outsider = def("outsider", 1, "capstone");
@@ -213,10 +258,10 @@ public class CapstoneRulesTest {
     // ---- the boss room choice ----------------------------------------------------------
 
     private static void testRoomNarrowing() {
-        RoomEligibility.RoomTags plain = new RoomEligibility.RoomTags(List.of(), List.of(), List.of(), List.of(), List.of());
+        RoomEligibility.RoomTags story = new RoomEligibility.RoomTags(List.of(), List.of(), List.of(), List.of(), List.of());
         RoomEligibility.RoomTags boss = new RoomEligibility.RoomTags(List.of("spawner_dungeon"), List.of(), List.of(1),
                 List.of("capstone"), List.of());
-        List<RoomEligibility.RoomTags> candidates = List.of(plain, boss);
+        List<RoomEligibility.RoomTags> candidates = List.of(story, boss);
         RoomEligibility.Floor capstoneFinal = new RoomEligibility.Floor("spawner_dungeon", "spawner_dungeon",
                 "spawner_dungeon", 1, true, "spawner_dungeon", "", false, true, false);
         RoomEligibility.Floor capstoneMid = new RoomEligibility.Floor("spawner_dungeon", "spawner_dungeon",
@@ -232,8 +277,8 @@ public class CapstoneRulesTest {
                 "a capstone dungeon's earlier floors are untouched");
         check(RoomEligibility.narrowToCapstone(candidates, t -> t, storyFinal, true).size() == 2,
                 "a story dungeon's final floor is untouched");
-        check(RoomEligibility.narrowToCapstone(List.of(plain), t -> t, capstoneFinal, true).equals(List.of(plain)),
-                "a capstone with no boss room (the Drowned Vault) keeps the plain exit hall");
+        check(RoomEligibility.narrowToCapstone(List.of(story), t -> t, capstoneFinal, true).equals(List.of(story)),
+                "a capstone with no boss room (the Drowned Vault) keeps the story exit hall");
         check(RoomEligibility.narrowToCapstone(candidates, t -> t, null, true).size() == 2, "no floor, no narrowing");
 
         // The boss rooms themselves only match their own dungeon.

@@ -28,14 +28,14 @@ import java.util.UUID;
  * </ul>
  *
  * <p>Steps are dealt separately from branches: a seeded shuffle gives the three
- * doors {@code +1}, {@code +2} and {@code +3} in some order (D4). A resource
- * dungeon (D12, revised 2026-10-06) deals them like any other: its floors pay chart
- * scrap, plus whatever the player mines. The seed
+ * doors {@code +1}, {@code +2} and {@code +3} in some order (D4). Every dungeon
+ * deals them alike (D12 revised 2026-10-06): a miner's floors pay chart scrap
+ * plus whatever the player mines. The seed
  * comes from the owner, the dungeon, the node and the trip's path length, so an
  * open preview and the commit behind it see the same deal, and the deal does
  * not change between renders.
  *
- * <p>Costs are echo shards and ride on the edge (D5): a side edge costs its
+ * <p>Costs are scrap and ride on the edge (J1, old D5): a side edge costs its
  * authored {@code cost}; a main edge and a dungeon entry cost nothing.
  */
 final class TripDoors {
@@ -47,8 +47,8 @@ final class TripDoors {
 
     /**
      * One dealt door. {@code nodeId} is the floor behind it, {@code step} the
-     * chart scrap steps it adds (1 to 3), {@code cost} the echo
-     * shards it takes. {@code dungeonId} is always set. {@code variant} is how many
+     * chart scrap steps it adds (1 to 3), {@code cost} the scrap
+     * it takes. {@code dungeonId} is always set. {@code variant} is how many
      * earlier doors of the same deal lead to the same floor (0 for the first copy):
      * {@link DoorAffixes} rerolls a copy's affixes by it so no two doors are twins.
      * {@code pathLength} is the deal's seed input, kept on the door so the preview and
@@ -69,14 +69,48 @@ final class TripDoors {
     // ---- who may be offered ---------------------------------------------------------
 
     /**
-     * The dungeons a trip may start in: story, resource and capstone kinds (never
+     * The dungeons a trip may start in: ordinary and capstone kinds (never
      * endless, which is its own mode, D13) of an unlocked act, with one entry
-     * node. Sorted by id so the deal is independent of load order.
+     * node, and an {@link DungeonDef#unlockLevel() unlock level} the leader's
+     * compass has reached (D23). Sorted by id so the deal is independent of
+     * load order.
      */
-    static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs) {
+    static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                          int compass) {
+        return eligibleFirst(all, unlockedActs, compass, null, 0);
+    }
+
+    /**
+     * As {@link #eligibleFirst(Collection, Set, int)}, with the capstone rule: an
+     * act's capstone is only offered once the rest of the act is done
+     * ({@link ActProgress#capstoneReady}). {@code finished == null} skips that rule.
+     */
+    static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                          int compass, Set<String> finished, int deepestMineFloor) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act()) && def.entry() != null) {
+            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
+                    && def.entry() != null && def.unlockLevel() <= compass
+                    && (finished == null || def.kind() != DungeonDef.Kind.CAPSTONE
+                        || ActProgress.capstoneReady(def.act(), finished, deepestMineFloor, all))) {
+                out.add(def);
+            }
+        }
+        out.sort(Comparator.comparing(DungeonDef::id));
+        return out;
+    }
+
+    /**
+     * The act's dungeons the leader's compass has not reached (D23): open act,
+     * entry node, unlock level above {@code compass}. Sorted by id, for the
+     * staging map's locked lines.
+     */
+    static List<DungeonDef> lockedFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                        int compass) {
+        List<DungeonDef> out = new ArrayList<>();
+        for (DungeonDef def : all) {
+            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
+                    && def.entry() != null && def.unlockLevel() > compass) {
                 out.add(def);
             }
         }
@@ -148,11 +182,24 @@ final class TripDoors {
      * offered once act N is open, because {@link #eligibleFirst} already filters by act; this
      * adds the guarantee on top, so a player who has opened an act but not cleared its capstone
      * is shown the capstone at the first door every trip until they do.
+     * A capstone whose {@link DungeonDef#unlockLevel() unlock level} the
+     * leader's compass has not reached is not yet guaranteed (D23).
      *
      * @param finishedDungeons the ids (bare or namespaced) of the dungeons the player has finished
      */
     static DungeonDef pendingCapstone(Collection<DungeonDef> all, Set<Integer> unlockedActs,
-                                      Set<String> finishedDungeons) {
+                                      Set<String> finishedDungeons, int compass) {
+        return pendingCapstone(all, unlockedActs, finishedDungeons, compass, false, 0);
+    }
+
+    /**
+     * As {@link #pendingCapstone(Collection, Set, Set, int)}; with
+     * {@code gated} an act's capstone is pending only once the rest of the
+     * act is done ({@link ActProgress#capstoneReady}).
+     */
+    static DungeonDef pendingCapstone(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                      Set<String> finishedDungeons, int compass, boolean gated,
+                                      int deepestMineFloor) {
         Set<String> finished = new LinkedHashSet<>();
         for (String id : finishedDungeons) {
             finished.add(DungeonDef.qualify(id));
@@ -160,7 +207,9 @@ final class TripDoors {
         DungeonDef best = null;
         for (DungeonDef def : all) {
             if (def.kind() != DungeonDef.Kind.CAPSTONE || def.entry() == null
-                    || !unlockedActs.contains(def.act()) || finished.contains(DungeonDef.qualify(def.id()))) {
+                    || !unlockedActs.contains(def.act()) || def.unlockLevel() > compass
+                    || finished.contains(DungeonDef.qualify(def.id()))
+                    || (gated && !ActProgress.capstoneReady(def.act(), finished, deepestMineFloor, all))) {
                 continue;
             }
             if (best == null || def.act() < best.act()

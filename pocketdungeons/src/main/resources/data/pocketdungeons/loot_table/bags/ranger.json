@@ -42,17 +42,11 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:spyglass",
+          "name": "minecraft:arrow",
           "functions": [
             {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:custom_data": {
-                  "pocketdungeons": {
-                    "bag": 1
-                  }
-                }
-              }
+              "function": "minecraft:set_count",
+              "count": 8
             }
           ]
         }

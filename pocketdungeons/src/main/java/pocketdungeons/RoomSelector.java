@@ -63,13 +63,17 @@ final class RoomSelector {
 
     /**
      * M47 (SITUATIONS_SPEC 6.6): resolution with the root-distance solvability
-     * pass, seeded from the party's bag.
+     * pass. E (D25) split the proof in two: the entrance-to-staging spine is
+     * seeded from the Pilgrim's bag plus the party's own {@code mob}, while a
+     * spur cell may take a room whose {@code requires} names a tool nobody
+     * carries, because a bonus room that stays shut is a sign, not a broken
+     * plan.
      *
-     * <p>Cells are processed in BFS order rather than grid order, and a cell at
-     * root distance n may only take a room whose {@code requires} is a subset of
-     * the tags reachable at a distance strictly below n: the bag's seed, plus
-     * the {@code provides} of every shallower cell. That makes the solution to
-     * a gate reachable before the gate on every path, spurs included, which is
+     * <p>Cells are processed in BFS order rather than grid order, and a spine
+     * cell at root distance n may only take a room whose {@code requires} is a
+     * subset of the tags reachable at a distance strictly below n: the Pilgrim
+     * seed, plus the {@code provides} of every shallower cell. That makes the
+     * solution to a gate reachable before the gate on the main path, which is
      * the whole point of 6.6 over 6.2's single walk.
      *
      * <p><strong>What the model assumes.</strong> {@code available} is a boolean
@@ -145,21 +149,41 @@ final class RoomSelector {
         }
         orientGatedRooms(shape, manifest, placed, depths);
 
-        Map<PlanCell, List<String>> provides = new HashMap<>();
         Set<PlanCell> multiStory = new HashSet<>();
         for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : placed.entrySet()) {
             RoomManifest.Entry entry = manifest.byName(e.getValue().name());
-            if (entry != null && entry.meta.provides != null) {
-                provides.put(e.getKey(), entry.meta.provides);
-            }
             if (entry != null && entry.meta.spanY > 1 && !e.getKey().equals(anomalyCell)) {
                 multiStory.add(e.getKey());
             }
         }
-        Set<String> seedTags = bagTags == null ? Set.of() : bagTags;
-        Set<PlanEdge> rubble = pickRubbleEdges(shape.seed(), shape.openEdges(), depths, shape.entrance(),
-                provides, seedTags);
-        Set<PlanCell> sealed = pickSealedCells(multiStory, depths, provides, seedTags);
+        // E (D25): rubble only ever plugs a door off the entrance-to-staging
+        // spine, and a two-story cell's lower story is always a bonus (the
+        // way on never runs through it, so it can always seal).
+        List<PlanCell> spine = shortestPath(shape, shape.entrance(), shape.terminal());
+        Set<PlanEdge> spineEdges = new HashSet<>();
+        for (int i = 1; i < spine.size(); i++) {
+            spineEdges.add(new PlanEdge(spine.get(i - 1), spine.get(i)));
+        }
+        // A cell hosting a trial spawner is required: the floor cannot finish
+        // without clearing it, so rubble may never cut one off.
+        Set<PlanCell> encounterCells = new HashSet<>();
+        for (Map.Entry<PlanCell, String> role : shape.roles().entrySet()) {
+            RoomRoleDefinition def = RoleManifest.current().byId(role.getValue());
+            if (def != null && def.operation == RoomRoleDefinition.Operation.TRIAL_ENCOUNTER) {
+                encounterCells.add(role.getKey());
+            }
+        }
+        // PD-171: a spawner also comes from the room itself, not only from a role (the Barred
+        // Vault held the last required spawner of a floor with a rubble plug on the way in).
+        for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : placed.entrySet()) {
+            RoomManifest.Entry entry = manifest.byName(e.getValue().name());
+            if (hostsEncounter(e.getValue().name(), entry == null ? null : entry.meta.content)) {
+                encounterCells.add(e.getKey());
+            }
+        }
+        Set<PlanEdge> rubble = pickRubbleEdges(shape.seed(), shape.openEdges(), shape.entrance(),
+                spineEdges, encounterCells);
+        Set<PlanCell> sealed = pickSealedCells(multiStory);
 
         DungeonPlan plan = new DungeonPlan(
                 shape.seed(),
@@ -267,31 +291,43 @@ final class RoomSelector {
         return best;
     }
 
+    /**
+     * PD-171: the situation ids whose handler calls {@code TrialContent.applyEncounter}, so the
+     * room holds a trial spawner the floor may need cleared. A rubble plug must never cut one
+     * off. {@code RubbleRulesTest} reads the sources and fails if a handler is missing here.
+     */
+    static final Set<String> ENCOUNTER_ROOMS = Set.of(
+            "breeze_arena", "bogged_marsh", "ledge_archers", "the_raid", "slime_pit", "wither_loft",
+            "creeper_kennel", "hold_the_plate", "sensor_gallery", "kennel_crossing", "blaze_cellar",
+            "barred_vault", "lost_dog");
+
+    /** Whether a room (by name, or by the situation id its manifest entry names) holds a spawner. */
+    static boolean hostsEncounter(String name, String content) {
+        return ENCOUNTER_ROOMS.contains(name) || (content != null && ENCOUNTER_ROOMS.contains(content));
+    }
+
     /** The chance a plan with an eligible door gets one rubble doorway. */
     static final double RUBBLE_CHANCE = 0.35;
 
     /**
      * The doors to plug with rubble ({@link ConnectorType#RUBBLE}): at most one,
      * rolled off the plan seed. A door is eligible when it does not touch the
-     * entrance (the stamper leaves the entrance's doors alone) and an
-     * {@code explosive} is reachable before it: in the party's bag, or provided
-     * by a room at a depth below the door's deeper side. Cells at a smaller
-     * depth are reached without crossing this door, so a creeper room up there
-     * or the Sapper's TNT can always clear it. One per plan, because the bag's
-     * TNT is counted, not endless.
+     * entrance (the stamper leaves the entrance's doors alone) and is not on
+     * the entrance-to-staging spine (E, D25): a plug only ever gates a spur,
+     * so the way on never asks for the blast. Nor may a plug cut off a
+     * required cell ({@code requiredCells}, the trial spawner rooms): rubble
+     * gates optional rooms and shortcuts only. One per plan, so the bonus
+     * stays rare.
      */
-    static Set<PlanEdge> pickRubbleEdges(long seed, Set<PlanEdge> doors, Map<PlanCell, Integer> depths,
-                                         PlanCell entrance, Map<PlanCell, List<String>> provides,
-                                         Set<String> bagTags) {
+    static Set<PlanEdge> pickRubbleEdges(long seed, Set<PlanEdge> doors, PlanCell entrance,
+                                         Set<PlanEdge> spineEdges, Set<PlanCell> requiredCells) {
         List<PlanEdge> eligible = new ArrayList<>();
         for (PlanEdge edge : doors) {
-            if (edge.touches(entrance)) {
+            if (edge.touches(entrance) || spineEdges.contains(edge)
+                    || cutsOffRequired(doors, edge, entrance, requiredCells)) {
                 continue;
             }
-            int deeper = Math.max(depths.getOrDefault(edge.a(), 0), depths.getOrDefault(edge.b(), 0));
-            if (explosiveBelow(deeper, depths, provides, bagTags)) {
-                eligible.add(edge);
-            }
+            eligible.add(edge);
         }
         if (eligible.isEmpty()) {
             return Set.of();
@@ -310,37 +346,43 @@ final class RoomSelector {
         return Set.of(eligible.get(rng.nextInt(eligible.size())));
     }
 
-    /**
-     * The two-story cells whose way down is sealed with rubble
-     * ({@link RubbleOrdeal#FLOOR}): every one with an {@code explosive}
-     * reachable at a smaller depth, since the party has to bring the blast in
-     * with them. The rest stamp open, as they always did. A seal gates only
-     * the lower story's reward, never the way on, so there is no cap.
-     */
-    static Set<PlanCell> pickSealedCells(Set<PlanCell> multiStory, Map<PlanCell, Integer> depths,
-                                         Map<PlanCell, List<String>> provides, Set<String> bagTags) {
-        Set<PlanCell> out = new HashSet<>();
-        for (PlanCell cell : multiStory) {
-            if (explosiveBelow(depths.getOrDefault(cell, 0), depths, provides, bagTags)) {
-                out.add(cell);
+    /** Whether plugging {@code plugged} leaves a required cell unreachable from the entrance. */
+    private static boolean cutsOffRequired(Set<PlanEdge> doors, PlanEdge plugged, PlanCell entrance,
+                                           Set<PlanCell> requiredCells) {
+        Set<PlanCell> reached = new HashSet<>();
+        java.util.ArrayDeque<PlanCell> queue = new java.util.ArrayDeque<>();
+        reached.add(entrance);
+        queue.add(entrance);
+        while (!queue.isEmpty()) {
+            PlanCell cell = queue.poll();
+            for (PlanEdge door : doors) {
+                if (door.equals(plugged) || !door.touches(cell)) {
+                    continue;
+                }
+                PlanCell next = door.other(cell);
+                if (reached.add(next)) {
+                    queue.add(next);
+                }
             }
         }
-        return Set.copyOf(out);
-    }
-
-    /** Whether an {@code explosive} is in the bag or provided by a cell shallower than {@code depth}. */
-    private static boolean explosiveBelow(int depth, Map<PlanCell, Integer> depths,
-                                          Map<PlanCell, List<String>> provides, Set<String> bagTags) {
-        if (bagTags.contains(SituationTags.EXPLOSIVE)) {
-            return true;
-        }
-        for (Map.Entry<PlanCell, List<String>> e : provides.entrySet()) {
-            if (depths.getOrDefault(e.getKey(), Integer.MAX_VALUE) < depth
-                    && e.getValue().contains(SituationTags.EXPLOSIVE)) {
+        for (PlanCell required : requiredCells) {
+            if (!reached.contains(required)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * E (D25): a two-story room's lower story is a reward pocket, never the
+     * way on (the way through the cell is on the upper story, where the
+     * doorway doors are). So every multi-story cell seals its lower story,
+     * and {@link RubbleOrdeal#FLOOR} arms each seal at stamp time. The blast
+     * that opens it is a bonus spend, not a path requirement, so there is no
+     * cap.
+     */
+    static Set<PlanCell> pickSealedCells(Set<PlanCell> multiStory) {
+        return Set.copyOf(multiStory);
     }
 
     /**
@@ -446,18 +488,18 @@ final class RoomSelector {
     }
 
     /**
-     * PD-149 (playtest 2026-10-05-1): a resource dungeon's floor pays only what is
-     * mined or harvested, so a floor of nothing but generic halls paid nothing at
-     * all (Mineshaft floors rolled `nodes_total` 0 twice in one trip). After the
-     * pass and the recipe guarantees, a resource floor that placed no
-     * resource-bearing room gets one forced onto an eligible cell, the same way a
-     * recipe guarantee lands. A room is resource-bearing when it declares
-     * {@code nodes} or is bound to the floor's dungeon by its metadata; the force
-     * tries a declared-nodes room first (a bound room with no nodes is a Cow Pits
-     * pen, which pays its own way). No eligible host leaves the plan untouched:
-     * the floor is dull, never broken.
+     * PD-149 (playtest 2026-10-05-1), as data (D12 revised 2026-10-06): a floor
+     * whose dungeon asks for {@code minNodeRooms} node-bearing rooms must place
+     * that many, so a floor of nothing but generic halls pays nothing at all
+     * (Mineshaft floors rolled `nodes_total` 0 twice in one trip). After the
+     * pass and the recipe guarantees, a floor short of its number gets
+     * resource-bearing rooms forced onto eligible cells, the same way a recipe
+     * guarantee lands. A room is resource-bearing when it declares
+     * {@code nodes} or, for a dungeon with no node room at all, is bound to the
+     * floor's dungeon by its metadata (a Cow Pits pen pays cows, not ore).
+     * No eligible host leaves the plan untouched: the floor is dull, never broken.
      *
-     * <p>Returns whether the floor pays as a resource floor. False tells
+     * <p>Returns whether the floor met its number. False tells
      * {@link LayoutPlanner#plan} to try another layout: the reopened PD-149
      * (playtest 2026-10-06-1) was a floor of corners, tees and dead ends, and
      * every Mineshaft ore room is a two-door straight, so no cell could take one.
@@ -467,54 +509,48 @@ final class RoomSelector {
                                             Map<PlanCell, Integer> depths,
                                             Set<String> bagTags,
                                             RoomEligibility.Floor floor) {
-        if (floor == null || !floor.resource()) {
-            return true;
-        }
-        if (placedResource(manifest, placed, floor)) {
-            return true;
-        }
-        // First choice: a room that stamps nodes itself. Second, when the dungeon has
-        // no node room at all: any room of the dungeon's own (the Cow Pits pay cows,
-        // not ore), so the floor at least reads and pays as the place it claims to be.
-        if (forceRoom(shape, manifest, theme, placed, depths, bagTags,
-                match -> !match.entry().meta.nodes.isEmpty(), floor)) {
-            return true;
-        }
-        if (!hasNodeRoom(manifest, floor)) {
-            return boundPlaced(manifest, placed, floor) || forceRoom(shape, manifest, theme, placed, depths, bagTags,
+        int wanted = floor == null ? 0 : floor.minNodeRooms();
+        while (wanted > 0 && payingRooms(manifest, placed, floor) < wanted) {
+            // First choice: a room that stamps nodes itself. Second, when the dungeon has
+            // no node room at all: any room of the dungeon's own, so the floor at least
+            // reads and pays as the place it claims to be.
+            if (forceRoom(shape, manifest, theme, placed, depths, bagTags,
+                    match -> !match.entry().meta.nodes.isEmpty(), floor)) {
+                continue;
+            }
+            if (!hasNodeRoom(manifest, floor) && forceRoom(shape, manifest, theme, placed, depths, bagTags,
                     match -> RoomEligibility.boundTo(
-                            RoomEligibility.RoomTags.of(match.entry().meta), floor), floor);
+                            RoomEligibility.RoomTags.of(match.entry().meta), floor), floor)) {
+                continue;
+            }
+            // PD-149: every node room may need a door shape this layout lacks (the
+            // Mineshaft's ore rooms are all two-door straights, and the live floor was
+            // corners, tees and dead ends). Say so, so the planner tries another layout.
+            return false;
         }
-        // PD-149: every node room may need a door shape this layout lacks (the
-        // Mineshaft's ore rooms are all two-door straights, and the live floor was
-        // corners, tees and dead ends). Say so, so the planner tries another layout.
-        return false;
+        return true;
     }
 
     /**
-     * Whether the plan already pays as a resource floor: a node room, or, for a
-     * dungeon that has no node rooms, one of its own rooms.
+     * How many placed rooms pay as a resource floor: rooms that stamp nodes, or,
+     * for a dungeon that has no node rooms, its own rooms.
      */
-    private static boolean placedResource(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
-                                          RoomEligibility.Floor floor) {
+    private static int payingRooms(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
+                                   RoomEligibility.Floor floor) {
+        int nodes = 0;
+        int bound = 0;
         for (DungeonPlan.PlacedRoom room : placed.values()) {
             RoomManifest.Entry entry = manifest.byName(room.name());
-            if (entry != null && !entry.meta.nodes.isEmpty()) {
-                return true;
+            if (entry == null) {
+                continue;
+            }
+            if (!entry.meta.nodes.isEmpty()) {
+                nodes++;
+            } else if (RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor)) {
+                bound++;
             }
         }
-        return !hasNodeRoom(manifest, floor) && boundPlaced(manifest, placed, floor);
-    }
-
-    private static boolean boundPlaced(RoomManifest manifest, Map<PlanCell, DungeonPlan.PlacedRoom> placed,
-                                       RoomEligibility.Floor floor) {
-        for (DungeonPlan.PlacedRoom room : placed.values()) {
-            RoomManifest.Entry entry = manifest.byName(room.name());
-            if (entry != null && RoomEligibility.boundTo(RoomEligibility.RoomTags.of(entry.meta), floor)) {
-                return true;
-            }
-        }
-        return false;
+        return nodes > 0 || hasNodeRoom(manifest, floor) ? nodes : bound;
     }
 
     /** Whether the manifest holds a node room bound to the floor's dungeon. */
@@ -837,6 +873,9 @@ final class RoomSelector {
         private final Map<PlanCell, Integer> depths;
         private final List<PlanCell> order;
         private final Set<String> bagTags;
+        /** E (D25): the spine's seed. Bag tool tags never reach the spine's
+         *  solvability proof; only the party's own {@code mob} does. */
+        private final Set<String> spineSeed;
         private final Set<String> weightedRooms;
         private final int maxTier;
         private final RoomEligibility.Floor floor;
@@ -869,6 +908,8 @@ final class RoomSelector {
             this.depths = depths;
             this.order = order;
             this.bagTags = bagTags;
+            this.spineSeed = bagTags != null && bagTags.contains(SituationTags.MOB)
+                    ? Set.of(SituationTags.MOB) : Set.of();
             this.weightedRooms = weightedRooms == null ? Set.of() : Set.copyOf(weightedRooms);
             this.maxTier = maxTier;
         }
@@ -962,7 +1003,8 @@ final class RoomSelector {
             for (int i = 0; i < order.size(); i++) {
                 PlanCell cell = order.get(i);
                 int depth = depths.getOrDefault(cell, 0);
-                Set<String> optimistic = new LinkedHashSet<>(bagTags);
+                Set<String> optimistic = new LinkedHashSet<>(
+                        onSpine.contains(cell) ? spineSeed : bagTags);
                 for (int j = 0; j < i; j++) {
                     if (depths.getOrDefault(order.get(j), 0) >= depth) {
                         break;
@@ -1086,7 +1128,8 @@ final class RoomSelector {
          * because the player is not guaranteed to have visited it first.
          */
         private Set<String> availableFor(int index) {
-            Set<String> available = new LinkedHashSet<>(bagTags);
+            Set<String> available = new LinkedHashSet<>(
+                    onSpine.contains(order.get(index)) ? spineSeed : bagTags);
             int depth = depths.getOrDefault(order.get(index), 0);
             for (int i = 0; i < index; i++) {
                 if (depths.getOrDefault(order.get(i), 0) >= depth) {
@@ -1417,7 +1460,10 @@ final class RoomSelector {
         List<RoomManifest.Match> pool = new ArrayList<>(matches.size());
         for (RoomManifest.Match match : matches) {
             DungeonRoomMeta meta = match.entry().meta;
-            if (!available.containsAll(meta.requires)) {
+            // E (D25): off the spine a room may ask for a tool the party does
+            // not carry; those are the bonus rooms. Only the spine must prove
+            // solvable with the Pilgrim seed and upstream provides.
+            if (onSpine && !available.containsAll(meta.requires)) {
                 continue;
             }
             if (onSpine && !java.util.Collections.disjoint(meta.requires, CONSUMABLE_TAGS)) {
@@ -1547,8 +1593,8 @@ final class RoomSelector {
      * @param backtrackSteps how many times the pass gave a cell back and took
      *                       the previous cell's next candidate. Zero means the
      *                       first greedy assignment was already satisfying.
-     * @param resourceShort  PD-149: a resource floor whose layout has no cell any of
-     *                       the dungeon's node rooms fits, so it pays no ore. The
+     * @param resourceShort  PD-149: a floor whose layout cannot place the
+     *                       {@code minNodeRooms} node rooms its dungeon asks for. The
      *                       planner tries another layout before settling for it.
      */
     record Result(DungeonPlan plan, Failure failure, Set<PlanCell> fallbackCells,

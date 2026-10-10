@@ -64,8 +64,26 @@ import java.util.UUID;
  */
 final class DungeonScreen {
 
+    /**
+     * The two sheets of a selected door's board, side by side on the wall: the
+     * floor info (what does not change with the deal) on the viewer's left, and
+     * the deal (affixes, pay, loot, cost) on the right. An empty component takes
+     * its display away.
+     *
+     * @param dungeon the dungeon's name, the largest line
+     * @param floor   {@code Floor 3 of 4}
+     * @param notes   the one sentence of what to expect, the smallest and grey
+     * @param deal    the floor's name and everything the deal decides
+     */
+    record Sheets(Component dungeon, Component floor, Component notes, Component deal) {}
+
     /** A board: its first line, and everything below it. An empty body is no second display. */
-    record Board(Component title, Component body) {
+    record Board(Component title, Component body, Sheets sheets) {
+
+        /** A single-sheet board: a title and a body, no floor sheets. */
+        Board(Component title, Component body) {
+            this(title, body, null);
+        }
 
         /** A board that is only a title. */
         static Board titleOnly(Component title) {
@@ -120,6 +138,29 @@ final class DungeonScreen {
     private static final double HISTORY_HEADING_Y = 5.4;
     private static final double HISTORY_BODY_CENTER_Y = 3.6;
 
+    /** Marks the displays of the two-sheet door board, besides {@link #TAG}. */
+    static final String SHEET_TAG = "pocketdungeons_screen_sheet";
+    private static final String SLOT_DUNGEON = "pocketdungeons_sheet_dungeon";
+    private static final String SLOT_FLOOR = "pocketdungeons_sheet_floor";
+    private static final String SLOT_NOTES = "pocketdungeons_sheet_notes";
+    private static final String SLOT_DEAL = "pocketdungeons_sheet_deal";
+    /**
+     * Each sheet is 5 blocks wide, 62.5 percent of the 8 block board it
+     * replaces (the brief: at most 70). Their centres sit 2.5 blocks either side
+     * of the old board's centre, so the pair spans 10 blocks centred on it,
+     * exactly the backdrop ({@link RoomTemplateGenerator#DOOR_SCREEN_ALONG_MIN}
+     * to {@code MAX}).
+     */
+    static final double SHEET_WIDTH = 5.0;
+    static final double SHEET_OFFSET = 2.5;
+    static final float SHEET_DUNGEON_SCALE = 2.0f;
+    static final float SHEET_FLOOR_SCALE = 1.6f;
+    /** The smallest text on the board, for the notes sentence. */
+    static final float SHEET_NOTES_SCALE = 1.2f;
+    static final float SHEET_DEAL_SCALE = 1.6f;
+    /** A line of default font text is about 5.6 px wide per character; wrapping is estimated from it. */
+    private static final double CHAR_PX = 5.6;
+
     private static final String BILLBOARD_FIXED = "fixed";
     private static final float VIEW_RANGE = 2.0f;
     /**
@@ -165,6 +206,11 @@ final class DungeonScreen {
      * this with an origin and wall before or instead of a record).
      */
     static void summonDoor(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall, Board content) {
+        if (content.sheets() != null) {
+            showSheets(level, roomOrigin, wall, content.sheets());
+            return;
+        }
+        clearSheets(level, roomOrigin, wall);
         showBoard(level, roomOrigin, wall, DOOR_SCREEN_ALONG, DOOR_CENTER_Y, DOOR_SCALE, DOOR_TITLE_BOTTOM_Y,
                 DOOR_BODY_SCALE, DOOR_BODY_CENTER_Y, yawFor(wall), content);
     }
@@ -244,7 +290,9 @@ final class DungeonScreen {
                     Component.literal("Cleared\nPull the HOME lever").withStyle(ChatFormatting.GREEN));
         }
         Component title = Component.literal("POCKET DUNGEONS").withStyle(ChatFormatting.GOLD);
-        String hint = "Right-click a door to preview\nPull the lever to start";
+        String hint = tripRecord != null && HallRoom.isHallStaging(tripRecord)
+                ? "Right-click a door to look inside\nTurn the astrolabe to change act\nPull the lever to start"
+                : "Right-click a door to preview\nPull the lever to start";
         if (tripRecord != null && TripView.def(tripRecord) != null) {
             title = Component.literal(TripView.dungeonName(tripRecord).toUpperCase()).withStyle(ChatFormatting.GOLD);
         } else if (level != null && owner != null
@@ -293,7 +341,7 @@ final class DungeonScreen {
                 continue;
             }
             int step = record.floor.selectedStep;
-            updateDoor(level, record, step >= 1 && step <= 3 && record.floor.previewPlan != null
+            updateDoor(level, record, step >= 1 && step <= 8 && record.floor.previewPlan != null
                     ? previewContent(level, record, step)
                     : idleContent(level, record.owner));
         }
@@ -305,12 +353,12 @@ final class DungeonScreen {
      * <pre>
      * INFESTATION . floor 3 of 4          title, yellow
      * Hollow Walls . Overclocked          name white, affixes magenta
-     * 3 scrap . 2 echo shards             what you get, cyan
-     * loot x3 . costs 1 echo shard        loot green, price yellow
+     * 2 scrap                             what you get, cyan
+     * loot x3 . costs 2 scrap             loot green, price yellow
      * </pre>
-     * (the real separator is {@link BoardText#SEP}). The cyan line is the owner's
-     * scrap (after the too easy discount), a resource dungeon's ore, the floor's
-     * promises and, on the last floor, the finish: shards, vault, and the diary page
+     * (the real separator is {@link BoardText#SEP}). The cyan line is the member's
+     * floor pay (scrap, or emeralds above the floor), a node dungeon's ore, the floor's
+     * promises and, on the last floor, the finish: vault chests and the diary page
      * while it is still owed. Later floors' steps are never shown (design D6).
      */
     static Board previewContent(ServerLevel level, InstanceRecord record, int step) {
@@ -329,6 +377,9 @@ final class DungeonScreen {
                 || EndlessMineRules.isMineOffer(offer);
         DungeonDef def = DungeonDefs.current().byId(offer.dungeonId());
         DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        // PD-161: the board only promises ore the committed plan can deliver. The plan is the one the
+        // preview just stamped; with none yet there is nothing to contradict, so the promise stands.
+        boolean oreHonest = record.floor.previewPlan == null || planHoldsNodes(record.floor.previewPlan, def);
         String dungeonName = def == null ? "" : def.name();
         int floorNumber = record.interval.floorIndex + 1;
 
@@ -353,33 +404,38 @@ final class DungeonScreen {
         }
         lines.add(nameLine);
 
-        // What you get: only the parts the floor has.
+        // What you get: only the parts the floor has. J1: at or below the
+        // floor's level the step is scrap; above it, emeralds at the
+        // over-level rate (permanent charts, not the compass reading).
         MutableComponent gets = Component.empty();
         if (offer.step() > 0) {
-            int scrap = IntervalBanking.effectiveScrap(offer.step(), offer.level(), offerLevel);
-            if (scrap > 0) {
-                addPart(gets, IntervalBanking.scrapText(scrap), ChatFormatting.AQUA);
-            } else {
-                addPart(gets, "too easy", ChatFormatting.GRAY);
+            int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts(),
+                    FloorPay.bonus(def, offer.nodeId(), record.interval.endlessMine || EndlessMineRules.isMineOffer(offer),
+                            record.interval.floorIndex + 1));
+            if (pay > 0) {
+                addPart(gets, IntervalBanking.scrapText(pay), ChatFormatting.AQUA);
             }
         }
-        if (def != null && def.kind() == DungeonDef.Kind.RESOURCE) {
+        if (def != null && showsNodes(def, node) && oreHonest) {
             for (String word : BoardText.paletteWords(def.nodePalette())) {
                 addPart(gets, word, ChatFormatting.AQUA);
             }
         }
         if (node != null) {
             for (DungeonDef.Node.Reward reward : node.rewards()) {
-                addPart(gets, reward.displayName(), ChatFormatting.AQUA);
+                if (PromisedGear.isGear(reward.item())) {
+                    addPart(gets, PromisedGear.describe(PromisedGear.roll(level, record.owner, record.interval,
+                            offer.nodeId(), reward.item())), ChatFormatting.AQUA);
+                } else {
+                    addPart(gets, reward.displayName(), ChatFormatting.AQUA);
+                }
             }
             if (node.isFinal()) {
-                if (RunLifecycle.isRewardKind(def)) {
-                    int shards = PocketDungeonsConfig.echoShardsPerFinish();
-                    if (shards > 0) {
-                        addPart(gets, BoardText.shardText(shards), ChatFormatting.AQUA);
-                    }
-                    addPart(gets, "vault", ChatFormatting.AQUA);
+                int emeralds = PocketDungeonsConfig.finishEmeralds();
+                if (emeralds > 0) {
+                    addPart(gets, emeralds + " emeralds", ChatFormatting.AQUA);
                 }
+                addPart(gets, "vault", ChatFormatting.AQUA);
                 if (diaryOwed(def, entry)) {
                     addPart(gets, "diary page", ChatFormatting.AQUA);
                 }
@@ -393,10 +449,27 @@ final class DungeonScreen {
         int chests = Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorNumber);
         MutableComponent loot = Component.literal(BoardText.lootText(chests)).withStyle(ChatFormatting.GREEN);
         if (offer.cost() > 0) {
-            loot.append(Component.literal(BoardText.SEP + BoardText.costText(offer.cost()))
+            loot.append(Component.literal(BoardText.SEP + DoorLives.costText(offer.cost()))
                     .withStyle(ChatFormatting.YELLOW));
         }
         lines.add(loot);
+
+        // The deal sheet (what the random deal decided): the floor's name, its affixes on a line of their
+        // own, the pay, the loot and cost, and the caution and tutorial lines. The notes the floor itself
+        // carries (dark, sculk, ore) belong to the info sheet.
+        List<Component> deal = new ArrayList<>();
+        deal.add(Component.literal(name).withStyle(ChatFormatting.WHITE));
+        MutableComponent affixLine = Component.empty();
+        for (AffixDefinition affix : AffixMath.ordered(effective, AffixManifest.current().definitions())) {
+            addPart(affixLine, affix.label, ChatFormatting.LIGHT_PURPLE);
+        }
+        if (!affixLine.getString().isEmpty()) {
+            deal.add(affixLine);
+        }
+        if (!gets.getString().isEmpty()) {
+            deal.add(gets);
+        }
+        deal.add(loot);
 
         // PD-154: a dark floor was a surprise after the lever. One short line warns it.
         if (node != null && DungeonDef.Node.LIGHT_DARK.equals(node.light())) {
@@ -407,15 +480,46 @@ final class DungeonScreen {
         // M27 27.1: the caution indicator for an operator's fixed test offer.
         if (offer.tier() == Keystone.Tier.EXPERIMENTAL) {
             lines.add(Component.literal("experimental").withStyle(ChatFormatting.RED));
+            deal.add(Component.literal("experimental").withStyle(ChatFormatting.RED));
         }
         if (offerLevel <= 1) {
             lines.add(Component.literal("Pull the lever to descend!").withStyle(ChatFormatting.GREEN));
+            deal.add(Component.literal("Pull the lever to descend!").withStyle(ChatFormatting.GREEN));
         }
         Component bias = biasNote(owner);
         if (bias != null) {
             lines.add(bias);
+            deal.add(bias);
         }
-        return new Board(title, joinLines(lines));
+
+        // The floor info sheet: the dungeon, the floor, and one sentence of what to expect.
+        Component dungeonLine;
+        Component floorLine;
+        if (mine) {
+            dungeonLine = Component.literal(dungeonName.isEmpty() ? "Endless Mine" : dungeonName);
+            floorLine = Component.literal(BoardText.floorLine(floorNumber));
+        } else if (def != null && node != null) {
+            dungeonLine = Component.literal(dungeonName);
+            floorLine = Component.literal(BoardText.floorLine(node.layer(), def.layers()));
+        } else {
+            dungeonLine = Component.literal(header);
+            floorLine = Component.empty();
+        }
+        boolean ancient = SculkOmen.isAncientCity(def != null ? def.id() : offer.theme());
+        List<String> ores = def == null ? List.of() : BoardText.paletteWords(def.nodePalette());
+        // The dungeon's note speaks on its entry floor (the first door is the choice of dungeon); a deeper
+        // floor speaks for itself. Both are the reason to pick this door over the next.
+        String authored = def == null || node == null ? ""
+                : node.layer() == 1 && !def.notes().isEmpty() ? def.notes() : node.notes();
+        String notes = BoardText.notesLine(mine, ancient, node == null ? "" : node.light(),
+                node != null && node.isFinal(), def != null && showsNodes(def, node) && oreHonest ? ores : List.of(),
+                def != null && showsNodes(def, node) && oreHonest, authored);
+        Sheets sheets = new Sheets(
+                dungeonLine.copy().withStyle(ChatFormatting.YELLOW),
+                floorLine.copy().withStyle(ChatFormatting.YELLOW),
+                Component.literal(notes).withStyle(ChatFormatting.GRAY),
+                joinLines(deal));
+        return new Board(title, joinLines(lines), sheets);
     }
 
     /** Appends {@code text} to {@code line}, behind a separator when the line already has a part. */
@@ -437,6 +541,45 @@ final class DungeonScreen {
         return out;
     }
 
+    /**
+     * Whether the plan can deliver mineable ore: the dungeon buries hidden ore in every room, or
+     * a placed room declares nodes of its own. A palette-only dungeon whose rooms hold no nodes
+     * (Copper Works, PD-161) answers false, so its board stops advertising ore.
+     */
+    static boolean planHoldsNodes(DungeonPlan plan, DungeonDef def) {
+        if (def != null && def.hiddenOre() != null) {
+            return true;
+        }
+        for (DungeonPlan.PlacedRoom room : plan.rooms().values()) {
+            RoomManifest.Entry entry = RoomManifest.current().byName(room.name());
+            if (entry != null && !entry.meta.nodes.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether the floor's board lists what can be mined (D12 revised): the
+     * dungeon declares a {@code nodePalette}, or this node biases toward a room
+     * that stamps nodes, so a Deepslate floor with ore says so too.
+     */
+    private static boolean showsNodes(DungeonDef def, DungeonDef.Node node) {
+        if (!def.nodePalette().isEmpty()) {
+            return true;
+        }
+        if (node == null) {
+            return false;
+        }
+        for (String bias : node.roomBias()) {
+            RoomManifest.Entry room = RoomManifest.current().byName(bias);
+            if (room != null && !room.meta.nodes.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Whether finishing {@code def} would still hand {@code entry}'s owner its diary page. */
     private static boolean diaryOwed(DungeonDef def, DungeonLog.Entry entry) {
         if (def == null || def.diary().isBlank()) {
@@ -447,34 +590,44 @@ final class DungeonScreen {
     }
 
     /**
-     * The go-home board: what the owner would bank by pulling the lever right
-     * now, as {@link IntervalBanking#homeScreen} words it: {@code GO HOME}
-     * (gold, or green once the dungeon is cleared) over the scrap carried
-     * (cyan) and what it comes to (charts green, what is lost gray, what is
-     * missing for a chart gold). Other members bank from their own keys; the
-     * owner's numbers are the ones on the wall.
+     * The go-home board (J1 amended): {@code GO HOME} (gold, or green once
+     * the dungeon is cleared) over the trip's lives (cyan) and what pulling
+     * the lever forfeits (gray), since scrap is already earned at each
+     * floor clear. The vault is the finish's chests; the page is the
+     * dungeon's diary while the owner still owes it.
      */
     static Board homeContent(MinecraftServer server, InstanceRecord record) {
-        IntervalBanking.Settlement now = RunLifecycle.settlementFor(server, record, record.owner, 0);
-        IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(now, record.interval.finished);
+        List<String> unfinished = new ArrayList<>();
+        DungeonDef def = record.interval.finished ? null : TripView.def(record);
+        if (def != null) {
+            if (PocketDungeonsConfig.finishVaultChests() > 0) {
+                unfinished.add("vault");
+            }
+            if (diaryOwed(def, DungeonLog.forServer(server).get(record.owner))) {
+                unfinished.add("page");
+            }
+        }
+        java.util.Map<String, Integer> hauls = new java.util.LinkedHashMap<>();
+        DungeonLog haulLog = DungeonLog.forServer(server);
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer present = server.getPlayerList().getPlayer(member);
+            // PD-179: a finished dungeon has already banked the haul; show what it paid.
+            int shown = record.interval.finished
+                    ? record.interval.finishBanked.getOrDefault(member, 0) : haulLog.haulOf(member);
+            hauls.put(present == null ? "?" : present.getName().getString(), shown);
+        }
+        IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(record.interval.omen,
+                record.interval.finished, unfinished, hauls);
         Component title = Component.literal(screen.title())
                 .withStyle(screen.finished() ? ChatFormatting.GREEN : ChatFormatting.GOLD);
-        MutableComponent body = Component.empty();
-        if (!screen.scrapLine().isEmpty()) {
-            body.append(Component.literal(screen.scrapLine()).withStyle(ChatFormatting.AQUA)).append("\n");
+        MutableComponent body = Component.literal(screen.haulLine()).withStyle(ChatFormatting.AQUA)
+                .append("\n").append(Component.literal(screen.livesLine()).withStyle(ChatFormatting.AQUA));
+        String forfeit = screen.unfinishedLine();
+        if (!forfeit.isEmpty()) {
+            body.append("\n").append(Component.literal(forfeit).withStyle(ChatFormatting.GRAY));
         }
-        boolean first = true;
-        for (IntervalBanking.HomePart part : screen.outcome()) {
-            if (!first) {
-                body.append(Component.literal(BoardText.SEP).withStyle(ChatFormatting.GRAY));
-            }
-            first = false;
-            body.append(Component.literal(part.text()).withStyle(switch (part.tone()) {
-                case SCRAP -> ChatFormatting.AQUA;
-                case CHARTS -> ChatFormatting.GREEN;
-                case NEEDS -> ChatFormatting.GOLD;
-                case LOST -> ChatFormatting.GRAY;
-            }));
+        if (!screen.footer().isEmpty()) {
+            body.append("\n").append(Component.literal(screen.footer()).withStyle(ChatFormatting.GRAY));
         }
         return new Board(title, body);
     }
@@ -509,7 +662,7 @@ final class DungeonScreen {
                 Component.literal("Visitors: " + visitors + "\nWhitelist: " + whitelist));
     }
 
-    /** Context 5: the lever refused: "Select a door first", "Not enough fuel". */
+    /** Context 5: the lever refused: "Select a door first", "Not enough scrap". */
     static Board refusalContent(String message) {
         return Board.titleOnly(Component.literal(message).withStyle(ChatFormatting.RED));
     }
@@ -583,8 +736,124 @@ final class DungeonScreen {
         }
     }
 
+    // ---- the two sheets of a selected door ---------------------------------------
+
+    /** The absolute along a viewer-side along maps to (the selector wall mirrors on SOUTH and WEST). */
+    private static double absAlong(DoorMask.Direction wall, double viewerAlong) {
+        return RoomGeometry.mirrorsAlong(wall) ? RoomGeometry.CELL - viewerAlong : viewerAlong;
+    }
+
+    private static int sheetLineWidth(float scale) {
+        return (int) Math.round(SHEET_WIDTH / (RENDER_SCALE * scale));
+    }
+
+    /** How many lines {@code text} takes at {@code lineWidth} pixels, counting explicit breaks and estimated wraps. */
+    private static int wrappedLines(Component text, int lineWidth) {
+        int count = 0;
+        for (String line : text.getString().split("\n", -1)) {
+            count += Math.max(1, (int) Math.ceil(line.length() * CHAR_PX / lineWidth));
+        }
+        return Math.max(1, count);
+    }
+
+    private static AABB around(double[] xyz, double radius) {
+        return new AABB(xyz[0] - radius, xyz[1] - radius, xyz[2] - radius,
+                xyz[0] + radius, xyz[1] + radius, xyz[2] + radius);
+    }
+
+    /** Takes the two-sheet displays of the door wall down (a single board is about to replace them). */
+    private static void clearSheets(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall) {
+        double[] centre = wallAnchor(roomOrigin, wall, DOOR_SCREEN_ALONG, DOOR_CENTER_Y);
+        for (Display.TextDisplay sheet : level.getEntitiesOfClass(Display.TextDisplay.class, around(centre, 7),
+                e -> e.entityTags().contains(SHEET_TAG))) {
+            sheet.discard();
+        }
+    }
+
+    /**
+     * Shows the two sheets: the floor info on the viewer's left, the deal on the
+     * right, each 5 blocks wide and centred 2.5 blocks from the old board's
+     * centre. The floor info stacks its three lines (the dungeon's name, the
+     * floor, and the notes sentence) as separate displays at their own sizes,
+     * centred as a block on the backdrop's two rows; the deal is one display
+     * centred on the same line.
+     */
+    private static void showSheets(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall,
+                                   Sheets sheets) {
+        double[] centre = wallAnchor(roomOrigin, wall, DOOR_SCREEN_ALONG, DOOR_CENTER_Y);
+        // The single board's layers go: they sit at the middle, the sheets either side of it.
+        for (Display.TextDisplay single : level.getEntitiesOfClass(Display.TextDisplay.class, around(centre, 2),
+                e -> e.entityTags().contains(TAG) && !e.entityTags().contains(SHEET_TAG))) {
+            single.discard();
+        }
+        float yaw = yawFor(wall);
+        double infoAlong = absAlong(wall, DOOR_SCREEN_ALONG - SHEET_OFFSET);
+        double dealAlong = absAlong(wall, DOOR_SCREEN_ALONG + SHEET_OFFSET);
+
+        int notesWidth = sheetLineWidth(SHEET_NOTES_SCALE);
+        boolean hasFloor = !sheets.floor().getString().isEmpty();
+        boolean hasNotes = !sheets.notes().getString().isEmpty();
+        double nameH = 0.25 * SHEET_DUNGEON_SCALE;
+        double floorH = hasFloor ? 0.25 * SHEET_FLOOR_SCALE : 0.0;
+        double notesH = hasNotes ? 0.25 * SHEET_NOTES_SCALE * wrappedLines(sheets.notes(), notesWidth) : 0.0;
+        double gapA = hasFloor ? 0.06 : 0.0;
+        double gapB = hasNotes ? 0.12 : 0.0;
+        double total = nameH + gapA + floorH + gapB + notesH;
+        double top = Math.min(DOOR_CENTER_Y + 0.9, DOOR_CENTER_Y + total / 2.0);
+
+        double nameBottom = top - nameH;
+        upsertSheet(level, centre, SLOT_DUNGEON, wallAnchor(roomOrigin, wall, infoAlong,
+                nameBottom + RENDER_SCALE * SHEET_DUNGEON_SCALE), yaw, SHEET_DUNGEON_SCALE,
+                sheets.dungeon(), sheetLineWidth(SHEET_DUNGEON_SCALE));
+        double floorBottom = nameBottom - gapA - floorH;
+        upsertSheet(level, centre, SLOT_FLOOR, wallAnchor(roomOrigin, wall, infoAlong,
+                floorBottom + RENDER_SCALE * SHEET_FLOOR_SCALE), yaw, SHEET_FLOOR_SCALE,
+                sheets.floor(), sheetLineWidth(SHEET_FLOOR_SCALE));
+        double notesBottom = floorBottom - gapB - notesH;
+        upsertSheet(level, centre, SLOT_NOTES, wallAnchor(roomOrigin, wall, infoAlong,
+                notesBottom + RENDER_SCALE * SHEET_NOTES_SCALE), yaw, SHEET_NOTES_SCALE,
+                sheets.notes(), notesWidth);
+
+        int dealWidth = sheetLineWidth(SHEET_DEAL_SCALE);
+        int dealLines = wrappedLines(sheets.deal(), dealWidth);
+        double dealY = DOOR_CENTER_Y - RENDER_SCALE * SHEET_DEAL_SCALE * (5 * dealLines - 1);
+        upsertSheet(level, centre, SLOT_DEAL, wallAnchor(roomOrigin, wall, dealAlong, dealY), yaw,
+                SHEET_DEAL_SCALE, sheets.deal(), dealWidth);
+    }
+
+    /**
+     * Updates the sheet display tagged {@code slot} in place, summons it when
+     * there is none, and takes it away when its text is empty.
+     */
+    private static void upsertSheet(ServerLevel level, double[] centre, String slot, double[] xyz, float yaw,
+                                    float scale, Component text, int lineWidth) {
+        Display.TextDisplay display = null;
+        for (Display.TextDisplay d : level.getEntitiesOfClass(Display.TextDisplay.class, around(centre, 7),
+                e -> e.entityTags().contains(SHEET_TAG) && e.entityTags().contains(slot))) {
+            if (display == null) {
+                display = d;
+            } else {
+                d.discard();
+            }
+        }
+        if (text.getString().isEmpty()) {
+            if (display != null) {
+                display.discard();
+            }
+            return;
+        }
+        if (display != null) {
+            display.setPos(xyz[0], xyz[1], xyz[2]);
+            display.setYRot(yaw % 360.0f);
+            ((TextDisplayAccessor) display).pocketdungeons$setText(text);
+            ((TextDisplayAccessor) display).pocketdungeons$setLineWidth(lineWidth);
+            return;
+        }
+        summon(level, xyz, yaw, scale, text, lineWidth, false, SHEET_TAG, slot);
+    }
+
     private static void summon(ServerLevel level, double[] xyz, float yaw, float scale, Component text,
-                               int lineWidth, boolean body) {
+                               int lineWidth, boolean body, String... extraTags) {
         Display.TextDisplay display = EntityTypes.TEXT_DISPLAY.create(level, EntitySpawnReason.COMMAND);
         if (display == null) {
             return;
@@ -626,6 +895,9 @@ final class DungeonScreen {
         if (body) {
             tags.add(StringTag.valueOf(BODY_TAG));
         }
+        for (String extra : extraTags) {
+            tags.add(StringTag.valueOf(extra));
+        }
         tag.put("Tags", tags);
 
         // Report load problems rather than discarding them; silently swallowing
@@ -655,7 +927,7 @@ final class DungeonScreen {
      * back with, so the encoded shape is correct by construction. Since 1.21.5
      * this field is an NBT object, not a JSON string.
      */
-    private static Tag encodeText(ServerLevel level, Component message) {
+    static Tag encodeText(ServerLevel level, Component message) {
         DynamicOps<Tag> ops = level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
         return ComponentSerialization.CODEC.encodeStart(ops, message)
                 .resultOrPartial(err -> PocketDungeonsMod.LOG.warn(
@@ -664,7 +936,7 @@ final class DungeonScreen {
     }
 
     /** The 4x4 matrix form of a uniform scale, row-major as {@code MATRIX4F} expects. */
-    private static ListTag scaleTransformation(float scale) {
+    static ListTag scaleTransformation(float scale) {
         ListTag matrix = new ListTag();
         for (int i = 0; i < 16; i++) {
             int row = i >> 2;
