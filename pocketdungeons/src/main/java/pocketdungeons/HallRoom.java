@@ -107,10 +107,10 @@ final class HallRoom {
         if (record != null) {
             record.interval.hallAct = hall.act();
         }
-        RoomTemplateGenerator.clearSelectorDoors(level, o, wall);
-        RoomTemplateGenerator.clearBulbs(level, o, wall);
+        StagingFurniture.clearSelectorDoors(level, o, wall);
+        StagingFurniture.clearBulbs(level, o, wall);
         // The lever and its sign belong to a selected door: none stands until a door is chosen.
-        RoomTemplateGenerator.clearHallLevers(level, o, wall);
+        StagingFurniture.clearHallLevers(level, o, wall);
         if (record != null) {
             record.interval.hallLeverAlong = 0;
         }
@@ -123,15 +123,15 @@ final class HallRoom {
             DungeonDef def = hall.dungeon(slot);
             HallLayout.Status status = hall.status(slot);
             boolean locked = def != null && status.locked();
-            RoomTemplateGenerator.placeHallDoor(level, o, wall, along, def == null
-                    ? RoomTemplateGenerator.HallDoorKind.EXPERIMENTAL
-                    : locked ? RoomTemplateGenerator.HallDoorKind.LOCKED : RoomTemplateGenerator.HallDoorKind.OPEN);
-            RoomTemplateGenerator.setHallBulb(level, o, wall, along, bulbFor(def, status, false, false));
+            StagingFurniture.placeHallDoor(level, o, wall, along, def == null
+                    ? StagingFurniture.HallDoorKind.EXPERIMENTAL
+                    : locked ? StagingFurniture.HallDoorKind.LOCKED : StagingFurniture.HallDoorKind.OPEN);
+            StagingFurniture.setHallBulb(level, o, wall, along, bulbFor(def, status, false, false));
             BlockState mat = matFor(def);
             if (mat != null) {
-                RoomTemplateGenerator.placeHallMat(level, o, wall, along, mat);
+                StagingFurniture.placeHallMat(level, o, wall, along, mat);
             }
-            RoomTemplateGenerator.placeHallSign(level, o, wall, along, signLines(def, status, hall));
+            StagingFurniture.placeHallSign(level, o, wall, along, signLines(def, status, hall));
         }
         placeAstrolabe(level, o, hall);
     }
@@ -150,16 +150,16 @@ final class HallRoom {
     }
 
     /** Which bulb a door shows, given whether another door is selected and whether this one is. */
-    static RoomTemplateGenerator.HallBulb bulbFor(DungeonDef def, HallLayout.Status status, boolean someoneSelected,
+    static StagingFurniture.HallBulb bulbFor(DungeonDef def, HallLayout.Status status, boolean someoneSelected,
                                                   boolean thisSelected) {
         if (def != null && status.locked()) {
-            return RoomTemplateGenerator.HallBulb.DARK;
+            return StagingFurniture.HallBulb.DARK;
         }
         if (someoneSelected && !thisSelected) {
-            return RoomTemplateGenerator.HallBulb.DARK;
+            return StagingFurniture.HallBulb.DARK;
         }
         return status.state() == HallLayout.State.FINISHED
-                ? RoomTemplateGenerator.HallBulb.PATINA : RoomTemplateGenerator.HallBulb.LIT;
+                ? StagingFurniture.HallBulb.PATINA : StagingFurniture.HallBulb.LIT;
     }
 
     /** Redraws every bulb for the record's current selection: the selected door lit, the rest dark. */
@@ -171,11 +171,11 @@ final class HallRoom {
                 hall.specials().size() + experimental);
         int selected = record.floor.selectedStep;
         for (int slot = 1; slot <= alongs.length; slot++) {
-            RoomTemplateGenerator.setHallBulb(level, record.stagingCellOrigin, record.roomDungeonDoor,
+            StagingFurniture.setHallBulb(level, record.stagingCellOrigin, record.roomDungeonDoor,
                     alongs[slot - 1], bulbFor(hall.dungeon(slot), hall.status(slot), selected > 0, slot == selected));
         }
         // The DESCEND lever and its sign stand beside the selected door and nowhere else (owner, 2026-10-09).
-        RoomTemplateGenerator.clearHallLevers(level, record.stagingCellOrigin, record.roomDungeonDoor);
+        StagingFurniture.clearHallLevers(level, record.stagingCellOrigin, record.roomDungeonDoor);
         record.interval.hallLeverAlong = 0;
         if (selected >= 1 && selected <= alongs.length) {
             java.util.Set<Integer> occupied = new java.util.HashSet<>();
@@ -184,7 +184,7 @@ final class HallRoom {
             }
             int leverAlong = HallLayout.leverAlongFor(alongs[selected - 1], occupied);
             if (leverAlong > 0) {
-                RoomTemplateGenerator.placeHallLever(level, record.stagingCellOrigin, record.roomDungeonDoor, leverAlong);
+                StagingFurniture.placeHallLever(level, record.stagingCellOrigin, record.roomDungeonDoor, leverAlong);
                 record.interval.hallLeverAlong = leverAlong;
             }
         }
@@ -200,7 +200,7 @@ final class HallRoom {
                 || !RunSession.canChooseDoor(record)) {
             return;
         }
-        BlockPos lever = RoomTemplateGenerator.hallLeverPos(record.stagingCellOrigin, record.roomDungeonDoor,
+        BlockPos lever = StagingFurniture.hallLeverPos(record.stagingCellOrigin, record.roomDungeonDoor,
                 record.interval.hallLeverAlong);
         // Only while the lever is really standing and can still be pulled; once the trip starts it is a stale marker.
         if (!level.getBlockState(lever).is(net.minecraft.world.level.block.Blocks.LEVER)) {
@@ -362,12 +362,12 @@ final class HallRoom {
     /** Takes the astrolabe, its plinth and the hall's row down, when a door is committed or the room is left. */
     static void dismantle(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
         clearAstrolabeEntities(level, o);
-        RoomTemplateGenerator.clearHallLevers(level, o, wall);
+        StagingFurniture.clearHallLevers(level, o, wall);
         BlockPos plinth = o.offset(CORE_X, 1, CORE_Z);
         if (BuiltInRegistries.BLOCK.getKey(level.getBlockState(plinth).getBlock()).getPath().equals("waxed_cut_copper")) {
             level.setBlock(plinth, RoomBuilder.AIR, 3);
         }
-        RoomTemplateGenerator.clearHallRow(level, o, wall, true);
+        StagingFurniture.clearHallRow(level, o, wall, true);
     }
 
     // ---- turning --------------------------------------------------------------------------------------

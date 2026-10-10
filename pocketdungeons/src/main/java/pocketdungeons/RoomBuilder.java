@@ -583,7 +583,7 @@ final class RoomBuilder {
 
         // ...and the frame is re-stamped over it in the new material.
         stampShellBlocks(level, o, palette);
-        RoomTemplateGenerator.placeWallLodestone(level, o);
+        StagingFurniture.placeWallLodestone(level, o);
 
         if (eeOpen) {
             CellGeometry.openDoorOnWall(level, o, ee);

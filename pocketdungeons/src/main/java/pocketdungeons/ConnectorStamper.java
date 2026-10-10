@@ -123,7 +123,7 @@ final class ConnectorStamper {
      * <p>PD-28: {@code facing} is the inward convention every other door in
      * the pipeline uses ({@link CellGeometry#opposite}), not the wall
      * direction itself, and the two leaves alternate {@code HINGE} the same
-     * way {@link RoomTemplateGenerator#placePostSelectionDoors} already does,
+     * way {@link StagingFurniture#placePostSelectionDoors} already does,
      * so they meet in the middle instead of both defaulting to
      * {@code LEFT}.
      */

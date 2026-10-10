@@ -496,12 +496,12 @@ final class RitualListener {
             HallRoom.paintBulbs(player.level().getServer(), level, record);
         } else {
             if (previous >= 1 && previous <= 3 && previous != step) {
-                RoomTemplateGenerator.setBulb(level, o, wall,
-                        RoomTemplateGenerator.bulbAlongForStep(previous), false);
+                StagingFurniture.setBulb(level, o, wall,
+                        StagingFurniture.bulbAlongForStep(previous), false);
             }
             if (step != previous) {
-                RoomTemplateGenerator.setBulb(level, o, wall,
-                        RoomTemplateGenerator.bulbAlongForStep(step), true);
+                StagingFurniture.setBulb(level, o, wall,
+                        StagingFurniture.bulbAlongForStep(step), true);
             }
         }
         // M56: generate the physical preview for this door. The preview
@@ -514,12 +514,12 @@ final class RitualListener {
                 HallRoom.paintBulbs(player.level().getServer(), level, record);
             } else {
                 if (previous >= 1 && previous <= 3 && previous != step) {
-                    RoomTemplateGenerator.setBulb(level, o, wall,
-                            RoomTemplateGenerator.bulbAlongForStep(previous), true);
+                    StagingFurniture.setBulb(level, o, wall,
+                            StagingFurniture.bulbAlongForStep(previous), true);
                 }
                 if (step != previous) {
-                    RoomTemplateGenerator.setBulb(level, o, wall,
-                            RoomTemplateGenerator.bulbAlongForStep(step), false);
+                    StagingFurniture.setBulb(level, o, wall,
+                            StagingFurniture.bulbAlongForStep(step), false);
                 }
             }
             // Show why this door cannot be previewed. The doorRefusal

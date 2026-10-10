@@ -26,7 +26,7 @@ import java.util.UUID;
  * Dungeon Storage (playtest 2026-10-02-1: "a storage that stays in the staging room
  * to give players a bit of extra inventory space during runs"; made permanent in the
  * 2026-10-06 design, item 5). Every staging room is stamped with an ender chest set
- * into its wall ({@link RoomTemplateGenerator#placeRunStorage}); right-clicking it, or
+ * into its wall ({@link StagingFurniture#placeRunStorage}); right-clicking it, or
  * any other ender chest in the safe room, at the Doors or mid-run (J6), opens the
  * player's own 27 slots, so it feels vanilla while being gated behind the scenes.
  *

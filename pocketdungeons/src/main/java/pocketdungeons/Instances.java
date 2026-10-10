@@ -699,9 +699,9 @@ final class Instances {
         RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
         BedrockEnvelope.applyToCell(level, origin, java.util.Set.of());
         RoomBuilder.sealDoor(level, origin, mcDirection(DoorMask.Direction.SOUTH));
-        RoomTemplateGenerator.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
-        RoomTemplateGenerator.placeWallLodestone(level, origin);
-        RoomTemplateGenerator.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
+        StagingFurniture.placeSelectorDoors(level, origin, DoorMask.Direction.SOUTH);
+        StagingFurniture.placeWallLodestone(level, origin);
+        StagingFurniture.placeFurniture(level, origin, DoorMask.Direction.SOUTH, true);
     }
 
     /**
@@ -766,10 +766,10 @@ final class Instances {
         Set<DoorMask.Direction> reserved = new HashSet<>(standingSides);
         reserved.add(safeDir);
         BedrockEnvelope.applyToCell(level, origin, reserved);
-        RoomTemplateGenerator.placeSelectorDoors(level, origin, dungeonDir);
-        RoomTemplateGenerator.placeWallLodestone(level, origin);
-        RoomTemplateGenerator.placeFurniture(level, origin, dungeonDir, true);
-        RoomTemplateGenerator.placeRunStorage(level, origin, dungeonDir);
+        StagingFurniture.placeSelectorDoors(level, origin, dungeonDir);
+        StagingFurniture.placeWallLodestone(level, origin);
+        StagingFurniture.placeFurniture(level, origin, dungeonDir, true);
+        StagingFurniture.placeRunStorage(level, origin, dungeonDir);
     }
 
     /**
@@ -984,10 +984,10 @@ final class Instances {
         }
         if (HallRoom.isHallStaging(record)) {
             // The Astrolabe Room's lever stands beside the selected door, wherever that is.
-            return record.interval.hallLeverAlong > 0 && RoomTemplateGenerator.hallLeverPos(
+            return record.interval.hallLeverAlong > 0 && StagingFurniture.hallLeverPos(
                     record.stagingCellOrigin, record.roomDungeonDoor, record.interval.hallLeverAlong).equals(pos);
         }
-        return RoomTemplateGenerator.leverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
+        return StagingFurniture.leverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
@@ -1011,7 +1011,7 @@ final class Instances {
             return;
         }
         for (int step = 1; step <= 3; step++) {
-            RoomTemplateGenerator.hideSelectorDoor(level, o, wall, step);
+            StagingFurniture.hideSelectorDoor(level, o, wall, step);
         }
     }
 
@@ -1026,7 +1026,7 @@ final class Instances {
                 || !record.inFloorLoop()) {
             return false;
         }
-        return RoomTemplateGenerator.isHistoryPanel(record.stagingCellOrigin, record.roomDungeonDoor, pos);
+        return StagingFurniture.isHistoryPanel(record.stagingCellOrigin, record.roomDungeonDoor, pos);
     }
 
     /**
@@ -1040,7 +1040,7 @@ final class Instances {
         if (record == null || record.stagingCellOrigin == null || !RunLifecycle.betweenFloors(record)) {
             return false;
         }
-        return RoomTemplateGenerator.homeLeverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
+        return StagingFurniture.homeLeverPos(record.stagingCellOrigin, record.roomDungeonDoor).equals(pos);
     }
 
     /**
@@ -1359,7 +1359,7 @@ final class Instances {
         }
         record.floor.previewWallOriginal.clear();
         if (!HallRoom.armFor(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner)) {
-            RoomTemplateGenerator.placeSelectorDoors(level, record.stagingCellOrigin,
+            StagingFurniture.placeSelectorDoors(level, record.stagingCellOrigin,
                     record.roomDungeonDoor);
             hideLockedDoors(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner);
         }
@@ -1605,7 +1605,7 @@ final class Instances {
             BossContent.spawn(level, layout.terminal(), offer.level());
         }
 
-        RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, record.roomDungeonDoor);
+        StagingFurniture.clearBulbs(level, record.stagingCellOrigin, record.roomDungeonDoor);
         DungeonScreen.updateDoor(level, record, DungeonScreen.runContent(level, record));
 
         for (UUID member : record.members.keySet()) {
@@ -1654,11 +1654,11 @@ final class Instances {
         sealPreviewSideWindow(level, stagingOrigin, dungeonDoor);
         RoomBuilder.sealPreviewSideWindowLikeBeside(level, entranceOrigin,
                 mcDirection(CellGeometry.opposite(dungeonDoor)));
-        RoomTemplateGenerator.clearSelectorDoors(level, stagingOrigin, dungeonDoor);
+        StagingFurniture.clearSelectorDoors(level, stagingOrigin, dungeonDoor);
         HallRoom.dismantle(level, stagingOrigin, dungeonDoor);
-        RoomTemplateGenerator.placePostSelectionDoors(level, stagingOrigin, dungeonDoor);
+        StagingFurniture.placePostSelectionDoors(level, stagingOrigin, dungeonDoor);
         // The choosing is over, and so is the way home from this checkpoint.
-        RoomTemplateGenerator.clearHomeControl(level, stagingOrigin, dungeonDoor);
+        StagingFurniture.clearHomeControl(level, stagingOrigin, dungeonDoor);
         DungeonScreen.clearHome(level, stagingOrigin, dungeonDoor);
     }
 

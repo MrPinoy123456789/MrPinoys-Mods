@@ -264,7 +264,7 @@ final class RoomStore {
      * ordinary captured blocks: three door blocks baked directly into the
      * sealed MM wall at the old x=4,8,12 positions (now restored to plain
      * wall -- whatever currently owns those coordinates, the room's own
-     * template or {@link RoomTemplateGenerator#placeSelectorDoors}, re-stamps
+     * template or {@link StagingFurniture#placeSelectorDoors}, re-stamps
      * over them regardless), and the old 2x2 lodestone pad with its ring,
      * centred south of the door row (now restored to floor). Both are
      * one-shot: {@link #capture} always writes {@link #CURRENT_VERSION} now,

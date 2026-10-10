@@ -14,8 +14,8 @@ import net.minecraft.core.BlockPos;
  * {@link RoomShellTest}.
  *
  * <p>The positions here must stay in lockstep with
- * {@code RoomTemplateGenerator.placeFurniture} and
- * {@code RoomTemplateGenerator.clearFurniture}: the three read the same
+ * {@code StagingFurniture.placeFurniture} and
+ * {@code StagingFurniture.clearFurniture}: the three read the same
  * wall-relative coordinates. A failure of this test after a geometry edit
  * means the protection and the placement have drifted apart.
  */
@@ -64,10 +64,10 @@ public class RoomFurnitureTest {
 
     /** The 10x2 black concrete screen is set into the wall itself, above the door row. */
     private static void testDoorScreenBlocks(DoorMask.Direction wall) {
-        check(RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN + RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX == 15,
+        check(StagingFurniture.DOOR_SCREEN_ALONG_MIN + StagingFurniture.DOOR_SCREEN_ALONG_MAX == 15,
                 "the screen is centred on the wall's middle, boundary 8.0");
-        for (int along = RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN;
-             along <= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX; along++) {
+        for (int along = StagingFurniture.DOOR_SCREEN_ALONG_MIN;
+             along <= StagingFurniture.DOOR_SCREEN_ALONG_MAX; along++) {
             for (int y = 4; y <= 5; y++) {
                 check(isFurniture(wallRing(wall, along, y), wall), "screen " + wall + " " + along + " " + y);
             }
@@ -78,7 +78,7 @@ public class RoomFurnitureTest {
         check(!isFurniture(wallRing(wall, 14, 4), wall), "screen edge " + wall);
         check(!isFurniture(wallRing(wall, 1, 4), wall), "screen edge " + wall);
         int bulb = RoomGeometry.mirrorsAlong(wall) ? 13 : 2;
-        check(bulb < RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN || bulb > RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX,
+        check(bulb < StagingFurniture.DOOR_SCREEN_ALONG_MIN || bulb > StagingFurniture.DOOR_SCREEN_ALONG_MAX,
                 "the go-home bulb is outside the screen " + wall);
     }
 
@@ -90,8 +90,8 @@ public class RoomFurnitureTest {
      * {@code RoomTemplateGenerator}'s {@code HOME_*} constants.
      */
     private static void testHomeControl(DoorMask.Direction wall) {
-        check(RoomTemplateGenerator.HOME_LEVER_ALONG == 2 && RoomTemplateGenerator.HOME_BULB_ALONG == 2
-                && RoomTemplateGenerator.HOME_BULB_Y == 4, "placement constants match the protected positions");
+        check(StagingFurniture.HOME_LEVER_ALONG == 2 && StagingFurniture.HOME_BULB_ALONG == 2
+                && StagingFurniture.HOME_BULB_Y == 4, "placement constants match the protected positions");
         check(isFurniture(doorPlane(wall, seen(wall, 2), 2), wall), "home lever " + wall);
         check(isFurniture(doorPlane(wall, seen(wall, 2), 3), wall), "home sign " + wall);
         // The Astrolabe Room's row (design pass 2026-10-09) protects its own door places, which include the
@@ -100,7 +100,7 @@ public class RoomFurnitureTest {
         // Playtest 2026-09-29 (A5): the door row between the home lever and the nearest three-door selector
         // door is still empty, at least four blocks of it on every wall, so a misclick never lands on the lever.
         int nearestDoor = RoomGeometry.mirrorsAlong(wall) ? seen(wall, 9) : 7;
-        check(nearestDoor - RoomTemplateGenerator.HOME_LEVER_ALONG >= 4,
+        check(nearestDoor - StagingFurniture.HOME_LEVER_ALONG >= 4,
                 "home lever well clear of the doors " + wall);
         // The hall row: its doors (Y1..2), the sign in front of each (Y1, one block inward) and the bulbs (Y3).
         for (int rel : HallLayout.DOOR_SPACES) {

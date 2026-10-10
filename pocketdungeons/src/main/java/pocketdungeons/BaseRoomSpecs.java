@@ -16,7 +16,7 @@ import static pocketdungeons.RoomTemplateGenerator.WALL_HEIGHT;
 import static pocketdungeons.RoomTemplateGenerator.column;
 import static pocketdungeons.RoomTemplateGenerator.concat;
 import static pocketdungeons.RoomTemplateGenerator.floorRing;
-import static pocketdungeons.RoomTemplateGenerator.placeWallLodestone;
+import static pocketdungeons.StagingFurniture.placeWallLodestone;
 
 /**
  * M45: the room library as it stood before the situations round, moved out of

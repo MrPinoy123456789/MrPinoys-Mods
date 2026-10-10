@@ -330,12 +330,12 @@ final class RoomProtection {
      * back to plain wall the moment one is: protecting that course either way
      * is correct, since the block it then holds is the doorway lintel, already
      * shell. None of it can be broken or replaced by a player;
-     * {@code RoomTemplateGenerator.placeFurniture} is the only writer and it
+     * {@code StagingFurniture.placeFurniture} is the only writer and it
      * bypasses {@code RoomProtection} entirely.
      *
      * <p>The positions here must stay in lockstep with
-     * {@code RoomTemplateGenerator.placeFurniture} and
-     * {@code RoomTemplateGenerator.clearFurniture}: the three read the same
+     * {@code StagingFurniture.placeFurniture} and
+     * {@code StagingFurniture.clearFurniture}: the three read the same
      * wall-relative coordinates, and {@code RoomFurnitureTest} pins them.
      */
     static boolean isFurniture(BlockPos pos, BlockPos roomOrigin, DoorMask.Direction selectorWall) {
@@ -429,23 +429,23 @@ final class RoomProtection {
         if (perp == doorPlane && seen == 10 && (y == 2 || y == 3)) {
             return true; // the commit lever and the sign above it
         }
-        if (perp == doorPlane && seen == RoomTemplateGenerator.HOME_LEVER_ALONG && (y == 2 || y == 3)) {
+        if (perp == doorPlane && seen == StagingFurniture.HOME_LEVER_ALONG && (y == 2 || y == 3)) {
             return true; // the go-home lever and the sign above it
         }
         if (perp == wallPlane) {
-            if (y >= RoomTemplateGenerator.HOME_SCREEN_Y_MIN && y <= RoomTemplateGenerator.HOME_SCREEN_Y_MAX
-                    && seen >= RoomTemplateGenerator.HOME_SCREEN_ALONG_MIN
-                    && seen <= RoomTemplateGenerator.HOME_SCREEN_ALONG_MAX) {
+            if (y >= StagingFurniture.HOME_SCREEN_Y_MIN && y <= StagingFurniture.HOME_SCREEN_Y_MAX
+                    && seen >= StagingFurniture.HOME_SCREEN_ALONG_MIN
+                    && seen <= StagingFurniture.HOME_SCREEN_ALONG_MAX) {
                 return true; // the go-home screen blocks
             }
-            if (y == RoomTemplateGenerator.HOME_BULB_Y && seen == RoomTemplateGenerator.HOME_BULB_ALONG) {
+            if (y == StagingFurniture.HOME_BULB_Y && seen == StagingFurniture.HOME_BULB_ALONG) {
                 return true; // the go-home bulb over the lever
             }
             if (y == 3 && along >= 7 && along <= 9) {
                 return true; // the three copper bulbs, one over each door
             }
-            if (y >= 4 && y <= 5 && along >= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MIN
-                    && along <= RoomTemplateGenerator.DOOR_SCREEN_ALONG_MAX) {
+            if (y >= 4 && y <= 5 && along >= StagingFurniture.DOOR_SCREEN_ALONG_MIN
+                    && along <= StagingFurniture.DOOR_SCREEN_ALONG_MAX) {
                 return true; // the door screen blocks
             }
         }
@@ -489,9 +489,9 @@ final class RoomProtection {
                 return false;
             }
         }
-        return y >= RoomTemplateGenerator.HISTORY_Y_MIN && y <= RoomTemplateGenerator.HISTORY_Y_MAX
-                && along >= RoomTemplateGenerator.HISTORY_ALONG_MIN
-                && along <= RoomTemplateGenerator.HISTORY_ALONG_MAX; // the floor history panel
+        return y >= StagingFurniture.HISTORY_Y_MIN && y <= StagingFurniture.HISTORY_Y_MAX
+                && along >= StagingFurniture.HISTORY_ALONG_MIN
+                && along <= StagingFurniture.HISTORY_ALONG_MAX; // the floor history panel
     }
 
     /**

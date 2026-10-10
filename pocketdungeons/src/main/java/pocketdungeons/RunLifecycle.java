@@ -1323,7 +1323,7 @@ final class RunLifecycle {
         // The way home, beside the doors: the HOME lever and the screen that
         // says what it would bank, lit once the interval has run its usual
         // length.
-        RoomTemplateGenerator.placeHomeControl(level, newStagingOrigin, farWall, record.interval.finished);
+        StagingFurniture.placeHomeControl(level, newStagingOrigin, farWall, record.interval.finished);
         DungeonScreen.summonHome(level, newStagingOrigin, farWall, DungeonScreen.homeContent(server, record));
 
         // M65: transition to FLOOR_CLEARED. The party is now in the
@@ -1440,8 +1440,8 @@ final class RunLifecycle {
     static BlockPos moveStagingBeyondTerminal(ServerLevel level, InstanceRecord record,
                                               BlockPos terminalOrigin, DoorMask.Direction farWall) {
         BlockPos oldStagingOrigin = record.stagingCellOrigin;
-        RoomTemplateGenerator.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
-        RoomTemplateGenerator.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
+        StagingFurniture.clearPostSelectionDoors(level, oldStagingOrigin, record.roomDungeonDoor);
+        StagingFurniture.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
         HallRoom.dismantle(level, oldStagingOrigin, record.roomDungeonDoor);
         for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
                 e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
@@ -2026,10 +2026,10 @@ final class RunLifecycle {
 
         // The selector doors, their bulbs and the go-home control come out:
         // the doorway is the way home now, and nothing here chooses a floor.
-        RoomTemplateGenerator.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDir);
-        RoomTemplateGenerator.clearBulbs(level, record.stagingCellOrigin, dungeonDir);
+        StagingFurniture.clearSelectorDoors(level, record.stagingCellOrigin, dungeonDir);
+        StagingFurniture.clearBulbs(level, record.stagingCellOrigin, dungeonDir);
         HallRoom.dismantle(level, record.stagingCellOrigin, dungeonDir);
-        RoomTemplateGenerator.clearHomeControl(level, record.stagingCellOrigin, dungeonDir);
+        StagingFurniture.clearHomeControl(level, record.stagingCellOrigin, dungeonDir);
         DungeonScreen.clearHome(level, record.stagingCellOrigin, dungeonDir);
 
         // Open the staging door, and the room's own wall on the same seam,
