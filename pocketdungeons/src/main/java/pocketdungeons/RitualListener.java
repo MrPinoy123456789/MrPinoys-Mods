@@ -83,10 +83,59 @@ final class RitualListener {
 
         BlockPos pos = hit.getBlockPos();
 
-        // PD-87: keys from before the fix carry the chest tables' bag tag,
-        // which the vault's component match refuses. Strip it on the way in so
-        // the key already in the player's pack still opens the vault; the
-        // vault itself then runs as vanilla.
+        stripLegacyVaultKey(serverPlayer, level, pos);
+
+        // Each claim below returns null when the click is not its own, and the
+        // first one that answers ends the handling. The order is the contract.
+        InteractionResult result = spyglassCoords(serverPlayer, level, pos);
+        if (result != null) {
+            return result;
+        }
+        result = roomInspector(serverPlayer, level, pos);
+        if (result != null) {
+            return result;
+        }
+        result = armedMineGuard(serverPlayer, level, hand, pos);
+        if (result != null) {
+            return result;
+        }
+        result = bagChest(serverPlayer, level, hand, hit, pos);
+        if (result != null) {
+            return result;
+        }
+        result = dungeonStorage(serverPlayer, level, pos);
+        if (result != null) {
+            return result;
+        }
+        result = roomContainerMask(serverPlayer, level, pos);
+        if (result != null) {
+            return result;
+        }
+        BlockPos placementPos = hit.getBlockPos().relative(hit.getDirection());
+        result = roomPlacementMask(serverPlayer, level, hand, pos, placementPos);
+        if (result != null) {
+            return result;
+        }
+        result = dungeonShellPlacementMask(serverPlayer, hand, placementPos);
+        if (result != null) {
+            return result;
+        }
+        result = stations(serverPlayer, level, hand, pos);
+        if (result != null) {
+            return result;
+        }
+        result = stagingFurniture(serverPlayer, level, pos);
+        if (result != null) {
+            return result;
+        }
+        return lodestoneMenu(serverPlayer, level, pos);
+    }
+
+    // PD-87: keys from before the fix carry the chest tables' bag tag,
+    // which the vault's component match refuses. Strip it on the way in so
+    // the key already in the player's pack still opens the vault; the
+    // vault itself then runs as vanilla.
+    private static void stripLegacyVaultKey(ServerPlayer serverPlayer, Level level, BlockPos pos) {
         if (level.getBlockState(pos).is(Blocks.VAULT)) {
             TrialContent.bareKey(serverPlayer.getMainHandItem());
             if (level instanceof ServerLevel serverLevel
@@ -94,20 +143,25 @@ final class RitualListener {
                 PartyRewards.vaultClicked(serverPlayer, serverLevel, pos);
             }
         }
+    }
 
-        // Dev tool: right-click any block with a spyglass to get its
-        // coordinates in chat, both absolute and relative to its chunk and
-        // to the nearest Pocket Dungeons cell origin. PD-71: operators only
-        // and not while crouching, so a player's kit spyglass still opens
-        // chests and pulls levers.
+    // Dev tool: right-click any block with a spyglass to get its
+    // coordinates in chat, both absolute and relative to its chunk and
+    // to the nearest Pocket Dungeons cell origin. PD-71: operators only
+    // and not while crouching, so a player's kit spyglass still opens
+    // chests and pulls levers.
+    private static InteractionResult spyglassCoords(ServerPlayer serverPlayer, Level level, BlockPos pos) {
         if (serverPlayer.getMainHandItem().is(Items.SPYGLASS) && !serverPlayer.isShiftKeyDown()
                 && Commands.LEVEL_GAMEMASTERS.check(serverPlayer.permissions())) {
             reportCoords(serverPlayer, level, pos);
             return InteractionResult.SUCCESS_SERVER;
         }
+        return null;
+    }
 
-        // Room Editor Inspector: right-click a placed gameplay object with
-        // the inspector tool to open its properties GUI. Only in a build room.
+    // Room Editor Inspector: right-click a placed gameplay object with
+    // the inspector tool to open its properties GUI. Only in a build room.
+    private static InteractionResult roomInspector(ServerPlayer serverPlayer, Level level, BlockPos pos) {
         if (RoomEditorKit.isInspector(serverPlayer.getMainHandItem())) {
             InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
             if (record != null && record.adminBuild) {
@@ -116,11 +170,15 @@ final class RitualListener {
                 }
             }
         }
+        return null;
+    }
 
-        // PD-124: the Explosive affix uses fake TNT mines that trigger on
-        // contact. Flint and steel or fire charges cannot prime them; the mine
-        // itself handles ignition. TNT a player placed is ordinary TNT (the
-        // rubble blasts need it), so only registered mines are refused.
+    // PD-124: the Explosive affix uses fake TNT mines that trigger on
+    // contact. Flint and steel or fire charges cannot prime them; the mine
+    // itself handles ignition. TNT a player placed is ordinary TNT (the
+    // rubble blasts need it), so only registered mines are refused.
+    private static InteractionResult armedMineGuard(ServerPlayer serverPlayer, Level level,
+                                                    InteractionHand hand, BlockPos pos) {
         if (DungeonWorldRules.inDungeon(level)
                 && level.getBlockState(pos).is(Blocks.TNT)
                 && Instances.dungeonCellOriginAt(pos) != null
@@ -133,23 +191,27 @@ final class RitualListener {
                 return InteractionResult.FAIL;
             }
         }
+        return null;
+    }
 
-        // M48: the bag chest. A member of a non-visit instance who has not yet
-        // chosen a bag right-clicks the ender chest at the safe room's centre
-        // to open the bag picker, independently of every other member. This
-        // claims the click before the ender-chest denial below, which would
-        // otherwise block it (the bag chest is a waxed oxidized copper chest,
-        // deliberately, to read as distinct from loot chests). Position-based, the same way
-        // the selector doors, lever and engine are identified.
-        // PD-131: every click on the bag chest is answered. A member who
-        // already carries a bag used to fall through to the container denial
-        // and get nothing at all, which read as "I can see it but cannot use it".
-        // 2026-10-04: recognised by its block wherever it stands, so it can be
-        // moved, and placeable only inside the safe room, so it is never lost
-        // to a floor or to the Doors being rebuilt.
+    // M48: the bag chest. A member of a non-visit instance who has not yet
+    // chosen a bag right-clicks the ender chest at the safe room's centre
+    // to open the bag picker, independently of every other member. This
+    // claims the click before the ender-chest denial below, which would
+    // otherwise block it (the bag chest is a waxed oxidized copper chest,
+    // deliberately, to read as distinct from loot chests). Position-based, the same way
+    // the selector doors, lever and engine are identified.
+    // PD-131: every click on the bag chest is answered. A member who
+    // already carries a bag used to fall through to the container denial
+    // and get nothing at all, which read as "I can see it but cannot use it".
+    // 2026-10-04: recognised by its block wherever it stands, so it can be
+    // moved, and placeable only inside the safe room, so it is never lost
+    // to a floor or to the Doors being rebuilt.
+    private static InteractionResult bagChest(ServerPlayer serverPlayer, Level level,
+                                              InteractionHand hand, BlockHitResult hit, BlockPos pos) {
         InstanceRecord bagRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
         if (bagRecord != null && !bagRecord.adminBuild
-                && Instances.isBagChestItem(player.getItemInHand(hand))
+                && Instances.isBagChestItem(serverPlayer.getItemInHand(hand))
                 && !Instances.inSafeRoom(bagRecord, hit.getBlockPos().relative(hit.getDirection()))
                 && !Instances.isBagChest(level.getBlockState(pos))) {
             serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(Component.literal(
@@ -171,53 +233,63 @@ final class RitualListener {
             }
             return InteractionResult.SUCCESS_SERVER;
         }
+        return null;
+    }
 
-        // Dungeon Storage (playtest 2026-10-02-1, J6): the ender chest, gated
-        // behind the scenes, opens the player's own storage anywhere in the
-        // dungeon, run or no run, instead of their real ender chest. Ahead
-        // of the denial below and the room permission mask, since every member
-        // has their own storage in any room.
+    // Dungeon Storage (playtest 2026-10-02-1, J6): the ender chest, gated
+    // behind the scenes, opens the player's own storage anywhere in the
+    // dungeon, run or no run, instead of their real ender chest. Ahead
+    // of the denial below and the room permission mask, since every member
+    // has their own storage in any room.
+    //
+    // M46 (spec 11.11): the ender chest is the one container that reaches
+    // across dimensions, which makes it the obvious way around the scarcity
+    // the bag creates: a player with netherite in their ender chest could
+    // otherwise take it into a run from inside the room. The block stays
+    // where it is and stays a decoration; it just does not open in here.
+    private static InteractionResult dungeonStorage(ServerPlayer serverPlayer, Level level, BlockPos pos) {
         if (RunStorage.onUse(serverPlayer, level.getBlockState(pos),
                 DungeonWorldRules.inDungeon(level))) {
             return InteractionResult.SUCCESS_SERVER;
         }
-
-        // M46 (spec 11.11): the ender chest is the one container that reaches
-        // across dimensions, which makes it the obvious way around the scarcity
-        // the bag creates: a player with netherite in their ender chest could
-        // otherwise take it into a run from inside the room. The block stays
-        // where it is and stays a decoration; it just does not open in here.
         if (DungeonWorldRules.inDungeon(level)
                 && level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
             return InteractionResult.FAIL;
         }
+        return null;
+    }
 
-
-        // M2 T2.2: the room's permission mask, ahead of everything else below --
-        // a denied container open or a denied placement must never fall through
-        // to the ritual or to vanilla's own handling of the block. Positional
-        // (Instances.roomOwnerAt is one bounds check per live instance) and
-        // early-returns the moment the position is not inside anyone's room, so
-        // the common case -- the other 15 cells of the dungeon, or the
-        // overworld entirely -- costs exactly that one check.
-        if (RoomProtection.denyContainerUse(level, player, pos, level.getBlockEntity(pos))) {
+    // M2 T2.2: the room's permission mask, ahead of everything else below --
+    // a denied container open or a denied placement must never fall through
+    // to the ritual or to vanilla's own handling of the block. Positional
+    // (Instances.roomOwnerAt is one bounds check per live instance) and
+    // early-returns the moment the position is not inside anyone's room, so
+    // the common case -- the other 15 cells of the dungeon, or the
+    // overworld entirely -- costs exactly that one check.
+    private static InteractionResult roomContainerMask(ServerPlayer serverPlayer, Level level, BlockPos pos) {
+        if (RoomProtection.denyContainerUse(level, serverPlayer, pos, level.getBlockEntity(pos))) {
             return InteractionResult.FAIL;
         }
-        // Placement: there is no generic "before a block is placed" event in
-        // this mod's Fabric API surface, so this is the same trick as the
-        // container check above: deny the use-on-block interaction that a
-        // placement begins from when the target face sits inside someone else's
-        // room and the held item would put something there. M18 9.1: the
-        // room's shell is immutable to everyone, the owner included, so a
-        // placement landing in the shell is denied even for a permitted player.
-        // The gate covers fluid placement too (a bucket is not a BlockItem):
-        // a bucket aimed at a shell or furniture position is denied the same
-        // way, and a non-permitted player can no longer pour water or lava in
-        // a room they are only visiting. Decorations are unaffected: a wall
-        // sign, torch or banner sits on the face of a wall (target x=1..14,
-        // interior), and a carpet lands on the floor's top face (target Y=1,
-        // interior), so their target positions are never shell.
-        BlockPos placementPos = hit.getBlockPos().relative(hit.getDirection());
+        return null;
+    }
+
+    // Placement: there is no generic "before a block is placed" event in
+    // this mod's Fabric API surface, so this is the same trick as the
+    // container check above: deny the use-on-block interaction that a
+    // placement begins from when the target face sits inside someone else's
+    // room and the held item would put something there. M18 9.1: the
+    // room's shell is immutable to everyone, the owner included, so a
+    // placement landing in the shell is denied even for a permitted player.
+    // The gate covers fluid placement too (a bucket is not a BlockItem):
+    // a bucket aimed at a shell or furniture position is denied the same
+    // way, and a non-permitted player can no longer pour water or lava in
+    // a room they are only visiting. Decorations are unaffected: a wall
+    // sign, torch or banner sits on the face of a wall (target x=1..14,
+    // interior), and a carpet lands on the floor's top face (target Y=1,
+    // interior), so their target positions are never shell.
+    private static InteractionResult roomPlacementMask(ServerPlayer serverPlayer, Level level,
+                                                       InteractionHand hand, BlockPos pos,
+                                                       BlockPos placementPos) {
         // M43.4: one roomRecordAt scan instead of the three separate
         // roomOwnerAt/roomOriginAt/roomDungeonDoorAt calls this used to make
         // for the same position.
@@ -226,7 +298,7 @@ final class RitualListener {
         // PD-132: a click that opens a station is a use, not a placement, so
         // a guest holding a block can still craft, smelt or salvage; vanilla
         // never places the held block when the clicked block consumes the use.
-        if (placementRoomOwner != null && isPlacementSource(player.getItemInHand(hand))
+        if (placementRoomOwner != null && isPlacementSource(serverPlayer.getItemInHand(hand))
                 && !opensStation(serverPlayer, level, pos)) {
             // M55: use roomOriginAt to get the correct cell origin (safe room
             // or staging room) for this position, and roomDungeonDoorAt for
@@ -242,29 +314,34 @@ final class RitualListener {
                             || (placementDungeonDoor != null
                                     && RoomProtection.isFurniture(placementPos, placementRoomOrigin,
                                             placementDungeonDoor))))
-                    || !RoomProtection.isPermitted(level, player, placementRoomOwner)) {
+                    || !RoomProtection.isPermitted(level, serverPlayer, placementRoomOwner)) {
                 return InteractionResult.FAIL;
             }
         }
-        // M31 9.2: the same denial for an active run's dungeon cells outside
-        // any room -- but only the shell, the same as the player room. The
-        // interior stays open so a player can place torches, blocks and the
-        // like while fighting through. Protection lifts once the first member
-        // completes.
-        //
-        // PD-62: one shell position is deliberately let through anyway. The
-        // far side of an IRON_DOOR connector never gets its own lever
-        // (ConnectorStamper.applyIronDoor only stamps the near side), and the
-        // doorway threshold in front of the door is shell purely as a side
-        // effect of isShell being a blanket coordinate rule with no notion of
-        // "this square happens to be open air, not wall": a player who
-        // backtracks and finds the door shut behind them had no way to power
-        // it. The door itself stays shell-protected either way; only the
-        // empty threshold square is exempted, and only for that connector
-        // type. See InstanceLayout.ironDoorFarSideSlots.
+        return null;
+    }
+
+    // M31 9.2: the same denial for an active run's dungeon cells outside
+    // any room -- but only the shell, the same as the player room. The
+    // interior stays open so a player can place torches, blocks and the
+    // like while fighting through. Protection lifts once the first member
+    // completes.
+    //
+    // PD-62: one shell position is deliberately let through anyway. The
+    // far side of an IRON_DOOR connector never gets its own lever
+    // (ConnectorStamper.applyIronDoor only stamps the near side), and the
+    // doorway threshold in front of the door is shell purely as a side
+    // effect of isShell being a blanket coordinate rule with no notion of
+    // "this square happens to be open air, not wall": a player who
+    // backtracks and finds the door shut behind them had no way to power
+    // it. The door itself stays shell-protected either way; only the
+    // empty threshold square is exempted, and only for that connector
+    // type. See InstanceLayout.ironDoorFarSideSlots.
+    private static InteractionResult dungeonShellPlacementMask(ServerPlayer serverPlayer,
+                                                               InteractionHand hand, BlockPos placementPos) {
         BlockPos dungeonPlacementOrigin = Instances.dungeonCellOriginAt(placementPos);
         if (dungeonPlacementOrigin != null
-                && isPlacementSource(player.getItemInHand(hand))
+                && isPlacementSource(serverPlayer.getItemInHand(hand))
                 && RoomProtection.isShell(placementPos, dungeonPlacementOrigin)) {
             InstanceRecord dungeonRecord = Instances.dungeonRecordAt(placementPos);
             boolean ironDoorFarSideExempt = dungeonRecord != null
@@ -273,7 +350,12 @@ final class RitualListener {
                 return InteractionResult.FAIL;
             }
         }
+        return null;
+    }
 
+    /** The station claims: the pocket door, an Ordeal lever, the reroll station, the fountain and the salvage bench. */
+    private static InteractionResult stations(ServerPlayer serverPlayer, Level level,
+                                              InteractionHand hand, BlockPos pos) {
         // M25: the Pocket2 rare door. Claimed whenever the click lands on this
         // player's run's pocket door; anything else falls through to the
         // stations below.
@@ -291,7 +373,7 @@ final class RitualListener {
         // the keystone branch below: anything that is not tagged tiered gear
         // falls straight through to whatever this block would otherwise do (by
         // default a plain vanilla enchanting table, since J5).
-        if (RerollStation.onUse(serverPlayer, level.getBlockState(pos), player.getItemInHand(hand))) {
+        if (RerollStation.onUse(serverPlayer, level.getBlockState(pos), serverPlayer.getItemInHand(hand))) {
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -310,7 +392,11 @@ final class RitualListener {
                 net.minecraft.world.inventory.ContainerLevelAccess.create(level, pos))) {
             return InteractionResult.SUCCESS_SERVER;
         }
+        return null;
+    }
 
+    /** The staging room furniture: the history board, the HOME lever, the commit lever and the selector doors. */
+    private static InteractionResult stagingFurniture(ServerPlayer serverPlayer, Level level, BlockPos pos) {
         // The floor history board in a staging room opens the dungeon map (D6).
         if (Instances.isHistoryBoard(serverPlayer, pos)) {
             InstanceRecord mapRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
@@ -358,7 +444,11 @@ final class RitualListener {
             selectDoor(serverPlayer, step);
             return InteractionResult.SUCCESS_SERVER;
         }
+        return null;
+    }
 
+    /** The wall lodestone: opens the navigation menu, or passes when the ritual is off or the click is not its own. */
+    private static InteractionResult lodestoneMenu(ServerPlayer serverPlayer, Level level, BlockPos pos) {
         if (!PocketDungeonsConfig.ritualEnabled()) {
             return InteractionResult.PASS;
         }
@@ -369,7 +459,7 @@ final class RitualListener {
         // how vanilla lets you place against a block you would otherwise use, and
         // it is the escape hatch for an operator who points keystoneItem at
         // something placeable. Same guard kamutotems' Station uses.
-        if (player.isShiftKeyDown()) {
+        if (serverPlayer.isShiftKeyDown()) {
             return InteractionResult.PASS;
         }
 
