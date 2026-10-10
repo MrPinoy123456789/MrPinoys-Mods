@@ -92,6 +92,49 @@ public final class DoorCommitGameTest {
     }
 
     /**
+     * A failed stamp at a later checkpoint (a floor has been cleared) keeps the trip: the preview is cancelled
+     * and the catalyst refunded, but the interval, its floor count and its lives are untouched and the party
+     * can pick a door again from the staging room, instead of being sent home.
+     */
+    @GameTest(maxTicks = 400)
+    public void failedStampOnALaterFloorKeepsTheTrip(GameTestHelper helper) {
+        Scene scene = new Scene(helper);
+        try {
+            scene.build();
+            scene.previewAndLeaveRoom();
+            scene.record.interval.floorIndex = 2;
+            scene.record.interval.omen = 2;
+            // A later checkpoint is not leaving the Home room (it is already gone), so the caller's own
+            // recovery for a leaving party does not run: the staging room and the trip stay.
+
+            LayoutStamper.failBehindLobbyForTesting = true;
+            boolean committed;
+            try {
+                committed = RunLifecycle.stampDoor(scene.player, scene.server, scene.level, scene.record,
+                        scene.offer, 1, scene.keystone, false);
+            } finally {
+                LayoutStamper.failBehindLobbyForTesting = false;
+            }
+
+            helper.assertTrue(!committed, "a failed stamp reports a failed commit");
+            helper.assertTrue(RunSession.canChooseDoor(scene.record),
+                    "the party can choose a door again, phase " + scene.record.phase);
+            helper.assertValueEqual(2, scene.record.interval.floorIndex, "the floor count is kept");
+            helper.assertValueEqual(2, scene.record.interval.omen, "the lives lost are kept");
+            helper.assertTrue(scene.record.stagingCellOrigin != null, "the staging room stands");
+            helper.assertTrue(scene.record.floor.previewCellOrigin == null && scene.record.floor.previewPlan == null,
+                    "the preview is gone");
+            helper.assertValueEqual(CATALYST_COUNT, scene.player.getInventory().countItem(Items.BONE),
+                    "the catalyst is refunded");
+            helper.assertTrue(Instances.previewDoor(scene.server, scene.level, scene.record, scene.offer, 1),
+                    "another preview stamps from the staging room");
+        } finally {
+            scene.tearDown();
+        }
+        helper.succeed();
+    }
+
+    /**
      * The same failure with the stamp working is the ordinary commit: the hook is off by default, the run
      * starts and the catalyst is spent for good by the caller.
      */

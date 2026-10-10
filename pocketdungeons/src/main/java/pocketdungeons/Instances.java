@@ -1560,7 +1560,14 @@ final class Instances {
             // their place: put the lobby back (the path /dungeon quit takes, which restores the saved room
             // blob and re-arms the doors) instead of leaving the record in PREVIEW with no room. The
             // preview is cancelled with it, which refunds the escrowed catalyst.
-            resetToLobby(server, level, record, false);
+            if (record.interval.floorIndex >= 1) {
+                // A checkpoint after a cleared floor: keep the trip. The preview is cancelled (the catalyst is
+                // refunded and the doors come back) and the party stays in the staging room with its haul,
+                // lives and floor count, free to pick another door or go home.
+                clearPreview(level, record, true);
+            } else {
+                resetToLobby(server, level, record, false);
+            }
             return false;
         }
 
