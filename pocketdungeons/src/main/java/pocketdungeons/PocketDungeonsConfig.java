@@ -5,14 +5,18 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.DoublePredicate;
+import java.util.function.Function;
 import java.util.function.IntPredicate;
+import java.util.function.UnaryOperator;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,6 +27,12 @@ import java.nio.file.Path;
  * -&gt; write defaults; fails to parse -&gt; defaults in memory, file untouched;
  * parses -&gt; use it. See SPEC.md section 10.
  *
+ * <p>Every tunable is one {@link Knob} declaration below: its key, default, validator and
+ * message are stated there once, and loading, the reset to defaults, the file written on a
+ * first boot (in declaration order) and the stored value all walk {@link #KNOBS}. To add a
+ * knob, declare it and give it a one line accessor named after its key; {@code ConfigKnobsTest}
+ * fails if a knob has no matching accessor.
+ *
  * <p>Item ids ({@code keystoneItem}) are kept as strings here
  * and resolved against the registry at their use site. This class carries no
  * Minecraft imports, and config load runs early enough that resolving them here
@@ -32,19 +42,36 @@ public final class PocketDungeonsConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    // ---- instance grid and lifecycle ---------------------------------------
-    private static int slotPitch = 2048;
-    private static int slotsPerRow = 64;
-    private static int watchIntervalTicks = 20;
-    private static int voidGuardDepth = 10;
-    private static int maxPartyMembers = 6;
-    private static int inviteTtlSeconds = 120;
+    /**
+     * Every knob, in declaration order. That order is the order the keys are written to a new
+     * config file and the order they are read, so a new knob goes where its group sits. Filled
+     * by the {@link Knob} constructor, and declared before the knobs so it exists when they are.
+     */
+    private static final List<Knob<?>> KNOBS = new ArrayList<>();
+
+    // A cell is exactly one chunk only while the slot origin is chunk-aligned,
+    // and every force-load and teardown calculation downstream leans on that.
+    private static final Knob<Integer> SLOT_PITCH = integer("slotPitch", 2048,
+            v -> v > 0 && v % 16 == 0, "must be > 0 and a multiple of 16");
+    private static final Knob<Integer> SLOTS_PER_ROW = integer("slotsPerRow", 64, v -> v > 0, "must be > 0");
+    private static final Knob<Integer> WATCH_INTERVAL_TICKS = integer("watchIntervalTicks", 20,
+            v -> v > 0, "must be > 0");
+    private static final Knob<Integer> VOID_GUARD_DEPTH = integer("voidGuardDepth", 10, v -> v >= 0, "must be >= 0");
+    private static final Knob<Integer> MAX_PARTY_MEMBERS = integer("maxPartyMembers", 6, v -> v >= 1, "must be >= 1");
+    // PD-45: 0 made the window sub-millisecond in practice (both
+    // consumers compare an expiry computed from currentTimeMillis() +
+    // ttl * 1000L against "now"), which silently disabled party kick
+    // confirmations and invites rather than the operator getting a
+    // diagnostic.
+    private static final Knob<Integer> INVITE_TTL_SECONDS = integer("inviteTtlSeconds", 120,
+            v -> v >= 1, "must be >= 1");
     /**
      * How long a run waits for an owner who lost their connection while the
      * rest of the party is still inside, before it ends for everyone. 0 ends
      * it at once, as it did before the grace existed.
      */
-    private static int ownerReconnectGraceSeconds = 120;
+    private static final Knob<Integer> OWNER_RECONNECT_GRACE_SECONDS = integer(
+            "ownerReconnectGraceSeconds", 120, v -> v >= 0 && v <= 3600, "must be between 0 and 3600");
     // M76: operating envelope. These bound how much concurrent world work the
     // mod can hold at once, so an overload refuses a new request before it
     // charges fuel or a catalyst rather than letting the server thrash. They
@@ -52,78 +79,87 @@ public final class PocketDungeonsConfig {
     // mixed-mod server's real ceiling depends on its own hardware and
     // population, which is exactly why the load test (dungeonLoadTest) is the
     // thing an operator runs to set them.
-    private static int maxConcurrentInstances = 32;
-    private static int maxConcurrentVisits = 16;
-    private static int maxConcurrentPreviews = 16;
-
-    // ---- playtest journal and Lemon -------------------------------------------
+    private static final Knob<Integer> MAX_CONCURRENT_INSTANCES = integer("maxConcurrentInstances", 32,
+            v -> v >= 0, "must be >= 0");
+    private static final Knob<Integer> MAX_CONCURRENT_VISITS = integer("maxConcurrentVisits", 16,
+            v -> v >= 0, "must be >= 0");
+    private static final Knob<Integer> MAX_CONCURRENT_PREVIEWS = integer("maxConcurrentPreviews", 16,
+            v -> v >= 0, "must be >= 0");
     /** Record the playtest journal ({@code docs/PLAYTEST_EVENTS.md}). */
-    private static boolean playtestJournal = true;
+    private static final Knob<Boolean> PLAYTEST_JOURNAL = flag("playtestJournal", true);
     /** Seconds Lemon lingers after its last line before it vanishes. */
-    private static int lemonIdleSeconds = 20;
+    private static final Knob<Integer> LEMON_IDLE_SECONDS = integer("lemonIdleSeconds", 20,
+            v -> v >= 3 && v <= 600, "must be between 3 and 600");
     /** Seconds Lemon waits for the answer to a question before it vanishes. */
-    private static int lemonAskIdleSeconds = 120;
+    private static final Knob<Integer> LEMON_ASK_IDLE_SECONDS = integer("lemonAskIdleSeconds", 120,
+            v -> v >= 10 && v <= 1800, "must be between 10 and 1800");
     /** Seconds an agent's LLM mode lasts without a refresh before Lemon falls back to guide mode. */
-    private static int lemonLlmLapseSeconds = 300;
+    private static final Knob<Integer> LEMON_LLM_LAPSE_SECONDS = integer("lemonLlmLapseSeconds", 300,
+            v -> v >= 30 && v <= 3600, "must be between 30 and 3600");
     /** Seconds a player's question waits for the agent before guide mode answers it. */
-    private static int lemonFallbackSeconds = 45;
+    private static final Knob<Integer> LEMON_FALLBACK_SECONDS = integer("lemonFallbackSeconds", 45,
+            v -> v >= 5 && v <= 600, "must be between 5 and 600");
     /** Seconds Lemon stays after its last line before vanishing. */
-    private static int lemonLingerSeconds = 4;
+    private static final Knob<Integer> LEMON_LINGER_SECONDS = integer("lemonLingerSeconds", 4,
+            v -> v >= 1 && v <= 60, "must be between 1 and 60");
     /** Seconds a {@code dungeon lemon think} holds the guide's fallback answer. */
-    private static int lemonThinkSeconds = 90;
-
+    private static final Knob<Integer> LEMON_THINK_SECONDS = integer("lemonThinkSeconds", 90,
+            v -> v >= 10 && v <= 600, "must be between 10 and 600");
     /** Mob health/damage/speed bonus per point of omen on the current floor. */
-    private static double omenDangerScalePerOmen = 0.15;
-
-    // ---- layout planning ----------------------------------------------------
+    private static final Knob<Double> OMEN_DANGER_SCALE_PER_OMEN = decimal("omenDangerScalePerOmen", 0.15,
+            v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
     // M54 (spec 6.5): the critical path goes up to 8-12 cells at tier 1, with
     // branch and loop rates high enough that a floor reads as a small maze
     // rather than a spine with stubs. The terminal is placed partway along
     // the path (LayoutGraphGenerator), so the staging room is never the
     // obvious far end.
-    private static int pathLengthMin = 8;
-    private static int pathLengthMax = 12;
+    private static final Knob<Integer> PATH_LENGTH_MIN = integer("pathLengthMin", 8, v -> v >= 2, "must be >= 2");
+    private static final Knob<Integer> PATH_LENGTH_MAX = integer("pathLengthMax", 12, v -> v >= 2, "must be >= 2")
+            .after(PocketDungeonsConfig::raisePathLengthMax);
     /**
      * Playtest 2026-10-03-2: the most encounter cells the first floor of an
      * interval may hold, so floor 1 runs about two spawners rather than four
      * ("floor 1 should be about 2 spawners"; 298 s at 05:04). 0 means no cap.
      */
-    private static int firstFloorMaxEncounters = 2;
-    private static double branchProbability = 0.55;
-    private static double loopProbability = 0.30;
-    private static int planAttemptBudget = 32;
-    private static int maxGridSpan = 12;
-    private static int clearBlocksPerTick = 8192;
+    private static final Knob<Integer> FIRST_FLOOR_MAX_ENCOUNTERS = integer("firstFloorMaxEncounters", 2,
+            v -> v >= 0, "must be >= 0 (0 means no cap)");
+    private static final Knob<Double> BRANCH_PROBABILITY = decimal("branchProbability", 0.55,
+            v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
+    private static final Knob<Double> LOOP_PROBABILITY = decimal("loopProbability", 0.30,
+            v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
+    private static final Knob<Integer> PLAN_ATTEMPT_BUDGET = integer("planAttemptBudget", 32,
+            v -> v >= 1, "must be >= 1");
+    private static final Knob<Integer> MAX_GRID_SPAN = integer("maxGridSpan", 12, v -> v >= 3, "must be >= 3")
+            .after(PocketDungeonsConfig::fitPathLengthsToGrid);
+    private static final Knob<Integer> CLEAR_BLOCKS_PER_TICK = integer("clearBlocksPerTick", 8192,
+            v -> v >= 1024, "must be >= 1024");
     // The interval's usual length: after this many floors the HOME screen
     // lights up, and it is how many door steps bank one keystone level
     // (IntervalBanking). Nothing forces the party home.
-    private static int floorsPerSafeVisit = 3;
+    private static final Knob<Integer> FLOORS_PER_SAFE_VISIT = integer("floorsPerSafeVisit", 3,
+            v -> v >= 1, "must be >= 1");
     // The compass level the Endless Mine's door 3 needs (D29): the Mine is in
     // act 1 now, but a new player's first doors stay dungeons until this.
-    private static int endlessMineUnlockLevel = 3;
-    // ---- ritual -------------------------------------------------------------
-    private static boolean ritualEnabled = true;
-
-    // ---- payout -------------------------------------------------------------
+    private static final Knob<Integer> ENDLESS_MINE_UNLOCK_LEVEL = integer("endlessMineUnlockLevel", 3,
+            v -> v >= 1, "must be >= 1");
+    private static final Knob<Boolean> RITUAL_ENABLED = flag("ritualEnabled", true);
     // U8 Stage 0: chests replace the item grant outright. payoutCommand survives
     // as the one remaining hook an operator has for routing a reward through an
     // economy mod without this mod taking a Java dependency on it.
-    private static String payoutCommand = "";
-
-    // ---- trials (U6) --------------------------------------------------------
-    private static String vaultKeyItem = "minecraft:trial_key";
-    private static String ominousVaultKeyItem = "minecraft:ominous_trial_key";
-    private static int trialSpawnerCooldownTicks = 36000;
-
-    // ---- keystones (U7/U8) ----------------------------------------------------
+    private static final Knob<String> PAYOUT_COMMAND = text("payoutCommand", "", true);
+    private static final Knob<String> VAULT_KEY_ITEM = text("vaultKeyItem", "minecraft:trial_key", false);
+    private static final Knob<String> OMINOUS_VAULT_KEY_ITEM = text("ominousVaultKeyItem",
+            "minecraft:ominous_trial_key", false);
+    private static final Knob<Integer> TRIAL_SPAWNER_COOLDOWN_TICKS = integer("trialSpawnerCooldownTicks", 36000,
+            v -> v >= 0, "must be >= 0");
     // U8 Stage 4: the remote moves off minecraft:trial_key -- that item is what
     // this mod's own spawners eject for its own vaults, and a recovery compass
     // has no such collision with anything else in the suite.
-    private static String keystoneItem = "minecraft:recovery_compass";
-    private static int keystoneMaxLevel = 100;
-
-    // ---- U8: the run outlives the player, the reward room, the three doors ---
-    private static int rewardRoomGraceSeconds = 600;
+    private static final Knob<String> KEYSTONE_ITEM = text("keystoneItem", "minecraft:recovery_compass", false);
+    private static final Knob<Integer> KEYSTONE_MAX_LEVEL = integer("keystoneMaxLevel", 100,
+            v -> v >= 1, "must be >= 1");
+    private static final Knob<Integer> REWARD_ROOM_GRACE_SECONDS = integer("rewardRoomGraceSeconds", 600,
+            v -> v >= 0, "must be >= 0");
     /**
      * How long a player in a finished dungeon may do nothing at all before the
      * reward-room grace window stops treating them as a reason to keep the slot
@@ -134,58 +170,71 @@ public final class PocketDungeonsConfig {
      * {@code 0} disables the check: presence alone holds the slot then, however
      * long the player stands still.
      */
-    private static int afkSeconds = 300;
+    private static final Knob<Integer> AFK_SECONDS = integer("afkSeconds", 300, v -> v >= 0, "must be >= 0");
     /**
      * What {@code /dungeon quit} on a floor in progress costs the owner's
      * keystone. Named for the clock that used to charge it; the name is kept
      * so existing config files still apply.
      */
-    private static int timedOutDepletion = 1;
-
-    // ---- affixes (M4) --------------------------------------------------------
-    /** Overclocked scales {@link #trialSpawnerCooldownTicks} down by this. */
-    private static double overclockedCooldownFactor = 0.4;
+    private static final Knob<Integer> TIMED_OUT_DEPLETION = integer("timedOutDepletion", 1,
+            v -> v >= 0, "must be >= 0");
+    /** Overclocked scales {@link #trialSpawnerCooldownTicks()} down by this. */
+    private static final Knob<Double> OVERCLOCKED_COOLDOWN_FACTOR = decimal("overclockedCooldownFactor", 0.4,
+            v -> v > 0 && v <= 1, "must be between 0 (exclusive) and 1");
     /** Swarming scales a tier's total/simultaneous mob counts up by this. */
-    private static double swarmingMobFactor = 1.5;
+    private static final Knob<Double> SWARMING_MOB_FACTOR = decimal("swarmingMobFactor", 1.5,
+            v -> v >= 1, "must be >= 1");
     /** Share of generic (themeless) spawners that keep the broad mixed mob pool (PD-107). */
-    private static double chaoticSpawnerChance = 0.05;
+    private static final Knob<Double> CHAOTIC_SPAWNER_CHANCE = decimal("chaoticSpawnerChance", 0.05,
+            v -> v >= 0 && v <= 1, "must be between 0 and 1");
+    /** Silenced's trial spawners detect players at this range instead of 14. */
+    private static final Knob<Integer> SILENCED_PLAYER_RANGE = integer("silencedPlayerRange", 6,
+            v -> v >= 1, "must be >= 1");
     /** Silenced: this many consumables used raise the omen by one. */
-    private static int silencedConsumablesPerOmen = 3;
+    private static final Knob<Integer> SILENCED_CONSUMABLES_PER_OMEN = integer("silencedConsumablesPerOmen", 3,
+            v -> v >= 1, "must be >= 1");
     /** Chance a dead-end cell holds a fountain boon. */
-    private static double fountainChance = 0.15;
+    private static final Knob<Double> FOUNTAIN_CHANCE = decimal("fountainChance", 0.15,
+            v -> v >= 0 && v <= 1, "must be between 0 and 1");
     /** Omen a cleansing fountain takes off the floor. */
     /** Emeralds each member is paid when a dungeon is finished (J1: was the echo shard). */
-    private static int finishEmeralds = 8;
+    private static final Knob<Integer> FINISH_EMERALDS = integer("finishEmeralds", 8, v -> v >= 0, "must be >= 0");
     /** Extra completion chests, at the dungeon's top loot tier, a finished dungeon's themed vault adds (design D11). */
-    private static int finishVaultChests = 2;
+    private static final Knob<Integer> FINISH_VAULT_CHESTS = integer("finishVaultChests", 2,
+            v -> v >= 0 && v <= 6, "must be between 0 and 6");
     /** The share of a haul a failed dungeon still banks, in percent (Haul and Blood Doors). */
-    private static int failHaulKeepPercent = ScrapMath.FAIL_KEEP_PERCENT;
+    private static final Knob<Integer> FAIL_HAUL_KEEP_PERCENT = integer("failHaulKeepPercent",
+            ScrapMath.FAIL_KEEP_PERCENT, v -> v >= 0 && v <= 100, "must be between 0 and 100");
     /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
     /** Chance, per player in the room, of 2 emeralds when an Ordeal resolves (J1). */
-    private static double ordealEmeraldChance = 0.25;
-    /** Silenced's trial spawners detect players at this range instead of 14. */
-    private static int silencedPlayerRange = 6;
+    private static final Knob<Double> ORDEAL_EMERALD_CHANCE = decimal("ordealEmeraldChance", 0.25,
+            v -> v >= 0 && v <= 1, "must be between 0 and 1");
     /** Molten hazard blocks placed per cell. */
-    private static int moltenHazardsPerCell = 4;
+    private static final Knob<Integer> MOLTEN_HAZARDS_PER_CELL = integer("moltenHazardsPerCell", 4,
+            v -> v >= 0, "must be >= 0");
     /** Feral wolves spawned per non-encounter cell. Zero disables the affix's spawns. */
-    private static int feralWolvesPerCell = 2;
+    private static final Knob<Integer> FERAL_WOLVES_PER_CELL = integer("feralWolvesPerCell", 2,
+            v -> v >= 0, "must be >= 0");
     /** Explosive fake TNT mine blocks placed per cell. */
-    private static int explosiveHazardsPerCell = 4;
+    private static final Knob<Integer> EXPLOSIVE_HAZARDS_PER_CELL = integer("explosiveHazardsPerCell", 4,
+            v -> v >= 0, "must be >= 0");
     /** Fraction of eligible cells that get voided floor when VOIDED affix active. */
-    private static double voidedCellChance = 0.3;
-
-    // ---- ladder reframe (M10) -------------------------------------------------
+    private static final Knob<Double> VOIDED_CELL_CHANCE = decimal("voidedCellChance", 0.3,
+            v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
     /** +0.8% mob strength (max health, attack damage, movement speed) per keystone level. */
-    private static double mobScalePerLevel = 0.008;
+    private static final Knob<Double> MOB_SCALE_PER_LEVEL = decimal("mobScalePerLevel", 0.008,
+            v -> v >= 0, "must be >= 0");
     /** Base mob strength multiplier at level 0. Below 1.0 makes low-level mobs weaker than vanilla. */
-    private static double mobScaleBase = 0.65;
+    private static final Knob<Double> MOB_SCALE_BASE = decimal("mobScaleBase", 0.65,
+            v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
     /**
      * Additional HP-only multiplier applied to Breezes after the level scaling,
      * because their high mobility makes them disproportionately tedious to kill
      * even at low levels. 0.5 halves their post-scaling HP; 1.0 disables the
      * override entirely.
      */
-    private static double breezeHpMultiplier = 0.5;
+    private static final Knob<Double> BREEZE_HP_MULTIPLIER = decimal("breezeHpMultiplier", 0.5,
+            v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
     /**
      * Fraction of a run's trial spawners that must reach {@code COOLDOWN} before
      * a pad contact completes the run. An untouched spawner sits at
@@ -193,30 +242,33 @@ public final class PocketDungeonsConfig {
      * denominator: sprinting past every spawner is exactly what this gate
      * exists to refuse.
      */
-    private static double spawnerClearThreshold = 0.75;
-
-    // ---- two-tier doors and fuel (M12) ----------------------------------------
-    // J1 retires the whole section: Fuel.java is gone, side branches cost scrap,
-    // and the finish and Ordeal pays are emeralds. The old keys load quietly
-    // through RETIRED_KEYS so an existing pocketdungeons.json still works.
-
-    // ---- Pocket2 sub-dungeon (M25) -------------------------------------------
+    private static final Knob<Double> SPAWNER_CLEAR_THRESHOLD = decimal("spawnerClearThreshold", 0.75,
+            v -> v > 0.0 && v <= 1.0, "must be between 0.0 (exclusive) and 1.0");
     /** How long a Pocket2 child stays open once entered, in seconds. */
-    private static int pocket2TimerSeconds = 60;
+    private static final Knob<Integer> POCKET2_TIMER_SECONDS = integer("pocket2TimerSeconds", 60,
+            v -> v >= 1, "must be >= 1");
     /** Chance per run that a rare door to a Pocket2 appears in a cleared encounter room. */
-    private static double pocket2DoorChance = 0.2;
-
-    // ---- anomaly rooms (M35) --------------------------------------------------
+    private static final Knob<Double> POCKET2_DOOR_CHANCE = decimal("pocket2DoorChance", 0.2,
+            v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
     /** Chance per run that one critical-path cell is swapped for an anomaly room. */
-    private static double anomalyRoomChance = 0.08;
-
-    // ---- gear reroll station (M14, moved to the enchanting table by J5) ---------
+    private static final Knob<Double> ANOMALY_ROOM_CHANCE = decimal("anomalyRoomChance", 0.08,
+            v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
     /** The block a reroll station is; right-clicking it with tiered gear opens the picker. */
-    private static String rerollBlock = "minecraft:enchanting_table";
+    private static final Knob<String> REROLL_BLOCK = text("rerollBlock", "minecraft:enchanting_table", false)
+            // J5 moved the reroll to the enchanting table and retired the smithing
+            // table as a station; a saved config that still names it is remapped
+            // rather than resurrecting the old station.
+            .normalising(v -> {
+                if ("minecraft:smithing_table".equals(v)) {
+                    PocketDungeonsMod.LOG.warn("rerollBlock was the smithing table, which is not a station "
+                            + "any more; using minecraft:enchanting_table for rerolls instead.");
+                    return "minecraft:enchanting_table";
+                }
+                return v;
+            });
     /** Lapis cost per tier step; a tier-N reroll costs this times N. */
-    private static int rerollLapisPerTier = 4;
-
-    // ---- armor trims (M15) -----------------------------------------------------
+    private static final Knob<Integer> REROLL_LAPIS_PER_TIER = integer("rerollLapisPerTier", 4,
+            v -> v >= 0, "must be >= 0");
     /**
      * Material decides the bonus; pattern stays cosmetic. Ten materials, tuned
      * once here, rather than authoring a cell per material/pattern combination.
@@ -225,7 +277,8 @@ public final class PocketDungeonsConfig {
      * {@code AttributeModifier.Operation}'s serialized name
      * ({@code add_value}, {@code add_multiplied_base}, {@code add_multiplied_total}).
      */
-    private static List<TrimBonusEntry> trimBonuses = defaultTrimBonuses();
+    private static final Knob<List<TrimBonusEntry>> TRIM_BONUSES = new Knob<>("trimBonuses", defaultTrimBonuses(),
+            PocketDungeonsConfig::readTrimBonuses, PocketDungeonsConfig::trimBonusesJson);
     /**
      * If true, a worn trim's bonus applies only while the wearer is in the
      * dungeon dimension; if false, it applies everywhere the armour is worn.
@@ -234,12 +287,189 @@ public final class PocketDungeonsConfig {
      * milestone default is global; an operator who wants the narrower
      * reading can flip this.
      */
-    private static boolean trimBonusDungeonOnly = false;
+    private static final Knob<Boolean> TRIM_BONUS_DUNGEON_ONLY = flag("trimBonusDungeonOnly", false);
+    /**
+     * The block that opens run storage (see {@link RunStorage}). It used to open
+     * the gamble station, a duplicate of the blacksmith, which was removed
+     * (playtest 2026-10-02-1); the gamble itself went with the home vendor
+     * rework (J5a).
+     */
+    private static final Knob<String> STORAGE_BLOCK = text("storageBlock", "minecraft:ender_chest", false)
+            // A build between the gamble block's removal and the 2026-10-02 swap wrote
+            // the copper chest here. That block is the bag chest now, so the value would
+            // make every staging room's storage a second bag chest.
+            .normalising(v -> {
+                if ("minecraft:waxed_oxidized_copper_chest".equals(v)) {
+                    PocketDungeonsMod.LOG.warn("storageBlock was the waxed oxidized copper chest, which is the bag "
+                            + "chest now; using minecraft:ender_chest for run storage instead.");
+                    return "minecraft:ender_chest";
+                }
+                return v;
+            });
+    /**
+     * The block the salvage bench is. Claimed only while the player holds
+     * something salvageable, so an empty hand still opens the vanilla
+     * grindstone.
+     */
+    private static final Knob<String> SALVAGE_BLOCK = text("salvageBlock", "minecraft:grindstone", false);
+    /**
+     * Superseded 2026-10-03 (owner request): scrapped gear pays the
+     * grindstone's XP and its materials, never emeralds, so this is no longer
+     * read. Kept so existing pocketdungeons.json files still load. It was the
+     * emeralds per tier for one piece of tagged gear.
+     */
+    private static final Knob<Integer> SALVAGE_EMERALDS_PER_TIER = integer("salvageEmeraldsPerTier", 1,
+            v -> v >= 0, "must be >= 0");
+    /** Emeralds per vault key: below the 1.4 a spawner's emerald eject is worth. */
+    private static final Knob<Integer> SALVAGE_KEY_EMERALDS = integer("salvageKeyEmeralds", 1,
+            v -> v >= 0, "must be >= 0");
+    /** Emeralds per ominous vault key. */
+    private static final Knob<Integer> SALVAGE_OMINOUS_KEY_EMERALDS = integer("salvageOminousKeyEmeralds", 3,
+            v -> v >= 0, "must be >= 0");
+    /**
+     * Tuning knob (2026-10-08): extra pieces of material every salvaged item pays in every
+     * wear band, so what paid 0 pays 1, 1 pays 2, 2 pays 3. 0 restores the old table.
+     */
+    private static final Knob<Integer> SALVAGE_MATERIAL_BONUS = integer("salvageMaterialBonus", 1,
+            v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /**
+     * Percent of the dungeon durability cap ({@link DungeonTools#durabilityCap}) that gear from
+     * the mod's chests, vaults and gear tables gets: 110 is 10 percent more. 100 is the cap table as
+     * written.
+     */
+    private static final Knob<Integer> LOOT_DURABILITY_PERCENT = integer("lootDurabilityPercent", 110,
+            v -> v >= 10 && v <= 1000, "must be 10 to 1000");
+    /**
+     * Percent of the same cap table for crafted gear and everything else (owner, 2026-10-08: all gear gets
+     * 10 percent more); 100 is the table as written.
+     */
+    private static final Knob<Integer> CRAFTED_DURABILITY_PERCENT = integer("craftedDurabilityPercent", 110,
+            v -> v >= 10 && v <= 1000, "must be 10 to 1000");
+    /**
+     * The longest any poison lasts on a player inside a dungeon, in seconds (PD-178, owner ruling
+     * 2026-10-08: "10 seconds at the most"). 0 turns the cap off.
+     */
+    private static final Knob<Integer> POISON_MAX_SECONDS = integer("poisonMaxSeconds", 10,
+            v -> v >= 0 && v <= 600, "must be 0 (off) to 600");
+    /**
+     * Longest wither, slowness and mining fatigue last on a player inside a dungeon, in seconds (design pass
+     * 2026-10-09, Q10e: the same "hide for 30 seconds" complaint as poison). 0 turns a cap off.
+     */
+    private static final Knob<Integer> WITHER_MAX_SECONDS = integer("witherMaxSeconds", 8,
+            v -> v >= 0 && v <= 600, "must be 0 (off) to 600");
+    /** The trip sidebar (Q7): shown at all, and the ticks between repaints. */
+    private static final Knob<Boolean> SIDEBAR_ENABLED = flag("sidebarEnabled", true);
+    /**
+     * The scrap curve (design pass 2026-10-09, Q2). Going from compass {@code c} to {@code c + 1} costs
+     * {@code scrapCostBase + floor(c / scrapCostEvery)} scrap. A cleared floor pays its dealt step plus
+     * {@code scrapPerAct} for every act above the first plus {@code scrapFinalBonus} on a dungeon's final
+     * floor; below the player's compass it pays {@code belowCompassPercent} of that, at least 1. An Endless
+     * Mine floor adds 1 for every {@code endlessDepthEvery} floors down, up to {@code endlessDepthMax}, in
+     * place of the act bonus.
+     */
+    private static final Knob<Integer> SCRAP_COST_BASE = integer("scrapCostBase", 4,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    private static final Knob<Integer> SCRAP_COST_EVERY = integer("scrapCostEvery", 3,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    private static final Knob<Integer> SCRAP_PER_ACT = integer("scrapPerAct", 1,
+            v -> v >= 0 && v <= 3, "must be 0 to 3");
+    private static final Knob<Integer> SCRAP_FINAL_BONUS = integer("scrapFinalBonus", 1,
+            v -> v >= 0 && v <= 5, "must be 0 to 5");
+    private static final Knob<Integer> BELOW_COMPASS_PERCENT = integer("belowCompassPercent", 50,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    private static final Knob<Integer> ENDLESS_DEPTH_EVERY = integer("endlessDepthEvery", 4,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    private static final Knob<Integer> ENDLESS_DEPTH_MAX = integer("endlessDepthMax", 4,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    /**
+     * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
+     * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
+     * meter resets. A room with a spawner that is cleared without it ever answering pays sculkUnheardScrap into
+     * the haul. The ancientWardenAnswers-th answer on the Ancient City's final floor wakes the Warden.
+     */
+    private static final Knob<Integer> SCULK_HEARD_MAX = integer("sculkHeardMax", 4,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    private static final Knob<Integer> SCULK_HEARD_MAX_ANCIENT = integer("sculkHeardMaxAncient", 2,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    private static final Knob<Integer> SCULK_UNHEARD_SCRAP = integer("sculkUnheardScrap", 1,
+            v -> v >= 0 && v <= 3, "must be 0 to 3");
+    /**
+     * The Warden whelp a sculk answer sends (design pass 2026-10-09): a small melee-only Warden that always
+     * knows where the party is, one at a time, gone after whelpSeconds. Health, melee damage and speed are
+     * its own; the speed is a movement attribute (a player walks at 0.1, a zombie 0.23, a Warden 0.3).
+     */
+    private static final Knob<Double> WHELP_HEALTH = decimal("whelpHealth", 20.0,
+            v -> v >= 1.0 && v <= 200.0, "must be 1 to 200");
+    private static final Knob<Double> WHELP_DAMAGE = decimal("whelpDamage", 4.0,
+            v -> v >= 0.0 && v <= 30.0, "must be 0 to 30");
+    private static final Knob<Double> WHELP_SPEED = decimal("whelpSpeed", 0.3,
+            v -> v >= 0.1 && v <= 0.6, "must be 0.1 to 0.6");
+    private static final Knob<Integer> WHELP_SECONDS = integer("whelpSeconds", 15,
+            v -> v >= 3 && v <= 120, "must be 3 to 120");
+    private static final Knob<Integer> ANCIENT_WARDEN_ANSWERS = integer("ancientWardenAnswers", 2,
+            v -> v >= 1 && v <= 5, "must be 1 to 5");
+    /** The most tamed wolves one player keeps standing with them in a dungeon; the extras sit (design pass 2026-10-09, Q8). */
+    private static final Knob<Integer> PET_CAP = integer("petCap", 3, v -> v >= 0 && v <= 8, "must be 0 to 8");
+    /**
+     * The finale (design pass 2026-10-09, Q4): whether a dungeon\u0027s final floor ends in a wave, the extra
+     * reward chests it pays, the seconds between the title and the wave, and the percent an elite\u0027s health
+     * grows for each member past the first. {@code mobUniformEnabled} turns the per-dungeon mob uniform on.
+     */
+    private static final Knob<Boolean> FINALE_ENABLED = flag("finaleEnabled", true);
+    private static final Knob<Integer> FINALE_REWARD_CHESTS = integer("finaleRewardChests", 1,
+            v -> v >= 0 && v <= 3, "must be 0 to 3");
+    private static final Knob<Integer> FINALE_COUNTDOWN_SECONDS = integer("finaleCountdownSeconds", 3,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    private static final Knob<Integer> FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER = integer(
+            "finaleEliteHealthPercentPerMember", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
+    private static final Knob<Boolean> MOB_UNIFORM_ENABLED = flag("mobUniformEnabled", true);
+    /**
+     * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
+     * to pick an act and open any of its dungeons. Off restores the old three random doors.
+     */
+    private static final Knob<Boolean> HALL_ENABLED = flag("hallEnabled", true);
+    /** What a repeat finish of a dungeon pays of the finish emeralds, as a percent (the first finish pays all). */
+    private static final Knob<Integer> REPEAT_FINISH_EMERALD_PERCENT = integer("repeatFinishEmeraldPercent", 50,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    private static final Knob<Integer> SIDEBAR_REPAINT_TICKS = integer("sidebarRepaintTicks", 20,
+            v -> v >= 5 && v <= 100, "must be 5 to 100");
+    private static final Knob<Integer> SLOWNESS_MAX_SECONDS = integer("slownessMaxSeconds", 6,
+            v -> v >= 0 && v <= 600, "must be 0 (off) to 600");
+    private static final Knob<Integer> MINING_FATIGUE_MAX_SECONDS = integer("miningFatigueMaxSeconds", 30,
+            v -> v >= 0 && v <= 600, "must be 0 (off) to 600");
+    // J8/14d unregistered the Herobrine Cube station itself, so the cubeBlock,
+    // imbueMaterial, imbueCost and extractionReversible knobs went with it; the
+    // custom_data.pocketdungeons.power marker on already-imbued gear still feeds
+    // PowerListener, which is what these two remaining settings serve.
+    /**
+     * One extracted power's equip-time attribute bonus, read by
+     * {@code PowerListener} the same way {@link TrimBonusEntry} feeds
+     * {@code TrimListener}: {@code id} is the power id an extract ritual wrote
+     * ({@link AdventureGraph.Node#reward}), matched against
+     * {@code custom_data.pocketdungeons.power} on an imbued item.
+     */
+    private static final Knob<List<PowerBonusEntry>> POWER_BONUSES = new Knob<>("powerBonuses", defaultPowerBonuses(),
+            PocketDungeonsConfig::readPowerBonuses, PocketDungeonsConfig::powerBonusesJson);
+    /**
+     * L2 (D41): content module overrides, {@code "modules": {"alchemy": true}}. Not a number to read back: the
+     * map is handed to {@link ContentModules} as the file is read, and it is read first, before any other
+     * knob. It has no accessor here; {@link ContentModules#overrides()} is the way to read it.
+     */
+    private static final Knob<Map<String, Boolean>> MODULES = new Knob<Map<String, Boolean>>("modules", Map.of(),
+            PocketDungeonsConfig::readModules, ignored -> new JsonObject())
+            .early().withoutAccessor().publishing(ContentModules::setOverrides);
+    /**
+     * How many extracted powers can be active on a player at once, across every
+     * worn/held slot the Cube reads. A pool, not a per-piece allowance: three
+     * powers spread across five imbuable slots is still "at most three," not
+     * "at most three per slot." D3's own count.
+     */
+    private static final Knob<Integer> EQUIP_CAP = integer("equipCap", 3, v -> v >= 0, "must be >= 0");
 
-    /** One material's equip-time attribute bonus. See {@link #trimBonuses}. */
+    /** One material's equip-time attribute bonus. See {@link #trimBonuses()}. */
     public record TrimBonusEntry(String material, String attribute, double amount, String operation) {}
 
-    /** One extracted power's equip-time attribute bonus. See {@link #powerBonuses}. */
+    /** One extracted power's equip-time attribute bonus. See {@link #powerBonuses()}. */
     public record PowerBonusEntry(String id, String attribute, double amount, String operation) {}
 
     private static List<PowerBonusEntry> defaultPowerBonuses() {
@@ -265,141 +495,138 @@ public final class PocketDungeonsConfig {
         );
     }
 
-    // ---- run storage ------------------------------------------------------------
-    /**
-     * The block that opens run storage (see {@link RunStorage}). It used to open
-     * the gamble station, a duplicate of the blacksmith, which was removed
-     * (playtest 2026-10-02-1); the gamble itself went with the home vendor
-     * rework (J5a).
-     */
-    private static String storageBlock = "minecraft:ender_chest";
-
-    // ---- salvage bench (playtest 2026-09-29, docs/reference/SALVAGE_PROPOSAL.md) --
-    /**
-     * The block the salvage bench is. Claimed only while the player holds
-     * something salvageable, so an empty hand still opens the vanilla
-     * grindstone.
-     */
-    private static String salvageBlock = "minecraft:grindstone";
-    /**
-     * Superseded 2026-10-03 (owner request): scrapped gear pays the
-     * grindstone's XP and its materials, never emeralds, so this is no longer
-     * read. Kept so existing pocketdungeons.json files still load. It was the
-     * emeralds per tier for one piece of tagged gear.
-     */
-    private static int salvageEmeraldsPerTier = 1;
-    /** Emeralds per vault key: below the 1.4 a spawner's emerald eject is worth. */
-    private static int salvageKeyEmeralds = 1;
-    /** Emeralds per ominous vault key. */
-    private static int salvageOminousKeyEmeralds = 3;
-    /**
-     * Tuning knob (2026-10-08): extra pieces of material every salvaged item pays in every
-     * wear band, so what paid 0 pays 1, 1 pays 2, 2 pays 3. 0 restores the old table.
-     */
-    private static int salvageMaterialBonus = 1;
-
-    // ---- durability of dungeon gear (tuning knobs, 2026-10-08) ----------------------------
-    /**
-     * Percent of the dungeon durability cap ({@link DungeonTools#durabilityCap}) that gear from
-     * the mod's chests, vaults and gear tables gets: 110 is 10 percent more. 100 is the cap table as
-     * written.
-     */
-    private static int lootDurabilityPercent = 110;
-    /**
-     * Percent of the same cap table for crafted gear and everything else (owner, 2026-10-08: all gear gets
-     * 10 percent more); 100 is the table as written.
-     */
-    private static int craftedDurabilityPercent = 110;
+    // ---- the Knob descriptor and its factories ------------------------------------------
 
     /**
-     * The longest any poison lasts on a player inside a dungeon, in seconds (PD-178, owner ruling
-     * 2026-10-08: "10 seconds at the most"). 0 turns the cap off.
+     * One tunable. The descriptor is the whole definition: the JSON {@code key}, the default,
+     * how the file's value is read and checked, and the value in force. {@code key} is also the
+     * name of the public accessor, which {@code ConfigKnobsTest} enforces.
+     *
+     * <p>Built with {@link #integer}, {@link #decimal}, {@link #flag} or {@link #text}; the
+     * structured lists and the module map use the constructor with their own reader. A knob
+     * whose value must be checked against another knob, or remapped, adds {@link #after} or
+     * {@link #normalising}.
      */
-    private static int poisonMaxSeconds = 10;
-    /**
-     * Longest wither, slowness and mining fatigue last on a player inside a dungeon, in seconds (design pass
-     * 2026-10-09, Q10e: the same "hide for 30 seconds" complaint as poison). 0 turns a cap off.
-     */
-    private static int witherMaxSeconds = 8;
-    /** The trip sidebar (Q7): shown at all, and the ticks between repaints. */
-    private static boolean sidebarEnabled = true;
-    /**
-     * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
-     * to pick an act and open any of its dungeons. Off restores the old three random doors.
-     */
-    private static boolean hallEnabled = true;
-    /**
-     * The finale (design pass 2026-10-09, Q4): whether a dungeon\u0027s final floor ends in a wave, the extra
-     * reward chests it pays, the seconds between the title and the wave, and the percent an elite\u0027s health
-     * grows for each member past the first. {@code mobUniformEnabled} turns the per-dungeon mob uniform on.
-     */
-    private static boolean finaleEnabled = true;
-    /** The most tamed wolves one player keeps standing with them in a dungeon; the extras sit (design pass 2026-10-09, Q8). */
-    private static int petCap = 3;
-    /**
-     * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
-     * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
-     * meter resets. A room with a spawner that is cleared without it ever answering pays sculkUnheardScrap into
-     * the haul. The ancientWardenAnswers-th answer on the Ancient City's final floor wakes the Warden.
-     */
-    private static int sculkHeardMax = 4;
-    private static int sculkHeardMaxAncient = 2;
-    private static int sculkUnheardScrap = 1;
-    private static int ancientWardenAnswers = 2;
-    /**
-     * The Warden whelp a sculk answer sends (design pass 2026-10-09): a small melee-only Warden that always
-     * knows where the party is, one at a time, gone after whelpSeconds. Health, melee damage and speed are
-     * its own; the speed is a movement attribute (a player walks at 0.1, a zombie 0.23, a Warden 0.3).
-     */
-    private static double whelpHealth = 20.0;
-    private static double whelpDamage = 4.0;
-    private static double whelpSpeed = 0.3;
-    private static int whelpSeconds = 15;
-    private static int finaleRewardChests = 1;
-    private static int finaleCountdownSeconds = 3;
-    private static int finaleEliteHealthPercentPerMember = 50;
-    private static boolean mobUniformEnabled = true;
-    /** What a repeat finish of a dungeon pays of the finish emeralds, as a percent (the first finish pays all). */
-    private static int repeatFinishEmeraldPercent = 50;
-    /**
-     * The scrap curve (design pass 2026-10-09, Q2). Going from compass {@code c} to {@code c + 1} costs
-     * {@code scrapCostBase + floor(c / scrapCostEvery)} scrap. A cleared floor pays its dealt step plus
-     * {@code scrapPerAct} for every act above the first plus {@code scrapFinalBonus} on a dungeon's final
-     * floor; below the player's compass it pays {@code belowCompassPercent} of that, at least 1. An Endless
-     * Mine floor adds 1 for every {@code endlessDepthEvery} floors down, up to {@code endlessDepthMax}, in
-     * place of the act bonus.
-     */
-    private static int scrapCostBase = 4;
-    private static int scrapCostEvery = 3;
-    private static int scrapPerAct = 1;
-    private static int scrapFinalBonus = 1;
-    private static int belowCompassPercent = 50;
-    private static int endlessDepthEvery = 4;
-    private static int endlessDepthMax = 4;
-    private static int sidebarRepaintTicks = 20;
-    private static int slownessMaxSeconds = 6;
-    private static int miningFatigueMaxSeconds = 30;
+    static final class Knob<T> {
+        private final String key;
+        private final T defaultValue;
+        private final Function<JsonObject, T> reader;
+        private final Function<T, JsonElement> writer;
+        private T value;
+        private boolean early;
+        private boolean accessor = true;
+        private UnaryOperator<T> normaliser;
+        private Runnable afterRead;
+        private Consumer<T> publisher;
 
-    // ---- Powers (M17) --------------------------------------------------------
-    // J8/14d unregistered the Herobrine Cube station itself, so the cubeBlock,
-    // imbueMaterial, imbueCost and extractionReversible knobs went with it; the
-    // custom_data.pocketdungeons.power marker on already-imbued gear still feeds
-    // PowerListener, which is what these two remaining settings serve.
-    /**
-     * One extracted power's equip-time attribute bonus, read by
-     * {@code PowerListener} the same way {@link TrimBonusEntry} feeds
-     * {@code TrimListener}: {@code id} is the power id an extract ritual wrote
-     * ({@link AdventureGraph.Node#reward}), matched against
-     * {@code custom_data.pocketdungeons.power} on an imbued item.
-     */
-    private static List<PowerBonusEntry> powerBonuses = defaultPowerBonuses();
-    /**
-     * How many extracted powers can be active on a player at once, across every
-     * worn/held slot the Cube reads. A pool, not a per-piece allowance: three
-     * powers spread across five imbuable slots is still "at most three," not
-     * "at most three per slot." D3's own count.
-     */
-    private static int equipCap = 3;
+        Knob(String key, T defaultValue, Function<JsonObject, T> reader, Function<T, JsonElement> writer) {
+            this.key = key;
+            this.defaultValue = defaultValue;
+            this.reader = reader;
+            this.writer = writer;
+            this.value = defaultValue;
+            KNOBS.add(this);
+        }
+
+        String key() {
+            return key;
+        }
+
+        T get() {
+            return value;
+        }
+
+        T defaultValue() {
+            return defaultValue;
+        }
+
+        /** Whether a public accessor named {@link #key()} is required. */
+        boolean hasAccessor() {
+            return accessor;
+        }
+
+        /** The default as it is written to a new config file. */
+        JsonElement defaultJson() {
+            return writer.apply(defaultValue);
+        }
+
+        private void set(T newValue) {
+            value = newValue;
+        }
+
+        private void reset() {
+            value = defaultValue;
+            if (publisher != null) {
+                publisher.accept(value);
+            }
+        }
+
+        private void read(JsonObject root) {
+            T read = reader.apply(root);
+            value = normaliser != null ? normaliser.apply(read) : read;
+            if (publisher != null) {
+                publisher.accept(value);
+            }
+            if (afterRead != null) {
+                afterRead.run();
+            }
+        }
+
+        /** Rewrites the value just read (a saved value that names something retired). */
+        Knob<T> normalising(UnaryOperator<T> normalise) {
+            this.normaliser = normalise;
+            return this;
+        }
+
+        /** Runs after this knob is read, for a check that needs other knobs read before it. */
+        Knob<T> after(Runnable check) {
+            this.afterRead = check;
+            return this;
+        }
+
+        /** Reads before every other knob. */
+        Knob<T> early() {
+            this.early = true;
+            return this;
+        }
+
+        /** For a knob read through some other class, which therefore has no accessor here. */
+        Knob<T> withoutAccessor() {
+            this.accessor = false;
+            return this;
+        }
+
+        /** Hands every value read, and the default on a reset, to {@code consumer}. */
+        Knob<T> publishing(Consumer<T> consumer) {
+            this.publisher = consumer;
+            return this;
+        }
+    }
+
+    private static Knob<Integer> integer(String key, int defaultValue, IntPredicate valid, String requirement) {
+        return new Knob<>(key, defaultValue, root -> readInt(root, key, defaultValue, valid, requirement),
+                JsonPrimitive::new);
+    }
+
+    private static Knob<Double> decimal(String key, double defaultValue, DoublePredicate valid, String requirement) {
+        return new Knob<>(key, defaultValue, root -> readDouble(root, key, defaultValue, valid, requirement),
+                JsonPrimitive::new);
+    }
+
+    private static Knob<Boolean> flag(String key, boolean defaultValue) {
+        return new Knob<>(key, defaultValue, root -> readBoolean(root, key, defaultValue), JsonPrimitive::new);
+    }
+
+    /** {@code allowEmpty}: whether an empty string is a meaningful value (see {@link #readString}). */
+    private static Knob<String> text(String key, String defaultValue, boolean allowEmpty) {
+        return new Knob<>(key, defaultValue, root -> readString(root, key, defaultValue, allowEmpty),
+                JsonPrimitive::new);
+    }
+
+    /** The knobs in declaration order, for {@code ConfigKnobsTest}. */
+    static List<Knob<?>> knobs() {
+        return Collections.unmodifiableList(KNOBS);
+    }
 
     /** The file {@link #load} last read, so {@link #setModuleOverride} can write it back. */
     private static volatile Path configFile;
@@ -449,541 +676,425 @@ public final class PocketDungeonsConfig {
     }
 
     public static int slotPitch() {
-        return slotPitch;
+        return SLOT_PITCH.get();
     }
 
     public static int slotsPerRow() {
-        return slotsPerRow;
+        return SLOTS_PER_ROW.get();
     }
 
     public static int watchIntervalTicks() {
-        return watchIntervalTicks;
+        return WATCH_INTERVAL_TICKS.get();
     }
 
     public static int voidGuardDepth() {
-        return voidGuardDepth;
+        return VOID_GUARD_DEPTH.get();
     }
 
     public static int maxPartyMembers() {
-        return maxPartyMembers;
+        return MAX_PARTY_MEMBERS.get();
     }
 
     public static int ownerReconnectGraceSeconds() {
-        return ownerReconnectGraceSeconds;
+        return OWNER_RECONNECT_GRACE_SECONDS.get();
     }
 
     public static int inviteTtlSeconds() {
-        return inviteTtlSeconds;
+        return INVITE_TTL_SECONDS.get();
     }
 
     /** M76: cap on live (non-admin-build) instances. 0 disables the cap. */
     public static int maxConcurrentInstances() {
-        return maxConcurrentInstances;
+        return MAX_CONCURRENT_INSTANCES.get();
     }
 
     /** M76: cap on concurrent read-only visit instances. 0 disables the cap. */
     public static int maxConcurrentVisits() {
-        return maxConcurrentVisits;
+        return MAX_CONCURRENT_VISITS.get();
     }
 
     /** M76: cap on preview cells standing at once. 0 disables the cap. */
     public static int maxConcurrentPreviews() {
-        return maxConcurrentPreviews;
+        return MAX_CONCURRENT_PREVIEWS.get();
     }
 
     public static boolean playtestJournal() {
-        return playtestJournal;
+        return PLAYTEST_JOURNAL.get();
     }
 
     public static int lemonIdleSeconds() {
-        return lemonIdleSeconds;
+        return LEMON_IDLE_SECONDS.get();
     }
 
     public static int lemonAskIdleSeconds() {
-        return lemonAskIdleSeconds;
+        return LEMON_ASK_IDLE_SECONDS.get();
     }
 
     public static int lemonLlmLapseSeconds() {
-        return lemonLlmLapseSeconds;
+        return LEMON_LLM_LAPSE_SECONDS.get();
     }
 
     public static int lemonFallbackSeconds() {
-        return lemonFallbackSeconds;
+        return LEMON_FALLBACK_SECONDS.get();
     }
 
     public static int lemonLingerSeconds() {
-        return lemonLingerSeconds;
+        return LEMON_LINGER_SECONDS.get();
     }
 
     public static int lemonThinkSeconds() {
-        return lemonThinkSeconds;
+        return LEMON_THINK_SECONDS.get();
     }
 
     public static double omenDangerScalePerOmen() {
-        return omenDangerScalePerOmen;
+        return OMEN_DANGER_SCALE_PER_OMEN.get();
     }
 
     public static int pathLengthMin() {
-        return pathLengthMin;
+        return PATH_LENGTH_MIN.get();
     }
 
     public static int pathLengthMax() {
-        return pathLengthMax;
+        return PATH_LENGTH_MAX.get();
     }
 
     public static int firstFloorMaxEncounters() {
-        return firstFloorMaxEncounters;
+        return FIRST_FLOOR_MAX_ENCOUNTERS.get();
     }
 
     public static double branchProbability() {
-        return branchProbability;
+        return BRANCH_PROBABILITY.get();
     }
 
     public static double loopProbability() {
-        return loopProbability;
+        return LOOP_PROBABILITY.get();
     }
 
     public static int planAttemptBudget() {
-        return planAttemptBudget;
+        return PLAN_ATTEMPT_BUDGET.get();
     }
 
     /** The interval's usual length, and the door steps a keystone level costs. See the field. */
     public static int floorsPerSafeVisit() {
-        return floorsPerSafeVisit;
+        return FLOORS_PER_SAFE_VISIT.get();
     }
 
     /** The compass level the Endless Mine's door needs. See the field. */
     public static int endlessMineUnlockLevel() {
-        return endlessMineUnlockLevel;
+        return ENDLESS_MINE_UNLOCK_LEVEL.get();
     }
 
     public static int maxGridSpan() {
-        return maxGridSpan;
+        return MAX_GRID_SPAN.get();
     }
 
     public static int clearBlocksPerTick() {
-        return clearBlocksPerTick;
+        return CLEAR_BLOCKS_PER_TICK.get();
     }
 
     public static boolean ritualEnabled() {
-        return ritualEnabled;
+        return RITUAL_ENABLED.get();
     }
 
     public static String payoutCommand() {
-        return payoutCommand;
+        return PAYOUT_COMMAND.get();
     }
 
     public static String vaultKeyItem() {
-        return vaultKeyItem;
+        return VAULT_KEY_ITEM.get();
     }
 
     public static String ominousVaultKeyItem() {
-        return ominousVaultKeyItem;
+        return OMINOUS_VAULT_KEY_ITEM.get();
     }
 
     public static int trialSpawnerCooldownTicks() {
-        return trialSpawnerCooldownTicks;
+        return TRIAL_SPAWNER_COOLDOWN_TICKS.get();
     }
 
     public static double overclockedCooldownFactor() {
-        return overclockedCooldownFactor;
+        return OVERCLOCKED_COOLDOWN_FACTOR.get();
     }
 
     public static double swarmingMobFactor() {
-        return swarmingMobFactor;
+        return SWARMING_MOB_FACTOR.get();
     }
 
     public static int finishEmeralds() {
-        return finishEmeralds;
+        return FINISH_EMERALDS.get();
     }
 
     public static int finishVaultChests() {
-        return finishVaultChests;
+        return FINISH_VAULT_CHESTS.get();
     }
 
     public static int failHaulKeepPercent() {
-        return failHaulKeepPercent;
+        return FAIL_HAUL_KEEP_PERCENT.get();
     }
 
 
     public static double ordealEmeraldChance() {
-        return ordealEmeraldChance;
+        return ORDEAL_EMERALD_CHANCE.get();
     }
 
     public static double fountainChance() {
-        return fountainChance;
+        return FOUNTAIN_CHANCE.get();
     }
 
 
     public static int silencedConsumablesPerOmen() {
-        return silencedConsumablesPerOmen;
+        return SILENCED_CONSUMABLES_PER_OMEN.get();
     }
 
     public static double chaoticSpawnerChance() {
-        return chaoticSpawnerChance;
+        return CHAOTIC_SPAWNER_CHANCE.get();
     }
 
     public static int silencedPlayerRange() {
-        return silencedPlayerRange;
+        return SILENCED_PLAYER_RANGE.get();
     }
 
     public static int moltenHazardsPerCell() {
-        return moltenHazardsPerCell;
+        return MOLTEN_HAZARDS_PER_CELL.get();
     }
 
     public static int feralWolvesPerCell() {
-        return feralWolvesPerCell;
+        return FERAL_WOLVES_PER_CELL.get();
     }
 
     public static int explosiveHazardsPerCell() {
-        return explosiveHazardsPerCell;
+        return EXPLOSIVE_HAZARDS_PER_CELL.get();
     }
 
     public static double voidedCellChance() {
-        return voidedCellChance;
+        return VOIDED_CELL_CHANCE.get();
     }
 
     public static double mobScalePerLevel() {
-        return mobScalePerLevel;
+        return MOB_SCALE_PER_LEVEL.get();
     }
 
     public static double mobScaleBase() {
-        return mobScaleBase;
+        return MOB_SCALE_BASE.get();
     }
 
     public static double breezeHpMultiplier() {
-        return breezeHpMultiplier;
+        return BREEZE_HP_MULTIPLIER.get();
     }
 
     public static double spawnerClearThreshold() {
-        return spawnerClearThreshold;
+        return SPAWNER_CLEAR_THRESHOLD.get();
     }
 
     public static int pocket2TimerSeconds() {
-        return pocket2TimerSeconds;
+        return POCKET2_TIMER_SECONDS.get();
     }
 
     public static double pocket2DoorChance() {
-        return pocket2DoorChance;
+        return POCKET2_DOOR_CHANCE.get();
     }
 
     public static double anomalyRoomChance() {
-        return anomalyRoomChance;
+        return ANOMALY_ROOM_CHANCE.get();
     }
 
     public static String rerollBlock() {
-        return rerollBlock;
+        return REROLL_BLOCK.get();
     }
 
     public static int rerollLapisPerTier() {
-        return rerollLapisPerTier;
+        return REROLL_LAPIS_PER_TIER.get();
     }
 
     public static String storageBlock() {
-        return storageBlock;
+        return STORAGE_BLOCK.get();
     }
 
     public static String salvageBlock() {
-        return salvageBlock;
+        return SALVAGE_BLOCK.get();
     }
 
     public static int salvageEmeraldsPerTier() {
-        return salvageEmeraldsPerTier;
+        return SALVAGE_EMERALDS_PER_TIER.get();
     }
 
     public static int salvageKeyEmeralds() {
-        return salvageKeyEmeralds;
+        return SALVAGE_KEY_EMERALDS.get();
     }
 
     public static int salvageMaterialBonus() {
-        return salvageMaterialBonus;
+        return SALVAGE_MATERIAL_BONUS.get();
     }
 
     public static int lootDurabilityPercent() {
-        return lootDurabilityPercent;
+        return LOOT_DURABILITY_PERCENT.get();
     }
 
     public static int craftedDurabilityPercent() {
-        return craftedDurabilityPercent;
+        return CRAFTED_DURABILITY_PERCENT.get();
     }
 
     public static int poisonMaxSeconds() {
-        return poisonMaxSeconds;
+        return POISON_MAX_SECONDS.get();
     }
 
     public static int witherMaxSeconds() {
-        return witherMaxSeconds;
+        return WITHER_MAX_SECONDS.get();
     }
 
     public static int scrapCostBase() {
-        return scrapCostBase;
+        return SCRAP_COST_BASE.get();
     }
 
     public static int scrapCostEvery() {
-        return scrapCostEvery;
+        return SCRAP_COST_EVERY.get();
     }
 
     public static int scrapPerAct() {
-        return scrapPerAct;
+        return SCRAP_PER_ACT.get();
     }
 
     public static int scrapFinalBonus() {
-        return scrapFinalBonus;
+        return SCRAP_FINAL_BONUS.get();
     }
 
     public static int belowCompassPercent() {
-        return belowCompassPercent;
+        return BELOW_COMPASS_PERCENT.get();
     }
 
     public static int endlessDepthEvery() {
-        return endlessDepthEvery;
+        return ENDLESS_DEPTH_EVERY.get();
     }
 
     public static int endlessDepthMax() {
-        return endlessDepthMax;
+        return ENDLESS_DEPTH_MAX.get();
     }
 
     public static int sculkHeardMax() {
-        return sculkHeardMax;
+        return SCULK_HEARD_MAX.get();
     }
 
     public static int sculkHeardMaxAncient() {
-        return sculkHeardMaxAncient;
+        return SCULK_HEARD_MAX_ANCIENT.get();
     }
 
     public static double whelpHealth() {
-        return whelpHealth;
+        return WHELP_HEALTH.get();
     }
 
     public static double whelpDamage() {
-        return whelpDamage;
+        return WHELP_DAMAGE.get();
     }
 
     public static double whelpSpeed() {
-        return whelpSpeed;
+        return WHELP_SPEED.get();
     }
 
     public static int whelpSeconds() {
-        return whelpSeconds;
+        return WHELP_SECONDS.get();
     }
 
     public static int sculkUnheardScrap() {
-        return sculkUnheardScrap;
+        return SCULK_UNHEARD_SCRAP.get();
     }
 
     public static int ancientWardenAnswers() {
-        return ancientWardenAnswers;
+        return ANCIENT_WARDEN_ANSWERS.get();
     }
 
     public static int petCap() {
-        return petCap;
+        return PET_CAP.get();
     }
 
     public static boolean finaleEnabled() {
-        return finaleEnabled;
+        return FINALE_ENABLED.get();
     }
 
     public static int finaleRewardChests() {
-        return finaleRewardChests;
+        return FINALE_REWARD_CHESTS.get();
     }
 
     public static int finaleCountdownSeconds() {
-        return finaleCountdownSeconds;
+        return FINALE_COUNTDOWN_SECONDS.get();
     }
 
     public static int finaleEliteHealthPercentPerMember() {
-        return finaleEliteHealthPercentPerMember;
+        return FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER.get();
     }
 
     public static boolean mobUniformEnabled() {
-        return mobUniformEnabled;
+        return MOB_UNIFORM_ENABLED.get();
     }
 
     public static boolean hallEnabled() {
-        return hallEnabled;
+        return HALL_ENABLED.get();
     }
 
     public static int repeatFinishEmeraldPercent() {
-        return repeatFinishEmeraldPercent;
+        return REPEAT_FINISH_EMERALD_PERCENT.get();
     }
 
     public static boolean sidebarEnabled() {
-        return sidebarEnabled;
+        return SIDEBAR_ENABLED.get();
     }
 
     public static int sidebarRepaintTicks() {
-        return sidebarRepaintTicks;
+        return SIDEBAR_REPAINT_TICKS.get();
     }
 
     public static int slownessMaxSeconds() {
-        return slownessMaxSeconds;
+        return SLOWNESS_MAX_SECONDS.get();
     }
 
     public static int miningFatigueMaxSeconds() {
-        return miningFatigueMaxSeconds;
+        return MINING_FATIGUE_MAX_SECONDS.get();
     }
 
     public static int salvageOminousKeyEmeralds() {
-        return salvageOminousKeyEmeralds;
+        return SALVAGE_OMINOUS_KEY_EMERALDS.get();
     }
 
     public static List<PowerBonusEntry> powerBonuses() {
-        return powerBonuses;
+        return POWER_BONUSES.get();
     }
 
     public static int equipCap() {
-        return equipCap;
+        return EQUIP_CAP.get();
     }
 
     public static List<TrimBonusEntry> trimBonuses() {
-        return trimBonuses;
+        return TRIM_BONUSES.get();
     }
 
     public static boolean trimBonusDungeonOnly() {
-        return trimBonusDungeonOnly;
+        return TRIM_BONUS_DUNGEON_ONLY.get();
     }
 
     public static String keystoneItem() {
-        return keystoneItem;
+        return KEYSTONE_ITEM.get();
     }
 
     public static int keystoneMaxLevel() {
-        return keystoneMaxLevel;
+        return KEYSTONE_MAX_LEVEL.get();
     }
 
 
     public static int rewardRoomGraceSeconds() {
-        return rewardRoomGraceSeconds;
+        return REWARD_ROOM_GRACE_SECONDS.get();
     }
 
     public static int afkSeconds() {
-        return afkSeconds;
+        return AFK_SECONDS.get();
     }
 
     public static int timedOutDepletion() {
-        return timedOutDepletion;
+        return TIMED_OUT_DEPLETION.get();
     }
 
     private static void applyDefaults() {
-        slotPitch = 2048;
-        slotsPerRow = 64;
-        watchIntervalTicks = 20;
-        voidGuardDepth = 10;
-        maxPartyMembers = 6;
-        inviteTtlSeconds = 120;
-        ownerReconnectGraceSeconds = 120;
-        maxConcurrentInstances = 32;
-        maxConcurrentVisits = 16;
-        maxConcurrentPreviews = 16;
-        playtestJournal = true;
-        lemonIdleSeconds = 20;
-        lemonAskIdleSeconds = 120;
-        lemonLlmLapseSeconds = 300;
-        lemonFallbackSeconds = 45;
-        lemonLingerSeconds = 4;
-        lemonThinkSeconds = 90;
-        omenDangerScalePerOmen = 0.15;
-
-        pathLengthMin = 8;
-        pathLengthMax = 12;
-        firstFloorMaxEncounters = 2;
-        branchProbability = 0.55;
-        loopProbability = 0.30;
-        planAttemptBudget = 32;
-        maxGridSpan = 12;
-        clearBlocksPerTick = 8192;
-        floorsPerSafeVisit = 3;
-        endlessMineUnlockLevel = 3;
-        ritualEnabled = true;
-
-        payoutCommand = "";
-
-        vaultKeyItem = "minecraft:trial_key";
-        ominousVaultKeyItem = "minecraft:ominous_trial_key";
-        trialSpawnerCooldownTicks = 36000;
-
-        keystoneItem = "minecraft:recovery_compass";
-        keystoneMaxLevel = 100;
-
-        rewardRoomGraceSeconds = 600;
-        afkSeconds = 300;
-        timedOutDepletion = 1;
-
-        overclockedCooldownFactor = 0.4;
-        swarmingMobFactor = 1.5;
-        chaoticSpawnerChance = 0.05;
-        silencedConsumablesPerOmen = 3;
-        fountainChance = 0.15;
-        finishEmeralds = 8;
-        finishVaultChests = 2;
-        failHaulKeepPercent = ScrapMath.FAIL_KEEP_PERCENT;
-        ordealEmeraldChance = 0.25;
-        silencedPlayerRange = 6;
-        moltenHazardsPerCell = 4;
-        feralWolvesPerCell = 2;
-        explosiveHazardsPerCell = 4;
-        voidedCellChance = 0.3;
-
-        mobScalePerLevel = 0.008;
-        mobScaleBase = 0.65;
-        breezeHpMultiplier = 0.5;
-        spawnerClearThreshold = 0.75;
-
-        pocket2TimerSeconds = 60;
-        pocket2DoorChance = 0.2;
-
-        anomalyRoomChance = 0.08;
-
-        rerollBlock = "minecraft:enchanting_table";
-        rerollLapisPerTier = 4;
-
-        trimBonuses = defaultTrimBonuses();
-        trimBonusDungeonOnly = false;
-
-        storageBlock = "minecraft:ender_chest";
-
-        salvageBlock = "minecraft:grindstone";
-        salvageEmeraldsPerTier = 1;
-        salvageKeyEmeralds = 1;
-        salvageOminousKeyEmeralds = 3;
-        salvageMaterialBonus = 1;
-        lootDurabilityPercent = 110;
-        craftedDurabilityPercent = 110;
-        poisonMaxSeconds = 10;
-        witherMaxSeconds = 8;
-        sidebarEnabled = true;
-        hallEnabled = true;
-        sculkHeardMax = 4;
-        sculkHeardMaxAncient = 2;
-        sculkUnheardScrap = 1;
-        whelpHealth = 20.0;
-        whelpDamage = 4.0;
-        whelpSpeed = 0.3;
-        whelpSeconds = 15;
-        ancientWardenAnswers = 2;
-        petCap = 3;
-        finaleEnabled = true;
-        finaleRewardChests = 1;
-        finaleCountdownSeconds = 3;
-        finaleEliteHealthPercentPerMember = 50;
-        mobUniformEnabled = true;
-        repeatFinishEmeraldPercent = 50;
-        scrapCostBase = 4;
-        scrapCostEvery = 3;
-        scrapPerAct = 1;
-        scrapFinalBonus = 1;
-        belowCompassPercent = 50;
-        endlessDepthEvery = 4;
-        endlessDepthMax = 4;
-        sidebarRepaintTicks = 20;
-        slownessMaxSeconds = 6;
-        miningFatigueMaxSeconds = 30;
-
-        powerBonuses = defaultPowerBonuses();
-        equipCap = 3;
-
-        // L2 (D41): no content module overrides; every module sits at its manifest default.
-        ContentModules.setOverrides(Map.of());
+        for (Knob<?> knob : KNOBS) {
+            knob.reset();
+        }
     }
 
     /**
@@ -1016,11 +1127,26 @@ public final class PocketDungeonsConfig {
             PocketDungeonsMod.LOG.info("pocketdungeons.json still sets {}, which no longer do anything "
                     + "(retired keys); ignoring them", String.join(", ", retired));
         }
-        // L2 (D41): "modules": {"alchemy": true} overrides a content module's
-        // manifest default. A missing entry means the manifest default; a
-        // non-boolean value is ignored with a warning; an id no module
-        // declares is kept but reported at content reload time
-        // (ContentModuleLoader.parse).
+        for (Knob<?> knob : KNOBS) {
+            if (knob.early) {
+                knob.read(root);
+            }
+        }
+        for (Knob<?> knob : KNOBS) {
+            if (!knob.early) {
+                knob.read(root);
+            }
+        }
+    }
+
+    /**
+     * L2 (D41): {@code "modules": {"alchemy": true}} overrides a content module's
+     * manifest default. A missing entry means the manifest default; a
+     * non-boolean value is ignored with a warning; an id no module
+     * declares is kept but reported at content reload time
+     * (ContentModuleLoader.parse).
+     */
+    private static Map<String, Boolean> readModules(JsonObject root) {
         Map<String, Boolean> moduleOverrides = new java.util.LinkedHashMap<>();
         JsonElement modulesElement = root.get("modules");
         if (modulesElement != null && modulesElement.isJsonObject()) {
@@ -1034,63 +1160,22 @@ public final class PocketDungeonsConfig {
                 }
             }
         }
-        ContentModules.setOverrides(moduleOverrides);
-        // A cell is exactly one chunk only while the slot origin is chunk-aligned,
-        // and every force-load and teardown calculation downstream leans on that.
-        slotPitch = readInt(root, "slotPitch", 2048,
-                v -> v > 0 && v % 16 == 0, "must be > 0 and a multiple of 16");
-        slotsPerRow = readInt(root, "slotsPerRow", 64, v -> v > 0, "must be > 0");
-        watchIntervalTicks = readInt(root, "watchIntervalTicks", 20, v -> v > 0, "must be > 0");
-        voidGuardDepth = readInt(root, "voidGuardDepth", 10, v -> v >= 0, "must be >= 0");
-        maxPartyMembers = readInt(root, "maxPartyMembers", 6, v -> v >= 1, "must be >= 1");
-        // PD-45: 0 made the window sub-millisecond in practice (both
-        // consumers compare an expiry computed from currentTimeMillis() +
-        // ttl * 1000L against "now"), which silently disabled party kick
-        // confirmations and invites rather than the operator getting a
-        // diagnostic.
-        inviteTtlSeconds = readInt(root, "inviteTtlSeconds", 120, v -> v >= 1, "must be >= 1");
-        ownerReconnectGraceSeconds = readInt(root, "ownerReconnectGraceSeconds", 120,
-                v -> v >= 0 && v <= 3600, "must be between 0 and 3600");
-        maxConcurrentInstances = readInt(root, "maxConcurrentInstances", 32,
-                v -> v >= 0, "must be >= 0");
-        maxConcurrentVisits = readInt(root, "maxConcurrentVisits", 16,
-                v -> v >= 0, "must be >= 0");
-        maxConcurrentPreviews = readInt(root, "maxConcurrentPreviews", 16,
-                v -> v >= 0, "must be >= 0");
-        playtestJournal = readBoolean(root, "playtestJournal", true);
-        lemonIdleSeconds = readInt(root, "lemonIdleSeconds", 20,
-                v -> v >= 3 && v <= 600, "must be between 3 and 600");
-        lemonAskIdleSeconds = readInt(root, "lemonAskIdleSeconds", 120,
-                v -> v >= 10 && v <= 1800, "must be between 10 and 1800");
-        lemonLlmLapseSeconds = readInt(root, "lemonLlmLapseSeconds", 300,
-                v -> v >= 30 && v <= 3600, "must be between 30 and 3600");
-        lemonFallbackSeconds = readInt(root, "lemonFallbackSeconds", 45,
-                v -> v >= 5 && v <= 600, "must be between 5 and 600");
-        lemonLingerSeconds = readInt(root, "lemonLingerSeconds", 4,
-                v -> v >= 1 && v <= 60, "must be between 1 and 60");
-        lemonThinkSeconds = readInt(root, "lemonThinkSeconds", 90,
-                v -> v >= 10 && v <= 600, "must be between 10 and 600");
-        omenDangerScalePerOmen = readDouble(root, "omenDangerScalePerOmen", 0.15,
-                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
+        return moduleOverrides;
+    }
 
-        pathLengthMin = readInt(root, "pathLengthMin", 8, v -> v >= 2, "must be >= 2");
-        pathLengthMax = readInt(root, "pathLengthMax", 12, v -> v >= 2, "must be >= 2");
-        firstFloorMaxEncounters = readInt(root, "firstFloorMaxEncounters", 2, v -> v >= 0,
-                "must be >= 0 (0 means no cap)");
-        if (pathLengthMax < pathLengthMin) {
+    /** A path cannot be shorter at its longest than at its shortest; the file is wrong, so the max is raised. */
+    private static void raisePathLengthMax() {
+        int min = PATH_LENGTH_MIN.get();
+        int max = PATH_LENGTH_MAX.get();
+        if (max < min) {
             PocketDungeonsMod.LOG.error(
                     "pocketdungeons.json pathLengthMax ({}) is below pathLengthMin ({}); "
-                            + "using pathLengthMax = pathLengthMin", pathLengthMax, pathLengthMin);
-            pathLengthMax = pathLengthMin;
+                            + "using pathLengthMax = pathLengthMin", max, min);
+            PATH_LENGTH_MAX.set(min);
         }
-        branchProbability = readDouble(root, "branchProbability", 0.55,
-                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-        loopProbability = readDouble(root, "loopProbability", 0.30,
-                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-        planAttemptBudget = readInt(root, "planAttemptBudget", 32, v -> v >= 1, "must be >= 1");
-        maxGridSpan = readInt(root, "maxGridSpan", 12, v -> v >= 3, "must be >= 3");
-        floorsPerSafeVisit = readInt(root, "floorsPerSafeVisit", 3, v -> v >= 1, "must be >= 1");
-        endlessMineUnlockLevel = readInt(root, "endlessMineUnlockLevel", 3, v -> v >= 1, "must be >= 1");
+    }
+
+    private static void fitPathLengthsToGrid() {
         // PD-46: a path longer than the grid can possibly hold (its cell
         // count can never exceed maxGridSpan squared, whatever shape the
         // generator folds it into) fails RoomSelector.validate for every
@@ -1098,144 +1183,44 @@ public final class PocketDungeonsConfig {
         // StaticLayout forever. This is the worst-case bound the grid
         // literally cannot exceed, not a tight one: a real generated path
         // can still fail well below it depending on branching.
+        int maxGridSpan = MAX_GRID_SPAN.get();
         int maxPossiblePathLength = maxGridSpan * maxGridSpan;
-        if (pathLengthMax > maxPossiblePathLength) {
+        if (PATH_LENGTH_MAX.get() > maxPossiblePathLength) {
             PocketDungeonsMod.LOG.error(
                     "pocketdungeons.json pathLengthMax ({}) cannot fit inside a maxGridSpan of {} "
                             + "({} cells at most); clamping pathLengthMax to {}",
-                    pathLengthMax, maxGridSpan, maxPossiblePathLength, maxPossiblePathLength);
-            pathLengthMax = maxPossiblePathLength;
-            if (pathLengthMin > pathLengthMax) {
-                pathLengthMin = pathLengthMax;
+                    PATH_LENGTH_MAX.get(), maxGridSpan, maxPossiblePathLength, maxPossiblePathLength);
+            PATH_LENGTH_MAX.set(maxPossiblePathLength);
+            if (PATH_LENGTH_MIN.get() > PATH_LENGTH_MAX.get()) {
+                PATH_LENGTH_MIN.set(PATH_LENGTH_MAX.get());
             }
         }
-        clearBlocksPerTick = readInt(root, "clearBlocksPerTick", 8192,
-                v -> v >= 1024, "must be >= 1024");
+    }
 
-        ritualEnabled = readBoolean(root, "ritualEnabled", true);
-
-        payoutCommand = readString(root, "payoutCommand", "", true);
-
-        vaultKeyItem = readString(root, "vaultKeyItem", "minecraft:trial_key", false);
-        ominousVaultKeyItem = readString(root, "ominousVaultKeyItem",
-                "minecraft:ominous_trial_key", false);
-        trialSpawnerCooldownTicks = readInt(root, "trialSpawnerCooldownTicks", 36000,
-                v -> v >= 0, "must be >= 0");
-
-        keystoneItem = readString(root, "keystoneItem", "minecraft:recovery_compass", false);
-        keystoneMaxLevel = readInt(root, "keystoneMaxLevel", 100, v -> v >= 1, "must be >= 1");
-
-        rewardRoomGraceSeconds = readInt(root, "rewardRoomGraceSeconds", 600,
-                v -> v >= 0, "must be >= 0");
-        afkSeconds = readInt(root, "afkSeconds", 300, v -> v >= 0, "must be >= 0");
-        timedOutDepletion = readInt(root, "timedOutDepletion", 1, v -> v >= 0, "must be >= 0");
-
-        overclockedCooldownFactor = readDouble(root, "overclockedCooldownFactor", 0.4,
-                v -> v > 0 && v <= 1, "must be between 0 (exclusive) and 1");
-        swarmingMobFactor = readDouble(root, "swarmingMobFactor", 1.5,
-                v -> v >= 1, "must be >= 1");
-        chaoticSpawnerChance = readDouble(root, "chaoticSpawnerChance", 0.05,
-                v -> v >= 0 && v <= 1, "must be between 0 and 1");
-        silencedPlayerRange = readInt(root, "silencedPlayerRange", 6, v -> v >= 1, "must be >= 1");
-        silencedConsumablesPerOmen = readInt(root, "silencedConsumablesPerOmen", 3, v -> v >= 1, "must be >= 1");
-        fountainChance = readDouble(root, "fountainChance", 0.15, v -> v >= 0 && v <= 1,
-                "must be between 0 and 1");
-        finishEmeralds = readInt(root, "finishEmeralds", 8, v -> v >= 0, "must be >= 0");
-        finishVaultChests = readInt(root, "finishVaultChests", 2, v -> v >= 0 && v <= 6, "must be between 0 and 6");
-        failHaulKeepPercent = readInt(root, "failHaulKeepPercent", ScrapMath.FAIL_KEEP_PERCENT,
-                v -> v >= 0 && v <= 100, "must be between 0 and 100");
-        ordealEmeraldChance = readDouble(root, "ordealEmeraldChance", 0.25, v -> v >= 0 && v <= 1,
-                "must be between 0 and 1");
-        moltenHazardsPerCell = readInt(root, "moltenHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
-        feralWolvesPerCell = readInt(root, "feralWolvesPerCell", 2, v -> v >= 0, "must be >= 0");
-        explosiveHazardsPerCell = readInt(root, "explosiveHazardsPerCell", 4, v -> v >= 0, "must be >= 0");
-        voidedCellChance = readDouble(root, "voidedCellChance", 0.3,
-                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-
-        mobScalePerLevel = readDouble(root, "mobScalePerLevel", 0.008, v -> v >= 0, "must be >= 0");
-        mobScaleBase = readDouble(root, "mobScaleBase", 0.65, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
-        breezeHpMultiplier = readDouble(root, "breezeHpMultiplier", 0.5, v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
-        spawnerClearThreshold = readDouble(root, "spawnerClearThreshold", 0.75,
-                v -> v > 0.0 && v <= 1.0, "must be between 0.0 (exclusive) and 1.0");
-
-        pocket2TimerSeconds = readInt(root, "pocket2TimerSeconds", 60, v -> v >= 1, "must be >= 1");
-        pocket2DoorChance = readDouble(root, "pocket2DoorChance", 0.2,
-                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-
-        anomalyRoomChance = readDouble(root, "anomalyRoomChance", 0.08,
-                v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-
-        rerollBlock = readString(root, "rerollBlock", "minecraft:enchanting_table", false);
-        // J5 moved the reroll to the enchanting table and retired the smithing
-        // table as a station; a saved config that still names it is remapped
-        // rather than resurrecting the old station.
-        if ("minecraft:smithing_table".equals(rerollBlock)) {
-            PocketDungeonsMod.LOG.warn("rerollBlock was the smithing table, which is not a station "
-                    + "any more; using minecraft:enchanting_table for rerolls instead.");
-            rerollBlock = "minecraft:enchanting_table";
+    private static JsonElement trimBonusesJson(List<TrimBonusEntry> entries) {
+        JsonArray array = new JsonArray();
+        for (TrimBonusEntry entry : entries) {
+            JsonObject entryJson = new JsonObject();
+            entryJson.addProperty("material", entry.material());
+            entryJson.addProperty("attribute", entry.attribute());
+            entryJson.addProperty("amount", entry.amount());
+            entryJson.addProperty("operation", entry.operation());
+            array.add(entryJson);
         }
-        rerollLapisPerTier = readInt(root, "rerollLapisPerTier", 4, v -> v >= 0, "must be >= 0");
+        return array;
+    }
 
-        trimBonuses = readTrimBonuses(root);
-        trimBonusDungeonOnly = readBoolean(root, "trimBonusDungeonOnly", false);
-
-        storageBlock = readString(root, "storageBlock", "minecraft:ender_chest", false);
-        // A build between the gamble block's removal and the 2026-10-02 swap wrote
-        // the copper chest here. That block is the bag chest now, so the value would
-        // make every staging room's storage a second bag chest.
-        if ("minecraft:waxed_oxidized_copper_chest".equals(storageBlock)) {
-            PocketDungeonsMod.LOG.warn("storageBlock was the waxed oxidized copper chest, which is the bag "
-                    + "chest now; using minecraft:ender_chest for run storage instead.");
-            storageBlock = "minecraft:ender_chest";
+    private static JsonElement powerBonusesJson(List<PowerBonusEntry> entries) {
+        JsonArray array = new JsonArray();
+        for (PowerBonusEntry entry : entries) {
+            JsonObject entryJson = new JsonObject();
+            entryJson.addProperty("id", entry.id());
+            entryJson.addProperty("attribute", entry.attribute());
+            entryJson.addProperty("amount", entry.amount());
+            entryJson.addProperty("operation", entry.operation());
+            array.add(entryJson);
         }
-        salvageBlock = readString(root, "salvageBlock", "minecraft:grindstone", false);
-        salvageEmeraldsPerTier = readInt(root, "salvageEmeraldsPerTier", 1, v -> v >= 0, "must be >= 0");
-        salvageKeyEmeralds = readInt(root, "salvageKeyEmeralds", 1, v -> v >= 0, "must be >= 0");
-        salvageOminousKeyEmeralds = readInt(root, "salvageOminousKeyEmeralds", 3, v -> v >= 0, "must be >= 0");
-        salvageMaterialBonus = readInt(root, "salvageMaterialBonus", 1, v -> v >= 0 && v <= 20, "must be 0 to 20");
-        lootDurabilityPercent = readInt(root, "lootDurabilityPercent", 110, v -> v >= 10 && v <= 1000,
-                "must be 10 to 1000");
-        craftedDurabilityPercent = readInt(root, "craftedDurabilityPercent", 110, v -> v >= 10 && v <= 1000,
-                "must be 10 to 1000");
-        poisonMaxSeconds = readInt(root, "poisonMaxSeconds", 10, v -> v >= 0 && v <= 600,
-                "must be 0 (off) to 600");
-        witherMaxSeconds = readInt(root, "witherMaxSeconds", 8, v -> v >= 0 && v <= 600,
-                "must be 0 (off) to 600");
-        sidebarEnabled = readBoolean(root, "sidebarEnabled", true);
-        scrapCostBase = readInt(root, "scrapCostBase", 4, v -> v >= 2 && v <= 10, "must be 2 to 10");
-        scrapCostEvery = readInt(root, "scrapCostEvery", 3, v -> v >= 1 && v <= 10, "must be 1 to 10");
-        scrapPerAct = readInt(root, "scrapPerAct", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
-        scrapFinalBonus = readInt(root, "scrapFinalBonus", 1, v -> v >= 0 && v <= 5, "must be 0 to 5");
-        belowCompassPercent = readInt(root, "belowCompassPercent", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
-        endlessDepthEvery = readInt(root, "endlessDepthEvery", 4, v -> v >= 1 && v <= 10, "must be 1 to 10");
-        endlessDepthMax = readInt(root, "endlessDepthMax", 4, v -> v >= 0 && v <= 10, "must be 0 to 10");
-        sculkHeardMax = readInt(root, "sculkHeardMax", 4, v -> v >= 1 && v <= 10, "must be 1 to 10");
-        sculkHeardMaxAncient = readInt(root, "sculkHeardMaxAncient", 2, v -> v >= 1 && v <= 10, "must be 1 to 10");
-        whelpHealth = readDouble(root, "whelpHealth", 20.0, v -> v >= 1.0 && v <= 200.0, "must be 1 to 200");
-        whelpDamage = readDouble(root, "whelpDamage", 4.0, v -> v >= 0.0 && v <= 30.0, "must be 0 to 30");
-        whelpSpeed = readDouble(root, "whelpSpeed", 0.3, v -> v >= 0.1 && v <= 0.6, "must be 0.1 to 0.6");
-        whelpSeconds = readInt(root, "whelpSeconds", 15, v -> v >= 3 && v <= 120, "must be 3 to 120");
-        sculkUnheardScrap = readInt(root, "sculkUnheardScrap", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
-        ancientWardenAnswers = readInt(root, "ancientWardenAnswers", 2, v -> v >= 1 && v <= 5, "must be 1 to 5");
-        petCap = readInt(root, "petCap", 3, v -> v >= 0 && v <= 8, "must be 0 to 8");
-        finaleEnabled = readBoolean(root, "finaleEnabled", true);
-        finaleRewardChests = readInt(root, "finaleRewardChests", 1, v -> v >= 0 && v <= 3, "must be 0 to 3");
-        finaleCountdownSeconds = readInt(root, "finaleCountdownSeconds", 3, v -> v >= 0 && v <= 10, "must be 0 to 10");
-        finaleEliteHealthPercentPerMember = readInt(root, "finaleEliteHealthPercentPerMember", 50,
-                v -> v >= 0 && v <= 100, "must be 0 to 100");
-        mobUniformEnabled = readBoolean(root, "mobUniformEnabled", true);
-        hallEnabled = readBoolean(root, "hallEnabled", true);
-        repeatFinishEmeraldPercent = readInt(root, "repeatFinishEmeraldPercent", 50, v -> v >= 0 && v <= 100,
-                "must be 0 to 100");
-        sidebarRepaintTicks = readInt(root, "sidebarRepaintTicks", 20, v -> v >= 5 && v <= 100,
-                "must be 5 to 100");
-        slownessMaxSeconds = readInt(root, "slownessMaxSeconds", 6, v -> v >= 0 && v <= 600,
-                "must be 0 (off) to 600");
-        miningFatigueMaxSeconds = readInt(root, "miningFatigueMaxSeconds", 30, v -> v >= 0 && v <= 600,
-                "must be 0 (off) to 600");
-
-        powerBonuses = readPowerBonuses(root);
-        equipCap = readInt(root, "equipCap", 3, v -> v >= 0, "must be >= 0");
+        return array;
     }
 
     private static List<PowerBonusEntry> readPowerBonuses(JsonObject root) {
@@ -1453,142 +1438,9 @@ public final class PocketDungeonsConfig {
 
     private static JsonObject defaultsJson() {
         JsonObject root = new JsonObject();
-        root.addProperty("slotPitch", 2048);
-        root.addProperty("slotsPerRow", 64);
-        root.addProperty("watchIntervalTicks", 20);
-        root.addProperty("voidGuardDepth", 10);
-        root.addProperty("maxPartyMembers", 6);
-        root.addProperty("inviteTtlSeconds", 120);
-        root.addProperty("ownerReconnectGraceSeconds", 120);
-        root.addProperty("maxConcurrentInstances", 32);
-        root.addProperty("maxConcurrentVisits", 16);
-        root.addProperty("maxConcurrentPreviews", 16);
-        root.addProperty("playtestJournal", true);
-        root.addProperty("lemonIdleSeconds", 20);
-        root.addProperty("lemonAskIdleSeconds", 120);
-        root.addProperty("lemonLlmLapseSeconds", 300);
-        root.addProperty("lemonFallbackSeconds", 45);
-        root.addProperty("lemonLingerSeconds", 4);
-        root.addProperty("lemonThinkSeconds", 90);
-        root.addProperty("omenDangerScalePerOmen", 0.15);
-
-        root.addProperty("pathLengthMin", 8);
-        root.addProperty("pathLengthMax", 12);
-        root.addProperty("firstFloorMaxEncounters", 2);
-        root.addProperty("branchProbability", 0.55);
-        root.addProperty("loopProbability", 0.30);
-        root.addProperty("planAttemptBudget", 32);
-        root.addProperty("maxGridSpan", 12);
-        root.addProperty("clearBlocksPerTick", 8192);
-        root.addProperty("floorsPerSafeVisit", 3);
-        root.addProperty("endlessMineUnlockLevel", 3);
-
-        root.addProperty("ritualEnabled", true);
-
-        root.addProperty("payoutCommand", "");
-
-        root.addProperty("vaultKeyItem", "minecraft:trial_key");
-        root.addProperty("ominousVaultKeyItem", "minecraft:ominous_trial_key");
-        root.addProperty("trialSpawnerCooldownTicks", 36000);
-
-        root.addProperty("keystoneItem", "minecraft:recovery_compass");
-        root.addProperty("keystoneMaxLevel", 100);
-
-        root.addProperty("rewardRoomGraceSeconds", 600);
-        root.addProperty("afkSeconds", 300);
-        root.addProperty("timedOutDepletion", 1);
-
-        root.addProperty("overclockedCooldownFactor", 0.4);
-        root.addProperty("swarmingMobFactor", 1.5);
-        root.addProperty("chaoticSpawnerChance", 0.05);
-        root.addProperty("silencedPlayerRange", 6);
-        root.addProperty("silencedConsumablesPerOmen", 3);
-        root.addProperty("fountainChance", 0.15);
-        root.addProperty("finishEmeralds", 8);
-        root.addProperty("finishVaultChests", 2);
-        root.addProperty("failHaulKeepPercent", ScrapMath.FAIL_KEEP_PERCENT);
-        root.addProperty("ordealEmeraldChance", 0.25);
-        root.addProperty("moltenHazardsPerCell", 4);
-        root.addProperty("feralWolvesPerCell", 2);
-        root.addProperty("explosiveHazardsPerCell", 4);
-        root.addProperty("voidedCellChance", 0.3);
-
-        root.addProperty("mobScalePerLevel", 0.008);
-        root.addProperty("mobScaleBase", 0.65);
-        root.addProperty("breezeHpMultiplier", 0.5);
-        root.addProperty("spawnerClearThreshold", 0.75);
-
-        root.addProperty("pocket2TimerSeconds", 60);
-        root.addProperty("pocket2DoorChance", 0.2);
-
-        root.addProperty("anomalyRoomChance", 0.08);
-
-        root.addProperty("rerollBlock", "minecraft:enchanting_table");
-        root.addProperty("rerollLapisPerTier", 4);
-
-        JsonArray trimBonusesJson = new JsonArray();
-        for (TrimBonusEntry entry : defaultTrimBonuses()) {
-            JsonObject entryJson = new JsonObject();
-            entryJson.addProperty("material", entry.material());
-            entryJson.addProperty("attribute", entry.attribute());
-            entryJson.addProperty("amount", entry.amount());
-            entryJson.addProperty("operation", entry.operation());
-            trimBonusesJson.add(entryJson);
+        for (Knob<?> knob : KNOBS) {
+            root.add(knob.key(), knob.defaultJson());
         }
-        root.add("trimBonuses", trimBonusesJson);
-        root.addProperty("trimBonusDungeonOnly", false);
-
-        root.addProperty("storageBlock", "minecraft:ender_chest");
-
-        root.addProperty("salvageBlock", "minecraft:grindstone");
-        root.addProperty("salvageEmeraldsPerTier", 1);
-        root.addProperty("salvageKeyEmeralds", 1);
-        root.addProperty("salvageOminousKeyEmeralds", 3);
-        root.addProperty("salvageMaterialBonus", 1);
-        root.addProperty("lootDurabilityPercent", 110);
-        root.addProperty("craftedDurabilityPercent", 110);
-        root.addProperty("poisonMaxSeconds", 10);
-        root.addProperty("witherMaxSeconds", 8);
-        root.addProperty("sidebarEnabled", true);
-        root.addProperty("scrapCostBase", 4);
-        root.addProperty("scrapCostEvery", 3);
-        root.addProperty("scrapPerAct", 1);
-        root.addProperty("scrapFinalBonus", 1);
-        root.addProperty("belowCompassPercent", 50);
-        root.addProperty("endlessDepthEvery", 4);
-        root.addProperty("endlessDepthMax", 4);
-        root.addProperty("sculkHeardMax", 4);
-        root.addProperty("sculkHeardMaxAncient", 2);
-        root.addProperty("sculkUnheardScrap", 1);
-        root.addProperty("whelpHealth", 20.0);
-        root.addProperty("whelpDamage", 4.0);
-        root.addProperty("whelpSpeed", 0.3);
-        root.addProperty("whelpSeconds", 15);
-        root.addProperty("ancientWardenAnswers", 2);
-        root.addProperty("petCap", 3);
-        root.addProperty("finaleEnabled", true);
-        root.addProperty("finaleRewardChests", 1);
-        root.addProperty("finaleCountdownSeconds", 3);
-        root.addProperty("finaleEliteHealthPercentPerMember", 50);
-        root.addProperty("mobUniformEnabled", true);
-        root.addProperty("hallEnabled", true);
-        root.addProperty("repeatFinishEmeraldPercent", 50);
-        root.addProperty("sidebarRepaintTicks", 20);
-        root.addProperty("slownessMaxSeconds", 6);
-        root.addProperty("miningFatigueMaxSeconds", 30);
-
-        JsonArray powerBonusesJson = new JsonArray();
-        for (PowerBonusEntry entry : defaultPowerBonuses()) {
-            JsonObject entryJson = new JsonObject();
-            entryJson.addProperty("id", entry.id());
-            entryJson.addProperty("attribute", entry.attribute());
-            entryJson.addProperty("amount", entry.amount());
-            entryJson.addProperty("operation", entry.operation());
-            powerBonusesJson.add(entryJson);
-        }
-        root.add("powerBonuses", powerBonusesJson);
-        root.add("modules", new JsonObject());
-        root.addProperty("equipCap", 3);
         return root;
     }
 }
