@@ -5,22 +5,32 @@ A server-side Fabric mod for MC 26.2. `/dungeon` to go in.
 ## Where to start
 
 Read `plans/COMPLETED-MILESTONES.md` for what was built (the highest `## M{n}`
-heading in that file is the current code-complete range), and
-`docs/reference/LIVE_TEST_PASS.md` for the outstanding live verification pass.
+heading in that file is the current code-complete range),
+`docs/playtests/LIVE_CHECKS.md` for what is built but not yet seen in play, and
+`docs/reference/BUGS.md` for the numbered bug and design ledger (PD-n). The older
+`docs/reference/LIVE_TEST_PASS.md` is the original live verification pass.
 
 ## Key features
 
 - **Private dungeon instances** in a void dimension, seeded per player.
-- **Keystone progression**: run dungeons to level up your keystone, unlock
-  higher tiers and greater doors.
-- **Room stations**: place a smithing table to reroll enchantments (lapis)
-  and spawn a blacksmith NPC that sells random gear for emeralds. Place a
-  Herobrine Cube to extract and imbue powers.
-- **Tracker screen**: a physical screen in the player's room shows the
-  active guided task and, once the tutorial is done, weekly bounty progress.
-  Replaces the originally planned scoreboard sidebar.
+- **The compass, the haul and lives**: floors pay scrap into a haul; going
+  home or finishing a dungeon banks it into your compass level; a failed
+  dungeon keeps half. The party shares five lives, and side doors cost lives.
+- **The Astrolabe Room**: choose your act and dungeon in the world, look
+  through the window, pull the DESCEND lever.
+- **Dungeons by act**: story dungeons (Mineshaft, Infestation, Ossuary, the
+  Kennels, Copper Works, Deepslate, Frostworks and on), resource dungeons (Cow
+  Pits, Lush Caves, the Endless Mine), and capstone bosses. Most end in a
+  finale on the last floor. Affixes, sculk that listens, hostile wolves and more.
+- **Room stations**: an enchanting table rerolls enchantments (lapis), a
+  grindstone scraps gear, and a librarian and merchants buy and sell for emeralds.
+- **Trip sidebar**: floor, lives, spawners, haul and compass while you play
+  (`/dungeon display off` hides it).
 - **Trial spawners and vaults**: dungeon rooms contain trial spawners that
-  eject vault keys (50%) or emeralds (50%).
+  eject vault keys or emeralds; a key lasts the dungeon and turns into
+  emeralds if unused when the haul banks.
+- **Lodestone menu**: Start Dungeon, Manage Room, Inspect Compass, Manage Party
+  (invites, bans, building rights) and View Lobbies.
 
 ## Active documents
 
@@ -28,7 +38,9 @@ heading in that file is the current code-complete range), and
 |---|---|
 | `docs/DISCOVERIES.md` | Verified 26.2 API findings, so nobody re-derives them the hard way |
 | `docs/DIALOGS_SPEC.md` | Menu shapes, specced before they are built |
-| `docs/INTEGRATION.md` | The published datapack schema (`dungeon_room`, `dungeon_theme`, `dungeon_adventure`, `anomaly_room`, `diary`), for pack authors |
+| `docs/INTEGRATION.md` | The published datapack schema (`dungeon_room`, `dungeon_theme`, `dungeon_adventure`, `dungeon`, `anomaly_room`, `diary`, affixes, bags, roles, cube recipes), for pack authors |
+| `tools/lemon/GUIDE.md` | The game in plain words, as Lemon explains it; the quickest accurate summary of the rules |
+| `.claude/skills/` (workspace root) | How to build content, text, screens and tests for this mod |
 | `plans/COMPLETED-MILESTONES.md` | Architectural summary of every completed milestone |
 
 ## Reference vault (`docs/reference/`)

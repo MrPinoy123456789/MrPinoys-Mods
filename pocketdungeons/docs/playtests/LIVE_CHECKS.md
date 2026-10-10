@@ -203,7 +203,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L15. 2026-10-02: librarian lock in and run storage
 
-- **Status:** owed, 2026-10-04-1.md: run storage persists across floor clears and two banks (27 books and 54 emeralds still there), the "wiped" claim at 04:16 did not reproduce; librarian, lectern and Lock in not seen. Earlier: owed, 2026-10-02-2.md: not settled. Discovery failed: the player asked how to make a lectern and did not know the station picker hands it out. He then rejected the "Lock in" idea ("there's no lock in"): he wants the librarian to sell a Mending book. Run storage and the librarian itself were not seen.
+- **Status:** retired 2026-10-10 (Lock in is gone and its config keys are retired; Mending is a 64 emerald librarian offer, see L52; run storage passed in L48). Was: owed, 2026-10-04-1.md: run storage persists across floor clears and two banks (27 books and 54 emeralds still there), the "wiped" claim at 04:16 did not reproduce; librarian, lectern and Lock in not seen. Earlier: owed, 2026-10-02-2.md: not settled. Discovery failed: the player asked how to make a lectern and did not know the station picker hands it out. He then rejected the "Lock in" idea ("there's no lock in"): he wants the librarian to sell a Mending book. Run storage and the librarian itself were not seen.
 - **Changed:** 2026-10-02 (owner decisions): Mending no longer drops or rerolls onto gear. A lectern placed in the room spawns a librarian; right-clicking the librarian holding gear offers "Lock in" for 32 emeralds (`lockInEmeralds`), which adds Mending and a "Locked in" lore line. Locked gear is refused by the salvage bench and the reroll station. The gamble block no longer exists. Every staging room now has an ender chest set into the wall to the right of the selector doors (rebuilt with the room every interval); it, or any ender chest in the dungeon, opens Run Storage (27 private slots kept for the run) so it feels vanilla while gated behind the scenes. When the run closes the contents go into the dungeon pack, never the survival inventory, and a max-omen death rolls the storage back to the interval start like the pack; the bag chest at the safe room centre is now a waxed oxidized copper chest (swapped with the ender chest). The blacksmith is now the only way to gamble. The station picker lists Run Storage and the Lectern.
 - **Do:** with consent, give the player a lectern and emeralds (or watch for them to take one from the station picker at keystone level 5). Watch whether they find the librarian, understand the price, and whether locked gear surprises them at the bench. For storage, watch whether they notice the chest in the staging room wall without being told, whether they use it, and whether the items are in the dungeon pack on the next entry after the run closes.
 - **Pass:** a lectern spawns exactly one librarian; the trade preview shows Mending and the cost; the emeralds leave and the held piece keeps its enchantments plus Mending; the bench says "locked in, kept safe"; the staging room chest is there on every interval for every member; stored items are in the dungeon pack on the next entry and never in the survival inventory; no Mending in chest loot.
@@ -225,7 +225,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 ## L17. 2026-10-02: Lemon's diary archive
 
 - **Status:** owed
-- **Changed:** 2026-10-02: right-clicking Lemon holding a found diary book makes her keep it (the entry is recorded for good, she tells a tip, and holding every entry grants one extra echo shard per completed interval, `lemon_archive` in the `echo_shards` events). Books found before this change are not tagged; the Diaries menu entries still read in the book screen either way.
+- **Changed:** 2026-10-02: right-clicking Lemon holding a found diary book makes her keep it (the entry is recorded for good, she tells a tip, and holding every entry pays 8 emeralds at a dungeon finish since echo shards were retired, `lemon_archive` in the emeralds events). Books found before this change are not tagged; the Diaries menu entries still read in the book screen either way.
 - **Do:** with consent, once the player holds a diary, ask whether they would give it to Lemon (do not say how: watch). Note the tip and whether they find it useful.
 - **Pass:** the book leaves the hand, Lemon speaks a tip and the count, a duplicate is refused and kept.
 - **Fail signs:** the book is consumed without a line, or the click opens the menu instead.
@@ -248,7 +248,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L20. 2026-10-03: gated puzzle rooms face the approach (PD-133)
 
-- **Status:** partial and failed, 2026-10-04-1.md: rotation_lock (frostworks) and sensor_gallery (frostworks, ender_archive) were entered with no closed door in the way, solves not watched; sorting_floor FAILED (PD-144: pre solved, two door sets, water everywhere, free sticks). Owed: a watched solve of each, and sorting_floor after the fix. Earlier: owed
+- **Status:** partial and failed (note 2026-10-10: `sensor_gallery` is retired and gone from the room list, the Hush Gallery replaced it, so only rotation_lock and sorting_floor remain to bias; sensor halls are L58), 2026-10-04-1.md: rotation_lock (frostworks) and sensor_gallery (frostworks, ender_archive) were entered with no closed door in the way, solves not watched; sorting_floor FAILED (PD-144: pre solved, two door sets, water everywhere, free sticks). Owed: a watched solve of each, and sorting_floor after the fix. Earlier: owed
 - **Changed:** 2026-10-03: every gated room (rotation_lock, frame_lock, plate_pair, item_plate, flow_puzzle, hold_the_plate, sorting_floor, sensor_gallery and the knowledge rooms) is turned so its open side faces the cell you arrive from. sorting_floor and sensor_gallery used to be dead ends with a door into the wall; they are real pass-through gates now, with regenerated templates.
 - **Do:** bias `rotation_lock`, then `sorting_floor` and `sensor_gallery` (ask first). Walk in from the previous room.
 - **Pass:** the iron door is always on the far side; the room can be entered and solved; solving opens the way on.
@@ -272,7 +272,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L23. 2026-10-04: the bag chest is a kit station (RETIRED 2026-10-05, dungeon structure W5)
 
-- **Status:** owed (partial), 2026-10-04-1.md: `kit_refill` fired on both banks (04:28:48, 05:37:50); the second overwrote an unused shield and stone sword (leftovers replaced, not stacked). Not seen: two players, the chest itself in play. The owner is now leaning toward removing refills (4 or 5 starting kits, no refill), so this row may be retired by an owner decision. Earlier: owed
+- **Status:** retired 2026-10-05 (W5: five kits, granted once, no refill; the bag chest refill is gone). Was: owed, 2026-10-04-1.md: `kit_refill` fired on both banks (04:28:48, 05:37:50); the second overwrote an unused shield and stone sword (leftovers replaced, not stacked). Not seen: two players, the chest itself in play. The owner is now leaning toward removing refills (4 or 5 starting kits, no refill), so this row may be retired by an owner decision. Earlier: owed
 - **Changed:** 2026-10-04 (owner decision): the bag chest stands in the safe room for good. With no bag, clicking it picks one (the kit goes into the pack, as before). With a bag, it opens the player's own 27 slots, "Your Kit". Every trip home that banked a floor fills those slots with a fresh full kit, overwriting whatever was left; the old top-up into the pack is gone. Each party member has their own slots. Journal event `kit_refill`. Fix 2026-10-04 (owner report): the chest is placed once, saves with the room and can be mined and set down anywhere in the safe room (not elsewhere); a new one appears only if the room has none and the owner is not carrying one. Death now reads "You come to at the Doors, with the feeling of a bad omen." (players call the staging room the Doors).
 - **Do:** after a trip home, have each player open the bag chest; leave something in it, go out and come home again.
 - **Pass:** a moved chest stays where it was put and still opens the kit, with no second chest at the centre; a full fresh kit after each banked trip; leftovers replaced, not added to; two players see their own kits; the chest is there on every return.
@@ -304,7 +304,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L27. 2026-10-05: shards buy branches (Stage 1 hypothesis 4, A3 and A6)
 
-- **Status:** owed, 2026-10-07-1.md: still not exercised (no priced edge taken), but the currency has moved to scrap: a side-branch refusal "2 scrap short" was seen live (PD-162: it names the gap, not the holding). This row's shard wording is stale. Earlier: owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
+- **Status:** superseded 2026-10-07 (Haul and Blood Doors: side doors cost lives, see L54; the shard wording is dead). Was: owed, 2026-10-07-1.md: still not exercised (no priced edge taken), but the currency has moved to scrap: a side-branch refusal "2 scrap short" was seen live (PD-162: it names the gap, not the holding). This row's shard wording is stale. Earlier: owed, 2026-10-05-1.md: not exercised. The Mineshaft has only free main edges, so no side branch was ever offered; he holds 6 echo shards (carried over).
 - **Changed:** 2026-10-05: a side edge costs echo shards (authored per edge, usually 1), paid by the member who pulls the lever; shards come only from finishing a dungeon and from Ordeals.
 - **Do:** watch shards held at each staging room, side branches taken and shards left unspent. Journal: `edge_taken` with its cost.
 - **Pass:** he takes a side branch at least once and weighs it aloud, with some shards spent and some kept.
@@ -377,7 +377,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 ## L36. 2026-10-05: Endless Mine seal and the deepest floor
 
 - **Status:** owed, 2026-10-05-1.md: not seen; the Mine only appears on door 3 once Act 2 is unlocked, and the Act 1 capstone was not cleared.
-- **Changed:** 2026-10-05 (D13): after Act 1's capstone the first staging room shows the Endless Mine on door 3; layers open by act; the deepest floor shows on the history board.
+- **Changed:** 2026-10-05 (D13; since 2026-10-09 the Mine is a special door at an end of the Astrolabe Room row, see L55): after Act 1's capstone the first staging room shows the Endless Mine on door 3; layers open by act; the deepest floor shows on the history board.
 - **Do:** with act 2 open, enter the Mine and go down to floors 6, 12 and 18 as the acts allow; read the sealed line and the history board.
 - **Pass:** floors 1 to 5 enter freely; a sealed layer offers only HOME with the act named; the deepest floor persists across trips.
 - **Fail signs:** the Mine on door 3 before act 2; a shaft that lets you past a sealed layer; the Mine hiding the capstone door.
@@ -497,7 +497,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 ## L51. 2026-10-06: the stations that remain
 
 - **Status:** owed, 2026-10-07-1.md: not exercised (no station used this session). Incidental: the safe room's station list showed crafting_table, damaged_anvil, furnace, grindstone, smithing_table and no enchanting table; if reroll lives at an enchanting table the home set may be missing it (unconfirmed, the list may only count placed blocks). Earlier: owed
-- **Changed:** 2026-10-06 (J5, `RitualListener`, `StationTutorial`): four stations remain: Salvage at the anvil, Reroll at the enchanting table, the Home Vendor, the Bag Chest. No level gates. Gamble, Blacksmith and Lock In are gone.
+- **Changed:** 2026-10-06 (J5, `RitualListener`, `StationTutorial`): four stations remain: Salvage at the grindstone (it was the anvil when this was written), Reroll at the enchanting table, the Home Vendor, the Bag Chest. No level gates. Gamble, Blacksmith and Lock In are gone.
 - **Do:** Visit a station room in the dungeon and try each station. Put a scrapable drop on the anvil; put a gear piece on the enchanting table.
 - **Pass:** Salvage opens regardless of level; the enchanting table rerolls; no gamble screen, no blacksmith villager, no lock-in prompt.
 - **Fail signs:** A "too low level" refusal; the smithing table opening reroll; the Cube answering a use.
@@ -512,7 +512,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 
 ## L53. 2026-10-06: keys settle on the clear line
 
-- **Status:** partial 2026-10-08 (`2026-10-07-2.md`): key redemption on the clear line confirmed by `floor_pay` emerald payloads of 3, 4 and 1 emeralds alongside scrap (matching the J7 rates: 1 plain, 3 ominous). New related break: ominous trial keys cannot pay the barred_vault toll, so on ominous floors keys can only ever redeem (PD-170). Mob gear drops not rechecked this session. Earlier: owed, 2026-10-07-1.md
+- **Status:** superseded in part 2026-10-10 (PD-196: vault keys now last the dungeon and settle for emeralds when the haul banks, see L62; the floor clear no longer takes keys). Was: partial 2026-10-08 (`2026-10-07-2.md`): key redemption on the clear line confirmed by `floor_pay` emerald payloads of 3, 4 and 1 emeralds alongside scrap (matching the J7 rates: 1 plain, 3 ominous). New related break: ominous trial keys cannot pay the barred_vault toll, so on ominous floors keys can only ever redeem (PD-170). Mob gear drops not rechecked this session. Earlier: owed, 2026-10-07-1.md
 - **Changed:** 2026-10-06 (J7, `DungeonDrops`, `RunLifecycle.redeemKeys`): mobs drop no gear in the dungeon, and trial keys never leave their floor. The salvage bench refuses keys; at a floor clear each unused key becomes emeralds.
 - **Do:** Kill dungeon mobs and check the drops; put a trial key in the salvage input; clear a floor holding a plain and an ominous trial key.
 - **Pass:** No weapons, armour or bows drop; the bench refuses the key; the clear line pays 1 emerald for the plain key and 3 for the ominous, and the keys are gone.
@@ -521,47 +521,58 @@ tool on the MCP server (`mcp.mjs --admin`).
 ## L54. 2026-10-07: Haul and Blood Doors
 
 - **Status:** partial 2026-10-08 (`2026-10-08-1.md`): the model is no longer invisible: three lever banks and three finishes all journaled correctly, and lives pressure landed ("It was definitely pressure" at lives 2, two rescues). New legibility breaks: "Haul 0 scrap" on the GO HOME board after a finish (PD-179) and "Home 4 chests" unreadable (PD-180). Still untested: blood door taken, last-life refusal, disconnect/grace, party compasses. Earlier: partial 2026-10-08 (`2026-10-07-2.md`): every bank path verified in the journal (home lever x2, finish "banked 5", fifth-death fail "banked 4 of 8"), compass lore correct in and out of trip, GO HOME board shows per-member haul, lives, unfinished and the half-loss line, and floor clears pay zero emeralds. Model mechanics pass. Failed checks: blood door never taken (lives:1 edge previewed only), last-life refusal untested, disconnect/grace untested, milestone title not reached (first:false finishes), migration join message unverified. New breaks filed: owner death purges the party run at any lives count (PD-167), quit and purge never settle the haul (PD-168), quit strands dungeon gear in the overworld (PD-169), ominous keys cannot pay the vault toll (PD-170). Player's one-sentence explain: "I can't tell yet, feels like it doesn't exist": the model works but is invisible; his proposal "pull the lever is the payout ritual" is logged in the report. Earlier: owed
+- **Note 2026-10-10:** read the `/5` in the examples below as the live price; a level now costs `4 + floor(compass / 3)` scrap (L56), and the leaving rules are L64.
 - **Changed:** 2026-10-07 (`docs/decision-2026-10-07-haul-and-blood-doors.md`, PD-162): scrap rides in a per-trip haul that banks into the compass bar at home or a finish and is half lost to a failed dungeon; a side door costs the party a life; floors below your compass pay 1; no overlevel emeralds.
 - **Do:** (1) As a migrated compass 12 player: read the compass lore (`Compass 12: 0/5 scrap to 13`) and the one time join message; clear a Copper Works floor and read the clear line (`+1 scrap (you are above this floor). Haul 1.`). (2) Take a side door and watch Lives drop; try it at Lives 1. (3) Go home with a haul. (4) Fail on purpose with a haul. (5) Party of two with different compasses. (6) Disconnect mid trip, rejoin inside the grace, then let a grace expire. (7) Count emeralds over the session and deaths per trip. (8) Ask the player to explain the system in one sentence.
 - **Pass:** the lore, clear line, GO HOME board (`Haul N scrap`, `Lives N`, `Unfinished: ...`, footer while a haul is at risk) and door board (`Costs 1 life`) agree; going home says `Home. Banked N scrap: compass X, y/5 to Z.`; a failure says `Half your haul made it out: banked A of B scrap.`; the last life is never for sale; emeralds no longer come from floor clears.
 - **Fail signs:** the player still asks which of two numbers is their level; a side door is taken without thought (the price of a life is too low); a failure feels like nothing; an absent member's haul vanishes.
 
 ## L55: the Astrolabe Room (wave B, 2026-10-09)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
 - Does a first-time player find the astrolabe unprompted, and does right-click turn to the next open act (sneak turns back)?
 - Do the sign, doormat and bulb tell a dungeon and its state apart without reading the door screen? Does the oxidized bulb read as finished and the iron door as locked?
 - Does opening a door still show the first room through the window, and does the lever still descend into the room that was previewed?
 - Does the Endless Mine door appear at an end of the row when its compass is reached?
 - Is a repeat finish paying half the emeralds, and does `/dungeon reroll` explain itself?
 - With `hallEnabled` false, do the three random doors come back?
+- Does the whole wall behind the doors read as one wide window onto the dungeon you picked? Does the DESCEND lever glint beside the selected door and nowhere else, and stop once the trip starts?
+- Does a finished dungeon's sign say Play again?
 
 ## L56: the scrap curve (wave C, 2026-10-09)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
 - Does the compass lore read `Compass N: p/price`, and does the price rise as the compass climbs?
 - At compass 10 to 15, does one trip through a dungeon of the right act gain about 2 levels?
 - Does a floor below your compass reading `+1 scrap (below your compass)` feel fair rather than an insult?
 - Does a final floor pay a visible extra scrap, and a deeper act pay more than Act 1?
 - Does an Endless Mine trip pay more the deeper it goes?
+- Compass 1 costs 4 scrap and compass 10 costs 7: does the bar show the live price everywhere (lore, sidebar, bank line)?
 
 ## L57: finales and uniforms (wave D, 2026-10-09)
-- Copper Works: clearing the last floor\u0027s spawners brings the title, then The Foreman and his crew; does it land like the brood wave ("barely enough"), and does the boss bar read?
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- Copper Works: clearing the last floor's spawners brings the title, then The Foreman and his crew; does it land like the brood wave ("barely enough"), and does the boss bar read?
 - An Act 1 dungeon (Infestation, Ossuary): is a wave with no elite enough of an ending? Does the pad refuse until it is dead, saying why?
 - In a party, does the wave grow without becoming a slog? Does a won finale pay the extra chest?
 - Copper Works mobs: do zombies and husks wear one copper piece and a copper sword, skeletons two pieces, and does nothing drop?
 - Does the copper gear lengthen a Copper Works clear noticeably?
 
 ## L58: sculk and the vault (wave E, 2026-10-09)
-- Does `Heard 2/4` on the sidebar read as stealth? Does a full meter (darkness, a wave, the Heard title) feel like the sculk answering?
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- Does `Heard 2/4` on the sidebar read as stealth? Does a full meter (darkness, a Warden whelp, the Heard title) feel like the sculk answering? Does a shriek in a room with sensors leave the meter alone, and does the meter hold still while the whelp is out?
 - Hush Gallery: can the wool ring be crossed without filling the meter? Is the straight dripstone way noisy enough to tempt and punish? Does clearing it unheard pay +1 scrap?
 - Ancient City: does the Warden wake on the second answer, and is crossing the final floor unheard a win?
 - Barred Vault: does the trial key work on the vault with no explanation, and does an ominous floor's vault want the ominous key? Does it give the relief life?
 - Ominous Bargain: is taking from the open chest still readable as the bargain?
 
 ## L59: wolves and Restless (wave F, 2026-10-09)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
 - Does Restless read from the door board ("the dead get up once. Burn them.")? Do you see the souls and hear the groan before the mob stands? Is fire reachable as counterplay?
-- The Kennels: is it worth choosing before the Spawner Dungeon? Do the Kennel Run's stray wolves take bones without being hit? Does The Alpha's finale land?
+- The Kennels: is it worth choosing before the Spawner Dungeon? Does The Alpha's finale land?
 - Wolf Hollow (Rootworks) and the Lost Dog: does clearing the camp tame the dog with no bones? Does a fourth wolf sit with the pack-full message?
 - Does the Spawner Dungeon capstone now correctly wait for the Kennels?
+- (Reworked 2026-10-09: the Kennels wolves are hostile and cannot be fed, so the taming checks above apply to Wolf Hollow and the Lost Dog only. The Kennels themselves are L61.)
 
 ## L60: ore (wave G, 2026-10-09)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
 - Endless Mine: do the walls hide coal and iron, and does digging find it? Is it richer four floors down?
 - Deepslate: does `deep_shaft_landing` show enough ore on the landing?
 
@@ -574,6 +585,28 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Warden whelp (L58): does it skip the roar, is 0.3 speed about the player, does the Heard meter hold while it is out?
 
 ## L62: promised gear and carried keys (2026-10-10)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
 - Deepslate Collapsed Landing's door names an enchanted weapon beside its 2 emeralds; the copper chest holds that same piece after the clear.
 - A vault key found on floor 2 opens a vault on floor 3 of the same dungeon, and is paid as emeralds when you bank (Home or finish), not at the floor clear.
 - A failed dungeon pays half the key emeralds, matching the haul share.
+
+## L63: the lodestone menu and bans (2026-10-09)
+- **Status:** owed (built, never played)
+- **Changed:** the Home menu is Start Dungeon, Manage Room, Inspect Compass, Manage Party, View Lobbies; in a dungeon Leave is last and asks first (Esc only closes). Manage Room holds name, public or private, shell, visitors and reset room. Inspect Compass holds diaries and reset compass. Manage Party holds invite, banned and, per person, Can build and Ban, with the people who played with you listed.
+- **Do:** with consent, open each screen in turn from the wall lodestone, in your Home room and inside a dungeon. Ban a friend with two accounts, then try to invite them, have them join your party and visit your room. Unban.
+- **Pass:** no screen is a dead end or closes on an unmade change; Invite and Banned show a plain notice when empty (no disconnect); Esc never leaves or resets anything; a banned player cannot be invited, cannot join and cannot visit; building rights show a star and need a confirm; found diaries and shells come first.
+- **Fail signs:** a disconnect on opening a list, Leave as the Esc action, a banned player still getting in.
+
+## L64: leaving, failing and the Home room (2026-10-09)
+- **Status:** owed (built, never played)
+- **Changed:** leaving a floor in progress for any reason (menu Leave, exit, disconnect, joining another party) fails the dungeon for the leaver, who keeps the fail share (50 percent) of their haul; leaving between floors cashes out in full; a host who leaves a floor fails it for everyone; a failed dungeon sends the party back to the Home room instead of out (PD-191 to PD-193).
+- **Do:** with two accounts: a rider leaves mid-floor; a rider leaves between floors; the host leaves mid-floor; the party dies on its fifth life; a rider joins another party from inside a dungeon.
+- **Pass:** the haul banks half, all, half for everyone, half, half in each case; after a failed dungeon the party stands together in the Home room with the doors ready and no lobby to reopen; the leaver is told what they kept.
+- **Fail signs:** a full bank from a mid-floor leave, the party booted out after a fail, a rider stuck in the dungeon after the host left.
+
+## L65: small changes of 2026-10-09
+- **Status:** owed (built, never played)
+- **Changed:** the librarian and the Deepslate and Frostworks merchants buy lapis for emeralds; trimmed armour can be scrapped at the grindstone; the floor history board says FAILED, QUIT or CLEARED only; the trip sidebar shows floor, lives, spawners, haul and compass (`/dungeon display off` hides it).
+- **Do:** sell lapis; scrap a trimmed piece; finish, quit and fail one dungeon each and read the board; read the sidebar through a floor without prompting.
+- **Pass:** lapis sells; the trimmed piece scraps; the board rows read as above; the player can say their floor and haul without looking at chat.
+- **Fail signs:** a trimmed piece refused, a board row with another word, the sidebar hiding behind the omen bar or never repainting.

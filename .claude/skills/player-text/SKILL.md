@@ -18,8 +18,8 @@ be seen goes on a title, the sidebar, the action bar, a sign or a board; chat is
    player's head. Say the invitation or the reason: "Play again", "Compass 12", "Finish the act".
 2. **One idea per line, as few words as carry it.** If a line needs "and", it is two lines. A sign line is
    15 characters, a sidebar line 40, a title 25.
-3. **No jargon and no system words.** Not "haul at risk", "interval", "keystone", "node". The settled
-   player words are compass, scrap, haul, lives, charts.
+3. **No jargon and no system words.** Not "haul at risk", "interval", "keystone", "node", "omen". The settled
+   player words are compass, scrap, haul, lives, charts. Internal names (omen, keystone) survive in code and old docs only.
 4. **Position and colour carry meaning, not labels.** Do not write "Status:" or "Cost:"; put the number where
    it belongs and colour it (aqua for what you carry, yellow for compass, green for good, red for danger,
    gray for the rest).
@@ -41,6 +41,9 @@ be seen goes on a title, the sidebar, the action bar, a sign or a board; chat is
 | Dungeon cleared (title) | Infestation finished / Banked 9 scrap | A finish is its own beat, with the pay |
 | Right-click a door to preview | Right-click a door to look inside | The player's words, not the system's |
 | Needs level gate | Compass 12 | The reason, as one number |
+| FAILED in Sump (lava) (floor history row) | FAILED | The narrow column takes one word; the room is not a word a player knows. Only FAILED, QUIT or CLEARED |
+| Sculk answers: darkness, a wave | Heard 2/4 (sidebar), then a title | A meter the eye finds beats a sentence; the sidebar line is 40 characters or fewer |
+| Leave (button that closes at once) | Leave, last in the list, asks first | A destructive choice is never the Esc action and never first |
 
 ## Checklist before you ship a string
 

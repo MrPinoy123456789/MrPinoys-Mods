@@ -74,7 +74,7 @@ What is recorded is the route. The compass still points. The place still rebuild
 
 The player comes later. Every player comes later.
 
-They mint a keystone from echo shards, the one vanilla tool for finding what is buried, and the keystone is a recovery compass, and it is the same compass, because a world rebuilt from fractured memory keeps rebuilding the same objects. Every player carries Alex's compass and walks Alex's route and does not know it. They descend into the wreckage, deeper into what is left of him, and the deeper they go the more intact it gets, and somewhere past the intact parts is the endgame zone, and past the endgame zone is the decision.
+They carry a compass, the one vanilla tool for finding what is buried, and it is a recovery compass, and it is the same compass, because a world rebuilt from fractured memory keeps rebuilding the same objects. Every player carries Alex's compass and walks Alex's route and does not know it. They descend into the wreckage, deeper into what is left of him, and the deeper they go the more intact it gets, and somewhere past the intact parts is the endgame zone, and past the endgame zone is the decision.
 
 The decision is not to defeat Herobrine. That would be killing Steve, and Steve is not the problem. The problem is what the End did to Steve, and the goal is to undo that: to return him to what he was, and to seal what he became away with him, together, so that neither is destroyed and neither gets out.
 

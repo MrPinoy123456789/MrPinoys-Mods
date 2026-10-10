@@ -1,5 +1,14 @@
 # Pocket Dungeons Lore
 
+> **Status 2026-10-10 (freshness pass).** The diary writing pass is done: 26
+> entries ship as `diary/entry_1..26.json` (entries 1 to 7 are drafted in
+> `LORE-DIARIES.md`, the rest live only in the JSON), and their bands and shell
+> unlocks are in the files. Echo shards no longer mint the compass (retired in
+> J1): the first compass is free from `/dungeon key` and a lost one is replaced
+> at the level earned. The Herobrine Cube station is switched off for now
+> (`CubeStation` javadoc). The Feral affix is retired (Restless replaced it).
+> The note below is the original 2026 approval record and is kept as written.
+
 > **Nothing in this document is shipped yet, and the approval to ship is
 > partial.** `VISION.md` §9 has been revised: it no longer says "not a lore
 > project," and instead permits discoverable fiction in vanilla written books
@@ -161,7 +170,7 @@ evidence the fiction suits the mod, while one invented to fit proves nothing.
 | Mechanic | Status | Lore meaning | Origin |
 |---|---|---|---|
 | Keystone is a recovery compass | Shipped (M3) | Steve's compass, pointing at where he died | **Retrofit.** Chosen because echo shards find things |
-| Echo shards mint the keystone | Config default | The one vanilla tool for finding what is buried | **Retrofit** |
+| Echo shards mint the keystone | Retired (J1); the first compass is free | The one vanilla tool for finding what is buried | **Retrofit** |
 | Tier-3 Ender/ancient-city palette | Shipped (M6 T6.2) | The wreckage nearest the power that remade him | **Retrofit.** Authored as "rare and deep-tier" |
 | Procedural themed runs | Shipped | Echoes of Steve's own adventures, replayed wrong | **Retrofit** |
 | Compass spins outside the dungeon | Vanilla behaviour | "They only spin when there is nothing yet to find" | **Retrofit.** Found while designing navigation |

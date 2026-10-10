@@ -76,6 +76,6 @@ Update the files a decision touches: `BUGS.md` statuses, the docs it supersedes,
 
 For a larger brief ("design pass, then implement"): Phase 1 is design only with no code changes and ends in
 a document and questions; Phase 2 starts only after the owner approves or revises. Read the report's "Design
-decisions" section first, then the doc the model lives in (`docs/DUNGEON_STRUCTURE_DESIGN.md` is the current
-reference), then the relevant source. `docs/design-2026-10-06-1.md` is the template: numbered sections per topic,
+decisions" section first, then the doc the model lives in (the latest `docs/decision-*.md` records outrank `docs/DUNGEON_STRUCTURE_DESIGN.md`, whose "Current state"
+block at the top lists what has been superseded), then the relevant source. `docs/design-2026-10-06-1.md` is the template: numbered sections per topic,
 "Phase 2 notes", "Open questions".
