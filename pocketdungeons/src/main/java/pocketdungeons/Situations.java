@@ -100,11 +100,6 @@ final class Situations {
         return id != null && HANDLERS.containsKey(id);
     }
 
-    /** Every registered id, in registration order. For {@code /dungeon admin} reporting. */
-    static Set<String> registered() {
-        return java.util.Collections.unmodifiableSet(HANDLERS.keySet());
-    }
-
     /**
      * Runs the handler registered for {@code content}, if there is one.
      *

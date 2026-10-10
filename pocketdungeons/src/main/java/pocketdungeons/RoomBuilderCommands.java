@@ -278,7 +278,7 @@ final class RoomBuilderCommands {
             CompoundTag nbt = template.save(new CompoundTag());
             nbt.putString("pd_author", player.getUUID().toString());
             nbt.putLong("pd_saved_at", System.currentTimeMillis());
-            NbtIo.writeCompressed(nbt, templateFile);
+            AtomicFiles.write(templateFile, tmp -> NbtIo.writeCompressed(nbt, tmp));
             PocketDungeonsMod.LOG.info("Saved room template to {}", templateFile);
         } catch (IOException e) {
             PocketDungeonsMod.LOG.error("Could not save room template '{}'", safeName, e);
@@ -306,7 +306,7 @@ final class RoomBuilderCommands {
             }
             try {
                 JsonObject json = buildRoomJson(safeName, player.getName().getString());
-                Files.writeString(metaFile, json.toString());
+                AtomicFiles.writeString(metaFile, json.toString(), java.nio.charset.StandardCharsets.UTF_8);
             } catch (IOException e) {
                 PocketDungeonsMod.LOG.error("Could not save room metadata '{}'", safeName, e);
                 source.sendFailure(Component.literal(

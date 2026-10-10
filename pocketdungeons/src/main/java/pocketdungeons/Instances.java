@@ -74,7 +74,7 @@ final class Instances {
     // kick-confirmation state live on PartyService (M9 C3 #3).
 
     /** Return points for players who left the world while inside, keyed by UUID. */
-    private static final Map<UUID, PendingReturn> pendingReturns = new HashMap<>();
+    private static final Map<UUID, PendingReturn> pendingReturns = SessionState.clearedAtStop(new HashMap<>());
 
     /**
      * PD-44: a game-time expiry alongside the point itself, so a player who
@@ -102,7 +102,7 @@ final class Instances {
     private static final int TRIAL_OMEN_TICKS = 20 * 60 * 90;
 
     private static final int JOIN_RECOVERY_DELAY_TICKS = 20;
-    private static final List<PendingJoinRecovery> pendingJoinRecoveries = new ArrayList<>();
+    private static final List<PendingJoinRecovery> pendingJoinRecoveries = SessionState.clearedAtStop(new ArrayList<>());
 
     // Teardown's own PendingClear queue lives on InstanceTeardown now (M9 C3 #4).
 
@@ -157,7 +157,7 @@ final class Instances {
             MinecraftServer server = player.level().getServer();
             InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
             if (server == null || record == null
-                    || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(player.level())) {
                 return true;
             }
             // M25: death inside a Pocket2 child ejects to the parent at the
@@ -200,7 +200,7 @@ final class Instances {
         // depends on for ThemeManifest/RoomManifest's own SERVER_STARTED hook.
         ServerEntityEvents.ENTITY_LOAD.register((entity, entityLevel) -> {
             if (!(entity instanceof Mob mob) || Lemon.isPart(entity)
-                    || !entityLevel.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(entityLevel)) {
                 return;
             }
             // W7a: the Ancient City's Warden is a real vanilla Warden; it is never scaled.
@@ -247,7 +247,7 @@ final class Instances {
             // No keystone to hand over on login any more: the level is already
             // theirs server-side, and the watcher's reconcile pass repaints the
             // remote in their pocket within one interval.
-            if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (!DungeonWorldRules.inDungeon(player.level())) {
                 return;
             }
             if (InstanceRegistry.byMember.containsKey(player.getUUID())) {
@@ -310,9 +310,9 @@ final class Instances {
             // now. A force-load ticket that never gets released pins its chunks
             // for the rest of the process (docs/PLAN.md's M4 amendment).
             InstanceTeardown.drainClears(server);
-            // Statics outlive a server in one JVM (an integrated server loading a second world).
-            pendingReturns.clear();
-            pendingJoinRecoveries.clear();
+            // Statics outlive a server in one JVM (an integrated server loading a second world):
+            // everything registered with SessionState (pendingReturns and pendingJoinRecoveries among it).
+            SessionState.clearAll();
         });
     }
 
@@ -323,9 +323,7 @@ final class Instances {
      */
     private static void handleDisconnect(MinecraftServer server, ServerPlayer player) {
         PartyService.clearFor(player.getUUID());
-        Locks.forgetPlayer(player.getUUID());
-        IronDoorLatch.forgetPlayer(player.getUUID());
-        PlacementNotice.forgetPlayer(player.getUUID());
+        SessionState.forgetPlayer(player.getUUID());
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (record == null) {
             return;
@@ -1782,7 +1780,7 @@ final class Instances {
             if (inside == null) {
                 continue;
             }
-            if (inside.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+            if (DungeonWorldRules.inDungeon(inside.level())
                     && roomOwnerAt(inside.blockPosition()) == null) {
                 teleport(server, inside, PocketDungeonsMod.DUNGEON_LEVEL,
                         net.minecraft.world.phys.Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
@@ -2167,7 +2165,7 @@ final class Instances {
         Random random = new Random(server.getTickCount());
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player == null || !DungeonWorldRules.inDungeon(player.level())) {
                 continue;
             }
             for (int i = 0; i < count; i++) {
@@ -2294,7 +2292,7 @@ final class Instances {
         int count = 0;
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player != null && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player != null && DungeonWorldRules.inDungeon(player.level())) {
                 count++;
             }
         }
@@ -2323,7 +2321,7 @@ final class Instances {
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null
-                    || !memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(memberPlayer.level())) {
                 continue;
             }
             if (!roomBounds.contains(Vec3.atCenterOf(memberPlayer.blockPosition()))) {
@@ -2349,7 +2347,7 @@ final class Instances {
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null
-                    || !memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    || !DungeonWorldRules.inDungeon(memberPlayer.level())
                     || roomBounds.contains(Vec3.atCenterOf(memberPlayer.blockPosition()))) {
                 continue;
             }
@@ -2418,7 +2416,7 @@ final class Instances {
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null
-                    && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+                    && DungeonWorldRules.inDungeon(player.level())
                     && !isAway(player)) {
                 return true;
             }
@@ -2688,7 +2686,7 @@ final class Instances {
                 // An admin teleport or any other route out of the dimension counts
                 // as leaving -- otherwise a member who is not here holds the party
                 // open indefinitely.
-                if (!player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                if (!DungeonWorldRules.inDungeon(player.level())) {
                     RunLifecycle.dropMember(server, record, member, player, "member left the dimension");
                     continue;
                 }
@@ -3417,10 +3415,10 @@ final class Instances {
         // dimension. Points at wherever this teleport is taking them on the
         // way in; clears back to vanilla's own spin/last-real-death behaviour
         // on the way out.
-        boolean crossingIn = dimension.equals(PocketDungeonsMod.DUNGEON_LEVEL)
-                && !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
-        boolean crossingOut = !dimension.equals(PocketDungeonsMod.DUNGEON_LEVEL)
-                && player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL);
+        boolean crossingIn = DungeonWorldRules.inDungeon(dimension)
+                && !DungeonWorldRules.inDungeon(player.level());
+        boolean crossingOut = !DungeonWorldRules.inDungeon(dimension)
+                && DungeonWorldRules.inDungeon(player.level());
         if (crossingIn) {
             player.setLastDeathLocation(Optional.of(GlobalPos.of(dimension, BlockPos.containing(pos))));
         } else if (crossingOut) {

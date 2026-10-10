@@ -111,7 +111,7 @@ final class Fountain {
      * @return whether the click was claimed
      */
     static boolean onUse(ServerPlayer player, ServerLevel level, BlockPos pos) {
-        return onUse(player, level, pos, level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL));
+        return onUse(player, level, pos, DungeonWorldRules.inDungeon(level));
     }
 
     /** As above, with the dimension test supplied so a gametest can stand in the dungeon. */

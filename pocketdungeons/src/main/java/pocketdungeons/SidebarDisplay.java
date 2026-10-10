@@ -78,7 +78,7 @@ final class SidebarDisplay {
                 for (UUID member : record.members.keySet()) {
                     ServerPlayer player = server.getPlayerList().getPlayer(member);
                     if (player == null || HIDDEN.contains(member)
-                            || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                            || !DungeonWorldRules.inDungeon(player.level())) {
                         continue;
                     }
                     paint(server, record, player);

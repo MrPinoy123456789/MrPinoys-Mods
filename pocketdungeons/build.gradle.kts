@@ -345,6 +345,12 @@ for ((taskName, testClass) in mapOf(
     "cellStateForgetTest" to "CellStateForgetTest",
     // Code audit 2026-10-10: every ENCOUNTER_ROOMS id is a shipped room's content id or retired on purpose.
     "encounterRoomsShipTest" to "EncounterRoomsShipTest",
+    // Cleanup sweep: no production code compares a dimension to DUNGEON_LEVEL outside DungeonWorldRules.
+    "dimensionCheckTest" to "DimensionCheckTest",
+    // Cleanup sweep: per player and per slot statics register with SessionState (disconnect and server stop).
+    "sessionStateTest" to "SessionStateTest",
+    // Cleanup sweep: the room editor save and lost and found entries write through a temp file and an atomic move.
+    "atomicFilesTest" to "AtomicFilesTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",

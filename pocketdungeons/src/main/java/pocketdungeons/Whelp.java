@@ -31,7 +31,7 @@ final class Whelp {
     /** Half a Warden's size. */
     private static final double SCALE = 0.5;
 
-    private static final Map<Integer, UUID> ACTIVE = new HashMap<>();
+    private static final Map<Integer, UUID> ACTIVE = SessionState.clearedAtStop(new HashMap<>());
 
     private Whelp() {}
 

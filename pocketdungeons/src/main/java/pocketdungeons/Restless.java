@@ -32,14 +32,14 @@ final class Restless {
 
     private record Pending(long dueTick, int slot, BlockPos pos, String typeId) {}
 
-    private static final List<Pending> PENDING = new ArrayList<>();
+    private static final List<Pending> PENDING = SessionState.clearedAtStop(new ArrayList<>());
 
     private Restless() {}
 
     static void register() {
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (!(entity instanceof Mob mob) || !(entity.level() instanceof ServerLevel level)
-                    || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    || !DungeonWorldRules.inDungeon(level)) {
                 return;
             }
             InstanceRecord record = Instances.dungeonRecordAt(entity.blockPosition());

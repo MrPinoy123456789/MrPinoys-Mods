@@ -41,7 +41,7 @@ public final class RoomEditorHistory {
                     if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
                         return;
                     }
-                    if (!serverPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                    if (!DungeonWorldRules.inDungeon(serverPlayer.level())) {
                         return;
                     }
                     InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());

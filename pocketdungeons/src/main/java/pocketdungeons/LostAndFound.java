@@ -132,7 +132,7 @@ final class LostAndFound {
             out.append("--- END LOST+FOUND CONTENT ---\n");
 
             Path file = uniqueFile(folder);
-            Files.writeString(file, out.toString(), StandardCharsets.UTF_8);
+            AtomicFiles.writeString(file, out.toString(), StandardCharsets.UTF_8);
             trim(folder);
         } catch (IOException | RuntimeException e) {
             PocketDungeonsMod.LOG.error("Could not write a lost and found entry for {}", player, e);

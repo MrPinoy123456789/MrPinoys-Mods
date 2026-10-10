@@ -42,11 +42,6 @@ final class LootBands {
         return band == null ? tier : band.clamp(tier);
     }
 
-    /** The tier the door behind {@code offer} will pay: the keystone's, clamped into the dungeon's band. */
-    static int offerTier(Keystone.Offer offer) {
-        return clamp(of(offer.dungeonId()), KeystoneMath.lootTier(offer.level()));
-    }
-
     /**
      * The completion chest tier of the floor {@code record} has just cleared: the
      * keystone's tier, the zone's escalation ({@link ZoneRules#lootTier}, an Endless

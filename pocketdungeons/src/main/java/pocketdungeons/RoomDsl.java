@@ -44,14 +44,6 @@ final class RoomDsl {
         box(level, o, x, y1, z, x, y2, z, state);
     }
 
-    /** Places {@code state} at (x,z) and its three mirror images across the cell's centre lines. */
-    static void quad(ServerLevel level, BlockPos o, int x, int y, int z, BlockState state) {
-        put(level, o, x, y, z, state);
-        put(level, o, 15 - x, y, z, state);
-        put(level, o, x, y, 15 - z, state);
-        put(level, o, 15 - x, y, 15 - z, state);
-    }
-
     static BlockState log(Direction.Axis axis) {
         return Blocks.OAK_LOG.defaultBlockState().setValue(BlockStateProperties.AXIS, axis);
     }

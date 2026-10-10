@@ -144,14 +144,6 @@ final class ContentReload {
     }
 
     /**
-     * The last committed valid snapshot, or {@code null} before the first
-     * successful reload.
-     */
-    static ContentSnapshot current() {
-        return current;
-    }
-
-    /**
      * False while a content build is in progress. The generation entry point
      * checks this and refuses to start a new run during a reload, so a floor is
      * never stamped against a half published manifest.

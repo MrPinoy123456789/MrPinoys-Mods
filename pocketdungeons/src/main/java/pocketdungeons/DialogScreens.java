@@ -1240,7 +1240,7 @@ final class DialogScreens {
     /**
      * The lodestone menu's Diaries option: all seven of Alex's entries, in
      * their canonical numeric order. A discovered entry is a button that
-     * opens {@link #diaryReader}; an undiscovered one is a plain grey
+     * opens the entry's reader; an undiscovered one is a plain grey
      * "Entry N: ???" line, the same locked-content shape {@link
      * #shellPicker} already uses for a shell the player has not unlocked --
      * never a clickable dead end.

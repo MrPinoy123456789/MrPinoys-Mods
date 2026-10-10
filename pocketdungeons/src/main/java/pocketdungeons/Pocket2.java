@@ -390,7 +390,7 @@ final class Pocket2 {
     static void tickChild(MinecraftServer server, InstanceRecord child, long now, int interval) {
         for (UUID member : new ArrayList<>(child.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
-            if (player == null || !player.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (player == null || !DungeonWorldRules.inDungeon(player.level())) {
                 child.members.remove(member);
             }
         }

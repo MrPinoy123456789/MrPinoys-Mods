@@ -713,7 +713,7 @@ final class RunLifecycle {
                 missing.add("offline member");
                 continue;
             }
-            if (!memberPlayer.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)
+            if (!DungeonWorldRules.inDungeon(memberPlayer.level())
                     || !stagingBounds.contains(net.minecraft.world.phys.Vec3.atCenterOf(memberPlayer.blockPosition()))) {
                 missing.add(memberPlayer.getName().getString());
             }
@@ -852,7 +852,7 @@ final class RunLifecycle {
             if (!record.members.containsKey(straggler.getUUID())) {
                 continue;
             }
-            if (straggler.level().dimension() != PocketDungeonsMod.DUNGEON_LEVEL) {
+            if (!DungeonWorldRules.inDungeon(straggler.level())) {
                 continue;
             }
             if (Instances.roomOwnerAt(straggler.blockPosition()) != null) {
@@ -2103,7 +2103,7 @@ final class RunLifecycle {
             if (inside == null) {
                 continue;
             }
-            if (inside.level().dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+            if (DungeonWorldRules.inDungeon(inside.level())) {
                 Instances.teleport(server, inside, PocketDungeonsMod.DUNGEON_LEVEL,
                         net.minecraft.world.phys.Vec3.atBottomCenterOf(roomCentre), 0.0f, 0.0f);
             }

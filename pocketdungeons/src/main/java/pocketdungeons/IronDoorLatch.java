@@ -67,7 +67,7 @@ final class IronDoorLatch {
 
     /** Lower door halves awaiting closure, mapped to the game tick they close at. */
     private static final Map<BlockPos, Long> closeAt = new HashMap<>();
-    private static final Map<UUID, Long> lastHint = new HashMap<>();
+    private static final Map<UUID, Long> lastHint = SessionState.perPlayer(new HashMap<>());
 
     private IronDoorLatch() {}
 
@@ -81,7 +81,7 @@ final class IronDoorLatch {
         if (level.isClientSide() || hand != InteractionHand.MAIN_HAND
                 || !(player instanceof ServerPlayer serverPlayer)
                 || !(level instanceof ServerLevel serverLevel)
-                || !level.dimension().equals(PocketDungeonsMod.DUNGEON_LEVEL)) {
+                || !DungeonWorldRules.inDungeon(level)) {
             return InteractionResult.PASS;
         }
         InstanceRecord record = InstanceRegistry.byMember.get(serverPlayer.getUUID());
@@ -242,11 +242,6 @@ final class IronDoorLatch {
             level.playSound(null, due.iterator().next(), SoundEvents.IRON_DOOR_CLOSE,
                     SoundSource.BLOCKS, 1.0f, 1.0f);
         }
-    }
-
-    /** Forgets when a player was last given the latch hint, for a logout. */
-    static void forgetPlayer(UUID player) {
-        lastHint.remove(player);
     }
 
     /** Test hook: forget every pending close and hint. */
