@@ -48,7 +48,6 @@ final class KnowledgeSpecs {
 
     private static final Direction ENTRANCE = Direction.WEST;
     private static final Direction EXIT = Direction.EAST;
-    private static final int WALL_X = CELL - 1;
     private static final int CEILING_Y = RoomGeometry.CEILING_Y;
 
     /** The four ceiling-lamp positions placed by {@link RoomBuilder#stampShell}. */

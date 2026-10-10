@@ -3,16 +3,9 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DispenserBlock;
-import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.DispenserBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.DoorHingeSide;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -39,9 +32,6 @@ final class PressureSpecs {
 
     private static final Direction ENTRANCE = Direction.WEST;
     private static final Direction EXIT = Direction.EAST;
-    private static final int WALL_X = CELL - 1;
-    private static final int DOOR_Z0 = RoomGeometry.DOOR_MIN;
-    private static final int DOOR_Z1 = RoomGeometry.DOOR_MAX;
 
     /** The pressure family's templates. */
     static List<RoomSpec> list() {
@@ -86,39 +76,8 @@ final class PressureSpecs {
 
     // ---- shared helpers -----------------------------------------------------
 
-    /** Places the iron door pair in the east doorway (y=1..2, z=7..8, x=15) and the y=3 lintel. */
-    private static void placeIronDoor(ServerLevel level, BlockPos o) {
-        BlockState lower = Blocks.IRON_DOOR.defaultBlockState()
-                .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)
-                .setValue(DoorBlock.FACING, Direction.WEST)
-                .setValue(DoorBlock.OPEN, false);
-        // One block inside the doorway: writing over the doorway's jigsaw
-        // blocks would cost the room its east door in the manifest's mask,
-        // and the planner would place it as a dead end.
-        for (int z = DOOR_Z0; z <= DOOR_Z1; z++) {
-            DoorHingeSide hinge = z == DOOR_Z0 ? DoorHingeSide.LEFT : DoorHingeSide.RIGHT;
-            RoomBuilder.set(level, o.offset(WALL_X - 1, 1, z),
-                    lower.setValue(DoorBlock.HINGE, hinge));
-            RoomBuilder.set(level, o.offset(WALL_X - 1, 2, z),
-                    lower.setValue(DoorBlock.HINGE, hinge)
-                            .setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
-            RoomBuilder.set(level, o.offset(WALL_X - 1, 3, z), RoomBuilder.WALL);
-        }
-    }
-
     private static void set(ServerLevel level, BlockPos o, int x, int y, int z, BlockState state) {
         RoomBuilder.set(level, o.offset(x, y, z), state);
-    }
-
-    /** A dispenser facing {@code facing}, loaded with {@code count} of {@code item} in slot 0. */
-    private static void placeDispenser(ServerLevel level, BlockPos o, int x, int y, int z,
-                                       Direction facing, ItemStack item, int count) {
-        set(level, o, x, y, z, Blocks.DISPENSER.defaultBlockState().setValue(DispenserBlock.FACING, facing));
-        BlockEntity be = level.getBlockEntity(o.offset(x, y, z));
-        if (be instanceof DispenserBlockEntity dispenser) {
-            dispenser.setItem(0, new ItemStack(item.getItem(), count));
-            dispenser.setChanged();
-        }
     }
 
 // ---- 1. Rising Lava -----------------------------------------------------

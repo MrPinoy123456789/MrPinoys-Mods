@@ -991,16 +991,6 @@ final class TrialContent {
         };
     }
 
-    private static void placeLootChest(ServerLevel level, BlockPos pos, Direction facing,
-                                       ResourceKey<LootTable> table, long seed) {
-        level.setBlock(pos, Blocks.CHEST.defaultBlockState()
-                .setValue(ChestBlock.FACING, facing), FLAGS);
-        if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer c) {
-            c.setLootTable(table);
-            c.setLootTableSeed(seed ^ pos.asLong());
-        }
-    }
-
     private static void placeVault(ServerLevel level, BlockPos pos, Direction facing,
                                    boolean ominous, ResourceKey<LootTable> table,
                                    ItemStack keyItem, ItemStack displayItem) {

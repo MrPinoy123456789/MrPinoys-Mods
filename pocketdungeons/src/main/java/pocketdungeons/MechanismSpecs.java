@@ -68,8 +68,6 @@ final class MechanismSpecs {
     /** The two z-columns the east doorway occupies. */
     private static final int DOOR_Z0 = RoomGeometry.DOOR_MIN;
     private static final int DOOR_Z1 = RoomGeometry.DOOR_MAX;
-    /** The east wall's x coordinate. */
-    private static final int WALL_X = CELL - 1;
     /** Where a gated room's iron door stands: one block inside the east doorway. */
     private static final int DOOR_X = CELL - 2;
 
@@ -173,13 +171,6 @@ final class MechanismSpecs {
     private static void placeHopper(ServerLevel level, BlockPos pos, Direction facing) {
         RoomBuilder.set(level, pos, Blocks.HOPPER.defaultBlockState()
                 .setValue(HopperBlock.FACING, facing));
-    }
-
-    /** A comparator in compare mode facing {@code facing} (output direction). */
-    private static void placeComparator(ServerLevel level, BlockPos pos, Direction facing) {
-        RoomBuilder.set(level, pos, Blocks.COMPARATOR.defaultBlockState()
-                .setValue(ComparatorBlock.FACING, facing)
-                .setValue(ComparatorBlock.MODE, ComparatorMode.COMPARE));
     }
 
     /**
