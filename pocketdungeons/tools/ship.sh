@@ -28,6 +28,13 @@
 # It never commits and never pushes. Deploy only when the owner asked for it.
 set -u
 cd "$(dirname "$0")/.." || exit 2
+# Drive C: filled up during the 2026-10-12 build (many parallel gradle runs). Keep Gradle's cache and all temp
+# writes on A: when it exists; the cache was copied there once. Harmless where A:/gradle-home is absent.
+if [ -d "A:/gradle-home" ]; then
+  export GRADLE_USER_HOME="A:/gradle-home"
+  mkdir -p "A:/tmp"
+  export TMP="A:/tmp" TEMP="A:/tmp" TMPDIR="A:/tmp"
+fi
 START=$(date +%s)
 SLOTS="${PD_SHIP_SLOTS:-3}"
 NAME="$(basename "$(dirname "$PWD")")"
