@@ -33,6 +33,7 @@ Branch `feature/rm-t00-tooling`, off `feature/act-1-2-roadmap` (merged again bef
 
 - `--pure` through Gradle: 3m24s, 3m50s, 4m05s (106 sequential JVMs, about 2.3 s each).
 - `--pure-fast`: 1m26s and 1m51s (6 jobs). It skips the dedicated server run that `test` also does.
+- Final `ship.sh --quick`: SUITE GREEN, 256 required gametests, 4m22s, slot 2 (while other agents ran).
 - `--only <class>`: about 20 s against about 3 min for the whole gametest run.
 - Gradle settings: `parallel` is already on and only helps multi-project builds (this has one project). The daemon is
   on by default. Configuration takes about 2 s, so the configuration cache saves almost nothing and Loom support is
