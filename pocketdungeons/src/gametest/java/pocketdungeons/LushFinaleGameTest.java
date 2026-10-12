@@ -54,6 +54,7 @@ public final class LushFinaleGameTest {
             int childSize = LushFinaleRules.childSize(boss.getSize());
             List<Slime> vanilla = run.spawnChildren(3, childSize, boss.blockPosition());
             boss.discard();
+            run.clearStrangers(boss.blockPosition(), vanilla);
             run.step(false);
             helper.assertValueEqual(run.countTagged(), 6, "three vanilla children are topped up to six");
             helper.assertTrue(!run.state().done, "the children keep the pad shut");
@@ -65,8 +66,9 @@ public final class LushFinaleGameTest {
             Slime child = vanilla.get(0);
             child.setHealth(0.0f);
             run.step(false);
-            run.spawnChildren(2, LushFinaleRules.childSize(childSize), child.blockPosition());
+            List<Slime> grand = run.spawnChildren(2, LushFinaleRules.childSize(childSize), child.blockPosition());
             child.discard();
+            run.clearStrangers(child.blockPosition(), grand);
             run.step(false);
             helper.assertValueEqual(run.countTagged(), 7, "five children left plus two grandchildren, no doubling");
             helper.assertTrue(!run.state().done, "still not won");
@@ -95,6 +97,7 @@ public final class LushFinaleGameTest {
             run.step(false);
             Slime boss = run.slime(0);
             boss.discard();
+            run.clearStrangers(boss.blockPosition(), List.of());
             run.step(false);
             // A removed body (not killed through the normal path) still resolves to a finished wave.
             for (int i = 0; i < 4 && !run.state().done; i++) {
@@ -196,6 +199,15 @@ public final class LushFinaleGameTest {
                 out.add(child);
             }
             return out;
+        }
+
+        /** Removes every slime near {@code at} that is not in {@code keep} or the wave: the test world spawns strays at this depth. */
+        void clearStrangers(BlockPos at, List<Slime> keep) {
+            for (Slime slime : level.getEntitiesOfClass(Slime.class, new net.minecraft.world.phys.AABB(at).inflate(24.0))) {
+                if (!keep.contains(slime) && !state().mobs.contains(slime.getUUID())) {
+                    slime.discard();
+                }
+            }
         }
 
         /** The slimes of the wave that are alive. */

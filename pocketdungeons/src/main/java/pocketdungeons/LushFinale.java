@@ -176,12 +176,14 @@ final class LushFinale implements FinaleScript {
     private void resolve(FinaleContext ctx, State state, Pending p) {
         ServerLevel level = ctx.level();
         int childSize = LushFinaleRules.childSize(p.size);
-        double reach = 0.52 * p.size + 2.0;
+        double reach = 0.26 * p.size + 1.5;
         AABB around = new AABB(p.pos).inflate(reach);
         List<UUID> known = ctx.mobIds();
         List<Slime> found = new ArrayList<>();
         for (Slime slime : level.getEntitiesOfClass(Slime.class, around)) {
-            if (slime.isAlive() && slime.getSize() == childSize && !known.contains(slime.getUUID())) {
+            // Children are brand new; a slime that has stood a while is not one (a spawner's, or a stray).
+            if (slime.isAlive() && slime.getSize() == childSize && slime.tickCount <= LushFinaleRules.SPLIT_WINDOW_TICKS
+                    && !known.contains(slime.getUUID())) {
                 found.add(slime);
             }
         }
