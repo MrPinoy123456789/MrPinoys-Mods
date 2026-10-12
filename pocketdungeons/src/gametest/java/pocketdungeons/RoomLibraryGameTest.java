@@ -26,7 +26,8 @@ import java.util.Set;
 public final class RoomLibraryGameTest {
 
     /** Rooms inside shared spec files (not whole files) that must pass. */
-    private static final List<String> NAMED = List.of("mineshaft_junction", "mineshaft_dead_end");
+    private static final List<String> NAMED = List.of("mineshaft_junction", "mineshaft_dead_end",
+            "witch_haven", "clay_shelves", "fungal_hollow", "still_pond", "hollow_log");
 
     /**
      * Spec files whose every room must pass: a room added to one of these is checked automatically,

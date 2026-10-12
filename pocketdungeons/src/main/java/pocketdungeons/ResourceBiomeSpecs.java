@@ -3,9 +3,12 @@ package pocketdungeons;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.LayeredCauldronBlock;
+import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.RailShape;
@@ -50,6 +53,11 @@ final class ResourceBiomeSpecs {
         specs.add(lushHollow());
         specs.add(lushRootGallery());
         specs.add(lushClayPool());
+        specs.add(witchHaven());
+        specs.add(clayShelves());
+        specs.add(fungalHollow());
+        specs.add(stillPond());
+        specs.add(hollowLog());
         specs.add(cowPens());
         specs.add(hayLoft());
         specs.add(cowYard());
@@ -346,6 +354,186 @@ final class ResourceBiomeSpecs {
                 });
     }
 
+    // ---- Lush Caves swamp floor (T25) -------------------------------------------------
+
+    /**
+     * A witch haven: a plank hut on the marsh's edge with a brewing cauldron. The content
+     * handler spawns the resident witch at the last spawn point (always indoors) and lays
+     * the witch spawner config on the rest. West and east doors; the lane runs south of
+     * the hut.
+     */
+    private static RoomSpec witchHaven() {
+        return new RoomSpec("witch_haven", EnumSet.of(Direction.WEST, Direction.EAST))
+                .spawns(new BlockPos(4, 1, 7), new BlockPos(6, 1, 13), new BlockPos(12, 1, 10),
+                        new BlockPos(11, 1, 4))
+                .decor((level, o) -> {
+                    BlockState clay = Blocks.CLAY.defaultBlockState();
+                    BlockState water = Blocks.WATER.defaultBlockState();
+                    // The marsh pool in the south west corner, water standing on clay.
+                    for (int x = 2; x <= 6; x++) {
+                        for (int z = 9; z <= 13; z++) {
+                            if ((x + z) % 2 == 0) {
+                                put(level, o, x, 0, z, clay);
+                                put(level, o, x, 1, z, water);
+                            }
+                        }
+                    }
+                    // A second pool in the north, kept clear of the hut.
+                    for (int x = 3; x <= 5; x++) {
+                        for (int z = 2; z <= 4; z++) {
+                            put(level, o, x, 0, z, clay);
+                            put(level, o, x, 1, z, water);
+                        }
+                    }
+                    // The hut: log corner posts, plank walls with a door gap on the lane
+                    // side, a plank roof one block wider than the walls.
+                    BlockState planks = Blocks.SPRUCE_PLANKS.defaultBlockState();
+                    BlockState log = Blocks.SPRUCE_LOG.defaultBlockState();
+                    for (int y = 1; y <= 3; y++) {
+                        for (int x = 9; x <= 13; x++) {
+                            for (int z = 2; z <= 6; z++) {
+                                boolean wall = x == 9 || x == 13 || z == 2 || z == 6;
+                                boolean doorGap = z == 6 && (x == 10 || x == 11) && y <= 2;
+                                if (wall && !doorGap) {
+                                    put(level, o, x, y, z, planks);
+                                }
+                            }
+                        }
+                    }
+                    for (int[] post : new int[][]{{9, 2}, {13, 2}, {9, 6}, {13, 6}}) {
+                        for (int y = 1; y <= 4; y++) {
+                            put(level, o, post[0], y, post[1], log);
+                        }
+                    }
+                    fill(level, o, 8, 4, 1, 14, 4, 7, planks);
+                    // The cauldron she brews in, a mushroom and a web for company.
+                    put(level, o, 11, 1, 3, Blocks.WATER_CAULDRON.defaultBlockState()
+                            .setValue(LayeredCauldronBlock.LEVEL, 3));
+                    put(level, o, 10, 1, 4, Blocks.BROWN_MUSHROOM.defaultBlockState());
+                    put(level, o, 12, 3, 3, WEB);
+                    vines(level, o, 2, 6);
+                    vines(level, o, 7, 11);
+                });
+    }
+
+    /**
+     * Clay shelves: terraced clay banks rising in one block steps along the north wall,
+     * vines down the step faces. The climb pays a chest on the top shelf. Loot and
+     * corridor only: movement, never a fight.
+     */
+    private static RoomSpec clayShelves() {
+        return new RoomSpec("clay_shelves", EnumSet.of(Direction.WEST, Direction.EAST))
+                .chests(new BlockPos(12, 4, 2))
+                .decor((level, o) -> {
+                    BlockState clay = Blocks.CLAY.defaultBlockState();
+                    // The terrace, one block higher each step east.
+                    fill(level, o, 2, 1, 1, 4, 1, 4, clay);
+                    fill(level, o, 5, 1, 1, 7, 2, 4, clay);
+                    fill(level, o, 8, 1, 1, 13, 3, 4, clay);
+                    // Vines on the south faces of each step, the climb made visible.
+                    put(level, o, 2, 1, 5, Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true));
+                    put(level, o, 5, 1, 5, Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true));
+                    put(level, o, 5, 2, 5, Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true));
+                    put(level, o, 8, 1, 5, Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true));
+                    put(level, o, 8, 2, 5, Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true));
+                    put(level, o, 8, 3, 5, Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true));
+                    // A low bank on the south side, with a dip where the lane passes.
+                    fill(level, o, 3, 1, 11, 12, 1, 12, clay);
+                    fill(level, o, 7, 1, 11, 8, 1, 12, AIR);
+                    put(level, o, 4, 2, 11, Blocks.BIG_DRIPLEAF.defaultBlockState());
+                    put(level, o, 11, 2, 12, Blocks.BROWN_MUSHROOM.defaultBlockState());
+                    vines(level, o, 2, 9);
+                });
+    }
+
+    /**
+     * A fungal hollow: a red and a brown giant mushroom over mycelium and podzol patches,
+     * a spore blossom under the red cap. West and east doors.
+     */
+    private static RoomSpec fungalHollow() {
+        return new RoomSpec("fungal_hollow", EnumSet.of(Direction.WEST, Direction.EAST))
+                .chests(new BlockPos(2, 1, 13))
+                .spawns(new BlockPos(6, 1, 7), new BlockPos(9, 1, 11), new BlockPos(12, 1, 6),
+                        new BlockPos(3, 1, 10))
+                .decor((level, o) -> {
+                    // The patches the giants grew out of.
+                    fill(level, o, 2, 0, 9, 6, 0, 13, Blocks.MYCELIUM.defaultBlockState());
+                    fill(level, o, 9, 0, 2, 13, 0, 5, Blocks.PODZOL.defaultBlockState());
+                    // The red giant: a stem to y3, a 3x3 cap at y4, one block on top.
+                    fill(level, o, 4, 1, 4, 4, 3, 4, Blocks.MUSHROOM_STEM.defaultBlockState());
+                    fill(level, o, 3, 4, 3, 5, 4, 5, Blocks.RED_MUSHROOM_BLOCK.defaultBlockState());
+                    put(level, o, 4, 5, 4, Blocks.RED_MUSHROOM_BLOCK.defaultBlockState());
+                    put(level, o, 5, 3, 4, Blocks.SPORE_BLOSSOM.defaultBlockState());
+                    // The brown giant, shorter and wider against the north east.
+                    fill(level, o, 10, 1, 10, 10, 2, 10, Blocks.MUSHROOM_STEM.defaultBlockState());
+                    fill(level, o, 9, 3, 9, 11, 3, 11, Blocks.BROWN_MUSHROOM_BLOCK.defaultBlockState());
+                    // The little ones on the patches.
+                    put(level, o, 3, 1, 10, Blocks.RED_MUSHROOM.defaultBlockState());
+                    put(level, o, 5, 1, 12, Blocks.BROWN_MUSHROOM.defaultBlockState());
+                    put(level, o, 10, 1, 3, Blocks.BROWN_MUSHROOM.defaultBlockState());
+                    put(level, o, 12, 1, 4, Blocks.RED_MUSHROOM.defaultBlockState());
+                    vines(level, o, 2, 3);
+                    vines(level, o, 13, 13);
+                });
+    }
+
+    /**
+     * A still pond at a dead end: water over clay from the bank to the far wall, a low
+     * clay bar in the middle holding the chest, lily pads and dripleaf on the water.
+     */
+    private static RoomSpec stillPond() {
+        return new RoomSpec("still_pond", EnumSet.of(Direction.WEST))
+                .chests(new BlockPos(11, 2, 7))
+                .decor((level, o) -> {
+                    BlockState clay = Blocks.CLAY.defaultBlockState();
+                    BlockState water = Blocks.WATER.defaultBlockState();
+                    for (int x = 4; x <= 14; x++) {
+                        for (int z = 2; z <= 13; z++) {
+                            put(level, o, x, 0, z, clay);
+                            put(level, o, x, 1, z, water);
+                        }
+                    }
+                    // The clay bar rises out of the pond and carries the chest.
+                    fill(level, o, 10, 0, 6, 12, 1, 8, clay);
+                    put(level, o, 12, 2, 8, Blocks.LANTERN.defaultBlockState());
+                    // Pads and leaves on the water, kept off the bar and the lane.
+                    put(level, o, 5, 2, 10, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 7, 2, 4, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 13, 2, 11, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 6, 2, 12, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 4, 1, 4, Blocks.BIG_DRIPLEAF.defaultBlockState());
+                    put(level, o, 2, 1, 4, Blocks.BIG_DRIPLEAF.defaultBlockState());
+                    put(level, o, 2, 1, 11, Blocks.BIG_DRIPLEAF.defaultBlockState());
+                    vines(level, o, 13, 3);
+                    vines(level, o, 14, 12);
+                });
+    }
+
+    /**
+     * A fallen giant log across the path: you walk through it. A nook in the bark on the
+     * north side hides a chest. West and east doors, the lane inside the log.
+     */
+    private static RoomSpec hollowLog() {
+        return new RoomSpec("hollow_log", EnumSet.of(Direction.WEST, Direction.EAST))
+                .chests(new BlockPos(7, 1, 6))
+                .spawns(new BlockPos(5, 1, 4), new BlockPos(10, 1, 11), new BlockPos(13, 1, 7))
+                .decor((level, o) -> {
+                    BlockState log = Blocks.OAK_LOG.defaultBlockState()
+                            .setValue(BlockStateProperties.AXIS, Direction.Axis.X);
+                    fill(level, o, 3, 1, 6, 12, 3, 9, log);
+                    // The hollow: the path runs through it, and the nook hides the chest.
+                    fill(level, o, 3, 1, 7, 12, 2, 8, AIR);
+                    put(level, o, 7, 1, 6, AIR);
+                    put(level, o, 7, 2, 6, AIR);
+                    // Moss and mushrooms took the bark.
+                    put(level, o, 5, 4, 7, Blocks.BROWN_MUSHROOM.defaultBlockState());
+                    put(level, o, 9, 4, 8, Blocks.RED_MUSHROOM.defaultBlockState());
+                    put(level, o, 3, 1, 3, Blocks.AZALEA.defaultBlockState());
+                    vines(level, o, 2, 11);
+                    vines(level, o, 13, 4);
+                });
+    }
+
     // ---- Cow Pits --------------------------------------------------------------------
 
     /** Two fenced pens either side of a path, a gate each; cows are spawned by the {@code cow_pens} handler. */
@@ -449,6 +637,17 @@ final class ResourceBiomeSpecs {
             return;
         }
         handlersRegistered = true;
+        // T25: the witch haven's resident brews in her hut (the last spawn point is the
+        // indoor one) while the cell's own fight is the witch spawner config.
+        Situations.register("witch_haven", (level, o, role, depth, profile, spawns, seed,
+                                            affixes, lootSuffix, theme, voidedFloor, content) -> {
+            if (!spawns.isEmpty()) {
+                RoomContent.spawnMobs(level, o, EntityTypes.WITCH, 1,
+                        List.of(spawns.get(spawns.size() - 1)), seed, null);
+            }
+            return TrialContent.applyEncounter(level, o, spawns, profile.lootTier(), affixes,
+                    "witch_haven", false);
+        });
         for (String room : CowPits.ROOM_COWS.keySet()) {
             Situations.register(room, (level, o, role, depth, profile, spawns, seed, affixes, lootSuffix, theme,
                                        voidedFloor, content) -> {

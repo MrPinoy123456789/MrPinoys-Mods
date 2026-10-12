@@ -1,0 +1,18 @@
+{
+  "template": "pocketdungeons:rooms/hollow_log",
+  "footprint": [1, 1],
+  "roles": ["loot", "corridor"],
+  "weight": 2,
+  "minDepth": 0,
+  "maxPerDungeon": 2,
+  "theme": ["rootworks"],
+  "dungeons": ["rootworks"],
+  "acts": [1],
+  "light": "dim",
+  "biome": "lush_cave",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}
