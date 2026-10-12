@@ -289,14 +289,20 @@ final class Ordeals {
 
     /**
      * The Ordeal station: a lever on a wall, {@code facing} away from the block
-     * it hangs on, with its lamp directly above. The lamp touches the lever, so
-     * vanilla redstone lights it the moment the lever is pulled and keeps it lit.
+     * it hangs on, with its lamp at {@code lamp}, which must touch the lever so
+     * vanilla redstone lights it the moment the lever is pulled and keeps it
+     * lit.
      */
-    static void placeWallLever(ServerLevel level, BlockPos lever, Direction facing) {
+    static void placeWallLever(ServerLevel level, BlockPos lever, Direction facing, BlockPos lamp) {
         RoomBuilder.set(level, lever, Blocks.LEVER.defaultBlockState()
                 .setValue(LeverBlock.FACE, AttachFace.WALL)
                 .setValue(LeverBlock.FACING, facing));
-        RoomBuilder.set(level, lever.above(), Blocks.REDSTONE_LAMP.defaultBlockState());
+        RoomBuilder.set(level, lamp, Blocks.REDSTONE_LAMP.defaultBlockState());
+    }
+
+    /** The station with its lamp directly above the lever. */
+    static void placeWallLever(ServerLevel level, BlockPos lever, Direction facing) {
+        placeWallLever(level, lever, facing, lever.above());
     }
 
     /**

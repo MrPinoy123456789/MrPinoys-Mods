@@ -245,6 +245,81 @@ public final class HandlerGameTest {
         });
     }
 
+    /**
+     * PD-205: the flood starts on the walls perpendicular to the route and
+     * never on a doorway wall, at every rotation of the room. The exit lamp
+     * also sits beside the lever at the same height, not floating a block
+     * above it in front of the doorway's window band.
+     */
+    @GameTest(maxTicks = 100)
+    public void risingLavaFloodsPerpendicularToTheRoute(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int q = 0; q < 4; q++) {
+            BlockPos origin = new BlockPos(8192 + q * 2 * RoomGeometry.CELL, 120, 8192);
+            level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
+            try {
+                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                        net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/rising_lava"), q, 1L);
+                boolean westOpen = level.getBlockState(ConnectorGeometry.wallPos(origin,
+                        DoorMask.Direction.WEST, RoomGeometry.DOOR_MIN, 1)).isAir();
+                boolean northOpen = level.getBlockState(ConnectorGeometry.wallPos(origin,
+                        DoorMask.Direction.NORTH, RoomGeometry.DOOR_MIN, 1)).isAir();
+                helper.assertTrue(westOpen != northOpen,
+                        "the template carries doorways on one axis only at rotation " + q);
+                DoorMask.Direction exit = westOpen ? DoorMask.Direction.EAST : DoorMask.Direction.SOUTH;
+                LayoutStamper.armExitLeverOrdeal(level, origin, exit, RisingLavaOrdeal.INSTANCE);
+                helper.assertTrue(Ordeals.isActive(RisingLavaOrdeal.INSTANCE, origin),
+                        "rising_lava armed at rotation " + q);
+
+                BlockPos lever = Ordeals.findLever(level, origin);
+                helper.assertTrue(lever != null, "lever placed at rotation " + q);
+                helper.assertTrue(RisingLavaOrdeal.floodAlongX(level, origin, lever) == westOpen,
+                        "the flood axis follows the doorways at rotation " + q);
+
+                // First row: lava on the walls perpendicular to the route, none in
+                // either doorway lane.
+                RisingLavaOrdeal.placeLavaRow(level, origin, westOpen, 1);
+                BlockPos side = westOpen ? origin.offset(RoomGeometry.CELL / 2, 1, 1)
+                        : origin.offset(1, 1, RoomGeometry.CELL / 2);
+                helper.assertTrue(level.getBlockState(side).is(Blocks.LAVA),
+                        "lava starts on a perpendicular wall at rotation " + q);
+                for (DoorMask.Direction wall : DoorMask.Direction.values()) {
+                    boolean routeWall = westOpen
+                            ? wall == DoorMask.Direction.WEST || wall == DoorMask.Direction.EAST
+                            : wall == DoorMask.Direction.NORTH || wall == DoorMask.Direction.SOUTH;
+                    if (!routeWall) {
+                        continue;
+                    }
+                    for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
+                        for (int d = 1; d <= 2; d++) {
+                            BlockPos tile = ConnectorGeometry.wallPos(origin, wall, i, 1);
+                            tile = switch (wall) {
+                                case NORTH -> tile.offset(0, 0, d);
+                                case SOUTH -> tile.offset(0, 0, -d);
+                                case WEST -> tile.offset(d, 0, 0);
+                                case EAST -> tile.offset(-d, 0, 0);
+                            };
+                            helper.assertFalse(level.getBlockState(tile).is(Blocks.LAVA),
+                                    "no lava at the " + wall + " doorway at rotation " + q);
+                        }
+                    }
+                }
+
+                BlockPos lamp = westOpen
+                        ? origin.offset(RoomGeometry.CELL - 2, 1, RoomGeometry.DOOR_MIN - 2)
+                        : origin.offset(RoomGeometry.DOOR_MIN - 2, 1, RoomGeometry.CELL - 2);
+                helper.assertTrue(level.getBlockState(lamp).is(Blocks.REDSTONE_LAMP),
+                        "lamp beside the lever at rotation " + q);
+                helper.assertTrue(lamp.distManhattan(lever) == 1,
+                        "lamp touches the lever at rotation " + q);
+                Ordeals.clear(origin);
+            } finally {
+                level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, false);
+            }
+        }
+        helper.succeed();
+    }
+
     // ---- CollapsingBridgeOrdeal: stale cleanup ----
 
     /**

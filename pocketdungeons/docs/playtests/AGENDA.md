@@ -238,3 +238,8 @@ item when it recurs or the owner says it matters.
 - **Keys as a run resource.** "Vault keys should last the dungeon lifespan, not the floor's": carrying a key forward into the same dungeon is an expectation he already has (PD-196). Tension with J7's never-leave-the-floor rule needs a ruling.
 - **Interviewer pacing:** "We're doing a playtest, right? You haven't asked much." Watch for the interview going quiet during long investigations; he wants the questions too.
 - **Mood:** "New build is very good compared to just a couple days ago." The design pass is landing; the Kennels is the visible exception.
+
+### Session 2026-10-10-1 (see docs/playtests/2026-10-10-1.md)
+
+- **The Kennels works as a dungeon, not yet as the Kennels.** One clean clear to the Alpha's Den right after the fixes (PD-194/195 verified). But the wolves are passive (PD-204), the one themed hazard room dumped him into lava with its tell misplaced (PD-205), and the reward he earned asked for a claim path he could not find (PD-206). The structure is right; the fiction is not delivered yet.
+- **Rewards that need instructions fail as rewards.** A shell token he could not work out how to claim: named loot tokens should unlock on use or explain themselves in lore (PD-206).

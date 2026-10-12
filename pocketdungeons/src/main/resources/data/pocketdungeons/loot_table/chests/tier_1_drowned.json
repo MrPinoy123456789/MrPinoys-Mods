@@ -46,7 +46,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:cobblestone",
+          "name": "minecraft:echo_shard",
           "weight": 2,
           "functions": [
             {
@@ -74,7 +74,7 @@
               "mode": "replace_all",
               "lore": [
                 {
-                  "text": "Unlock it from your room's menu.",
+                  "text": "Right-click to unlock.",
                   "italic": true,
                   "color": "gray"
                 }

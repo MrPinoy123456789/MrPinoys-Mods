@@ -21,6 +21,8 @@ Rules:
 
 # Game guide
 
+# Lemon game guide
+
 Plain-words mechanics Lemon may explain freely. Rewritten 2026-10-10 against the
 code after the haul, Astrolabe Room, sculk, finale and leaving-rule changes. The
 owner corrects and extends it. Keep each entry to what a player needs, in the
@@ -129,8 +131,6 @@ haul, lives and charts. Do not say keystone, omen, interval or node to a player.
   visit your room. Inspect Compass has your diaries and Reset Compass.
 
 # Puzzle hint ladders
-
-# Lemon puzzle hint ladders
 
 One entry per puzzle room, keyed by room id (as in `context.room`). Lemon gives
 the nudge on the first ask and the clue on a repeat or when the player is stuck

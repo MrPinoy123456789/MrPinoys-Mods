@@ -523,15 +523,19 @@ final class LayoutStamper {
     /**
      * An Ordeal whose lever waits on the far side (Rising Lava, Collapsing
      * Bridge): the lever goes beside the exit doorway, one block inside the
-     * wall at along {@code DOOR_MIN - 1}, facing into the room with its lamp
-     * above, and only then is the Ordeal armed, since arming finds the lever.
-     * Here rather than baked for the same reason as the gates: a room turned
-     * round would carry a baked lever to its entrance.
+     * wall at along {@code DOOR_MIN - 1}, facing into the room, with its lamp
+     * at the same height one column further out. PD-205: the lamp used to
+     * float a block above the lever inside the doorway's window column, which
+     * read as a light separate from the lever. Only then is the Ordeal armed,
+     * since arming finds the lever. Here rather than baked for the same reason
+     * as the gates: a room turned round would carry a baked lever to its
+     * entrance.
      */
-    private static void armExitLeverOrdeal(ServerLevel level, BlockPos origin, DoorMask.Direction exit,
+    static void armExitLeverOrdeal(ServerLevel level, BlockPos origin, DoorMask.Direction exit,
                                            Ordeal<?> ordeal) {
         BlockPos lever = interiorDoorPos(origin, exit, RoomGeometry.DOOR_MIN - 1, 1);
-        Ordeals.placeWallLever(level, lever, Instances.mcDirection(CellGeometry.opposite(exit)));
+        Ordeals.placeWallLever(level, lever, Instances.mcDirection(CellGeometry.opposite(exit)),
+                interiorDoorPos(origin, exit, RoomGeometry.DOOR_MIN - 2, 1));
         Ordeals.arm(ordeal, level, origin);
     }
 

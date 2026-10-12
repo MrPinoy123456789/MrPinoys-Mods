@@ -64,9 +64,37 @@ final class RisingLavaOrdeal extends Ordeal<RisingLavaOrdeal.LavaRoom> {
         if (lever == null) {
             return null;
         }
+        return new LavaRoom(lever, floodAlongX(level, cellOrigin, lever), 0, 0);
+    }
+
+    /**
+     * PD-205: the lava starts on the walls perpendicular to the route and
+     * never on a doorway wall. The doorways decide: a carved doorway on the
+     * west or east wall means the route runs west to east, so the rows start
+     * at the north and south walls ({@code true}), and the reverse. The lever's
+     * wall is only the fallback for a cell with no readable doorway, or one
+     * with doorways on both axes. Package-visible for {@code HandlerGameTest}.
+     */
+    static boolean floodAlongX(ServerLevel level, BlockPos cellOrigin, BlockPos lever) {
+        boolean routeX = hasDoorway(level, cellOrigin, DoorMask.Direction.WEST)
+                || hasDoorway(level, cellOrigin, DoorMask.Direction.EAST);
+        boolean routeZ = hasDoorway(level, cellOrigin, DoorMask.Direction.NORTH)
+                || hasDoorway(level, cellOrigin, DoorMask.Direction.SOUTH);
+        if (routeX != routeZ) {
+            return routeX;
+        }
         int lx = lever.getX() - cellOrigin.getX();
-        boolean alongX = (lx <= 1 || lx >= RoomGeometry.CELL - 2);
-        return new LavaRoom(lever, alongX, 0, 0);
+        return lx <= 1 || lx >= RoomGeometry.CELL - 2;
+    }
+
+    /** Whether {@code wall} carries a carved doorway (open in the door columns at floor height). */
+    private static boolean hasDoorway(ServerLevel level, BlockPos o, DoorMask.Direction wall) {
+        for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
+            if (level.getBlockState(ConnectorGeometry.wallPos(o, wall, i, 1)).isAir()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -110,7 +138,7 @@ final class RisingLavaOrdeal extends Ordeal<RisingLavaOrdeal.LavaRoom> {
         return "The lava drains away.";
     }
 
-    private static void placeLavaRow(ServerLevel level, BlockPos o, boolean alongX, int spread) {
+    static void placeLavaRow(ServerLevel level, BlockPos o, boolean alongX, int spread) {
         if (alongX) {
             for (int x = 1; x < RoomGeometry.CELL - 1; x++) {
                 placeLava(level, o.offset(x, 1, spread));

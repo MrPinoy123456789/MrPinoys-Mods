@@ -58,6 +58,8 @@
       "pocketdungeons.BoardGameTest",
       "pocketdungeons.HiddenOreGameTest",
       "pocketdungeons.DungeonStorageGameTest",
+      "pocketdungeons.HostileWolvesGameTest",
+      "pocketdungeons.ShellTokenGameTest",
       "pocketdungeons.StampDeterminismGameTest"
     ],
     "main": [

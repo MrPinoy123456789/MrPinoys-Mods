@@ -88,17 +88,28 @@ final class HostileWolves {
                 if (!player.isAlive() || player.isSpectator() || player.isCreative()) {
                     continue;
                 }
-                boolean kennels = Instances.inDungeon(player.blockPosition(), "kennels");
-                for (Wolf wolf : level.getEntitiesOfClass(Wolf.class, player.getBoundingBox().inflate(SIGHT),
-                        w -> w.isAlive() && hostile(w, kennels))) {
-                    if (wolf.getTarget() == null || !wolf.getTarget().isAlive()) {
-                        wolf.setPersistentAngerTarget(EntityReference.of(player));
-                        wolf.startPersistentAngerTimer();
-                        wolf.setTarget(player);
-                    }
-                }
+                enrageAround(level, player);
             }
         });
+    }
+
+    /**
+     * Angers every hostile wolf in sight of {@code player} at it. A wolf
+     * counts as hostile when it carries {@link #HOSTILE} or stands in a
+     * Kennels floor: the player's position decides that, through
+     * {@link Instances#inDungeon}. Package-visible for
+     * {@code HostileWolvesGameTest}; the tick's dimension gate stays here.
+     */
+    static void enrageAround(ServerLevel level, ServerPlayer player) {
+        boolean kennels = Instances.inDungeon(player.blockPosition(), "kennels");
+        for (Wolf wolf : level.getEntitiesOfClass(Wolf.class, player.getBoundingBox().inflate(SIGHT),
+                w -> w.isAlive() && hostile(w, kennels))) {
+            if (wolf.getTarget() == null || !wolf.getTarget().isAlive()) {
+                wolf.setPersistentAngerTarget(EntityReference.of(player));
+                wolf.startPersistentAngerTimer();
+                wolf.setTarget(player);
+            }
+        }
     }
 
     /** A guard that has fallen quiets the wolves of its room. */

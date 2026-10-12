@@ -3049,7 +3049,24 @@ final class Instances {
     /** Whether {@code pos} is inside a running instance of the dungeon {@code dungeonId}. */
     static boolean inDungeon(BlockPos pos, String dungeonId) {
         InstanceRecord record = instanceAt(pos);
-        return record != null && dungeonId.equals(record.interval.dungeonId);
+        return record != null && sameDungeonId(record.interval.dungeonId, dungeonId);
+    }
+
+    /**
+     * PD-204: the stored id is the namespaced {@code def.id()} while callers
+     * may ask with the bare name, so the comparison goes by path, not by
+     * exact string. Package-visible for {@code InstancesTest}.
+     */
+    static boolean sameDungeonId(String stored, String asked) {
+        return dungeonIdPath(stored).equals(dungeonIdPath(asked));
+    }
+
+    private static String dungeonIdPath(String id) {
+        if (id == null) {
+            return "";
+        }
+        int colon = id.indexOf(':');
+        return colon >= 0 ? id.substring(colon + 1) : id;
     }
 
     static InstanceRecord instanceAt(BlockPos pos) {

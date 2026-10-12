@@ -577,7 +577,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Deepslate: does `deep_shaft_landing` show enough ore on the landing?
 
 ## L61: the Kennels rework (2026-10-09)
-- **Status:** failed 2026-10-10 (`2026-10-09-1.md`): the Kennels cannot be played through. A `kennels_tier_2` spawner queued wolves it could never place on a stone hall floor and soft-locked the gate (PD-194; admin removed it, grass+light proved the cause), and on the second trip fire spread burned the wooden kennel rooms (PD-195). Session ended on his call. Kennel Run, Guard Tower, the calm line, strays and The Alpha all remain owed.
+- **Status:** partial 2026-10-10 (`2026-10-10-1.md`): the Kennels now runs end to end (3 floors to Alpha's Den finish, wolves spawn on stone floors, rooms unburned: PD-194/PD-195 verified fixed). New breaks: spawner wolves are passive not hostile (PD-204), rising_lava door axis dumps the player into lava and its lamp is decoupled from the lever (PD-205), shell token claim flow is unintuitive (PD-206). Kennel Run charge, Guard Tower calm line, strays and The Alpha's feel still unjudged. Earlier: failed 2026-10-10 (`2026-10-09-1.md`): soft-locked floor and fire spread; session ended on his call.
 - Do the Kennel Run wolves charge as you enter? Is the room survivable at Act 1 level?
 - Guard Tower: can you run past, shoot the guard, and does "The pack goes quiet." fire when it falls? Does the ladder climb work with wolves biting?
 - Do the Kennels spawners (pillagers, wolves, vindicators from tier 2) read as breeders and their dogs? Any raid banner, Bad Omen or patrol behaviour from the pillagers?
@@ -610,3 +610,10 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** sell lapis; scrap a trimmed piece; finish, quit and fail one dungeon each and read the board; read the sidebar through a floor without prompting.
 - **Pass:** lapis sells; the trimmed piece scraps; the board rows read as above; the player can say their floor and haul without looking at chat.
 - **Fail signs:** a trimmed piece refused, a board row with another word, the sidebar hiding behind the omen bar or never repainting.
+
+## L66: PD-204 to PD-206 fixes (2026-10-10)
+- **Status:** owed (fixed in code 2026-10-10, all suites green; never played)
+- Kennels: spawner wolves charge the player they can see (PD-204: `Instances.inDungeon` now matches namespaced ids); Lost Dog and guard-downed packs stay calm.
+- rising_lava: the lava starts on the two side walls (never on the entrance or exit wall) and closes on the middle lane; the warning lamp sits beside the exit lever at the same height (PD-205).
+- Shell tokens: right-click a held token to unlock the shell directly; the token lore says so (PD-206).
+- **Fail signs:** a Kennels wolf ignoring the player, lava starting on a doorway wall, the lamp floating above the lever, a used token doing nothing.

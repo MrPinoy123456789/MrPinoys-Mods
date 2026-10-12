@@ -175,3 +175,8 @@ The journal's `floor_pay` and `haul_banked` events carry the scrap numbers.
 | 2026-10-10 | kennels | 1 (second trip) | 1 | ~250 | 0 | 0 | n/a | n/a | 0 | abandoned | fire spread destroyed rooms; player left (PD-195) | 2026-10-09-1.md |
 
 - 2026-10-09-1 session: one real delve (deepslate to floor 5, banked), plus short trips. Keystone 13 to 14. Two sessions of evidence now that wolf-potential spawners need spawnable ground or a spawn-rule bypass; fire spread inside authored wooden rooms is a build integrity problem, not a balance one.
+| 2026-10-10 | kennels | 1 | 1 | ~280 | 0 | 0 | n/a | n/a | 3 | cleared | wolves spawn, passive (PD-204) | 2026-10-10-1.md |
+| 2026-10-10 | kennels | 2 | 1 | ~290 | 0 | 0 | n/a | n/a | 3 | cleared | rising_lava entered into lava (PD-205) | 2026-10-10-1.md |
+| 2026-10-10 | kennels | 3 (alpha's den, final) | 1 | ~340 | 0 | 0 | n/a | n/a | 4 | FINISHED | Sandstone Shell token paid; shell claim UX bad (PD-206) | 2026-10-10-1.md |
+
+- 2026-10-10-1 session: one clean Kennels clear after the PD-194/195 fixes; the dungeon is playable again and pays its rewards. Three new bugs are all structural (passive wolves, a broken hazard room, claim UX), not balance.
