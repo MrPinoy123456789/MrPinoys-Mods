@@ -17,5 +17,16 @@ Branch `feature/rm-t22-kennels-handler` (merged `feature/act-1-2-roadmap` twice,
 - Gametest: new `KennelsFinaleGameTest` (5 methods, listed in `fabric.mod.json`): registered for the Kennels and handler named and tagged; windup then growth (scale 1.4, glow, anger, team) and team gone after `floorEnded`; cancel; shrink; dead handler at half does nothing. It drives `FinaleWave.step` with a wrapper that spawns the elite as part of the wave.
 - `tools/ship.sh --quick`: SUITE GREEN, "All 261 required tests passed" after the final merge of the integration branch. Before: 256 (261 minus this task's 5 gametests; not measured separately because the base moved while the run queued). Pure tests: one new class, all green.
 
+## Handoff
+Done and committed on `feature/rm-t22-kennels-handler` (integration branch merged three times, no conflicts):
+- `KennelsFinale`, `KennelsFinaleRules`, the registration line, `KennelsFinaleRulesTest`, `KennelsFinaleGameTest`, wiring in `build.gradle.kts` and `fabric.mod.json`, the live-check fragment.
+- Fix for the coordinator's failures: my gametest slots 9981 to 9985 collided with other finale gametests (finale state is keyed by slot, so `handler()` read another test's cow). Slots are now 9921 to 9925.
+
+Verified: `tools/ship.sh --only KennelsFinaleGameTest` is SUITE GREEN, "All 5 required tests passed". Last full run, before the final merge: "All 261 required tests passed".
+
+Unfinished: one full `tools/ship.sh --quick` on the final merged tree. Four attempts failed on host memory, not on a test: JVM crashes "insufficient memory ... paging file too small" in `configCharacterizationTest`, `kitHiddenBagTest` and `runGameTest` (log `A:/tmp/ship-agent-ae9e8a381e5344be5.log`, `hs_err_pid*.log`). Diagnosis: other agents exhaust the page file. I added no config keys, so no fixture regeneration was needed.
+
+Next step: when memory is free, from `pocketdungeons` run `bash tools/ship.sh --quick`, expect SUITE GREEN with 261 plus whatever the merge added, and record the count here.
+
 ## Only a live server can confirm
 See `docs/playtests/live-checks/rm-t22.md`: whether the arm-up pose and the horn read, whether the red outline reads (the team colour only shows on a glowing entity), whether 1.4 scaled wolves path through the den, and the true feel of a 5 second windup.
