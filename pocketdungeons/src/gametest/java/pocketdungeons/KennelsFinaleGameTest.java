@@ -68,7 +68,7 @@ public final class KennelsFinaleGameTest {
     @GameTest(maxTicks = 60)
     public void theHandlerIsNamedAndTheKennelsHasAScript(GameTestHelper helper) {
         helper.assertTrue(registeredForKennels(), "the Kennels dungeon has a finale script");
-        Run run = new Run(helper, 9981);
+        Run run = new Run(helper, 9921);
         try {
             run.start();
             Pillager handler = run.handler();
@@ -84,7 +84,7 @@ public final class KennelsFinaleGameTest {
 
     @GameTest(maxTicks = 80)
     public void halfHealthStartsTheWindupThenThePackGrows(GameTestHelper helper) {
-        Run run = new Run(helper, 9982);
+        Run run = new Run(helper, 9922);
         try {
             run.start();
             run.step();
@@ -119,7 +119,7 @@ public final class KennelsFinaleGameTest {
 
     @GameTest(maxTicks = 80)
     public void killingTheHandlerInTheWindupCancelsIt(GameTestHelper helper) {
-        Run run = new Run(helper, 9983);
+        Run run = new Run(helper, 9923);
         try {
             run.start();
             run.alphaHealth(0.5);
@@ -141,7 +141,7 @@ public final class KennelsFinaleGameTest {
 
     @GameTest(maxTicks = 80)
     public void killingTheHandlerAfterwardsShrinksThePack(GameTestHelper helper) {
-        Run run = new Run(helper, 9984);
+        Run run = new Run(helper, 9924);
         try {
             run.start();
             run.alphaHealth(0.5);
@@ -166,7 +166,7 @@ public final class KennelsFinaleGameTest {
 
     @GameTest(maxTicks = 80)
     public void aDeadHandlerAtHalfHealthDoesNothing(GameTestHelper helper) {
-        Run run = new Run(helper, 9985);
+        Run run = new Run(helper, 9925);
         try {
             run.start();
             run.handler().discard();
