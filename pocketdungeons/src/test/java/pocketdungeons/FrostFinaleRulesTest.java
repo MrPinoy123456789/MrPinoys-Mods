@@ -88,7 +88,7 @@ public class FrostFinaleRulesTest {
         int count = list.split("\\{", -1).length - 2;
         check(count >= 4 && count <= 6, "four to six braziers: " + count);
         String data = Files.readString(Path.of("src/main/resources/data/pocketdungeons/dungeon/frostworks.json"));
-        check(data.contains("The Frost Warden"), "the elite keeps its name");
+        check(data.contains("Jack Frost"), "the elite keeps its name");
         System.out.println("FrostFinaleRulesTest passed");
     }
 

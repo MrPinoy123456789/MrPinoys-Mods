@@ -52,7 +52,7 @@ final class FinalFloorEarlySpecs {
     static final int[][] BIG_FREEZE_BRAZIERS = {{3, 4}, {12, 4}, {3, 12}, {12, 12}, {8, 13}};
 
     /**
-     * Ice pillars that give The Big Freeze cover from the Frost Warden's arrows: floor to ceiling, local x and
+     * Ice pillars that give The Big Freeze cover from Jack Frost's arrows: floor to ceiling, local x and
      * z. The first two finish icicle columns already hanging there.
      */
     static final int[][] BIG_FREEZE_PILLARS = {{6, 6}, {9, 9}};
