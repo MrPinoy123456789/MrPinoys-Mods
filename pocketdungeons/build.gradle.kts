@@ -147,8 +147,12 @@ fun requireRealServerPass(dir: String, marker: String) {
     }
 }
 
+// `test` depends on dungeonIntegrationTest, which binds this port. tools/ship.sh sets PD_INTEGRATION_PORT to a
+// free port per run so several worktrees can run `test` at the same time; unset, it stays 25581.
+val integrationPort = (System.getenv("PD_INTEGRATION_PORT") ?: "25581").toInt()
+
 tasks.named("runDungeonIntegrationTest") {
-    doFirst { prepareRealServerRun("run-dungeonIntegrationTest", 25581) }
+    doFirst { prepareRealServerRun("run-dungeonIntegrationTest", integrationPort) }
     doLast { requireRealServerPass("run-dungeonIntegrationTest", "dungeonIntegrationTest") }
 }
 
