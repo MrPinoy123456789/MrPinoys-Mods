@@ -327,6 +327,8 @@ for ((taskName, testClass) in mapOf(
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
     "restlessRulesTest" to "RestlessRulesTest",
+    // Affix workshop 2026-10-11 row 11: the Blackout affix (dark_cells, cell choice, lit rooms).
+    "blackoutTest" to "BlackoutTest",
     // Design pass 2026-10-09 (Q9): hidden ore that deepens with the floor.
     "hiddenOreDepthTest" to "HiddenOreDepthTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
@@ -477,6 +479,7 @@ tasks.test {
     dependsOn("finaleDataTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
+    dependsOn("blackoutTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")

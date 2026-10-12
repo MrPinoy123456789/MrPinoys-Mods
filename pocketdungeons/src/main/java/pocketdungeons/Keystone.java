@@ -76,6 +76,7 @@ final class Keystone {
             case AffixIds.VOIDED -> ChatFormatting.DARK_PURPLE;
             case AffixIds.LOADED -> ChatFormatting.DARK_RED;
             case AffixIds.RESTLESS -> ChatFormatting.GRAY;
+            case AffixIds.BLACKOUT -> ChatFormatting.DARK_GRAY;
             default -> ChatFormatting.AQUA;
         };
     }

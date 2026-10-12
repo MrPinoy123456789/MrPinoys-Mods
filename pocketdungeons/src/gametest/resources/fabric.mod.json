@@ -45,6 +45,7 @@
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
+      "pocketdungeons.BlackoutGameTest",
       "pocketdungeons.SeamGameTest",
       "pocketdungeons.LemonGameTest",
       "pocketdungeons.LootTagGameTest",

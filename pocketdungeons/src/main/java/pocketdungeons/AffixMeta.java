@@ -86,7 +86,8 @@ final class AffixMeta {
                 new AffixEffects.TrialTuning(ominous, trialCountMultiplier, cooldownFactor, playerRange),
                 consumableRule, neutralWolfSpawn, new AffixEffects.Hazard(hazardKind, hazardsPerCell),
                 voidedFloor, extraTrialBodies, new AffixEffects.Pools(bonusToolPool, decorPool))
-                .withUndeadRise(riseChance, riseChanceOminous);
+                .withUndeadRise(riseChance, riseChanceOminous)
+                .withDarkCells(doubleOr(e, "dark_cells", 0.0));
     }
 
     private static String requiredString(JsonObject obj, String key, String fileIdentity) {
