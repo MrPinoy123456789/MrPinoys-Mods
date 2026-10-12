@@ -1265,6 +1265,12 @@ final class RunLifecycle {
             player.sendSystemMessage(Component.literal(broodRefusal).withStyle(ChatFormatting.YELLOW));
             return true;
         }
+        // Endless Mine: a guardian floor's pad stays shut while its guardian lives.
+        String guardianRefusal = MineGuardians.padRefusal(player.level(), record);
+        if (guardianRefusal != null) {
+            player.sendSystemMessage(Component.literal(guardianRefusal).withStyle(ChatFormatting.YELLOW));
+            return true;
+        }
         return false;
     }
 
@@ -1280,11 +1286,8 @@ final class RunLifecycle {
             // sees the depth reached and the escalating loot tier before
             // choosing a door deeper or going home. The spatial movement
             // stays silent, the same as the ordinary loop.
-            int tier = LootBands.floorTier(record, rules, floorsCleared);
             player.sendSystemMessage(Component.literal(
-                    EndlessMineRules.mineCheckpointMessage(floorsCleared, tier) + " " + verdict
-                            + (record.interval.mineSealedAct > 0
-                                    ? " " + EndlessMineRules.sealedMessage(record.interval.mineSealedAct) : ""))
+                    EndlessMineRules.mineCheckpointMessage(floorsCleared) + " " + verdict)
                     .withStyle(ChatFormatting.AQUA));
         } else if (record.interval.finished) {
             // The dungeon's final floor: only the way home is left.
@@ -1406,8 +1409,8 @@ final class RunLifecycle {
     }
 
     /**
-     * D13: records the deepest Mine floor, and seals the shaft at a layer boundary the
-     * leader's unlocked acts do not reach (the staging room then offers only HOME).
+     * D13, amended 2026-10-11: records the deepest floor of the mine the run is in, per act's mine.
+     * The shaft is never sealed; the first guardian floor counts toward opening the next act.
      * Does nothing outside an Endless Mine run.
      */
     private static void recordMineDepth(MinecraftServer server, InstanceRecord record, int floorsCleared) {
@@ -1415,20 +1418,15 @@ final class RunLifecycle {
             return;
         }
         DungeonLog mineLog = DungeonLog.forServer(server);
+        int mineAct = EndlessMineRules.actOf(record);
         for (UUID member : record.members.keySet()) {
-            if (mineLog.recordMineFloor(member, floorsCleared)) {
+            if (mineLog.recordMineFloor(member, mineAct, floorsCleared)) {
                 // D29: a new deepest floor may complete the act's Mine leg.
                 ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
                 if (memberPlayer != null) {
                     DungeonProgress.onProgress(server, record, memberPlayer, false);
                 }
             }
-        }
-        int sealed = EndlessMineRules.sealedAct(floorsCleared + 1,
-                DungeonProgress.unlockedActs(server, record.owner));
-        if (sealed > 0) {
-            record.interval.finished = true;
-            record.interval.mineSealedAct = sealed;
         }
     }
 
@@ -1463,7 +1461,8 @@ final class RunLifecycle {
                 new TrialContent.RewardLoot(record.floor.affixes.contains(AffixIds.OMINOUS),
                         record.layout.seed(),
                         completionTheme == null ? null : completionTheme.meta().lootSuffix,
-                        completionTheme == null ? null : completionTheme.meta().lootTable),
+                        MineGuardians.payingTable(record, floorsCleared,
+                                completionTheme == null ? null : completionTheme.meta().lootTable)),
                 promisedItems(level, tripDef, record));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);

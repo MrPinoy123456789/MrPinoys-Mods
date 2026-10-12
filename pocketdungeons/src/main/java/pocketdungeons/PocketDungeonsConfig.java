@@ -376,6 +376,19 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> ENDLESS_DEPTH_MAX = integer("endlessDepthMax", 4,
             v -> v >= 0 && v <= 10, "must be 0 to 10");
     /**
+     * The Endless Mine's layer guardians (decision 2026-10-11, task T40). A guardian waits on every
+     * {@code endlessGuardianEvery}-th floor of a mine (3, 6, 9 and so on); that floor is the checkpoint that pays,
+     * and reaching the first one counts toward opening the next act. Guardian number n runs at hardness
+     * {@code 1 + endlessGuardianHardnessStep * (n - 1) + endlessGuardianLapStep * lap}, where a lap is a full run
+     * of three guardians (so lap 1 starts at guardian 4). Hardness has no cap.
+     */
+    private static final Knob<Integer> ENDLESS_GUARDIAN_EVERY = integer("endlessGuardianEvery", 3,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    private static final Knob<Double> ENDLESS_GUARDIAN_HARDNESS_STEP = decimal("endlessGuardianHardnessStep", 0.25,
+            v -> v >= 0.0 && v <= 5.0, "must be 0 to 5");
+    private static final Knob<Double> ENDLESS_GUARDIAN_LAP_STEP = decimal("endlessGuardianLapStep", 0.5,
+            v -> v >= 0.0 && v <= 5.0, "must be 0 to 5");
+    /**
      * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
      * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
      * meter resets. A room with a spawner that is cleared without it ever answering pays sculkUnheardScrap into
@@ -974,6 +987,18 @@ public final class PocketDungeonsConfig {
 
     public static int endlessDepthMax() {
         return ENDLESS_DEPTH_MAX.get();
+    }
+
+    public static int endlessGuardianEvery() {
+        return ENDLESS_GUARDIAN_EVERY.get();
+    }
+
+    public static double endlessGuardianHardnessStep() {
+        return ENDLESS_GUARDIAN_HARDNESS_STEP.get();
+    }
+
+    public static double endlessGuardianLapStep() {
+        return ENDLESS_GUARDIAN_LAP_STEP.get();
     }
 
     public static int sculkHeardMax() {

@@ -278,11 +278,6 @@ final class DungeonScreen {
      */
     static Board idleContent(ServerLevel level, UUID owner) {
         InstanceRecord tripRecord = owner == null ? null : InstanceRegistry.byMember.get(owner);
-        if (tripRecord != null && tripRecord.interval.mineSealedAct > 0) {
-            return new Board(Component.literal("THE SHAFT IS SEALED").withStyle(ChatFormatting.GOLD),
-                    Component.literal("Clear " + ActProgress.label(tripRecord.interval.mineSealedAct)
-                            + " to dig deeper\nPull the HOME lever").withStyle(ChatFormatting.GRAY));
-        }
         if (tripRecord != null && tripRecord.interval.finished) {
             return new Board(Component.literal(TripView.dungeonName(tripRecord).toUpperCase()).withStyle(ChatFormatting.GOLD),
                     Component.literal("Cleared\nPull the HOME lever").withStyle(ChatFormatting.GREEN));

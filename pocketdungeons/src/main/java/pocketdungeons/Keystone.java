@@ -181,15 +181,15 @@ final class Keystone {
             // Design section 11: an open act whose capstone is not cleared keeps its capstone on door 1
             // or 2 of every first staging room, so the Endless Mine's door 3 never hides it.
             doors = TripDoors.dealFirst(owner, TripDoors.eligibleFirst(dungeons.all(), acts, compass,
-                            entry.dungeonsFinished(), entry.campaign().deepestMineFloor()),
+                            entry.dungeonsFinished(), entry.campaign().mineDepth()),
                     entry.campaign().tripCounter() + 7919 * (record == null ? 0 : record.interval.doorReroll),
                     TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished(), compass,
-                            true, entry.campaign().deepestMineFloor()));
+                            true, entry.campaign().mineDepth()));
             // D13, D29: the Endless Mine is in act 1, but its door 3 waits for the leader's
             // compass to reach endlessMineUnlockLevel. It never appears later in a trip.
-            DungeonDef mineDef = dungeons.byId(EndlessMineRules.MINE_DUNGEON_ID);
-            if (doors.length == TripDoors.DOOR_COUNT && mineDef != null && mineDef.entry() != null
-                    && EndlessMineRules.opensFor(acts, compass)) {
+            java.util.List<DungeonDef> openMines = EndlessMineRules.openMines(dungeons.all(), acts, compass);
+            DungeonDef mineDef = openMines.isEmpty() ? null : openMines.get(0);
+            if (doors.length == TripDoors.DOOR_COUNT && mineDef != null) {
                 doors[TripDoors.DOOR_COUNT - 1] = new TripDoors.Door(mineDef.id(), mineDef.entry().id(),
                         doors[TripDoors.DOOR_COUNT - 1].step(), 0);
             }
@@ -199,11 +199,13 @@ final class Keystone {
         if (doors == null) {
             int[] steps = TripDoors.dealSteps(TripDoors.seed(owner, "", "plain",
                     record == null ? 0 : record.interval.floorIndex, 4));
-            String theme = mine ? EndlessMineRules.MINE_THEME_ID : null;
+            DungeonDef mineDef = mine ? EndlessMineRules.mineOf(record) : null;
+            String theme = mine ? EndlessMineRules.themeOf(mineDef) : null;
             offers = new Offer[TripDoors.DOOR_COUNT];
             for (int i = 0; i < offers.length; i++) {
                 int floorLevel = mine
-                        ? EndlessMineRules.floorLevel(record.interval.floorIndex + 1, steps[i])
+                        ? KeystoneMath.clampLevel(
+                                EndlessMineRules.floorLevel(mineDef, record.interval.floorIndex + 1, steps[i]), max)
                         : KeystoneMath.upgrade(level, steps[i], max);
                 offers[i] = new Offer(floorLevel, Set.of(), steps[i], theme, Tier.FREE);
             }

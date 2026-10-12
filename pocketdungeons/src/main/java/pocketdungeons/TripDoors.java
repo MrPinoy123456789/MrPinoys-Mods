@@ -77,7 +77,7 @@ final class TripDoors {
      */
     static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                           int compass) {
-        return eligibleFirst(all, unlockedActs, compass, null, 0);
+        return eligibleFirst(all, unlockedActs, compass, null, ActProgress.MineDepth.NONE);
     }
 
     /**
@@ -86,7 +86,7 @@ final class TripDoors {
      * ({@link ActProgress#capstoneReady}). {@code finished == null} skips that rule.
      */
     static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
-                                          int compass, Set<String> finished, int deepestMineFloor) {
+                                          int compass, Set<String> finished, ActProgress.MineDepth deepestMineFloor) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
             if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
@@ -189,7 +189,7 @@ final class TripDoors {
      */
     static DungeonDef pendingCapstone(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                       Set<String> finishedDungeons, int compass) {
-        return pendingCapstone(all, unlockedActs, finishedDungeons, compass, false, 0);
+        return pendingCapstone(all, unlockedActs, finishedDungeons, compass, false, ActProgress.MineDepth.NONE);
     }
 
     /**
@@ -199,7 +199,7 @@ final class TripDoors {
      */
     static DungeonDef pendingCapstone(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                       Set<String> finishedDungeons, int compass, boolean gated,
-                                      int deepestMineFloor) {
+                                      ActProgress.MineDepth deepestMineFloor) {
         Set<String> finished = new LinkedHashSet<>();
         for (String id : finishedDungeons) {
             finished.add(DungeonDef.qualify(id));

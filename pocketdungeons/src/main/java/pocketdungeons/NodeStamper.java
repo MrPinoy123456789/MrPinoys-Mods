@@ -85,8 +85,16 @@ final class NodeStamper {
      * the hidden ore of a dungeon that deepens ({@link DungeonDef.HiddenOre#atDepth}) is richer the deeper it goes.
      */
     static Context contextFor(String dungeonId, String nodeId, boolean mine, int floorNumber) {
+        return contextFor(dungeonId, nodeId, mine, floorNumber, ENDLESS_MINE);
+    }
+
+    /**
+     * As {@link #contextFor(String, String, boolean, int)} for the mine {@code mineId} (each act has its own
+     * Endless Mine, with its own palette and hidden ore); {@code mineId} is read only when {@code mine} is set.
+     */
+    static Context contextFor(String dungeonId, String nodeId, boolean mine, int floorNumber, String mineId) {
         DungeonDefs dungeons = DungeonDefs.current();
-        DungeonDef def = dungeons == null ? null : dungeons.byId(mine ? ENDLESS_MINE : dungeonId);
+        DungeonDef def = dungeons == null ? null : dungeons.byId(mine ? mineId : dungeonId);
         if (def == null) {
             return Context.NONE;
         }
