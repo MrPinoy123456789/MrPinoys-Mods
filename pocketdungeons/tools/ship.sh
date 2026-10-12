@@ -5,6 +5,8 @@
 #   tools/ship.sh --quick         the same without `clean`
 #   tools/ship.sh --pure          compileJava, compileTestJava and the pure `test` task only: no lock, no
 #                                 gametest, no dist. Run it (and tools/check_dashes.sh) before the full suite.
+#   tools/ship.sh --pure-fast     the same pure tests, but run 6 at a time by tools/pure_tests.py (about half the time);
+#                                 skips the dedicated server run that `test` also does. Use while iterating.
 #   tools/ship.sh --no-dist       skip the dist jar copy (the usual choice for a branch that will not be deployed)
 #   tools/ship.sh --only <Name>   compile, then run only the gametests whose id contains <Name> (a class such as
 #                                 HerdGameTest, or a method name); no pure tests, no dist. Takes a slot.
@@ -16,8 +18,10 @@
 # A:/tmp/ship-<worktree name>.log, one file per worktree, so agents never overwrite each other's log.
 #
 # Locking. The gametest server (Fabric GameTestServer) does not bind a network port and each worktree has its
-# own build/run/gameTest directory, so parallel suites in different worktrees do not clash. What they share is
-# the machine (12 cores, about 2 GB per Gradle daemon plus the test JVM), so runs take one of PD_SHIP_SLOTS
+# own build/run/gameTest directory. The one thing that did bind a fixed port was dungeonIntegrationTest (a real
+# dedicated server on 25581, run by `test`); build.gradle.kts now reads PD_INTEGRATION_PORT and this script
+# gives every run a free one, so --pure needs no lock. What parallel suites still share is the machine
+# (12 cores, about 2 GB per Gradle daemon plus the test JVM), so a full suite takes one of PD_SHIP_SLOTS
 # slots (default 3). Slot 1 is the old global lock A:/tmp/gradle-suite.lock, so an agent still on the old
 # script and one on this script exclude each other. A slot left behind by a crash is reclaimed after 45 minutes.
 #
@@ -40,6 +44,7 @@ while [ $# -gt 0 ]; do
     --deploy) DEPLOY=1 ;;
     --force-players) FORCE=1 ;;
     --pure) PURE=1 ;;
+    --pure-fast) PURE=2 ;;
     --no-dist) DIST=0 ;;
     --only)
       shift
@@ -49,7 +54,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-if [ "$PURE" -eq 1 ] && { [ "$DEPLOY" -eq 1 ] || [ -n "$ONLY" ]; }; then echo "--pure cannot be combined with --deploy or --only"; exit 2; fi
+if [ "$PURE" -ne 0 ] && { [ "$DEPLOY" -eq 1 ] || [ -n "$ONLY" ]; }; then echo "--pure and --pure-fast cannot be combined with --deploy or --only"; exit 2; fi
 if [ -n "$ONLY" ] && [ "$DEPLOY" -eq 1 ]; then echo "--only cannot be combined with --deploy (a deploy needs the whole suite)"; exit 2; fi
 
 mkdir -p A:/tmp
@@ -63,6 +68,20 @@ finish() {
   echo "elapsed $(elapsed)"
 }
 trap finish EXIT
+
+# `test` includes dungeonIntegrationTest, a real dedicated server that binds a port. build.gradle.kts reads the
+# port from PD_INTEGRATION_PORT (default 25581), so each run takes a free one in 25600-25999 and two worktrees
+# never fight over it. Not 25565 (the test server) and not 25581/25582 (the old fixed ports).
+pick_port() {
+  local p tries=0
+  while [ "$tries" -lt 50 ]; do
+    p=$((25600 + RANDOM % 400))
+    if ! (echo > "/dev/tcp/127.0.0.1/$p") 2>/dev/null; then echo "$p"; return 0; fi
+    tries=$((tries + 1))
+  done
+  echo 25581
+}
+export PD_INTEGRATION_PORT="$(pick_port)"
 
 slot_path() { if [ "$1" -eq 1 ]; then echo "A:/tmp/gradle-suite.lock"; else echo "A:/tmp/gradle-suite.lock.$1"; fi; }
 
@@ -86,6 +105,10 @@ take_slot() {
   done
 }
 
+if [ "$PURE" -eq 2 ]; then
+  python tools/pure_tests.py | tail -40
+  exit "${PIPESTATUS[0]}"
+fi
 if [ "$PURE" -eq 1 ]; then
   ./gradlew.bat compileJava compileTestJava test --continue --console=plain > "$LOG" 2>&1
   grep -a -E "BUILD |FAILED|AssertionError|error:|Exception in thread" "$LOG" | cut -c1-240 | head -15
