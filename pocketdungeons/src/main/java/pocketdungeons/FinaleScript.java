@@ -26,6 +26,25 @@ interface FinaleScript {
     /** The script of a dungeon that has none: every hook is a no-op. */
     FinaleScript NONE = new FinaleScript() {};
 
+    /**
+     * An optional trigger: asked every watch tick until the finale has begun. Return {@code true} to start it
+     * without the final floor's spawners being cleared (a dungeon whose finale the party can wake or leave
+     * asleep). The default {@code false} leaves the trigger to the cleared spawners alone. While it is
+     * {@code false} and nothing was cleared, the pad is not held, so a finale that never wakes costs nothing.
+     */
+    default boolean shouldTrigger(FinaleContext ctx) {
+        return false;
+    }
+
+    /**
+     * The title lines shown when the finale begins, replacing the default "name stirs" title: the first entry
+     * is the title, the rest are the sub lines. {@code null} (the default) keeps the default wording. Follows
+     * the player-text skill.
+     */
+    default java.util.List<String> triggerLines(FinaleContext ctx) {
+        return null;
+    }
+
     /** The final floor's spawners are cleared and the title has been shown; the countdown to the wave starts. */
     default void onTriggered(FinaleContext ctx) {}
 

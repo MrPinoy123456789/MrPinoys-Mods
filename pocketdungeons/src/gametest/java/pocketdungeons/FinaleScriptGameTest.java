@@ -7,6 +7,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -194,6 +195,68 @@ public final class FinaleScriptGameTest {
             }
             run.step(false);
             helper.assertTrue(run.state().done, "a script that throws cannot keep the pad shut");
+        } finally {
+            run.close();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void anOptionalTriggerStartsAFinaleWithoutClearedSpawners(GameTestHelper helper) {
+        boolean[] wake = {false};
+        Recorder script = new Recorder() {
+            @Override
+            public boolean shouldTrigger(FinaleContext ctx) {
+                return wake[0];
+            }
+
+            @Override
+            public List<String> triggerLines(FinaleContext ctx) {
+                return List.of("It wakes.", "Hold the room.");
+            }
+
+            @Override
+            public boolean spawnWave(FinaleContext ctx) {
+                super.spawnWave(ctx);
+                Mob cow = ctx.spawnNearParty("minecraft:cow");
+                ctx.adoptElite(cow, ELITE);
+                return true;
+            }
+        };
+        Run run = new Run(helper, 9976, "pocketdungeons:test_finale_optional", script);
+        try {
+            run.step(false);
+            run.step(false);
+            helper.assertTrue(script.log.isEmpty() && !run.state().triggered,
+                    "nothing starts while the optional trigger says no and no spawner is cleared");
+            wake[0] = true;
+            run.step(false);
+            helper.assertTrue(run.state().triggered && script.log.contains("triggered"),
+                    "the optional trigger starts the finale");
+            run.skipCountdown();
+            run.step(false);
+            helper.assertValueEqual(run.state().mobs.size(), 1, "the script's own wave: the adopted elite");
+            helper.assertTrue(run.state().elite != null && run.state().bar != null, "the adopted mob leads the boss bar");
+            run.kill(0);
+            run.step(false);
+            helper.assertTrue(run.state().done && run.record.floor.finaleWon, "beating it wins the finale");
+        } finally {
+            run.close();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void aFinaleWhoseTriggerNeverFiresStaysAsleep(GameTestHelper helper) {
+        Recorder script = new Recorder();
+        Run run = new Run(helper, 9977, "pocketdungeons:test_finale_asleep", script);
+        try {
+            for (int i = 0; i < 5; i++) {
+                run.step(false);
+            }
+            helper.assertTrue(script.log.isEmpty() && !run.state().triggered && !run.record.floor.finaleWon,
+                    "no wake, no cleared spawner: no finale and no reward");
+            helper.assertTrue(FinaleRules.padRefusal(false, false, 0) == null, "the pad is not held");
         } finally {
             run.close();
         }

@@ -141,7 +141,7 @@ final class FinaleWave {
         List<ServerPlayer> members = CapstoneFights.onlineMembers(server, record);
         boolean due = !state.triggered && !members.isEmpty() && due(level, record);
         String name = "";
-        if (due) {
+        if (!state.triggered && !members.isEmpty()) {
             DungeonDef.Node node = TripView.def(record).node(record.interval.nodeId);
             name = node == null ? TripView.dungeonName(record) : node.name();
         }
@@ -163,16 +163,34 @@ final class FinaleWave {
         FinaleContext ctx = new FinaleContext(server, level, record, finale, state, members);
         FinaleScript script = state.script;
         if (!state.triggered) {
-            if (members.isEmpty() || !due) {
+            if (members.isEmpty()) {
+                return;
+            }
+            boolean go = due;
+            if (!go && script != FinaleScript.NONE) {
+                boolean[] asked = {false};
+                hook(state, "shouldTrigger", () -> asked[0] = script.shouldTrigger(ctx));
+                go = asked[0];
+            }
+            if (!go) {
                 return;
             }
             state.triggered = true;
             state.spawnTick = server.getTickCount() + PocketDungeonsConfig.finaleCountdownSeconds() * 20L;
             String line = finale.elite() == null ? "Hold the room." : finale.elite().name() + " comes.";
+            String title = name + " stirs";
+            List<String> lines = List.of(line);
+            if (script != FinaleScript.NONE) {
+                List<List<String>> custom = new ArrayList<>();
+                hook(state, "triggerLines", () -> custom.add(script.triggerLines(ctx)));
+                if (!custom.isEmpty() && custom.get(0) != null && !custom.get(0).isEmpty()) {
+                    title = custom.get(0).get(0);
+                    lines = custom.get(0).subList(1, custom.get(0).size());
+                }
+            }
             for (ServerPlayer member : members) {
                 StaggeredTitle.show(server, member.getUUID(),
-                        Component.literal(name + " stirs").withStyle(ChatFormatting.GOLD), List.of(line),
-                        ChatFormatting.GRAY);
+                        Component.literal(title).withStyle(ChatFormatting.GOLD), lines, ChatFormatting.GRAY);
             }
             level.playSound(null, members.get(0).blockPosition(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE,
                     1.0f, 0.6f);
@@ -298,6 +316,16 @@ final class FinaleWave {
         if (mob == null) {
             return null;
         }
+        dressElite(level, state, mob, elite, party, members);
+        return mob;
+    }
+
+    /**
+     * Makes {@code mob} the finale's elite: named, its health set from the elite's base scaled to the party,
+     * holding its item, glowing, leading the boss bar every member sees, and counted toward the finale.
+     */
+    static void dressElite(ServerLevel level, State state, Mob mob, DungeonDef.Elite elite, int party,
+                           List<ServerPlayer> members) {
         provoke(mob, members.get(0));
         int health = FinaleRules.eliteHealth(elite.health(), party,
                 PocketDungeonsConfig.finaleEliteHealthPercentPerMember());
@@ -316,7 +344,11 @@ final class FinaleWave {
         }
         mob.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, false));
         state.elite = mob.getUUID();
-        state.mobs.add(mob.getUUID());
+        mob.setPersistenceRequired();
+        mob.addTag(TAG);
+        if (!state.mobs.contains(mob.getUUID())) {
+            state.mobs.add(mob.getUUID());
+        }
         if (state.bar != null) {
             state.bar.removeAllPlayers();
         }
@@ -325,7 +357,6 @@ final class FinaleWave {
         for (ServerPlayer member : members) {
             state.bar.addPlayer(member);
         }
-        return mob;
     }
 
     static Mob spawn(ServerLevel level, String typeId, BlockPos around, RandomSource random) {

@@ -153,6 +153,19 @@ final class FinaleContext {
         return FinaleWave.spawnElite(level, state, elite, members.get(0).blockPosition(), party(), members);
     }
 
+    /**
+     * Makes a mob that already stands the finale's elite: named, given the elite's health scaled to the party,
+     * glowing, with the boss bar for every member, and counted toward {@code alive}. For a script that wakes a
+     * creature the room already holds instead of spawning one. Returns the mob, or {@code null} for none.
+     */
+    Mob adoptElite(Mob mob, DungeonDef.Elite elite) {
+        if (mob == null || members.isEmpty()) {
+            return null;
+        }
+        FinaleWave.dressElite(level, state, mob, elite, party(), members);
+        return mob;
+    }
+
     // ---- per run state -----------------------------------------------------------------------------
 
     /**
