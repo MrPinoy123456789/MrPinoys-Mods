@@ -31,7 +31,7 @@ public final class MineshaftFinaleGameTest {
 
     @GameTest(maxTicks = 600)
     public void tellThenDarkThenSpidersThenLightsReturn(GameTestHelper helper) {
-        Run run = new Run(helper, 9981);
+        Run run = new Run(helper, 9941);
         BlockPos far = run.origin.offset(1, 2, 1);
         BlockPos lantern = run.origin.offset(13, 3, 3);
         BlockPos nearPad = run.origin.offset(10, 2, 9);
@@ -100,7 +100,7 @@ public final class MineshaftFinaleGameTest {
 
     @GameTest(maxTicks = 600)
     public void aFloorThatEndsMidDarkGetsItsLightsBack(GameTestHelper helper) {
-        Run run = new Run(helper, 9982);
+        Run run = new Run(helper, 9942);
         BlockPos torch = run.origin.offset(2, 2, 2);
         run.level.setBlock(torch, Blocks.SOUL_TORCH.defaultBlockState(), FLAGS);
         long tell = FinaleRules.darkTellTicks(PocketDungeonsConfig.mineshaftDarkTellSeconds());
@@ -150,7 +150,7 @@ public final class MineshaftFinaleGameTest {
                     0.0F, false);
             PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
             InstanceLayout layout = new InstanceLayout(origin, geometry, origin.offset(3, 1, 3), 0.0f,
-                    origin.offset(8, 1, 8), geometry.bounds(), 1L, 4, 4, 1, true, Set.of(), 3, origin,
+                    origin.offset(8, 1, 8), geometry.bounds(), 1L, 4, 4, 1, true, Set.of(), 3, origin.offset(2, 1, 14),
                     0, 0, Set.of(), null, Set.of());
             this.record = new InstanceRecord(slot, origin, server.getTickCount(), layout, Set.of(),
                     player.getUUID(), false);
