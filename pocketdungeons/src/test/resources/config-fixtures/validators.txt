@@ -970,6 +970,42 @@ endlessDepthMax [int, default 4]
   odd empty array -> 4 | ERROR pocketdungeons.json field 'endlessDepthMax' is not a valid integer; using default 4
   odd null -> 4 | ERROR pocketdungeons.json field 'endlessDepthMax' is not a valid integer; using default 4
   odd empty object -> 4 | ERROR pocketdungeons.json field 'endlessDepthMax' is not a valid integer; using default 4
+endlessGuardianEvery [int, default 3]
+  probes nnYYYYYYYYnnnnnnnnnnnnnnnnn
+  values 3,3,1,2,3,4,5,6,8,10,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
+  rejected ERROR pocketdungeons.json field 'endlessGuardianEvery' has invalid value -1; must be 1 to 10; using default 3
+  disturbs (nothing else)
+  odd string abc -> 3 | ERROR pocketdungeons.json field 'endlessGuardianEvery' is not a valid integer; using default 3
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 3 | ERROR pocketdungeons.json field 'endlessGuardianEvery' is not a valid integer; using default 3
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 3 | ERROR pocketdungeons.json field 'endlessGuardianEvery' is not a valid integer; using default 3
+  odd null -> 3 | ERROR pocketdungeons.json field 'endlessGuardianEvery' is not a valid integer; using default 3
+  odd empty object -> 3 | ERROR pocketdungeons.json field 'endlessGuardianEvery' is not a valid integer; using default 3
+endlessGuardianHardnessStep [double, default 0.25]
+  probes nYYYYYYYYYYYYYYnnnnn
+  values 0.25,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,2.5,4.0,0.25,0.25,0.25,0.25,0.25
+  rejected ERROR pocketdungeons.json field 'endlessGuardianHardnessStep' has invalid value -1.0; must be 0 to 5; using default 0.25
+  disturbs (nothing else)
+  odd string abc -> 0.25 | ERROR pocketdungeons.json field 'endlessGuardianHardnessStep' is not a valid number; using default 0.25
+  odd string 7 -> 0.25 | ERROR pocketdungeons.json field 'endlessGuardianHardnessStep' has invalid value 7.0; must be 0 to 5; using default 0.25
+  odd boolean true -> 0.25 | ERROR pocketdungeons.json field 'endlessGuardianHardnessStep' is not a valid number; using default 0.25
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array -> 0.25 | ERROR pocketdungeons.json field 'endlessGuardianHardnessStep' is not a valid number; using default 0.25
+  odd null -> 0.25 | ERROR pocketdungeons.json field 'endlessGuardianHardnessStep' is not a valid number; using default 0.25
+  odd empty object -> 0.25 | ERROR pocketdungeons.json field 'endlessGuardianHardnessStep' is not a valid number; using default 0.25
+endlessGuardianLapStep [double, default 0.5]
+  probes nYYYYYYYYYYYYYYnnnnn
+  values 0.5,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,2.5,4.0,0.5,0.5,0.5,0.5,0.5
+  rejected ERROR pocketdungeons.json field 'endlessGuardianLapStep' has invalid value -1.0; must be 0 to 5; using default 0.5
+  disturbs (nothing else)
+  odd string abc -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
+  odd string 7 -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' has invalid value 7.0; must be 0 to 5; using default 0.5
+  odd boolean true -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
+  odd null -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
+  odd empty object -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
 sculkHeardMax [int, default 4]
   probes nnYYYYYYYYnnnnnnnnnnnnnnnnn
   values 4,4,1,2,3,4,5,6,8,10,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4

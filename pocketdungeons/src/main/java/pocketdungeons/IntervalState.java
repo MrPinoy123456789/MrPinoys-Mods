@@ -115,11 +115,12 @@ final class IntervalState {
     boolean endlessMine;
 
     /**
-     * The act that must be cleared before the next Endless Mine floor may be entered, or 0 when
-     * the shaft is open (D13). While non zero {@link #finished} is also set, so the staging room
-     * offers only the HOME lever.
+     * The id of the Endless Mine dungeon this interval is playing ({@code pocketdungeons:endless_mine},
+     * {@code pocketdungeons:endless_mine_deep}), set with {@link #endlessMine} on the first commit, or empty
+     * for a Mine a Cube recipe opened, which is the Act 1 mine. Each act has its own mine (decision
+     * 2026-10-11), and the guardian tables, loot tables, theme and act gate follow it.
      */
-    int mineSealedAct;
+    String mineDungeonId = "";
 
     /**
      * Whether this interval's safe visit has already been settled (keystone,

@@ -85,6 +85,13 @@ final class LootTables {
                 VAULT_TIER_4_OMINOUS,
                 POCKET2, ANOMALY, PIGLIN_BARTER));
         all.addAll(Bags.paths());
+        // The Endless Mine guardians' tier tables of the two acts that have a mine. A later act's mine adds
+        // its tables with its data; an absent table falls back to the floor's ordinary tier table.
+        for (int act = 1; act <= 2; act++) {
+            for (char letter = 'a'; letter <= 'c'; letter++) {
+                all.add("endless_mine/act" + act + "_" + letter);
+            }
+        }
         for (int tier = 1; tier <= MAX_TIER; tier++) {
             for (String slot : GEAR_SLOTS) {
                 all.add(gearTable(slot, tier));
