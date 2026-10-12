@@ -60,7 +60,8 @@
       "pocketdungeons.DungeonStorageGameTest",
       "pocketdungeons.HostileWolvesGameTest",
       "pocketdungeons.ShellTokenGameTest",
-      "pocketdungeons.StampDeterminismGameTest"
+      "pocketdungeons.StampDeterminismGameTest",
+      "pocketdungeons.TrappedCacheGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

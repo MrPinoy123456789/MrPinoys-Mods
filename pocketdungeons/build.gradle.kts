@@ -440,6 +440,9 @@ for ((taskName, testClass) in mapOf(
     "hiddenOrePlannerTest" to "HiddenOrePlannerTest",
     // Haul and Blood Doors (2026-10-07): the haul ledger.
     "scrapMathTest" to "ScrapMathTest",
+    // Affix workshop 2026-10-11 (T11): Overclocked pays for speed; Loaded's cache springs an ambush.
+    "overclockedPayTest" to "OverclockedPayTest",
+    "trappedCacheTest" to "TrappedCacheTest",
     // Simplification step 11 (L2, D41): content module defaults, overrides and allow lists.
     "contentModulesTest" to "ContentModulesTest",
     // Simplification step 12 (K, K2, K3): the simple-loot allow list, the cuts,
@@ -560,6 +563,8 @@ tasks.test {
     dependsOn("boardTextTest")
     dependsOn("hiddenOrePlannerTest")
     dependsOn("scrapMathTest")
+    dependsOn("overclockedPayTest")
+    dependsOn("trappedCacheTest")
     dependsOn("contentModulesTest")
     dependsOn("lootRulesTest")
     dependsOn("instancesTest")

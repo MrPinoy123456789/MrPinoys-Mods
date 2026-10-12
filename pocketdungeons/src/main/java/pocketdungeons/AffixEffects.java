@@ -30,7 +30,6 @@ package pocketdungeons;
  *   <li>neutral wolf spawn (Feral)</li>
  *   <li>interior hazard placement (Molten lava, Explosive TNT)</li>
  *   <li>voided floor (Voided)</li>
- *   <li>extra trial bodies (Loaded)</li>
  *   <li>bonus tool pool (Loaded)</li>
  *   <li>decor pool (Loaded, optional)</li>
  *   <li>undead rise chance (Restless; a runtime effect, read when an undead mob dies)</li>
@@ -91,9 +90,6 @@ final class AffixEffects {
     /** Whether the floor is ripped open in scattered cells. */
     final boolean voidedFloor;
 
-    /** Whether extra trial bodies are placed (Loaded). */
-    final boolean extraTrialBodies;
-
     /**
      * A namespaced loot table id for a guaranteed bonus tool pool, or
      * {@code null} when the affix carries none. Validated against the loot
@@ -115,7 +111,7 @@ final class AffixEffects {
     private AffixEffects(boolean ominous, double trialCountMultiplier, double cooldownFactor,
                          int playerRange, ConsumableRule consumableRule, boolean neutralWolfSpawn,
                          HazardKind hazardKind, int hazardsPerCell, boolean voidedFloor,
-                         boolean extraTrialBodies, String bonusToolPool, String decorPool,
+                         String bonusToolPool, String decorPool,
                          double undeadRiseChance, double undeadRiseChanceOminous) {
         this.undeadRiseChance = undeadRiseChance;
         this.undeadRiseChanceOminous = undeadRiseChanceOminous;
@@ -128,7 +124,6 @@ final class AffixEffects {
         this.hazardKind = hazardKind;
         this.hazardsPerCell = hazardsPerCell;
         this.voidedFloor = voidedFloor;
-        this.extraTrialBodies = extraTrialBodies;
         this.bonusToolPool = bonusToolPool;
         this.decorPool = decorPool;
     }
@@ -136,7 +131,7 @@ final class AffixEffects {
     /** The no-op effects: an affix that does nothing. Used only as the build baseline. */
     static AffixEffects none() {
         return new AffixEffects(false, 1.0, 1.0, 14, ConsumableRule.ALLOW, false,
-                HazardKind.NONE, 0, false, false, null, null, 0.0, 0.0);
+                HazardKind.NONE, 0, false, null, null, 0.0, 0.0);
     }
 
     /**
@@ -158,7 +153,7 @@ final class AffixEffects {
      * "supported operations and extension limits" gate.
      */
     static AffixEffects build(TrialTuning trial, ConsumableRule consumableRule, boolean neutralWolfSpawn,
-                              Hazard hazard, boolean voidedFloor, boolean extraTrialBodies, Pools pools) {
+                              Hazard hazard, boolean voidedFloor, Pools pools) {
         boolean ominous = trial.ominous();
         double trialCountMultiplier = trial.countMultiplier();
         double cooldownFactor = trial.cooldownFactor();
@@ -185,7 +180,7 @@ final class AffixEffects {
         return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange,
                 consumableRule == null ? ConsumableRule.ALLOW : consumableRule, neutralWolfSpawn,
                 hazardKind == null ? HazardKind.NONE : hazardKind, hazardsPerCell, voidedFloor,
-                extraTrialBodies, bonusToolPool, decorPool, 0.0, 0.0);
+                bonusToolPool, decorPool, 0.0, 0.0);
     }
 
     /** These effects with an undead rise chance (Restless), each in {@code [0, 1]}. */
@@ -194,7 +189,7 @@ final class AffixEffects {
             throw new IllegalArgumentException("undead_rise_chance must be in [0.0, 1.0]");
         }
         return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange, consumableRule,
-                neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor, extraTrialBodies, bonusToolPool,
+                neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor, bonusToolPool,
                 decorPool, chance, ominousChance);
     }
 
@@ -207,7 +202,7 @@ final class AffixEffects {
         return ominous || trialCountMultiplier != 1.0 || cooldownFactor != 1.0
                 || playerRange != 14 || consumableRule != ConsumableRule.ALLOW
                 || neutralWolfSpawn || hazardKind != HazardKind.NONE || voidedFloor
-                || extraTrialBodies || bonusToolPool != null || decorPool != null || undeadRiseChance > 0.0
+                || bonusToolPool != null || decorPool != null || undeadRiseChance > 0.0
                 || undeadRiseChanceOminous > 0.0;
     }
 }

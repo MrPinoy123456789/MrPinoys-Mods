@@ -76,7 +76,6 @@ final class AffixMeta {
                 AffixEffects.HazardKind.NONE, AffixEffects.HazardKind.class);
         int hazardsPerCell = intOr(e, "hazards_per_cell", 0);
         boolean voidedFloor = boolOr(e, "voided_floor", false);
-        boolean extraTrialBodies = boolOr(e, "extra_trial_bodies", false);
         String bonusToolPool = stringOrNull(e.get("bonus_tool_pool"));
         String decorPool = stringOrNull(e.get("decor_pool"));
 
@@ -85,7 +84,7 @@ final class AffixMeta {
         return AffixEffects.build(
                 new AffixEffects.TrialTuning(ominous, trialCountMultiplier, cooldownFactor, playerRange),
                 consumableRule, neutralWolfSpawn, new AffixEffects.Hazard(hazardKind, hazardsPerCell),
-                voidedFloor, extraTrialBodies, new AffixEffects.Pools(bonusToolPool, decorPool))
+                voidedFloor, new AffixEffects.Pools(bonusToolPool, decorPool))
                 .withUndeadRise(riseChance, riseChanceOminous);
     }
 
