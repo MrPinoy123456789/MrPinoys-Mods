@@ -187,6 +187,8 @@
   "infestationBossHealth": 100,
   "infestationBossDamage": 4.0,
   "finaleEliteHealthPercentPerMember": 50,
+  "mineshaftDarkSpiders": 3,
+  "mineshaftDarkTellSeconds": 3,
   "mobUniformEnabled": true,
   "potionDripEnabled": true,
   "potionDripIntervalSeconds": 45,
