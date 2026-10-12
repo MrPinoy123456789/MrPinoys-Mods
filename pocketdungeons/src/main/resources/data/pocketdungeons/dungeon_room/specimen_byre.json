@@ -1,0 +1,19 @@
+{
+  "template": "pocketdungeons:rooms/specimen_byre",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "theme": ["cow_pits"],
+  "content": "specimen_byre",
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars",
+  "light": "dim",
+  "biome": "cow_pits",
+  "dungeons": ["cow_pits"],
+  "acts": [2]
+}

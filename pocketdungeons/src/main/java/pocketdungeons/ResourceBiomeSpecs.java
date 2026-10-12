@@ -452,10 +452,20 @@ final class ResourceBiomeSpecs {
         for (String room : CowPits.ROOM_COWS.keySet()) {
             Situations.register(room, (level, o, role, depth, profile, spawns, seed, affixes, lootSuffix, theme,
                                        voidedFloor, content) -> {
-                if (content.equals("cow_ward")) {
-                    CowPits.spawnWard(level, o, spawns, seed);
-                } else {
-                    CowPits.spawnCows(level, o, CowPits.ROOM_COWS.get(content), spawns, seed);
+                switch (content) {
+                    case "cow_ward" -> CowPits.spawnWard(level, o, spawns, seed);
+                    case "zero_bay" -> CowPits.spawnZeroBay(level, o, spawns, seed);
+                    case "milking_stalls" -> {
+                        CowPits.spawnSpecimens(level, o, CowPits.ROOM_COWS.get(content), spawns, seed,
+                                CowPits.STALL_NAMES);
+                        CowPits.fillChurns(level, o, PocketDungeonsConfig.cowParlourMilkBuckets());
+                    }
+                    case "specimen_byre" -> {
+                        CowPits.spawnSpecimens(level, o, CowPits.ROOM_COWS.get(content), spawns, seed,
+                                CowPits.BYRE_NAMES);
+                        CowPits.fillChurns(level, o, PocketDungeonsConfig.cowParlourMilkBuckets());
+                    }
+                    default -> CowPits.spawnCows(level, o, CowPits.ROOM_COWS.get(content), spawns, seed);
                 }
                 return null;
             });

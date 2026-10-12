@@ -29,6 +29,7 @@ final class FinaleScripts {
         register("pocketdungeons:kennels", new KennelsFinale());
         register("pocketdungeons:deepslate", new DeepslateFinale());
         register("pocketdungeons:frostworks", new FrostFinale());
+        register(CowPits.DUNGEON, new CowPitsFinale());
     }
 
     /** Registers {@code script} for the dungeon with this id; a second script for one dungeon is a mistake. */

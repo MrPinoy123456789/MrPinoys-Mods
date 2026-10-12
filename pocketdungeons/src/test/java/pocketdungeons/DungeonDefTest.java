@@ -782,7 +782,7 @@ public class DungeonDefTest {
         check(mineshaft.nodePalette().stream().noneMatch(b -> b.contains("diamond")), "no diamond in the act 1 mineshaft");
         check(mineshaft.nodePalette().contains("minecraft:deepslate_iron_ore"), "mineshaft holds deepslate ore variants");
         DungeonDef cows = loaded.byId("cow_pits");
-        check(cows.kind() == DungeonDef.Kind.DUNGEON && cows.layers() == 2, "cow_pits is a 2 layer dungeon");
+        check(cows.kind() == DungeonDef.Kind.DUNGEON && cows.layers() == 3, "cow_pits is a 3 layer dungeon");
         // Owner ruling 2026-10-08: Cow Pits does not promise ore (its board stays quiet unless a floor holds some);
         // borrowed ore rooms are in its rotation, not guaranteed.
         check(cows.minNodeRooms() == 0, "cow_pits promises no ore rooms");

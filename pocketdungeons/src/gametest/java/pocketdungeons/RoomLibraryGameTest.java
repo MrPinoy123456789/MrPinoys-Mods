@@ -35,7 +35,7 @@ public final class RoomLibraryGameTest {
      */
     private static final String[] CHECKED_SPEC_CLASSES = {
             "ActOneRoomSpecs", "FinalFloorSpecs", "FinalFloorEarlySpecs", "FinalFloorLateSpecs",
-            "GroveAndResourceSpecs", "CowWardSpecs",
+            "GroveAndResourceSpecs", "CowWardSpecs", "CowParlourSpecs",
             "CopperWorksRoomSpecs", "FrostworksRoomSpecs", "DeepslateRoomSpecs", "EnderArchiveRoomSpecs",
             "GenericHallVariantSpecs", "SculkRoomSpecs", "KennelSpecs"};
 

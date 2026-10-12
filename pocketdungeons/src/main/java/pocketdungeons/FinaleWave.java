@@ -439,16 +439,18 @@ final class FinaleWave {
 
     /** Why the pad stays shut while the last stand stands in the way, or {@code null}. */
     static String padRefusal(MinecraftServer server, InstanceRecord record) {
+        return padRefusal(server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL), record);
+    }
+
+    /** The version for a caller that already holds the floor's level. */
+    static String padRefusal(ServerLevel level, InstanceRecord record) {
         if (finaleOf(record) == null && !scriptedFinale(record)) {
             return null;
         }
-        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
-        if (level == null) {
-            return null;
-        }
         State state = state(record);
-        boolean due = state.triggered || (!ownsTrigger(state) && due(level, record));
-        return FinaleRules.padRefusal(due, state.done, state.spawned ? alive(level, state) : 0);
+        boolean due = state.triggered || (!ownsTrigger(state) && level != null && due(level, record));
+        return FinaleRules.padRefusal(due, state.done,
+                state.spawned && level != null ? alive(level, state) : 0);
     }
 
     /** The extra reward chests a won finale pays, read when the floor is counted. */

@@ -245,6 +245,7 @@ final class RoomTemplateGenerator {
         specs.addAll(FinalFloorLateSpecs.list());
         specs.addAll(GroveAndResourceSpecs.list());
         specs.addAll(CowWardSpecs.list());
+        specs.addAll(CowParlourSpecs.list());
         specs.addAll(CopperWorksRoomSpecs.list());
         specs.addAll(FrostworksRoomSpecs.list());
         specs.addAll(DeepslateRoomSpecs.list());

@@ -20,7 +20,8 @@
     "CalibratedSculkSensorPlayersOnlyMixin",
     "MerchantTradeMixin",
     "TrialSpawnerStateDataAccessor",
-    "VaultServerDataAccessor"
+    "VaultServerDataAccessor",
+    "MobGoalsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -217,6 +217,12 @@ public final class PocketDungeonsConfig {
     /** Chance, per player in the room, of 2 emeralds when an Ordeal resolves (J1). */
     private static final Knob<Double> ORDEAL_EMERALD_CHANCE = decimal("ordealEmeraldChance", 0.25,
             v -> v >= 0 && v <= 1, "must be between 0 and 1");
+    /** the scale the woken Specimen 0 grows to, as a multiplier of a cow */
+    private static final Knob<Double> COW_SPECIMEN_ZERO_SCALE = decimal("cowSpecimenZeroScale", 3.0,
+            v -> v >= 0.5 && v <= 8.0, "must be 0.5 to 8.0");
+    /** the health the woken Specimen 0 is given, before the party bonus */
+    private static final Knob<Integer> COW_SPECIMEN_ZERO_HEALTH = integer("cowSpecimenZeroHealth", 60,
+            v -> v >= 1, "must be >= 1");
     /** Molten hazard blocks placed per cell. */
     private static final Knob<Integer> MOLTEN_HAZARDS_PER_CELL = integer("moltenHazardsPerCell", 4,
             v -> v >= 0, "must be >= 0");
@@ -659,6 +665,9 @@ public final class PocketDungeonsConfig {
             v -> v >= 5 && v <= 600, "must be 5 to 600");
     private static final Knob<Integer> HAUNT_TELL_SECONDS = integer("hauntTellSeconds", 2,
             v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /** milk buckets each Milking Parlour churn is left holding */
+    private static final Knob<Integer> COW_PARLOUR_MILK_BUCKETS = integer("cowParlourMilkBuckets", 2,
+            v -> v >= 0 && v <= 9, "must be 0 to 9");
     private static final Knob<Integer> HAUNT_LINGER_SECONDS = integer("hauntLingerSeconds", 45,
             v -> v >= 10 && v <= 300, "must be 10 to 300");
     private static final Knob<Integer> HAUNT_SIGHTING_VANISHES = integer("hauntSightingVanishes", 3,
@@ -1103,6 +1112,14 @@ public final class PocketDungeonsConfig {
         return ORDEAL_EMERALD_CHANCE.get();
     }
 
+    public static double cowSpecimenZeroScale() {
+        return COW_SPECIMEN_ZERO_SCALE.get();
+    }
+
+    public static int cowSpecimenZeroHealth() {
+        return COW_SPECIMEN_ZERO_HEALTH.get();
+    }
+
     public static double fountainChance() {
         return FOUNTAIN_CHANCE.get();
     }
@@ -1530,6 +1547,10 @@ public final class PocketDungeonsConfig {
 
     public static int hauntTellSeconds() {
         return HAUNT_TELL_SECONDS.get();
+    }
+
+    public static int cowParlourMilkBuckets() {
+        return COW_PARLOUR_MILK_BUCKETS.get();
     }
 
     public static int hauntLingerSeconds() {
