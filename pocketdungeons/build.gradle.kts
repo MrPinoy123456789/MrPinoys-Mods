@@ -344,6 +344,9 @@ for ((taskName, testClass) in mapOf(
     "restlessRulesTest" to "RestlessRulesTest",
     // Affix workshop 2026-10-11 row 11: the Blackout affix (dark_cells, cell choice, lit rooms).
     "blackoutTest" to "BlackoutTest",
+    // T50: wager values, the Blood life cost, the Loot percentage and the wager gear maths.
+    "wagerTest" to "WagerTest",
+    "wagerGearTest" to "WagerGearTest",
     // Design pass 2026-10-09 (Q9): hidden ore that deepens with the floor.
     "hiddenOreDepthTest" to "HiddenOreDepthTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
@@ -506,6 +509,8 @@ tasks.test {
     dependsOn("restlessRulesTest")
     dependsOn("affixQuickChangesTest")
     dependsOn("blackoutTest")
+    dependsOn("wagerTest")
+    dependsOn("wagerGearTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")

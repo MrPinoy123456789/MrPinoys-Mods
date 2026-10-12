@@ -70,6 +70,7 @@ lemonLlmLapseSeconds = 50
 lemonThinkSeconds = 10
 loopProbability = 0.0
 lootDurabilityPercent = 10
+lootPercentPerWager = 0
 maxConcurrentInstances = 0
 maxConcurrentPreviews = 0
 maxConcurrentVisits = 0
@@ -130,6 +131,9 @@ trimBonuses = [TrimBonusEntry[material=minecraft:stone, attribute=minecraft:luck
 vaultKeyItem = minecraft:stone
 voidGuardDepth = 0
 voidedCellChance = 0.0
+wagerGearEnabled = false
+wagerTierChanceCap = 0
+wagerTierChancePerPoint = 0
 watchIntervalTicks = 1
 whelpDamage = 0.0
 whelpHealth = 1.0

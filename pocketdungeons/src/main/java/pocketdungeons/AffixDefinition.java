@@ -44,6 +44,15 @@ final class AffixDefinition {
     final int depletionMultiplier;
     final Set<String> incompatible;
     final AffixEffects effects;
+    /**
+     * What this affix wagers (docs/wager-draft-2026-10-12.md): how much harder it makes the floor, in {@code [0, 10]}.
+     * A floor's wager is the sum over its affixes ({@link Wager}); a file that names none wagers 1.
+     */
+    final int wager;
+
+    static final int MIN_WAGER = 0;
+    static final int MAX_WAGER = 10;
+    static final int DEFAULT_WAGER = 1;
 
     AffixDefinition(String id, String label, String blurb, int order, int minLevel,
                    int weight, int depletionMultiplier, Set<String> incompatible,
@@ -54,6 +63,17 @@ final class AffixDefinition {
     AffixDefinition(String id, String label, String shortName, String blurb, int order, int minLevel,
                    int weight, int depletionMultiplier, Set<String> incompatible,
                    AffixEffects effects) {
+        this(id, label, shortName, blurb, order, minLevel, weight, depletionMultiplier, incompatible, effects,
+                DEFAULT_WAGER);
+    }
+
+    AffixDefinition(String id, String label, String shortName, String blurb, int order, int minLevel,
+                   int weight, int depletionMultiplier, Set<String> incompatible,
+                   AffixEffects effects, int wager) {
+        if (wager < MIN_WAGER || wager > MAX_WAGER) {
+            throw new IllegalArgumentException("wager must be " + MIN_WAGER + " to " + MAX_WAGER + ": " + wager);
+        }
+        this.wager = wager;
         this.shortName = shortName == null || shortName.isBlank() ? label : shortName;
         this.id = id;
         this.label = label;

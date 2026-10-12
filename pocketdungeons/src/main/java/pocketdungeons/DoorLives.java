@@ -38,6 +38,11 @@ final class DoorLives {
         return name + " paid a life for the side door. Lives " + livesLeft + ".";
     }
 
+    /** {@link #paidLine(String, int)} for a main path door that costs a life only through its Blood affix. */
+    static String paidBloodLine(String name, int livesLeft) {
+        return name + " paid a life for the door. Lives " + livesLeft + ".";
+    }
+
     /** The on-screen line when a door takes its life. */
     static String takenLine(int livesLeft) {
         return "The door takes a life. Lives " + livesLeft + ".";

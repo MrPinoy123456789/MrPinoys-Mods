@@ -57,6 +57,7 @@
       "pocketdungeons.LootTagGameTest",
       "pocketdungeons.FloorHistoryGameTest",
       "pocketdungeons.FountainGameTest",
+      "pocketdungeons.WagerGearGameTest",
 
       "pocketdungeons.ThemedMerchantGameTest",
       "pocketdungeons.PartyAccessGameTest",

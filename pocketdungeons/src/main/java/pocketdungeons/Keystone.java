@@ -77,6 +77,7 @@ final class Keystone {
             case AffixIds.LOADED -> ChatFormatting.DARK_RED;
             case AffixIds.RESTLESS -> ChatFormatting.GRAY;
             case AffixIds.BLACKOUT -> ChatFormatting.DARK_GRAY;
+            case AffixIds.BLOOD -> ChatFormatting.DARK_RED;
             default -> ChatFormatting.AQUA;
         };
     }
@@ -243,6 +244,15 @@ final class Keystone {
         return DoorAffixes.deal(owner, offer.level(), offer.affixes(), AffixManifest.current().definitions(),
                 dungeonId, nodeId, door == null ? 0 : door.variant(), door == null ? 0 : door.pathLength(),
                 set -> NodeStamper.dealtAffixes(set, dungeonId, nodeId));
+    }
+
+    /**
+     * What the door behind {@code offer} costs {@code owner}'s party in lives, once, when it is committed: the edge\u0027s
+     * {@code lives} plus every dealt Blood-style affix\u0027s {@code life_cost}. The one number the board, the lever
+     * screen, the preview gate and the commit all read.
+     */
+    static int livesCost(UUID owner, Offer offer) {
+        return offer.cost() + Wager.lifeCost(dealtAffixes(owner, offer), AffixManifest.current().definitions());
     }
 
     static Offer fromDoor(DungeonDefs dungeons, TripDoors.Door door, int level, int max) {

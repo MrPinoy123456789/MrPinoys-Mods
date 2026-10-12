@@ -431,6 +431,23 @@ public final class PocketDungeonsConfig {
     private static final Knob<Boolean> FINALE_ENABLED = flag("finaleEnabled", true);
     private static final Knob<Integer> FINALE_REWARD_CHESTS = integer("finaleRewardChests", 1,
             v -> v >= 0 && v <= 3, "must be 0 to 3");
+    /**
+     * A floor whose affixes wager something pays one extra piece of gear into its copper chest
+     * (WagerGear); false pays none.
+     */
+    private static final Knob<Boolean> WAGER_GEAR_ENABLED = flag("wagerGearEnabled", true);
+    /**
+     * Percent chance, per wager point, that the extra copper chest piece is one tier higher than the
+     * floor base tier (never above the dungeon loot band).
+     */
+    private static final Knob<Integer> WAGER_TIER_CHANCE_PER_POINT = integer("wagerTierChancePerPoint", 20,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    /** Most the wager tier chance reaches, in percent. */
+    private static final Knob<Integer> WAGER_TIER_CHANCE_CAP = integer("wagerTierChanceCap", 90,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    /** Display only: the Loot percent the door board shows is 100 plus this per wager point. */
+    private static final Knob<Integer> LOOT_PERCENT_PER_WAGER = integer("lootPercentPerWager", 50,
+            v -> v >= 0 && v <= 200, "must be 0 to 200");
     private static final Knob<Integer> FINALE_COUNTDOWN_SECONDS = integer("finaleCountdownSeconds", 3,
             v -> v >= 0 && v <= 10, "must be 0 to 10");
     /**
@@ -1175,6 +1192,22 @@ public final class PocketDungeonsConfig {
 
     public static int finaleRewardChests() {
         return FINALE_REWARD_CHESTS.get();
+    }
+
+    public static boolean wagerGearEnabled() {
+        return WAGER_GEAR_ENABLED.get();
+    }
+
+    public static int wagerTierChancePerPoint() {
+        return WAGER_TIER_CHANCE_PER_POINT.get();
+    }
+
+    public static int wagerTierChanceCap() {
+        return WAGER_TIER_CHANCE_CAP.get();
+    }
+
+    public static int lootPercentPerWager() {
+        return LOOT_PERCENT_PER_WAGER.get();
     }
 
     public static int finaleCountdownSeconds() {

@@ -35,6 +35,7 @@ package pocketdungeons;
  *   <li>rise chance (Restless; a runtime effect, read when a mob dies; the JSON fields keep the older
  *       {@code undead_rise_chance} names)</li>
  *   <li>dark cells (Blackout; the fraction of eligible cells whose lights go out, chosen from the plan seed)</li>
+ *   <li>life cost (Blood; lives the party pays once, when the door is committed)</li>
  * </ol>
  *
  * <p>A field left at its default (no-op) means the affix does not touch that
@@ -116,12 +117,21 @@ final class AffixEffects {
      */
     final double darkCells;
 
+    /**
+     * Blood: the lives the party pays once, when the door behind a floor with this affix is committed
+     * (the same price path as an edge's {@code lives}, {@link DoorLives}). {@code 0} (the default) costs nothing.
+     * Bounded to {@code [0, 2]}.
+     */
+    final int lifeCost;
+
     private AffixEffects(boolean ominous, double trialCountMultiplier, double cooldownFactor,
                          int playerRange, ConsumableRule consumableRule, boolean neutralWolfSpawn,
                          HazardKind hazardKind, int hazardsPerCell, boolean voidedFloor,
                          String bonusToolPool, String decorPool,
-                         double undeadRiseChance, double undeadRiseChanceOminous, double darkCells) {
+                         double undeadRiseChance, double undeadRiseChanceOminous, double darkCells,
+                         int lifeCost) {
         this.darkCells = darkCells;
+        this.lifeCost = lifeCost;
         this.undeadRiseChance = undeadRiseChance;
         this.undeadRiseChanceOminous = undeadRiseChanceOminous;
         this.ominous = ominous;
@@ -140,7 +150,7 @@ final class AffixEffects {
     /** The no-op effects: an affix that does nothing. Used only as the build baseline. */
     static AffixEffects none() {
         return new AffixEffects(false, 1.0, 1.0, 14, ConsumableRule.ALLOW, false,
-                HazardKind.NONE, 0, false, null, null, 0.0, 0.0, 0.0);
+                HazardKind.NONE, 0, false, null, null, 0.0, 0.0, 0.0, 0);
     }
 
     /**
@@ -189,7 +199,7 @@ final class AffixEffects {
         return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange,
                 consumableRule == null ? ConsumableRule.ALLOW : consumableRule, neutralWolfSpawn,
                 hazardKind == null ? HazardKind.NONE : hazardKind, hazardsPerCell, voidedFloor,
-                bonusToolPool, decorPool, 0.0, 0.0, 0.0);
+                bonusToolPool, decorPool, 0.0, 0.0, 0.0, 0);
     }
 
     /** These effects with an undead rise chance (Restless), each in {@code [0, 1]}. */
@@ -199,7 +209,7 @@ final class AffixEffects {
         }
         return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange, consumableRule,
                 neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor, bonusToolPool,
-                decorPool, chance, ominousChance, darkCells);
+                decorPool, chance, ominousChance, darkCells, lifeCost);
     }
 
     /** These effects with a Blackout fraction of dark cells, in {@code [0, 1]}. */
@@ -209,7 +219,17 @@ final class AffixEffects {
         }
         return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange, consumableRule,
                 neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor, bonusToolPool,
-                decorPool, undeadRiseChance, undeadRiseChanceOminous, fraction);
+                decorPool, undeadRiseChance, undeadRiseChanceOminous, fraction, lifeCost);
+    }
+
+    /** These effects with a Blood life cost, in {@code [0, 2]}. */
+    AffixEffects withLifeCost(int lives) {
+        if (lives < 0 || lives > DoorLives.MAX_LIVES) {
+            throw new IllegalArgumentException("life_cost must be in [0, " + DoorLives.MAX_LIVES + "]");
+        }
+        return new AffixEffects(ominous, trialCountMultiplier, cooldownFactor, playerRange, consumableRule,
+                neutralWolfSpawn, hazardKind, hazardsPerCell, voidedFloor, bonusToolPool,
+                decorPool, undeadRiseChance, undeadRiseChanceOminous, darkCells, lives);
     }
 
     /**
@@ -222,6 +242,6 @@ final class AffixEffects {
                 || playerRange != 14 || consumableRule != ConsumableRule.ALLOW
                 || neutralWolfSpawn || hazardKind != HazardKind.NONE || voidedFloor
                 || bonusToolPool != null || decorPool != null || undeadRiseChance > 0.0
-                || undeadRiseChanceOminous > 0.0 || darkCells > 0.0;
+                || undeadRiseChanceOminous > 0.0 || darkCells > 0.0 || lifeCost > 0;
     }
 }
