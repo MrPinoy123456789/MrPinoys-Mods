@@ -110,7 +110,7 @@ public final class OssuaryFinaleGameTest {
 
     @GameTest(maxTicks = 300)
     public void coffinsHoldTheWaveAndOpenWithATell(GameTestHelper helper) {
-        Run run = new Run(helper, 9981, true, 8, 4);
+        Run run = new Run(helper, 9961, true, 8, 4);
         run.start();
         helper.assertValueEqual(run.state().mobs.size(), 4, "the wave is four mobs, all counted toward alive");
         for (int i = 0; i < 4; i++) {
@@ -148,7 +148,7 @@ public final class OssuaryFinaleGameTest {
 
     @GameTest(maxTicks = 500)
     public void aSkippedCoffinOpensAnyway(GameTestHelper helper) {
-        Run run = new Run(helper, 9982, true, 1, 14);
+        Run run = new Run(helper, 9962, true, 1, 14);
         run.start();
         long start = run.server.getTickCount();
         helper.onEachTick(() -> {
@@ -172,7 +172,7 @@ public final class OssuaryFinaleGameTest {
 
     @GameTest(maxTicks = 40)
     public void aLidBrokenByAPlayerFreesTheOccupants(GameTestHelper helper) {
-        Run run = new Run(helper, 9983, true, 1, 14);
+        Run run = new Run(helper, 9963, true, 1, 14);
         try {
             run.start();
             helper.assertTrue(dormant(run.mob(0)), "asleep before the lid goes");
@@ -189,7 +189,7 @@ public final class OssuaryFinaleGameTest {
 
     @GameTest(maxTicks = 40)
     public void aRoomWithNoCoffinsRunsTheDataWave(GameTestHelper helper) {
-        Run run = new Run(helper, 9984, false, 1, 14);
+        Run run = new Run(helper, 9964, false, 1, 14);
         try {
             run.start();
             helper.assertValueEqual(run.state().mobs.size(), 4, "the data wave stands: four cows");
