@@ -107,6 +107,8 @@
   "wagerTierChanceCap": 0,
   "lootPercentPerWager": 0,
   "finaleCountdownSeconds": 0,
+  "frostColdTicksPerSecond": 0,
+  "frostBrazierRadius": 2,
   "creepingMossySeconds": 1,
   "creepingStoneSeconds": 1,
   "creepingInfestedSeconds": 1,

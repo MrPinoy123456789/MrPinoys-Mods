@@ -36,6 +36,7 @@
       "pocketdungeons.HaulGameTest",
       "pocketdungeons.RescueGameTest",
       "pocketdungeons.HerdGameTest",
+      "pocketdungeons.FrostFinaleGameTest",
       "pocketdungeons.PlateRelayGameTest",
       "pocketdungeons.RoomLibraryGameTest",
       "pocketdungeons.FloorSoakGameTest",

@@ -484,6 +484,19 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> FINALE_COUNTDOWN_SECONDS = integer("finaleCountdownSeconds", 3,
             v -> v >= 0 && v <= 10, "must be 0 to 10");
     /**
+     * The Big Freeze (Frostworks finale): freeze ticks a member gains each second while in the cold
+     * room and away from a lit brazier. A full freeze is 140 ticks, so the default takes about 23
+     * seconds. 0 turns the cold off.
+     */
+    private static final Knob<Integer> FROST_COLD_TICKS_PER_SECOND = integer("frostColdTicksPerSecond", 6,
+            v -> v >= 0 && v <= 40, "must be 0 to 40");
+    /**
+     * The Big Freeze (Frostworks finale): blocks from a lit brazier within which a member thaws.
+     * Measured from the brazier block to the member's feet.
+     */
+    private static final Knob<Integer> FROST_BRAZIER_RADIUS = integer("frostBrazierRadius", 4,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /**
      * Creeping bricks (Infestation): seconds a brick stays mossy stone brick before it matures to
      * stone brick.
      */
@@ -1325,6 +1338,14 @@ public final class PocketDungeonsConfig {
 
     public static int finaleCountdownSeconds() {
         return FINALE_COUNTDOWN_SECONDS.get();
+    }
+
+    public static int frostColdTicksPerSecond() {
+        return FROST_COLD_TICKS_PER_SECOND.get();
+    }
+
+    public static int frostBrazierRadius() {
+        return FROST_BRAZIER_RADIUS.get();
     }
 
     public static int creepingMossySeconds() {

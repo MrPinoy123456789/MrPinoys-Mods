@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.CopperBulbBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -40,6 +41,21 @@ final class FinalFloorEarlySpecs {
         specs.add(bigFreeze());
         return specs;
     }
+
+    /**
+     * Where The Big Freeze keeps its braziers (roadmap T33), as local x and z at rotation 0: four corners and one
+     * on the south wall. Each stands on a two block plinth of polished blackstone bricks with a lit campfire on
+     * top (the campfire is 3 blocks up, so nobody can stand in the flames), clear of the spawn points, the chest,
+     * the snow layers and the ice pillars. {@link FrostFinale} finds them by scanning for lit campfires, never by
+     * these numbers, because a stamped room rotates.
+     */
+    static final int[][] BIG_FREEZE_BRAZIERS = {{3, 4}, {12, 4}, {3, 12}, {12, 12}, {8, 13}};
+
+    /**
+     * Ice pillars that give The Big Freeze cover from the Frost Warden's arrows: floor to ceiling, local x and
+     * z. The first two finish icicle columns already hanging there.
+     */
+    static final int[][] BIG_FREEZE_PILLARS = {{6, 6}, {9, 9}};
 
     private static EnumSet<Direction> doors() {
         return EnumSet.of(Direction.WEST, Direction.EAST);
@@ -214,7 +230,8 @@ final class FinalFloorEarlySpecs {
      * The Big Freeze (Frostworks): a frozen cascade. A wall of blue ice spans the north part
      * from floor to ceiling with ore pockets cut into its south face, icicles hang from the
      * ceiling, a slick patch of blue ice sits mid floor and powder snow pits lurk in the far
-     * southern corners.
+     * southern corners. The finale makes the room cold (see {@link FrostFinale}): five lit campfires on
+     * plinths are the warm spots and two ice pillars are the cover.
      */
     private static RoomSpec bigFreeze() {
         return new RoomSpec("big_freeze", doors())
@@ -249,6 +266,16 @@ final class FinalFloorEarlySpecs {
                     }
                     for (int[] s : new int[][]{{3, 12}, {12, 12}, {6, 9}, {9, 6}}) {
                         put(level, o, s[0], 5, s[1], LAMP);
+                    }
+                    // Cover: pillars of blue ice from the slick patch up to the icicles.
+                    box(level, o, 6, 2, 6, 6, 3, 6, blue);
+                    box(level, o, 9, 2, 9, 9, 5, 9, blue);
+                    // Warm spots: a lit campfire on a two block plinth. Out of reach of the flames by design.
+                    BlockState plinth = Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState();
+                    BlockState fire = Blocks.CAMPFIRE.defaultBlockState().setValue(CampfireBlock.LIT, true);
+                    for (int[] b : BIG_FREEZE_BRAZIERS) {
+                        column(level, o, b[0], 1, 2, b[1], plinth);
+                        put(level, o, b[0], 3, b[1], fire);
                     }
                 });
     }
