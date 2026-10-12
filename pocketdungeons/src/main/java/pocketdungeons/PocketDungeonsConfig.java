@@ -1396,6 +1396,8 @@ public final class PocketDungeonsConfig {
 
     public static int lushSlimeMaxAlive() {
         return LUSH_SLIME_MAX_ALIVE.get();
+    }
+
     public static int mineshaftDarkSpiders() {
         return MINESHAFT_DARK_SPIDERS.get();
     }
