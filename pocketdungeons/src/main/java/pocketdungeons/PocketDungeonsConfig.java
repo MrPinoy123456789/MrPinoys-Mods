@@ -382,6 +382,19 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> ENDLESS_DEPTH_MAX = integer("endlessDepthMax", 4,
             v -> v >= 0 && v <= 10, "must be 0 to 10");
     /**
+     * The Endless Mine's layer guardians (decision 2026-10-11, task T40). A guardian waits on every
+     * {@code endlessGuardianEvery}-th floor of a mine (3, 6, 9 and so on); that floor is the checkpoint that pays,
+     * and reaching the first one counts toward opening the next act. Guardian number n runs at hardness
+     * {@code 1 + endlessGuardianHardnessStep * (n - 1) + endlessGuardianLapStep * lap}, where a lap is a full run
+     * of three guardians (so lap 1 starts at guardian 4). Hardness has no cap.
+     */
+    private static final Knob<Integer> ENDLESS_GUARDIAN_EVERY = integer("endlessGuardianEvery", 3,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    private static final Knob<Double> ENDLESS_GUARDIAN_HARDNESS_STEP = decimal("endlessGuardianHardnessStep", 0.25,
+            v -> v >= 0.0 && v <= 5.0, "must be 0 to 5");
+    private static final Knob<Double> ENDLESS_GUARDIAN_LAP_STEP = decimal("endlessGuardianLapStep", 0.5,
+            v -> v >= 0.0 && v <= 5.0, "must be 0 to 5");
+    /**
      * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
      * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
      * meter resets. A room with a spawner that is cleared without it ever answering pays sculkUnheardScrap into
@@ -420,6 +433,87 @@ public final class PocketDungeonsConfig {
             v -> v >= 0 && v <= 3, "must be 0 to 3");
     private static final Knob<Integer> FINALE_COUNTDOWN_SECONDS = integer("finaleCountdownSeconds", 3,
             v -> v >= 0 && v <= 10, "must be 0 to 10");
+    /**
+     * Creeping bricks (Infestation): seconds a brick stays mossy stone brick before it matures to
+     * stone brick.
+     */
+    private static final Knob<Integer> CREEPING_MOSSY_SECONDS = integer("creepingMossySeconds", 5,
+            v -> v >= 1 && v <= 60, "must be 1 to 60");
+    /** Creeping bricks: seconds a brick stays stone brick before it turns infested. */
+    private static final Knob<Integer> CREEPING_STONE_SECONDS = integer("creepingStoneSeconds", 5,
+            v -> v >= 1 && v <= 60, "must be 1 to 60");
+    /**
+     * Creeping bricks: seconds a brick stays infested stone brick (shaking, loud) before it bursts
+     * into a silverfish.
+     */
+    private static final Knob<Integer> CREEPING_INFESTED_SECONDS = integer("creepingInfestedSeconds", 3,
+            v -> v >= 1 && v <= 60, "must be 1 to 60");
+    /** Creeping bricks: the most bricks one room may have growing at once. */
+    private static final Knob<Integer> CREEPING_ROOM_CAP = integer("creepingRoomCap", 4,
+            v -> v >= 1 && v <= 32, "must be 1 to 32");
+    /**
+     * Creeping bricks: the most bricks growing at once on one floor, all rooms and the boss fight
+     * together.
+     */
+    private static final Knob<Integer> CREEPING_FLOOR_CAP = integer("creepingFloorCap", 10,
+            v -> v >= 1 && v <= 64, "must be 1 to 64");
+    /**
+     * Creeping bricks: how many seed spots a Chewed Corridors or Silverfish Nests room marks at stamp
+     * time; each starts a brick when a member enters.
+     */
+    private static final Knob<Integer> CREEPING_ROOM_SEEDS = integer("creepingRoomSeeds", 3,
+            v -> v >= 0 && v <= 8, "must be 0 to 8");
+    /** Infestation finale: the Attributes.SCALE of the giant silverfish boss (1.0 is a normal silverfish). */
+    private static final Knob<Double> INFESTATION_BOSS_SCALE = decimal("infestationBossScale", 6.0,
+            v -> v >= 1.0 && v <= 12.0, "must be 1.0 to 12.0");
+    /** Infestation finale: seconds the boss fights on the surface before it begins to burrow. */
+    private static final Knob<Integer> INFESTATION_SURFACE_SECONDS = integer("infestationSurfaceSeconds", 25,
+            v -> v >= 5 && v <= 120, "must be 5 to 120");
+    /** Infestation finale: seconds of warning (rumble and dust) before the boss burrows; never under 2. */
+    private static final Knob<Integer> INFESTATION_BURROW_TELL_SECONDS = integer("infestationBurrowTellSeconds", 3,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /**
+     * Infestation finale: seconds of warning (the floor cracks) between the burrow and the first
+     * bricks; never under 2.
+     */
+    private static final Knob<Integer> INFESTATION_ADDS_TELL_SECONDS = integer("infestationAddsTellSeconds", 2,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /**
+     * Infestation finale: the longest the adds phase lasts before the boss emerges whatever bricks
+     * remain.
+     */
+    private static final Knob<Integer> INFESTATION_ADDS_MAX_SECONDS = integer("infestationAddsMaxSeconds", 40,
+            v -> v >= 10 && v <= 180, "must be 10 to 180");
+    /** Infestation finale: seconds of warning (the ground heaves) before the boss emerges; never under 2. */
+    private static final Knob<Integer> INFESTATION_EMERGE_TELL_SECONDS = integer("infestationEmergeTellSeconds", 2,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /** Infestation finale: bricks one adds phase plants for a party of one. */
+    private static final Knob<Integer> INFESTATION_BRICKS_PER_PHASE = integer("infestationBricksPerPhase", 6,
+            v -> v >= 1 && v <= 30, "must be 1 to 30");
+    /** Infestation finale: extra bricks one adds phase plants for each member past the first. */
+    private static final Knob<Integer> INFESTATION_BRICKS_PER_EXTRA_MEMBER = integer("infestationBricksPerExtraMember", 2,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    /** Infestation finale: the most bricks growing at once in the arena. */
+    private static final Knob<Integer> INFESTATION_ARENA_BRICK_CAP = integer("infestationArenaBrickCap", 6,
+            v -> v >= 1 && v <= 32, "must be 1 to 32");
+    /**
+     * Infestation finale: the most silverfish (not the boss) alive at once; a ripe brick waits while
+     * the cap is full.
+     */
+    private static final Knob<Integer> INFESTATION_SILVERFISH_CAP = integer("infestationSilverfishCap", 10,
+            v -> v >= 1 && v <= 40, "must be 1 to 40");
+    /** Infestation finale: seconds between one brick planted and the next during the adds phase. */
+    private static final Knob<Integer> INFESTATION_PLANT_SECONDS = integer("infestationPlantSeconds", 2,
+            v -> v >= 1 && v <= 20, "must be 1 to 20");
+    /**
+     * Infestation finale: the giant silverfish boss's health for a party of one (more per extra member
+     * by finaleEliteHealthPercentPerMember).
+     */
+    private static final Knob<Integer> INFESTATION_BOSS_HEALTH = integer("infestationBossHealth", 100,
+            v -> v >= 10 && v <= 1000, "must be 10 to 1000");
+    /** Infestation finale: the giant silverfish boss's attack damage (a plain silverfish hits for 1). */
+    private static final Knob<Double> INFESTATION_BOSS_DAMAGE = decimal("infestationBossDamage", 4.0,
+            v -> v >= 0.0 && v <= 30.0, "must be 0.0 to 30.0");
     private static final Knob<Integer> FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER = integer(
             "finaleEliteHealthPercentPerMember", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
     private static final Knob<Boolean> MOB_UNIFORM_ENABLED = flag("mobUniformEnabled", true);
@@ -462,6 +556,43 @@ public final class PocketDungeonsConfig {
             v -> v >= 10 && v <= 2000, "must be 10 to 2000");
     private static final Knob<Integer> LUSH_SLIME_MAX_ALIVE = integer("lushSlimeMaxAlive", 40,
             v -> v >= 4 && v <= 200, "must be 4 to 200");
+    /**
+     * Haunts (docs/haunts-draft-2026-10-11.md): a floor wide roaming creature with a learnable rule. The pressure
+     * rises by {@code hauntPressurePerSecond} each second the party spends on a haunted floor and the haunt wakes
+     * when it reaches {@code hauntWakePressure}. The floor number in the dungeon sets its stage: a sighting before
+     * {@code hauntNearMissFloor}, a near miss before {@code hauntStrikeFloor}, a strike from there on (the strike
+     * floor is at least 3, so a two floor dungeon never strikes). A strike hurts for {@code hauntStrikeDamage}
+     * health points (never more than leaves one) and slows for {@code hauntSlownessSeconds}; the haunt then stays
+     * away {@code hauntRetreatSeconds}. {@code hauntTellSeconds} is the least warning before it can act and
+     * {@code hauntLookConeDegrees} the half angle of the view that freezes the Counted. A sighting vanishes when
+     * a member comes within {@code hauntSightingApproachBlocks} or after {@code hauntLingerSeconds}, and the
+     * haunt gives up for the floor after {@code hauntSightingVanishes} of them.
+     */
+    private static final Knob<Boolean> HAUNTS_ENABLED = flag("hauntsEnabled", true);
+    private static final Knob<Double> HAUNT_PRESSURE_PER_SECOND = decimal("hauntPressurePerSecond", 1.0,
+            v -> v >= 0.0 && v <= 20.0, "must be 0.0 to 20.0");
+    private static final Knob<Integer> HAUNT_WAKE_PRESSURE = integer("hauntWakePressure", 90,
+            v -> v >= 10 && v <= 3600, "must be 10 to 3600");
+    private static final Knob<Integer> HAUNT_LOOK_CONE_DEGREES = integer("hauntLookConeDegrees", 60,
+            v -> v >= 10 && v <= 90, "must be 10 to 90");
+    private static final Knob<Integer> HAUNT_NEAR_MISS_FLOOR = integer("hauntNearMissFloor", 2,
+            v -> v >= 2 && v <= 5, "must be 2 to 5");
+    private static final Knob<Integer> HAUNT_STRIKE_FLOOR = integer("hauntStrikeFloor", 3,
+            v -> v >= 3 && v <= 10, "must be 3 to 10");
+    private static final Knob<Double> HAUNT_STRIKE_DAMAGE = decimal("hauntStrikeDamage", 3.0,
+            v -> v >= 0.0 && v <= 8.0, "must be 0.0 to 8.0");
+    private static final Knob<Integer> HAUNT_SLOWNESS_SECONDS = integer("hauntSlownessSeconds", 3,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    private static final Knob<Integer> HAUNT_RETREAT_SECONDS = integer("hauntRetreatSeconds", 40,
+            v -> v >= 5 && v <= 600, "must be 5 to 600");
+    private static final Knob<Integer> HAUNT_TELL_SECONDS = integer("hauntTellSeconds", 2,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    private static final Knob<Integer> HAUNT_LINGER_SECONDS = integer("hauntLingerSeconds", 45,
+            v -> v >= 10 && v <= 300, "must be 10 to 300");
+    private static final Knob<Integer> HAUNT_SIGHTING_VANISHES = integer("hauntSightingVanishes", 3,
+            v -> v >= 1 && v <= 8, "must be 1 to 8");
+    private static final Knob<Integer> HAUNT_SIGHTING_APPROACH_BLOCKS = integer("hauntSightingApproachBlocks", 7,
+            v -> v >= 3 && v <= 16, "must be 3 to 16");
     /**
      * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
      * to pick an act and open any of its dungeons. Off restores the old three random doors.
@@ -1029,6 +1160,18 @@ public final class PocketDungeonsConfig {
         return ENDLESS_DEPTH_MAX.get();
     }
 
+    public static int endlessGuardianEvery() {
+        return ENDLESS_GUARDIAN_EVERY.get();
+    }
+
+    public static double endlessGuardianHardnessStep() {
+        return ENDLESS_GUARDIAN_HARDNESS_STEP.get();
+    }
+
+    public static double endlessGuardianLapStep() {
+        return ENDLESS_GUARDIAN_LAP_STEP.get();
+    }
+
     public static int sculkHeardMax() {
         return SCULK_HEARD_MAX.get();
     }
@@ -1075,6 +1218,82 @@ public final class PocketDungeonsConfig {
 
     public static int finaleCountdownSeconds() {
         return FINALE_COUNTDOWN_SECONDS.get();
+    }
+
+    public static int creepingMossySeconds() {
+        return CREEPING_MOSSY_SECONDS.get();
+    }
+
+    public static int creepingStoneSeconds() {
+        return CREEPING_STONE_SECONDS.get();
+    }
+
+    public static int creepingInfestedSeconds() {
+        return CREEPING_INFESTED_SECONDS.get();
+    }
+
+    public static int creepingRoomCap() {
+        return CREEPING_ROOM_CAP.get();
+    }
+
+    public static int creepingFloorCap() {
+        return CREEPING_FLOOR_CAP.get();
+    }
+
+    public static int creepingRoomSeeds() {
+        return CREEPING_ROOM_SEEDS.get();
+    }
+
+    public static double infestationBossScale() {
+        return INFESTATION_BOSS_SCALE.get();
+    }
+
+    public static int infestationSurfaceSeconds() {
+        return INFESTATION_SURFACE_SECONDS.get();
+    }
+
+    public static int infestationBurrowTellSeconds() {
+        return INFESTATION_BURROW_TELL_SECONDS.get();
+    }
+
+    public static int infestationAddsTellSeconds() {
+        return INFESTATION_ADDS_TELL_SECONDS.get();
+    }
+
+    public static int infestationAddsMaxSeconds() {
+        return INFESTATION_ADDS_MAX_SECONDS.get();
+    }
+
+    public static int infestationEmergeTellSeconds() {
+        return INFESTATION_EMERGE_TELL_SECONDS.get();
+    }
+
+    public static int infestationBricksPerPhase() {
+        return INFESTATION_BRICKS_PER_PHASE.get();
+    }
+
+    public static int infestationBricksPerExtraMember() {
+        return INFESTATION_BRICKS_PER_EXTRA_MEMBER.get();
+    }
+
+    public static int infestationArenaBrickCap() {
+        return INFESTATION_ARENA_BRICK_CAP.get();
+    }
+
+    public static int infestationSilverfishCap() {
+        return INFESTATION_SILVERFISH_CAP.get();
+    }
+
+    public static int infestationPlantSeconds() {
+        return INFESTATION_PLANT_SECONDS.get();
+    }
+
+    public static int infestationBossHealth() {
+        return INFESTATION_BOSS_HEALTH.get();
+    }
+
+    public static double infestationBossDamage() {
+        return INFESTATION_BOSS_DAMAGE.get();
     }
 
     public static int finaleEliteHealthPercentPerMember() {
@@ -1135,6 +1354,58 @@ public final class PocketDungeonsConfig {
 
     public static int lushSlimeMaxAlive() {
         return LUSH_SLIME_MAX_ALIVE.get();
+    }
+
+    public static boolean hauntsEnabled() {
+        return HAUNTS_ENABLED.get();
+    }
+
+    public static double hauntPressurePerSecond() {
+        return HAUNT_PRESSURE_PER_SECOND.get();
+    }
+
+    public static int hauntWakePressure() {
+        return HAUNT_WAKE_PRESSURE.get();
+    }
+
+    public static int hauntLookConeDegrees() {
+        return HAUNT_LOOK_CONE_DEGREES.get();
+    }
+
+    public static int hauntNearMissFloor() {
+        return HAUNT_NEAR_MISS_FLOOR.get();
+    }
+
+    public static int hauntStrikeFloor() {
+        return HAUNT_STRIKE_FLOOR.get();
+    }
+
+    public static double hauntStrikeDamage() {
+        return HAUNT_STRIKE_DAMAGE.get();
+    }
+
+    public static int hauntSlownessSeconds() {
+        return HAUNT_SLOWNESS_SECONDS.get();
+    }
+
+    public static int hauntRetreatSeconds() {
+        return HAUNT_RETREAT_SECONDS.get();
+    }
+
+    public static int hauntTellSeconds() {
+        return HAUNT_TELL_SECONDS.get();
+    }
+
+    public static int hauntLingerSeconds() {
+        return HAUNT_LINGER_SECONDS.get();
+    }
+
+    public static int hauntSightingVanishes() {
+        return HAUNT_SIGHTING_VANISHES.get();
+    }
+
+    public static int hauntSightingApproachBlocks() {
+        return HAUNT_SIGHTING_APPROACH_BLOCKS.get();
     }
 
     public static boolean mobUniformEnabled() {

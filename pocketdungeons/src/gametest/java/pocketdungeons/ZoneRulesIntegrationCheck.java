@@ -32,8 +32,12 @@ public final class ZoneRulesIntegrationCheck {
                 }
             }
             ThemeManifest.Entry mine = snapshot.themes().byId(EndlessMineRules.MINE_THEME_ID);
-            if (mine == null || mine.meta().rules == null || mine.meta().rules.lootTierEvery() != 3) {
-                failures.add("the Endless Mine theme should carry loot_tier_every 3 in its rules block");
+            if (mine == null || mine.meta().rules == null || !"materials".equals(mine.meta().rules.lootRole())) {
+                failures.add("the Endless Mine theme should carry loot_role materials in its rules block");
+            }
+            ThemeManifest.Entry deep = snapshot.themes().byId("pocketdungeons:endless_mine_deep");
+            if (deep == null || deep.meta().rules == null || !"materials".equals(deep.meta().rules.lootRole())) {
+                failures.add("the Deep Mine theme should carry loot_role materials in its rules block");
             }
         } catch (RuntimeException e) {
             failures.add("building a content snapshot for the zone rules check threw: " + e);

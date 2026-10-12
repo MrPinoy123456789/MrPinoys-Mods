@@ -682,9 +682,6 @@ final class RitualListener {
                 .get(record.owner);
         int offerLevel = Math.max(1, entry.keystoneLevel());
         Keystone.Offer[] offers = Keystone.offers(player.level().getServer(), record, record.owner, offerLevel);
-        if (record.interval.mineSealedAct > 0) {
-            return EndlessMineRules.sealedMessage(record.interval.mineSealedAct);
-        }
         if (record.interval.finished || offers.length == 0) {
             return "The dungeon is cleared. Pull the HOME lever.";
         }

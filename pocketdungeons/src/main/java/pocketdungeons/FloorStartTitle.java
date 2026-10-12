@@ -36,6 +36,11 @@ final class FloorStartTitle {
         if (dungeonLine != null) {
             affixes.add(dungeonLine);
         }
+        // Haunts: a haunted floor says only that something walks here; the rule is learned at the first tell.
+        String hauntLine = Haunts.titleLine(record);
+        if (hauntLine != null) {
+            affixes.add(hauntLine);
+        }
         if (!isHome(record.floor.theme)) {
             affixes.addAll(affixLabels(record.floor.affixes));
         }

@@ -50,6 +50,7 @@ public class DungeonLogGoldenTest {
         legacyFieldsShape();
         clampsShape();
         bountiesShape();
+        mineFloorsShape();
         System.out.println("DungeonLogGoldenTest: all assertions passed");
     }
 
@@ -118,6 +119,30 @@ public class DungeonLogGoldenTest {
                 "deepestMine=0"));
     }
 
+    private static void mineFloorsShape() throws IOException {
+        // Endless Mine per act (decision 2026-10-11): the Act 1 mine keeps the old deepest_mine_floor field, the
+        // later acts' mines live in mine_floors. A malformed act key is dropped and a key for act 1 is ignored
+        // (the old field is the act 1 record); the written form is sorted by act and omits the map when empty
+        // (every other fixture proves the omission by not changing).
+        DungeonLog log = golden("mine_floors", String.join("\n",
+                "runs=3", "bestPath=3", "bestKeystone=0", "keystone=4", "affix=", "pending=0",
+                "recentThemes=[]", "completed={}", "currentTheme=", "depth=0", "powers=[]",
+                "publicListed=false", "roomName=", "fuel=0", "shells=[]", "roomCompletions=0",
+                "visitors=[]", "diary=[]", "bag=", "keyProgress=0", "kitGranted=false", "finished=[]",
+                "highestCharts=4", "chartProgress=0", "haul=0", "haulIntroSeen=false",
+                "acts=[1, 2]", "actsMigrated=true", "campaignComplete=false", "trips=0",
+                "whitelist=false", "decideList=[]", "deepestMine=8", "mineFloors={2=5, 3=1}"));
+        DungeonLog.Campaign campaign = log.get(PLAYER).campaign();
+        check(campaign.deepestMineFloor(1), 8, "act 1 reads the old field");
+        check(campaign.deepestMineFloor(2), 5, "act 2 reads mine_floors");
+        check(campaign.deepestMineFloor(3), 1, "act 3 reads mine_floors");
+        check(campaign.deepestMineFloor(4), 0, "an unseen act has none");
+        // An old save (every other fixture) loads with none, and the old field alone still gates act 1 and the
+        // old layer bottoms (ActProgress.MineDepth.reaches), which ActUnlockTest pins.
+        check(decode(read("full_current.json")).get(PLAYER).campaign().otherMineFloors().isEmpty(), true,
+                "a save from before per act mines has no later mine record");
+    }
+
     private static void bountiesShape() throws IOException {
         DungeonLog log = golden("with_bounties", String.join("\n",
                 "runs=2", "bestPath=3", "bestKeystone=0", "keystone=5", "affix=", "pending=0",
@@ -184,7 +209,7 @@ public class DungeonLogGoldenTest {
             decide.add(id.toString());
         }
         java.util.Collections.sort(decide);
-        return String.join("\n",
+        String base = String.join("\n",
                 "runs=" + e.runsCompleted(), "bestPath=" + e.bestPathLength(),
                 "bestKeystone=" + e.bestKeystoneLevel(), "keystone=" + e.keystoneLevel(),
                 "affix=" + e.keystoneAffix(), "pending=" + e.pendingOfferLevel(),
@@ -203,6 +228,8 @@ public class DungeonLogGoldenTest {
                 "campaignComplete=" + e.campaign().campaignComplete(),
                 "trips=" + e.campaign().tripCounter(), "whitelist=" + e.campaign().decideWhitelist(),
                 "decideList=" + decide, "deepestMine=" + e.campaign().deepestMineFloor());
+        return e.campaign().otherMineFloors().isEmpty() ? base
+                : base + "\nmineFloors=" + new TreeMap<>(e.campaign().otherMineFloors());
     }
 
     // ---- codec plumbing, shared with the sub record test ----------------------------------

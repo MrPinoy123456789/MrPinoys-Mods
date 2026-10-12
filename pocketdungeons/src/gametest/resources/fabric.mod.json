@@ -9,6 +9,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "pocketdungeons.gametest.HarnessGameTest",
+      "pocketdungeons.InfestationFinaleGameTest",
       "pocketdungeons.gametest.InventorySwapGameTest",
       "pocketdungeons.CustodyGameTest",
       "pocketdungeons.EconomyGameTest",
@@ -42,11 +43,15 @@
       "pocketdungeons.JoinFromDungeonGameTest",
       "pocketdungeons.HallRoomGameTest",
       "pocketdungeons.FinaleWaveGameTest",
+      "pocketdungeons.HauntGameTest",
+      "pocketdungeons.CreepingBricksGameTest",
       "pocketdungeons.FinaleScriptGameTest",
       "pocketdungeons.LushFinaleGameTest",
+      "pocketdungeons.KennelsFinaleGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
+      "pocketdungeons.MineGuardianGameTest",
       "pocketdungeons.BlackoutGameTest",
       "pocketdungeons.SeamGameTest",
       "pocketdungeons.LemonGameTest",

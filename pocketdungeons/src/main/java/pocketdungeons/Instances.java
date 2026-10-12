@@ -1331,7 +1331,7 @@ final class Instances {
         Set<String> affixes = recipePlan.effectiveAffixes(baseAffixes);
         // Dungeon structure W4: the entrance cell's light and resource nodes, kept for the commit.
         NodeStamper.Context nodeCtx = NodeStamper.contextFor(offer.dungeonId(), offer.nodeId(),
-                mineFloor, record.interval.floorIndex + 1);
+                mineFloor, record.interval.floorIndex + 1, EndlessMineRules.mineIdFor(record, offer));
         record.floor.previewNodes.clear();
         try {
             LayoutStamper.stampEntranceOnly(level, planOrigin, plan, offer.level(), affixes,
@@ -1644,7 +1644,7 @@ final class Instances {
                     null, effectiveThemeId, Set.of(record.stagingCellOrigin),
                     LootBands.forFloor(record, offer, openingMine || record.interval.endlessMine),
                     NodeStamper.contextFor(offer.dungeonId(), offer.nodeId(), openingMine || record.interval.endlessMine,
-                            record.interval.floorIndex + 1));
+                            record.interval.floorIndex + 1, EndlessMineRules.mineIdFor(record, offer)));
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Commit stamp failed behind the staging room at {}",
                     record.stagingCellOrigin.toShortString(), e);
@@ -1717,6 +1717,9 @@ final class Instances {
         // M78: a Mine recipe flags the interval Mine on the first commit and
         // the flag persists for the rest of the interval.
         if (openingMine) {
+            if (!record.interval.endlessMine) {
+                record.interval.mineDungeonId = EndlessMineRules.isMineOffer(offer) ? offer.dungeonId() : "";
+            }
             record.interval.endlessMine = true;
         }
         // Dungeon structure W2: the trip now stands at the node behind this door.
@@ -1757,6 +1760,13 @@ final class Instances {
                 && (offer.door() == null || TripDoors.isFinal(
                         DungeonDefs.current().byId(offer.dungeonId()), offer.nodeId()))) {
             BossContent.spawn(level, layout.terminal(), offer.level());
+        }
+
+        // Endless Mine: a guardian waits on every third floor of a mine, in the terminal cell. The
+        // floor being committed is number floorIndex + 1 (floorIndex counts the floors cleared).
+        if (EndlessMineRules.isMine(record)) {
+            MineGuardians.spawnIfGuardianFloor(level, record, layout.terminal(),
+                    record.interval.floorIndex + 1, offer.level());
         }
     }
 
@@ -2689,6 +2699,8 @@ final class Instances {
             CapstoneFights.tick(server, record);
             // Roadmap T23: the Lush Caves potion drip.
             PotionDrip.tick(server, record);
+            // Haunts: the roaming creature of the floor (docs/haunts-draft-2026-10-11.md).
+            Haunts.tick(server, record);
         }
         // Repainted every watch tick, and every member who is in the
         // dungeon dimension is put back on it: whichever way they came in

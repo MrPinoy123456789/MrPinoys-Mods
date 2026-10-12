@@ -147,8 +147,12 @@ fun requireRealServerPass(dir: String, marker: String) {
     }
 }
 
+// `test` depends on dungeonIntegrationTest, which binds this port. tools/ship.sh sets PD_INTEGRATION_PORT to a
+// free port per run so several worktrees can run `test` at the same time; unset, it stays 25581.
+val integrationPort = (System.getenv("PD_INTEGRATION_PORT") ?: "25581").toInt()
+
 tasks.named("runDungeonIntegrationTest") {
-    doFirst { prepareRealServerRun("run-dungeonIntegrationTest", 25581) }
+    doFirst { prepareRealServerRun("run-dungeonIntegrationTest", integrationPort) }
     doLast { requireRealServerPass("run-dungeonIntegrationTest", "dungeonIntegrationTest") }
 }
 
@@ -321,12 +325,19 @@ for ((taskName, testClass) in mapOf(
     // Design pass 2026-10-09 (Q1): the Astrolabe Room door row and door states.
     "hallLayoutTest" to "HallLayoutTest",
     "hallDataTest" to "HallDataTest",
+    // Roadmap T24: the Infestation's creeping brick clock and caps, and the giant silverfish's phase schedule.
+    "creepingRulesTest" to "CreepingRulesTest",
+    "infestationRulesTest" to "InfestationRulesTest",
     // Design pass 2026-10-09 (Q4, Q5): the finale wave rules, the mob uniform and the authored data.
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Haunts (RM T34): the staging rule, the look cone, the never-lethal strike and The Counted data.
+    "hauntRulesTest" to "HauntRulesTest",
     // Roadmap T01: the half-dead rule and the finale script registry.
     "finaleScriptsTest" to "FinaleScriptsTest",
+    // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
+    "kennelsFinaleRulesTest" to "KennelsFinaleRulesTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
@@ -458,7 +469,9 @@ for ((taskName, testClass) in mapOf(
     "instancesTest" to "InstancesTest",
     // Roadmap T23: the Lush Caves potion drip maths and the giant slime split rules.
     "potionDripRulesTest" to "PotionDripRulesTest",
-    "lushFinaleRulesTest" to "LushFinaleRulesTest"
+    "lushFinaleRulesTest" to "LushFinaleRulesTest",
+    // Affix workshop quick changes (T10): mine fuse, Silenced count, Cooked line, Restless level, Voided cells.
+    "affixQuickChangesTest" to "AffixQuickChangesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -477,6 +490,8 @@ tasks.test {
     dependsOn("resourceNodeTest")
     dependsOn("kitHiddenBagTest")
     dependsOn("doorLivesTest")
+    dependsOn("creepingRulesTest")
+    dependsOn("infestationRulesTest")
     dependsOn("bookLootTest")
     dependsOn("spawnerEjectOddsTest")
     dependsOn("floorNotesTest")
@@ -488,9 +503,11 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("hauntRulesTest")
     dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
+    dependsOn("affixQuickChangesTest")
     dependsOn("blackoutTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")

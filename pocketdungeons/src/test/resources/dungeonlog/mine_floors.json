@@ -1,0 +1,18 @@
+{
+  "players": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "entry": {
+        "runs": 3,
+        "best_path": 3,
+        "keystone": 4,
+        "highest_charts": 4,
+        "acts_unlocked": [1, 2],
+        "acts_migrated": true,
+        "deepest_mine_floor": 8,
+        "mine_floors": {"3": 1, "2": 5, "x": 9, "1": 40},
+        "chart_progress": 0
+      }
+    }
+  ]
+}

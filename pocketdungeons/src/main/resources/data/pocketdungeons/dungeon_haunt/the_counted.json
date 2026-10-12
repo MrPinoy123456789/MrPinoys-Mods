@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "label": "The Counted",
+  "dungeons": ["ossuary"],
+  "min_compass": 4,
+  "behaviour": "STALK_WHEN_UNSEEN",
+  "body": "minecraft:skeleton",
+  "tell_particle": "minecraft:soul_fire_flame",
+  "tell_sound": "minecraft:block.bone_block.hit",
+  "rule_line": "It moves when you look away.",
+  "diary": "entry_27"
+}

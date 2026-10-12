@@ -167,6 +167,7 @@ final class InstanceTeardown {
         Ordeals.clear(cellOrigin);
         HostileWolves.clear(cellOrigin);
         KennelSpecs.clear(cellOrigin);
+        CreepingBricks.clear(cellOrigin);
     }
 
     static void teardown(MinecraftServer server, int slot, BlockPos origin,

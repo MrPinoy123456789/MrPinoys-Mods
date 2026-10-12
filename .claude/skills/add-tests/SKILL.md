@@ -41,6 +41,11 @@ object (it did, and crashed the first version).
 
 ## Gametest
 
+Scaffold first: `python tools/new_gametest.py <Name>` (from `pocketdungeons`) writes the class in the idiom of
+`HerdGameTest` and registers it in `fabric.mod.json` for you (CRLF safe, at a spread position so parallel branches do
+not conflict). Then `tools/ship.sh --only <Name>` runs only that class in seconds and prints
+`All N required tests passed`; N is your method count. The steps below are what the scaffold does for you.
+
 1. Write the class with `@GameTest` methods taking a `GameTestHelper`. Finish with `helper.succeed()`;
    use `helper.assertTrue/assertValueEqual` (they fail the test with your message). Give slow tests
    `@GameTest(maxTicks = N)` and use `helper.runAfterDelay(ticks, () -> ...)`; a failure inside a delayed
@@ -75,6 +80,13 @@ object (it did, and crashed the first version).
 - `.\gradlew.bat dungeonIntegrationTest` boots a real dedicated server with the bundled datapack and loads the
   real dimension; run it after changes to content loading, the dimension or startup. It prints `PASS`.
 - `.\gradlew.bat build` also compiles everything; `dist` writes the jar to `A:\MrPinoys Mods\dist`.
+
+## Running fast
+
+- `tools/ship.sh --pure-fast`: the pure tests six at a time (about 1.5 minutes instead of 4), no lock. `--pure` is the
+  same through Gradle. `tools/pure_tests.py --only <substring>` runs just matching pure tasks.
+- `tools/ship.sh --only <GameTestClass or method>`: gametests by name, a few seconds.
+- `tools/ship.sh --quick --no-dist`: the full suite, once, at the end. It waits for one of 3 slots.
 
 ## Reading results and reporting
 
