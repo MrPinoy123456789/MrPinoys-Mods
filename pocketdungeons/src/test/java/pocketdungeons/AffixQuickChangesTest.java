@@ -9,6 +9,7 @@ public class AffixQuickChangesTest {
     public static void main(String[] args) throws Exception {
         mineFuse();
         silencedCount();
+        cookedLine();
         System.out.println("AffixQuickChangesTest passed");
     }
 
@@ -26,6 +27,18 @@ public class AffixQuickChangesTest {
         String src = Files.readString(Path.of("src/main/java/pocketdungeons/PressureSources.java"));
         check(src.contains("OmenBarText.silencedCount(Math.min(uses, per), per)"), "silencedUse shows the count");
         check(src.contains("silencedConsumablesPerOmen()"), "the every-third-use rule still reads the config");
+    }
+
+    /** Cooked: the floor clear lines carry the bonus line only on a Cooked floor. */
+    private static void cookedLine() {
+        check(OmenBarText.clearedLines(false, false, false).equals(java.util.List.of("GO HOME or DESCEND")),
+                "no Cooked line on a plain floor");
+        check(OmenBarText.clearedLines(true, false, false).equals(java.util.List.of("LEAVE")),
+                "no Cooked line on a plain final floor");
+        java.util.List<String> cooked = OmenBarText.clearedLines(false, true, true);
+        check(cooked.size() == 2 && cooked.get(0).equals(OmenBarText.clearedSubtitle(false, true))
+                && cooked.get(1).equals(OmenBarText.COOKED_BONUS_LINE), "a Cooked floor adds one line after the next step");
+        check(OmenBarText.COOKED_BONUS_LINE.length() <= 25, "the line fits a title");
     }
 
     private static void check(boolean ok, String what) {
