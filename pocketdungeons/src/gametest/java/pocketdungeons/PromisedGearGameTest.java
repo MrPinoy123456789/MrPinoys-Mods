@@ -19,8 +19,8 @@ public final class PromisedGearGameTest {
         ServerLevel level = helper.getLevel();
         UUID owner = UUID.randomUUID();
         IntervalState trip = new IntervalState();
-        ItemStack onBoard = PromisedGear.roll(level, owner, trip, "collapsed_landing", "gear:weapon:2");
-        ItemStack inChest = PromisedGear.roll(level, owner, trip, "collapsed_landing", "gear:weapon:2");
+        ItemStack onBoard = PromisedGear.roll(level, owner, trip, "deep_quarry", "gear:weapon:2");
+        ItemStack inChest = PromisedGear.roll(level, owner, trip, "deep_quarry", "gear:weapon:2");
         helper.assertTrue(!onBoard.isEmpty(), "a weapon tier 2 promise rolls a piece");
         helper.assertTrue(ItemStack.isSameItemSameComponents(onBoard, inChest),
                 "the board and the chest roll the same piece for the same trip and floor: " + onBoard + " vs " + inChest);

@@ -312,6 +312,8 @@ for ((taskName, testClass) in mapOf(
     "spawnerEjectOddsTest" to "SpawnerEjectOddsTest",
     // Floor and dungeon notes (2026-10-08): the reason to choose a door, present, distinct and honest about ore.
     "floorNotesTest" to "FloorNotesTest",
+    // Roadmap T13: Deepslate is four floors on every path; Lush Caves and Copper Works bury what they promise.
+    "dungeonDataFixesTest" to "DungeonDataFixesTest",
     // Playtest 2026-10-08-1 (PD-178, Q10e): poison, wither, slowness and mining fatigue never last past their caps.
     "effectCapsTest" to "EffectCapsTest",
     // Design pass 2026-10-09 (Q7): the trip sidebar lines.
@@ -475,6 +477,7 @@ tasks.test {
     dependsOn("bookLootTest")
     dependsOn("spawnerEjectOddsTest")
     dependsOn("floorNotesTest")
+    dependsOn("dungeonDataFixesTest")
     dependsOn("effectCapsTest")
     dependsOn("sidebarLinesTest")
     dependsOn("hallLayoutTest")
