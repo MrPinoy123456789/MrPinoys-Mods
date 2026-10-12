@@ -424,6 +424,45 @@ public final class PocketDungeonsConfig {
             "finaleEliteHealthPercentPerMember", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
     private static final Knob<Boolean> MOB_UNIFORM_ENABLED = flag("mobUniformEnabled", true);
     /**
+     * The Lush Caves potion drip (roadmap T23): splash potions fall on party members from the start floor on.
+     * Base seconds between two brews for one player, the percent each brew varies either way, the first
+     * floor of the run that drips, the percent of the base rate added per later floor, the percent the rate is
+     * multiplied by during the boss fight, the percent of brews that are harmful, the floor level from which a
+     * harming brew may fall (0 never), the seconds a brew's effect lasts (before its own scaling), the ticks a
+     * brew takes to fall, and the least seconds between two brews however fast the rate.
+     */
+    private static final Knob<Boolean> POTION_DRIP_ENABLED = flag("potionDripEnabled", true);
+    private static final Knob<Integer> POTION_DRIP_INTERVAL_SECONDS = integer("potionDripIntervalSeconds", 45,
+            v -> v >= 5 && v <= 600, "must be 5 to 600");
+    private static final Knob<Integer> POTION_DRIP_JITTER_PERCENT = integer("potionDripJitterPercent", 30,
+            v -> v >= 0 && v <= 90, "must be 0 to 90");
+    private static final Knob<Integer> POTION_DRIP_START_FLOOR = integer("potionDripStartFloor", 3,
+            v -> v >= 1 && v <= 12, "must be 1 to 12");
+    private static final Knob<Integer> POTION_DRIP_RAMP_PERCENT = integer("potionDripRampPercent", 50,
+            v -> v >= 0 && v <= 500, "must be 0 to 500");
+    private static final Knob<Integer> POTION_DRIP_BOSS_PERCENT = integer("potionDripBossPercent", 200,
+            v -> v >= 100 && v <= 1000, "must be 100 to 1000");
+    private static final Knob<Integer> POTION_DRIP_HARMFUL_PERCENT = integer("potionDripHarmfulPercent", 70,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    private static final Knob<Integer> POTION_DRIP_HARMING_MIN_LEVEL = integer("potionDripHarmingMinLevel", 5,
+            v -> v >= 0 && v <= 100, "must be 0 to 100 (0 means never)");
+    private static final Knob<Integer> POTION_DRIP_EFFECT_SECONDS = integer("potionDripEffectSeconds", 8,
+            v -> v >= 1 && v <= 30, "must be 1 to 30");
+    private static final Knob<Integer> POTION_DRIP_FALL_TICKS = integer("potionDripFallTicks", 40,
+            v -> v >= 20 && v <= 100, "must be 20 to 100");
+    private static final Knob<Integer> POTION_DRIP_MIN_SECONDS = integer("potionDripMinSeconds", 8,
+            v -> v >= 1 && v <= 120, "must be 1 to 120");
+    /**
+     * The Lush Caves boss (roadmap T23): the giant slime's size (vanilla slimes are 1 to 4), its health at a
+     * party of one, and the most slimes alive at once, so the doubled splits can never lag a server.
+     */
+    private static final Knob<Integer> LUSH_SLIME_SIZE = integer("lushSlimeSize", 8,
+            v -> v >= 2 && v <= 16, "must be 2 to 16");
+    private static final Knob<Integer> LUSH_SLIME_HEALTH = integer("lushSlimeHealth", 120,
+            v -> v >= 10 && v <= 2000, "must be 10 to 2000");
+    private static final Knob<Integer> LUSH_SLIME_MAX_ALIVE = integer("lushSlimeMaxAlive", 40,
+            v -> v >= 4 && v <= 200, "must be 4 to 200");
+    /**
      * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
      * to pick an act and open any of its dungeons. Off restores the old three random doors.
      */
@@ -1040,6 +1079,62 @@ public final class PocketDungeonsConfig {
 
     public static int finaleEliteHealthPercentPerMember() {
         return FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER.get();
+    }
+
+    public static boolean potionDripEnabled() {
+        return POTION_DRIP_ENABLED.get();
+    }
+
+    public static int potionDripIntervalSeconds() {
+        return POTION_DRIP_INTERVAL_SECONDS.get();
+    }
+
+    public static int potionDripJitterPercent() {
+        return POTION_DRIP_JITTER_PERCENT.get();
+    }
+
+    public static int potionDripStartFloor() {
+        return POTION_DRIP_START_FLOOR.get();
+    }
+
+    public static int potionDripRampPercent() {
+        return POTION_DRIP_RAMP_PERCENT.get();
+    }
+
+    public static int potionDripBossPercent() {
+        return POTION_DRIP_BOSS_PERCENT.get();
+    }
+
+    public static int potionDripHarmfulPercent() {
+        return POTION_DRIP_HARMFUL_PERCENT.get();
+    }
+
+    public static int potionDripHarmingMinLevel() {
+        return POTION_DRIP_HARMING_MIN_LEVEL.get();
+    }
+
+    public static int potionDripEffectSeconds() {
+        return POTION_DRIP_EFFECT_SECONDS.get();
+    }
+
+    public static int potionDripFallTicks() {
+        return POTION_DRIP_FALL_TICKS.get();
+    }
+
+    public static int potionDripMinSeconds() {
+        return POTION_DRIP_MIN_SECONDS.get();
+    }
+
+    public static int lushSlimeSize() {
+        return LUSH_SLIME_SIZE.get();
+    }
+
+    public static int lushSlimeHealth() {
+        return LUSH_SLIME_HEALTH.get();
+    }
+
+    public static int lushSlimeMaxAlive() {
+        return LUSH_SLIME_MAX_ALIVE.get();
     }
 
     public static boolean mobUniformEnabled() {

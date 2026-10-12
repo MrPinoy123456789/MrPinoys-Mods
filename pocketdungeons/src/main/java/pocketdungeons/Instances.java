@@ -2687,6 +2687,8 @@ final class Instances {
             watchSpawnerClears(server, record);
             // Dungeon structure W7a: the Spawner Dungeon's brood and the Ancient City's Warden.
             CapstoneFights.tick(server, record);
+            // Roadmap T23: the Lush Caves potion drip.
+            PotionDrip.tick(server, record);
         }
         // Repainted every watch tick, and every member who is in the
         // dungeon dimension is put back on it: whichever way they came in

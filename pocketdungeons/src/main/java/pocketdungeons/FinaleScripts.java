@@ -22,6 +22,7 @@ final class FinaleScripts {
     static void registerAll() {
         SCRIPTS.clear();
         // One line per dungeon, appended below by the task that writes the script.
+        register(PotionDrip.DUNGEON_ID, new LushFinale());
     }
 
     /** Registers {@code script} for the dungeon with this id; a second script for one dungeon is a mistake. */
