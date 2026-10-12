@@ -177,6 +177,8 @@
   "infestationArenaBrickCap": 6,
   "infestationSilverfishCap": 10,
   "infestationPlantSeconds": 2,
+  "infestationBossHealth": 100,
+  "infestationBossDamage": 4.0,
   "finaleEliteHealthPercentPerMember": 50,
   "mobUniformEnabled": true,
   "hallEnabled": true,

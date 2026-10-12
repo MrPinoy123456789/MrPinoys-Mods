@@ -492,6 +492,15 @@ public final class PocketDungeonsConfig {
     /** Infestation finale: seconds between one brick planted and the next during the adds phase. */
     private static final Knob<Integer> INFESTATION_PLANT_SECONDS = integer("infestationPlantSeconds", 2,
             v -> v >= 1 && v <= 20, "must be 1 to 20");
+    /**
+     * Infestation finale: the giant silverfish boss's health for a party of one (more per extra member
+     * by finaleEliteHealthPercentPerMember).
+     */
+    private static final Knob<Integer> INFESTATION_BOSS_HEALTH = integer("infestationBossHealth", 100,
+            v -> v >= 10 && v <= 1000, "must be 10 to 1000");
+    /** Infestation finale: the giant silverfish boss's attack damage (a plain silverfish hits for 1). */
+    private static final Knob<Double> INFESTATION_BOSS_DAMAGE = decimal("infestationBossDamage", 4.0,
+            v -> v >= 0.0 && v <= 30.0, "must be 0.0 to 30.0");
     private static final Knob<Integer> FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER = integer(
             "finaleEliteHealthPercentPerMember", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
     private static final Knob<Boolean> MOB_UNIFORM_ENABLED = flag("mobUniformEnabled", true);
@@ -1176,6 +1185,14 @@ public final class PocketDungeonsConfig {
 
     public static int infestationPlantSeconds() {
         return INFESTATION_PLANT_SECONDS.get();
+    }
+
+    public static int infestationBossHealth() {
+        return INFESTATION_BOSS_HEALTH.get();
+    }
+
+    public static double infestationBossDamage() {
+        return INFESTATION_BOSS_DAMAGE.get();
     }
 
     public static int finaleEliteHealthPercentPerMember() {
