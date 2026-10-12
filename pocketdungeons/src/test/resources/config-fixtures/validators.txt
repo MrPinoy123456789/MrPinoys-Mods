@@ -1318,6 +1318,90 @@ finaleCountdownSeconds [int, default 3]
   odd empty array -> 3 | ERROR pocketdungeons.json field 'finaleCountdownSeconds' is not a valid integer; using default 3
   odd null -> 3 | ERROR pocketdungeons.json field 'finaleCountdownSeconds' is not a valid integer; using default 3
   odd empty object -> 3 | ERROR pocketdungeons.json field 'finaleCountdownSeconds' is not a valid integer; using default 3
+copperClockMinutes [int, default 20]
+  probes nnYYYYYYYYYYYYYYnnnnnnnnnnn
+  values 20,20,1,2,3,4,5,6,8,10,11,16,20,50,100,101,20,20,20,20,20,20,20,20,20,20,20
+  rejected ERROR pocketdungeons.json field 'copperClockMinutes' has invalid value -1; must be 1 to 120; using default 20
+  disturbs (nothing else)
+  odd string abc -> 20 | ERROR pocketdungeons.json field 'copperClockMinutes' is not a valid integer; using default 20
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 20 | ERROR pocketdungeons.json field 'copperClockMinutes' is not a valid integer; using default 20
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 20 | ERROR pocketdungeons.json field 'copperClockMinutes' is not a valid integer; using default 20
+  odd null -> 20 | ERROR pocketdungeons.json field 'copperClockMinutes' is not a valid integer; using default 20
+  odd empty object -> 20 | ERROR pocketdungeons.json field 'copperClockMinutes' is not a valid integer; using default 20
+copperClockBonusSeconds [int, default 60]
+  probes nYYYYYYYYYYYYYYYYYYnnnnnnnn
+  values 60,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,60,60,60,60,60,60,60,60
+  rejected ERROR pocketdungeons.json field 'copperClockBonusSeconds' has invalid value -1; must be 0 to 600; using default 60
+  disturbs (nothing else)
+  odd string abc -> 60 | ERROR pocketdungeons.json field 'copperClockBonusSeconds' is not a valid integer; using default 60
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 60 | ERROR pocketdungeons.json field 'copperClockBonusSeconds' is not a valid integer; using default 60
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 60 | ERROR pocketdungeons.json field 'copperClockBonusSeconds' is not a valid integer; using default 60
+  odd null -> 60 | ERROR pocketdungeons.json field 'copperClockBonusSeconds' is not a valid integer; using default 60
+  odd empty object -> 60 | ERROR pocketdungeons.json field 'copperClockBonusSeconds' is not a valid integer; using default 60
+copperVentPulseSeconds [int, default 8]
+  probes nnnnYYYYYYYYYnnnnnnnnnnnnnn
+  values 8,8,8,8,3,4,5,6,8,10,11,16,20,8,8,8,8,8,8,8,8,8,8,8,8,8,8
+  rejected ERROR pocketdungeons.json field 'copperVentPulseSeconds' has invalid value -1; must be 3 to 30; using default 8
+  disturbs (nothing else)
+  odd string abc -> 8 | ERROR pocketdungeons.json field 'copperVentPulseSeconds' is not a valid integer; using default 8
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 8 | ERROR pocketdungeons.json field 'copperVentPulseSeconds' is not a valid integer; using default 8
+  odd number 1.5 -> 8 | ERROR pocketdungeons.json field 'copperVentPulseSeconds' has invalid value 1; must be 3 to 30; using default 8
+  odd empty array -> 8 | ERROR pocketdungeons.json field 'copperVentPulseSeconds' is not a valid integer; using default 8
+  odd null -> 8 | ERROR pocketdungeons.json field 'copperVentPulseSeconds' is not a valid integer; using default 8
+  odd empty object -> 8 | ERROR pocketdungeons.json field 'copperVentPulseSeconds' is not a valid integer; using default 8
+copperVentBlownPercent [int, default 50]
+  probes nnnnnnnnnYYYYYYnnnnnnnnnnnn
+  values 50,50,50,50,50,50,50,50,50,10,11,16,20,50,100,50,50,50,50,50,50,50,50,50,50,50,50
+  rejected ERROR pocketdungeons.json field 'copperVentBlownPercent' has invalid value -1; must be 10 to 100; using default 50
+  disturbs (nothing else)
+  odd string abc -> 50 | ERROR pocketdungeons.json field 'copperVentBlownPercent' is not a valid integer; using default 50
+  odd string 7 -> 50 | ERROR pocketdungeons.json field 'copperVentBlownPercent' has invalid value 7; must be 10 to 100; using default 50
+  odd boolean true -> 50 | ERROR pocketdungeons.json field 'copperVentBlownPercent' is not a valid integer; using default 50
+  odd number 1.5 -> 50 | ERROR pocketdungeons.json field 'copperVentBlownPercent' has invalid value 1; must be 10 to 100; using default 50
+  odd empty array -> 50 | ERROR pocketdungeons.json field 'copperVentBlownPercent' is not a valid integer; using default 50
+  odd null -> 50 | ERROR pocketdungeons.json field 'copperVentBlownPercent' is not a valid integer; using default 50
+  odd empty object -> 50 | ERROR pocketdungeons.json field 'copperVentBlownPercent' is not a valid integer; using default 50
+copperVentBurnSeconds [int, default 3]
+  probes nYYYYYYYYYnnnnnnnnnnnnnnnnn
+  values 3,0,1,2,3,4,5,6,8,10,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
+  rejected ERROR pocketdungeons.json field 'copperVentBurnSeconds' has invalid value -1; must be 0 to 10; using default 3
+  disturbs (nothing else)
+  odd string abc -> 3 | ERROR pocketdungeons.json field 'copperVentBurnSeconds' is not a valid integer; using default 3
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 3 | ERROR pocketdungeons.json field 'copperVentBurnSeconds' is not a valid integer; using default 3
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 3 | ERROR pocketdungeons.json field 'copperVentBurnSeconds' is not a valid integer; using default 3
+  odd null -> 3 | ERROR pocketdungeons.json field 'copperVentBurnSeconds' is not a valid integer; using default 3
+  odd empty object -> 3 | ERROR pocketdungeons.json field 'copperVentBurnSeconds' is not a valid integer; using default 3
+copperForemanVatDamage [double, default 1.0]
+  probes nYYYYYYYYYYYYYYnnnnn
+  values 1.0,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,2.5,4.0,1.0,1.0,1.0,1.0,1.0
+  rejected ERROR pocketdungeons.json field 'copperForemanVatDamage' has invalid value -1.0; must be 0 to 20; using default 1.0
+  disturbs (nothing else)
+  odd string abc -> 1.0 | ERROR pocketdungeons.json field 'copperForemanVatDamage' is not a valid number; using default 1.0
+  odd string 7 -> 7.0 | (no warning)
+  odd boolean true -> 1.0 | ERROR pocketdungeons.json field 'copperForemanVatDamage' is not a valid number; using default 1.0
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array -> 1.0 | ERROR pocketdungeons.json field 'copperForemanVatDamage' is not a valid number; using default 1.0
+  odd null -> 1.0 | ERROR pocketdungeons.json field 'copperForemanVatDamage' is not a valid number; using default 1.0
+  odd empty object -> 1.0 | ERROR pocketdungeons.json field 'copperForemanVatDamage' is not a valid number; using default 1.0
+copperForemanVatWeakSeconds [int, default 4]
+  probes nYYYYYYYYYYYYnnnnnnnnnnnnnn
+  values 4,0,1,2,3,4,5,6,8,10,11,16,20,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+  rejected ERROR pocketdungeons.json field 'copperForemanVatWeakSeconds' has invalid value -1; must be 0 to 30; using default 4
+  disturbs (nothing else)
+  odd string abc -> 4 | ERROR pocketdungeons.json field 'copperForemanVatWeakSeconds' is not a valid integer; using default 4
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 4 | ERROR pocketdungeons.json field 'copperForemanVatWeakSeconds' is not a valid integer; using default 4
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 4 | ERROR pocketdungeons.json field 'copperForemanVatWeakSeconds' is not a valid integer; using default 4
+  odd null -> 4 | ERROR pocketdungeons.json field 'copperForemanVatWeakSeconds' is not a valid integer; using default 4
+  odd empty object -> 4 | ERROR pocketdungeons.json field 'copperForemanVatWeakSeconds' is not a valid integer; using default 4
 frostColdTicksPerSecond [int, default 6]
   probes nYYYYYYYYYYYYnnnnnnnnnnnnnn
   values 6,0,1,2,3,4,5,6,8,10,11,16,20,6,6,6,6,6,6,6,6,6,6,6,6,6,6

@@ -2703,6 +2703,10 @@ final class Instances {
             // Haunts: the roaming creature of the floor (docs/haunts-draft-2026-10-11.md).
             Haunts.tick(server, record);
         }
+        // Roadmap T32: the Copper Works furnace countdown is the trip's, not
+        // the floor's, so it ticks whether or not the current floor is still
+        // in progress. The method itself decides which runs carry a clock.
+        CopperClock.tick(server, record);
         // Repainted every watch tick, and every member who is in the
         // dungeon dimension is put back on it: whichever way they came in
         // (invited mid-run, re-entered, walked back into the dimension),

@@ -489,6 +489,27 @@ public final class PocketDungeonsConfig {
             v -> v >= 0 && v <= 200, "must be 0 to 200");
     private static final Knob<Integer> FINALE_COUNTDOWN_SECONDS = integer("finaleCountdownSeconds", 3,
             v -> v >= 0 && v <= 10, "must be 0 to 10");
+    /** Minutes the Copper Works furnace counts down from when the trip enters; at zero the furnace blows */
+    private static final Knob<Integer> COPPER_CLOCK_MINUTES = integer("copperClockMinutes", 20,
+            v -> v >= 1 && v <= 120, "must be 1 to 120");
+    /** Seconds each cleared trial spawner buys back on the Copper Works furnace clock */
+    private static final Knob<Integer> COPPER_CLOCK_BONUS_SECONDS = integer("copperClockBonusSeconds", 60,
+            v -> v >= 0 && v <= 600, "must be 0 to 600");
+    /** Seconds between vent pulses in the Master Furnace finale */
+    private static final Knob<Integer> COPPER_VENT_PULSE_SECONDS = integer("copperVentPulseSeconds", 8,
+            v -> v >= 3 && v <= 30, "must be 3 to 30");
+    /** Percent of the normal vent cycle once the furnace clock blew; lower means faster pulses */
+    private static final Knob<Integer> COPPER_VENT_BLOWN_PERCENT = integer("copperVentBlownPercent", 50,
+            v -> v >= 10 && v <= 100, "must be 10 to 100");
+    /** Seconds a member caught on a vent tile burns for */
+    private static final Knob<Integer> COPPER_VENT_BURN_SECONDS = integer("copperVentBurnSeconds", 3,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    /** Damage a second the Foreman takes while he stands in a water vat */
+    private static final Knob<Double> COPPER_FOREMAN_VAT_DAMAGE = decimal("copperForemanVatDamage", 1.0,
+            v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /** Seconds of Weakness and Slowness the Foreman carries while in a water vat */
+    private static final Knob<Integer> COPPER_FOREMAN_VAT_WEAK_SECONDS = integer("copperForemanVatWeakSeconds", 4,
+            v -> v >= 0 && v <= 30, "must be 0 to 30");
     /**
      * The Big Freeze (Frostworks finale): freeze ticks a member gains each second while in the cold
      * room and away from a lit brazier. A full freeze is 140 ticks, so the default takes about 23
@@ -1355,6 +1376,34 @@ public final class PocketDungeonsConfig {
 
     public static int finaleCountdownSeconds() {
         return FINALE_COUNTDOWN_SECONDS.get();
+    }
+
+    public static int copperClockMinutes() {
+        return COPPER_CLOCK_MINUTES.get();
+    }
+
+    public static int copperClockBonusSeconds() {
+        return COPPER_CLOCK_BONUS_SECONDS.get();
+    }
+
+    public static int copperVentPulseSeconds() {
+        return COPPER_VENT_PULSE_SECONDS.get();
+    }
+
+    public static int copperVentBlownPercent() {
+        return COPPER_VENT_BLOWN_PERCENT.get();
+    }
+
+    public static int copperVentBurnSeconds() {
+        return COPPER_VENT_BURN_SECONDS.get();
+    }
+
+    public static double copperForemanVatDamage() {
+        return COPPER_FOREMAN_VAT_DAMAGE.get();
+    }
+
+    public static int copperForemanVatWeakSeconds() {
+        return COPPER_FOREMAN_VAT_WEAK_SECONDS.get();
     }
 
     public static int frostColdTicksPerSecond() {

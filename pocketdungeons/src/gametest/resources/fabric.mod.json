@@ -75,7 +75,8 @@
       "pocketdungeons.ShellTokenGameTest",
       "pocketdungeons.StampDeterminismGameTest",
       "pocketdungeons.TrappedCacheGameTest",
-      "pocketdungeons.CowPitsFinaleGameTest"
+      "pocketdungeons.CowPitsFinaleGameTest",
+      "pocketdungeons.CopperFinaleGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

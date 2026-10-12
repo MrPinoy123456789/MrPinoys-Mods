@@ -129,6 +129,14 @@ final class IntervalState {
      */
     boolean safeVisitSettled;
 
+    /**
+     * The Copper Works furnace countdown for this trip (roadmap T32): one trip is one
+     * interval, so the clock is born with the trip, keeps counting through floor
+     * transitions and is dropped by construction when the interval is replaced.
+     * {@link CopperClock} owns it; dead state for every other dungeon.
+     */
+    final CopperClock.Clock copperClock = new CopperClock.Clock();
+
     /** The interval's omen: the trip's deaths, clamped. Alias kept for the journal and context. */
     int omenSum() {
         return Omen.clamp(omen);

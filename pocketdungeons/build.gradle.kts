@@ -436,6 +436,8 @@ for ((taskName, testClass) in mapOf(
     "endlessMineRulesTest" to "EndlessMineRulesTest",
     // Dungeon structure W6: Cow Pits finite rule (cap, wheat lock, filtered loot).
     "cowPitsTest" to "CowPitsTest",
+    // Roadmap T32: the Copper Works clock text, red window, spawner bonus and vent sweep.
+    "copperClockRulesTest" to "CopperClockRulesTest",
     // Audit wave 2b: config round trip, zone rules, per-floor banking.
     "configSaveTest" to "ConfigSaveTest",
     // Config refactor: characterizes every knob, the written defaults and the rewrite rules.
@@ -591,6 +593,7 @@ tasks.test {
     dependsOn("endlessMineRulesTest")
     dependsOn("capstoneRulesTest")
     dependsOn("cowPitsTest")
+    dependsOn("copperClockRulesTest")
     dependsOn("configSaveTest")
     dependsOn("configCharacterizationTest")
     dependsOn("configKnobsTest")
