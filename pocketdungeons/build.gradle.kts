@@ -323,6 +323,8 @@ for ((taskName, testClass) in mapOf(
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Roadmap T01: the half-dead rule and the finale script registry.
+    "finaleScriptsTest" to "FinaleScriptsTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
@@ -477,6 +479,7 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
     dependsOn("blackoutTest")
