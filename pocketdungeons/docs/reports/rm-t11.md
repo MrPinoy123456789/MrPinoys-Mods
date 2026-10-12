@@ -24,7 +24,7 @@ Branch `feature/rm-t11-overclocked-loaded` (off `feature/act-1-2-roadmap`). Desi
 
 - Pure: `OverclockedPayTest`, `TrappedCacheTest` (both wired in `build.gradle.kts`), `AffixMathTest` updated for the removed parameter, config fixtures regenerated.
 - Gametest: `TrappedCacheGameTest` (registered in `fabric.mod.json`): opening the cache passes through, the loot is intact, exactly 3 ambush mobs appear after the delay, none on a lane, and a second open adds none.
-- Counts: see the foot of this file.
+- Counts: gametests 248 before, 249 after (`All 249 required tests passed`); pure tests gained two classes (`OverclockedPayTest`, `TrappedCacheTest`), all green. `tools/ship.sh --quick`: SUITE GREEN.
 
 ## Needs a live server
 
