@@ -126,7 +126,7 @@ public final class OssuaryFinaleGameTest {
             long t = run.server.getTickCount() - start;
             if (t == OssuaryRules.MIN_GAP_TICKS + 20) {
                 helper.assertTrue(run.lidIntact(6, 3, 1), "mid tell: the lid still holds");
-                helper.assertTrue(dormant(run.mob(0)), "mid tell: occupant 0 still sleeps");
+                helper.assertTrue(dormant(run.mob(0)), "mid tell: occupant 0 still sleeps (noAi " + run.mob(0).isNoAi() + ", invisible " + run.mob(0).isInvisible() + ", invulnerable " + run.mob(0).isInvulnerable() + ")");
                 helper.assertTrue(dormant(run.mob(1)), "mid tell: occupant 1 still sleeps");
                 sawTell[0] = true;
             }
