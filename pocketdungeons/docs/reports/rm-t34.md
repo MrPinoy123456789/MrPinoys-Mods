@@ -50,7 +50,7 @@ Branch `feature/rm-t34-haunts`, off `feature/act-1-2-roadmap` (merged twice; con
   unseen, gone at floor end; strike hurts and slows without killing (2 health to 1) and retreats; title line,
   stage ladder, excluded rooms. Rig uses `Haunts.registerForTesting`; the mock player reports creative, so the test
   clears its abilities.
-- Counts: gametests before 248 (task figure); the final line is in the commit/reply below.
+- Counts: before 248 (task figure, branch before merging T01 to T13); after the merge and T34, ship --quick --no-dist is green with 259 required tests (T34 adds 3). Pure tasks: 112 green.
 
 ## Only a live server can confirm
 
