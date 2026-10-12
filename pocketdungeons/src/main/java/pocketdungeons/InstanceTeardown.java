@@ -170,6 +170,9 @@ final class InstanceTeardown {
         CreepingBricks.clear(cellOrigin);
         MineGuardianQueen.clear(cellOrigin);
         MineGuardianCoffins.clear(cellOrigin);
+        MineGuardianSentry.clear(cellOrigin);
+        MineGuardianForeman.clear(cellOrigin);
+        MineGuardianFrost.clear(cellOrigin);
     }
 
     static void teardown(MinecraftServer server, int slot, BlockPos origin,

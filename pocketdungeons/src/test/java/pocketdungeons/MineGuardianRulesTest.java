@@ -50,6 +50,25 @@ public class MineGuardianRulesTest {
         check(MineGuardianRules.capped(8, 4) == 4, "the cap trims");
         check(MineGuardianRules.capped(8, 0) == 0, "no slots, no mobs");
 
+        // Act 2: the sentry's meter fills faster as hardness climbs but has a floor.
+        check(MineGuardianRules.sentryCeiling(1.0, 40) == 40, "the first sentry listens at the knob's pace");
+        check(MineGuardianRules.sentryCeiling(4.0, 40) < 40, "a later sentry answers sooner");
+        check(MineGuardianRules.sentryCeiling(1000.0, 40) == Math.max(
+                        MineGuardianRules.SENTRY_MIN_CEILING, 40 / 4),
+                "the ceiling never under a quarter of the base");
+
+        // Act 2: vents grow with hardness, the cycle shortens, strays multiply.
+        check(MineGuardianRules.ventsFor(1.0) == 4, "vents at hardness 1.0: " + MineGuardianRules.ventsFor(1.0));
+        check(MineGuardianRules.ventsFor(4.0) > MineGuardianRules.ventsFor(1.0), "vents grow with hardness");
+        check(MineGuardianRules.ventsFor(1000.0) == MineGuardianRules.MAX_VENTS, "vents stop at the ceiling");
+        check(MineGuardianRules.ventPeriodTicks(160, 1.0) == 160, "the first Foreman's vents run at base");
+        check(MineGuardianRules.ventPeriodTicks(160, 2.0) < 160, "a later Foreman's vents run faster");
+        check(MineGuardianRules.ventPeriodTicks(160, 1000.0) == CopperClockRules.MIN_PERIOD_TICKS,
+                "the vent floor is tell plus burn");
+        check(MineGuardianRules.straysFor(1.0) == 1, "the first Frostbite hunts alone");
+        check(MineGuardianRules.straysFor(3.0) > 1, "a later Frostbite brings kin");
+        check(MineGuardianRules.straysFor(1000.0) == MineGuardianRules.MAX_STRAYS, "strays stop at the ceiling");
+
         System.out.println("MineGuardianRulesTest passed");
     }
 

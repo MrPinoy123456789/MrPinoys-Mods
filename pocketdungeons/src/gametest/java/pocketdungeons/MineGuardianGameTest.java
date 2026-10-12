@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
@@ -291,6 +292,187 @@ public final class MineGuardianGameTest {
             clear(level, terminal);
             MineGuardianCoffins.clear(terminal);
             MineGuardianQueen.clear(terminal);
+            MineGuardians.clear();
+        }
+    }
+
+    /**
+     * Act 2 slot 1 (roadmap T42): the Deep Sentry spawns tagged among decor sensors, his own meter
+     * fills and answers with a tagged whelp, and the pad stays shut until all are dead.
+     */
+    @GameTest(maxTicks = 60)
+    @SuppressWarnings("removal")
+    public void theDeepSentryListens(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        floor(helper);
+        InstanceRecord record = mineRecord(helper, ACT2);
+        BlockPos terminal = record.layout.terminal();
+        ServerPlayer member = helper.makeMockServerPlayerInLevel();
+        member.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        member.teleportTo(level, terminal.getX() + 8.5, terminal.getY() + 1.0, terminal.getZ() + 8.5,
+                Set.of(), 0.0f, 0.0f, false);
+        MineGuardians.clear();
+        try {
+            MineGuardiansAct2.registerAll();
+            long now = level.getServer().getTickCount();
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 3, 5);
+            List<Mob> wave = guardians(level, terminal);
+            helper.assertValueEqual(wave.size(), 1, "the sentry hunts alone");
+            Mob sentry = wave.get(0);
+            helper.assertTrue(sentry.getType() == EntityTypes.SKELETON
+                            && sentry.entityTags().contains(MineGuardians.GUARDIAN_TAG),
+                    "a tagged bow skeleton is the guardian");
+            helper.assertTrue(MineGuardianSentry.sensorsOf(terminal) > 0,
+                    "the listening room's sensors stand");
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while the sentry lives");
+            helper.assertTrue(MineGuardianSentry.ceilingOf(terminal)
+                            <= PocketDungeonsConfig.hushCeiling(),
+                    "his meter answers at or under the hush ceiling");
+
+            // The meter fills and answers: a tell, then a tagged whelp.
+            MineGuardianSentry.addHeardForTest(terminal, MineGuardianSentry.ceilingOf(terminal) + 5);
+            MineGuardianSentry.pollForTest(now + 20);
+            helper.assertTrue(MineGuardianSentry.heardOf(terminal) >= 0, "the meter still runs");
+            MineGuardianSentry.pollForTest(now + 20 + DeepslateFinaleRules.TELL_TICKS + 5);
+            List<Mob> answered = guardians(level, terminal);
+            helper.assertTrue(answered.size() > 1, "the answer sent a mob: " + answered.size());
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while the answer stands");
+
+            // A lap later (floor 12, guardian 4) the ceiling is lower: he answers sooner.
+            MineGuardianSentry.clear(terminal);
+            clear(level, terminal);
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 12, 5);
+            helper.assertTrue(MineGuardianSentry.ceilingOf(terminal)
+                            < MineGuardianRules.sentryCeiling(1.0, PocketDungeonsConfig.hushCeiling()),
+                    "a later sentry answers sooner: " + MineGuardianSentry.ceilingOf(terminal));
+            clear(level, terminal);
+            helper.assertTrue(MineGuardians.padRefusal(level, record) == null,
+                    "with the wave down the pad opens");
+            helper.succeed();
+        } finally {
+            clear(level, terminal);
+            MineGuardianSentry.clear(terminal);
+            MineGuardians.clear();
+        }
+    }
+
+    /**
+     * Act 2 slot 2 (roadmap T42): the Foreman spawns tagged over a vent floor that pulses on the
+     * pinned tell, and a later Foreman vents more and faster.
+     */
+    @GameTest(maxTicks = 60)
+    public void theForemansVentsPulse(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        floor(helper);
+        InstanceRecord record = mineRecord(helper, ACT2);
+        BlockPos terminal = record.layout.terminal();
+        MineGuardians.clear();
+        try {
+            MineGuardiansAct2.registerAll();
+            long now = level.getServer().getTickCount();
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 6, 5);
+            List<Mob> wave = guardians(level, terminal);
+            helper.assertValueEqual(wave.size(), 1, "the Foreman stands alone over his vents");
+            helper.assertTrue(wave.get(0).getType() == EntityTypes.VINDICATOR
+                            && wave.get(0).entityTags().contains(MineGuardians.GUARDIAN_TAG),
+                    "a tagged vindicator is the guardian");
+            helper.assertValueEqual(MineGuardianForeman.ventsOf(terminal),
+                    MineGuardianRules.ventsFor(EndlessMineRules.hardness(2)), "his vents for guardian 2");
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while the Foreman lives");
+
+            // The pulse: a tell pinned to the poll grid, then fire.
+            int period = MineGuardianRules.ventPeriodTicks(
+                    PocketDungeonsConfig.copperVentPulseSeconds() * 20, EndlessMineRules.hardness(2));
+            MineGuardianForeman.pollForTest(now + period + 5);
+            helper.assertTrue(MineGuardianForeman.tellingOf(terminal), "the first vent is telling");
+            MineGuardianForeman.pollForTest(now + period + 5 + CopperClockRules.TELL_TICKS + 5);
+            helper.assertValueEqual(MineGuardianForeman.pulsesOf(terminal), 1, "the vent fired on its pin");
+
+            // Floor 15 (guardian 5): more vents.
+            MineGuardianForeman.clear(terminal);
+            clear(level, terminal);
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 15, 5);
+            helper.assertTrue(MineGuardianForeman.ventsOf(terminal)
+                            > MineGuardianRules.ventsFor(EndlessMineRules.hardness(2)),
+                    "a later Foreman vents more: " + MineGuardianForeman.ventsOf(terminal));
+            clear(level, terminal);
+            helper.assertTrue(MineGuardians.padRefusal(level, record) == null,
+                    "with the Foreman down the pad opens");
+            helper.succeed();
+        } finally {
+            clear(level, terminal);
+            MineGuardianForeman.clear(terminal);
+            MineGuardians.clear();
+        }
+    }
+
+    /**
+     * Act 2 slot 3 (roadmap T42): the Frostbite spawns tagged among lit braziers, the cold she brings
+     * freezes a member standing in the cell, and it lifts when the wave is dead.
+     */
+    @GameTest(maxTicks = 80)
+    @SuppressWarnings("removal")
+    public void theFrostbiteBringsTheCold(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        floor(helper);
+        InstanceRecord record = mineRecord(helper, ACT2);
+        BlockPos terminal = record.layout.terminal();
+        ServerPlayer member = helper.makeMockServerPlayerInLevel();
+        member.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        member.teleportTo(level, terminal.getX() + 8.5, terminal.getY() + 1.0, terminal.getZ() + 8.5,
+                Set.of(), 0.0f, 0.0f, false);
+        MineGuardians.clear();
+        try {
+            MineGuardiansAct2.registerAll();
+            long now = level.getServer().getTickCount();
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 9, 5);
+            List<Mob> wave = guardians(level, terminal);
+            helper.assertValueEqual(wave.size(), MineGuardianRules.straysFor(EndlessMineRules.hardness(3)),
+                    "the strays for guardian 3");
+            for (Mob mob : wave) {
+                helper.assertTrue(mob.entityTags().contains(MineGuardians.GUARDIAN_TAG),
+                        "every stray carries the guardian tag");
+            }
+            helper.assertTrue(MineGuardianFrost.braziersOf(terminal) > 0, "the braziers stand");
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while the Frostbite lives");
+
+            // Break every brazier so the member freezes wherever they stand (the thaw beside a lit
+            // one is the Frostworks test's own job).
+            for (int x = 0; x < 16; x++) {
+                for (int z = 0; z < 16; z++) {
+                    BlockPos at = terminal.offset(x, 1, z);
+                    if (level.getBlockState(at).getBlock()
+                            instanceof net.minecraft.world.level.block.CampfireBlock) {
+                        level.destroyBlock(at, false);
+                    }
+                }
+            }
+
+            // The tell runs, then the cold: the member in the cell freezes.
+            long coldAt = MineGuardianFrost.coldAtOf(terminal);
+            helper.assertTrue(coldAt > now && coldAt - now
+                            >= MineGuardianRules.TELL_FLOOR_TICKS,
+                    "the cold's tell is never under two seconds: " + (coldAt - now));
+            for (long t = coldAt; t < coldAt + 60; t++) {
+                MineGuardianFrost.tickForTest(t);
+            }
+            helper.assertTrue(member.getTicksFrozen() > 0,
+                    "a member in the cell gains freeze ticks: " + member.getTicksFrozen());
+
+            // The last stray down and the cold lifts, and the pad opens.
+            clear(level, terminal);
+            MineGuardianFrost.tickForTest(coldAt + 80);
+            helper.assertTrue(member.getTicksFrozen() == 0, "the cold lifts with the wave");
+            helper.assertTrue(MineGuardians.padRefusal(level, record) == null,
+                    "with the wave down the pad opens");
+            helper.succeed();
+        } finally {
+            clear(level, terminal);
+            MineGuardianFrost.clear(terminal);
             MineGuardians.clear();
         }
     }

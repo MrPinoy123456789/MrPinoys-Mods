@@ -73,6 +73,51 @@ final class MineGuardianRules {
         return Math.max(0, Math.min(wanted, left));
     }
 
+    // ---- the Act 2 guardians (roadmap T42) -------------------------------------------------------------
+
+    /** The most vents the Foreman stands over. */
+    static final int MAX_VENTS = 8;
+
+    /** The most strays the frost guardian fields. */
+    static final int MAX_STRAYS = 3;
+
+    /** Sculk sensors stood in the sentry's cell for the listening look; decor only, the count is fixed. */
+    static final int SENSORS = 4;
+
+    /** Braziers stood in the frost cell: the cold's relief, fixed so hardness cannot remove the way out. */
+    static final int BRAZIERS = 3;
+
+    /** The least the sentry's meter ceiling may fall to: the fight can always be read. */
+    static final int SENTRY_MIN_CEILING = 3;
+
+    /**
+     * The Deep Sentry's meter ceiling at {@code hardness}: {@code baseCeiling} at 1.0, a quarter faster
+     * to fill per point, never under a quarter of the base and never under {@link #SENTRY_MIN_CEILING}.
+     */
+    static int sentryCeiling(double hardness, int baseCeiling) {
+        int scaled = (int) Math.round(baseCeiling / (1.0 + 0.25 * Math.max(0.0, hardness - 1.0)));
+        return Math.max(SENTRY_MIN_CEILING, Math.max(baseCeiling / 4, scaled));
+    }
+
+    /** The floor grates the Foreman vents through: 4 at hardness 1.0, one more per point, capped. */
+    static int ventsFor(double hardness) {
+        return clamp(3 + (int) Math.round(hardness), 1, MAX_VENTS);
+    }
+
+    /**
+     * The Foreman's vent cycle at {@code hardness}: {@code baseTicks} at 1.0, a second faster per point,
+     * never under {@link CopperClockRules#MIN_PERIOD_TICKS} so the tell plus the burn always fit.
+     */
+    static int ventPeriodTicks(int baseTicks, double hardness) {
+        long cut = Math.round(20.0 * Math.max(0.0, hardness - 1.0));
+        return (int) Math.max(CopperClockRules.MIN_PERIOD_TICKS, baseTicks - cut);
+    }
+
+    /** The strays in the frost wave: 1 at hardness 1.0, one more about every two points, capped. */
+    static int straysFor(double hardness) {
+        return clamp(1 + (int) Math.round((hardness - 1.0) / 2.0), 1, MAX_STRAYS);
+    }
+
     private static int clamp(int value, int lo, int hi) {
         return Math.max(lo, Math.min(hi, value));
     }

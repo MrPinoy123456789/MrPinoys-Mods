@@ -156,19 +156,19 @@ final class CopperFinale implements FinaleScript {
                 CopperClock.expired(ctx.record()), PocketDungeonsConfig.copperVentBlownPercent());
     }
 
-    /** The vent's tell: the hiss that says this tile fires in two seconds. */
-    private static void hiss(ServerLevel level, BlockPos tile) {
+    /** The vent's tell: the hiss that says this tile fires in two seconds. Package for the Deep Mine's Foreman. */
+    static void hiss(ServerLevel level, BlockPos tile) {
         level.playSound(null, tile, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.9f, 0.6f);
     }
 
-    /** Rising smoke off a vent during its tell. */
-    private static void smoke(ServerLevel level, BlockPos tile) {
+    /** Rising smoke off a vent during its tell. Package for the Deep Mine's Foreman. */
+    static void smoke(ServerLevel level, BlockPos tile) {
         level.sendParticles(ParticleTypes.LARGE_SMOKE, tile.getX() + 0.5, tile.getY() + 1.0,
                 tile.getZ() + 0.5, 4, 0.15, 0.3, 0.15, 0.02);
     }
 
-    /** The pulse itself: a column of flame for a second, igniting whoever stands on the tile. */
-    private static void burn(ServerLevel level, BlockPos tile) {
+    /** The pulse itself: a column of flame for a second, igniting whoever stands on the tile. Package for the Deep Mine's Foreman. */
+    static void burn(ServerLevel level, BlockPos tile) {
         BlockPos feet = tile.above();
         level.sendParticles(ParticleTypes.FLAME, feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5,
                 14, 0.2, 0.7, 0.2, 0.01);
