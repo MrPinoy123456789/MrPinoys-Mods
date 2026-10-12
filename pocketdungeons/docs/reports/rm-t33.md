@@ -37,3 +37,5 @@ Unfinished:
    feels the cold (the wave spawns near the first member), leather armor removes freeze damage (vanilla), campfires
    can be put out or broken by players.
 Test counts: gametest class 7 of 7 green; full suite count not obtained.
+
+Update: the full `tools/ship.sh --quick` finished NOT GREEN: 6 required tests failed, none of them T33: handler_game_test tripwire_hall_traps_fire_under_the_theme, ossuary_finale_game_test coffins_hold_the_wave_and_open_with_atell, kennels_finale_game_test (2 methods, a Cow cannot be cast to Wolf), mineshaft_finale_game_test (2 methods, dark on tick 65). Likely interference between finale gametests or the merged branch; check whether they fail on feature/act-1-2-roadmap alone. FrostFinaleGameTest and RoomLibraryGameTest had no failures. Log: A:/tmp/ship-agent-a8fa086aec61af5d9.log.
