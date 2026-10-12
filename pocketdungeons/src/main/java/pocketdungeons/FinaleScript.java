@@ -37,6 +37,16 @@ interface FinaleScript {
     }
 
     /**
+     * Whether this script owns when the finale begins: the cleared spawners are no trigger at all, only
+     * {@link #shouldTrigger} can wake the fight. The default {@code false} keeps the usual rule (a cleared
+     * floor starts the finale, and a cleared floor also holds the pad). A dungeon with no data wave behind its
+     * script must own the trigger, or a cleared floor would start an empty finale.
+     */
+    default boolean ownsTrigger() {
+        return false;
+    }
+
+    /**
      * The title lines shown when the finale begins, replacing the default "name stirs" title: the first entry
      * is the title, the rest are the sub lines. {@code null} (the default) keeps the default wording. Follows
      * the player-text skill.

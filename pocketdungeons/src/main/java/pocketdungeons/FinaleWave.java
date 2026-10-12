@@ -113,11 +113,36 @@ final class FinaleWave {
                 PocketDungeonsConfig.spawnerClearThreshold());
     }
 
+    /**
+     * Whether the floor runs a finale with no data wave behind it (roadmap T30): an ordinary dungeon's final
+     * floor whose dungeon has a {@link FinaleScript} but no authored finale. The script then owns everything
+     * the data wave would have been: the trigger (see {@link FinaleScript#ownsTrigger}), the mobs and the
+     * boss bar. Cow Pits is the first.
+     */
+    private static boolean scriptedFinale(InstanceRecord record) {
+        if (!PocketDungeonsConfig.finaleEnabled() || record == null || record.layout == null) {
+            return false;
+        }
+        DungeonDef def = TripView.def(record);
+        return def != null && def.finale() == null && def.kind() != DungeonDef.Kind.CAPSTONE
+                && TripView.onFinal(record) && FinaleScripts.has(record.interval.dungeonId);
+    }
+
+    /** Whether the script of this state owns the trigger, wrapped the way every hook is. */
+    private static boolean ownsTrigger(State state) {
+        if (state.script == FinaleScript.NONE) {
+            return false;
+        }
+        boolean[] owns = {false};
+        hook(state, "ownsTrigger", () -> owns[0] = state.script.ownsTrigger());
+        return owns[0];
+    }
+
     // ---- the watch tick ----------------------------------------------------------------------------
 
     /** Whether the floor finale has begun and is not yet won, which a haunt must stay out of. */
     static boolean stirring(InstanceRecord record) {
-        if (record == null || record.layout == null || finaleOf(record) == null) {
+        if (record == null || record.layout == null || (finaleOf(record) == null && !scriptedFinale(record))) {
             return false;
         }
         State state = STATES.get(record.slot);
@@ -127,7 +152,8 @@ final class FinaleWave {
     /** One watch tick of the finale, if the floor holds one. */
     static void tick(MinecraftServer server, InstanceRecord record) {
         DungeonDef.Finale finale = finaleOf(record);
-        if (finale == null || record.phase != RunSession.Phase.ACTIVE || !record.floor.completed.isEmpty()) {
+        if ((finale == null && !scriptedFinale(record)) || record.phase != RunSession.Phase.ACTIVE
+                || !record.floor.completed.isEmpty()) {
             return;
         }
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -167,17 +193,18 @@ final class FinaleWave {
                 return;
             }
             boolean go = due;
-            if (!go && script != FinaleScript.NONE) {
+            if (script != FinaleScript.NONE) {
                 boolean[] asked = {false};
                 hook(state, "shouldTrigger", () -> asked[0] = script.shouldTrigger(ctx));
-                go = asked[0];
+                go = ownsTrigger(state) ? asked[0] : (go || asked[0]);
             }
             if (!go) {
                 return;
             }
             state.triggered = true;
             state.spawnTick = server.getTickCount() + PocketDungeonsConfig.finaleCountdownSeconds() * 20L;
-            String line = finale.elite() == null ? "Hold the room." : finale.elite().name() + " comes.";
+            String line = finale == null || finale.elite() == null
+                    ? "Hold the room." : finale.elite().name() + " comes.";
             String title = name + " stirs";
             List<String> lines = List.of(line);
             if (script != FinaleScript.NONE) {
@@ -203,7 +230,7 @@ final class FinaleWave {
             }
             boolean[] taken = {false};
             hook(state, "spawnWave", () -> taken[0] = script.spawnWave(ctx));
-            if (!taken[0]) {
+            if (!taken[0] && finale != null) {
                 spawnWave(level, record, finale, state, members);
             }
             state.spawned = true;
@@ -412,7 +439,7 @@ final class FinaleWave {
 
     /** Why the pad stays shut while the last stand stands in the way, or {@code null}. */
     static String padRefusal(MinecraftServer server, InstanceRecord record) {
-        if (finaleOf(record) == null) {
+        if (finaleOf(record) == null && !scriptedFinale(record)) {
             return null;
         }
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -420,7 +447,7 @@ final class FinaleWave {
             return null;
         }
         State state = state(record);
-        boolean due = state.triggered || due(level, record);
+        boolean due = state.triggered || (!ownsTrigger(state) && due(level, record));
         return FinaleRules.padRefusal(due, state.done, state.spawned ? alive(level, state) : 0);
     }
 
@@ -447,7 +474,7 @@ final class FinaleWave {
         if (state == null) {
             return;
         }
-        if (level != null && state.triggered && state.script != FinaleScript.NONE && state.finale != null) {
+        if (level != null && state.triggered && state.script != FinaleScript.NONE) {
             FinaleContext ctx = new FinaleContext(level.getServer(), level, state.record, state.finale, state,
                     CapstoneFights.onlineMembers(level.getServer(), state.record));
             hook(state, "onFloorEnded", () -> state.script.onFloorEnded(ctx));

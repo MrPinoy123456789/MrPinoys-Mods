@@ -264,6 +264,37 @@ public final class FinaleScriptGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void anOwningScriptIgnoresClearedSpawners(GameTestHelper helper) {
+        boolean[] wake = {false};
+        Recorder script = new Recorder() {
+            @Override
+            public boolean ownsTrigger() {
+                return true;
+            }
+
+            @Override
+            public boolean shouldTrigger(FinaleContext ctx) {
+                return wake[0];
+            }
+        };
+        Run run = new Run(helper, 9978, "pocketdungeons:test_finale_owner", script);
+        try {
+            for (int i = 0; i < 5; i++) {
+                run.step(true);
+            }
+            helper.assertTrue(script.log.isEmpty() && !run.state().triggered,
+                    "cleared spawners alone never start a finale the script owns");
+            wake[0] = true;
+            run.step(false);
+            helper.assertTrue(run.state().triggered && script.log.contains("triggered"),
+                    "its own trigger still starts it");
+        } finally {
+            run.close();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void aDungeonWithNoScriptRunsTheDataWave(GameTestHelper helper) {
         Run run = new Run(helper, 9975, "pocketdungeons:test_finale_none", null);
         try {
