@@ -69,3 +69,5 @@ Filled in by the integrator as tasks merge.
 
 | Id | Branch | State | Tests after |
 |---|---|---|---|
+
+Updated 2026-10-12 at handoff: merged and green (302 gametests): T00, T01, T10, T11, T12, T13, T20, T21, T22, T23, T24, T31, T33, T34, T40, T50. Not done: T25, T30, T32, T41, T42, T43. Handed to a second engineer: `docs/devin/`.
