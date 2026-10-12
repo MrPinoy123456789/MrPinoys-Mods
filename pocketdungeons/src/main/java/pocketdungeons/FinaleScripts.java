@@ -22,6 +22,7 @@ final class FinaleScripts {
     static void registerAll() {
         SCRIPTS.clear();
         // One line per dungeon, appended below by the task that writes the script.
+        register(InfestationFinale.DUNGEON_ID, new InfestationFinale());
         register("pocketdungeons:kennels", new KennelsFinale());
     }
 

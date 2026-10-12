@@ -495,13 +495,26 @@ final class DungeonLog extends SavedData {
      * @param decideWhitelist  the leader setting: only the leader and {@code decideList}
      *                         may preview and commit doors, choose branches and pull HOME
      * @param decideList       the members the leader allows to decide while the whitelist is on
-     * @param deepestMineFloor the deepest Endless Mine floor this player has cleared (0 for none);
-     *                         shown on the floor history board
+     * @param deepestMineFloor the deepest floor this player has cleared in the Act 1 Endless Mine (0 for
+     *                         none), the one mine there was before mines were per act; shown on the floor
+     *                         history board. Saved as {@code deepest_mine_floor}, unchanged.
+     * @param otherMineFloors  the deepest floor cleared in the mine of each later act (act 2 and up), by
+     *                         act. Saved as {@code mine_floors}, left out while empty, so a save that never
+     *                         entered a later mine is written exactly as before and an older save loads
+     *                         with none (decision 2026-10-11, Endless Mine per act).
      */
     record Campaign(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
-                    int tripCounter, boolean decideWhitelist, Set<UUID> decideList, int deepestMineFloor) {
+                    int tripCounter, boolean decideWhitelist, Set<UUID> decideList, int deepestMineFloor,
+                    Map<Integer, Integer> otherMineFloors) {
         /** A player created after acts existed: act 1, nothing to migrate. */
         static final Campaign FRESH = new Campaign(Set.of(), true, false, 0, false, Set.of(), 0);
+
+        /** The pre per act mine shape, kept so older call sites read the same. */
+        Campaign(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
+                 int tripCounter, boolean decideWhitelist, Set<UUID> decideList, int deepestMineFloor) {
+            this(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist, decideList,
+                    deepestMineFloor, Map.of());
+        }
 
         /** The pre Mine depth shape, kept so older call sites read the same. */
         Campaign(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
@@ -514,6 +527,33 @@ final class DungeonLog extends SavedData {
             tripCounter = Math.max(0, tripCounter);
             deepestMineFloor = Math.max(0, deepestMineFloor);
             decideList = decideList == null ? Set.of() : Set.copyOf(decideList);
+            otherMineFloors = new ActProgress.MineDepth(deepestMineFloor, otherMineFloors).otherActs();
+        }
+
+        /** Every mine's record together, for the act gate ({@link ActProgress#complete}). */
+        ActProgress.MineDepth mineDepth() {
+            return new ActProgress.MineDepth(deepestMineFloor, otherMineFloors);
+        }
+
+        /** The deepest floor cleared in any act's mine, for the floor history board. */
+        int deepestMineFloorAny() {
+            int best = deepestMineFloor;
+            for (int floor : otherMineFloors.values()) {
+                best = Math.max(best, floor);
+            }
+            return best;
+        }
+
+        /** The deepest floor cleared in {@code act}'s mine. */
+        int deepestMineFloor(int act) {
+            return mineDepth().floor(act);
+        }
+
+        /** This campaign with {@code floor} kept as {@code act}'s deepest mine floor (never lowered). */
+        Campaign withMineFloor(int act, int floor) {
+            ActProgress.MineDepth next = mineDepth().with(act, floor);
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist,
+                    decideList, next.act1Floor(), next.otherActs());
         }
 
         /** The decoded form of a save: runs the one time migration if it has not run. */
@@ -522,34 +562,34 @@ final class DungeonLog extends SavedData {
                 return this;
             }
             return new Campaign(ActProgress.migrate(actsUnlocked, false, keystoneLevel), true,
-                    campaignComplete, tripCounter, decideWhitelist, decideList, deepestMineFloor);
+                    campaignComplete, tripCounter, decideWhitelist, decideList, deepestMineFloor, otherMineFloors);
         }
 
         Campaign withAct(int act) {
             Set<Integer> acts = new HashSet<>(actsUnlocked);
             acts.add(act);
-            return new Campaign(acts, actsMigrated, campaignComplete, tripCounter, decideWhitelist, decideList, deepestMineFloor);
+            return new Campaign(acts, actsMigrated, campaignComplete, tripCounter, decideWhitelist, decideList, deepestMineFloor, otherMineFloors);
         }
 
         Campaign withCampaignComplete() {
-            return new Campaign(actsUnlocked, actsMigrated, true, tripCounter, decideWhitelist, decideList, deepestMineFloor);
+            return new Campaign(actsUnlocked, actsMigrated, true, tripCounter, decideWhitelist, decideList, deepestMineFloor, otherMineFloors);
         }
 
         Campaign withTripCounter(int trips) {
-            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, trips, decideWhitelist, decideList, deepestMineFloor);
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, trips, decideWhitelist, decideList, deepestMineFloor, otherMineFloors);
         }
 
         Campaign withDecideWhitelist(boolean on) {
-            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, on, decideList, deepestMineFloor);
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, on, decideList, deepestMineFloor, otherMineFloors);
         }
 
         Campaign withDeepestMineFloor(int floor) {
             return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist,
-                    decideList, floor);
+                    decideList, floor, otherMineFloors);
         }
 
         Campaign withDecideList(Set<UUID> list) {
-            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist, list, deepestMineFloor);
+            return new Campaign(actsUnlocked, actsMigrated, campaignComplete, tripCounter, decideWhitelist, list, deepestMineFloor, otherMineFloors);
         }
     }
 
@@ -678,7 +718,7 @@ final class DungeonLog extends SavedData {
     private record PartC(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
                          int tripCounter, boolean decideWhitelist, Set<String> decideList,
                          int deepestMineFloor, java.util.Optional<Integer> chartProgress, int haul,
-                         boolean haulIntroSeen) {}
+                         boolean haulIntroSeen, java.util.Optional<Map<String, Integer>> mineFloors) {}
 
     private static final com.mojang.serialization.MapCodec<PartA> PART_A_CODEC =
             RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -769,8 +809,34 @@ final class DungeonLog extends SavedData {
             // from the old pool in the decode below.
             Codec.INT.optionalFieldOf("chart_progress").forGetter(PartC::chartProgress),
             Codec.INT.optionalFieldOf("haul", 0).forGetter(PartC::haul),
-            Codec.BOOL.optionalFieldOf("haul_intro_seen", false).forGetter(PartC::haulIntroSeen)
+            Codec.BOOL.optionalFieldOf("haul_intro_seen", false).forGetter(PartC::haulIntroSeen),
+            // Endless Mine per act (decision 2026-10-11): the deepest floor of each later act's mine, by
+            // act number. Optional and left out while empty, so an older save loads with none and a save
+            // that never entered a later mine is written exactly as before.
+            Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("mine_floors")
+                    .forGetter(PartC::mineFloors)
     ).apply(instance, PartC::new));
+
+    private static Map<Integer, Integer> mineFloorsOf(java.util.Optional<Map<String, Integer>> raw) {
+        Map<Integer, Integer> out = new java.util.HashMap<>();
+        raw.ifPresent(map -> map.forEach((act, floor) -> {
+            try {
+                out.put(Integer.parseInt(act.trim()), floor);
+            } catch (NumberFormatException ignored) {
+                // a malformed act key in a hand edited save is dropped
+            }
+        }));
+        return out;
+    }
+
+    private static java.util.Optional<Map<String, Integer>> mineFloorsText(Map<Integer, Integer> floors) {
+        if (floors.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        Map<String, Integer> out = new java.util.TreeMap<>();
+        floors.forEach((act, floor) -> out.put(Integer.toString(act), floor));
+        return java.util.Optional.of(out);
+    }
 
     private static Set<UUID> uuids(Set<String> raw) {
         Set<UUID> out = new HashSet<>();
@@ -812,7 +878,7 @@ final class DungeonLog extends SavedData {
                                 b.dungeonsFinished(), b.bag(), b.kitGranted(), b.fuel()),
                         new Campaign(c.actsUnlocked(), c.actsMigrated(), c.campaignComplete(),
                                 c.tripCounter(), c.decideWhitelist(), uuids(c.decideList()),
-                                c.deepestMineFloor())
+                                c.deepestMineFloor(), mineFloorsOf(c.mineFloors()))
                                 .migratedFor(a.keystoneLevel()));
             },
             entry -> com.mojang.datafixers.util.Pair.of(com.mojang.datafixers.util.Pair.of(
@@ -828,7 +894,8 @@ final class DungeonLog extends SavedData {
                             entry.campaign().campaignComplete(), entry.campaign().tripCounter(),
                             entry.campaign().decideWhitelist(), uuidStrings(entry.campaign().decideList()),
                             entry.campaign().deepestMineFloor(), java.util.Optional.of(entry.chartProgress()),
-                            entry.haul(), entry.haulIntroSeen()))
+                            entry.haul(), entry.haulIntroSeen(),
+                            mineFloorsText(entry.campaign().otherMineFloors())))
     ).codec();
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -1497,13 +1564,18 @@ final class DungeonLog extends SavedData {
         return true;
     }
 
-    /** Records a cleared Endless Mine floor; keeps the deepest. Returns whether it is a new best. */
+    /** Records a cleared Act 1 Endless Mine floor; keeps the deepest. Returns whether it is a new best. */
     boolean recordMineFloor(UUID player, int floor) {
+        return recordMineFloor(player, DungeonDef.MIN_ACT, floor);
+    }
+
+    /** Records a cleared floor of {@code act}'s Endless Mine; keeps the deepest. Returns whether it is a new best. */
+    boolean recordMineFloor(UUID player, int act, int floor) {
         Entry previous = get(player);
-        if (floor <= previous.campaign().deepestMineFloor()) {
+        if (floor <= previous.campaign().deepestMineFloor(act)) {
             return false;
         }
-        entries.put(player, previous.withCampaign(previous.campaign().withDeepestMineFloor(floor)));
+        entries.put(player, previous.withCampaign(previous.campaign().withMineFloor(act, floor)));
         setDirty();
         return true;
     }

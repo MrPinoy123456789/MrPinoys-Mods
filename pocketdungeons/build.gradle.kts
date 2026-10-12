@@ -325,10 +325,15 @@ for ((taskName, testClass) in mapOf(
     // Design pass 2026-10-09 (Q1): the Astrolabe Room door row and door states.
     "hallLayoutTest" to "HallLayoutTest",
     "hallDataTest" to "HallDataTest",
+    // Roadmap T24: the Infestation's creeping brick clock and caps, and the giant silverfish's phase schedule.
+    "creepingRulesTest" to "CreepingRulesTest",
+    "infestationRulesTest" to "InfestationRulesTest",
     // Design pass 2026-10-09 (Q4, Q5): the finale wave rules, the mob uniform and the authored data.
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Haunts (RM T34): the staging rule, the look cone, the never-lethal strike and The Counted data.
+    "hauntRulesTest" to "HauntRulesTest",
     // Roadmap T01: the half-dead rule and the finale script registry.
     "finaleScriptsTest" to "FinaleScriptsTest",
     // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
@@ -485,6 +490,8 @@ tasks.test {
     dependsOn("resourceNodeTest")
     dependsOn("kitHiddenBagTest")
     dependsOn("doorLivesTest")
+    dependsOn("creepingRulesTest")
+    dependsOn("infestationRulesTest")
     dependsOn("bookLootTest")
     dependsOn("spawnerEjectOddsTest")
     dependsOn("floorNotesTest")
@@ -496,6 +503,7 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("hauntRulesTest")
     dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")

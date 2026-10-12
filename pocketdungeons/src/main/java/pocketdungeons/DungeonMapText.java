@@ -160,7 +160,7 @@ final class DungeonMapText {
      * complete act. Sorted by dungeon id so the order is stable.
      */
     static List<Line> actChecklist(int act, java.util.Collection<DungeonDef> all, Set<String> finished,
-                                 int compass, int deepestMineFloor) {
+                                 int compass, ActProgress.MineDepth deepestMineFloor) {
         List<Line> out = new ArrayList<>();
         Set<String> done = new java.util.LinkedHashSet<>();
         for (String id : finished) {
@@ -184,10 +184,11 @@ final class DungeonMapText {
                 out.add(new Line("    " + def.name(), Tone.NORMAL));
             }
         }
-        int target = ActProgress.mineTarget(act);
+        int target = ActProgress.mineTarget(act, all);
         if (target > 0) {
-            out.add(new Line("    Endless Mine · floor " + Math.min(deepestMineFloor, target)
-                    + " of " + target + (deepestMineFloor >= target ? " (done)" : ""), Tone.NOTE));
+            boolean met = ActProgress.mineLegDone(act, deepestMineFloor, all);
+            out.add(new Line("    Endless Mine · floor " + (met ? target : Math.min(deepestMineFloor.floor(act), target))
+                    + " of " + target + (met ? " (done)" : ""), Tone.NOTE));
         }
         return out;
     }

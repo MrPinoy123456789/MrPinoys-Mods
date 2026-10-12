@@ -143,25 +143,33 @@ public class CapstoneRulesTest {
         DungeonDef spawner = def("spawner_dungeon", 1, "capstone");
         DungeonDef mineshaft = def("mineshaft", 1, "dungeon");
         DungeonDef ossuary = def("ossuary", 1, "dungeon");
-        List<DungeonDef> all = List.of(spawner, mineshaft, ossuary);
+        DungeonDef mine = def("endless_mine", 1, "endless");
+        List<DungeonDef> all = List.of(spawner, mineshaft, ossuary, mine);
         Set<Integer> act1 = Set.of(1);
+        ActProgress.MineDepth none = ActProgress.MineDepth.NONE;
+        ActProgress.MineDepth short2 = ActProgress.MineDepth.legacy(2);
+        ActProgress.MineDepth guardian = ActProgress.MineDepth.legacy(3);
 
-        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of(), 0).contains(spawner),
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of(), none).contains(spawner),
                 "nothing done: the capstone is not dealt");
-        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 4).contains(spawner),
-                "the Mine short of its target: still locked");
-        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft"), 5).contains(spawner),
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), short2).contains(spawner),
+                "the Mine short of its first guardian: still locked");
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft"), guardian).contains(spawner),
                 "a dungeon unfinished: still locked");
-        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 5).contains(spawner),
-                "the rest of the act done and the Mine at 5: the capstone is dealt");
-        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), 5).contains(mineshaft),
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), guardian).contains(spawner),
+                "the rest of the act done and the first guardian floor cleared: the capstone is dealt");
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), guardian).contains(mineshaft),
                 "ordinary dungeons stay dealt");
-        check(TripDoors.pendingCapstone(all, act1, Set.of(), 25, true, 0) == null,
+        check(TripDoors.pendingCapstone(all, act1, Set.of(), 25, true, none) == null,
                 "locked, so not pending either");
-        check(TripDoors.pendingCapstone(all, act1, Set.of("mineshaft", "ossuary"), 25, true, 5) == spawner,
+        check(TripDoors.pendingCapstone(all, act1, Set.of("mineshaft", "ossuary"), 25, true, guardian) == spawner,
                 "unlocked and pending");
-        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), 5, all), "ready");
-        check(!ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), 4, all), "Mine short, not ready");
+        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), guardian, all), "ready");
+        check(!ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), short2, all), "Mine short, not ready");
+        // An act whose mine is not built asks nothing of one.
+        List<DungeonDef> noMine = List.of(spawner, mineshaft, ossuary);
+        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), none, noMine),
+                "no mine declared for the act: the rest of the act is enough");
     }
 
     private static void testPendingCapstone() {

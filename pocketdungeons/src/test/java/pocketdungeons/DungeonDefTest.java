@@ -735,7 +735,7 @@ public class DungeonDefTest {
                 Map.entry("deepslate", 2), Map.entry("copper_works", 2), Map.entry("frostworks", 2),
                 Map.entry("prismarine", 3), Map.entry("drowned_vault", 3),
                 Map.entry("basalt_foundry", 4), Map.entry("blackstone", 4),
-                Map.entry("ender_archive", 5), Map.entry("endless_mine", 1),
+                Map.entry("ender_archive", 5), Map.entry("endless_mine", 1), Map.entry("endless_mine_deep", 2),
                 Map.entry("mineshaft", 1), Map.entry("cow_pits", 2),
                 Map.entry("spawner_dungeon", 1), Map.entry("ancient_city", 2),
                 Map.entry("wither_keep", 4), Map.entry("the_end", 5), Map.entry("herobrine", 5));
@@ -747,6 +747,17 @@ public class DungeonDefTest {
         }
         check(loaded.byId("drowned_vault").kind() == DungeonDef.Kind.CAPSTONE, "drowned_vault is the capstone");
         check(loaded.byId("endless_mine").kind() == DungeonDef.Kind.ENDLESS, "endless_mine is endless");
+        // Each act has its own mine (decision 2026-10-11); Act 2's is data only, in the Act 2 loot band.
+        DungeonDef deepMine = loaded.byId("endless_mine_deep");
+        check(deepMine.kind() == DungeonDef.Kind.ENDLESS && "special".equals(deepMine.hall()),
+                "endless_mine_deep is an endless special door");
+        check(deepMine.lootBand().min() == 2 && deepMine.lootBand().max() == 3, "endless_mine_deep is in the act 2 band");
+        check(deepMine.unlockLevel() == 6, "the Deep Mine opens at the compass the Act 2 dungeons do");
+        check(EndlessMineRules.openMines(loaded.all(), java.util.Set.of(1, 2), 6).stream().map(DungeonDef::id)
+                        .toList().equals(List.of(T + "endless_mine", T + "endless_mine_deep")),
+                "the shipped data opens the Act 1 mine, then the Deep Mine with act 2");
+        check(ActProgress.mineTarget(2, loaded.all()) == 3 && ActProgress.mineTarget(3, loaded.all()) == 0,
+                "the shipped data gates act 2 on its mine and act 3 on none (not built yet)");
         // W7a: the Act 1 and Act 2 capstones.
         DungeonDef spawnerDungeon = loaded.byId("spawner_dungeon");
         check(spawnerDungeon.kind() == DungeonDef.Kind.CAPSTONE && spawnerDungeon.layers() == 3,
