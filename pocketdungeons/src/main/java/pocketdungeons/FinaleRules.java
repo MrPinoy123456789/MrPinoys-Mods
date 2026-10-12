@@ -51,6 +51,15 @@ final class FinaleRules {
     }
 
     /**
+     * Whether half of a finale wave is dead (roadmap T01): {@code alive <= total / 2} with integer division,
+     * so a wave of 7 is half dead at 3 alive and a wave of 1 only when it is dead. Never before any mob exists.
+     * A script's {@code onHalfDead} fires once, the first time this is true.
+     */
+    static boolean halfDead(int alive, int total) {
+        return total > 0 && alive <= total / 2;
+    }
+
+    /**
      * What the terminal pad says while the finale stands in the way, or {@code null} when it does not.
      *
      * @param due   the floor\u0027s spawners are cleared, so the last stand is due or on

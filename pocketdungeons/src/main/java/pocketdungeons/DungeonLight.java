@@ -1,9 +1,12 @@
 package pocketdungeons;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -16,7 +19,8 @@ import java.util.function.Predicate;
  * source removed, by position, deterministically) and {@code dark} (every light
  * source removed). A floor's node can set a minimum darkness for every room on it
  * ({@link DungeonDef.Node#light()}); a room that {@code requiresLight} is never
- * darkened, by its own field or by the node.
+ * darkened, by its own field or by the node. The Blackout affix darkens scattered cells the same way
+ * ({@link #blackoutCells}, {@link #withBlackout}).
  */
 final class DungeonLight {
 
@@ -43,6 +47,49 @@ final class DungeonLight {
         return rank(nodeLight) > rank(roomLight)
                 ? (nodeLight == null ? DungeonRoomMeta.LIGHT_LIT : nodeLight)
                 : (roomLight == null ? DungeonRoomMeta.LIGHT_LIT : roomLight);
+    }
+
+    /**
+     * The room content ids of the Ordeals that hang on a lever and its lamp: Blackout leaves their cells
+     * lit so the lever can be found.
+     */
+    static final Set<String> LEVER_ORDEAL_CONTENT = Set.of("rising_lava", "collapsing_bridge", "hold_the_plate",
+            "thicket", "ice_run");
+
+    /**
+     * Blackout: the cells whose lights go out. Eligible cells are every cell but the entrance and the
+     * terminal, and not one {@code keepLit} names (a room that {@code requiresLight}, a lever Ordeal);
+     * {@code fraction} of them (rounded, at least one while
+     * the fraction is above zero) are chosen. The cells are sorted first (PD-20: a plan's cell set
+     * iterates in an order that changes per JVM) and shuffled by the plan seed, so one seed always
+     * darkens the same cells.
+     */
+    static Set<PlanCell> blackoutCells(Collection<PlanCell> cells, PlanCell entrance, PlanCell terminal,
+                                       Predicate<PlanCell> keepLit, double fraction, long seed) {
+        if (!(fraction > 0.0)) {
+            return Set.of();
+        }
+        List<PlanCell> eligible = new ArrayList<>();
+        for (PlanCell cell : cells) {
+            if (!cell.equals(entrance) && !cell.equals(terminal) && !keepLit.test(cell)) {
+                eligible.add(cell);
+            }
+        }
+        eligible.sort(Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z));
+        if (eligible.isEmpty()) {
+            return Set.of();
+        }
+        int count = Math.min(eligible.size(), Math.max(1, (int) Math.round(fraction * eligible.size())));
+        java.util.Collections.shuffle(eligible, new Random(seed ^ 0xB1AC0017L));
+        return new HashSet<>(eligible.subList(0, count));
+    }
+
+    /**
+     * The darkness of a cell once Blackout is counted: a blacked-out cell is {@code dark} (every light
+     * removed) unless its room {@code requiresLight}, and any other cell keeps {@code level}.
+     */
+    static String withBlackout(String level, boolean blackedOut, boolean requiresLight) {
+        return blackedOut && !requiresLight ? DungeonRoomMeta.LIGHT_DARK : level;
     }
 
     /**
