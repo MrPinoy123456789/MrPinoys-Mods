@@ -106,6 +106,205 @@ public final class MineGuardianGameTest {
         }
     }
 
+    /** Lays a solid floor under the cell so bricks and coffins can stand on it. */
+    private static void floor(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                level.setBlock(helper.absolutePos(new BlockPos(x, 0, z)),
+                        net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3);
+            }
+        }
+    }
+
+    /**
+     * Act 1 slot 1 (roadmap T41): the young queen spawns burrowed and tagged, her bricks stand, the pad
+     * stays shut while she or her brood lives, and a later guardian plants more of them.
+     */
+    @GameTest(maxTicks = 60)
+    public void theYoungQueenSurfacesOutOfTheFloor(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        floor(helper);
+        InstanceRecord record = mineRecord(helper, ACT1);
+        BlockPos terminal = record.layout.terminal();
+        MineGuardians.clear();
+        try {
+            MineGuardiansAct1.registerAll();
+            long now = level.getServer().getTickCount();
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 3, 5);
+            List<Mob> wave = guardians(level, terminal);
+            helper.assertTrue(!wave.isEmpty(), "floor 3 spawned the queen's wave");
+            Mob queen = null;
+            for (Mob mob : wave) {
+                helper.assertTrue(mob.entityTags().contains(MineGuardians.GUARDIAN_TAG),
+                        "every guardian mob carries the guardian tag");
+                if (mob.getType() == EntityTypes.SILVERFISH) {
+                    queen = mob;
+                }
+            }
+            helper.assertTrue(queen != null, "the wave is a silverfish queen");
+            helper.assertTrue(queen.isInvisible(), "she starts burrowed");
+            helper.assertTrue(MineGuardianQueen.standingBricks(terminal) == MineGuardianRules.bricksFor(1.0),
+                    "her bricks are planted: " + MineGuardianQueen.standingBricks(terminal));
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while she is burrowed");
+
+            MineGuardianQueen.pollForTest(now + MineGuardianRules.TELL_BASE_TICKS + 10);
+            helper.assertTrue(MineGuardianQueen.surfaced(terminal), "the tell ends and she surfaces");
+            helper.assertTrue(queen.isAlive() && !queen.isInvisible(), "the surfaced queen fights");
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while she lives");
+
+            // A lap later (floor 12, guardian 4) she is bigger and plants more bricks.
+            double firstScale = MineGuardianRules.queenScale(EndlessMineRules.hardness(1));
+            int firstBricks = MineGuardianQueen.standingBricks(terminal);
+            MineGuardianQueen.clear(terminal);
+            clear(level, terminal);
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 12, 5);
+            helper.assertTrue(MineGuardianQueen.standingBricks(terminal) > firstBricks,
+                    "a later guardian plants more bricks: " + MineGuardianQueen.standingBricks(terminal));
+            helper.assertTrue(MineGuardianRules.queenScale(EndlessMineRules.hardness(4)) > firstScale,
+                    "a later queen is bigger");
+            clear(level, terminal);
+            helper.assertTrue(MineGuardians.padRefusal(level, record) == null,
+                    "with the wave down the pad opens");
+            helper.succeed();
+        } finally {
+            clear(level, terminal);
+            MineGuardianQueen.clear(terminal);
+            MineGuardianCoffins.clear(terminal);
+            MineGuardians.clear();
+        }
+    }
+
+    /**
+     * Act 1 slot 2 (roadmap T41): the packmaster spawns with marked wolves, every mob tagged, and the
+     * pad stays shut until the whole pack is dead.
+     */
+    @GameTest(maxTicks = 60)
+    public void thePackmasterDrivesHisWolves(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        InstanceRecord record = mineRecord(helper, ACT1);
+        BlockPos terminal = record.layout.terminal();
+        MineGuardians.clear();
+        try {
+            MineGuardiansAct1.registerAll();
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 6, 5);
+            List<Mob> wave = guardians(level, terminal);
+            int wolves = 0;
+            int pillagers = 0;
+            for (Mob mob : wave) {
+                helper.assertTrue(mob.entityTags().contains(MineGuardians.GUARDIAN_TAG),
+                        "every pack mob carries the guardian tag");
+                if (mob instanceof net.minecraft.world.entity.animal.wolf.Wolf) {
+                    wolves++;
+                    helper.assertTrue(mob.entityTags().contains(HostileWolves.HOSTILE),
+                            "each wolf is marked hostile");
+                } else if (mob.getType() == EntityTypes.PILLAGER) {
+                    pillagers++;
+                }
+            }
+            helper.assertValueEqual(pillagers, 1, "one packmaster");
+            helper.assertValueEqual(wolves, MineGuardianRules.wolvesFor(EndlessMineRules.hardness(2)),
+                    "the pack's size for guardian 2");
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while the pack lives");
+            for (Mob mob : wave) {
+                if (mob.getType() == EntityTypes.PILLAGER) {
+                    mob.discard();
+                }
+            }
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the wolves hold the pad after the packmaster falls");
+            clear(level, terminal);
+            helper.assertTrue(MineGuardians.padRefusal(level, record) == null,
+                    "the last wolf down and the pad opens");
+            helper.succeed();
+        } finally {
+            clear(level, terminal);
+            MineGuardians.clear();
+        }
+    }
+
+    /**
+     * Act 1 slot 3 (roadmap T41): sealed coffins stand in the cell holding tagged sleepers, they rise
+     * one at a time, a broken lid opens its coffin on the spot, and the pad stays shut until every
+     * sleeper is dead.
+     */
+    @GameTest(maxTicks = 60)
+    public void theCoffinsRiseOneAtATime(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        floor(helper);
+        InstanceRecord record = mineRecord(helper, ACT1);
+        BlockPos terminal = record.layout.terminal();
+        MineGuardians.clear();
+        try {
+            MineGuardiansAct1.registerAll();
+            long now = level.getServer().getTickCount();
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, 9, 5);
+            List<Mob> wave = guardians(level, terminal);
+            helper.assertValueEqual(wave.size(), MineGuardianRules.coffinsFor(EndlessMineRules.hardness(3)),
+                    "one sleeper per coffin for guardian 3");
+            for (Mob mob : wave) {
+                helper.assertTrue(mob.entityTags().contains(MineGuardians.GUARDIAN_TAG),
+                        "every sleeper carries the guardian tag");
+                helper.assertTrue(mob.isInvisible(), "every sleeper is still sealed in");
+            }
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while any sleeper lies sealed");
+            helper.assertValueEqual(MineGuardianCoffins.phases(terminal).size(), wave.size(),
+                    "every sleeper has a coffin");
+
+            // The first coffin cracks after the gap, then opens after its tell; the rest wait.
+            int tell = MineGuardianRules.tellTicks(MineGuardianRules.TELL_BASE_TICKS,
+                    EndlessMineRules.hardness(3));
+            MineGuardianCoffins.pollForTest(now + MineGuardianRules.COFFIN_GAP_TICKS);
+            List<String> phases = MineGuardianCoffins.phases(terminal);
+            helper.assertValueEqual(countOf(phases, "CRACKING"), 1, "one coffin cracks at a time");
+            helper.assertValueEqual(countOf(phases, "SEALED"), wave.size() - 1, "the rest stay sealed");
+            MineGuardianCoffins.pollForTest(now + MineGuardianRules.COFFIN_GAP_TICKS + tell + 5);
+            phases = MineGuardianCoffins.phases(terminal);
+            helper.assertValueEqual(countOf(phases, "OPEN"), 1, "the first coffin opened after its tell");
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while sleepers still lie sealed");
+
+            // A broken lid opens its coffin on the spot.
+            for (int x = 0; x < 16; x++) {
+                for (int z = 0; z < 16; z++) {
+                    BlockPos at = terminal.offset(x, 1, z);
+                    if (level.getBlockState(at).is(net.minecraft.world.level.block.Blocks.POLISHED_BLACKSTONE)) {
+                        level.destroyBlock(at, false);
+                    }
+                }
+            }
+            MineGuardianCoffins.pollForTest(now + MineGuardianRules.COFFIN_GAP_TICKS + tell + 10);
+            phases = MineGuardianCoffins.phases(terminal);
+            helper.assertTrue(countOf(phases, "SEALED") == 0,
+                    "every broken lid opened its coffin: " + phases);
+            helper.assertTrue(MineGuardians.padRefusal(level, record) != null,
+                    "the pad stays shut while any sleeper stands");
+            clear(level, terminal);
+            helper.assertTrue(MineGuardians.padRefusal(level, record) == null,
+                    "the last sleeper down and the pad opens");
+            helper.succeed();
+        } finally {
+            clear(level, terminal);
+            MineGuardianCoffins.clear(terminal);
+            MineGuardianQueen.clear(terminal);
+            MineGuardians.clear();
+        }
+    }
+
+    private static int countOf(List<String> phases, String phase) {
+        int count = 0;
+        for (String p : phases) {
+            if (p.equals(phase)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     /** Each act's mine spawns its own placeholder wave, and a mine that is not flagged spawns none. */
     @GameTest(maxTicks = 40)
     public void theWaveFollowsTheMinesAct(GameTestHelper helper) {

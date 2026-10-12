@@ -438,6 +438,8 @@ for ((taskName, testClass) in mapOf(
     "cowPitsTest" to "CowPitsTest",
     // Roadmap T32: the Copper Works clock text, red window, spawner bonus and vent sweep.
     "copperClockRulesTest" to "CopperClockRulesTest",
+    // Roadmap T41: the mine guardians' hardness dial (counts, caps, tell floor).
+    "mineGuardianRulesTest" to "MineGuardianRulesTest",
     // Audit wave 2b: config round trip, zone rules, per-floor banking.
     "configSaveTest" to "ConfigSaveTest",
     // Config refactor: characterizes every knob, the written defaults and the rewrite rules.
@@ -594,6 +596,7 @@ tasks.test {
     dependsOn("capstoneRulesTest")
     dependsOn("cowPitsTest")
     dependsOn("copperClockRulesTest")
+    dependsOn("mineGuardianRulesTest")
     dependsOn("configSaveTest")
     dependsOn("configCharacterizationTest")
     dependsOn("configKnobsTest")

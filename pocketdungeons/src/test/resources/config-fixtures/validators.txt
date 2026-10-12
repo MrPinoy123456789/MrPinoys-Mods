@@ -1030,6 +1030,18 @@ endlessGuardianLapStep [double, default 0.5]
   odd empty array -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
   odd null -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
   odd empty object -> 0.5 | ERROR pocketdungeons.json field 'endlessGuardianLapStep' is not a valid number; using default 0.5
+mineGuardianMobCap [int, default 16]
+  probes nnYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 16,16,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'mineGuardianMobCap' has invalid value -1; must be >= 1; using default 16
+  disturbs (nothing else)
+  odd string abc -> 16 | ERROR pocketdungeons.json field 'mineGuardianMobCap' is not a valid integer; using default 16
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 16 | ERROR pocketdungeons.json field 'mineGuardianMobCap' is not a valid integer; using default 16
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 16 | ERROR pocketdungeons.json field 'mineGuardianMobCap' is not a valid integer; using default 16
+  odd null -> 16 | ERROR pocketdungeons.json field 'mineGuardianMobCap' is not a valid integer; using default 16
+  odd empty object -> 16 | ERROR pocketdungeons.json field 'mineGuardianMobCap' is not a valid integer; using default 16
 sculkHeardMax [int, default 4]
   probes nnYYYYYYYYnnnnnnnnnnnnnnnnn
   values 4,4,1,2,3,4,5,6,8,10,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4

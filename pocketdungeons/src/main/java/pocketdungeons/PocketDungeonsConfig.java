@@ -401,6 +401,13 @@ public final class PocketDungeonsConfig {
     private static final Knob<Double> ENDLESS_GUARDIAN_LAP_STEP = decimal("endlessGuardianLapStep", 0.5,
             v -> v >= 0.0 && v <= 5.0, "must be 0 to 5");
     /**
+     * The most mobs one Endless Mine guardian may have standing or waiting at once: the queen plus her
+     * bricks, the packmaster plus his wolves, or the coffins' sleepers. Counts that hardness would
+     * push past it are cut back.
+     */
+    private static final Knob<Integer> MINE_GUARDIAN_MOB_CAP = integer("mineGuardianMobCap", 16,
+            v -> v >= 1, "must be >= 1");
+    /**
      * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
      * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
      * meter resets. A room with a spawner that is cleared without it ever answering pays sculkUnheardScrap into
@@ -1280,6 +1287,10 @@ public final class PocketDungeonsConfig {
 
     public static double endlessGuardianLapStep() {
         return ENDLESS_GUARDIAN_LAP_STEP.get();
+    }
+
+    public static int mineGuardianMobCap() {
+        return MINE_GUARDIAN_MOB_CAP.get();
     }
 
     public static int sculkHeardMax() {

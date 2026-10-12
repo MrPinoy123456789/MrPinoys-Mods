@@ -67,6 +67,7 @@ final class RitualListener {
             SalvageStation.warmUp();
             TrimListener.warmUp();
             PowerListener.warmUp();
+            MineGuardiansAct1.registerAll();
         });
     }
 

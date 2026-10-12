@@ -48,6 +48,7 @@ final class MineGuardians {
      * What a guardian is told when its floor opens.
      *
      * @param level      the dimension to spawn in
+     * @param terminal   the terminal cell's origin; {@code centre} is its middle
      * @param centre     the middle of the terminal cell, one block above its floor
      * @param act        the act of the mine
      * @param number     the guardian's number in the mine, from 1 (floor 3 is number 1 at the default cadence)
@@ -56,7 +57,7 @@ final class MineGuardians {
      * @param hardness   {@link EndlessMineRules#hardness}, 1.0 or more, no upper bound
      * @param floorLevel the level the floor runs at, for the ordinary mob scale
      */
-    record Spawn(ServerLevel level, BlockPos centre, int act, int number, int slot, int lap,
+    record Spawn(ServerLevel level, BlockPos terminal, BlockPos centre, int act, int number, int slot, int lap,
                  double hardness, int floorLevel) {}
 
     /** A guardian: spawns its mobs (tagged) for one {@link Spawn}. */
@@ -100,7 +101,7 @@ final class MineGuardians {
             return null;
         }
         BlockPos centre = terminalOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);
-        return new Spawn(level, centre, act, number, EndlessMineRules.slot(number),
+        return new Spawn(level, terminalOrigin.immutable(), centre, act, number, EndlessMineRules.slot(number),
                 EndlessMineRules.lap(number), EndlessMineRules.hardness(number), floorLevel);
     }
 
@@ -143,6 +144,41 @@ final class MineGuardians {
     /** The placeholder wave's mob type for an act's mine. */
     static EntityType<? extends Mob> placeholderType(int act) {
         return act == 2 ? EntityTypes.SKELETON : EntityTypes.ZOMBIE;
+    }
+
+    /**
+     * A free floor spot in the cell at {@code cellOrigin}: air at feet and head, solid below, out of the
+     * door lanes, and at least two blocks (Chebyshev) from every position in {@code taken}, which gains the
+     * returned spot. Seed {@code taken} with the cell centre to keep a guardian's props off the pad.
+     * {@code null} when no spot is found.
+     */
+    static BlockPos freeSpotInCell(ServerLevel level, BlockPos cellOrigin, java.util.Set<BlockPos> taken,
+                                   net.minecraft.util.RandomSource random) {
+        for (int attempt = 0; attempt < 48; attempt++) {
+            int x = 1 + random.nextInt(RoomGeometry.CELL - 2);
+            int z = 1 + random.nextInt(RoomGeometry.CELL - 2);
+            if (CreepingRules.inDoorLane(x, z)) {
+                continue;
+            }
+            BlockPos at = cellOrigin.offset(x, 1, z);
+            if (!level.isLoaded(at) || !level.getBlockState(at).isAir() || !level.getBlockState(at.above()).isAir()
+                    || !level.getBlockState(at.below()).isSolid()) {
+                continue;
+            }
+            boolean near = false;
+            for (BlockPos spot : taken) {
+                if (Math.max(Math.abs(at.getX() - spot.getX()), Math.abs(at.getZ() - spot.getZ())) < 2) {
+                    near = true;
+                    break;
+                }
+            }
+            if (near) {
+                continue;
+            }
+            taken.add(at);
+            return at;
+        }
+        return null;
     }
 
     /**

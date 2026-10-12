@@ -99,6 +99,7 @@ maxConcurrentPreviews = 16
 maxConcurrentVisits = 16
 maxGridSpan = 12
 maxPartyMembers = 6
+mineGuardianMobCap = 16
 mineshaftDarkSpiders = 3
 mineshaftDarkTellSeconds = 3
 miningFatigueMaxSeconds = 30
