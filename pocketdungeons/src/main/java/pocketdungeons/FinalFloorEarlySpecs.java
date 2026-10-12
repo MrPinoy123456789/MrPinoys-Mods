@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.CopperBulbBlock;
@@ -127,7 +128,29 @@ final class FinalFloorEarlySpecs {
                     box(level, o, 10, 1, 1, 11, 2, 1, AIR);
                     box(level, o, 4, 1, 14, 5, 2, 14, AIR);
                     box(level, o, 10, 1, 14, 11, 2, 14, AIR);
+                    // The sealed coffins the finale wave rises from (OssuaryFinale finds them by pattern).
+                    coffin(level, o, 2, 3, 1);
+                    coffin(level, o, 2, 12, -1);
+                    coffin(level, o, 13, 3, 1);
+                    coffin(level, o, 13, 12, -1);
+                    coffin(level, o, 7, 2, 1);
+                    coffin(level, o, 8, 13, -1);
                 });
+    }
+
+    /**
+     * A sealed coffin, three cells long running along z from its head at (x, headZ) in direction {@code dz}: a
+     * polished blackstone body at y 1, a polished blackstone lid at y 2 and a chiseled polished blackstone cap
+     * on the head. Direct blocks, so no theme re-skins them; {@code OssuaryFinale} scans for exactly this shape.
+     * Two high, so it is cover and not a step; the door lanes and the spawn points stay clear.
+     */
+    static void coffin(ServerLevel level, BlockPos o, int x, int headZ, int dz) {
+        BlockState stone = Blocks.POLISHED_BLACKSTONE.defaultBlockState();
+        for (int i = 0; i < 3; i++) {
+            put(level, o, x, 1, headZ + dz * i, stone);
+            put(level, o, x, 2, headZ + dz * i,
+                    i == 0 ? Blocks.CHISELED_POLISHED_BLACKSTONE.defaultBlockState() : stone);
+        }
     }
 
     private static BlockState bulb() {

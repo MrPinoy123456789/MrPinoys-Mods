@@ -498,7 +498,7 @@ final class RunLifecycle {
 
         // A side branch costs lives (Haul and Blood Doors): the party's, never the last one.
         // The door screen names it (RitualListener.doorRefusal); re-check here for safety.
-        int previewCost = offer.cost();
+        int previewCost = Keystone.livesCost(record.owner, offer);
         if (previewCost > 0 && !DoorLives.affordable(Omen.lives(record.interval.omen), previewCost)) {
             return false;
         }
@@ -646,7 +646,7 @@ final class RunLifecycle {
         // Re-check the side branch's life cost at commit time, since a death may have
         // happened since the preview. Lives are the party's (the trip's omen), so whoever
         // pulls the lever spends everyone's life, and the last life is never for sale.
-        int doorCost = offer.cost();
+        int doorCost = Keystone.livesCost(record.owner, offer);
         if (doorCost > 0) {
             int livesLeft = Omen.lives(record.interval.omen);
             if (!DoorLives.affordable(livesLeft, doorCost)) {
@@ -785,7 +785,9 @@ final class RunLifecycle {
             PlaytestJournal.omenRise(server, record, Omen.Source.DOOR, doorCost, record.interval.omen,
                     player.blockPosition());
             OmenBar.cue(server, record, Omen.Source.DOOR);
-            Instances.announce(server, record, DoorLives.paidLine(player.getName().getString(), livesLeft), null);
+            Instances.announce(server, record, offer.cost() > 0
+                    ? DoorLives.paidLine(player.getName().getString(), livesLeft)
+                    : DoorLives.paidBloodLine(player.getName().getString(), livesLeft), null);
         }
 
         // A trip has begun (the first door of a dungeon): count it for the leader, which
@@ -1493,11 +1495,17 @@ final class RunLifecycle {
      * chest. Unknown item ids are logged and skipped, a content typo never
      * failing a floor's rewards.
      */
-    private static List<ItemStack> promisedItems(ServerLevel level, DungeonDef def, InstanceRecord record) {
+    static List<ItemStack> promisedItems(ServerLevel level, DungeonDef def, InstanceRecord record) {
         DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
         List<ItemStack> promised = new ArrayList<>();
         if (node == null) {
             return promised;
+        }
+        // A wagered floor pays one extra piece (WagerGear), the one its door board named.
+        ItemStack extra = PromisedGear.rollExtra(level, record.owner, record.interval, node.id(),
+                PromisedGear.extraPick(def, node, record.owner, record.interval, node.id(), record.floor.boardAffixes));
+        if (!extra.isEmpty()) {
+            promised.add(extra);
         }
         for (DungeonDef.Node.Reward reward : node.rewards()) {
             if (PromisedGear.isGear(reward.item())) {
@@ -1577,6 +1585,14 @@ final class RunLifecycle {
                 Diaries.Entry page = Diaries.current().byId(def.diary());
                 if (page != null && DiaryDelivery.deliverEntry(log, memberPlayer, page)) {
                     diaryId = page.id();
+                }
+            }
+            // Haunts: the dungeon's haunt has its own page, handed over with the dungeon's on the first finish.
+            HauntDefinition haunt = first ? HauntManifest.current().forDungeon(def.id()) : null;
+            if (haunt != null && !haunt.diary().isBlank()) {
+                Diaries.Entry story = Diaries.current().byId(haunt.diary());
+                if (story != null) {
+                    DiaryDelivery.deliverEntry(log, memberPlayer, story);
                 }
             }
             PlaytestJournal.dungeonFinished(memberPlayer, record, emeralds, vaultChests, first, diaryId);

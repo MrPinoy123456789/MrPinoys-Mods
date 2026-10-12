@@ -325,12 +325,19 @@ for ((taskName, testClass) in mapOf(
     // Design pass 2026-10-09 (Q1): the Astrolabe Room door row and door states.
     "hallLayoutTest" to "HallLayoutTest",
     "hallDataTest" to "HallDataTest",
+    // Roadmap T24: the Infestation's creeping brick clock and caps, and the giant silverfish's phase schedule.
+    "creepingRulesTest" to "CreepingRulesTest",
+    "infestationRulesTest" to "InfestationRulesTest",
     // Design pass 2026-10-09 (Q4, Q5): the finale wave rules, the mob uniform and the authored data.
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Haunts (RM T34): the staging rule, the look cone, the never-lethal strike and The Counted data.
+    "hauntRulesTest" to "HauntRulesTest",
     // Roadmap T01: the half-dead rule and the finale script registry.
     "finaleScriptsTest" to "FinaleScriptsTest",
+    // Roadmap T21: the Ossuary coffin counts, dealing, wake rule and awake cap.
+    "ossuaryRulesTest" to "OssuaryRulesTest",
     // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
     "kennelsFinaleRulesTest" to "KennelsFinaleRulesTest",
     // Roadmap T33: the Frostworks cold and heat (freeze rate, thaw, health floor, brazier radius, tell).
@@ -341,6 +348,9 @@ for ((taskName, testClass) in mapOf(
     "restlessRulesTest" to "RestlessRulesTest",
     // Affix workshop 2026-10-11 row 11: the Blackout affix (dark_cells, cell choice, lit rooms).
     "blackoutTest" to "BlackoutTest",
+    // T50: wager values, the Blood life cost, the Loot percentage and the wager gear maths.
+    "wagerTest" to "WagerTest",
+    "wagerGearTest" to "WagerGearTest",
     // Design pass 2026-10-09 (Q9): hidden ore that deepens with the floor.
     "hiddenOreDepthTest" to "HiddenOreDepthTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
@@ -464,6 +474,9 @@ for ((taskName, testClass) in mapOf(
     "lootRulesTest" to "LootRulesTest",
     // PD-204: the live dungeon id compare tolerates the namespace either way.
     "instancesTest" to "InstancesTest",
+    // Roadmap T23: the Lush Caves potion drip maths and the giant slime split rules.
+    "potionDripRulesTest" to "PotionDripRulesTest",
+    "lushFinaleRulesTest" to "LushFinaleRulesTest",
     // Affix workshop quick changes (T10): mine fuse, Silenced count, Cooked line, Restless level, Voided cells.
     "affixQuickChangesTest" to "AffixQuickChangesTest"
 )) {
@@ -484,6 +497,8 @@ tasks.test {
     dependsOn("resourceNodeTest")
     dependsOn("kitHiddenBagTest")
     dependsOn("doorLivesTest")
+    dependsOn("creepingRulesTest")
+    dependsOn("infestationRulesTest")
     dependsOn("bookLootTest")
     dependsOn("spawnerEjectOddsTest")
     dependsOn("floorNotesTest")
@@ -495,11 +510,15 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("hauntRulesTest")
     dependsOn("finaleScriptsTest")
+    dependsOn("ossuaryRulesTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
     dependsOn("affixQuickChangesTest")
     dependsOn("blackoutTest")
+    dependsOn("wagerTest")
+    dependsOn("wagerGearTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
@@ -588,6 +607,8 @@ tasks.test {
     dependsOn("contentModulesTest")
     dependsOn("lootRulesTest")
     dependsOn("instancesTest")
+    dependsOn("potionDripRulesTest")
+    dependsOn("lushFinaleRulesTest")
     failOnNoDiscoveredTests = false
 }
 

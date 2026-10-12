@@ -29,6 +29,9 @@ public final class PocketDungeonsMod implements ModInitializer {
      */
     public static final String OMEN_WAVE_TAG = "pocketdungeons_omen_wave";
 
+    /** Entity tag on a haunt body ({@code Haunts}): the same mixin keeps it from paying drops or experience. */
+    public static final String HAUNT_TAG = MOD_ID + ".haunt";
+
     /** Entity tag on a Warden whelp: {@code SonicBoomWhelpMixin} keeps anything that carries it from firing. */
     public static final String WHELP_TAG = MOD_ID + ".whelp";
 
@@ -53,6 +56,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomEditorListener.register();
         RoomEditorHistory.register();
         RoomProtection.register();
+        CreepingBricks.register();
         RoomTemplateGenerator.register();
         Locks.register();
         AltarOffering.register();
@@ -61,6 +65,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         SidebarDisplay.register();
         HallRoom.register();
         Restless.register();
+        Haunts.register();
         PetCap.register();
         CapstoneFights.register();
         FinaleScripts.registerAll();

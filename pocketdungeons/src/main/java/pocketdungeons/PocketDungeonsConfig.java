@@ -431,6 +431,23 @@ public final class PocketDungeonsConfig {
     private static final Knob<Boolean> FINALE_ENABLED = flag("finaleEnabled", true);
     private static final Knob<Integer> FINALE_REWARD_CHESTS = integer("finaleRewardChests", 1,
             v -> v >= 0 && v <= 3, "must be 0 to 3");
+    /**
+     * A floor whose affixes wager something pays one extra piece of gear into its copper chest
+     * (WagerGear); false pays none.
+     */
+    private static final Knob<Boolean> WAGER_GEAR_ENABLED = flag("wagerGearEnabled", true);
+    /**
+     * Percent chance, per wager point, that the extra copper chest piece is one tier higher than the
+     * floor base tier (never above the dungeon loot band).
+     */
+    private static final Knob<Integer> WAGER_TIER_CHANCE_PER_POINT = integer("wagerTierChancePerPoint", 20,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    /** Most the wager tier chance reaches, in percent. */
+    private static final Knob<Integer> WAGER_TIER_CHANCE_CAP = integer("wagerTierChanceCap", 90,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    /** Display only: the Loot percent the door board shows is 100 plus this per wager point. */
+    private static final Knob<Integer> LOOT_PERCENT_PER_WAGER = integer("lootPercentPerWager", 50,
+            v -> v >= 0 && v <= 200, "must be 0 to 200");
     private static final Knob<Integer> FINALE_COUNTDOWN_SECONDS = integer("finaleCountdownSeconds", 3,
             v -> v >= 0 && v <= 10, "must be 0 to 10");
     /**
@@ -446,9 +463,175 @@ public final class PocketDungeonsConfig {
      */
     private static final Knob<Integer> FROST_BRAZIER_RADIUS = integer("frostBrazierRadius", 4,
             v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /**
+     * Creeping bricks (Infestation): seconds a brick stays mossy stone brick before it matures to
+     * stone brick.
+     */
+    private static final Knob<Integer> CREEPING_MOSSY_SECONDS = integer("creepingMossySeconds", 5,
+            v -> v >= 1 && v <= 60, "must be 1 to 60");
+    /** Creeping bricks: seconds a brick stays stone brick before it turns infested. */
+    private static final Knob<Integer> CREEPING_STONE_SECONDS = integer("creepingStoneSeconds", 5,
+            v -> v >= 1 && v <= 60, "must be 1 to 60");
+    /**
+     * Creeping bricks: seconds a brick stays infested stone brick (shaking, loud) before it bursts
+     * into a silverfish.
+     */
+    private static final Knob<Integer> CREEPING_INFESTED_SECONDS = integer("creepingInfestedSeconds", 3,
+            v -> v >= 1 && v <= 60, "must be 1 to 60");
+    /** Creeping bricks: the most bricks one room may have growing at once. */
+    private static final Knob<Integer> CREEPING_ROOM_CAP = integer("creepingRoomCap", 4,
+            v -> v >= 1 && v <= 32, "must be 1 to 32");
+    /**
+     * Creeping bricks: the most bricks growing at once on one floor, all rooms and the boss fight
+     * together.
+     */
+    private static final Knob<Integer> CREEPING_FLOOR_CAP = integer("creepingFloorCap", 10,
+            v -> v >= 1 && v <= 64, "must be 1 to 64");
+    /**
+     * Creeping bricks: how many seed spots a Chewed Corridors or Silverfish Nests room marks at stamp
+     * time; each starts a brick when a member enters.
+     */
+    private static final Knob<Integer> CREEPING_ROOM_SEEDS = integer("creepingRoomSeeds", 3,
+            v -> v >= 0 && v <= 8, "must be 0 to 8");
+    /** Infestation finale: the Attributes.SCALE of the giant silverfish boss (1.0 is a normal silverfish). */
+    private static final Knob<Double> INFESTATION_BOSS_SCALE = decimal("infestationBossScale", 6.0,
+            v -> v >= 1.0 && v <= 12.0, "must be 1.0 to 12.0");
+    /** Infestation finale: seconds the boss fights on the surface before it begins to burrow. */
+    private static final Knob<Integer> INFESTATION_SURFACE_SECONDS = integer("infestationSurfaceSeconds", 25,
+            v -> v >= 5 && v <= 120, "must be 5 to 120");
+    /** Infestation finale: seconds of warning (rumble and dust) before the boss burrows; never under 2. */
+    private static final Knob<Integer> INFESTATION_BURROW_TELL_SECONDS = integer("infestationBurrowTellSeconds", 3,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /**
+     * Infestation finale: seconds of warning (the floor cracks) between the burrow and the first
+     * bricks; never under 2.
+     */
+    private static final Knob<Integer> INFESTATION_ADDS_TELL_SECONDS = integer("infestationAddsTellSeconds", 2,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /**
+     * Infestation finale: the longest the adds phase lasts before the boss emerges whatever bricks
+     * remain.
+     */
+    private static final Knob<Integer> INFESTATION_ADDS_MAX_SECONDS = integer("infestationAddsMaxSeconds", 40,
+            v -> v >= 10 && v <= 180, "must be 10 to 180");
+    /** Infestation finale: seconds of warning (the ground heaves) before the boss emerges; never under 2. */
+    private static final Knob<Integer> INFESTATION_EMERGE_TELL_SECONDS = integer("infestationEmergeTellSeconds", 2,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    /** Infestation finale: bricks one adds phase plants for a party of one. */
+    private static final Knob<Integer> INFESTATION_BRICKS_PER_PHASE = integer("infestationBricksPerPhase", 6,
+            v -> v >= 1 && v <= 30, "must be 1 to 30");
+    /** Infestation finale: extra bricks one adds phase plants for each member past the first. */
+    private static final Knob<Integer> INFESTATION_BRICKS_PER_EXTRA_MEMBER = integer("infestationBricksPerExtraMember", 2,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    /** Infestation finale: the most bricks growing at once in the arena. */
+    private static final Knob<Integer> INFESTATION_ARENA_BRICK_CAP = integer("infestationArenaBrickCap", 6,
+            v -> v >= 1 && v <= 32, "must be 1 to 32");
+    /**
+     * Infestation finale: the most silverfish (not the boss) alive at once; a ripe brick waits while
+     * the cap is full.
+     */
+    private static final Knob<Integer> INFESTATION_SILVERFISH_CAP = integer("infestationSilverfishCap", 10,
+            v -> v >= 1 && v <= 40, "must be 1 to 40");
+    /** Infestation finale: seconds between one brick planted and the next during the adds phase. */
+    private static final Knob<Integer> INFESTATION_PLANT_SECONDS = integer("infestationPlantSeconds", 2,
+            v -> v >= 1 && v <= 20, "must be 1 to 20");
+    /**
+     * Infestation finale: the giant silverfish boss's health for a party of one (more per extra member
+     * by finaleEliteHealthPercentPerMember).
+     */
+    private static final Knob<Integer> INFESTATION_BOSS_HEALTH = integer("infestationBossHealth", 100,
+            v -> v >= 10 && v <= 1000, "must be 10 to 1000");
+    /** Infestation finale: the giant silverfish boss's attack damage (a plain silverfish hits for 1). */
+    private static final Knob<Double> INFESTATION_BOSS_DAMAGE = decimal("infestationBossDamage", 4.0,
+            v -> v >= 0.0 && v <= 30.0, "must be 0.0 to 30.0");
     private static final Knob<Integer> FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER = integer(
             "finaleEliteHealthPercentPerMember", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
+    /**
+     * The Mineshaft finale dark phase (roadmap T20): the cave spiders that join for a party of one (grown per
+     * member like the data wave, bounded by {@link FinaleRules#MAX_DARK_SPIDERS}), and the seconds between
+     * the warning and the lights going out (never under {@link FinaleRules#MIN_DARK_TELL_SECONDS}).
+     */
+    private static final Knob<Integer> MINESHAFT_DARK_SPIDERS = integer("mineshaftDarkSpiders", 3,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    private static final Knob<Integer> MINESHAFT_DARK_TELL_SECONDS = integer("mineshaftDarkTellSeconds", 3,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
     private static final Knob<Boolean> MOB_UNIFORM_ENABLED = flag("mobUniformEnabled", true);
+    /**
+     * The Lush Caves potion drip (roadmap T23): splash potions fall on party members from the start floor on.
+     * Base seconds between two brews for one player, the percent each brew varies either way, the first
+     * floor of the run that drips, the percent of the base rate added per later floor, the percent the rate is
+     * multiplied by during the boss fight, the percent of brews that are harmful, the floor level from which a
+     * harming brew may fall (0 never), the seconds a brew's effect lasts (before its own scaling), the ticks a
+     * brew takes to fall, and the least seconds between two brews however fast the rate.
+     */
+    private static final Knob<Boolean> POTION_DRIP_ENABLED = flag("potionDripEnabled", true);
+    private static final Knob<Integer> POTION_DRIP_INTERVAL_SECONDS = integer("potionDripIntervalSeconds", 45,
+            v -> v >= 5 && v <= 600, "must be 5 to 600");
+    private static final Knob<Integer> POTION_DRIP_JITTER_PERCENT = integer("potionDripJitterPercent", 30,
+            v -> v >= 0 && v <= 90, "must be 0 to 90");
+    private static final Knob<Integer> POTION_DRIP_START_FLOOR = integer("potionDripStartFloor", 3,
+            v -> v >= 1 && v <= 12, "must be 1 to 12");
+    private static final Knob<Integer> POTION_DRIP_RAMP_PERCENT = integer("potionDripRampPercent", 50,
+            v -> v >= 0 && v <= 500, "must be 0 to 500");
+    private static final Knob<Integer> POTION_DRIP_BOSS_PERCENT = integer("potionDripBossPercent", 200,
+            v -> v >= 100 && v <= 1000, "must be 100 to 1000");
+    private static final Knob<Integer> POTION_DRIP_HARMFUL_PERCENT = integer("potionDripHarmfulPercent", 70,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
+    private static final Knob<Integer> POTION_DRIP_HARMING_MIN_LEVEL = integer("potionDripHarmingMinLevel", 5,
+            v -> v >= 0 && v <= 100, "must be 0 to 100 (0 means never)");
+    private static final Knob<Integer> POTION_DRIP_EFFECT_SECONDS = integer("potionDripEffectSeconds", 8,
+            v -> v >= 1 && v <= 30, "must be 1 to 30");
+    private static final Knob<Integer> POTION_DRIP_FALL_TICKS = integer("potionDripFallTicks", 40,
+            v -> v >= 20 && v <= 100, "must be 20 to 100");
+    private static final Knob<Integer> POTION_DRIP_MIN_SECONDS = integer("potionDripMinSeconds", 8,
+            v -> v >= 1 && v <= 120, "must be 1 to 120");
+    /**
+     * The Lush Caves boss (roadmap T23): the giant slime's size (vanilla slimes are 1 to 4), its health at a
+     * party of one, and the most slimes alive at once, so the doubled splits can never lag a server.
+     */
+    private static final Knob<Integer> LUSH_SLIME_SIZE = integer("lushSlimeSize", 8,
+            v -> v >= 2 && v <= 16, "must be 2 to 16");
+    private static final Knob<Integer> LUSH_SLIME_HEALTH = integer("lushSlimeHealth", 120,
+            v -> v >= 10 && v <= 2000, "must be 10 to 2000");
+    private static final Knob<Integer> LUSH_SLIME_MAX_ALIVE = integer("lushSlimeMaxAlive", 40,
+            v -> v >= 4 && v <= 200, "must be 4 to 200");
+    /**
+     * Haunts (docs/haunts-draft-2026-10-11.md): a floor wide roaming creature with a learnable rule. The pressure
+     * rises by {@code hauntPressurePerSecond} each second the party spends on a haunted floor and the haunt wakes
+     * when it reaches {@code hauntWakePressure}. The floor number in the dungeon sets its stage: a sighting before
+     * {@code hauntNearMissFloor}, a near miss before {@code hauntStrikeFloor}, a strike from there on (the strike
+     * floor is at least 3, so a two floor dungeon never strikes). A strike hurts for {@code hauntStrikeDamage}
+     * health points (never more than leaves one) and slows for {@code hauntSlownessSeconds}; the haunt then stays
+     * away {@code hauntRetreatSeconds}. {@code hauntTellSeconds} is the least warning before it can act and
+     * {@code hauntLookConeDegrees} the half angle of the view that freezes the Counted. A sighting vanishes when
+     * a member comes within {@code hauntSightingApproachBlocks} or after {@code hauntLingerSeconds}, and the
+     * haunt gives up for the floor after {@code hauntSightingVanishes} of them.
+     */
+    private static final Knob<Boolean> HAUNTS_ENABLED = flag("hauntsEnabled", true);
+    private static final Knob<Double> HAUNT_PRESSURE_PER_SECOND = decimal("hauntPressurePerSecond", 1.0,
+            v -> v >= 0.0 && v <= 20.0, "must be 0.0 to 20.0");
+    private static final Knob<Integer> HAUNT_WAKE_PRESSURE = integer("hauntWakePressure", 90,
+            v -> v >= 10 && v <= 3600, "must be 10 to 3600");
+    private static final Knob<Integer> HAUNT_LOOK_CONE_DEGREES = integer("hauntLookConeDegrees", 60,
+            v -> v >= 10 && v <= 90, "must be 10 to 90");
+    private static final Knob<Integer> HAUNT_NEAR_MISS_FLOOR = integer("hauntNearMissFloor", 2,
+            v -> v >= 2 && v <= 5, "must be 2 to 5");
+    private static final Knob<Integer> HAUNT_STRIKE_FLOOR = integer("hauntStrikeFloor", 3,
+            v -> v >= 3 && v <= 10, "must be 3 to 10");
+    private static final Knob<Double> HAUNT_STRIKE_DAMAGE = decimal("hauntStrikeDamage", 3.0,
+            v -> v >= 0.0 && v <= 8.0, "must be 0.0 to 8.0");
+    private static final Knob<Integer> HAUNT_SLOWNESS_SECONDS = integer("hauntSlownessSeconds", 3,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    private static final Knob<Integer> HAUNT_RETREAT_SECONDS = integer("hauntRetreatSeconds", 40,
+            v -> v >= 5 && v <= 600, "must be 5 to 600");
+    private static final Knob<Integer> HAUNT_TELL_SECONDS = integer("hauntTellSeconds", 2,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    private static final Knob<Integer> HAUNT_LINGER_SECONDS = integer("hauntLingerSeconds", 45,
+            v -> v >= 10 && v <= 300, "must be 10 to 300");
+    private static final Knob<Integer> HAUNT_SIGHTING_VANISHES = integer("hauntSightingVanishes", 3,
+            v -> v >= 1 && v <= 8, "must be 1 to 8");
+    private static final Knob<Integer> HAUNT_SIGHTING_APPROACH_BLOCKS = integer("hauntSightingApproachBlocks", 7,
+            v -> v >= 3 && v <= 16, "must be 3 to 16");
     /**
      * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
      * to pick an act and open any of its dungeons. Off restores the old three random doors.
@@ -1072,6 +1255,22 @@ public final class PocketDungeonsConfig {
         return FINALE_REWARD_CHESTS.get();
     }
 
+    public static boolean wagerGearEnabled() {
+        return WAGER_GEAR_ENABLED.get();
+    }
+
+    public static int wagerTierChancePerPoint() {
+        return WAGER_TIER_CHANCE_PER_POINT.get();
+    }
+
+    public static int wagerTierChanceCap() {
+        return WAGER_TIER_CHANCE_CAP.get();
+    }
+
+    public static int lootPercentPerWager() {
+        return LOOT_PERCENT_PER_WAGER.get();
+    }
+
     public static int finaleCountdownSeconds() {
         return FINALE_COUNTDOWN_SECONDS.get();
     }
@@ -1084,8 +1283,200 @@ public final class PocketDungeonsConfig {
         return FROST_BRAZIER_RADIUS.get();
     }
 
+    public static int creepingMossySeconds() {
+        return CREEPING_MOSSY_SECONDS.get();
+    }
+
+    public static int creepingStoneSeconds() {
+        return CREEPING_STONE_SECONDS.get();
+    }
+
+    public static int creepingInfestedSeconds() {
+        return CREEPING_INFESTED_SECONDS.get();
+    }
+
+    public static int creepingRoomCap() {
+        return CREEPING_ROOM_CAP.get();
+    }
+
+    public static int creepingFloorCap() {
+        return CREEPING_FLOOR_CAP.get();
+    }
+
+    public static int creepingRoomSeeds() {
+        return CREEPING_ROOM_SEEDS.get();
+    }
+
+    public static double infestationBossScale() {
+        return INFESTATION_BOSS_SCALE.get();
+    }
+
+    public static int infestationSurfaceSeconds() {
+        return INFESTATION_SURFACE_SECONDS.get();
+    }
+
+    public static int infestationBurrowTellSeconds() {
+        return INFESTATION_BURROW_TELL_SECONDS.get();
+    }
+
+    public static int infestationAddsTellSeconds() {
+        return INFESTATION_ADDS_TELL_SECONDS.get();
+    }
+
+    public static int infestationAddsMaxSeconds() {
+        return INFESTATION_ADDS_MAX_SECONDS.get();
+    }
+
+    public static int infestationEmergeTellSeconds() {
+        return INFESTATION_EMERGE_TELL_SECONDS.get();
+    }
+
+    public static int infestationBricksPerPhase() {
+        return INFESTATION_BRICKS_PER_PHASE.get();
+    }
+
+    public static int infestationBricksPerExtraMember() {
+        return INFESTATION_BRICKS_PER_EXTRA_MEMBER.get();
+    }
+
+    public static int infestationArenaBrickCap() {
+        return INFESTATION_ARENA_BRICK_CAP.get();
+    }
+
+    public static int infestationSilverfishCap() {
+        return INFESTATION_SILVERFISH_CAP.get();
+    }
+
+    public static int infestationPlantSeconds() {
+        return INFESTATION_PLANT_SECONDS.get();
+    }
+
+    public static int infestationBossHealth() {
+        return INFESTATION_BOSS_HEALTH.get();
+    }
+
+    public static double infestationBossDamage() {
+        return INFESTATION_BOSS_DAMAGE.get();
+    }
+
     public static int finaleEliteHealthPercentPerMember() {
         return FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER.get();
+    }
+
+    public static boolean potionDripEnabled() {
+        return POTION_DRIP_ENABLED.get();
+    }
+
+    public static int potionDripIntervalSeconds() {
+        return POTION_DRIP_INTERVAL_SECONDS.get();
+    }
+
+    public static int potionDripJitterPercent() {
+        return POTION_DRIP_JITTER_PERCENT.get();
+    }
+
+    public static int potionDripStartFloor() {
+        return POTION_DRIP_START_FLOOR.get();
+    }
+
+    public static int potionDripRampPercent() {
+        return POTION_DRIP_RAMP_PERCENT.get();
+    }
+
+    public static int potionDripBossPercent() {
+        return POTION_DRIP_BOSS_PERCENT.get();
+    }
+
+    public static int potionDripHarmfulPercent() {
+        return POTION_DRIP_HARMFUL_PERCENT.get();
+    }
+
+    public static int potionDripHarmingMinLevel() {
+        return POTION_DRIP_HARMING_MIN_LEVEL.get();
+    }
+
+    public static int potionDripEffectSeconds() {
+        return POTION_DRIP_EFFECT_SECONDS.get();
+    }
+
+    public static int potionDripFallTicks() {
+        return POTION_DRIP_FALL_TICKS.get();
+    }
+
+    public static int potionDripMinSeconds() {
+        return POTION_DRIP_MIN_SECONDS.get();
+    }
+
+    public static int lushSlimeSize() {
+        return LUSH_SLIME_SIZE.get();
+    }
+
+    public static int lushSlimeHealth() {
+        return LUSH_SLIME_HEALTH.get();
+    }
+
+    public static int lushSlimeMaxAlive() {
+        return LUSH_SLIME_MAX_ALIVE.get();
+    }
+
+    public static int mineshaftDarkSpiders() {
+        return MINESHAFT_DARK_SPIDERS.get();
+    }
+
+    public static int mineshaftDarkTellSeconds() {
+        return MINESHAFT_DARK_TELL_SECONDS.get();
+    }
+
+    public static boolean hauntsEnabled() {
+        return HAUNTS_ENABLED.get();
+    }
+
+    public static double hauntPressurePerSecond() {
+        return HAUNT_PRESSURE_PER_SECOND.get();
+    }
+
+    public static int hauntWakePressure() {
+        return HAUNT_WAKE_PRESSURE.get();
+    }
+
+    public static int hauntLookConeDegrees() {
+        return HAUNT_LOOK_CONE_DEGREES.get();
+    }
+
+    public static int hauntNearMissFloor() {
+        return HAUNT_NEAR_MISS_FLOOR.get();
+    }
+
+    public static int hauntStrikeFloor() {
+        return HAUNT_STRIKE_FLOOR.get();
+    }
+
+    public static double hauntStrikeDamage() {
+        return HAUNT_STRIKE_DAMAGE.get();
+    }
+
+    public static int hauntSlownessSeconds() {
+        return HAUNT_SLOWNESS_SECONDS.get();
+    }
+
+    public static int hauntRetreatSeconds() {
+        return HAUNT_RETREAT_SECONDS.get();
+    }
+
+    public static int hauntTellSeconds() {
+        return HAUNT_TELL_SECONDS.get();
+    }
+
+    public static int hauntLingerSeconds() {
+        return HAUNT_LINGER_SECONDS.get();
+    }
+
+    public static int hauntSightingVanishes() {
+        return HAUNT_SIGHTING_VANISHES.get();
+    }
+
+    public static int hauntSightingApproachBlocks() {
+        return HAUNT_SIGHTING_APPROACH_BLOCKS.get();
     }
 
     public static boolean mobUniformEnabled() {
