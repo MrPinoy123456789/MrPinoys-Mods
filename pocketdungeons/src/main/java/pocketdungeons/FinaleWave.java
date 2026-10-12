@@ -195,7 +195,8 @@ final class FinaleWave {
             }
         }
         if (script != FinaleScript.NONE) {
-            for (UUID id : state.mobs) {
+            // A copy: an onMobDied hook may add mobs (a script's split children), which grows the list.
+            for (UUID id : new ArrayList<>(state.mobs)) {
                 if (!isAlive(level, id) && state.dead.add(id)) {
                     hook(state, "onMobDied", () -> script.onMobDied(ctx, id));
                 }
