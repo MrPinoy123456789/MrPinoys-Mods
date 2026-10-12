@@ -416,6 +416,15 @@ public final class PocketDungeonsConfig {
             v -> v >= 0 && v <= 10, "must be 0 to 10");
     private static final Knob<Integer> FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER = integer(
             "finaleEliteHealthPercentPerMember", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
+    /**
+     * The Mineshaft finale dark phase (roadmap T20): the cave spiders that join for a party of one (grown per
+     * member like the data wave, bounded by {@link FinaleRules#MAX_DARK_SPIDERS}), and the seconds between
+     * the warning and the lights going out (never under {@link FinaleRules#MIN_DARK_TELL_SECONDS}).
+     */
+    private static final Knob<Integer> MINESHAFT_DARK_SPIDERS = integer("mineshaftDarkSpiders", 3,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    private static final Knob<Integer> MINESHAFT_DARK_TELL_SECONDS = integer("mineshaftDarkTellSeconds", 3,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
     private static final Knob<Boolean> MOB_UNIFORM_ENABLED = flag("mobUniformEnabled", true);
     /**
      * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
@@ -1026,6 +1035,14 @@ public final class PocketDungeonsConfig {
 
     public static int finaleEliteHealthPercentPerMember() {
         return FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER.get();
+    }
+
+    public static int mineshaftDarkSpiders() {
+        return MINESHAFT_DARK_SPIDERS.get();
+    }
+
+    public static int mineshaftDarkTellSeconds() {
+        return MINESHAFT_DARK_TELL_SECONDS.get();
     }
 
     public static boolean mobUniformEnabled() {

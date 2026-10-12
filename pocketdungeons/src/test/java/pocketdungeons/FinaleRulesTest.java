@@ -42,6 +42,37 @@ public class FinaleRulesTest {
         for (String line : new String[]{FinaleRules.padRefusal(true, false, 0), FinaleRules.padRefusal(true, false, 3)}) {
             check(!line.contains("--") && !line.contains("\u2014"), "no dash punctuation: " + line);
         }
+
+        // T20, the Mineshaft dark phase: the extra cave spiders grow with the party and stay bounded.
+        eq(FinaleRules.darkSpiders(3, 1, 50, 7), 3);    // a party of one gets the knob
+        eq(FinaleRules.darkSpiders(3, 2, 50, 7), 5);    // 4.5 rounds up, like the data wave
+        eq(FinaleRules.darkSpiders(3, 4, 50, 7), 8);    // 7.5 rounds up
+        eq(FinaleRules.darkSpiders(3, 8, 50, 7), FinaleRules.MAX_DARK_SPIDERS);   // 13.5 is held to the cap
+        eq(FinaleRules.darkSpiders(10, 4, 100, 7), FinaleRules.MAX_DARK_SPIDERS);
+        eq(FinaleRules.darkSpiders(0, 4, 50, 7), 0);    // the knob at zero turns the spiders off
+        eq(FinaleRules.darkSpiders(3, 4, 50, 38), 2);   // the finale never passes MAX_WAVE mobs
+        eq(FinaleRules.darkSpiders(3, 4, 50, 40), 0);
+        eq(FinaleRules.darkSpiders(3, 4, 50, 99), 0);
+        eq(FinaleRules.darkSpiders(3, 0, 50, 7), 3);    // no party is a party of one
+        check(7 + FinaleRules.darkSpiders(3, 4, 50, 7) <= FinaleRules.MAX_WAVE, "the dark phase fits the wave cap");
+
+        // The tell is never under two seconds, whatever the knob says.
+        check(FinaleRules.MIN_DARK_TELL_SECONDS >= 2, "the minimum tell is at least two seconds");
+        eq((int) FinaleRules.darkTellTicks(3), 60);
+        eq((int) FinaleRules.darkTellTicks(10), 200);
+        eq((int) FinaleRules.darkTellTicks(2), 40);
+        eq((int) FinaleRules.darkTellTicks(1), 40);     // below the minimum is raised to it
+        eq((int) FinaleRules.darkTellTicks(0), 40);
+        eq((int) FinaleRules.darkTellTicks(-5), 40);
+
+        // The way to the pad keeps its light: a square of DARK_SPARE_RADIUS around it.
+        check(FinaleRules.nearPad(10, 10, 10, 10), "the pad itself is spared");
+        check(FinaleRules.nearPad(10 + FinaleRules.DARK_SPARE_RADIUS, 10 - FinaleRules.DARK_SPARE_RADIUS, 10, 10),
+                "the corner of the square is spared");
+        check(!FinaleRules.nearPad(10 + FinaleRules.DARK_SPARE_RADIUS + 1, 10, 10, 10), "just outside is dark");
+        check(!FinaleRules.nearPad(10, 10 - FinaleRules.DARK_SPARE_RADIUS - 1, 10, 10), "just outside is dark");
+        check(MineshaftFinale.TELL.length() <= 25 && MineshaftFinale.HINT.length() <= 25, "player text stays short");
+        check(!MineshaftFinale.TELL.contains("--") && !MineshaftFinale.HINT.contains("--"), "no dash punctuation");
         System.out.println("FinaleRulesTest passed");
     }
 

@@ -159,6 +159,8 @@
   "finaleRewardChests": 1,
   "finaleCountdownSeconds": 3,
   "finaleEliteHealthPercentPerMember": 50,
+  "mineshaftDarkSpiders": 3,
+  "mineshaftDarkTellSeconds": 3,
   "mobUniformEnabled": true,
   "hallEnabled": true,
   "repeatFinishEmeraldPercent": 50,
