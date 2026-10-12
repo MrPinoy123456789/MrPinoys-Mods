@@ -222,15 +222,18 @@ public final class CreepingBricksGameTest {
 
             player.teleportTo(level, cell.getX() + 8.5, cell.getY() + 1, cell.getZ() + 8.5, Set.of(), 0.0F, 0.0F,
                     false);
-            CreepingBricks.pollForTest(2000);
-            CreepingBricks.pollForTest(2000 + CreepingRules.SEED_GAP_TICKS * 8L);
-            int mossyCount = 0;
-            for (BlockPos seed : seeds) {
-                if (!level.getBlockState(seed).isAir()) {
-                    mossyCount++;
+            // Poll in small steps and note every seed that ever grows: the start delays depend on the plan seed
+            // (which mixes in the test's world position), so a single late poll can find an early seed already gone.
+            Set<BlockPos> grown = new java.util.HashSet<>();
+            for (long now = 2000; now <= 2000 + CreepingRules.SEED_GAP_TICKS * 8L; now += 5) {
+                CreepingBricks.pollForTest(now);
+                for (BlockPos seed : seeds) {
+                    if (!level.getBlockState(seed).isAir()) {
+                        grown.add(seed);
+                    }
                 }
             }
-            helper.assertValueEqual(mossyCount, seeds.size(), "a member inside starts every seed");
+            helper.assertValueEqual(grown.size(), seeds.size(), "a member inside starts every seed");
 
             CreepingBricks.clear(cell);
             for (BlockPos seed : seeds) {

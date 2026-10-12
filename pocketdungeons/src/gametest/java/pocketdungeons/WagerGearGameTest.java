@@ -125,8 +125,8 @@ public final class WagerGearGameTest {
                 "wager 2 reads Loot 200%");
 
         UUID owner = UUID.randomUUID();
-        Keystone.Offer blood = new Keystone.Offer(5, Set.of(AffixIds.BLOOD), 1, "pocketdungeons:test", Keystone.Tier.FREE);
-        Keystone.Offer plain = new Keystone.Offer(5, Set.of(), 1, "pocketdungeons:test", Keystone.Tier.FREE);
+        Keystone.Offer blood = new Keystone.Offer(4, Set.of(AffixIds.BLOOD), 1, "pocketdungeons:test", Keystone.Tier.FREE);
+        Keystone.Offer plain = new Keystone.Offer(4, Set.of(), 1, "pocketdungeons:test", Keystone.Tier.FREE);
         helper.assertValueEqual(Keystone.livesCost(owner, blood), 1, "a Blood door costs one life, once");
         helper.assertValueEqual(Keystone.livesCost(owner, plain), 0, "a door without Blood costs none");
         helper.assertTrue(!DoorLives.affordable(1, 1), "the last life is never for sale");
