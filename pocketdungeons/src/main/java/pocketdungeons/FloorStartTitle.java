@@ -95,6 +95,13 @@ final class FloorStartTitle {
                 }
             }
             labels.add(label);
+            if (AffixIds.OVERCLOCKED.equals(id)) {
+                String par = OverclockedPay.titleLine(PocketDungeonsConfig.overclockedParSeconds(),
+                        PocketDungeonsConfig.overclockedBonus());
+                if (par != null) {
+                    labels.add(par);
+                }
+            }
         }
         return labels;
     }
