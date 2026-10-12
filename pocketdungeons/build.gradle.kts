@@ -340,6 +340,8 @@ for ((taskName, testClass) in mapOf(
     "ossuaryRulesTest" to "OssuaryRulesTest",
     // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
     "kennelsFinaleRulesTest" to "KennelsFinaleRulesTest",
+    // Roadmap T31: the Silent Deep's Hush rule (what each noise adds to the Heard meter, the tell, the answer).
+    "deepslateFinaleRulesTest" to "DeepslateFinaleRulesTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.

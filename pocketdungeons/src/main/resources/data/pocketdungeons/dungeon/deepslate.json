@@ -101,7 +101,7 @@
     {
       "id": "silent_deep",
       "name": "The Silent Deep",
-      "notes": "The last floor. A silent hall of lapis, iron and diamond.",
+      "notes": "The last floor. The sculk listens. Lapis, iron and diamond.",
       "layer": 4,
       "final": true,
       "roomBias": [

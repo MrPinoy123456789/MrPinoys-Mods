@@ -77,6 +77,17 @@ final class PressureSources {
         boolean vaultFired;
         /** Ancient City: every sculk block was armed and every pulse answers. */
         boolean ancientCity;
+        /** The room's template id (the manifest's {@code template}), so a finale script can find its room. */
+        String room;
+        /**
+         * A finale script owns this meter (T31): the poll counts sensor pulses into {@link #pendingPulses} and
+         * answers nothing; the script reads them, sets the rise and answers when its ceiling is reached.
+         */
+        boolean scripted;
+        /** The scripted meter's ceiling, shown on the sidebar in place of {@code sculkHeardMax}. */
+        int ceiling;
+        /** Sensor pulses counted while scripted and not yet taken by the script. */
+        int pendingPulses;
     }
 
     /** Per-player dwell, reset whenever they change cell. */
@@ -139,6 +150,7 @@ final class PressureSources {
         }
         Armed armed = new Armed();
         armed.ancientCity = ancient;
+        armed.room = meta.template;
         for (int x = 0; x < RoomGeometry.CELL; x++) {
             for (int z = 0; z < RoomGeometry.CELL; z++) {
                 for (int y = 1; y <= RoomGeometry.CEILING_Y; y++) {
@@ -226,7 +238,10 @@ final class PressureSources {
                 }
                 armed.wasActive.put(pos, now);
             }
-            if (pulses > 0 && !hushed) {
+            if (pulses > 0 && !hushed && armed.scripted) {
+                // A finale script owns this meter: it takes the pulses and decides what they are worth.
+                armed.pendingPulses += pulses;
+            } else if (pulses > 0 && !hushed) {
                 // Sculk hears you (design pass 2026-10-09, Q3): each pulse fills the room's meter; a full meter
                 // is an answer, and the meter starts again.
                 armed.heard = SculkOmen.heardAfter(armed.heard, pulses);
@@ -371,7 +386,106 @@ final class PressureSources {
         if (armed == null || armed.sensors.isEmpty()) {
             return null;
         }
-        return new int[]{armed.heard, SculkOmen.heardMax(armed.ancientCity)};
+        return new int[]{armed.heard, armed.scripted && armed.ceiling > 0
+                ? armed.ceiling : SculkOmen.heardMax(armed.ancientCity)};
+    }
+
+    // ---- the finale seam (roadmap T31) -------------------------------------------------------------
+
+    /**
+     * The origin of the armed sculk room on this floor whose template is {@code template} (a manifest
+     * {@code template} id such as {@code pocketdungeons:rooms/silent_deep}), or {@code null}. A room with no
+     * sensor is not offered: it has no Heard meter.
+     */
+    static BlockPos listeningRoom(InstanceRecord record, String template) {
+        if (record == null || record.layout == null || template == null) {
+            return null;
+        }
+        for (BlockPos origin : record.layout.geometry().cellOrigins()) {
+            Armed armed = ARMED.get(origin);
+            if (armed != null && template.equals(armed.room) && !armed.sensors.isEmpty()) {
+                return origin;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A finale script takes the room's Heard meter: it starts empty, ends at {@code ceiling}, and the poll
+     * stops answering. Whether the room was handed over.
+     */
+    static boolean handOver(BlockPos origin, int ceiling) {
+        Armed armed = ARMED.get(origin);
+        if (armed == null) {
+            return false;
+        }
+        armed.scripted = true;
+        armed.ceiling = Math.max(1, ceiling);
+        armed.heard = 0;
+        armed.pendingPulses = 0;
+        return true;
+    }
+
+    /** The script lets go: the meter and the poll are the room's own again, with the meter empty. */
+    static void release(BlockPos origin) {
+        Armed armed = ARMED.get(origin);
+        if (armed != null) {
+            armed.scripted = false;
+            armed.ceiling = 0;
+            armed.heard = 0;
+            armed.pendingPulses = 0;
+        }
+    }
+
+    /** The sensor pulses the poll counted since the last call, for a script that owns the meter. */
+    static int takePulses(BlockPos origin) {
+        Armed armed = ARMED.get(origin);
+        if (armed == null) {
+            return 0;
+        }
+        int pulses = armed.pendingPulses;
+        armed.pendingPulses = 0;
+        return pulses;
+    }
+
+    /** Adds meter units ({@link SculkOmen#heardAfter}) to a room and returns the meter now; 0 if not armed. */
+    static int addHeard(BlockPos origin, int units) {
+        Armed armed = ARMED.get(origin);
+        if (armed == null) {
+            return 0;
+        }
+        armed.heard = SculkOmen.heardAfter(armed.heard, units);
+        return armed.heard;
+    }
+
+    /** The room's Heard meter, or 0 if it is not armed. */
+    static int heardOf(BlockPos origin) {
+        Armed armed = ARMED.get(origin);
+        return armed == null ? 0 : armed.heard;
+    }
+
+    /** The meter starts again. */
+    static void resetHeard(BlockPos origin) {
+        Armed armed = ARMED.get(origin);
+        if (armed != null) {
+            armed.heard = 0;
+        }
+    }
+
+    /**
+     * The room answered through a script: the shrieker nearest the party screams (which also darkens, as in
+     * vanilla), the dark settles on every member within hearing, and the answer is counted like any other.
+     * The caller sends what comes (the whelp); this is the part of an answer that is not the wave.
+     */
+    static void soundAnswer(ServerLevel level, InstanceRecord record, BlockPos origin) {
+        Armed armed = ARMED.get(origin);
+        if (armed == null) {
+            return;
+        }
+        screamViaShrieker(level, record, armed, origin);
+        armed.everHeard = true;
+        record.floor.sculkAnswers++;
+        darken(level, record, armed.sensors.isEmpty() ? origin : armed.sensors.get(0));
     }
 
     /** Whether the vault at {@code pos} has been opened with its key: it is unlocking or ejecting. */

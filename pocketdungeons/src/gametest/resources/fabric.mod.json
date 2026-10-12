@@ -13,6 +13,7 @@
       "pocketdungeons.gametest.InventorySwapGameTest",
       "pocketdungeons.CustodyGameTest",
       "pocketdungeons.EconomyGameTest",
+      "pocketdungeons.DeepslateFinaleGameTest",
       "pocketdungeons.SalvageGameTest",
       "pocketdungeons.TeardownGameTest",
       "pocketdungeons.SituationGameTest",
