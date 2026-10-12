@@ -254,6 +254,8 @@ final class LayoutStamper {
         // lodestone pad need solid floor. Seeded from plan seed for
         // reproducibility.
         final Set<PlanCell> voidedCells;
+        /** Blackout: the cells whose lights go out (see {@link DungeonLight#blackoutCells}). */
+        final Set<PlanCell> blackoutCells;
 
         StampRun(StampParams p) {
             this.params = p;
@@ -282,6 +284,7 @@ final class LayoutStamper {
                     && RandomSource.create(plan.seed()).nextDouble()
                     < PocketDungeonsConfig.pocket2DoorChance();
             this.voidedCells = computeVoidedCells(plan, p.affixes());
+            this.blackoutCells = computeBlackoutCells(plan, p.affixes(), manifest);
         }
     }
 
@@ -357,7 +360,7 @@ final class LayoutStamper {
         }
         // Dungeon structure W4: darkness, then the room's resource nodes (D17, D19).
         NodeStamper.applyCell(level, cellOrigin, placed.rotation(), entry.meta, p.nodeCtx(),
-                plan.seed() ^ cellOrigin.asLong(), run.nodePositions);
+                plan.seed() ^ cellOrigin.asLong(), run.nodePositions, run.blackoutCells.contains(cell));
         // A sealed two-story room: rubble over its way down, after the
         // return-path check above has read the room as built. The seal is
         // its own Ordeal, keyed under the cell so the room's stays armed.
@@ -751,6 +754,27 @@ final class LayoutStamper {
             }
         }
         return voided;
+    }
+
+    /**
+     * Blackout: which cells lose their lights. The strongest {@code dark_cells} fraction among the active
+     * affixes picks them ({@link DungeonLight#blackoutCells}); entrance, terminal, any room that
+     * {@code requiresLight} and any lever Ordeal room ({@link DungeonLight#LEVER_ORDEAL_CONTENT}; the
+     * Ordeals arm after the stamp loop, so the room is read from the plan) are never picked.
+     */
+    private static Set<PlanCell> computeBlackoutCells(DungeonPlan plan, Set<String> affixes, RoomManifest manifest) {
+        double fraction = 0.0;
+        for (String id : affixes) {
+            AffixDefinition definition = AffixManifest.current().byId(id);
+            if (definition != null) {
+                fraction = Math.max(fraction, definition.effects.darkCells);
+            }
+        }
+        return DungeonLight.blackoutCells(plan.cells(), plan.entrance(), plan.terminal(), cell -> {
+            RoomManifest.Entry entry = entryAt(manifest, plan, cell);
+            return entry != null && (entry.meta.requiresLight
+                    || DungeonLight.LEVER_ORDEAL_CONTENT.contains(entry.meta.content));
+        }, fraction, plan.seed());
     }
 
     /** Critical path first, then everything else in the geometry's stable order. */

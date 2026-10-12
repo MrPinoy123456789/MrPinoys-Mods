@@ -32,7 +32,7 @@ import net.minecraft.world.phys.AABB;
 final class BossContent {
 
     /** Read back by {@link #bossAlive} to find the mob this run's own encounter placed. */
-    private static final String BOSS_TAG = PocketDungeonsMod.MOD_ID + ".boss";
+    static final String BOSS_TAG = PocketDungeonsMod.MOD_ID + ".boss";
 
     /**
      * Independent of {@link PocketDungeonsConfig#mobScalePerLevel()}: a boss is

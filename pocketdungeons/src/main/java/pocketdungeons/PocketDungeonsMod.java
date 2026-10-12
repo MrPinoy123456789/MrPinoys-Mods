@@ -48,6 +48,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         Instances.register();
         RitualListener.register();
         SilenceListener.register();
+        TrappedCache.register();
         ShellTokenListener.register();
         RoomEditorListener.register();
         RoomEditorHistory.register();
@@ -62,6 +63,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         Restless.register();
         PetCap.register();
         CapstoneFights.register();
+        FinaleScripts.registerAll();
         DungeonDrops.register();
         ContentModuleLoader.register();
         SpiderUnstick.register();

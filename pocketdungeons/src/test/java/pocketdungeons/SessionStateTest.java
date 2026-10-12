@@ -42,7 +42,8 @@ public class SessionStateTest {
         ELSEWHERE.put("IronDoorLatch.java:closeAt", "cell keyed; an entry is removed when its close falls due");
         // Slot keyed: dropped at teardown and floor end, and the stop hook purges every slot.
         ELSEWHERE.put("CapstoneFights.java:STATES", "slot keyed; teardown, floor end and the stop purge");
-        ELSEWHERE.put("FinaleWave.java:STATES", "slot keyed; teardown, floor end and the stop purge");
+        ELSEWHERE.put("FinaleScripts.java:SCRIPTS", "static content filled once by registerAll, not per run state");
+        ELSEWHERE.put("PocketDungeonsConfig.java:KNOBS", "the config schema, filled once at class init, not session state");
         ELSEWHERE.put("HerobrineFight.java:STATES", "slot keyed; teardown, floor end and the stop purge");
         ELSEWHERE.put("WitherFight.java:STATES", "slot keyed; teardown, floor end and the stop purge");
         // The run engine's own tables.

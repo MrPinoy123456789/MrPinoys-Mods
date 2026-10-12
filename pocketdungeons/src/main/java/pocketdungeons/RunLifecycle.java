@@ -1639,6 +1639,8 @@ final class RunLifecycle {
         DungeonLog log = DungeonLog.forServer(server);
         int step = record.floor.chosenStep;
         int floorLevel = record.floor.chosenLevel;
+        int speedBonus = FloorPay.speedBonus(record.floor.affixes, record.floor.startedAtTick,
+                server.overworld().getGameTime());
         for (UUID member : record.members.keySet()) {
             ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
             if (memberPlayer == null) {
@@ -1646,7 +1648,7 @@ final class RunLifecycle {
             }
             int compass = log.get(member).highestCharts();
             // advanceFloor has already counted this floor, so floorIndex is how many floors deep it was.
-            int pay = ScrapMath.floorPay(step, floorLevel, compass, FloorPay.bonus(TripView.def(record),
+            int pay = ScrapMath.floorPay(step, floorLevel, compass, speedBonus + FloorPay.bonus(TripView.def(record),
                     record.interval.nodeId, EndlessMineRules.isMine(record), record.interval.floorIndex));
             log.addHaul(member, pay);
             if (pay > 0) {
