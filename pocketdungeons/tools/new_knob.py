@@ -73,7 +73,7 @@ def main(argv):
         print(__doc__)
         return 2
     name, default, desc = rest
-    if '—' in desc or ' -- ' in desc:
+    if chr(0x2014) in desc or ' ' + '-' * 2 + ' ' in desc:
         print('the description has an em dash or a spaced double hyphen; rewrite it (CLAUDE.md)')
         return 2
 

@@ -41,7 +41,7 @@ def new(task_id, title):
     if not re.fullmatch(r't\d+[a-z]?', task_id):
         print('task id looks wrong: %s (expected something like T10)' % task_id)
         return 2
-    if '—' in title or ' -- ' in title:
+    if chr(0x2014) in title or ' ' + '-' * 2 + ' ' in title:
         print('the title has an em dash or a spaced double hyphen; rewrite it (CLAUDE.md)')
         return 2
     title = re.sub(r'^L\d+[.:]?\s*', '', title.strip())
