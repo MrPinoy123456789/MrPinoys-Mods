@@ -101,6 +101,11 @@ final class FinaleContext {
         return state.mobs.size();
     }
 
+    /** The countdown to the wave ends now: the wave stands on the next watch tick. */
+    void skipCountdown() {
+        state.spawnTick = server.getTickCount();
+    }
+
     /** The elite of the data wave or of {@link #spawnElite}, if one stands. */
     Mob elite() {
         Entity entity = state.elite == null ? null : level.getEntity(state.elite);
