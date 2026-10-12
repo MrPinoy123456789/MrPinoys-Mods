@@ -2687,6 +2687,8 @@ final class Instances {
             watchSpawnerClears(server, record);
             // Dungeon structure W7a: the Spawner Dungeon's brood and the Ancient City's Warden.
             CapstoneFights.tick(server, record);
+            // Haunts: the roaming creature of the floor (docs/haunts-draft-2026-10-11.md).
+            Haunts.tick(server, record);
         }
         // Repainted every watch tick, and every member who is in the
         // dungeon dimension is put back on it: whichever way they came in

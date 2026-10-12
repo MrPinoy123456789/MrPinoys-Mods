@@ -323,6 +323,8 @@ for ((taskName, testClass) in mapOf(
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Haunts (RM T34): the staging rule, the look cone, the never-lethal strike and The Counted data.
+    "hauntRulesTest" to "HauntRulesTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
@@ -475,6 +477,7 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("hauntRulesTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
     dependsOn("hiddenOreDepthTest")

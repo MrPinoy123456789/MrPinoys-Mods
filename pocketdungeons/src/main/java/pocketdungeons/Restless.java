@@ -52,7 +52,7 @@ final class Restless {
             }
             String typeId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
             boolean fire = source.is(DamageTypeTags.IS_FIRE) || mob.isOnFire();
-            if (!RestlessRules.shouldRise(typeId, mob.entityTags().contains(TAG), fire, chance,
+            if (!RestlessRules.shouldRise(typeId, mob.entityTags().contains(TAG) || mob.entityTags().contains(Haunts.TAG), fire, chance,
                     level.getRandom().nextDouble())) {
                 return;
             }

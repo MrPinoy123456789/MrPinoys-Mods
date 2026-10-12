@@ -1579,6 +1579,14 @@ final class RunLifecycle {
                     diaryId = page.id();
                 }
             }
+            // Haunts: the dungeon's haunt has its own page, handed over with the dungeon's on the first finish.
+            HauntDefinition haunt = first ? HauntManifest.current().forDungeon(def.id()) : null;
+            if (haunt != null && !haunt.diary().isBlank()) {
+                Diaries.Entry story = Diaries.current().byId(haunt.diary());
+                if (story != null) {
+                    DiaryDelivery.deliverEntry(log, memberPlayer, story);
+                }
+            }
             PlaytestJournal.dungeonFinished(memberPlayer, record, emeralds, vaultChests, first, diaryId);
         }
     }
