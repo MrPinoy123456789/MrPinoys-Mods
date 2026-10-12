@@ -8,6 +8,7 @@ public class AffixQuickChangesTest {
 
     public static void main(String[] args) throws Exception {
         mineFuse();
+        silencedCount();
         System.out.println("AffixQuickChangesTest passed");
     }
 
@@ -16,6 +17,15 @@ public class AffixQuickChangesTest {
         String src = Files.readString(Path.of("src/main/java/pocketdungeons/RoomContent.java"));
         check(src.contains("MINE_FUSE_TICKS = 25;"), "the mine fuse is 25 ticks");
         check(!src.contains("MINE_FUSE_TICKS = 20;"), "the old 20 tick fuse is gone");
+    }
+
+    /** Silenced: the action bar count reads "Silenced: n/3" and the wave is sent on the third use. */
+    private static void silencedCount() throws Exception {
+        check(OmenBarText.silencedCount(1, 3).equals("Silenced: 1/3"), "first use reads 1/3");
+        check(OmenBarText.silencedCount(3, 3).equals("Silenced: 3/3"), "third use reads 3/3");
+        String src = Files.readString(Path.of("src/main/java/pocketdungeons/PressureSources.java"));
+        check(src.contains("OmenBarText.silencedCount(Math.min(uses, per), per)"), "silencedUse shows the count");
+        check(src.contains("silencedConsumablesPerOmen()"), "the every-third-use rule still reads the config");
     }
 
     private static void check(boolean ok, String what) {

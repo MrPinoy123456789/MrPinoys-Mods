@@ -93,6 +93,11 @@ final class OmenBarText {
         return clearedHeadline(floorsCleared, dungeon, mine, finished, false);
     }
 
+    /** The action bar line after each consumable used under Silenced: {@code "Silenced: 2/3"}. */
+    static String silencedCount(int uses, int per) {
+        return "Silenced: " + uses + "/" + per;
+    }
+
     /** The line under the floor clear title: what the party can do next. */
     static String clearedSubtitle(boolean finished, boolean finalAhead) {
         if (finished) {
