@@ -407,6 +407,39 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> SCULK_UNHEARD_SCRAP = integer("sculkUnheardScrap", 1,
             v -> v >= 0 && v <= 3, "must be 0 to 3");
     /**
+     * The Silent Deep's Hush rule (roadmap T31): the Heard meter's ceiling for the finale. A full
+     * meter answers with darkness and a Warden whelp, never the Warden. Meter units: a sensor pulse is
+     * hushPulseRise.
+     */
+    private static final Knob<Integer> HUSH_CEILING = integer("hushCeiling", 16,
+            v -> v >= 4 && v <= 60, "must be 4 to 60");
+    /**
+     * Hush rule: meter units one sculk sensor pulse adds during the Silent Deep finale (4 pulses fill
+     * the default ceiling).
+     */
+    private static final Knob<Integer> HUSH_PULSE_RISE = integer("hushPulseRise", 4,
+            v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /** Hush rule: meter units one bow or crossbow shot by a member adds during the Silent Deep finale. */
+    private static final Knob<Integer> HUSH_BOW_RISE = integer("hushBowRise", 2,
+            v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /** Hush rule: meter units one hit a member takes adds during the Silent Deep finale. */
+    private static final Knob<Integer> HUSH_HIT_RISE = integer("hushHitRise", 2,
+            v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /** Hush rule: meter units each death of a finale mob adds during the Silent Deep finale. */
+    private static final Knob<Integer> HUSH_DEATH_RISE = integer("hushDeathRise", 1,
+            v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /** Hush rule: meter units added for each second a member sprints in the Silent Deep during the finale. */
+    private static final Knob<Integer> HUSH_SPRINT_RISE = integer("hushSprintRise", 1,
+            v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /**
+     * Hush rule: seconds of quiet fighting that add one meter unit during the Silent Deep finale (0
+     * turns the slow rise off).
+     */
+    private static final Knob<Integer> HUSH_QUIET_SECONDS = integer("hushQuietSeconds", 15,
+            v -> v >= 0 && v <= 120, "must be 0 to 120");
+    /** Hush rule: Warden whelps a full meter sends in the Silent Deep finale. Never the real Warden. */
+    private static final Knob<Integer> HUSH_WHELPS = integer("hushWhelps", 1, v -> v >= 1 && v <= 4, "must be 1 to 4");
+    /**
      * The Warden whelp a sculk answer sends (design pass 2026-10-09): a small melee-only Warden that always
      * knows where the party is, one at a time, gone after whelpSeconds. Health, melee damage and speed are
      * its own; the speed is a movement attribute (a player walks at 0.1, a zombie 0.23, a Warden 0.3).
@@ -1041,6 +1074,38 @@ public final class PocketDungeonsConfig {
 
     public static int sculkUnheardScrap() {
         return SCULK_UNHEARD_SCRAP.get();
+    }
+
+    public static int hushCeiling() {
+        return HUSH_CEILING.get();
+    }
+
+    public static int hushPulseRise() {
+        return HUSH_PULSE_RISE.get();
+    }
+
+    public static int hushBowRise() {
+        return HUSH_BOW_RISE.get();
+    }
+
+    public static int hushHitRise() {
+        return HUSH_HIT_RISE.get();
+    }
+
+    public static int hushDeathRise() {
+        return HUSH_DEATH_RISE.get();
+    }
+
+    public static int hushSprintRise() {
+        return HUSH_SPRINT_RISE.get();
+    }
+
+    public static int hushQuietSeconds() {
+        return HUSH_QUIET_SECONDS.get();
+    }
+
+    public static int hushWhelps() {
+        return HUSH_WHELPS.get();
     }
 
     public static int ancientWardenAnswers() {
