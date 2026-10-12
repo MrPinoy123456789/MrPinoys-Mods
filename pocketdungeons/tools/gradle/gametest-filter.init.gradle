@@ -1,0 +1,12 @@
+// Init script used by tools/ship.sh --only. It hands the environment variable PD_GAMETEST_FILTER to the
+// forked gametest server as the Fabric system property `fabric-api.gametest.filter`, so one gametest class
+// (or one method) can run without the other 240 tests. Nothing happens when the variable is unset, and the
+// build files are untouched. Used as: gradlew -I tools/gradle/gametest-filter.init.gradle runGameTest
+gradle.projectsEvaluated {
+    def filter = System.getenv("PD_GAMETEST_FILTER")
+    if (filter != null && !filter.isEmpty()) {
+        gradle.rootProject.tasks.matching { it.name == "runGameTest" }.configureEach { task ->
+            task.systemProperty("fabric-api.gametest.filter", filter)
+        }
+    }
+}

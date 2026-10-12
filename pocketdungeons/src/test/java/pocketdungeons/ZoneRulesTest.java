@@ -135,11 +135,10 @@ public class ZoneRulesTest {
         }
         ZoneRules mine = DungeonThemeMeta.fromJson(file, EndlessMineRules.MINE_THEME_ID).rules;
         check(mine != null, "the Mine theme carries a rules block");
-        checkEquals(mine.lootTier(1, 0), 1, "Mine floor 0 keeps base tier");
-        checkEquals(mine.lootTier(1, 3), 2, "Mine floor 3 escalates to tier 2");
-        checkEquals(mine.lootTier(1, 6), 3, "Mine floor 6 escalates to tier 3");
-        checkEquals(mine.lootTier(1, 12), 3, "Mine tier caps at 3");
-        checkEquals(mine.lootTier(3, 3), 3, "Mine at base tier 3 stays 3");
+        // Decision 2026-10-11: the Mine's tiers are the guardians' A, B, C tables (EndlessMineRules), so the
+        // theme no longer escalates the ordinary tier by floor count.
+        checkEquals(mine.lootTierEvery(), 0, "the Mine theme no longer escalates the tier by floors");
+        checkEquals(mine.lootTier(1, 12), 1, "so floor count alone leaves the base tier");
         check(mine.lootRole().equals("materials"), "the Mine is the materials faucet");
         check(mine.unlockLevel() == 1, "the Mine is dealt at any level, as today");
         checkEquals(mine.bonusChests(4), ZoneRules.DEFAULT.bonusChests(4), "the Mine's depth bonus is the default");

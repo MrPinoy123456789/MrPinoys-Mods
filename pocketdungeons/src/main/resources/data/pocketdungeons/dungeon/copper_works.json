@@ -54,6 +54,18 @@
       "ossuary"
     ]
   },
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 2,
+    "sizeMin": 1,
+    "sizeMax": 3,
+    "blocks": [
+      "coal_ore",
+      "coal_ore",
+      "iron_ore",
+      "iron_ore"
+    ]
+  },
   "nodes": [
     {
       "id": "oxidized_gate",

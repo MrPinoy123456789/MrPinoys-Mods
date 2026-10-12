@@ -1,0 +1,36 @@
+// Init script used by tools/pure_tests.py (ship.sh --pure-fast). It adds a task `pureTestPlan` that writes
+// build/pure-plan.tsv: one line per pure test task that `test` depends on, with everything Gradle would hand to
+// the forked JVM (java executable, working directory, JVM args, system properties, classpath, main class,
+// program args). The runner then starts those JVMs itself, several at a time, which Gradle will not do for
+// JavaExec tasks of one project. The build files are untouched; the plan is derived from them, so a new
+// pure test wired into build.gradle.kts shows up here with no other edit.
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.tasks.findByName("test") == null) return
+        p.tasks.register("pureTestPlan") {
+            dependsOn("compileJava", "compileTestJava", "processResources", "processTestResources")
+            doLast {
+                def lines = []
+                def deps = p.tasks.getByName("test").taskDependencies.getDependencies(p.tasks.getByName("test"))
+                deps.toList().sort { it.name }.each { t ->
+                    if (!(t instanceof JavaExec)) return
+                    def exe = t.executable
+                    if (exe == null) {
+                        try { exe = t.javaLauncher.get().executablePath.asFile.absolutePath } catch (Throwable e) { exe = null }
+                    }
+                    if (exe == null) exe = System.getProperty("java.home") + "/bin/java"
+                    def props = t.systemProperties.collect { k, v -> "-D" + k + "=" + v }
+                    def jvm = (t.jvmArgs ?: []) + props
+                    def cp = t.classpath.files.collect { it.absolutePath.replace("\\", "/") }.join(File.pathSeparator)
+                    def fields = [t.name, exe, t.workingDir.absolutePath, jvm.join("\u0001"), cp, t.mainClass.get(),
+                                  (t.args ?: []).join("\u0001")]
+                    lines << fields.join("\t")
+                }
+                def out = p.layout.buildDirectory.file("pure-plan.tsv").get().asFile
+                out.parentFile.mkdirs()
+                out.text = lines.join("\n") + "\n"
+                println "pure plan: " + lines.size() + " tasks -> " + out
+            }
+        }
+    }
+}

@@ -73,43 +73,70 @@ public class ActUnlockTest {
         return DungeonDef.fromJson("pocketdungeons:" + id, JsonParser.parseString(json).getAsJsonObject());
     }
 
-    /** D29: an act completes when its dungeons are finished and its Mine layer is reached. */
+    private static ActProgress.MineDepth depth(int act1, int act2) {
+        return new ActProgress.MineDepth(act1, act2 == 0 ? java.util.Map.of() : java.util.Map.of(2, act2));
+    }
+
+    /**
+     * D29, amended 2026-10-11: an act completes when its dungeons are finished and its own Endless Mine has
+     * reached its first guardian floor (3); an act with no mine asks nothing of one.
+     */
     private static void testActCompletion() {
         List<DungeonDef> act1 = List.of(
                 actDungeon("mineshaft", 1, "dungeon"), actDungeon("rootworks", 1, "dungeon"),
                 actDungeon("spawner", 1, "capstone"), actDungeon("endless_mine", 1, "endless"));
-        check(ActProgress.mineTarget(1) == 5 && ActProgress.mineTarget(4) == 23
-                && ActProgress.mineTarget(5) == 0, true, "the layer bottoms");
+        check(ActProgress.mineTarget(1, act1) == 3 && ActProgress.mineTarget(2, act1) == 0
+                && ActProgress.mineTarget(5, act1) == 0, true, "the first guardian floor, for an act with a mine");
         check(ActProgress.actDungeons(1, act1).size(), 3, "the Endless Mine is not an act dungeon");
 
-        check(ActProgress.complete(1, Set.of(), 99, act1), false, "no dungeons finished: not complete");
-        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), 4, act1), false,
-                "the Mine to floor 4 is not enough");
-        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), 5, act1), true,
-                "all dungeons and floor 5 completes act 1");
+        check(ActProgress.complete(1, Set.of(), depth(99, 0), act1), false, "no dungeons finished: not complete");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), depth(2, 0), act1), false,
+                "the Mine to floor 2 is not enough");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), depth(3, 0), act1), true,
+                "all dungeons and floor 3 completes act 1");
         check(ActProgress.complete(1, Set.of("pocketdungeons:mineshaft", "pocketdungeons:rootworks",
-                "pocketdungeons:spawner"), 9, act1), true, "namespaced ids count too");
-        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks"), 9, act1), false,
+                "pocketdungeons:spawner"), depth(9, 0), act1), true, "namespaced ids count too");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks"), depth(9, 0), act1), false,
                 "a missing capstone holds the act open");
-        // Act 5 has no Mine layer: dungeons alone complete it.
+        // Act 5 has no Mine: dungeons alone complete it.
         List<DungeonDef> act5 = List.of(actDungeon("the_end", 5, "dungeon"),
                 actDungeon("ender_archive", 5, "dungeon"), actDungeon("herobrine", 5, "capstone"));
-        check(ActProgress.complete(5, Set.of("the_end", "ender_archive", "herobrine"), 0, act5), true,
-                "act 5 completes on dungeons alone");
+        check(ActProgress.complete(5, Set.of("the_end", "ender_archive", "herobrine"), ActProgress.MineDepth.NONE, act5),
+                true, "act 5 completes on dungeons alone");
 
-        check(ActProgress.progressLine(1, Set.of("mineshaft"), 2, act1),
-                "1 of 3 dungeons, Mine floor 2 of 5", "the milestone title's progress line");
-        check(ActProgress.progressLine(5, Set.of("the_end"), 9, act5),
+        // Each act has its own mine (data only): act 2 reads the Act 2 mine's record, not Act 1's.
+        List<DungeonDef> act2 = List.of(actDungeon("deepslate", 2, "dungeon"), actDungeon("ancient_city", 2, "capstone"),
+                actDungeon("endless_mine_deep", 2, "endless"));
+        Set<String> act2Done = Set.of("deepslate", "ancient_city");
+        check(ActProgress.mineTarget(2, act2), 3, "act 2 asks the first guardian of its own mine");
+        check(ActProgress.complete(2, act2Done, depth(2, 0), act2), false, "a shallow record does not open act 3");
+        check(ActProgress.complete(2, act2Done, depth(3, 0), act2), false,
+                "floor 3 of the Act 1 mine does not count for act 2");
+        check(ActProgress.complete(2, act2Done, depth(0, 3), act2), true, "floor 3 of the Act 2 mine does");
+        // Migration: a record that already passed the old layer bottom (act 2: floor 11 of the one old mine)
+        // keeps the act, so nobody loses progress to the new gate.
+        check(ActProgress.complete(2, act2Done, depth(11, 0), act2), true,
+                "old progress: floor 11 of the single old mine still satisfies act 2");
+        check(ActProgress.complete(2, act2Done, depth(10, 0), act2), false,
+                "old progress short of the old layer bottom does not");
+        // Acts 3 to 5 are added by data alone: declare a mine for act 3 and the gate follows.
+        List<DungeonDef> act3 = List.of(actDungeon("prismarine", 3, "dungeon"), actDungeon("mine3", 3, "endless"));
+        check(ActProgress.mineTarget(3, act3), 3, "a declared act 3 mine is gated at once");
+        check(ActProgress.complete(3, Set.of("prismarine"), depth(0, 0), act3), false, "and unmet until cleared");
+
+        check(ActProgress.progressLine(1, Set.of("mineshaft"), depth(2, 0), act1),
+                "1 of 3 dungeons, Mine floor 2 of 3", "the milestone title's progress line");
+        check(ActProgress.progressLine(5, Set.of("the_end"), depth(9, 0), act5),
                 "1 of 3 dungeons", "an act without a Mine leg names dungeons only");
-        check(ActProgress.remainingLine(1, Set.of(), 0, act1),
-                "Act 1: 3 dungeons and the Mine to floor 5 left.", "the full remaining line");
-        check(ActProgress.remainingLine(1, Set.of("mineshaft"), 0, act1),
-                "Act 1: 2 dungeons and the Mine to floor 5 left.", "the example from the plan");
-        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), 2, act1),
-                "Act 1: the Mine to floor 5 left.", "only the Mine left");
-        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), 5, act1),
+        check(ActProgress.remainingLine(1, Set.of(), ActProgress.MineDepth.NONE, act1),
+                "Act 1: 3 dungeons and the Mine to floor 3 left.", "the full remaining line");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft"), ActProgress.MineDepth.NONE, act1),
+                "Act 1: 2 dungeons and the Mine to floor 3 left.", "the example from the plan");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), depth(2, 0), act1),
+                "Act 1: the Mine to floor 3 left.", "only the Mine left");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), depth(5, 0), act1),
                 "", "a complete act says nothing");
-        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), 5, act5),
+        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), depth(5, 0), act5),
                 "", "an empty act says nothing too");
     }
 

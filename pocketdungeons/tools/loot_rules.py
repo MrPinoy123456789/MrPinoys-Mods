@@ -18,6 +18,8 @@ under `loot_table/` (forward slashes) and decides the context:
   vaults/, gear/*, equipment/*   gear allowed; room tools are not
   spawners/          plain consumables; no gear, tools or rare food
   gameplay/, bags/, affixes/, modules/   authored on purpose, left alone
+  endless_mine/      the guardian tier tables (A, B, C per act); the owner asked for copper, gold and
+                     redstone here, which the core tables cut, so they are authored on purpose too
 """
 
 # Item -> replacement inside the same pool. The entry keeps its own weight and
@@ -195,7 +197,7 @@ BLOCK_HINTS = ('_block', '_bricks', '_tiles', '_ore', 'deepslate', 'stone',
 
 def context_of(rel_path):
     """Which rule set a loot_table-relative path falls under."""
-    if rel_path.startswith(('bags/', 'affixes/', 'modules/', 'gameplay/')):
+    if rel_path.startswith(('bags/', 'affixes/', 'modules/', 'gameplay/', 'endless_mine/')):
         return 'exempt'
     if rel_path.startswith('chests/supply_'):
         return 'supply'
