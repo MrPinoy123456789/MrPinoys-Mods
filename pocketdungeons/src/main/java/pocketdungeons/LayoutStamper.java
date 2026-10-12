@@ -682,13 +682,54 @@ final class LayoutStamper {
 
     /**
      * Selects which cells get voided floor when the VOIDED affix is active.
-     * Entrance and terminal cells are always excluded. Each remaining cell
-     * is independently rolled against {@link PocketDungeonsConfig#voidedCellChance}.
+     * Entrance and terminal cells are always excluded, and so is any puzzle or ordeal
+     * cell (affix workshop 2026-10-11), so a voided cell is only ever a plain traversal
+     * cell. Each remaining cell is independently rolled against
+     * {@link PocketDungeonsConfig#voidedCellChance}.
      */
     private static Set<PlanCell> computeVoidedCells(DungeonPlan plan, Set<String> affixes) {
         if (!affixes.contains(AffixIds.VOIDED)) {
             return Set.of();
         }
+        RoomManifest manifest = RoomManifest.current();
+        return selectVoided(plan, PocketDungeonsConfig.voidedCellChance(),
+                cell -> isPlainTraversal(plan, manifest, cell));
+    }
+
+    /**
+     * Whether a cell may be voided: not a puzzle or an ordeal. The room's role operation is read the
+     * way {@code RoomContent.isHazardEligible} reads it; the role alone cannot tell a puzzle apart
+     * (they are corridor roles), so the placed room's own entry decides: a gated room, a room with
+     * a pressure source, or an operation NONE room that carries a content spec is a puzzle or an
+     * ordeal. A plain hall, and an encounter or loot room with no gate, stays eligible.
+     */
+    private static boolean isPlainTraversal(DungeonPlan plan, RoomManifest manifest, PlanCell cell) {
+        DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);
+        RoomManifest.Entry entry = placed == null ? null : manifest.byName(placed.name());
+        if (entry == null) {
+            return true;
+        }
+        String role = plan.roles().get(cell);
+        RoomRoleDefinition def = role == null ? null : RoleManifest.current().byId(role);
+        boolean operationNone = def == null || def.operation == RoomRoleDefinition.Operation.NONE;
+        return isPlainTraversal(operationNone, entry.meta.access, entry.meta.pressure, entry.meta.content);
+    }
+
+    /** The pure half of {@link #isPlainTraversal(DungeonPlan, RoomManifest, PlanCell)}, for tests. */
+    static boolean isPlainTraversal(boolean operationNone, String access, String pressure, String content) {
+        if (DungeonRoomMeta.ACCESS_GATED.equals(access) || pressure != null) {
+            return false;
+        }
+        return !(operationNone && content != null);
+    }
+
+    /**
+     * The voided cells for a plan. The roll is always taken for every cell that is neither the
+     * entrance nor the terminal, in sorted cell order, so an exclusion removes only its own cell
+     * and leaves every other cell's roll (and so its outcome) exactly where it was.
+     */
+    static Set<PlanCell> selectVoided(DungeonPlan plan, double chance,
+                                      java.util.function.Predicate<PlanCell> eligible) {
         Random rng = new Random(plan.seed() ^ 0xB01DL);
         Set<PlanCell> voided = new HashSet<>();
         PlanCell entrance = plan.entrance();
@@ -705,7 +746,7 @@ final class LayoutStamper {
             if (cell.equals(entrance) || cell.equals(terminal)) {
                 continue;
             }
-            if (rng.nextDouble() < PocketDungeonsConfig.voidedCellChance()) {
+            if (rng.nextDouble() < chance && eligible.test(cell)) {
                 voided.add(cell);
             }
         }
