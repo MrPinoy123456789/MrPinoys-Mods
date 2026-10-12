@@ -334,6 +334,8 @@ for ((taskName, testClass) in mapOf(
     "finaleDataTest" to "FinaleDataTest",
     // Roadmap T01: the half-dead rule and the finale script registry.
     "finaleScriptsTest" to "FinaleScriptsTest",
+    // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
+    "kennelsFinaleRulesTest" to "KennelsFinaleRulesTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
@@ -462,7 +464,9 @@ for ((taskName, testClass) in mapOf(
     // copper out of the palettes, and the dungeon barter table's contents.
     "lootRulesTest" to "LootRulesTest",
     // PD-204: the live dungeon id compare tolerates the namespace either way.
-    "instancesTest" to "InstancesTest"
+    "instancesTest" to "InstancesTest",
+    // Affix workshop quick changes (T10): mine fuse, Silenced count, Cooked line, Restless level, Voided cells.
+    "affixQuickChangesTest" to "AffixQuickChangesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -497,6 +501,7 @@ tasks.test {
     dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
+    dependsOn("affixQuickChangesTest")
     dependsOn("blackoutTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")

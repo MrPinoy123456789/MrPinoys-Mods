@@ -1306,7 +1306,8 @@ final class RunLifecycle {
         // the decision point, so a floor clear also gets a title.
         showFloorClearedTitle(player, OmenBarText.clearedScreenTitle(floorsCleared, TripView.dungeonName(record),
                 EndlessMineRules.isMine(record), record.interval.finished),
-                OmenBarText.clearedSubtitle(record.interval.finished, TripView.finalAhead(record)));
+                OmenBarText.clearedLines(record.interval.finished, TripView.finalAhead(record),
+                        record.floor.affixes.contains(AffixIds.OMINOUS)));
         // M66: the compass recipe promises a completion study list. The
         // list is the run's situations by name, emitted on the first
         // completion of the floor.
@@ -1858,8 +1859,8 @@ final class RunLifecycle {
      * small. Playtest 2026-09-27: the count on the omen bar went unnoticed at
      * the moment of choosing between home and the next floor.
      */
-    private static void showFloorClearedTitle(ServerPlayer player, String headline, String subtitle) {
-        showBigTitle(player, headline, subtitle);
+    private static void showFloorClearedTitle(ServerPlayer player, String headline, List<String> lines) {
+        showBigTitle(player, headline, lines);
     }
 
     /**
@@ -1878,9 +1879,13 @@ final class RunLifecycle {
      * the floor start ({@link StaggeredTitle}).
      */
     private static void showBigTitle(ServerPlayer player, String headline, String subtitle) {
+        showBigTitle(player, headline, List.of(subtitle));
+    }
+
+    private static void showBigTitle(ServerPlayer player, String headline, List<String> lines) {
         StaggeredTitle.show(player.level().getServer(), player.getUUID(),
                 Component.literal(headline).withStyle(ChatFormatting.GOLD),
-                List.of(subtitle), ChatFormatting.GRAY);
+                lines, ChatFormatting.GRAY);
     }
 
     /**

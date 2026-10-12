@@ -45,6 +45,7 @@
       "pocketdungeons.FinaleWaveGameTest",
       "pocketdungeons.CreepingBricksGameTest",
       "pocketdungeons.FinaleScriptGameTest",
+      "pocketdungeons.KennelsFinaleGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
