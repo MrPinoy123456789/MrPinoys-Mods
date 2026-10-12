@@ -43,6 +43,7 @@
       "pocketdungeons.HallRoomGameTest",
       "pocketdungeons.FinaleWaveGameTest",
       "pocketdungeons.FinaleScriptGameTest",
+      "pocketdungeons.MineshaftFinaleGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
