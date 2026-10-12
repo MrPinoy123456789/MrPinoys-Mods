@@ -46,6 +46,8 @@ import java.util.UUID;
 final class DeepslateFinale implements FinaleScript {
 
     private static final float TELL_VOLUME = 2.0f;
+    /** The tell clock when no tell is running (a real tick can be any small number in a test). */
+    static final long NO_TELL = Long.MIN_VALUE;
 
     /** One run's state (package-visible so the gametest can read the story). */
     static final class Run {
@@ -55,8 +57,8 @@ final class DeepslateFinale implements FinaleScript {
         /** The tick the wave stood, and the last whole second of the fight that was counted. */
         long waveTick = -1;
         long lastSecond;
-        /** The tick the tell began, or -1 when the room is listening. */
-        long tellTick = -1;
+        /** The tick the tell began, or NO_TELL when the room is listening. */
+        long tellTick = NO_TELL;
         boolean warned;
         int answers;
         /** Per member: health, and the bow and crossbow shots on their statistics, at the last look. */
@@ -108,7 +110,7 @@ final class DeepslateFinale implements FinaleScript {
             return;
         }
         tendExtras(ctx, run);
-        if (run.tellTick >= 0) {
+        if (run.tellTick != NO_TELL) {
             look(ctx, run);
             PressureSources.takePulses(run.room);
             if (DeepslateFinaleRules.answerDue(ctx.tickCount(), DeepslateFinaleRules.answerTick(run.tellTick))) {
@@ -168,7 +170,7 @@ final class DeepslateFinale implements FinaleScript {
 
     /** Whether the room is listening: its script holds the meter, no tell is running, no whelp is out. */
     private static boolean listening(FinaleContext ctx, Run run) {
-        return run.room != null && run.waveTick >= 0 && run.tellTick < 0 && !whelpOut(ctx, run);
+        return run.room != null && run.waveTick >= 0 && run.tellTick == NO_TELL && !whelpOut(ctx, run);
     }
 
     private static boolean whelpOut(FinaleContext ctx, Run run) {
@@ -222,7 +224,7 @@ final class DeepslateFinale implements FinaleScript {
 
     /** The tell has run: the shrieker screams, the dark settles and the whelps come. */
     private static void answer(FinaleContext ctx, Run run) {
-        run.tellTick = -1;
+        run.tellTick = NO_TELL;
         run.warned = false;
         run.answers++;
         PressureSources.resetHeard(run.room);
