@@ -101,6 +101,7 @@ public final class HauntGameTest {
 
         /** Stands the member at (x, z) in cell terms from the rig origin, facing {@code yaw}. */
         void face(double x, double z, float yaw) {
+            player.setGameMode(GameType.SURVIVAL);
             player.teleportTo(level, origin.getX() + x, origin.getY() + 1.0, origin.getZ() + z, Set.of(), yaw, 0.0F,
                     false);
         }
@@ -201,6 +202,10 @@ public final class HauntGameTest {
             Mob body = rig.wake(PocketDungeonsConfig.hauntWakePressure() * 3);
             helper.assertTrue(body != null, "pressure on floor 3 wakes a body");
             // Two health points left: the strike can take one at most. The body starts behind the member.
+            rig.player.setGameMode(GameType.SURVIVAL);
+            // The mock reports itself creative whatever the mode says; strip its abilities so the strike can land.
+            rig.player.getAbilities().instabuild = false;
+            rig.player.getAbilities().invulnerable = false;
             rig.player.setHealth(2.0f);
             rig.face(18.5, 8.5, 90.0f);
             body.teleportTo(rig.origin.getX() + 24.5, rig.origin.getY() + 1.0, rig.origin.getZ() + 8.5);
@@ -209,10 +214,14 @@ public final class HauntGameTest {
                 try {
                     helper.assertTrue(rig.player.isAlive(), "a strike never kills");
                     helper.assertTrue(rig.player.getHealth() >= 1.0f, "a strike leaves at least one health");
+                    helper.assertTrue(rig.player.hasEffect(MobEffects.SLOWNESS), "the strike slows; body "
+                            + body.position() + " player " + rig.player.position() + " creative " + rig.player.isCreative() + " inv " + rig.player.isInvulnerableTo(rig.level, rig.level.damageSources().generic())
+                            + " health " + rig.player.getHealth() + " noAi " + body.isNoAi()
+                            + " alive " + body.isAlive() + " hasBody " + Haunts.hasBody(rig.slot)
+                            + " seen " + Haunts.seenByAny(java.util.List.of(rig.player), body));
+                    helper.assertTrue(!Haunts.hasBody(rig.slot), "the body retreats after a strike");
                     helper.assertTrue(rig.player.getHealth() == 1.0f,
                             "the strike took one of the two health: " + rig.player.getHealth());
-                    helper.assertTrue(rig.player.hasEffect(MobEffects.SLOWNESS), "the strike slows");
-                    helper.assertTrue(!Haunts.hasBody(rig.slot), "the body retreats after a strike");
                     Entity gone = rig.level.getEntity(id);
                     helper.assertTrue(gone == null || gone.isRemoved(), "the retreated body is not left standing");
                     rig.finish();

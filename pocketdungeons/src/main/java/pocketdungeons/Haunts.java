@@ -442,12 +442,12 @@ final class Haunts {
 
     private static void strike(ServerLevel level, ServerPlayer target, Mob mob) {
         float damage = HauntRules.strikeDamage(PocketDungeonsConfig.hauntStrikeDamage(), target.getHealth());
-        if (!target.isCreative() && damage > 0.0f) {
+        if (!target.getAbilities().invulnerable && damage > 0.0f) {
             // A plain source: a mob attack would scale with difficulty and could turn a safe figure into a kill.
             target.hurtServer(level, level.damageSources().generic(), damage);
         }
         int slow = PocketDungeonsConfig.hauntSlownessSeconds();
-        if (slow > 0 && !target.isCreative()) {
+        if (slow > 0 && !target.getAbilities().invulnerable) {
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, slow * 20, 1, false, true));
         }
         level.playSound(null, target.blockPosition(), SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 1.0f, 0.6f);

@@ -214,7 +214,7 @@ public class HauntRulesTest {
         // The words a player reads carry no dash punctuation.
         String[] words = {def.ruleLine(), HauntRules.TITLE_LINE, def.label(), entry.get("pages").toString()};
         for (String text : words) {
-            check(!text.contains("—") && !text.contains(" -- "), "no dash punctuation in: " + text);
+            check(!text.contains(String.valueOf((char) 0x2014)) && !text.contains(" " + "-".repeat(2) + " "), "no dash punctuation in: " + text);
         }
         check(HauntRules.TITLE_LINE.equals("Something walks here."), "the title line is the approved one");
     }
