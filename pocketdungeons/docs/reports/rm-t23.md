@@ -55,7 +55,13 @@ player's chart level, because a party can mix compasses. Floor number is `interv
   children are claimed and topped up to six; a later split is not doubled; the last death wins and the drip
   rate returns; a boss with no children ends the finale; no drip in the entrance room, a tagged slow splash potion
   elsewhere, removed by floor end.
-- Counts: see the final message for before and after of the ship run.
+- Counts: the final ship run could not complete (see Status). Last full result before the merge: pure tests and config tests green; gametests had 2 failures in `LushFinaleGameTest` (stray natural slimes in the test world inflated the child count; fixed by a freshness and radius filter in `LushFinale` and a stray clear in the test) and one in the drip test (sweep did not reach above the layout; fixed). Expected after the fix: gametest total rises by 3 over the base, pure test tasks by 2.
+
+## Status
+
+Not confirmed green. After merging `feature/act-1-2-roadmap` the post fix `tools/ship.sh --quick` run died twice on the host (JVM out of memory, then Loom cache lock, then no disk space left on the drive), before any test ran. The merge conflicts were resolved by keeping both sides and regenerating the config fixtures (`ConfigKnobsTest passed (153 knobs)`, `ConfigCharacterizationTest passed`). It needs one more `tools/ship.sh --quick` once the host has disk and memory.
+
+Also touched outside the T23 files: `FinaleWave.step` now iterates a copy of the mob list, because an `onMobDied` hook that adds mobs (the guard, split children) threw a ConcurrentModificationException in the seam. Separate commit.
 
 ## Only a live server can confirm
 
