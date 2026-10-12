@@ -46,6 +46,8 @@ import java.util.stream.Stream;
  * <p>{@code bags/} is exempt: a bag is authored starting kit, not loot the
  * world hands out, so the rare-food and tool rules do not apply to it.
  * {@code modules/} tables are checked against their manifest instead.
+ * {@code endless_mine/} (the guardian tier tables) is exempt on purpose: the owner asked for copper,
+ * gold and redstone there (decision 2026-10-11), which the core tables cut.
  * Runs headless over the source tree, like {@link TrialKeyLootTest}.
  */
 public class LootRulesTest {
@@ -133,7 +135,8 @@ public class LootRulesTest {
             for (Path file : walk.filter(p -> p.toString().endsWith(".json")).sorted().toList()) {
                 String rel = LOOT_ROOT.relativize(file).toString().replace('\\', '/');
                 if (rel.startsWith("bags/") || rel.startsWith("affixes/")
-                        || rel.startsWith("modules/") || rel.startsWith("gameplay/")) {
+                        || rel.startsWith("modules/") || rel.startsWith("gameplay/")
+                        || rel.startsWith("endless_mine/")) {
                     continue;
                 }
                 files++;

@@ -1,0 +1,45 @@
+{
+  "name": "The Deep Mine",
+  "hall": "special",
+  "token": {
+    "mat": "minecraft:tuff"
+  },
+  "act": 2,
+  "baseLevel": 6,
+  "kind": "endless",
+  "mainTheme": "endless_mine_deep",
+  "lootBand": {
+    "min": 2,
+    "max": 3
+  },
+  "nodePalette": [
+    "deepslate_iron_ore",
+    "deepslate_gold_ore",
+    "deepslate_lapis_ore",
+    "deepslate_redstone_ore"
+  ],
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 2,
+    "sizeMin": 1,
+    "sizeMax": 3,
+    "blocks": [
+      "deepslate_iron_ore",
+      "deepslate_lapis_ore",
+      "deepslate_redstone_ore"
+    ],
+    "deepBlocks": [
+      "deepslate_diamond_ore",
+      "deepslate_gold_ore"
+    ],
+    "deepEvery": 3
+  },
+  "nodes": [
+    {
+      "id": "working_face",
+      "name": "The Deep Working Face",
+      "layer": 1
+    }
+  ],
+  "edges": []
+}

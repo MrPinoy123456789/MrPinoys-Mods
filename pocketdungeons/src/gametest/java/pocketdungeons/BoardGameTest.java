@@ -121,25 +121,25 @@ public final class BoardGameTest {
     /**
      * PD-161: the board only promises ore the plan can deliver. A dungeon that
      * buries hidden ore (the Mineshaft) always can; a palette-only dungeon
-     * (Copper Works) can only through a placed room that declares nodes, and
+     * (Deepslate) can only through a placed room that declares nodes, and
      * across a sweep of floors some plans hold none, which must read as false.
      */
     @GameTest(maxTicks = 200)
     public void theBoardOnlyPromisesOreThePlanCanDeliver(GameTestHelper helper) {
         DungeonDef mineshaft = DungeonDefs.current().byId("pocketdungeons:mineshaft");
-        DungeonDef copper = DungeonDefs.current().byId("pocketdungeons:copper_works");
-        helper.assertTrue(mineshaft != null && copper != null, "both dungeons are loaded");
-        helper.assertTrue(mineshaft.hiddenOre() != null && copper.hiddenOre() == null,
-                "the Mineshaft buries ore and Copper Works declares none");
-        // Two palette-only dungeons: Copper Works (which now has enough ore rooms that every sampled floor
+        DungeonDef palette = DungeonDefs.current().byId("pocketdungeons:deepslate");
+        helper.assertTrue(mineshaft != null && palette != null, "both dungeons are loaded");
+        helper.assertTrue(mineshaft.hiddenOre() != null && palette.hiddenOre() == null,
+                "the Mineshaft buries ore and Deepslate declares none");
+        // Two palette-only dungeons: Deepslate (which now has enough ore rooms that every sampled floor
         // holds some) and the Ancient City (which declares none, so its plans must read as quiet).
         DungeonDef ancientCity = DungeonDefs.current().byId("pocketdungeons:ancient_city");
         helper.assertTrue(ancientCity != null && ancientCity.hiddenOre() == null,
                 "the Ancient City is loaded and declares no hidden ore");
         int silent = 0;
         int loud = 0;
-        String[] themes = {"copper_works", "ancient_city"};
-        DungeonDef[] defs = {copper, ancientCity};
+        String[] themes = {"deepslate", "ancient_city"};
+        DungeonDef[] defs = {palette, ancientCity};
         for (int which = 0; which < themes.length; which++) {
             DungeonDef def = defs[which];
             for (long seed = 1; seed <= 80; seed++) {

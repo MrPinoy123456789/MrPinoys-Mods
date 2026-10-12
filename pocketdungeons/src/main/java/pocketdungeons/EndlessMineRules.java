@@ -1,36 +1,63 @@
 package pocketdungeons;
 
+import java.util.Collection;
+import java.util.Locale;
+import java.util.Set;
+
 /**
  * M78: what is left of the Endless Mine's own ruleset once the zone rules hook
- * ({@link ZoneRules}) carries the rest. The Mine is a Cube recipe that turns an
- * interval into a descent: every floor is stamped in the Mine theme, previous
- * floors close behind the party, and the haul gets richer with depth.
+ * ({@link ZoneRules}) carries the rest. The Mine is a Cube recipe or a hall door
+ * that turns an interval into a descent: every floor is stamped in the Mine
+ * theme, previous floors close behind the party, and a guardian waits on every
+ * third floor.
  *
- * <p>What the hook expresses, in the Mine theme's {@code rules} block
- * ({@code data/pocketdungeons/dungeon_theme/endless_mine.json}): the loot tier
- * escalating one step every three floors since the last bank, capped at the
- * top tier, and its role as the materials faucet. What it cannot, and so stays
- * here: the recipe forcing the Mine theme onto every floor of the interval
- * ({@link #effectiveTheme}), which is how a Mine interval comes to run under
- * the Mine zone at all, the depth recorded on a run record, and the Mine's
- * own words at its commitment surfaces.
+ * <p>Decision 2026-10-11 (Endless Mine per act, task T40), which supersedes the
+ * depth layers of ZONES_SPEC 3.5 and D13:
+ * <ul>
+ *   <li>Each act has its own mine, declared as a dungeon of kind {@code endless}
+ *       with an {@code act} (Act 1 {@code endless_mine}, Act 2
+ *       {@code endless_mine_deep}). There are no depth layers and no sealed
+ *       shaft any more: the mine is open as deep as the party can go.</li>
+ *   <li>A guardian waits on every {@link #guardianEvery()}-th floor (3, 6, 9 and
+ *       so on). That floor is the checkpoint that pays, from the tier table of
+ *       the guardian's number: guardian 1 pays A, guardian 2 pays B, guardian 3
+ *       and every later one pays C ({@link #tierIndex}). Floors between
+ *       guardians pay the plain floor haul.</li>
+ *   <li>Guardian hardness rises without a cap ({@link #hardness}); who the
+ *       guardians are is {@link MineGuardians}' registry, filled by the boss
+ *       tasks.</li>
+ *   <li>Clearing the first guardian floor of an act's mine counts toward opening
+ *       the next act ({@link ActProgress#mineTarget}).</li>
+ * </ul>
  *
- * <p>There is no Mine exit of its own any more: every checkpoint in every zone
- * offers the HOME lever, and {@code /dungeon cashout} is that lever typed.
- * Banking uses the same average-of-doors rule everywhere
+ * <p>Banking uses the same average-of-doors rule everywhere
  * ({@link IntervalBanking}), so the Mine cannot out-level the ordinary loop;
- * its reward is the escalating haul and a displayable depth, never a higher
- * power ceiling.
+ * its reward is the guardian haul and a displayable depth, never a higher power
+ * ceiling. There is no Mine exit of its own: every checkpoint offers the HOME
+ * lever, and {@code /dungeon cashout} is that lever typed.
  *
- * <p>Pure policy: no Minecraft state. The Mine flag lives on the interval
+ * <p>Pure policy apart from the two lookups into the loaded dungeon manifest
+ * ({@link #mineOf}, {@link #isMineId}). The Mine flag lives on the interval
  * ({@link IntervalState#endlessMine}), in memory like the rest of the record.
  */
 final class EndlessMineRules {
 
     private EndlessMineRules() {}
 
-    /** The theme id the Mine recipe forces onto every Mine floor. */
+    /** The theme id the Cube recipe (and any Mine without a dungeon of its own) forces onto every Mine floor. */
     static final String MINE_THEME_ID = "pocketdungeons:endless_mine";
+
+    /** The Act 1 mine dungeon's id, and the mine a Cube recipe opens. */
+    static final String MINE_DUNGEON_ID = "pocketdungeons:endless_mine";
+
+    /** The act the Endless Mine first opened in (D29): its door waits on the compass, not on a later act. */
+    static final int OPENING_ACT = 1;
+
+    /** How many guardians make a lap: the three per act repeat after the third, each lap harder. */
+    static final int GUARDIANS_PER_LAP = 3;
+
+    /** The highest tier index: guardian 3 and every later guardian pay tier C. */
+    static final int MAX_TIER = 3;
 
     /** Whether the record is an active Mine run. */
     static boolean isMine(InstanceRecord record) {
@@ -42,16 +69,68 @@ final class EndlessMineRules {
         return plan != null && plan.endlessMine;
     }
 
+    // ---- which mine ------------------------------------------------------------------
+
+    /** Whether {@code dungeonId} names an Endless Mine: a loaded dungeon of kind endless, else the Act 1 mine's id. */
+    static boolean isMineId(String dungeonId) {
+        if (dungeonId == null || dungeonId.isEmpty()) {
+            return false;
+        }
+        DungeonDef def = DungeonDefs.current().byId(dungeonId);
+        return def != null ? def.kind() == DungeonDef.Kind.ENDLESS : MINE_DUNGEON_ID.equals(dungeonId);
+    }
+
+    /** Whether {@code offer} opens a Mine from the first staging room. */
+    static boolean isMineOffer(Keystone.Offer offer) {
+        return offer != null && isMineId(offer.dungeonId());
+    }
+
     /**
-     * The theme id a floor should be stamped at. A Mine run (already flagged
-     * on the record, or flagged by the recipe plan being previewed) forces the
-     * Mine theme on every floor, so the recipe being cleared after the first
-     * commit does not drop the Mine look, or the Mine's zone rules, on later
-     * floors.
+     * The id of the mine a floor is stamped for: the one the run committed to, else the one {@code offer}
+     * opens, else the Act 1 mine (a Cube recipe Mine).
      */
-    static String effectiveTheme(String offerTheme, InstanceRecord record,
-                                 RunRecipePlan previewPlan) {
-        if (isMine(record) || isMine(previewPlan)) {
+    static String mineIdFor(InstanceRecord record, Keystone.Offer offer) {
+        if (record != null && record.interval.mineDungeonId != null && !record.interval.mineDungeonId.isEmpty()) {
+            return record.interval.mineDungeonId;
+        }
+        return isMineOffer(offer) ? offer.dungeonId() : MINE_DUNGEON_ID;
+    }
+
+    /**
+     * The mine dungeon a run is in: the one it committed to, else (a Cube recipe
+     * Mine, or a record from before the field existed) the Act 1 mine. Null when
+     * the manifest has no such dungeon.
+     */
+    static DungeonDef mineOf(InstanceRecord record) {
+        DungeonDefs defs = DungeonDefs.current();
+        String id = record == null ? "" : record.interval.mineDungeonId;
+        DungeonDef def = id == null || id.isEmpty() ? null : defs.byId(id);
+        return def != null ? def : defs.byId(MINE_DUNGEON_ID);
+    }
+
+    /** The act of the mine {@code record} is in (1 when it cannot be told). */
+    static int actOf(InstanceRecord record) {
+        DungeonDef def = mineOf(record);
+        return def == null ? OPENING_ACT : def.act();
+    }
+
+    /** The theme id every floor of the mine {@code def} is stamped in; the Act 1 theme for none. */
+    static String themeOf(DungeonDef def) {
+        return def == null ? MINE_THEME_ID : def.mainTheme();
+    }
+
+    /**
+     * The theme id a floor should be stamped at. A Mine run (already flagged on
+     * the record, or flagged by the recipe plan being previewed) forces its own
+     * mine's theme on every floor, so the recipe being cleared after the first
+     * commit does not drop the Mine look, or the Mine's zone rules, on later
+     * floors. A hall door into a mine already carries that mine's theme.
+     */
+    static String effectiveTheme(String offerTheme, InstanceRecord record, RunRecipePlan previewPlan) {
+        if (isMine(record)) {
+            return themeOf(mineOf(record));
+        }
+        if (isMine(previewPlan)) {
             return MINE_THEME_ID;
         }
         return offerTheme;
@@ -66,114 +145,134 @@ final class EndlessMineRules {
         return isMine(record) ? Math.max(0, record.interval.floorIndex) : 0;
     }
 
-    // ---- depth layers (design D13, ZONES_SPEC 3.5) ----------------------------------
-
-    /** The mine dungeon's id: the door offered at the first staging room once it is open. */
-    static final String MINE_DUNGEON_ID = "pocketdungeons:endless_mine";
-
     /**
-     * The act the Endless Mine belongs to (D29): it opens in act 1 now, gated
-     * on the leader's compass by {@code endlessMineUnlockLevel} so a new
-     * player's first doors are dungeons.
+     * Whether {@code def} (a mine) is open to a player with these acts unlocked
+     * and this compass level: the mine's own act open, and the compass at
+     * {@code endlessMineUnlockLevel} (or the mine's own unlock level when that
+     * is higher) so a new player's first doors are dungeons (D29).
      */
-    static final int OPENING_ACT = 1;
+    static boolean opensFor(DungeonDef def, Set<Integer> unlockedActs, int compass) {
+        return def != null && unlockedActs != null && unlockedActs.contains(def.act())
+                && compass >= Math.max(PocketDungeonsConfig.endlessMineUnlockLevel(), def.unlockLevel());
+    }
 
-    /** Layer names, by layer number 1 to 4. */
-    private static final String[] LAYER_NAMES = {"Upper workings", "Deepslate", "Deep dark", "Magma core"};
-
-    /** Last floor of each of the first three layers: 5, 11 and 17. Layer 4 runs on from 18. */
-    private static final int[] LAYER_LAST_FLOOR = {5, 11, 17};
-
-    /**
-     * Whether the Endless Mine is open to a player with these acts unlocked
-     * and this compass level: act {@link #OPENING_ACT} open, and the compass
-     * at {@code endlessMineUnlockLevel} so a new player's first doors are
-     * dungeons (D29).
-     */
-    static boolean opensFor(java.util.Set<Integer> unlockedActs, int compass) {
+    /** Whether the Act 1 mine is open for these acts and this compass. */
+    static boolean opensFor(Set<Integer> unlockedActs, int compass) {
         return unlockedActs != null && unlockedActs.contains(OPENING_ACT)
                 && compass >= PocketDungeonsConfig.endlessMineUnlockLevel();
     }
 
-    /** Whether {@code offer} opens a Mine from the first staging room. */
-    static boolean isMineOffer(Keystone.Offer offer) {
-        return offer != null && MINE_DUNGEON_ID.equals(offer.dungeonId());
-    }
-
-    /** The depth layer (1 to 4) of Mine floor number {@code floor} (from 1). */
-    static int layerOf(int floor) {
-        for (int i = 0; i < LAYER_LAST_FLOOR.length; i++) {
-            if (floor <= LAYER_LAST_FLOOR[i]) {
-                return i + 1;
+    /**
+     * The mines open to a player, lowest act first: every loaded dungeon of kind
+     * endless with an entry floor whose act is unlocked and whose compass gate is met.
+     * A later act's mine is a data file; nothing here names it.
+     */
+    static java.util.List<DungeonDef> openMines(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                                int compass) {
+        java.util.List<DungeonDef> out = new java.util.ArrayList<>();
+        for (DungeonDef def : all) {
+            if (def.kind() == DungeonDef.Kind.ENDLESS && def.entry() != null
+                    && opensFor(def, unlockedActs, compass)) {
+                out.add(def);
             }
         }
-        return 4;
+        out.sort(java.util.Comparator.comparingInt(DungeonDef::act).thenComparing(DungeonDef::id));
+        return out;
     }
 
-    /** The act a player needs for layer {@code layer}: upper workings 1, deepslate 2, deep dark 3, magma core 4. */
-    static int actForLayer(int layer) {
-        return Math.max(1, Math.min(4, layer));
+    // ---- guardians (decision 2026-10-11) ----------------------------------------------
+
+    /** Floors between guardians ({@code endlessGuardianEvery}, 3). */
+    static int guardianEvery() {
+        return Math.max(1, PocketDungeonsConfig.endlessGuardianEvery());
     }
 
-    static String layerName(int layer) {
-        return LAYER_NAMES[Math.max(1, Math.min(4, layer)) - 1];
+    /** Whether a guardian waits on Mine floor number {@code floor} (from 1). */
+    static boolean isGuardianFloor(int floor) {
+        return floor >= guardianEvery() && floor % guardianEvery() == 0;
+    }
+
+    /** The number of the guardian on {@code floor} (1 for the first), or 0 when the floor has none. */
+    static int guardianNumber(int floor) {
+        return isGuardianFloor(floor) ? floor / guardianEvery() : 0;
+    }
+
+    /** The first floor at or past {@code floor} that holds a guardian. */
+    static int nextGuardianFloor(int floor) {
+        int every = guardianEvery();
+        return Math.max(1, (Math.max(1, floor) + every - 1) / every) * every;
+    }
+
+    /** Which of the act's three guardians guardian number {@code number} is, 1 to {@link #GUARDIANS_PER_LAP}. */
+    static int slot(int number) {
+        return Math.floorMod(Math.max(1, number) - 1, GUARDIANS_PER_LAP) + 1;
+    }
+
+    /** Laps completed before guardian number {@code number}: 0 for guardians 1 to 3, 1 for 4 to 6, and so on. */
+    static int lap(int number) {
+        return (Math.max(1, number) - 1) / GUARDIANS_PER_LAP;
     }
 
     /**
-     * The act that must still be cleared before Mine floor {@code floor} may be entered, or 0 when
-     * the player's unlocked acts allow it. A layer boundary caps the depth: the staging room then
-     * offers only HOME.
+     * How hard guardian number {@code number} is, with no upper bound:
+     * {@code 1 + hardnessStep * (number - 1) + lapStep * lap}. The multiplier a
+     * guardian applies to its own stats, count and damage is its own to define
+     * ({@link MineGuardians}); this is the dial.
      */
-    static int sealedAct(int floor, java.util.Set<Integer> unlockedActs) {
-        int need = actForLayer(layerOf(floor));
-        return unlockedActs != null && unlockedActs.contains(need) ? 0 : need;
+    static double hardness(int number) {
+        return hardness(number, PocketDungeonsConfig.endlessGuardianHardnessStep(),
+                PocketDungeonsConfig.endlessGuardianLapStep());
     }
 
-    /** The staging room line for a sealed shaft. */
-    static String sealedMessage(int act) {
-        return "The shaft below is sealed until " + ActProgress.label(act) + " is cleared. Only the HOME lever is open.";
+    /** {@link #hardness(int)} with the steps given, so a test needs no config. */
+    static double hardness(int number, double hardnessStep, double lapStep) {
+        int n = Math.max(1, number);
+        return 1.0 + hardnessStep * (n - 1) + lapStep * lap(n);
     }
 
-    /** The loot band of a layer: the band of the act that opens it (Act 1 tiers 1 to 2, 2 to 3, 3, 3 to 4). */
-    static DungeonDef.LootBand layerBand(int layer) {
-        return switch (actForLayer(layer)) {
-            case 1 -> new DungeonDef.LootBand(1, 2);
-            case 2 -> new DungeonDef.LootBand(2, 3);
-            case 3 -> new DungeonDef.LootBand(3, 3);
-            default -> new DungeonDef.LootBand(3, 4);
-        };
+    /** The loot tier index (1 to {@link #MAX_TIER}) guardian number {@code number} pays: A, B, then C for good. */
+    static int tierIndex(int number) {
+        return Math.min(MAX_TIER, Math.max(1, number));
     }
 
-    /** First floor of {@code layer}. */
-    static int layerStart(int layer) {
-        return layer <= 1 ? 1 : LAYER_LAST_FLOOR[Math.min(layer, 4) - 2] + 1;
+    /** The tier letter of guardian number {@code number}: {@code "A"}, {@code "B"} or {@code "C"}. */
+    static String tierLetter(int number) {
+        return String.valueOf((char) ('A' + tierIndex(number) - 1));
     }
-
-    /** Loot tier of Mine floor {@code floor}: the layer band's minimum, plus one every 3 floors into the layer, capped by the band. */
-    static int lootTier(int floor) {
-        int layer = layerOf(floor);
-        DungeonDef.LootBand band = layerBand(layer);
-        return band.clamp(band.min() + Math.max(0, floor - layerStart(layer)) / 3);
-    }
-
-    /** The floor level each layer's act begins at (D26): acts 1 to 4 begin at 1, 6, 13, 16. */
-    private static final int[] ACT_BASE_LEVEL = {1, 6, 13, 16};
 
     /**
-     * The level Mine floor number {@code floor} (from 1) runs at: its layer's
-     * act base plus the floors into the layer, plus the dealt door step. Same
-     * rule {@link FloorLevels} gives a graph dungeon, spelled out in floors
-     * because the Mine has no nodes.
+     * The loot table a guardian of mine act {@code act} pays, for guardian number
+     * {@code number}: {@code pocketdungeons:endless_mine/act1_a} for Act 1 guardian 1. Acts
+     * without tables fall back to the ordinary floor table where it is rolled.
      */
-    static int floorLevel(int floor, int step) {
-        int layer = layerOf(floor);
-        return ACT_BASE_LEVEL[actForLayer(layer) - 1]
-                + Math.max(0, floor - layerStart(layer)) + Math.max(0, step);
+    static String lootTableId(int act, int number) {
+        return PocketDungeonsMod.MOD_ID + ":endless_mine/act" + act + "_" + tierLetter(number).toLowerCase(Locale.ROOT);
     }
 
-    /** Whether {@code floor} is the first floor of a layer past the first (a layer transition). */
-    static boolean isTransition(int floor) {
-        return floor > 1 && layerStart(layerOf(floor)) == floor;
+    /**
+     * The loot tier (an index into the dungeon tier tables, 1 to 4) a Mine floor's completion barrel rolls
+     * when it has no table of its own: the mine's loot band minimum on an ordinary floor, climbing
+     * one step per tier index on a guardian floor, never past the band. Also the tier shown to the player.
+     */
+    static int floorTier(DungeonDef.LootBand band, int floor) {
+        DungeonDef.LootBand use = band == null ? new DungeonDef.LootBand(1, 2) : band;
+        int number = guardianNumber(floor);
+        return use.clamp(use.min() + (number == 0 ? 0 : tierIndex(number) - 1));
+    }
+
+    /** The loot band the mine {@code def} pays in (Act 1's band when there is none). */
+    static DungeonDef.LootBand bandOf(DungeonDef def) {
+        return def == null || def.lootBand() == null ? new DungeonDef.LootBand(1, 2) : def.lootBand();
+    }
+
+    /**
+     * The level Mine floor number {@code floor} (from 1) runs at: the mine's base level plus the
+     * floors down, plus the dealt door step. Same rule {@link FloorLevels} gives a graph dungeon,
+     * spelled out in floors because the Mine has no nodes. Callers clamp to the keystone maximum.
+     */
+    static int floorLevel(DungeonDef mine, int floor, int step) {
+        int base = mine == null ? 1 : Math.max(1, mine.baseLevel());
+        return base + Math.max(0, floor - 1) + Math.max(0, step);
     }
 
     // ---- commitment surface text (pure strings; callers wrap in Component) ----
@@ -181,24 +280,31 @@ final class EndlessMineRules {
     /**
      * Published when a Mine run first commits, so the owner knows the rules
      * before descending. Names the risk (no final floor, previous floors
-     * close) and the reward (escalating haul) without explaining the spatial
-     * room movement, the same silence the ordinary loop keeps.
+     * close) and the reward (a guardian every few floors) without explaining the
+     * spatial room movement, the same silence the ordinary loop keeps.
      */
     static String mineStartMessage() {
-        return "Endless Mine. There is no final floor, and the haul grows richer the deeper you go. "
+        return "Endless Mine. There is no final floor. A guardian waits every " + guardianEvery()
+                + " floors and pays the best haul. "
                 + "Every checkpoint offers a door deeper, or the HOME lever to leave with what you carry. "
                 + "Previous floors close behind you.";
     }
 
     /**
-     * Published at each Mine checkpoint, naming the depth reached and the
-     * loot tier. This is the commitment surface: the player sees the risk
-     * (deeper is further from the exit) and the reward (the tier) before
-     * choosing a door or going home.
+     * Published at each Mine checkpoint, naming the depth reached and what waits next. A guardian
+     * floor names the tier it paid. This is the commitment surface: the player sees the risk
+     * (deeper is further from the exit) and the reward before choosing a door or going home.
      */
-    static String mineCheckpointMessage(int floorIndex, int tier) {
-        return "Mine floor " + floorIndex + " cleared. Loot tier " + tier
-                + ". Walk a door to descend, or pull the HOME lever to leave with your haul.";
+    static String mineCheckpointMessage(int floorIndex) {
+        int number = guardianNumber(floorIndex);
+        String onward = "Walk a door to descend, or pull the HOME lever to leave with your haul.";
+        if (number > 0) {
+            return "Mine floor " + floorIndex + " cleared. Guardian " + number + " is down and paid tier "
+                    + tierLetter(number) + ". " + onward + " The next guardian waits on floor "
+                    + (floorIndex + guardianEvery()) + ".";
+        }
+        return "Mine floor " + floorIndex + " cleared. " + onward + " A guardian waits on floor "
+                + nextGuardianFloor(floorIndex) + ".";
     }
 
     /** Said when a Mine interval banks, naming the depth reached. */

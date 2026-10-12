@@ -30,6 +30,7 @@ public class HallDataTest {
             files = walk.filter(f -> f.toString().endsWith(".json")).toList();
         }
         Map<Integer, Integer> perAct = new HashMap<>();
+        Map<Integer, Integer> specialsPerAct = new HashMap<>();
         Set<String> mats = new HashSet<>();
         int specials = 0;
         for (Path file : files) {
@@ -49,6 +50,7 @@ public class HallDataTest {
                     id + ": exactly the Endless Mine stands outside the acts");
             if (hall.equals(HallLayout.HALL_SPECIAL)) {
                 specials++;
+                specialsPerAct.merge(d.get("act").getAsInt(), 1, Integer::sum);
             } else {
                 perAct.merge(d.get("act").getAsInt(), 1, Integer::sum);
             }
@@ -57,7 +59,13 @@ public class HallDataTest {
             check(e.getValue() <= HallLayout.MAX_ACT_DOORS,
                     "act " + e.getKey() + " has " + e.getValue() + " dungeons; the row holds " + HallLayout.MAX_ACT_DOORS);
         }
-        check(specials <= HallLayout.MAX_SPECIALS, "too many special doors: " + specials);
+        // The astrolabe shows one act at a time and each act has its own Endless Mine (decision 2026-10-11),
+        // so the row's limit is per act: five mines would stand one to a row.
+        for (Map.Entry<Integer, Integer> e : specialsPerAct.entrySet()) {
+            check(e.getValue() <= HallLayout.MAX_SPECIALS,
+                    "act " + e.getKey() + " has " + e.getValue() + " special doors; the row holds " + HallLayout.MAX_SPECIALS);
+            check(e.getValue() <= 1, "act " + e.getKey() + " has more than one Endless Mine");
+        }
         check(files.size() >= 19, "found only " + files.size() + " dungeons");
         System.out.println("HallDataTest passed (" + files.size() + " dungeons, " + specials + " special, acts "
                 + new java.util.TreeMap<>(perAct) + ")");

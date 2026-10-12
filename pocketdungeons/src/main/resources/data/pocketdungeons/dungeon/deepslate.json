@@ -90,43 +90,19 @@
     {
       "id": "tuff_cellars",
       "name": "Tuff Cellars",
-      "notes": "Barred vaults and fossil galleries. Iron and lapis.",
+      "notes": "Barred vaults, fossils and a shrieker below. Iron and lapis.",
       "layer": 3,
       "roomBias": [
         "barred_vault",
-        "deep_fossil_gallery"
-      ]
-    },
-    {
-      "id": "pale_gallery",
-      "name": "Pale Gallery",
-      "notes": "The deep dark landing. A shrieker waits.",
-      "layer": 4,
-      "roomBias": [
+        "deep_fossil_gallery",
         "deep_dark_landing"
-      ]
-    },
-    {
-      "id": "collapsed_landing",
-      "name": "Collapsed Landing",
-      "notes": "A detour off the main way down.",
-      "layer": 4,
-      "rewards": [
-        {
-          "item": "emerald",
-          "count": 2
-        },
-        {
-          "item": "gear:weapon:2",
-          "count": 1
-        }
       ]
     },
     {
       "id": "silent_deep",
       "name": "The Silent Deep",
       "notes": "The last floor. A silent hall of lapis, iron and diamond.",
-      "layer": 5,
+      "layer": 4,
       "final": true,
       "roomBias": [
         "silent_deep"
@@ -160,31 +136,14 @@
     },
     {
       "from": "deep_quarry",
-      "to": "pale_gallery"
-    },
-    {
-      "from": "cracked_barracks",
-      "to": "pale_gallery"
-    },
-    {
-      "from": "cracked_barracks",
-      "to": "collapsed_landing"
-    },
-    {
-      "from": "tuff_cellars",
-      "to": "collapsed_landing"
-    },
-    {
-      "from": "deep_quarry",
-      "to": "collapsed_landing",
-      "lives": 1
-    },
-    {
-      "from": "pale_gallery",
       "to": "silent_deep"
     },
     {
-      "from": "collapsed_landing",
+      "from": "cracked_barracks",
+      "to": "silent_deep"
+    },
+    {
+      "from": "tuff_cellars",
       "to": "silent_deep"
     }
   ],

@@ -238,9 +238,7 @@ final class DialogScreens {
                 : "You keep your pack and bank " + haul + " scrap into your compass. ")
                 + IntervalBanking.chests(now.chests()) + " roll into the reward barrel.";
         String dungeon = TripView.dungeonName(record);
-        String ends = record.interval.mineSealedAct > 0
-                ? EndlessMineRules.sealedMessage(record.interval.mineSealedAct) + " Ends this run and takes the party home."
-                : finished
+        String ends = finished
                 ? "You cleared " + dungeon + ". Ends this run and takes the party home."
                 : dungeon.isEmpty() ? "Ends this run and takes the party home."
                         : "Leaves " + dungeon + " unfinished and takes the party home. No finish emeralds or vault.";
@@ -290,13 +288,13 @@ final class DialogScreens {
             int checklistAct = acts.isEmpty() ? 0 : new java.util.TreeSet<>(acts).last();
             for (int act : acts) {
                 if (!ActProgress.complete(act, entry.dungeonsFinished(),
-                        entry.campaign().deepestMineFloor(), all)) {
+                        entry.campaign().mineDepth(), all)) {
                     checklistAct = act;
                     break;
                 }
             }
             lines.addAll(DungeonMapText.actChecklist(checklistAct, all, entry.dungeonsFinished(),
-                    compass, entry.campaign().deepestMineFloor()));
+                    compass, entry.campaign().mineDepth()));
         } else {
             lines = DungeonMapText.lines(def, record.interval.nodeId, record.interval.path, dealt,
                     record.interval.finished);

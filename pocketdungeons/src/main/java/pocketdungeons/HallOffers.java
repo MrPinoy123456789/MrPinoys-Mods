@@ -53,7 +53,7 @@ final class HallOffers {
         Set<Integer> acts = DungeonProgress.unlockedActs(server, owner);
         int compass = Math.max(1, entry.highestCharts());
         Set<String> finished = entry.dungeonsFinished();
-        int deepest = entry.campaign().deepestMineFloor();
+        ActProgress.MineDepth deepest = entry.campaign().mineDepth();
 
         int act = acts.contains(requestedAct) ? requestedAct : HallLayout.openingAct(acts, a -> {
             List<HallLayout.Entry> entries = entriesOf(dungeons, a, finished, deepest, compass);
@@ -82,10 +82,12 @@ final class HallOffers {
         List<HallLayout.Status> statuses = HallLayout.statuses(entries, compass);
 
         List<DungeonDef> specials = new ArrayList<>();
-        DungeonDef mine = dungeons.byId(EndlessMineRules.MINE_DUNGEON_ID);
-        if (mine != null && mine.entry() != null && HallLayout.HALL_SPECIAL.equals(mine.hall())
-                && EndlessMineRules.opensFor(acts, compass)) {
-            specials.add(mine);
+        // Each act has its own Endless Mine (decision 2026-10-11): the astrolabe shows the one of the act
+        // it is turned to, once that mine's act is open and the compass reaches its gate.
+        for (DungeonDef mine : EndlessMineRules.openMines(dungeons.all(), acts, compass)) {
+            if (mine.act() == act && HallLayout.HALL_SPECIAL.equals(mine.hall())) {
+                specials.add(mine);
+            }
         }
         return new Hall(act, acts, inAct, statuses, specials, compass);
     }
@@ -95,8 +97,8 @@ final class HallOffers {
         return def.kind() != DungeonDef.Kind.ENDLESS && HallLayout.HALL_ACT.equals(def.hall()) && def.entry() != null;
     }
 
-    private static List<HallLayout.Entry> entriesOf(DungeonDefs dungeons, int act, Set<String> finished, int deepest,
-                                                    int compass) {
+    private static List<HallLayout.Entry> entriesOf(DungeonDefs dungeons, int act, Set<String> finished,
+                                                    ActProgress.MineDepth deepest, int compass) {
         List<HallLayout.Entry> out = new ArrayList<>();
         for (DungeonDef def : dungeons.all()) {
             if (isHallDoor(def) && def.act() == act) {
@@ -106,7 +108,8 @@ final class HallOffers {
         return out;
     }
 
-    private static HallLayout.Entry entryOf(DungeonDef def, DungeonDefs dungeons, Set<String> finished, int deepest) {
+    private static HallLayout.Entry entryOf(DungeonDef def, DungeonDefs dungeons, Set<String> finished,
+                                            ActProgress.MineDepth deepest) {
         boolean capstone = def.kind() == DungeonDef.Kind.CAPSTONE;
         return new HallLayout.Entry(def.id(), def.unlockLevel(), capstone, isFinished(finished, def),
                 capstone && ActProgress.capstoneReady(def.act(), finished, deepest, dungeons.all()));

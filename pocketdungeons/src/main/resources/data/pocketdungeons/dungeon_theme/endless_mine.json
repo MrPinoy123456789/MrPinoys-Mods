@@ -4,7 +4,6 @@
   "spawner_prefix": "crypt",
   "room_theme": "deepslate",
   "rules": {
-    "loot_role": "materials",
-    "loot_tier_every": 3
+    "loot_role": "materials"
   }
 }

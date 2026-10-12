@@ -166,7 +166,7 @@ final class FloorHistory {
                 : DungeonLog.forServer(server).floorHistoryOf(owner);
         MutableComponent body = Component.empty();
         int deepest = server == null || owner == null ? 0
-                : DungeonLog.forServer(server).get(owner).campaign().deepestMineFloor();
+                : DungeonLog.forServer(server).get(owner).campaign().deepestMineFloorAny();
         if (entries.isEmpty()) {
             body.append(Component.literal("No floors yet.\nEvery floor you clear or lose shows here.")
                     .withStyle(ChatFormatting.GRAY));
@@ -187,10 +187,9 @@ final class FloorHistory {
         return new Board(heading, body);
     }
 
-    /** The board's Endless Mine record line: {@code "Deepest Mine floor: 7 (Deepslate)"}. */
+    /** The board's Endless Mine record line: {@code "Deepest Mine floor: 7"}, the deepest of any act's mine. */
     static String deepestLine(int floor) {
-        return "Deepest Mine floor: " + floor + " ("
-                + EndlessMineRules.layerName(EndlessMineRules.layerOf(floor)) + ")";
+        return "Deepest Mine floor: " + floor;
     }
 
     /** One entry as padded cells: date, level, zone, progress, affixes, time, ending. */

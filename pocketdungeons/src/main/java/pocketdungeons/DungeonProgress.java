@@ -58,7 +58,7 @@ final class DungeonProgress {
         DungeonLog.Entry entry = log.get(id);
         Set<Integer> open = entry.campaign().actsUnlocked();
         Set<String> finished = entry.dungeonsFinished();
-        int depth = entry.campaign().deepestMineFloor();
+        ActProgress.MineDepth depth = entry.campaign().mineDepth();
         Collection<DungeonDef> all = DungeonDefs.current().all();
         String dungeonId = record == null ? "" : record.interval.dungeonId;
 
@@ -118,7 +118,7 @@ final class DungeonProgress {
      * reaching an act's depth target. An act opening has its own title.
      */
     private static void milestoneTitle(MinecraftServer server, UUID id, InstanceRecord record,
-                                       Set<String> finished, int depth, Collection<DungeonDef> all,
+                                       Set<String> finished, ActProgress.MineDepth depth, Collection<DungeonDef> all,
                                        boolean newFinish, boolean finishCall) {
         if (finishCall) {
             DungeonDef def = record == null ? null : DungeonDefs.current().byId(record.interval.dungeonId);
@@ -140,9 +140,10 @@ final class DungeonProgress {
             return;
         }
         for (int act = DungeonDef.MIN_ACT; act < DungeonDef.MAX_ACT; act++) {
-            if (ActProgress.mineTarget(act) > 0 && depth == ActProgress.mineTarget(act)) {
+            int target = ActProgress.mineTarget(act, all);
+            if (target > 0 && depth.floor(act) == target) {
                 StaggeredTitle.showMilestone(server, id,
-                        Component.literal("Mine floor " + depth + " reached").withStyle(ChatFormatting.GOLD),
+                        Component.literal("Mine floor " + target + " reached").withStyle(ChatFormatting.GOLD),
                         java.util.List.of("Act " + act + ": "
                                 + ActProgress.progressLine(act, finished, depth, all)),
                         ChatFormatting.GRAY, Chime::keystoneLevelUp);
@@ -168,7 +169,8 @@ final class DungeonProgress {
      */
     private static boolean capstoneJustUnlocked(MinecraftServer server, ServerPlayer member,
                                                 InstanceRecord record, Set<Integer> open,
-                                                Set<String> finished, int depth, Collection<DungeonDef> all,
+                                                Set<String> finished, ActProgress.MineDepth depth,
+                                                Collection<DungeonDef> all,
                                                 boolean finishCall, boolean newFinish) {
         Set<String> before = new java.util.LinkedHashSet<>(finished);
         if (finishCall && newFinish && record != null) {
@@ -176,7 +178,7 @@ final class DungeonProgress {
             before.remove(DungeonDef.qualify(record.interval.dungeonId));
             before.remove(record.interval.dungeonId.replaceFirst("^[^:]*:", ""));
         }
-        int depthBefore = finishCall ? depth : depth - 1;
+        ActProgress.MineDepth depthBefore = finishCall ? depth : depth.oneShallower();
         for (int act = DungeonDef.MIN_ACT; act <= DungeonDef.MAX_ACT; act++) {
             DungeonDef capstone = null;
             for (DungeonDef def : ActProgress.actDungeons(act, all)) {

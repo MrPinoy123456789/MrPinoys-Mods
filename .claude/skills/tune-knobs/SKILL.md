@@ -128,6 +128,12 @@ Not knobs today. Each is a `static final` or a literal; promote one with the rec
 
 ## Adding a layer-1 knob (one declaration and one accessor in `PocketDungeonsConfig.java`)
 
+Scaffold: `python tools/new_knob.py <name> <default> "<description>" [--min N] [--max N] [--after <existingKey>] [--regen]`
+writes steps 1 and 2 below (type from the default: true/false, whole number, decimal, else text), and with `--regen`
+runs the fixture regeneration too. Without `--after` the knob lands at a position picked from its name so parallel
+branches do not all append in the same spot (a hot file). `config/pocketdungeons.default.json` is a stale partial
+sample that nothing reads; the script leaves it alone.
+
 Each knob is a `Knob` constant. Its key, default, validator and message are written once, and loading, the reset to
 defaults and the file a first boot writes all walk the one list, so there is no second copy to keep in step.
 
@@ -141,7 +147,8 @@ Then use the accessor where the constant was, and add a pure test for the arithm
 type, if it is missing from the written defaults, or if a setting is read by hand outside the list. Run `configKnobsTest`
 and `configCharacterizationTest`; the second pins every default, the first-boot file and every validator bound as fixtures
 in `src/test/resources/config-fixtures`, so adding a knob changes `defaults-written.json`, `defaults-accessors.txt` and
-`validators.txt` and nothing else; regenerate those three with `PD_CONFIG_REGEN=<that directory>` and review the diff.
+`validators.txt` and nothing else; regenerate them with `PD_CONFIG_REGEN=<that directory>` (six files change: the three above plus
+`all-nondefault.json`, `all-nondefault-accessors.txt` and `scenarios.txt`; `new_knob.py --regen` does it) and review the diff.
 A check that needs another knob (`pathLengthMax` against `pathLengthMin`) is an `.after(...)` hook on the later knob, and a
 saved value that must be remapped is `.normalising(...)`. A retired knob goes into `RETIRED_KEYS` instead of being deleted
 so old config files still load. Changing a default is a one-token edit on the declaration; also update the fixtures.

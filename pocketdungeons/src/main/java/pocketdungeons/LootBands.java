@@ -21,13 +21,12 @@ final class LootBands {
     }
 
     /**
-     * The band the floor behind {@code offer} stamps with. An Endless Mine floor uses its depth
-     * layer's band (D13); any other floor uses its dungeon's band.
+     * The band the floor behind {@code offer} stamps with. An Endless Mine floor uses its mine's band
+     * (each act has its own mine, so Act 2's mine pays Act 2's band); any other floor uses its dungeon's band.
      */
     static DungeonDef.LootBand forFloor(InstanceRecord record, Keystone.Offer offer, boolean mine) {
         if (mine) {
-            int floor = (record == null ? 0 : record.interval.floorIndex) + 1;
-            return EndlessMineRules.layerBand(EndlessMineRules.layerOf(floor));
+            return EndlessMineRules.bandOf(DungeonDefs.current().byId(EndlessMineRules.mineIdFor(record, offer)));
         }
         return of(offer.dungeonId());
     }
@@ -44,12 +43,14 @@ final class LootBands {
 
     /**
      * The completion chest tier of the floor {@code record} has just cleared: the
-     * keystone's tier, the zone's escalation ({@link ZoneRules#lootTier}, an Endless
-     * Mine thing), then the dungeon's band.
+     * keystone's tier, the zone's escalation ({@link ZoneRules#lootTier}), then the
+     * dungeon's band. An Endless Mine floor is its mine's band minimum, one step up per
+     * guardian tier on a guardian floor ({@link EndlessMineRules#floorTier}); the guardian
+     * floor's own A, B, C table is chosen in {@link MineGuardians#payingTable}.
      */
     static int floorTier(InstanceRecord record, ZoneRules rules, int floorsCleared) {
         if (EndlessMineRules.isMine(record)) {
-            return EndlessMineRules.lootTier(floorsCleared);
+            return EndlessMineRules.floorTier(EndlessMineRules.bandOf(EndlessMineRules.mineOf(record)), floorsCleared);
         }
         int base = DifficultyProfile.of(record.layout.pathLength(), record.layout.keystoneLevel()).lootTier();
         return clamp(of(record), rules.lootTier(base, floorsCleared));

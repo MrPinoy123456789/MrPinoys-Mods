@@ -52,6 +52,7 @@ Size: S, M, L. "Needs" lists tasks that must be merged first.
 | T41 | Act 1 Endless Mine guardians (minis of the Act 1 bosses) | L | T40, T20, T21, T22, T23, T24 | new `MineGuardians` |
 | T42 | Act 2 Endless Mine and its guardians | L | T40, T30, T31, T32, T33 | new data, `MineGuardians` |
 | T43 | Spawner Dungeon capstone: spawner as phase, brood mother | L | T20, T21, T22, T23, T24 | `CapstoneFights`, `BroodWave` |
+| T50 | Wager system and the Blood affix (docs/wager-draft-2026-10-12.md) | M | none | `AffixDefinition`, `AffixMeta`, `AffixEffects`, loot selection, door board, floor title, new `blood.json` |
 
 Not in this build: Acts 3 to 5, the Ancient City change (none), Molten, Swarming, the Wither's Keep decision.
 

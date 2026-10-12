@@ -25,8 +25,7 @@ import java.util.Set;
  */
 public final class MineshaftFinaleGameTest {
 
-    private static final String ID = "pocketdungeons:test_mineshaft_finale";
-    private static final DungeonDef.Finale FINALE = new DungeonDef.Finale(
+        private static final DungeonDef.Finale FINALE = new DungeonDef.Finale(
             List.of(new DungeonDef.FinaleMob("minecraft:cow", 4)), 50, null);
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS;
 
@@ -134,10 +133,12 @@ public final class MineshaftFinaleGameTest {
         final InstanceRecord record;
         final BlockPos origin;
         final int slot;
+        final String id;
 
         Run(GameTestHelper helper, int slot) {
             this.helper = helper;
             this.slot = slot;
+            this.id = "pocketdungeons:test_mineshaft_finale_" + slot;
             this.level = helper.getLevel();
             this.server = level.getServer();
             @SuppressWarnings("removal")
@@ -155,8 +156,8 @@ public final class MineshaftFinaleGameTest {
                     player.getUUID(), false);
             record.members.put(player.getUUID(), new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0.0f, 0.0f));
             record.phase = RunSession.Phase.ACTIVE;
-            record.interval.dungeonId = ID;
-            FinaleScripts.register(ID, new MineshaftFinale());
+            record.interval.dungeonId = id;
+            FinaleScripts.register(id, new MineshaftFinale());
         }
 
         void step(boolean due) {
@@ -175,7 +176,7 @@ public final class MineshaftFinaleGameTest {
 
         void close() {
             FinaleWave.teardown(level, slot);
-            FinaleScripts.unregister(ID);
+            FinaleScripts.unregister(id);
         }
     }
 }

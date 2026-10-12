@@ -449,7 +449,7 @@ final class RoomContent {
     }
 
     /** Ticks a fake TNT mine waits before it goes off once stepped on. */
-    private static final int MINE_FUSE_TICKS = 20;
+    private static final int MINE_FUSE_TICKS = 25;
     /** Ticks before a triggered mine re-arms. */
     private static final int MINE_COOLDOWN_TICKS = 100;
 
