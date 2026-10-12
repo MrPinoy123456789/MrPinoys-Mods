@@ -128,7 +128,7 @@ final class FinalFloorEarlySpecs {
      * on the head. Direct blocks, so no theme re-skins them; {@code OssuaryFinale} scans for exactly this shape.
      * Two high, so it is cover and not a step; the door lanes and the spawn points stay clear.
      */
-    private static void coffin(ServerLevel level, BlockPos o, int x, int headZ, int dz) {
+    static void coffin(ServerLevel level, BlockPos o, int x, int headZ, int dz) {
         BlockState stone = Blocks.POLISHED_BLACKSTONE.defaultBlockState();
         for (int i = 0; i < 3; i++) {
             put(level, o, x, 1, headZ + dz * i, stone);
