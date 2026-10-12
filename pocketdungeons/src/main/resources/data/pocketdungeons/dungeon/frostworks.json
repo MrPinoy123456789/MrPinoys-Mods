@@ -124,7 +124,7 @@
     {
       "id": "big_freeze",
       "name": "The Big Freeze",
-      "notes": "The last floor. A frozen cascade of lapis and diamond.",
+      "notes": "The last floor. Lapis and diamond in the ice. Stay near a fire.",
       "layer": 5,
       "final": true,
       "roomBias": [

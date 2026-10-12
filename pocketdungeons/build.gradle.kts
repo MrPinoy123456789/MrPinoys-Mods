@@ -333,6 +333,8 @@ for ((taskName, testClass) in mapOf(
     "finaleScriptsTest" to "FinaleScriptsTest",
     // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
     "kennelsFinaleRulesTest" to "KennelsFinaleRulesTest",
+    // Roadmap T33: the Frostworks cold and heat (freeze rate, thaw, health floor, brazier radius, tell).
+    "frostFinaleRulesTest" to "FrostFinaleRulesTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
