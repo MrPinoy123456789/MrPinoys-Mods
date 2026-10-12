@@ -159,7 +159,8 @@ final class FinalFloorEarlySpecs {
 
     /**
      * The Silent Deep (Deepslate): a hush. Two colonnades flank a central obelisk standing on
-     * a plinth; the ring of cells around the obelisk holds the ore.
+     * a plinth; the ring of cells around the obelisk holds the ore. Seven sculk sensors and one shrieker make
+     * the room listen (T31).
      */
     private static RoomSpec silentDeep() {
         return new RoomSpec("silent_deep", doors())
@@ -174,6 +175,15 @@ final class FinalFloorEarlySpecs {
                     box(level, o, 5, 1, 5, 10, 1, 10, FLOOR);
                     box(level, o, 7, 2, 7, 8, 4, 8, WALL);
                     // Ring cells on the plinth top are left as air for the manifest nodes.
+                    // The room listens (roadmap T31): sensors on the plinth corners and out on the floor, none in
+                    // a door lane, on a spawn point or beside the chest, and a shrieker crowning the obelisk. The
+                    // finale's Hush rule (DeepslateFinale) fills the Heard meter from what they hear.
+                    BlockState sensor = Blocks.SCULK_SENSOR.defaultBlockState();
+                    for (int[] p : new int[][]{{5, 2, 5}, {10, 2, 5}, {5, 2, 10}, {10, 2, 10}, {2, 1, 4},
+                            {2, 1, 11}, {13, 1, 5}}) {
+                        put(level, o, p[0], p[1], p[2], sensor);
+                    }
+                    put(level, o, 7, 5, 7, Blocks.SCULK_SHRIEKER.defaultBlockState());
                 });
     }
 
