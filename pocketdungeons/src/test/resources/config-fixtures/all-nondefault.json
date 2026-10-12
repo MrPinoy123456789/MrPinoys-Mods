@@ -95,6 +95,8 @@
   "finaleEnabled": false,
   "finaleRewardChests": 0,
   "finaleCountdownSeconds": 0,
+  "frostColdTicksPerSecond": 0,
+  "frostBrazierRadius": 2,
   "finaleEliteHealthPercentPerMember": 0,
   "mobUniformEnabled": false,
   "hallEnabled": false,
