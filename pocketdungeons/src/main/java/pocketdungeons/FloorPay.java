@@ -29,4 +29,14 @@ final class FloorPay {
         }
         return bonus;
     }
+
+    /**
+     * Overclocked's speed bonus for the floor just cleared (see {@link OverclockedPay}), to be added to
+     * {@link #bonus}. {@code startedAtTick} is the floor's commit time on the overworld clock.
+     */
+    static int speedBonus(java.util.Set<String> floorAffixes, long startedAtTick, long nowTick) {
+        return OverclockedPay.bonus(floorAffixes != null && floorAffixes.contains(AffixIds.OVERCLOCKED),
+                startedAtTick, nowTick, PocketDungeonsConfig.overclockedParSeconds(),
+                PocketDungeonsConfig.overclockedBonus());
+    }
 }
