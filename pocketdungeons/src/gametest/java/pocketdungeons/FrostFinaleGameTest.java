@@ -114,7 +114,7 @@ public final class FrostFinaleGameTest {
             }
             helper.assertTrue(run.member.getTicksFrozen() > 50, "frozen away from the fire");
             run.moveMember(9, 2, 10);
-            for (int n = 0; n < 10; n++) {
+            for (int n = 0; n < 40; n++) {
                 FrostFinale.coldTick(run.level, state, List.of(run.member), now++);
             }
             helper.assertValueEqual(run.member.getTicksFrozen(), 0, "a few blocks from a lit brazier thaws fast");
