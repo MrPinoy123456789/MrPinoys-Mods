@@ -470,6 +470,9 @@ for ((taskName, testClass) in mapOf(
     "lootRulesTest" to "LootRulesTest",
     // PD-204: the live dungeon id compare tolerates the namespace either way.
     "instancesTest" to "InstancesTest",
+    // Roadmap T23: the Lush Caves potion drip maths and the giant slime split rules.
+    "potionDripRulesTest" to "PotionDripRulesTest",
+    "lushFinaleRulesTest" to "LushFinaleRulesTest",
     // Affix workshop quick changes (T10): mine fuse, Silenced count, Cooked line, Restless level, Voided cells.
     "affixQuickChangesTest" to "AffixQuickChangesTest"
 )) {
@@ -599,6 +602,8 @@ tasks.test {
     dependsOn("contentModulesTest")
     dependsOn("lootRulesTest")
     dependsOn("instancesTest")
+    dependsOn("potionDripRulesTest")
+    dependsOn("lushFinaleRulesTest")
     failOnNoDiscoveredTests = false
 }
 

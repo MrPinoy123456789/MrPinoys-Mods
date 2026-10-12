@@ -46,6 +46,7 @@
       "pocketdungeons.HauntGameTest",
       "pocketdungeons.CreepingBricksGameTest",
       "pocketdungeons.FinaleScriptGameTest",
+      "pocketdungeons.LushFinaleGameTest",
       "pocketdungeons.KennelsFinaleGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
