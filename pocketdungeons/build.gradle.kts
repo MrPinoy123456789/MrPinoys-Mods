@@ -459,7 +459,9 @@ for ((taskName, testClass) in mapOf(
     // copper out of the palettes, and the dungeon barter table's contents.
     "lootRulesTest" to "LootRulesTest",
     // PD-204: the live dungeon id compare tolerates the namespace either way.
-    "instancesTest" to "InstancesTest"
+    "instancesTest" to "InstancesTest",
+    // Affix workshop quick changes (T10): mine fuse, Silenced count, Cooked line, Restless level, Voided cells.
+    "affixQuickChangesTest" to "AffixQuickChangesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -492,6 +494,7 @@ tasks.test {
     dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
+    dependsOn("affixQuickChangesTest")
     dependsOn("blackoutTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
