@@ -1150,6 +1150,234 @@ finaleCountdownSeconds [int, default 3]
   odd empty array -> 3 | ERROR pocketdungeons.json field 'finaleCountdownSeconds' is not a valid integer; using default 3
   odd null -> 3 | ERROR pocketdungeons.json field 'finaleCountdownSeconds' is not a valid integer; using default 3
   odd empty object -> 3 | ERROR pocketdungeons.json field 'finaleCountdownSeconds' is not a valid integer; using default 3
+creepingMossySeconds [int, default 5]
+  probes nnYYYYYYYYYYYYnnnnnnnnnnnnn
+  values 5,5,1,2,3,4,5,6,8,10,11,16,20,50,5,5,5,5,5,5,5,5,5,5,5,5,5
+  rejected ERROR pocketdungeons.json field 'creepingMossySeconds' has invalid value -1; must be 1 to 60; using default 5
+  disturbs (nothing else)
+  odd string abc -> 5 | ERROR pocketdungeons.json field 'creepingMossySeconds' is not a valid integer; using default 5
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 5 | ERROR pocketdungeons.json field 'creepingMossySeconds' is not a valid integer; using default 5
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 5 | ERROR pocketdungeons.json field 'creepingMossySeconds' is not a valid integer; using default 5
+  odd null -> 5 | ERROR pocketdungeons.json field 'creepingMossySeconds' is not a valid integer; using default 5
+  odd empty object -> 5 | ERROR pocketdungeons.json field 'creepingMossySeconds' is not a valid integer; using default 5
+creepingStoneSeconds [int, default 5]
+  probes nnYYYYYYYYYYYYnnnnnnnnnnnnn
+  values 5,5,1,2,3,4,5,6,8,10,11,16,20,50,5,5,5,5,5,5,5,5,5,5,5,5,5
+  rejected ERROR pocketdungeons.json field 'creepingStoneSeconds' has invalid value -1; must be 1 to 60; using default 5
+  disturbs (nothing else)
+  odd string abc -> 5 | ERROR pocketdungeons.json field 'creepingStoneSeconds' is not a valid integer; using default 5
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 5 | ERROR pocketdungeons.json field 'creepingStoneSeconds' is not a valid integer; using default 5
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 5 | ERROR pocketdungeons.json field 'creepingStoneSeconds' is not a valid integer; using default 5
+  odd null -> 5 | ERROR pocketdungeons.json field 'creepingStoneSeconds' is not a valid integer; using default 5
+  odd empty object -> 5 | ERROR pocketdungeons.json field 'creepingStoneSeconds' is not a valid integer; using default 5
+creepingInfestedSeconds [int, default 3]
+  probes nnYYYYYYYYYYYYnnnnnnnnnnnnn
+  values 3,3,1,2,3,4,5,6,8,10,11,16,20,50,3,3,3,3,3,3,3,3,3,3,3,3,3
+  rejected ERROR pocketdungeons.json field 'creepingInfestedSeconds' has invalid value -1; must be 1 to 60; using default 3
+  disturbs (nothing else)
+  odd string abc -> 3 | ERROR pocketdungeons.json field 'creepingInfestedSeconds' is not a valid integer; using default 3
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 3 | ERROR pocketdungeons.json field 'creepingInfestedSeconds' is not a valid integer; using default 3
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 3 | ERROR pocketdungeons.json field 'creepingInfestedSeconds' is not a valid integer; using default 3
+  odd null -> 3 | ERROR pocketdungeons.json field 'creepingInfestedSeconds' is not a valid integer; using default 3
+  odd empty object -> 3 | ERROR pocketdungeons.json field 'creepingInfestedSeconds' is not a valid integer; using default 3
+creepingRoomCap [int, default 4]
+  probes nnYYYYYYYYYYYnnnnnnnnnnnnnn
+  values 4,4,1,2,3,4,5,6,8,10,11,16,20,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+  rejected ERROR pocketdungeons.json field 'creepingRoomCap' has invalid value -1; must be 1 to 32; using default 4
+  disturbs (nothing else)
+  odd string abc -> 4 | ERROR pocketdungeons.json field 'creepingRoomCap' is not a valid integer; using default 4
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 4 | ERROR pocketdungeons.json field 'creepingRoomCap' is not a valid integer; using default 4
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 4 | ERROR pocketdungeons.json field 'creepingRoomCap' is not a valid integer; using default 4
+  odd null -> 4 | ERROR pocketdungeons.json field 'creepingRoomCap' is not a valid integer; using default 4
+  odd empty object -> 4 | ERROR pocketdungeons.json field 'creepingRoomCap' is not a valid integer; using default 4
+creepingFloorCap [int, default 10]
+  probes nnYYYYYYYYYYYYnnnnnnnnnnnnn
+  values 10,10,1,2,3,4,5,6,8,10,11,16,20,50,10,10,10,10,10,10,10,10,10,10,10,10,10
+  rejected ERROR pocketdungeons.json field 'creepingFloorCap' has invalid value -1; must be 1 to 64; using default 10
+  disturbs (nothing else)
+  odd string abc -> 10 | ERROR pocketdungeons.json field 'creepingFloorCap' is not a valid integer; using default 10
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 10 | ERROR pocketdungeons.json field 'creepingFloorCap' is not a valid integer; using default 10
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 10 | ERROR pocketdungeons.json field 'creepingFloorCap' is not a valid integer; using default 10
+  odd null -> 10 | ERROR pocketdungeons.json field 'creepingFloorCap' is not a valid integer; using default 10
+  odd empty object -> 10 | ERROR pocketdungeons.json field 'creepingFloorCap' is not a valid integer; using default 10
+creepingRoomSeeds [int, default 3]
+  probes nYYYYYYYYnnnnnnnnnnnnnnnnnn
+  values 3,0,1,2,3,4,5,6,8,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
+  rejected ERROR pocketdungeons.json field 'creepingRoomSeeds' has invalid value -1; must be 0 to 8; using default 3
+  disturbs (nothing else)
+  odd string abc -> 3 | ERROR pocketdungeons.json field 'creepingRoomSeeds' is not a valid integer; using default 3
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 3 | ERROR pocketdungeons.json field 'creepingRoomSeeds' is not a valid integer; using default 3
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 3 | ERROR pocketdungeons.json field 'creepingRoomSeeds' is not a valid integer; using default 3
+  odd null -> 3 | ERROR pocketdungeons.json field 'creepingRoomSeeds' is not a valid integer; using default 3
+  odd empty object -> 3 | ERROR pocketdungeons.json field 'creepingRoomSeeds' is not a valid integer; using default 3
+infestationBossScale [double, default 6.0]
+  probes nnnnnnnnnnYYYYYnnnnn
+  values 6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,6.0,1.0,1.5,2.0,2.5,4.0,6.0,6.0,6.0,6.0,6.0
+  rejected ERROR pocketdungeons.json field 'infestationBossScale' has invalid value -1.0; must be 1.0 to 12.0; using default 6.0
+  disturbs (nothing else)
+  odd string abc -> 6.0 | ERROR pocketdungeons.json field 'infestationBossScale' is not a valid number; using default 6.0
+  odd string 7 -> 7.0 | (no warning)
+  odd boolean true -> 6.0 | ERROR pocketdungeons.json field 'infestationBossScale' is not a valid number; using default 6.0
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array -> 6.0 | ERROR pocketdungeons.json field 'infestationBossScale' is not a valid number; using default 6.0
+  odd null -> 6.0 | ERROR pocketdungeons.json field 'infestationBossScale' is not a valid number; using default 6.0
+  odd empty object -> 6.0 | ERROR pocketdungeons.json field 'infestationBossScale' is not a valid number; using default 6.0
+infestationSurfaceSeconds [int, default 25]
+  probes nnnnnnYYYYYYYYYYnnnnnnnnnnn
+  values 25,25,25,25,25,25,5,6,8,10,11,16,20,50,100,101,25,25,25,25,25,25,25,25,25,25,25
+  rejected ERROR pocketdungeons.json field 'infestationSurfaceSeconds' has invalid value -1; must be 5 to 120; using default 25
+  disturbs (nothing else)
+  odd string abc -> 25 | ERROR pocketdungeons.json field 'infestationSurfaceSeconds' is not a valid integer; using default 25
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 25 | ERROR pocketdungeons.json field 'infestationSurfaceSeconds' is not a valid integer; using default 25
+  odd number 1.5 -> 25 | ERROR pocketdungeons.json field 'infestationSurfaceSeconds' has invalid value 1; must be 5 to 120; using default 25
+  odd empty array -> 25 | ERROR pocketdungeons.json field 'infestationSurfaceSeconds' is not a valid integer; using default 25
+  odd null -> 25 | ERROR pocketdungeons.json field 'infestationSurfaceSeconds' is not a valid integer; using default 25
+  odd empty object -> 25 | ERROR pocketdungeons.json field 'infestationSurfaceSeconds' is not a valid integer; using default 25
+infestationBurrowTellSeconds [int, default 3]
+  probes nnnYYYYYYYnnnnnnnnnnnnnnnnn
+  values 3,3,3,2,3,4,5,6,8,10,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
+  rejected ERROR pocketdungeons.json field 'infestationBurrowTellSeconds' has invalid value -1; must be 2 to 10; using default 3
+  disturbs (nothing else)
+  odd string abc -> 3 | ERROR pocketdungeons.json field 'infestationBurrowTellSeconds' is not a valid integer; using default 3
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 3 | ERROR pocketdungeons.json field 'infestationBurrowTellSeconds' is not a valid integer; using default 3
+  odd number 1.5 -> 3 | ERROR pocketdungeons.json field 'infestationBurrowTellSeconds' has invalid value 1; must be 2 to 10; using default 3
+  odd empty array -> 3 | ERROR pocketdungeons.json field 'infestationBurrowTellSeconds' is not a valid integer; using default 3
+  odd null -> 3 | ERROR pocketdungeons.json field 'infestationBurrowTellSeconds' is not a valid integer; using default 3
+  odd empty object -> 3 | ERROR pocketdungeons.json field 'infestationBurrowTellSeconds' is not a valid integer; using default 3
+infestationAddsTellSeconds [int, default 2]
+  probes nnnYYYYYYYnnnnnnnnnnnnnnnnn
+  values 2,2,2,2,3,4,5,6,8,10,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+  rejected ERROR pocketdungeons.json field 'infestationAddsTellSeconds' has invalid value -1; must be 2 to 10; using default 2
+  disturbs (nothing else)
+  odd string abc -> 2 | ERROR pocketdungeons.json field 'infestationAddsTellSeconds' is not a valid integer; using default 2
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 2 | ERROR pocketdungeons.json field 'infestationAddsTellSeconds' is not a valid integer; using default 2
+  odd number 1.5 -> 2 | ERROR pocketdungeons.json field 'infestationAddsTellSeconds' has invalid value 1; must be 2 to 10; using default 2
+  odd empty array -> 2 | ERROR pocketdungeons.json field 'infestationAddsTellSeconds' is not a valid integer; using default 2
+  odd null -> 2 | ERROR pocketdungeons.json field 'infestationAddsTellSeconds' is not a valid integer; using default 2
+  odd empty object -> 2 | ERROR pocketdungeons.json field 'infestationAddsTellSeconds' is not a valid integer; using default 2
+infestationAddsMaxSeconds [int, default 40]
+  probes nnnnnnnnnYYYYYYYnnnnnnnnnnn
+  values 40,40,40,40,40,40,40,40,40,10,11,16,20,50,100,101,40,40,40,40,40,40,40,40,40,40,40
+  rejected ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' has invalid value -1; must be 10 to 180; using default 40
+  disturbs (nothing else)
+  odd string abc -> 40 | ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' is not a valid integer; using default 40
+  odd string 7 -> 40 | ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' has invalid value 7; must be 10 to 180; using default 40
+  odd boolean true -> 40 | ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' is not a valid integer; using default 40
+  odd number 1.5 -> 40 | ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' has invalid value 1; must be 10 to 180; using default 40
+  odd empty array -> 40 | ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' is not a valid integer; using default 40
+  odd null -> 40 | ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' is not a valid integer; using default 40
+  odd empty object -> 40 | ERROR pocketdungeons.json field 'infestationAddsMaxSeconds' is not a valid integer; using default 40
+infestationEmergeTellSeconds [int, default 2]
+  probes nnnYYYYYYYnnnnnnnnnnnnnnnnn
+  values 2,2,2,2,3,4,5,6,8,10,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+  rejected ERROR pocketdungeons.json field 'infestationEmergeTellSeconds' has invalid value -1; must be 2 to 10; using default 2
+  disturbs (nothing else)
+  odd string abc -> 2 | ERROR pocketdungeons.json field 'infestationEmergeTellSeconds' is not a valid integer; using default 2
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 2 | ERROR pocketdungeons.json field 'infestationEmergeTellSeconds' is not a valid integer; using default 2
+  odd number 1.5 -> 2 | ERROR pocketdungeons.json field 'infestationEmergeTellSeconds' has invalid value 1; must be 2 to 10; using default 2
+  odd empty array -> 2 | ERROR pocketdungeons.json field 'infestationEmergeTellSeconds' is not a valid integer; using default 2
+  odd null -> 2 | ERROR pocketdungeons.json field 'infestationEmergeTellSeconds' is not a valid integer; using default 2
+  odd empty object -> 2 | ERROR pocketdungeons.json field 'infestationEmergeTellSeconds' is not a valid integer; using default 2
+infestationBricksPerPhase [int, default 6]
+  probes nnYYYYYYYYYYYnnnnnnnnnnnnnn
+  values 6,6,1,2,3,4,5,6,8,10,11,16,20,6,6,6,6,6,6,6,6,6,6,6,6,6,6
+  rejected ERROR pocketdungeons.json field 'infestationBricksPerPhase' has invalid value -1; must be 1 to 30; using default 6
+  disturbs (nothing else)
+  odd string abc -> 6 | ERROR pocketdungeons.json field 'infestationBricksPerPhase' is not a valid integer; using default 6
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 6 | ERROR pocketdungeons.json field 'infestationBricksPerPhase' is not a valid integer; using default 6
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 6 | ERROR pocketdungeons.json field 'infestationBricksPerPhase' is not a valid integer; using default 6
+  odd null -> 6 | ERROR pocketdungeons.json field 'infestationBricksPerPhase' is not a valid integer; using default 6
+  odd empty object -> 6 | ERROR pocketdungeons.json field 'infestationBricksPerPhase' is not a valid integer; using default 6
+infestationBricksPerExtraMember [int, default 2]
+  probes nYYYYYYYYYnnnnnnnnnnnnnnnnn
+  values 2,0,1,2,3,4,5,6,8,10,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+  rejected ERROR pocketdungeons.json field 'infestationBricksPerExtraMember' has invalid value -1; must be 0 to 10; using default 2
+  disturbs (nothing else)
+  odd string abc -> 2 | ERROR pocketdungeons.json field 'infestationBricksPerExtraMember' is not a valid integer; using default 2
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 2 | ERROR pocketdungeons.json field 'infestationBricksPerExtraMember' is not a valid integer; using default 2
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 2 | ERROR pocketdungeons.json field 'infestationBricksPerExtraMember' is not a valid integer; using default 2
+  odd null -> 2 | ERROR pocketdungeons.json field 'infestationBricksPerExtraMember' is not a valid integer; using default 2
+  odd empty object -> 2 | ERROR pocketdungeons.json field 'infestationBricksPerExtraMember' is not a valid integer; using default 2
+infestationArenaBrickCap [int, default 6]
+  probes nnYYYYYYYYYYYnnnnnnnnnnnnnn
+  values 6,6,1,2,3,4,5,6,8,10,11,16,20,6,6,6,6,6,6,6,6,6,6,6,6,6,6
+  rejected ERROR pocketdungeons.json field 'infestationArenaBrickCap' has invalid value -1; must be 1 to 32; using default 6
+  disturbs (nothing else)
+  odd string abc -> 6 | ERROR pocketdungeons.json field 'infestationArenaBrickCap' is not a valid integer; using default 6
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 6 | ERROR pocketdungeons.json field 'infestationArenaBrickCap' is not a valid integer; using default 6
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 6 | ERROR pocketdungeons.json field 'infestationArenaBrickCap' is not a valid integer; using default 6
+  odd null -> 6 | ERROR pocketdungeons.json field 'infestationArenaBrickCap' is not a valid integer; using default 6
+  odd empty object -> 6 | ERROR pocketdungeons.json field 'infestationArenaBrickCap' is not a valid integer; using default 6
+infestationSilverfishCap [int, default 10]
+  probes nnYYYYYYYYYYYnnnnnnnnnnnnnn
+  values 10,10,1,2,3,4,5,6,8,10,11,16,20,10,10,10,10,10,10,10,10,10,10,10,10,10,10
+  rejected ERROR pocketdungeons.json field 'infestationSilverfishCap' has invalid value -1; must be 1 to 40; using default 10
+  disturbs (nothing else)
+  odd string abc -> 10 | ERROR pocketdungeons.json field 'infestationSilverfishCap' is not a valid integer; using default 10
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 10 | ERROR pocketdungeons.json field 'infestationSilverfishCap' is not a valid integer; using default 10
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 10 | ERROR pocketdungeons.json field 'infestationSilverfishCap' is not a valid integer; using default 10
+  odd null -> 10 | ERROR pocketdungeons.json field 'infestationSilverfishCap' is not a valid integer; using default 10
+  odd empty object -> 10 | ERROR pocketdungeons.json field 'infestationSilverfishCap' is not a valid integer; using default 10
+infestationPlantSeconds [int, default 2]
+  probes nnYYYYYYYYYYYnnnnnnnnnnnnnn
+  values 2,2,1,2,3,4,5,6,8,10,11,16,20,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+  rejected ERROR pocketdungeons.json field 'infestationPlantSeconds' has invalid value -1; must be 1 to 20; using default 2
+  disturbs (nothing else)
+  odd string abc -> 2 | ERROR pocketdungeons.json field 'infestationPlantSeconds' is not a valid integer; using default 2
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 2 | ERROR pocketdungeons.json field 'infestationPlantSeconds' is not a valid integer; using default 2
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 2 | ERROR pocketdungeons.json field 'infestationPlantSeconds' is not a valid integer; using default 2
+  odd null -> 2 | ERROR pocketdungeons.json field 'infestationPlantSeconds' is not a valid integer; using default 2
+  odd empty object -> 2 | ERROR pocketdungeons.json field 'infestationPlantSeconds' is not a valid integer; using default 2
+infestationBossHealth [int, default 100]
+  probes nnnnnnnnnYYYYYYYYYYYYnnnnnn
+  values 100,100,100,100,100,100,100,100,100,10,11,16,20,50,100,101,200,201,600,601,1000,100,100,100,100,100,100
+  rejected ERROR pocketdungeons.json field 'infestationBossHealth' has invalid value -1; must be 10 to 1000; using default 100
+  disturbs (nothing else)
+  odd string abc -> 100 | ERROR pocketdungeons.json field 'infestationBossHealth' is not a valid integer; using default 100
+  odd string 7 -> 100 | ERROR pocketdungeons.json field 'infestationBossHealth' has invalid value 7; must be 10 to 1000; using default 100
+  odd boolean true -> 100 | ERROR pocketdungeons.json field 'infestationBossHealth' is not a valid integer; using default 100
+  odd number 1.5 -> 100 | ERROR pocketdungeons.json field 'infestationBossHealth' has invalid value 1; must be 10 to 1000; using default 100
+  odd empty array -> 100 | ERROR pocketdungeons.json field 'infestationBossHealth' is not a valid integer; using default 100
+  odd null -> 100 | ERROR pocketdungeons.json field 'infestationBossHealth' is not a valid integer; using default 100
+  odd empty object -> 100 | ERROR pocketdungeons.json field 'infestationBossHealth' is not a valid integer; using default 100
+infestationBossDamage [double, default 4.0]
+  probes nYYYYYYYYYYYYYYYnnnn
+  values 4.0,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,2.5,4.0,30.0,4.0,4.0,4.0,4.0
+  rejected ERROR pocketdungeons.json field 'infestationBossDamage' has invalid value -1.0; must be 0.0 to 30.0; using default 4.0
+  disturbs (nothing else)
+  odd string abc -> 4.0 | ERROR pocketdungeons.json field 'infestationBossDamage' is not a valid number; using default 4.0
+  odd string 7 -> 7.0 | (no warning)
+  odd boolean true -> 4.0 | ERROR pocketdungeons.json field 'infestationBossDamage' is not a valid number; using default 4.0
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array -> 4.0 | ERROR pocketdungeons.json field 'infestationBossDamage' is not a valid number; using default 4.0
+  odd null -> 4.0 | ERROR pocketdungeons.json field 'infestationBossDamage' is not a valid number; using default 4.0
+  odd empty object -> 4.0 | ERROR pocketdungeons.json field 'infestationBossDamage' is not a valid number; using default 4.0
 finaleEliteHealthPercentPerMember [int, default 50]
   probes nYYYYYYYYYYYYYYnnnnnnnnnnnn
   values 50,0,1,2,3,4,5,6,8,10,11,16,20,50,100,50,50,50,50,50,50,50,50,50,50,50,50

@@ -56,6 +56,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomEditorListener.register();
         RoomEditorHistory.register();
         RoomProtection.register();
+        CreepingBricks.register();
         RoomTemplateGenerator.register();
         Locks.register();
         AltarOffering.register();
