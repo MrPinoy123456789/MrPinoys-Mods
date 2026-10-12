@@ -464,8 +464,6 @@ Supported effect fields:
   blocks per cell. Must be > 0 when hazard_kind is set.
 - voided_floor (boolean, default false): the floor is ripped open in
   scattered cells.
-- extra_trial_bodies (boolean, default false): extra trial bodies are
-  placed (Loaded).
 - bonus_tool_pool (string, default null): a namespaced loot table id
   for a guaranteed bonus tool pool. Validated against the server
   reloadable registries at load.

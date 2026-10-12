@@ -53,9 +53,9 @@ import java.util.UUID;
 final class CapstoneFights {
 
     /** Tag on every mob of the final brood wave. */
-    private static final String WAVE_TAG = PocketDungeonsMod.MOD_ID + ".brood_wave";
+    static final String WAVE_TAG = PocketDungeonsMod.MOD_ID + ".brood_wave";
     /** Tag on the one Warden the Ancient City summons. */
-    private static final String WARDEN_TAG = PocketDungeonsMod.MOD_ID + ".ancient_warden";
+    static final String WARDEN_TAG = PocketDungeonsMod.MOD_ID + ".ancient_warden";
 
     /** The Spawner Dungeon's id. */
     static final String SPAWNER_DUNGEON = "spawner_dungeon";

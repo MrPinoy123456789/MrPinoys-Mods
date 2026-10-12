@@ -122,9 +122,14 @@ public final class HauntGameTest {
         }
     }
 
-    @GameTest(maxTicks = 260)
+    @GameTest(maxTicks = 320)
     public void theCountedWakesOnFloorThreeFreezesWhenLookedAtAndGoesWithTheFloor(GameTestHelper helper) {
         Rig rig = new Rig(helper, 9201, 0, "last_rest");
+        // Let the forced chunks settle into entity ticking before a body is added to them.
+        helper.runAfterDelay(25, () -> runFreeze(helper, rig));
+    }
+
+    private static void runFreeze(GameTestHelper helper, Rig rig) {
         try {
             helper.assertTrue(HauntManifest.current().forDungeon(OSSUARY) != null, "The Counted is loaded for the Ossuary");
             helper.assertTrue(Haunts.stageOf(rig.record) == HauntRules.Stage.STRIKE, "floor 3 is the strike stage");
@@ -185,9 +190,13 @@ public final class HauntGameTest {
         }
     }
 
-    @GameTest(maxTicks = 200)
+    @GameTest(maxTicks = 260)
     public void aStrikeHurtsAndSlowsButNeverKillsAndTheCountedRetreats(GameTestHelper helper) {
         Rig rig = new Rig(helper, 9202, 400, "last_rest");
+        helper.runAfterDelay(25, () -> runStrike(helper, rig));
+    }
+
+    private static void runStrike(GameTestHelper helper, Rig rig) {
         try {
             Mob body = rig.wake(PocketDungeonsConfig.hauntWakePressure() * 3);
             helper.assertTrue(body != null, "pressure on floor 3 wakes a body");

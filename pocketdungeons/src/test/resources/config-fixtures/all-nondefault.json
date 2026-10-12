@@ -38,6 +38,8 @@
   "afkSeconds": 0,
   "timedOutDepletion": 0,
   "overclockedCooldownFactor": 0.01,
+  "overclockedParSeconds": 1,
+  "overclockedBonus": 0,
   "swarmingMobFactor": 1.0,
   "chaoticSpawnerChance": 0.0,
   "silencedPlayerRange": 1,

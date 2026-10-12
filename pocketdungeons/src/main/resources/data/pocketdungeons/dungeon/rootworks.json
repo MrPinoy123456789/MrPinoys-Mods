@@ -38,6 +38,21 @@
       "ossuary"
     ]
   },
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 2,
+    "sizeMin": 1,
+    "sizeMax": 3,
+    "blocks": [
+      "sand",
+      "sand",
+      "sand",
+      "clay",
+      "clay",
+      "clay",
+      "iron_ore"
+    ]
+  },
   "nodes": [
     {
       "id": "root_gate",

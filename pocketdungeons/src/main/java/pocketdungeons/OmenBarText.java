@@ -93,6 +93,24 @@ final class OmenBarText {
         return clearedHeadline(floorsCleared, dungeon, mine, finished, false);
     }
 
+    /** The action bar line after each consumable used under Silenced: {@code "Silenced: 2/3"}. */
+    static String silencedCount(int uses, int per) {
+        return "Silenced: " + uses + "/" + per;
+    }
+
+    /**
+     * The lines under the floor clear title: what the party can do next, then on a Cooked floor one line
+     * naming its bonus. The reward barrel of an ominous floor is drawn from the ominous loot tables
+     * ({@link TrialContent#placeRewardContainers}), so the line says that and nothing the code does not do.
+     */
+    static java.util.List<String> clearedLines(boolean finished, boolean finalAhead, boolean cooked) {
+        String next = clearedSubtitle(finished, finalAhead);
+        return cooked ? java.util.List.of(next, COOKED_BONUS_LINE) : java.util.List.of(next);
+    }
+
+    /** The Cooked bonus as the floor clear title shows it. */
+    static final String COOKED_BONUS_LINE = "Cooked: ominous loot";
+
     /** The line under the floor clear title: what the party can do next. */
     static String clearedSubtitle(boolean finished, boolean finalAhead) {
         if (finished) {
