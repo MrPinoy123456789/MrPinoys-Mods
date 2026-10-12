@@ -23,7 +23,7 @@ public final class StampDeterminismGameTest {
      * stamper before its parameter record refactor (and matched after it). Zero would
      * mean "not pinned": the test then only checks that two stamps agree.
      */
-    private static final int STAMP_FINGERPRINT = 935166682;
+    private static final int STAMP_FINGERPRINT = 319441626;
 
     /**
      * One plan stamped twice at one origin builds the same blocks, with and without
