@@ -325,10 +325,14 @@ for ((taskName, testClass) in mapOf(
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Roadmap T01: the half-dead rule and the finale script registry.
+    "finaleScriptsTest" to "FinaleScriptsTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
     "restlessRulesTest" to "RestlessRulesTest",
+    // Affix workshop 2026-10-11 row 11: the Blackout affix (dark_cells, cell choice, lit rooms).
+    "blackoutTest" to "BlackoutTest",
     // Design pass 2026-10-09 (Q9): hidden ore that deepens with the floor.
     "hiddenOreDepthTest" to "HiddenOreDepthTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
@@ -442,6 +446,9 @@ for ((taskName, testClass) in mapOf(
     "hiddenOrePlannerTest" to "HiddenOrePlannerTest",
     // Haul and Blood Doors (2026-10-07): the haul ledger.
     "scrapMathTest" to "ScrapMathTest",
+    // Affix workshop 2026-10-11 (T11): Overclocked pays for speed; Loaded's cache springs an ambush.
+    "overclockedPayTest" to "OverclockedPayTest",
+    "trappedCacheTest" to "TrappedCacheTest",
     // Simplification step 11 (L2, D41): content module defaults, overrides and allow lists.
     "contentModulesTest" to "ContentModulesTest",
     // Simplification step 12 (K, K2, K3): the simple-loot allow list, the cuts,
@@ -478,8 +485,10 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
+    dependsOn("blackoutTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
@@ -563,6 +572,8 @@ tasks.test {
     dependsOn("boardTextTest")
     dependsOn("hiddenOrePlannerTest")
     dependsOn("scrapMathTest")
+    dependsOn("overclockedPayTest")
+    dependsOn("trappedCacheTest")
     dependsOn("contentModulesTest")
     dependsOn("lootRulesTest")
     dependsOn("instancesTest")

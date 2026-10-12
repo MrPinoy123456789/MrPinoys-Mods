@@ -245,47 +245,47 @@ public class AffixMathTest {
                 "Cooked: the whole run runs ominous, and pays out ominous.",
                 0, 0, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(true, 1.0, 1.0, 14),
                 AffixEffects.ConsumableRule.ALLOW, false, new AffixEffects.Hazard(AffixEffects.HazardKind.NONE, 0),
-                false, false, new AffixEffects.Pools(null, null))));
+                false, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.FERAL, "Feral",
                 "Feral: wolves in the halls. Swing and they are lost, feed them and they are yours.",
                 1, 0, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.0, 1.0, 14),
                 AffixEffects.ConsumableRule.ALLOW, true, new AffixEffects.Hazard(AffixEffects.HazardKind.NONE, 0),
-                false, false, new AffixEffects.Pools(null, null))));
+                false, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.SWARMING, "Swarming",
                 "Swarming: more of them, and more of them is more drops.",
                 2, 0, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.5, 1.0, 14),
                 AffixEffects.ConsumableRule.ALLOW, false, new AffixEffects.Hazard(AffixEffects.HazardKind.NONE, 0),
-                false, false, new AffixEffects.Pools(null, null))));
+                false, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.OVERCLOCKED, "Overclocked",
-                "Overclocked: the waves come back fast, so a fast clear is faster.",
+                "Overclocked: the waves come back fast. Clear the floor in 6 minutes for +1 scrap.",
                 3, 0, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.0, 0.4, 14),
                 AffixEffects.ConsumableRule.ALLOW, false, new AffixEffects.Hazard(AffixEffects.HazardKind.NONE, 0),
-                false, false, new AffixEffects.Pools(null, null))));
+                false, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.MOLTEN, "Molten",
                 "Molten: lava underfoot, and the only lava you will ever find.",
                 4, 0, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.0, 1.0, 14),
                 AffixEffects.ConsumableRule.ALLOW, false, new AffixEffects.Hazard(AffixEffects.HazardKind.LAVA, 4),
-                false, false, new AffixEffects.Pools(null, null))));
+                false, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.SILENCED, "Silenced",
                 "Silenced: no consumables, and they cannot hear you coming.",
                 5, 0, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.0, 1.0, 6),
                 AffixEffects.ConsumableRule.BLOCK, false, new AffixEffects.Hazard(AffixEffects.HazardKind.NONE, 0),
-                false, false, new AffixEffects.Pools(null, null))));
+                false, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.EXPLOSIVE, "Explosive",
                 "Explosive: TNT underfoot, and the only TNT you will ever find.",
                 6, 0, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.0, 1.0, 14),
                 AffixEffects.ConsumableRule.ALLOW, false, new AffixEffects.Hazard(AffixEffects.HazardKind.TNT, 4),
-                false, false, new AffixEffects.Pools(null, null))));
+                false, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.VOIDED, "Voided",
                 "Voided: the floor falls away, and the void stares back.",
                 7, 45, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.0, 1.0, 14),
                 AffixEffects.ConsumableRule.ALLOW, false, new AffixEffects.Hazard(AffixEffects.HazardKind.NONE, 0),
-                true, false, new AffixEffects.Pools(null, null))));
+                true, new AffixEffects.Pools(null, null))));
         defs.add(new AffixDefinition(AffixIds.LOADED, "Loaded",
-                "Loaded: more trial bodies to clear, and a guaranteed tool cache to clear them with.",
+                "Loaded: a free tool chest, but opening it springs an ambush.",
                 8, 25, 1, 1, Set.of(), AffixEffects.build(new AffixEffects.TrialTuning(false, 1.0, 1.0, 14),
                 AffixEffects.ConsumableRule.ALLOW, false, new AffixEffects.Hazard(AffixEffects.HazardKind.NONE, 0),
-                false, true, new AffixEffects.Pools("pocketdungeons:affixes/loaded_tools", null))));
+                false, new AffixEffects.Pools("pocketdungeons:affixes/loaded_tools", null))));
         return defs;
     }
 
