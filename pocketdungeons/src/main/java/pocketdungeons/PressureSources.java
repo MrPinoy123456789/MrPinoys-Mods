@@ -456,6 +456,12 @@ final class PressureSources {
     static void silencedUse(MinecraftServer server, InstanceRecord record, UUID player) {
         int per = PocketDungeonsConfig.silencedConsumablesPerOmen();
         int uses = SILENCED_USES.merge(player, 1, Integer::sum);
+        // The running count goes to the player who used the item, on the action bar (affix workshop 2026-10-11).
+        ServerPlayer user = server.getPlayerList().getPlayer(player);
+        if (user != null) {
+            user.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    OmenBarText.silencedCount(Math.min(uses, per), per)).withStyle(net.minecraft.ChatFormatting.GRAY), true);
+        }
         if (uses >= per) {
             SILENCED_USES.put(player, 0);
             trigger(server, record, Omen.Source.SILENCE, null);

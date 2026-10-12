@@ -42,10 +42,13 @@
       "pocketdungeons.JoinFromDungeonGameTest",
       "pocketdungeons.HallRoomGameTest",
       "pocketdungeons.FinaleWaveGameTest",
+      "pocketdungeons.FinaleScriptGameTest",
+      "pocketdungeons.KennelsFinaleGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
       "pocketdungeons.MineGuardianGameTest",
+      "pocketdungeons.BlackoutGameTest",
       "pocketdungeons.SeamGameTest",
       "pocketdungeons.LemonGameTest",
       "pocketdungeons.LootTagGameTest",
@@ -61,7 +64,8 @@
       "pocketdungeons.DungeonStorageGameTest",
       "pocketdungeons.HostileWolvesGameTest",
       "pocketdungeons.ShellTokenGameTest",
-      "pocketdungeons.StampDeterminismGameTest"
+      "pocketdungeons.StampDeterminismGameTest",
+      "pocketdungeons.TrappedCacheGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

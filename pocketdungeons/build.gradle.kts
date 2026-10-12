@@ -147,8 +147,12 @@ fun requireRealServerPass(dir: String, marker: String) {
     }
 }
 
+// `test` depends on dungeonIntegrationTest, which binds this port. tools/ship.sh sets PD_INTEGRATION_PORT to a
+// free port per run so several worktrees can run `test` at the same time; unset, it stays 25581.
+val integrationPort = (System.getenv("PD_INTEGRATION_PORT") ?: "25581").toInt()
+
 tasks.named("runDungeonIntegrationTest") {
-    doFirst { prepareRealServerRun("run-dungeonIntegrationTest", 25581) }
+    doFirst { prepareRealServerRun("run-dungeonIntegrationTest", integrationPort) }
     doLast { requireRealServerPass("run-dungeonIntegrationTest", "dungeonIntegrationTest") }
 }
 
@@ -312,6 +316,8 @@ for ((taskName, testClass) in mapOf(
     "spawnerEjectOddsTest" to "SpawnerEjectOddsTest",
     // Floor and dungeon notes (2026-10-08): the reason to choose a door, present, distinct and honest about ore.
     "floorNotesTest" to "FloorNotesTest",
+    // Roadmap T13: Deepslate is four floors on every path; Lush Caves and Copper Works bury what they promise.
+    "dungeonDataFixesTest" to "DungeonDataFixesTest",
     // Playtest 2026-10-08-1 (PD-178, Q10e): poison, wither, slowness and mining fatigue never last past their caps.
     "effectCapsTest" to "EffectCapsTest",
     // Design pass 2026-10-09 (Q7): the trip sidebar lines.
@@ -323,10 +329,16 @@ for ((taskName, testClass) in mapOf(
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Roadmap T01: the half-dead rule and the finale script registry.
+    "finaleScriptsTest" to "FinaleScriptsTest",
+    // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
+    "kennelsFinaleRulesTest" to "KennelsFinaleRulesTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
     "sculkHeardTest" to "SculkHeardTest",
     // Design pass 2026-10-09 (Q8): the Restless rise rule and the pack cap.
     "restlessRulesTest" to "RestlessRulesTest",
+    // Affix workshop 2026-10-11 row 11: the Blackout affix (dark_cells, cell choice, lit rooms).
+    "blackoutTest" to "BlackoutTest",
     // Design pass 2026-10-09 (Q9): hidden ore that deepens with the floor.
     "hiddenOreDepthTest" to "HiddenOreDepthTest",
     // Playtest 2026-10-07-2 (PD-173, PD-174): the floor-start title and the floor-clear title.
@@ -440,13 +452,18 @@ for ((taskName, testClass) in mapOf(
     "hiddenOrePlannerTest" to "HiddenOrePlannerTest",
     // Haul and Blood Doors (2026-10-07): the haul ledger.
     "scrapMathTest" to "ScrapMathTest",
+    // Affix workshop 2026-10-11 (T11): Overclocked pays for speed; Loaded's cache springs an ambush.
+    "overclockedPayTest" to "OverclockedPayTest",
+    "trappedCacheTest" to "TrappedCacheTest",
     // Simplification step 11 (L2, D41): content module defaults, overrides and allow lists.
     "contentModulesTest" to "ContentModulesTest",
     // Simplification step 12 (K, K2, K3): the simple-loot allow list, the cuts,
     // copper out of the palettes, and the dungeon barter table's contents.
     "lootRulesTest" to "LootRulesTest",
     // PD-204: the live dungeon id compare tolerates the namespace either way.
-    "instancesTest" to "InstancesTest"
+    "instancesTest" to "InstancesTest",
+    // Affix workshop quick changes (T10): mine fuse, Silenced count, Cooked line, Restless level, Voided cells.
+    "affixQuickChangesTest" to "AffixQuickChangesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -468,6 +485,7 @@ tasks.test {
     dependsOn("bookLootTest")
     dependsOn("spawnerEjectOddsTest")
     dependsOn("floorNotesTest")
+    dependsOn("dungeonDataFixesTest")
     dependsOn("effectCapsTest")
     dependsOn("sidebarLinesTest")
     dependsOn("hallLayoutTest")
@@ -475,8 +493,11 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
+    dependsOn("affixQuickChangesTest")
+    dependsOn("blackoutTest")
     dependsOn("hiddenOreDepthTest")
     dependsOn("floorTitleTest")
     dependsOn("rubbleRulesTest")
@@ -560,6 +581,8 @@ tasks.test {
     dependsOn("boardTextTest")
     dependsOn("hiddenOrePlannerTest")
     dependsOn("scrapMathTest")
+    dependsOn("overclockedPayTest")
+    dependsOn("trappedCacheTest")
     dependsOn("contentModulesTest")
     dependsOn("lootRulesTest")
     dependsOn("instancesTest")

@@ -119,8 +119,16 @@ final class NodeStamper {
      */
     static void applyCell(ServerLevel level, BlockPos cellOrigin, int quarterTurns,
                           DungeonRoomMeta meta, Context ctx, long seed, Set<BlockPos> nodesOut) {
-        stripLight(level, cellOrigin, meta,
-                DungeonLight.effective(meta.light, ctx.nodeLight(), meta.requiresLight));
+        applyCell(level, cellOrigin, quarterTurns, meta, ctx, seed, nodesOut, false);
+    }
+
+    /** As above; {@code blackedOut} is the Blackout affix putting this cell's lights out. */
+    static void applyCell(ServerLevel level, BlockPos cellOrigin, int quarterTurns,
+                          DungeonRoomMeta meta, Context ctx, long seed, Set<BlockPos> nodesOut,
+                          boolean blackedOut) {
+        stripLight(level, cellOrigin, meta, DungeonLight.withBlackout(
+                DungeonLight.effective(meta.light, ctx.nodeLight(), meta.requiresLight),
+                blackedOut, meta.requiresLight));
         placeDeclaredNodes(level, cellOrigin, quarterTurns, meta, seed, nodesOut);
         scanPaletteNodes(level, cellOrigin, meta.spanY, ctx.palette(), nodesOut);
         placeHiddenOre(level, cellOrigin, meta.spanY, ctx, seed, nodesOut);

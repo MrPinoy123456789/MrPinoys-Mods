@@ -271,7 +271,7 @@ final class RoomContent {
         }
         // M69 Loaded: a guaranteed bonus tool cache in loot cells, drawn from
         // the affix's namespaced bonus_tool_pool loot table. The gift that pays
-        // for the extra trial bodies the affix also grants. Placed only in loot
+        // for the ambush opening it springs ({@link TrappedCache}). Placed only in loot
         // cells so it does not clutter encounter or corridor cells, and never
         // in entrance/exit to keep the lobby door and lodestone pad clear. M70:
         // the eligibility check reads the role's operation, so a third-party
@@ -449,7 +449,7 @@ final class RoomContent {
     }
 
     /** Ticks a fake TNT mine waits before it goes off once stepped on. */
-    private static final int MINE_FUSE_TICKS = 20;
+    private static final int MINE_FUSE_TICKS = 25;
     /** Ticks before a triggered mine re-arms. */
     private static final int MINE_COOLDOWN_TICKS = 100;
 
@@ -536,7 +536,7 @@ final class RoomContent {
     /**
      * M69 Loaded: places a guaranteed bonus tool chest in a loot cell, drawn
      * from the Loaded affix's {@code bonus_tool_pool} loot table. The gift that
-     * pays for the extra trial bodies the affix also grants. Placed at a fixed
+     * pays for the ambush its first opening springs ({@link TrappedCache}). Placed at a fixed
      * interior corner so it does not collide with authored content or the
      * vault's promoted position.
      */

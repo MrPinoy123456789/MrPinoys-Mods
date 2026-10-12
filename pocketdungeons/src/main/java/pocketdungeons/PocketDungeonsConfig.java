@@ -183,6 +183,12 @@ public final class PocketDungeonsConfig {
     /** Overclocked scales {@link #trialSpawnerCooldownTicks()} down by this. */
     private static final Knob<Double> OVERCLOCKED_COOLDOWN_FACTOR = decimal("overclockedCooldownFactor", 0.4,
             v -> v > 0 && v <= 1, "must be between 0 (exclusive) and 1");
+    /** Overclocked: a floor cleared within this many seconds of its commit pays {@link #overclockedBonus()} more. */
+    private static final Knob<Integer> OVERCLOCKED_PAR_SECONDS = integer("overclockedParSeconds", 360,
+            v -> v >= 1, "must be >= 1");
+    /** Overclocked: the scrap added to a floor's pay when it is cleared under the par time. */
+    private static final Knob<Integer> OVERCLOCKED_BONUS = integer("overclockedBonus", 1,
+            v -> v >= 0, "must be >= 0");
     /** Swarming scales a tier's total/simultaneous mob counts up by this. */
     private static final Knob<Double> SWARMING_MOB_FACTOR = decimal("swarmingMobFactor", 1.5,
             v -> v >= 1, "must be >= 1");
@@ -837,6 +843,14 @@ public final class PocketDungeonsConfig {
 
     public static double overclockedCooldownFactor() {
         return OVERCLOCKED_COOLDOWN_FACTOR.get();
+    }
+
+    public static int overclockedParSeconds() {
+        return OVERCLOCKED_PAR_SECONDS.get();
+    }
+
+    public static int overclockedBonus() {
+        return OVERCLOCKED_BONUS.get();
     }
 
     public static double swarmingMobFactor() {
