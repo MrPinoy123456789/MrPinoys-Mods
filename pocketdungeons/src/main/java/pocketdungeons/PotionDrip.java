@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -301,7 +302,9 @@ final class PotionDrip {
             }
         }
         if (layout != null && layout.bounds() != null) {
-            for (ThrownSplashPotion potion : level.getEntitiesOfClass(ThrownSplashPotion.class, layout.bounds())) {
+            // Reaches above the layout too: a potion released under a tall room is still tagged.
+            AABB sweep = layout.bounds().expandTowards(0.0, MAX_CLEARANCE + 4, 0.0);
+            for (ThrownSplashPotion potion : level.getEntitiesOfClass(ThrownSplashPotion.class, sweep)) {
                 if (potion.entityTags().contains(TAG)) {
                     potion.discard();
                 }
