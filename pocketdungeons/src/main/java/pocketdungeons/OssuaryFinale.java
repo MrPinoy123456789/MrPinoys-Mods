@@ -11,6 +11,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -211,6 +213,7 @@ final class OssuaryFinale implements FinaleScript {
             BlockPos spot = spots[n++ % spots.length];
             mob.setNoAi(false);
             mob.setInvulnerable(false);
+            mob.removeEffect(MobEffects.INVISIBILITY);
             mob.setInvisible(false);
             mob.setSilent(false);
             mob.setNoGravity(false);
@@ -237,6 +240,8 @@ final class OssuaryFinale implements FinaleScript {
         }
         mob.setNoAi(true);
         mob.setInvulnerable(true);
+        // The bare invisible flag is recomputed from active effects every tick, so a sleeper must wear the effect.
+        mob.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
         mob.setInvisible(true);
         mob.setSilent(true);
         mob.setNoGravity(true);

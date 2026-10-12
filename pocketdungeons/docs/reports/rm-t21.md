@@ -25,3 +25,9 @@ Branch `feature/rm-t21-ossuary-coffins` (base `feature/act-1-2-roadmap`, merged 
 - That a dormant mob inside a block is truly unseen and unhittable (arrows, sweeping attacks, spectators) and that a skeleton or zombie rising on a coffin top does not clip its lid cell.
 - Zombie sunlight and skeleton behaviour in the real dimension; mobs from a two-occupant coffin pushing each other.
 - Party sizes above two (24 cap) and the 4 block radius in a crowded hall.
+
+## Post-merge fix (wake step) and counts
+- Cause of the mid-tell failure (noAi true, invisible false, invulnerable true): the bare invisible flag is recomputed from active effects every tick (LivingEntity.tickEffects), so with no invisibility effect it was cleared one tick after spawn. The test was right: a sleeper stays invisible until its lid breaks.
+- Fix in OssuaryFinale: dormant mobs wear an infinite hidden INVISIBILITY effect; open removes it with the other wake steps. Assertions unchanged.
+- Before: OssuaryFinaleGameTest 3 of 4 passed (mid tell failed). After: 4 of 4 passed. StampDeterminismGameTest passes with the existing pin (fingerprint -749095718), no re-pin.
+- tools/ship.sh --quick not green here: endlessMineRulesTest, roomShellTest and runGameTest each aborted when the JVM could not commit memory (Windows paging file, errno 1455, under 1.5 GB free virtual memory with other sessions running). Environment crashes, not assertion failures; needs a rerun when memory is free.
