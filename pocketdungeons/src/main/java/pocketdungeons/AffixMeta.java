@@ -37,6 +37,11 @@ final class AffixMeta {
         if (depletionMultiplier < 1 || depletionMultiplier > 2) {
             throw new IllegalArgumentException("depletion_multiplier must be 1 or 2");
         }
+        int wager = intOr(obj, "wager", AffixDefinition.DEFAULT_WAGER);
+        if (wager < AffixDefinition.MIN_WAGER || wager > AffixDefinition.MAX_WAGER) {
+            throw new IllegalArgumentException("wager must be " + AffixDefinition.MIN_WAGER + " to "
+                    + AffixDefinition.MAX_WAGER + ": " + wager);
+        }
         Set<String> incompatible = stringSetOr(obj, "incompatible", Set.of());
 
         AffixEffects effects = parseEffects(obj, fileIdentity);
@@ -55,7 +60,7 @@ final class AffixMeta {
             }
         }
         return new AffixDefinition(id, label, shortName, blurb, order, minLevel, weight,
-                depletionMultiplier, incompatible, effects);
+                depletionMultiplier, incompatible, effects, wager);
     }
 
     private static AffixEffects parseEffects(JsonObject obj, String fileIdentity) {
@@ -86,7 +91,8 @@ final class AffixMeta {
                 consumableRule, neutralWolfSpawn, new AffixEffects.Hazard(hazardKind, hazardsPerCell),
                 voidedFloor, new AffixEffects.Pools(bonusToolPool, decorPool))
                 .withUndeadRise(riseChance, riseChanceOminous)
-                .withDarkCells(doubleOr(e, "dark_cells", 0.0));
+                .withDarkCells(doubleOr(e, "dark_cells", 0.0))
+                .withLifeCost(intOr(e, "life_cost", 0));
     }
 
     private static String requiredString(JsonObject obj, String key, String fileIdentity) {

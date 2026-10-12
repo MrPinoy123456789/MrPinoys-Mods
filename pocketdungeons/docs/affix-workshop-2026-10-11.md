@@ -21,6 +21,7 @@ Findings from the read (code, not decisions):
 | 9 | Voided | Exclude puzzle and ordeal cells from Voided, so a voided cell is only ever a plain traversal cell. Keep the three shapes. | Java change, build cost S: in `LayoutStamper.computeVoidedCells` skip cells whose room role is a puzzle or ordeal operation (read the role the way `isHazardEligible` does). Add a LIVE_CHECKS entry: first compass 45 trip. | agreed |
 | 10 | Incompatible pairs | None. Molten, Explosive and Voided can co-occur. (Note: `AffixMath.pick` ignores `incompatible` anyway, and `weight`; fix the javadoc or the pick when convenient.) | None. | agreed |
 | 11 | New affix: Blackout | Add. Sight pressure: lights go out in scattered cells, reusing the `DungeonLight` dim and dark logic. Ravenous and Tethered not kept. | New file `dungeon_affix/blackout.json` plus Java for the effect (build cost S to M; a closed-set operation like `dark_cells` in `AffixEffects` and `AffixMeta`). Label, blurb, min compass, which cells and whether a light source counters it are open. Must never darken a cell that `requiresLight`. | agreed, details open |
+| 12 | New: Wager and Blood | Every affix wagers 0 to 10 (`wager` in its JSON); a floor shows its total as "Loot n%" and a wagered floor pays one extra piece into the copper chest. Blood is a new affix that costs 1 life when the door is committed. | Built by T50: `Wager`, `WagerGear`, `dungeon_affix/blood.json`, `life_cost` in `AffixEffects`. Design: `wager-draft-2026-10-12.md`. | built (T50), never played |
 
 ## Workshop 1 complete
 

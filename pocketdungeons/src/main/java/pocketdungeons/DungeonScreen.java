@@ -392,9 +392,11 @@ final class DungeonScreen {
         for (AffixDefinition affix : AffixMath.ordered(effective, AffixManifest.current().definitions())) {
             nameLine.append(Component.literal(BoardText.SEP + affix.label).withStyle(ChatFormatting.LIGHT_PURPLE));
         }
+        nameLine.append(Component.literal(BoardText.SEP).withStyle(ChatFormatting.LIGHT_PURPLE));
+        nameLine.append(lootPercent(effective));
         lines.add(nameLine);
 
-        MutableComponent gets = previewGets(level, record, entry, offer, def, node, oreHonest);
+        MutableComponent gets = previewGets(level, record, entry, offer, def, node, oreHonest, effective);
         if (!gets.getString().isEmpty()) {
             lines.add(gets);
         }
@@ -402,8 +404,8 @@ final class DungeonScreen {
         // The loot rolls, then the door's price when it has one.
         int chests = Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorNumber);
         MutableComponent loot = Component.literal(BoardText.lootText(chests)).withStyle(ChatFormatting.GREEN);
-        if (offer.cost() > 0) {
-            loot.append(Component.literal(BoardText.SEP + DoorLives.costText(offer.cost()))
+        if (Keystone.livesCost(owner, offer) > 0) {
+            loot.append(Component.literal(BoardText.SEP + DoorLives.costText(Keystone.livesCost(owner, offer)))
                     .withStyle(ChatFormatting.YELLOW));
         }
         lines.add(loot);
@@ -449,7 +451,7 @@ final class DungeonScreen {
      */
     private static MutableComponent previewGets(ServerLevel level, InstanceRecord record, DungeonLog.Entry entry,
                                                 Keystone.Offer offer, DungeonDef def, DungeonDef.Node node,
-                                                boolean oreHonest) {
+                                                boolean oreHonest, Set<String> effective) {
         MutableComponent gets = Component.empty();
         if (offer.step() > 0) {
             int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts(),
@@ -472,6 +474,13 @@ final class DungeonScreen {
                 } else {
                     addPart(gets, reward.displayName(), ChatFormatting.AQUA);
                 }
+            }
+            // A wagered floor pays one extra piece into the copper chest; the board names it (WagerGear).
+            WagerGear.Pick extra = PromisedGear.extraPick(def, node, record.owner, record.interval,
+                    offer.nodeId(), effective);
+            if (extra != null) {
+                addPart(gets, PromisedGear.describe(PromisedGear.rollExtra(level, record.owner, record.interval,
+                        offer.nodeId(), extra)), ChatFormatting.AQUA);
             }
             if (node.isFinal()) {
                 int emeralds = PocketDungeonsConfig.finishEmeralds();
@@ -499,8 +508,10 @@ final class DungeonScreen {
             addPart(affixLine, affix.label, ChatFormatting.LIGHT_PURPLE);
         }
         if (!affixLine.getString().isEmpty()) {
-            deal.add(affixLine);
+            affixLine.append(Component.literal(BoardText.SEP).withStyle(ChatFormatting.LIGHT_PURPLE));
         }
+        affixLine.append(lootPercent(effective));
+        deal.add(affixLine);
         if (!gets.getString().isEmpty()) {
             deal.add(gets);
         }
@@ -552,6 +563,17 @@ final class DungeonScreen {
     }
 
     /** Appends {@code text} to {@code line}, behind a separator when the line already has a part. */
+    /**
+     * "Loot 200%": what the floor's affixes wager, as the player reads it ({@link Wager}). White at 100, gold above.
+     * Shown always, so a floor with no affixes reads "Loot 100%".
+     */
+    static MutableComponent lootPercent(Set<String> affixes) {
+        int wager = Wager.sum(affixes, AffixManifest.current().definitions());
+        int percent = Wager.lootPercent(wager, PocketDungeonsConfig.lootPercentPerWager());
+        return Component.literal(Wager.lootText(wager, PocketDungeonsConfig.lootPercentPerWager()))
+                .withStyle(percent > Wager.BASE_PERCENT ? ChatFormatting.GOLD : ChatFormatting.WHITE);
+    }
+
     private static void addPart(MutableComponent line, String text, ChatFormatting colour) {
         if (!line.getString().isEmpty()) {
             line.append(Component.literal(BoardText.SEP).withStyle(colour));

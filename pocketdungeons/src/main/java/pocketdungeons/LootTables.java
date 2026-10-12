@@ -71,7 +71,7 @@ final class LootTables {
      * splitting sword/axe/bow into three would triple the tables to say the
      * same thing.
      */
-    static final List<String> GEAR_SLOTS = List.of("helmet", "chestplate", "leggings", "boots", "weapon");
+    static final List<String> GEAR_SLOTS = List.of("helmet", "chestplate", "leggings", "boots", "weapon", "material");
 
     private static final List<String> ALL = buildAll();
 
@@ -93,7 +93,8 @@ final class LootTables {
         // J5a: the home vendor's merged armour tables and its tool tables only
         // run to tier 3; the vendor never sells tier IV. Weapon tables are
         // already in GEAR_SLOTS.
-        for (int tier = 1; tier <= 3; tier++) {
+        // The wager gear piece (WagerGear) also draws tier IV tools and armour.
+        for (int tier = 1; tier <= MAX_TIER; tier++) {
             for (String category : List.of("armour", "tool")) {
                 all.add(gearTable(category, tier));
             }

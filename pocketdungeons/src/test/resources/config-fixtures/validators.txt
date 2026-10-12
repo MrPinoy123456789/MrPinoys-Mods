@@ -1102,6 +1102,54 @@ finaleRewardChests [int, default 1]
   odd empty array -> 1 | ERROR pocketdungeons.json field 'finaleRewardChests' is not a valid integer; using default 1
   odd null -> 1 | ERROR pocketdungeons.json field 'finaleRewardChests' is not a valid integer; using default 1
   odd empty object -> 1 | ERROR pocketdungeons.json field 'finaleRewardChests' is not a valid integer; using default 1
+wagerGearEnabled [boolean, default true]
+  probes YY
+  values true,false
+  rejected (none)
+  disturbs (nothing else)
+  odd string abc -> false | (no warning)
+  odd string 7 -> false | (no warning)
+  odd boolean true -> true | (no warning)
+  odd number 1.5 -> false | (no warning)
+  odd empty array -> true | ERROR pocketdungeons.json field 'wagerGearEnabled' is not a valid boolean; using default true
+  odd null -> true | ERROR pocketdungeons.json field 'wagerGearEnabled' is not a valid boolean; using default true
+  odd empty object -> true | ERROR pocketdungeons.json field 'wagerGearEnabled' is not a valid boolean; using default true
+wagerTierChancePerPoint [int, default 20]
+  probes nYYYYYYYYYYYYYYnnnnnnnnnnnn
+  values 20,0,1,2,3,4,5,6,8,10,11,16,20,50,100,20,20,20,20,20,20,20,20,20,20,20,20
+  rejected ERROR pocketdungeons.json field 'wagerTierChancePerPoint' has invalid value -1; must be 0 to 100; using default 20
+  disturbs (nothing else)
+  odd string abc -> 20 | ERROR pocketdungeons.json field 'wagerTierChancePerPoint' is not a valid integer; using default 20
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 20 | ERROR pocketdungeons.json field 'wagerTierChancePerPoint' is not a valid integer; using default 20
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 20 | ERROR pocketdungeons.json field 'wagerTierChancePerPoint' is not a valid integer; using default 20
+  odd null -> 20 | ERROR pocketdungeons.json field 'wagerTierChancePerPoint' is not a valid integer; using default 20
+  odd empty object -> 20 | ERROR pocketdungeons.json field 'wagerTierChancePerPoint' is not a valid integer; using default 20
+wagerTierChanceCap [int, default 90]
+  probes nYYYYYYYYYYYYYYnnnnnnnnnnnn
+  values 90,0,1,2,3,4,5,6,8,10,11,16,20,50,100,90,90,90,90,90,90,90,90,90,90,90,90
+  rejected ERROR pocketdungeons.json field 'wagerTierChanceCap' has invalid value -1; must be 0 to 100; using default 90
+  disturbs (nothing else)
+  odd string abc -> 90 | ERROR pocketdungeons.json field 'wagerTierChanceCap' is not a valid integer; using default 90
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 90 | ERROR pocketdungeons.json field 'wagerTierChanceCap' is not a valid integer; using default 90
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 90 | ERROR pocketdungeons.json field 'wagerTierChanceCap' is not a valid integer; using default 90
+  odd null -> 90 | ERROR pocketdungeons.json field 'wagerTierChanceCap' is not a valid integer; using default 90
+  odd empty object -> 90 | ERROR pocketdungeons.json field 'wagerTierChanceCap' is not a valid integer; using default 90
+lootPercentPerWager [int, default 50]
+  probes nYYYYYYYYYYYYYYYYnnnnnnnnnn
+  values 50,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,50,50,50,50,50,50,50,50,50,50
+  rejected ERROR pocketdungeons.json field 'lootPercentPerWager' has invalid value -1; must be 0 to 200; using default 50
+  disturbs (nothing else)
+  odd string abc -> 50 | ERROR pocketdungeons.json field 'lootPercentPerWager' is not a valid integer; using default 50
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 50 | ERROR pocketdungeons.json field 'lootPercentPerWager' is not a valid integer; using default 50
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 50 | ERROR pocketdungeons.json field 'lootPercentPerWager' is not a valid integer; using default 50
+  odd null -> 50 | ERROR pocketdungeons.json field 'lootPercentPerWager' is not a valid integer; using default 50
+  odd empty object -> 50 | ERROR pocketdungeons.json field 'lootPercentPerWager' is not a valid integer; using default 50
 finaleCountdownSeconds [int, default 3]
   probes nYYYYYYYYYnnnnnnnnnnnnnnnnn
   values 3,0,1,2,3,4,5,6,8,10,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3

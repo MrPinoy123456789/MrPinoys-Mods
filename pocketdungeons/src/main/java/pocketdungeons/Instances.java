@@ -1576,6 +1576,7 @@ final class Instances {
         restorePreviewWindow(level, record, dungeonDoor);
 
         FloorState next = newFloorState(server, record, offer, plan, affixes, effectiveThemeId, previewNodes);
+        next.boardAffixes = Keystone.dealtAffixes(record.owner, offer);
         startCommittedFloor(record, offer, layout, next, openingMine);
 
         if (dealt.ominousRolled()) {

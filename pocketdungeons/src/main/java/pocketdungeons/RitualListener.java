@@ -653,7 +653,7 @@ final class RitualListener {
         if (offers.length == 0) {
             return;
         }
-        int cost = offers[Math.min(step - 1, offers.length - 1)].cost();
+        int cost = Keystone.livesCost(record.owner, offers[Math.min(step - 1, offers.length - 1)]);
         if (cost > 0) {
             // The price is the party's lives, so the line names the lives that are left.
             int livesLeft = Omen.lives(record.interval.omen);
@@ -695,7 +695,7 @@ final class RitualListener {
             }
         }
         Keystone.Offer offer = offers[Math.min(step - 1, offers.length - 1)];
-        int cost = offer.cost();
+        int cost = Keystone.livesCost(record.owner, offer);
         if (cost > 0) {
             // The price is lives, the party's (the trip's omen), and the last one is never for sale.
             int livesLeft = Omen.lives(record.interval.omen);
