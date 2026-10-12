@@ -55,6 +55,7 @@ final class ContentSnapshot {
     private final BagManifest bags;
     private final RoleManifest roles;
     private final CubeRecipeManifest recipes;
+    private final HauntManifest haunts;
     private final ContentModules modules;
     private final List<String> errors;
     private final boolean valid;
@@ -62,7 +63,7 @@ final class ContentSnapshot {
     private ContentSnapshot(RoomManifest rooms, RoomManifest anomalyRooms,
                             ThemeManifest themes, AdventureGraphs adventure, DungeonDefs dungeons, Diaries diaries,
                             AffixManifest affixes, BagManifest bags, RoleManifest roles,
-                            CubeRecipeManifest recipes, ContentModules modules,
+                            CubeRecipeManifest recipes, HauntManifest haunts, ContentModules modules,
                             List<String> errors, boolean valid) {
         this.rooms = rooms;
         this.anomalyRooms = anomalyRooms;
@@ -74,6 +75,7 @@ final class ContentSnapshot {
         this.bags = bags;
         this.roles = roles;
         this.recipes = recipes;
+        this.haunts = haunts;
         this.modules = modules;
         this.errors = List.copyOf(errors);
         this.valid = valid;
@@ -118,6 +120,7 @@ final class ContentSnapshot {
         BagManifest bags = BagManifest.parse(server, rm, modules.disabledBags());
         RoleManifest roles = RoleManifest.parse(server, rm);
         CubeRecipeManifest recipes = CubeRecipeManifest.parse(server, rm);
+        HauntManifest haunts = HauntManifest.parse(server, rm);
 
         List<String> errors = new ArrayList<>();
         boolean hasEntrance = false;
@@ -185,7 +188,7 @@ final class ContentSnapshot {
         }
 
         return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, dungeons, diaries, affixes,
-                bags, roles, recipes, modules, errors, valid);
+                bags, roles, recipes, haunts, modules, errors, valid);
     }
 
     RoomManifest rooms() {
@@ -233,6 +236,10 @@ final class ContentSnapshot {
         return recipes;
     }
 
+    HauntManifest haunts() {
+        return haunts;
+    }
+
     /** L2 (D41): the content module manifest this snapshot parsed. */
     ContentModules modules() {
         return modules;
@@ -265,6 +272,7 @@ final class ContentSnapshot {
         all.addAll(bags.rejections());
         all.addAll(roles.rejections());
         all.addAll(recipes.rejections());
+        all.addAll(haunts.rejections());
         all.addAll(modules.rejections());
         all.addAll(errors);
         return all;

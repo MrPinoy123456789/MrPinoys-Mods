@@ -329,6 +329,8 @@ for ((taskName, testClass) in mapOf(
     "finaleRulesTest" to "FinaleRulesTest",
     "mobUniformsTest" to "MobUniformsTest",
     "finaleDataTest" to "FinaleDataTest",
+    // Haunts (RM T34): the staging rule, the look cone, the never-lethal strike and The Counted data.
+    "hauntRulesTest" to "HauntRulesTest",
     // Roadmap T01: the half-dead rule and the finale script registry.
     "finaleScriptsTest" to "FinaleScriptsTest",
     // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
@@ -493,6 +495,7 @@ tasks.test {
     dependsOn("finaleRulesTest")
     dependsOn("mobUniformsTest")
     dependsOn("finaleDataTest")
+    dependsOn("hauntRulesTest")
     dependsOn("finaleScriptsTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")

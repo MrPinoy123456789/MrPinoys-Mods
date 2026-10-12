@@ -41,7 +41,7 @@ final class Restless {
     private static final List<String> NEVER_RISE_TAGS = List.of(FinaleWave.TAG, CapstoneFights.WAVE_TAG,
             CapstoneFights.WARDEN_TAG, CapstoneFights.UNSCALED_TAG, BossContent.BOSS_TAG, WitherFight.TAG,
             HerobrineFight.STEVE_TAG, HerobrineFight.ADD_TAG, HerobrineFight.ALEX_TAG,
-            PocketDungeonsMod.WHELP_TAG);
+            PocketDungeonsMod.WHELP_TAG, Haunts.TAG);
 
     private Restless() {}
 

@@ -437,6 +437,43 @@ public final class PocketDungeonsConfig {
             "finaleEliteHealthPercentPerMember", 50, v -> v >= 0 && v <= 100, "must be 0 to 100");
     private static final Knob<Boolean> MOB_UNIFORM_ENABLED = flag("mobUniformEnabled", true);
     /**
+     * Haunts (docs/haunts-draft-2026-10-11.md): a floor wide roaming creature with a learnable rule. The pressure
+     * rises by {@code hauntPressurePerSecond} each second the party spends on a haunted floor and the haunt wakes
+     * when it reaches {@code hauntWakePressure}. The floor number in the dungeon sets its stage: a sighting before
+     * {@code hauntNearMissFloor}, a near miss before {@code hauntStrikeFloor}, a strike from there on (the strike
+     * floor is at least 3, so a two floor dungeon never strikes). A strike hurts for {@code hauntStrikeDamage}
+     * health points (never more than leaves one) and slows for {@code hauntSlownessSeconds}; the haunt then stays
+     * away {@code hauntRetreatSeconds}. {@code hauntTellSeconds} is the least warning before it can act and
+     * {@code hauntLookConeDegrees} the half angle of the view that freezes the Counted. A sighting vanishes when
+     * a member comes within {@code hauntSightingApproachBlocks} or after {@code hauntLingerSeconds}, and the
+     * haunt gives up for the floor after {@code hauntSightingVanishes} of them.
+     */
+    private static final Knob<Boolean> HAUNTS_ENABLED = flag("hauntsEnabled", true);
+    private static final Knob<Double> HAUNT_PRESSURE_PER_SECOND = decimal("hauntPressurePerSecond", 1.0,
+            v -> v >= 0.0 && v <= 20.0, "must be 0.0 to 20.0");
+    private static final Knob<Integer> HAUNT_WAKE_PRESSURE = integer("hauntWakePressure", 90,
+            v -> v >= 10 && v <= 3600, "must be 10 to 3600");
+    private static final Knob<Integer> HAUNT_LOOK_CONE_DEGREES = integer("hauntLookConeDegrees", 60,
+            v -> v >= 10 && v <= 90, "must be 10 to 90");
+    private static final Knob<Integer> HAUNT_NEAR_MISS_FLOOR = integer("hauntNearMissFloor", 2,
+            v -> v >= 2 && v <= 5, "must be 2 to 5");
+    private static final Knob<Integer> HAUNT_STRIKE_FLOOR = integer("hauntStrikeFloor", 3,
+            v -> v >= 3 && v <= 10, "must be 3 to 10");
+    private static final Knob<Double> HAUNT_STRIKE_DAMAGE = decimal("hauntStrikeDamage", 3.0,
+            v -> v >= 0.0 && v <= 8.0, "must be 0.0 to 8.0");
+    private static final Knob<Integer> HAUNT_SLOWNESS_SECONDS = integer("hauntSlownessSeconds", 3,
+            v -> v >= 0 && v <= 10, "must be 0 to 10");
+    private static final Knob<Integer> HAUNT_RETREAT_SECONDS = integer("hauntRetreatSeconds", 40,
+            v -> v >= 5 && v <= 600, "must be 5 to 600");
+    private static final Knob<Integer> HAUNT_TELL_SECONDS = integer("hauntTellSeconds", 2,
+            v -> v >= 2 && v <= 10, "must be 2 to 10");
+    private static final Knob<Integer> HAUNT_LINGER_SECONDS = integer("hauntLingerSeconds", 45,
+            v -> v >= 10 && v <= 300, "must be 10 to 300");
+    private static final Knob<Integer> HAUNT_SIGHTING_VANISHES = integer("hauntSightingVanishes", 3,
+            v -> v >= 1 && v <= 8, "must be 1 to 8");
+    private static final Knob<Integer> HAUNT_SIGHTING_APPROACH_BLOCKS = integer("hauntSightingApproachBlocks", 7,
+            v -> v >= 3 && v <= 16, "must be 3 to 16");
+    /**
      * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
      * to pick an act and open any of its dungeons. Off restores the old three random doors.
      */
@@ -1065,6 +1102,58 @@ public final class PocketDungeonsConfig {
 
     public static int finaleEliteHealthPercentPerMember() {
         return FINALE_ELITE_HEALTH_PERCENT_PER_MEMBER.get();
+    }
+
+    public static boolean hauntsEnabled() {
+        return HAUNTS_ENABLED.get();
+    }
+
+    public static double hauntPressurePerSecond() {
+        return HAUNT_PRESSURE_PER_SECOND.get();
+    }
+
+    public static int hauntWakePressure() {
+        return HAUNT_WAKE_PRESSURE.get();
+    }
+
+    public static int hauntLookConeDegrees() {
+        return HAUNT_LOOK_CONE_DEGREES.get();
+    }
+
+    public static int hauntNearMissFloor() {
+        return HAUNT_NEAR_MISS_FLOOR.get();
+    }
+
+    public static int hauntStrikeFloor() {
+        return HAUNT_STRIKE_FLOOR.get();
+    }
+
+    public static double hauntStrikeDamage() {
+        return HAUNT_STRIKE_DAMAGE.get();
+    }
+
+    public static int hauntSlownessSeconds() {
+        return HAUNT_SLOWNESS_SECONDS.get();
+    }
+
+    public static int hauntRetreatSeconds() {
+        return HAUNT_RETREAT_SECONDS.get();
+    }
+
+    public static int hauntTellSeconds() {
+        return HAUNT_TELL_SECONDS.get();
+    }
+
+    public static int hauntLingerSeconds() {
+        return HAUNT_LINGER_SECONDS.get();
+    }
+
+    public static int hauntSightingVanishes() {
+        return HAUNT_SIGHTING_VANISHES.get();
+    }
+
+    public static int hauntSightingApproachBlocks() {
+        return HAUNT_SIGHTING_APPROACH_BLOCKS.get();
     }
 
     public static boolean mobUniformEnabled() {
