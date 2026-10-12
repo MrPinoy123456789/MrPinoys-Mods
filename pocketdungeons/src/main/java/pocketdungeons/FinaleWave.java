@@ -115,6 +115,15 @@ final class FinaleWave {
 
     // ---- the watch tick ----------------------------------------------------------------------------
 
+    /** Whether the floor finale has begun and is not yet won, which a haunt must stay out of. */
+    static boolean stirring(InstanceRecord record) {
+        if (record == null || record.layout == null || finaleOf(record) == null) {
+            return false;
+        }
+        State state = STATES.get(record.slot);
+        return state != null && state.seed == record.layout.seed() && state.triggered && !state.done;
+    }
+
     /** One watch tick of the finale, if the floor holds one. */
     static void tick(MinecraftServer server, InstanceRecord record) {
         DungeonDef.Finale finale = finaleOf(record);
@@ -195,7 +204,8 @@ final class FinaleWave {
             }
         }
         if (script != FinaleScript.NONE) {
-            for (UUID id : state.mobs) {
+            // A copy: an onMobDied hook may add mobs (a script's split children), which grows the list.
+            for (UUID id : new ArrayList<>(state.mobs)) {
                 if (!isAlive(level, id) && state.dead.add(id)) {
                     hook(state, "onMobDied", () -> script.onMobDied(ctx, id));
                 }

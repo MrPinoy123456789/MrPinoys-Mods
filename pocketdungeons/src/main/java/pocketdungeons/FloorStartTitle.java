@@ -36,8 +36,19 @@ final class FloorStartTitle {
         if (dungeonLine != null) {
             affixes.add(dungeonLine);
         }
+        // Haunts: a haunted floor says only that something walks here; the rule is learned at the first tell.
+        String hauntLine = Haunts.titleLine(record);
+        if (hauntLine != null) {
+            affixes.add(hauntLine);
+        }
         if (!isHome(record.floor.theme)) {
             affixes.addAll(affixLabels(record.floor.affixes));
+            // The loot line closes the list, always ("Loot 100%" with no affixes). It reads the set the door
+            // board dealt, the same one the copper chest piece is drawn from.
+            java.util.Set<String> dealt = record.floor.boardAffixes != null
+                    ? record.floor.boardAffixes : record.floor.affixes;
+            affixes.add(Wager.lootText(Wager.sum(dealt, AffixManifest.current().definitions()),
+                    PocketDungeonsConfig.lootPercentPerWager()));
         }
         for (UUID member : record.members.keySet()) {
             StaggeredTitle.show(server, member, title, affixes, ChatFormatting.LIGHT_PURPLE);

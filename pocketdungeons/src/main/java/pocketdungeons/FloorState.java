@@ -41,6 +41,13 @@ final class FloorState {
      */
     Set<String> affixes = Set.of();
 
+    /**
+     * The affixes the door board dealt for this floor ({@link Keystone#dealtAffixes}), before a commit time omen roll or
+     * recipe changed the set. The Loot percentage and the wager gear piece read this, so the board, the title and the
+     * copper chest agree. {@code null} on a floor with no door.
+     */
+    Set<String> boardAffixes;
+
     /** The theme id this floor was stamped with, or {@code null} for none (and at home). */
     String theme;
 

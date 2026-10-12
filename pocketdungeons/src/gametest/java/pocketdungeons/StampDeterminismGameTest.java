@@ -23,7 +23,7 @@ public final class StampDeterminismGameTest {
      * stamper before its parameter record refactor (and matched after it). Zero would
      * mean "not pinned": the test then only checks that two stamps agree.
      */
-    private static final int STAMP_FINGERPRINT = -133370662;
+    private static final int STAMP_FINGERPRINT = -749095718;
     // T10: re-pinned once (was 935166682) when Voided stopped voiding puzzle and ordeal cells; the
     // second variant carries Voided, so seed 7 now keeps a puzzle or ordeal cell whole.
 

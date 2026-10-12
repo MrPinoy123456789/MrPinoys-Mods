@@ -1576,6 +1576,7 @@ final class Instances {
         restorePreviewWindow(level, record, dungeonDoor);
 
         FloorState next = newFloorState(server, record, offer, plan, affixes, effectiveThemeId, previewNodes);
+        next.boardAffixes = Keystone.dealtAffixes(record.owner, offer);
         startCommittedFloor(record, offer, layout, next, openingMine);
 
         if (dealt.ominousRolled()) {
@@ -2697,6 +2698,10 @@ final class Instances {
             watchSpawnerClears(server, record);
             // Dungeon structure W7a: the Spawner Dungeon's brood and the Ancient City's Warden.
             CapstoneFights.tick(server, record);
+            // Roadmap T23: the Lush Caves potion drip.
+            PotionDrip.tick(server, record);
+            // Haunts: the roaming creature of the floor (docs/haunts-draft-2026-10-11.md).
+            Haunts.tick(server, record);
         }
         // Repainted every watch tick, and every member who is in the
         // dungeon dimension is put back on it: whichever way they came in

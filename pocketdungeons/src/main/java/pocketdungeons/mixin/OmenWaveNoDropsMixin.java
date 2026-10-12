@@ -18,7 +18,9 @@ public class OmenWaveNoDropsMixin {
     @Inject(method = "dropAllDeathLoot", at = @At("HEAD"), cancellable = true)
     private void pocketdungeons_cancelOmenWaveDrops(ServerLevel level, DamageSource source, CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.entityTags().contains(pocketdungeons.PocketDungeonsMod.OMEN_WAVE_TAG)) {
+        // A haunt body is a rule to learn, not a mob to farm: it pays nothing either.
+        if (self.entityTags().contains(pocketdungeons.PocketDungeonsMod.OMEN_WAVE_TAG)
+                || self.entityTags().contains(pocketdungeons.PocketDungeonsMod.HAUNT_TAG)) {
             ci.cancel();
         }
     }

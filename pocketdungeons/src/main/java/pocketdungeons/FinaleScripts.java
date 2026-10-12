@@ -22,6 +22,10 @@ final class FinaleScripts {
     static void registerAll() {
         SCRIPTS.clear();
         // One line per dungeon, appended below by the task that writes the script.
+        register(PotionDrip.DUNGEON_ID, new LushFinale());
+        register("pocketdungeons:ossuary", new OssuaryFinale());
+        register("pocketdungeons:mineshaft", new MineshaftFinale());
+        register(InfestationFinale.DUNGEON_ID, new InfestationFinale());
         register("pocketdungeons:kennels", new KennelsFinale());
         register("pocketdungeons:deepslate", new DeepslateFinale());
     }

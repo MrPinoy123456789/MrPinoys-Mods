@@ -59,6 +59,38 @@ final class FinaleRules {
         return total > 0 && alive <= total / 2;
     }
 
+    /** The most cave spiders the Mineshaft dark phase adds, whatever the party or the knob. */
+    static final int MAX_DARK_SPIDERS = 10;
+
+    /** The shortest warning before the lights go out, in seconds; the tell is never shorter than this. */
+    static final int MIN_DARK_TELL_SECONDS = 2;
+
+    /** How far from the exit pad and the terminal the lights are left alone, in blocks (a square). */
+    static final int DARK_SPARE_RADIUS = 4;
+
+    /**
+     * The cave spiders the Mineshaft dark phase adds (roadmap T20): {@code base} for a party of one, grown
+     * {@code perMemberPercent} per extra member like the data wave, never past {@link #MAX_DARK_SPIDERS} and
+     * never so many that the finale passes {@link #MAX_WAVE} mobs with the {@code total} it has now.
+     */
+    static int darkSpiders(int base, int party, int perMemberPercent, int total) {
+        int wanted = Math.min(MAX_DARK_SPIDERS, count(base, party, perMemberPercent));
+        return Math.max(0, Math.min(wanted, MAX_WAVE - Math.max(0, total)));
+    }
+
+    /** The warning before the lights go out, in ticks: the knob in seconds, held to at least the minimum. */
+    static long darkTellTicks(int seconds) {
+        return Math.max(MIN_DARK_TELL_SECONDS, seconds) * 20L;
+    }
+
+    /**
+     * Whether a light at {@code (x, z)} is spared because it stands within {@link #DARK_SPARE_RADIUS} of the
+     * pad at {@code (padX, padZ)}: the way to the exit is never darkened past what a torch fixes.
+     */
+    static boolean nearPad(int x, int z, int padX, int padZ) {
+        return Math.abs(x - padX) <= DARK_SPARE_RADIUS && Math.abs(z - padZ) <= DARK_SPARE_RADIUS;
+    }
+
     /**
      * What the terminal pad says while the finale stands in the way, or {@code null} when it does not.
      *

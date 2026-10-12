@@ -58,3 +58,9 @@ An agent reading this file should treat everything below as its standing orders.
 - Write the report file the task names and commit it. Reply in under 300 words: branch, report path, test counts
   before and after, what changed, and what only a live server can confirm.
 - Stay inside the files the task owns; if you must touch another file, keep the edit minimal and say so.
+
+## Disk (added 2026-10-12)
+Drive C: filled up during the first big build and stopped every agent. `tools/ship.sh` now keeps Gradle's cache and
+temp files on A: (`GRADLE_USER_HOME=A:/gradle-home`, `TMP=TEMP=A:/tmp`). When you call `./gradlew.bat` directly, export
+the same three variables first (`export GRADLE_USER_HOME=A:/gradle-home TMP=A:/tmp TEMP=A:/tmp`). Never delete files
+outside your worktree to free space; if a write fails with ENOSPC, stop and say so in your report.

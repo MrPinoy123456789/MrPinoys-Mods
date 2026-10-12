@@ -348,6 +348,8 @@ final class LayoutStamper {
                         isAnomalyCell && !"store".equals(entry.meta.content) ? null : p.theme()),
                 run.voidedCells.contains(cell), isAnomalyCell);
         PressureSources.arm(level, cellOrigin, entry.meta, p.theme(), p.affixes().contains(AffixIds.OMINOUS));
+        CreepingBricks.armRoom(level, p.origin(), cellOrigin, JsonPackSupport.qualify(placed.name()), p.theme(),
+                plan.seed());
         run.trialSpawners.addAll(spawnerAnchors);
         if ("flooded_hall".equals(entry.meta.content)) {
             run.latchDoors.addAll(TraversalSpecs.latchDoorsAt(level, cellOrigin));

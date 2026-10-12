@@ -32,6 +32,7 @@ final class AffixIds {
     static final String LOADED = "pocketdungeons:loaded";
     static final String RESTLESS = "pocketdungeons:restless";
     static final String BLACKOUT = "pocketdungeons:blackout";
+    static final String BLOOD = "pocketdungeons:blood";
 
     /**
      * The built-in ids in the order the enum declared them, which is the
@@ -40,7 +41,7 @@ final class AffixIds {
      * id, so this list is the order-zero baseline.
      */
     static final java.util.List<String> BUILT_IN_ORDER = java.util.List.of(
-            OMINOUS, FERAL, SWARMING, OVERCLOCKED, MOLTEN, SILENCED, EXPLOSIVE, VOIDED, LOADED, RESTLESS, BLACKOUT);
+            OMINOUS, FERAL, SWARMING, OVERCLOCKED, MOLTEN, SILENCED, EXPLOSIVE, VOIDED, LOADED, RESTLESS, BLACKOUT, BLOOD);
 
     /**
      * Legacy bare enum name to namespaced id. {@code "ominous"} (a pre-M69
@@ -63,6 +64,7 @@ final class AffixIds {
         map.put("loaded", LOADED);
         map.put("restless", RESTLESS);
         map.put("blackout", BLACKOUT);
+        map.put("blood", BLOOD);
         return map;
     }
 
