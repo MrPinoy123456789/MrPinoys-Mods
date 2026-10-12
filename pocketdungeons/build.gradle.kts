@@ -336,6 +336,8 @@ for ((taskName, testClass) in mapOf(
     "hauntRulesTest" to "HauntRulesTest",
     // Roadmap T01: the half-dead rule and the finale script registry.
     "finaleScriptsTest" to "FinaleScriptsTest",
+    // Roadmap T21: the Ossuary coffin counts, dealing, wake rule and awake cap.
+    "ossuaryRulesTest" to "OssuaryRulesTest",
     // Roadmap T22: the Kennels handler windup, empower and shrink-back rule.
     "kennelsFinaleRulesTest" to "KennelsFinaleRulesTest",
     // Design pass 2026-10-09 (Q3): the Heard meter.
@@ -508,6 +510,7 @@ tasks.test {
     dependsOn("finaleDataTest")
     dependsOn("hauntRulesTest")
     dependsOn("finaleScriptsTest")
+    dependsOn("ossuaryRulesTest")
     dependsOn("sculkHeardTest")
     dependsOn("restlessRulesTest")
     dependsOn("affixQuickChangesTest")
