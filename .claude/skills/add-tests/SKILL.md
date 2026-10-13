@@ -101,3 +101,31 @@ lock described in the `room-building` skill.
 A green run says `BUILD SUCCESSFUL`. Quote the gametest count. If a test fails, read the first failure and
 fix the cause; do not delete or loosen the assertion. Say what tests cannot prove (look and feel, live
 timing, remote-server behaviour) and leave that to a live check (`docs/playtests/LIVE_CHECKS.md`).
+
+
+## Passes alone, fails in the full run (added 2026-10-12)
+
+`tools/ship.sh --only <Class>` runs one class in about 20 seconds and can hide an interaction. Four tests passed alone and
+failed in the full suite during the roadmap build. The causes, in order of how often they bit:
+
+1. **Shared finale state by slot number.** Every finale gametest drives `FinaleWave` state through a record slot. Two
+   classes using the same slot unregister each other's script or read each other's mobs (symptoms: "already registered",
+   a `Cow cannot be cast to Wolf`, an occupant that never wakes). Grep `src/gametest` for the slot constants and pick an
+   unused range. In use at the end of the roadmap build: 9921 to 9925, 9941 to 9942, 9961 to 9984.
+2. **Anything seeded from the test's absolute world position.** Plan seeds mix in the cell origin, and tests are placed at
+   different positions in a full run. A single late sample ("at tick 2320 every brick is still there") passes at one
+   position and fails at another. Poll in small steps and record what ever happened, or assert on the seeds themselves.
+3. **A random owner id meeting a growing affix pool.** `UUID.randomUUID()` plus an offer at compass 5 or more draws one
+   seeded affix; once Blood joined the pool some ids drew it and a "plain door costs 0 lives" test failed. Use compass 4 or
+   lower when an offer must carry no seeded affix (the first affix slot is at compass 5), or name the affixes explicitly.
+4. **Stray entities.** The shared test world can hold mobs from earlier tests near yours; count or look up your own by
+   tag, not "the first entity".
+5. **Cleanup that is not in a `finally`.** Unregister scripts and call `FinaleWave.teardown(level, slot)` even when the
+   test fails, or one failure cascades.
+
+To reproduce, run the full `tools/ship.sh --quick --no-dist` and read the first failing test name in the log, then run
+the two or three classes around it with `--only` using a substring both ids share.
+
+A test the repo does not run by default can rot unseen: `sessionStateTest` failed on the base branch for a long time
+because it is not part of the `test` task. New static state holders must go through `SessionState.clearedAtStop`
+or be allowlisted there.

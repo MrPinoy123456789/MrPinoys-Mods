@@ -64,3 +64,16 @@ Drive C: filled up during the first big build and stopped every agent. `tools/sh
 temp files on A: (`GRADLE_USER_HOME=A:/gradle-home`, `TMP=TEMP=A:/tmp`). When you call `./gradlew.bat` directly, export
 the same three variables first (`export GRADLE_USER_HOME=A:/gradle-home TMP=A:/tmp TEMP=A:/tmp`). Never delete files
 outside your worktree to free space; if a write fails with ENOSPC, stop and say so in your report.
+
+
+## Machine limits and concurrency (added 2026-10-12)
+
+- Do not run more than one Gradle test run in your own checkout at a time, and never edit `tools/ship.sh`'s lock.
+- Prefer `--only <Class>` (about 20 s) while iterating, `--pure-fast` for the pure tests (about 1 min), and the full
+  `--quick` at most twice per task. A full run is about 4 minutes and takes a lock slot.
+- If a command fails with "no space left on device" or "paging file too small", stop and say so in your report; the
+  orchestrator decides what to free. Never delete files outside your own worktree.
+- Commit in logical steps as you go. A usage limit can stop every agent at once, and uncommitted work is the only
+  thing a stop can lose.
+- If you are told to wrap up, commit, stop at a clean break that compiles, and add a "Handoff" section to your report
+  (done, unfinished, exact next commands, latest test counts).
