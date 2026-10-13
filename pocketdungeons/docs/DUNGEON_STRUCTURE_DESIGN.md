@@ -19,6 +19,10 @@
 >   Gallery replaced it) and the Barred Vault is a vanilla vault opened with the trial key (no hopper toll).
 > - Most dungeons end in a finale on their last floor; Copper Works mobs wear copper (`mobUniform`).
 > - Feral is retired (Restless replaced it); the Kennels (hostile wolves) is a new Act 1 dungeon.
+> - The Endless Mine is one per act (five), with a guardian every 3 floors, loot tiers A, B, C and an act gate of clearing
+>   floor 3 of the previous act's mine; this replaces D13 and the mine part of D29 (floors 5, 11, 17, 23)
+>   (`docs/decision-2026-10-11-endless-mine-per-act.md`). Blood is an affix that costs 1 life once at the door
+>   (`docs/wager-draft-2026-10-12.md`), and every affix has a wager that the board shows as "Loot n%".
 > - Leaving a floor in progress fails the dungeon for the leaver, leaving between floors cashes out, and a failed
 >   dungeon returns the party to the Home room. Vault keys last the dungeon and settle for emeralds when the
 >   haul banks. A floor can promise rolled gear (`gear:<slot>:<tier>`).

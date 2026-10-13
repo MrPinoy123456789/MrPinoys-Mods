@@ -1,4 +1,4 @@
-# d1 cow pits (T30)
+## Cow Pits: the Milking Parlour and Specimen 0 (2026-10-12)
 
 Play a full Cow Pits run and check:
 

@@ -1,4 +1,4 @@
-# d2 copper works (T32)
+## Copper Works: the furnace clock, vents and vats (2026-10-12)
 
 Play a full Copper Works run and check:
 

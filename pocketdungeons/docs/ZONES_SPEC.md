@@ -130,6 +130,9 @@ blocks for free.
 
 ### 3.5 Depth layers
 
+> Superseded 2026-10-11: one mine per act, a guardian every 3 floors, loot tiers A, B, C, and an act gate of floor 3.
+> The four layer rows below no longer drive anything. See `docs/decision-2026-10-11-endless-mine-per-act.md`.
+
 | Depth (floors) | Layer | Palette | Threats | Payout |
 |---|---|---|---|---|
 | 1 to 5 | Upper workings | stone, oak supports, rails | zombies, skeletons, spiders | coal, iron, copper |

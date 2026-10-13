@@ -1,4 +1,4 @@
-# d3 lush caves (T25)
+## Lush Caves: the swamp rooms (2026-10-12)
 
 Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 

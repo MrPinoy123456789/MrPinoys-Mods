@@ -1,4 +1,4 @@
-### RM-T23 Lush Caves potion drip and giant slime
+## RM-T23 Lush Caves potion drip and giant slime
 
 - Floors 1 and 2 of a Lush Caves run drip nothing, not even after a long wait. From floor 3 a splash potion falls on you about every 45 seconds (varies by a third either way); floor 4 is a little faster.
 - The fall reads: you hear a brewing sound, see witch sparks and drips on the spot you stand on, and the potion comes down slowly over about 2 seconds. Stepping a few blocks aside makes it miss you. A low ceiling (under 3 blocks of air) skips the drip.
