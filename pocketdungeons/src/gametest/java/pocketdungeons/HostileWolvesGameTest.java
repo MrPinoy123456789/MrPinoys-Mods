@@ -88,7 +88,11 @@ public final class HostileWolvesGameTest {
 
             // Outside the instance bounds the same wolf is left alone, and a
             // wolf a room marked hostile still hunts anywhere.
-            BlockPos outside = origin.offset(40, 1, 40);
+            BlockPos outside = origin.offset(26, 1, 8);
+            helper.assertTrue(!Instances.inDungeon(outside, "kennels"), "the outside spot is beyond the instance bounds");
+            // Where the test structure lands in the world differs from run to run; make sure the chunk 26 blocks
+            // away exists before anything is placed or teleported there, or the wolves never join the level.
+            level.getChunk(outside.getX() >> 4, outside.getZ() >> 4);
             player.teleportTo(level, outside.getX() + 0.5, outside.getY(), outside.getZ() + 0.5,
                     Set.of(), 0.0f, 0.0f, false);
             level.setBlock(outside.below(), Blocks.STONE.defaultBlockState(), 3);
@@ -100,6 +104,11 @@ public final class HostileWolvesGameTest {
             tagged.setPos(outside.getX() - 2.5, outside.getY(), outside.getZ() + 0.5);
             level.addFreshEntity(tagged);
 
+            helper.assertTrue(level.getEntity(tagged.getUUID()) != null && level.getEntity(stray.getUUID()) != null,
+                    "both outside wolves joined the level (chunk loaded: " + level.hasChunkAt(outside) + ")");
+            helper.assertTrue(player.blockPosition().distSqr(outside) < 16.0,
+                    "the player reached the outside spot: at " + player.blockPosition().toShortString()
+                            + ", wanted " + outside.toShortString());
             HostileWolves.enrageAround(level, player);
             helper.assertTrue(stray.getPersistentAngerTarget() == null,
                     "an untagged wolf outside a Kennels floor stays passive");
