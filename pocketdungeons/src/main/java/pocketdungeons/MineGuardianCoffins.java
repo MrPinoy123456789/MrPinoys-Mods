@@ -91,21 +91,32 @@ final class MineGuardianCoffins implements MineGuardians.Guardian {
 
     @Override
     public void spawn(MineGuardians.Spawn spawn) {
-        ServerLevel level = spawn.level();
-        long now = level.getServer().getTickCount();
         int count = Math.max(1, MineGuardianRules.capped(MineGuardianRules.coffinsFor(spawn.hardness()),
                 PocketDungeonsConfig.mineGuardianMobCap()));
-        Set set = new Set(level, spawn.terminal(),
+        stand(spawn.level(), spawn.terminal(), count,
                 MineGuardianRules.tellTicks(MineGuardianRules.TELL_BASE_TICKS, spawn.hardness()),
+                sleeper -> MineGuardians.scale(sleeper, spawn.floorLevel(), spawn.hardness()));
+    }
+
+    /**
+     * Stands {@code count} coffins in the cell at {@code terminal} and starts the crack clock. The Mine
+     * guardian calls this from {@link #spawn} with the hardness scaling; the Brood Chamber's Ossuary
+     * phase (roadmap T43, {@link BroodPhases}) calls it with its own extra setup instead. The sleepers
+     * keep {@link MineGuardians#GUARDIAN_TAG} either way; {@code setup} runs right after it is applied.
+     */
+    static void stand(ServerLevel level, BlockPos terminal, int count, int tellTicks,
+                      java.util.function.Consumer<Mob> setup) {
+        long now = level.getServer().getTickCount();
+        Set set = new Set(level, terminal, Math.max(MineGuardianRules.TELL_FLOOR_TICKS, tellTicks),
                 now + MineGuardianRules.COFFIN_GAP_TICKS);
         java.util.Set<BlockPos> taken = new HashSet<>();
-        taken.add(spawn.centre());
+        taken.add(terminal.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
         for (int i = 0; i < count; i++) {
-            BlockPos at = MineGuardians.freeSpotInCell(level, spawn.terminal(), taken, level.getRandom());
+            BlockPos at = MineGuardians.freeSpotInCell(level, terminal, taken, level.getRandom());
             if (at == null) {
                 continue;
             }
-            Mob sleeper = spawnSleeper(level, at, spawn);
+            Mob sleeper = spawnSleeper(level, at, setup);
             if (sleeper == null) {
                 continue;
             }
@@ -116,18 +127,18 @@ final class MineGuardianCoffins implements MineGuardians.Guardian {
         if (set.coffins.isEmpty()) {
             return;
         }
-        SETS.put(spawn.terminal(), set);
+        SETS.put(terminal, set);
         tellNear(set, "Stone lids shift in the dark.");
     }
 
     /** A skeleton asleep inside the coffin's lower block: no AI, no damage, unseen, silent, unmoving. */
-    private static Mob spawnSleeper(ServerLevel level, BlockPos base, MineGuardians.Spawn spawn) {
+    private static Mob spawnSleeper(ServerLevel level, BlockPos base, java.util.function.Consumer<Mob> setup) {
         Mob sleeper = EntityTypes.SKELETON.spawn(level, base, EntitySpawnReason.TRIGGERED);
         if (sleeper == null) {
             return null;
         }
         MineGuardians.tag(sleeper);
-        MineGuardians.scale(sleeper, spawn.floorLevel(), spawn.hardness());
+        setup.accept(sleeper);
         sleeper.setNoAi(true);
         sleeper.setInvulnerable(true);
         // The bare invisible flag is recomputed from active effects every tick, so a sleeper must wear the effect.

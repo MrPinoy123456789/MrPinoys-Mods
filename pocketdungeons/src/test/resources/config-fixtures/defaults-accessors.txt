@@ -4,6 +4,7 @@ anomalyRoomChance = 0.08
 belowCompassPercent = 50
 branchProbability = 0.55
 breezeHpMultiplier = 0.5
+broodMobCap = 24
 chaoticSpawnerChance = 0.05
 clearBlocksPerTick = 8192
 copperClockBonusSeconds = 60

@@ -408,6 +408,11 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> MINE_GUARDIAN_MOB_CAP = integer("mineGuardianMobCap", 16,
             v -> v >= 1, "must be >= 1");
     /**
+     * At most this many Brood Chamber mobs stand at once: the wave, the mother's retinue, coffin
+     * sleepers, silverfish and dark spiders all count. New arrivals wait for room.
+     */
+    private static final Knob<Integer> BROOD_MOB_CAP = integer("broodMobCap", 24, v -> v >= 1, "must be >= 1");
+    /**
      * Sculk hears you (design pass 2026-10-09, Q3). Each sensor pulse in a room fills its Heard meter; at
      * sculkHeardMax (the Ancient City: sculkHeardMaxAncient) the room answers with darkness and a wave and the
      * meter resets. A room with a spawner that is cleared without it ever answering pays sculkUnheardScrap into
@@ -1291,6 +1296,10 @@ public final class PocketDungeonsConfig {
 
     public static int mineGuardianMobCap() {
         return MINE_GUARDIAN_MOB_CAP.get();
+    }
+
+    public static int broodMobCap() {
+        return BROOD_MOB_CAP.get();
     }
 
     public static int sculkHeardMax() {

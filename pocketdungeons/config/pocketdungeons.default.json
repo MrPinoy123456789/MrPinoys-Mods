@@ -154,6 +154,7 @@
   "endlessGuardianHardnessStep": 0.25,
   "endlessGuardianLapStep": 0.5,
   "mineGuardianMobCap": 16,
+  "broodMobCap": 24,
   "sculkHeardMax": 4,
   "sculkHeardMaxAncient": 2,
   "sculkUnheardScrap": 1,

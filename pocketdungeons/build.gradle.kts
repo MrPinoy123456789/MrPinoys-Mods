@@ -383,6 +383,8 @@ for ((taskName, testClass) in mapOf(
     "roomEligibilityTest" to "RoomEligibilityTest",
     // Dungeon structure W7a: brood wave sizing and phases, the sculk omen rule, the Warden summon rule, the capstone offer rule.
     "capstoneRulesTest" to "CapstoneRulesTest",
+    // Roadmap T43: the Brood Chamber's cage to mechanic order, headcounts, drip pace, mother stats, mob cap.
+    "broodPhaseRulesTest" to "BroodPhaseRulesTest",
     // Dungeon structure W7b: the Wither's health and containment rules, Herobrine's phases and rescue trigger,
     // the capstone start omen, and the shipped W7b rooms, legacy theme lists and diary pages.
     "bossRulesTest" to "BossRulesTest",
@@ -594,6 +596,7 @@ tasks.test {
     dependsOn("runMementoTest")
     dependsOn("endlessMineRulesTest")
     dependsOn("capstoneRulesTest")
+    dependsOn("broodPhaseRulesTest")
     dependsOn("cowPitsTest")
     dependsOn("copperClockRulesTest")
     dependsOn("mineGuardianRulesTest")

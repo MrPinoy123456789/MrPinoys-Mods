@@ -78,7 +78,7 @@ final class CapstoneFights {
     enum Fight { NONE, BROOD, WARDEN, WITHER, HEROBRINE }
 
     /** Per floor fight state, keyed by slot and reset when the floor's layout changes. */
-    private static final class State {
+    static final class State {
         final long seed;
         final BlockPos terminal;
         boolean initialised;
@@ -156,7 +156,7 @@ final class CapstoneFights {
         return colon < 0 ? id : id.substring(colon + 1);
     }
 
-    private static State state(InstanceRecord record) {
+    static State state(InstanceRecord record) {
         State state = STATES.get(record.slot);
         if (state == null || state.seed != record.layout.seed() || !state.terminal.equals(record.layout.terminal())) {
             state = new State(record.layout.seed(), record.layout.terminal());
@@ -262,8 +262,18 @@ final class CapstoneFights {
     }
 
     private static int waveAlive(ServerLevel level, State state) {
+        return broodAlive(level, state.terminal);
+    }
+
+    /**
+     * The tagged brood mobs in and around the terminal cell: the wave, the mother, and every phase's
+     * adds all carry {@link #WAVE_TAG}. The box is inflated a cell, so a mob that chased a member out
+     * of the room still holds the pad.
+     */
+    static int broodAlive(ServerLevel level, BlockPos terminal) {
         int alive = 0;
-        for (Mob mob : level.getEntitiesOfClass(Mob.class, CellGeometry.cellBounds(state.terminal))) {
+        for (Mob mob : level.getEntitiesOfClass(Mob.class,
+                CellGeometry.cellBounds(terminal).inflate(RoomGeometry.CELL))) {
             if (mob.isAlive() && mob.entityTags().contains(WAVE_TAG)) {
                 alive++;
             }
@@ -276,10 +286,18 @@ final class CapstoneFights {
     }
 
     private static void tickBrood(MinecraftServer server, ServerLevel level, InstanceRecord record, State state) {
+        tickBrood(server, level, record, state, onlineMembers(server, record));
+    }
+
+    /**
+     * One watch tick of the brood fight, with the member list already resolved (the seam the
+     * gametest uses, since this server has no dungeon level for {@link #onlineMembers} to see).
+     */
+    static void tickBrood(MinecraftServer server, ServerLevel level, InstanceRecord record, State state,
+                          List<ServerPlayer> members) {
         if (!state.initialised) {
             initBrood(level, record, state);
         }
-        List<ServerPlayer> members = onlineMembers(server, record);
         AABB cell = CellGeometry.cellBounds(state.terminal);
         List<ServerPlayer> inRoom = new ArrayList<>();
         for (ServerPlayer player : members) {
@@ -310,11 +328,14 @@ final class CapstoneFights {
         if (spawnersDone && !state.waveSpawned && !inRoom.isEmpty()) {
             state.waveSpawned = true;
             int spawned = releaseWave(level, state, party);
+            BroodPhases.motherArrives(server, level, record, state, members, party);
             tell(members, "The walls give. The last of the brood pours out (" + spawned + ").",
                     ChatFormatting.RED);
             level.playSound(null, state.terminal.offset(8, 2, 8), SoundEvents.RAVAGER_ROAR,
                     SoundSource.HOSTILE, 1.0f, 0.6f);
         }
+        // T43: each done cage frees its mechanic, then the phases run until the floor ends.
+        BroodPhases.tick(server, level, record, state, members, inRoom, state.kills >= exhaust);
         int alive = state.waveSpawned ? waveAlive(level, state) : 0;
         BroodWave.Phase phase = BroodWave.phase(left, state.kills, exhaust, state.waveSpawned, alive);
         if (phase == BroodWave.Phase.DONE && !state.doneAnnounced) {
@@ -323,11 +344,12 @@ final class CapstoneFights {
         }
     }
 
-    /** Releases the final wave around the room; returns how many mobs stood up. */
+    /** Releases the final wave around the room, under {@code broodMobCap}; returns how many mobs stood up. */
     private static int releaseWave(ServerLevel level, State state, int party) {
         RandomSource random = level.getRandom();
-        int skeletons = BroodWave.skeletons(party);
-        int spiders = BroodWave.spiders(party);
+        int room = BroodPhaseRules.room(PocketDungeonsConfig.broodMobCap(), waveAlive(level, state));
+        int skeletons = Math.min(BroodWave.skeletons(party), room);
+        int spiders = Math.min(BroodWave.spiders(party), room - skeletons);
         int spawned = 0;
         for (int i = 0; i < skeletons + spiders; i++) {
             EntityType<? extends Mob> type = i < skeletons ? EntityTypes.SKELETON : EntityTypes.CAVE_SPIDER;
@@ -385,11 +407,16 @@ final class CapstoneFights {
         if (level == null) {
             return null;
         }
+        return broodPadRefusal(level, record, onlineMembers(server, record));
+    }
+
+    /** The brood pad's refusal line with the level and members to hand; the seam the gametest uses. */
+    static String broodPadRefusal(ServerLevel level, InstanceRecord record, List<ServerPlayer> members) {
         State state = state(record);
         if (!state.initialised) {
             initBrood(level, record, state);
         }
-        int party = partySize(onlineMembers(server, record));
+        int party = partySize(members);
         int left = spawnersLeft(level, state);
         int exhaust = BroodWave.exhaustKills(state.initialSpawners, party);
         int alive = state.waveSpawned ? waveAlive(level, state) : 0;
@@ -470,6 +497,7 @@ final class CapstoneFights {
             discardTagged(level, record.layout.bounds());
         }
         STATES.remove(record.slot);
+        BroodPhases.floorEnded(level, record);
         Whelp.clear(level, record.slot);
         FinaleWave.floorEnded(level, record);
         PotionDrip.floorEnded(level, record);
@@ -484,6 +512,7 @@ final class CapstoneFights {
             discardTagged(level, layout.bounds());
         }
         STATES.remove(slot);
+        BroodPhases.teardown(level, slot, layout);
         Whelp.clear(level, slot);
         FinaleWave.teardown(level, slot);
         PotionDrip.teardown(level, slot, layout);
