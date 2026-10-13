@@ -17,7 +17,7 @@
     "perMemberPercent": 50,
     "elite": {
       "type": "minecraft:stray",
-      "name": "The Frost Warden",
+      "name": "Jack Frost",
       "health": 50,
       "mainhand": "minecraft:bow"
     }

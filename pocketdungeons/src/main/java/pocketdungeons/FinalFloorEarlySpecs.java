@@ -52,7 +52,7 @@ final class FinalFloorEarlySpecs {
     static final int[][] BIG_FREEZE_BRAZIERS = {{3, 4}, {12, 4}, {3, 12}, {12, 12}, {8, 13}};
 
     /**
-     * Ice pillars that give The Big Freeze cover from the Frost Warden's arrows: floor to ceiling, local x and
+     * Ice pillars that give The Big Freeze cover from Jack Frost's arrows: floor to ceiling, local x and
      * z. The first two finish icicle columns already hanging there.
      */
     static final int[][] BIG_FREEZE_PILLARS = {{6, 6}, {9, 9}};
@@ -193,19 +193,6 @@ final class FinalFloorEarlySpecs {
                     for (int[] p : new int[][]{{3, 3}, {12, 3}, {3, 12}, {12, 12}}) {
                         put(level, o, p[0], 5, p[1], LAMP);
                     }
-                    // T32: the furnace's vents are copper grates set into the floor row, two
-                    // bands the finale sweeps in a fixed order (CopperFinale finds them by
-                    // scanning for the block, never these numbers, because a stamped room
-                    // rotates). None sits in a door lane, on a spawn point or in the south
-                    // half where the way out runs. Two water vats flank the south spawns:
-                    // a Foreman driven into one weakens.
-                    BlockState grate = Blocks.COPPER_GRATE.waxed().unaffected().defaultBlockState();
-                    for (int[] v : new int[][]{{4, 6}, {7, 6}, {11, 6}, {11, 9}, {7, 9}, {4, 9}}) {
-                        put(level, o, v[0], 0, v[1], grate);
-                    }
-                    BlockState vat = Blocks.WATER_CAULDRON.defaultBlockState();
-                    put(level, o, 3, 1, 12, vat);
-                    put(level, o, 12, 1, 12, vat);
                 });
     }
 
