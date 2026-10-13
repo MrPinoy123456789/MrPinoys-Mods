@@ -64,7 +64,9 @@ public class FinaleDataTest {
                 if (f.has("elite")) {
                     JsonObject elite = f.getAsJsonObject("elite");
                     String name = elite.get("name").getAsString();
-                    check(name.startsWith("The "), id + ": the elite is named like a title: " + name);
+                    // A title ("The Alpha"), or one of the few proper names the owner chose on purpose (2026-10-12).
+                    check(name.startsWith("The ") || name.equals("Jack Frost"),
+                            id + ": the elite is named like a title: " + name);
                     check(name.indexOf('\u2014') < 0 && !name.contains("--"), id + ": no dash punctuation in the elite name");
                 }
             }
