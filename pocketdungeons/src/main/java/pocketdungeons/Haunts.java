@@ -390,7 +390,7 @@ final class Haunts {
         boolean tellDone = HauntRules.tellDone(now, state.tellStart, lead);
         // A hunting keeper walks whether seen or not; the stalker's freeze on a look never applies to it.
         HauntRules.Move move = hunt
-                ? HauntRules.decideHunt(stage, distance, tellDone)
+                ? HauntRules.decideHunt(distance, tellDone)
                 : HauntRules.decide(stage, seenByAny(members, mob), distance,
                         PocketDungeonsConfig.hauntSightingApproachBlocks(), tellDone);
         if ((move == HauntRules.Move.STRIKE || move == HauntRules.Move.NEAR_MISS)
@@ -398,7 +398,14 @@ final class Haunts {
             move = HauntRules.Move.FREEZE;
         }
         switch (move) {
-            case FREEZE -> hold(mob);
+            case FREEZE -> {
+                hold(mob);
+                // A hunting keeper that comes to rest on a member is mid wind-up, not done
+                // hunting: a body that wakes already in reach must still start its tell.
+                if (hunt && distance <= HauntRules.REACH && state.tellStart < 0) {
+                    state.tellStart = now;
+                }
+            }
             case ADVANCE -> {
                 release(mob);
                 if (distance <= TELL_RANGE) {

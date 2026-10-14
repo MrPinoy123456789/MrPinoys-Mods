@@ -152,26 +152,21 @@ public class HauntRulesTest {
     // ---- the hunter's decision ---------------------------------------------------------------------
 
     private static void testHuntDecision() {
-        // A sighting stage only ever advances: it never acts and never vanishes on approach.
+        // A keeper strikes on every floor once it reaches a member: the sighting and near-miss
+        // rungs of the ladder are the stalker's, and a toothless keeper gives the beacon floor no
+        // reason to burn. Past the reach it always advances; at the reach it holds until the tell
+        // has run, then it strikes.
+        eq(HauntRules.decideHunt(20.0, false), HauntRules.Move.ADVANCE);
+        eq(HauntRules.decideHunt(20.0, true), HauntRules.Move.ADVANCE);
+        eq(HauntRules.decideHunt(2.0, false), HauntRules.Move.FREEZE);
+        eq(HauntRules.decideHunt(2.0, true), HauntRules.Move.STRIKE);
+        eq(HauntRules.decideHunt(HauntRules.REACH, true), HauntRules.Move.STRIKE);
+        eq(HauntRules.decideHunt(2.3, true), HauntRules.Move.ADVANCE);
+        // No HUNT move is a vanish or is gated on being unseen: the keeper always comes on.
         for (double distance = 0.0; distance <= 30.0; distance += 0.5) {
             for (boolean tell : new boolean[]{true, false}) {
-                eq(HauntRules.decideHunt(HauntRules.Stage.SIGHTING, distance, tell), HauntRules.Move.ADVANCE);
-            }
-        }
-        // The later stages act at reach once the tell has run, and hold until then.
-        eq(HauntRules.decideHunt(HauntRules.Stage.NEAR_MISS, 20.0, false), HauntRules.Move.ADVANCE);
-        eq(HauntRules.decideHunt(HauntRules.Stage.NEAR_MISS, 2.0, false), HauntRules.Move.FREEZE);
-        eq(HauntRules.decideHunt(HauntRules.Stage.NEAR_MISS, 2.0, true), HauntRules.Move.NEAR_MISS);
-        eq(HauntRules.decideHunt(HauntRules.Stage.STRIKE, 2.0, false), HauntRules.Move.FREEZE);
-        eq(HauntRules.decideHunt(HauntRules.Stage.STRIKE, 2.0, true), HauntRules.Move.STRIKE);
-        eq(HauntRules.decideHunt(HauntRules.Stage.STRIKE, 2.3, true), HauntRules.Move.ADVANCE);
-        // No HUNT move is a vanish or is gated on being unseen: the keeper always comes on.
-        for (HauntRules.Stage stage : HauntRules.Stage.values()) {
-            for (double distance = 0.0; distance <= 30.0; distance += 0.5) {
-                for (boolean tell : new boolean[]{true, false}) {
-                    check(HauntRules.decideHunt(stage, distance, tell) != HauntRules.Move.VANISH,
-                            "a hunting haunt never vanishes: " + stage + " " + distance);
-                }
+                check(HauntRules.decideHunt(distance, tell) != HauntRules.Move.VANISH,
+                        "a hunting haunt never vanishes: " + distance);
             }
         }
     }

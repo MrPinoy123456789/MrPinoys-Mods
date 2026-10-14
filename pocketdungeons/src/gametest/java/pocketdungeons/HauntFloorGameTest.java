@@ -6,6 +6,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
@@ -33,6 +34,11 @@ import java.util.UUID;
  * (the {@link ClaimFloorGameTest} way: the pieces are driven directly rather than a real descent, which the
  * gametest world cannot stand up). The record stays out of the live slot registry, so the watch loop never
  * touches it.
+ *
+ * <p>A keeper strikes on every floor: the sighting and near-miss rungs of the stage ladder are the
+ * stalker's, and a toothless keeper gives a beacon floor no reason to burn. The approach windows stand the
+ * member in the entrance cell, which a keeper never acts in, so the movement and stagger asserts cannot be
+ * interrupted by a reach; the strike itself gets its own beat at the end.
  */
 public final class HauntFloorGameTest {
 
@@ -55,10 +61,9 @@ public final class HauntFloorGameTest {
 
     /**
      * The rig: four cells on a stone floor high above the test arena (entrance, mid, terminal and a branch
-     * off the path), with the chunks forced so the keeper's body really ticks. One sighting-stage floor:
-     * {@code record.interval.path} stays empty, so {@link Haunts#floorNumber} reads one and the keeper only
-     * ever advances (it never strikes and never vanishes on approach, which is what the movement asserts
-     * need).
+     * off the path), with the chunks forced so the keeper's body really ticks. {@code record.interval.path}
+     * stays empty, so {@link Haunts#floorNumber} reads one: a sighting-stage floor, which proves the keeper
+     * strikes on every floor, not just the deep ones.
      */
     private static final class Rig {
         final GameTestHelper helper;
@@ -226,8 +231,10 @@ public final class HauntFloorGameTest {
                     "the keeper wears its name");
 
             // 4. Looked at or not, it comes on. Put it east of the member, who stares at it (yaw -90 is +x).
+            // The member stands in the entrance cell: a keeper never acts on a member there, so a reach can
+            // only freeze it and the movement and stagger asserts cannot be interrupted by a strike.
             body.teleportTo(rig.origin.getX() + 24.5, rig.origin.getY() + 1.0, rig.origin.getZ() + 8.5);
-            rig.player.teleportTo(rig.level, rig.origin.getX() + 16.5, rig.origin.getY() + 1.0,
+            rig.player.teleportTo(rig.level, rig.origin.getX() + 8.5, rig.origin.getY() + 1.0,
                     rig.origin.getZ() + 8.5, Set.of(), -90.0f, 0.0f, false);
             helper.runAfterDelay(4, () -> {
                 try {
@@ -240,6 +247,10 @@ public final class HauntFloorGameTest {
                                     "the keeper advances while seen: " + seen + " to "
                                             + body.position().distanceTo(rig.player.position()));
                             // 5. A hit never lands: it staggers, then the immunity window forbids a re-stagger.
+                            // Park it east in the pad cell first, out of the member's reach: a keeper frozen
+                            // at the entrance line would keep its noAi after the stagger and read the same.
+                            body.teleportTo(rig.origin.getX() + 40.5, rig.origin.getY() + 1.0,
+                                    rig.origin.getZ() + 8.5);
                             float health = body.getHealth();
                             body.hurtServer(rig.level, rig.level.damageSources().generic(), 6.0f);
                             helper.assertValueEqual(body.getHealth(), health,
@@ -257,7 +268,7 @@ public final class HauntFloorGameTest {
                                     // never the end of it. Park the keeper east again so it has room to walk.
                                     body.teleportTo(rig.origin.getX() + 38.5, rig.origin.getY() + 1.0,
                                             rig.origin.getZ() + 8.5);
-                                    rig.player.teleportTo(rig.level, rig.origin.getX() + 16.5,
+                                    rig.player.teleportTo(rig.level, rig.origin.getX() + 8.5,
                                             rig.origin.getY() + 1.0, rig.origin.getZ() + 8.5,
                                             Set.of(), 90.0f, 0.0f, false);
                                     double unseen = body.position().distanceTo(rig.player.position());
@@ -273,12 +284,54 @@ public final class HauntFloorGameTest {
                                             Haunts.tick(server, rig.record);
                                             helper.assertTrue(!Haunts.hasBody(rig.slot),
                                                     "a lost body leaves the state waiting");
+                                            // Back to an open cell: a keeper only wakes for a member it
+                                            // may reach, and the strike beat needs one.
+                                            rig.standAt(rig.geometry.cellCentre(MID));
                                             Haunts.banishFor(rig.record, 0);
                                             Haunts.tick(server, rig.record);
                                             helper.assertTrue(Haunts.hasBody(rig.slot),
                                                     "the keeper is never spent: it comes back");
-                                            rig.finish();
-                                            helper.succeed();
+
+                                            // 7. The keeper is the floor's threat: on an open cell it
+                                            // reaches the member and strikes. A strike hurts and slows
+                                            // but can never kill, and the body draws back after it.
+                                            // Check once, past the tell: a per-tick poll here mass
+                                            // schedules into runAtTickTimeMap mid-iteration and can
+                                            // re-run this same lambda, so the wait is a single delay.
+                                            Mob returned = rig.body();
+                                            helper.assertTrue(returned != null,
+                                                    "the returning keeper is out");
+                                            // The mock reports itself creative whatever the mode says;
+                                            // strip its abilities so the strike can land.
+                                            rig.player.getAbilities().instabuild = false;
+                                            rig.player.getAbilities().invulnerable = false;
+                                            float before = rig.player.getHealth();
+                                            returned.teleportTo(rig.player.getX() + 4.0,
+                                                    rig.origin.getY() + 1.0, rig.player.getZ());
+                                            helper.runAfterDelay(
+                                                    PocketDungeonsConfig.hauntTellSeconds() * 20L + 80L,
+                                                    () -> {
+                                                        try {
+                                                            helper.assertTrue(returned.isRemoved(),
+                                                                    "the keeper reached the member and struck");
+                                                            helper.assertTrue(
+                                                                    rig.player.getHealth() < before,
+                                                                    "a strike hurts: " + before + " to "
+                                                                            + rig.player.getHealth());
+                                                            helper.assertTrue(
+                                                                    rig.player.getHealth() >= 1.0f,
+                                                                    "a strike can never kill");
+                                                            helper.assertTrue(
+                                                                    rig.player.hasEffect(
+                                                                            MobEffects.SLOWNESS),
+                                                                    "a strike slows");
+                                                            rig.finish();
+                                                            helper.succeed();
+                                                        } catch (RuntimeException failure) {
+                                                            rig.finish();
+                                                            throw failure;
+                                                        }
+                                                    });
                                         } catch (RuntimeException failure) {
                                             rig.finish();
                                             throw failure;
@@ -339,6 +392,10 @@ public final class HauntFloorGameTest {
             Mob body = rig.body();
             helper.assertTrue(body != null, "the keeper is out for the banish");
             body.teleportTo(rig.origin.getX() + 58.5, rig.origin.getY() + 1.0, rig.origin.getZ() + 8.5);
+            // A cancelled hit parks it for the charge window: a keeper free to walk could reach the
+            // member and strike before the beacon lights, which is not what the banish assert proves.
+            body.hurtServer(rig.level, rig.level.damageSources().generic(), 6.0f);
+            helper.assertTrue(body.isNoAi(), "the hit parks the keeper for the charge");
 
             // 1. Stand on the first plate: the charge fills, the bulb lights, the keeper goes.
             rig.standAt(state.beacons.get(0).plate);

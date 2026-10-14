@@ -117,19 +117,17 @@ final class HauntRules {
 
     /**
      * What a hunting haunt (The Keeper) does this tick. Looking at it does not hold it, so {@code seen} never
-     * enters the decision, and a sighting stage never vanishes on approach: the keeper only advances. The act
-     * ladder is the stalker's otherwise: at {@link #REACH} a near miss or a strike by stage, and only once the
-     * tell has run its lead, holding until then.
+     * enters the decision, and it never vanishes on approach: the keeper only advances. The stage ladder is
+     * the stalker's mercy, not the keeper's: a keeper is the floor's threat, the thing the beacons exist to
+     * banish, so it answers a reach with a strike on every floor, once the tell has run its lead. The strike
+     * itself can never kill ({@link #strikeDamage}), so a first-floor keeper is dangerous, not lethal.
      */
-    static Move decideHunt(Stage stage, double distance, boolean tellDone) {
-        if (stage == Stage.SIGHTING) {
-            return Move.ADVANCE;
-        }
+    static Move decideHunt(double distance, boolean tellDone) {
         if (distance <= REACH) {
             if (!tellDone) {
                 return Move.FREEZE;
             }
-            return stage == Stage.STRIKE ? Move.STRIKE : Move.NEAR_MISS;
+            return Move.STRIKE;
         }
         return Move.ADVANCE;
     }
