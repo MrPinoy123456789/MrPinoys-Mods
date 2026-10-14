@@ -1,0 +1,173 @@
+{
+  "name": "Sunken Treasury",
+  "token": { "mat": "minecraft:gold_block" },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:drowned",
+        "count": 4
+      },
+      {
+        "type": "minecraft:drowned",
+        "count": 2
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:drowned",
+      "name": "The Admiral",
+      "health": 120,
+      "mainhand": "minecraft:trident"
+    }
+  },
+  "notes": "A captain's hoard, sunk and sealed. Quiet hands open the vaults.",
+  "act": 3,
+  "baseLevel": 13,
+  "kind": "dungeon",
+  "mainTheme": "sunken_treasury",
+  "lootBand": {
+    "min": 3,
+    "max": 3
+  },
+  "nodePalette": [
+    "gold_ore",
+    "deepslate_gold_ore",
+    "diamond_ore",
+    "clay"
+  ],
+  "diary": "entry_28",
+  "deviation": {
+    "chance": 0.15,
+    "themes": [
+      "drowned_vault"
+    ]
+  },
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 2,
+    "sizeMin": 1,
+    "sizeMax": 3,
+    "blocks": [
+      "gold_ore",
+      "gold_ore",
+      "deepslate_gold_ore",
+      "clay"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "floodgate_lobby",
+      "name": "Floodgate Lobby",
+      "layer": 1,
+      "objective": "heist"
+    },
+    {
+      "id": "drowned_approach",
+      "name": "Drowned Approach",
+      "notes": "A flooded approach to the vaults. Wake nothing.",
+      "layer": 2,
+      "objective": "heist",
+      "roomBias": [
+        "flooded_hall"
+      ]
+    },
+    {
+      "id": "strongbox_corridor",
+      "name": "Strongbox Corridor",
+      "notes": "Strongboxes line the corridor. Crack them before the echo.",
+      "layer": 2,
+      "objective": "heist",
+      "roomBias": [
+        "sump",
+        "galleon_hold"
+      ]
+    },
+    {
+      "id": "sealed_vaults",
+      "name": "Sealed Vaults",
+      "notes": "Barred vaults full of the fleet's pay. Work the core open.",
+      "layer": 3,
+      "objective": "heist",
+      "roomBias": [
+        "barred_vault",
+        "treasury_strongroom"
+      ]
+    },
+    {
+      "id": "captains_cache",
+      "name": "The Captain's Cache",
+      "notes": "The captain's own strongroom, borrowed from the vault below.",
+      "layer": 3,
+      "objective": "heist",
+      "theme": "drowned_vault",
+      "rewards": [
+        {
+          "item": "emerald",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "the_vault_door",
+      "name": "The Vault Door",
+      "notes": "One more vault door between you and the hoard.",
+      "layer": 4,
+      "objective": "heist",
+      "roomBias": [
+        "loot_vault",
+        "galleon_hold"
+      ]
+    },
+    {
+      "id": "admirals_hoard",
+      "name": "The Admiral's Hoard",
+      "notes": "The last floor. The Admiral keeps the hoard still.",
+      "layer": 5,
+      "final": true,
+      "roomBias": [
+        "loot_vault",
+        "barred_vault",
+        "admirals_vault"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "floodgate_lobby",
+      "to": "drowned_approach"
+    },
+    {
+      "from": "floodgate_lobby",
+      "to": "strongbox_corridor"
+    },
+    {
+      "from": "drowned_approach",
+      "to": "sealed_vaults"
+    },
+    {
+      "from": "strongbox_corridor",
+      "to": "sealed_vaults"
+    },
+    {
+      "from": "strongbox_corridor",
+      "to": "captains_cache"
+    },
+    {
+      "from": "drowned_approach",
+      "to": "captains_cache",
+      "lives": 1
+    },
+    {
+      "from": "sealed_vaults",
+      "to": "the_vault_door"
+    },
+    {
+      "from": "captains_cache",
+      "to": "the_vault_door"
+    },
+    {
+      "from": "the_vault_door",
+      "to": "admirals_hoard"
+    }
+  ]
+}

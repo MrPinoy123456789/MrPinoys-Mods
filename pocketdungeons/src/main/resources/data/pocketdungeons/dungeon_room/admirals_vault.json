@@ -1,0 +1,25 @@
+{
+  "template": "pocketdungeons:rooms/admirals_vault",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "theme": ["sunken_treasury"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "sunken_treasury",
+  "dungeons": ["sunken_treasury"],
+  "acts": [3],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:gold_ore", "from": [3, 1, 14], "to": [5, 2, 14], "count": 3 },
+    { "block": "minecraft:deepslate_gold_ore", "from": [10, 1, 14], "to": [12, 2, 14], "count": 2 },
+    { "block": "minecraft:diamond_ore", "from": [7, 1, 14], "to": [8, 2, 14], "count": 1, "chance": 0.5 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "none"
+}

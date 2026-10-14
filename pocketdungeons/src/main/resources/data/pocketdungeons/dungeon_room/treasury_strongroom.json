@@ -1,0 +1,22 @@
+{
+  "template": "pocketdungeons:rooms/treasury_strongroom",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["sunken_treasury"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "sunken_treasury",
+  "dungeons": ["sunken_treasury"],
+  "acts": [3],
+  "nodes": [
+    { "block": "minecraft:gold_ore", "at": [8, 1, 8] }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "glass"
+}

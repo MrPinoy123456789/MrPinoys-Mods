@@ -1,0 +1,22 @@
+{
+  "template": "pocketdungeons:rooms/galleon_hold",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["sunken_treasury"],
+  "light": "dim",
+  "corridor": "wide",
+  "biome": "sunken_treasury",
+  "dungeons": ["sunken_treasury"],
+  "acts": [3],
+  "nodes": [
+    { "block": "minecraft:clay", "from": [1, 1, 12], "to": [1, 2, 13], "count": 2 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

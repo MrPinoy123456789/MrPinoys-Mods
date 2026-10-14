@@ -255,6 +255,7 @@ final class RoomTemplateGenerator {
         specs.addAll(NetherEndSpecs.list());
         specs.addAll(SculkRoomSpecs.list());
         specs.addAll(KennelSpecs.list());
+        specs.addAll(SunkenTreasurySpecs.list());
         return specs;
     }
 
