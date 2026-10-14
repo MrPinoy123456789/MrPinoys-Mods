@@ -96,6 +96,10 @@ final class FloorObjectives {
             record.floor.objective = HeistObjective.arm(level, record, plan);
             return;
         }
+        if (kind == FloorObjective.CLAIM) {
+            record.floor.objective = ClaimObjective.arm(level, record, plan);
+            return;
+        }
         record.floor.objective = new ObjectiveState(kind, true);
     }
 
