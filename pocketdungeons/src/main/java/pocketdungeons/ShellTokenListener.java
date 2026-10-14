@@ -52,9 +52,20 @@ final class ShellTokenListener {
         }
         DungeonLog log = DungeonLog.forServer(serverPlayer.level().getServer());
         if (log.get(serverPlayer.getUUID()).unlockedShells().contains(shellName)) {
-            Chime.refused(serverPlayer);
+            // Owner ruling (2026-10-13): a duplicate shell is still a find,
+            // so it cashes itself for emeralds instead of refusing forever.
+            int emeralds = PocketDungeonsConfig.shellDupeEmeralds();
+            held.shrink(1);
+            if (emeralds > 0) {
+                Payout.deliver(serverPlayer, new ItemStack(
+                        net.minecraft.world.item.Items.EMERALD, emeralds));
+                PlaytestJournal.emeralds(serverPlayer, emeralds, "shell_dupe");
+            }
+            Chime.scrapEarned(serverPlayer);
             serverPlayer.sendSystemMessage(Component.literal(
-                    "You have already unlocked that shell.").withStyle(ChatFormatting.YELLOW));
+                    "You already own that shell. It cashes itself for " + emeralds
+                            + (emeralds == 1 ? " emerald." : " emeralds."))
+                    .withStyle(ChatFormatting.YELLOW));
             return InteractionResult.SUCCESS_SERVER;
         }
         held.shrink(1);

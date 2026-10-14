@@ -37,11 +37,14 @@ final class IntervalBanking {
      * @param floorLevels each cleared floor's level, in order (shorter lists
      *                    treat a floor as the member's own level)
      * @param memberLevel the member's compass level, for the scrap read
-     * @param bonusChests the zone's depth bonus for this many floors
+     * @param floorChests each cleared floor's roll count, wager folded in;
+     *                    the barrel line reports the deepest floor's count
      */
     static Settlement settle(List<Integer> floorSteps, List<Integer> floorLevels,
-                             int memberLevel, int bonusChests) {
-        return new Settlement(0, 0, Omen.baseRewardChests() + Math.max(0, bonusChests));
+                             int memberLevel, List<Integer> floorChests) {
+        int chests = floorChests.isEmpty() ? Omen.baseRewardChests()
+                : floorChests.get(floorChests.size() - 1);
+        return new Settlement(0, 0, chests);
     }
 
     // ---- words (pure strings; callers wrap them in components) ---------------

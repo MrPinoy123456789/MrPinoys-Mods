@@ -61,6 +61,13 @@ final class IntervalState {
     final List<Integer> floorSteps = new ArrayList<>();
 
     /**
+     * Each cleared floor's barrel roll count, in order, parallel to
+     * {@link #floorSteps}: the wager percent is already folded in. The settle
+     * reports the last entry (the deepest barrel) as the trip's chest count.
+     */
+    final List<Integer> floorChests = new ArrayList<>();
+
+    /**
      * Each cleared floor's level, in order, parallel to {@link #floorSteps}:
      * the level a member's scrap is discounted against
      * ({@link IntervalBanking#effectiveScrap}).

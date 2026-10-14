@@ -84,7 +84,7 @@ final class MineGuardianQueen implements MineGuardians.Guardian {
             PocketDungeonsMod.LOG.warn("The mine queen failed to spawn at {}", spawn.centre().toShortString());
             return;
         }
-        MineGuardians.tag(queen);
+        MineGuardians.tag(queen, spawn.terminal());
         MineGuardians.scale(queen, spawn.floorLevel(), spawn.hardness());
         AttributeInstance scale = queen.getAttribute(Attributes.SCALE);
         if (scale != null) {
@@ -157,7 +157,7 @@ final class MineGuardianQueen implements MineGuardians.Guardian {
         for (Map.Entry<BlockPos, Run> entry : new ArrayList<>(RUNS.entrySet())) {
             Run run = entry.getValue();
             for (Mob released : run.field.collect()) {
-                MineGuardians.tag(released);
+                MineGuardians.tag(released, run.terminal);
             }
             if (!run.emerged) {
                 if (now >= run.emergeAt) {

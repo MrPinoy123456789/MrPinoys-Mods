@@ -180,3 +180,22 @@ The journal's `floor_pay` and `haul_banked` events carry the scrap numbers.
 | 2026-10-10 | kennels | 3 (alpha's den, final) | 1 | ~340 | 0 | 0 | n/a | n/a | 4 | FINISHED | Sandstone Shell token paid; shell claim UX bad (PD-206) | 2026-10-10-1.md |
 
 - 2026-10-10-1 session: one clean Kennels clear after the PD-194/195 fixes; the dungeon is playable again and pays its rewards. Three new bugs are all structural (passive wolves, a broken hazard room, claim UX), not balance.
+
+| 2026-10-13 | endless_mine_deep | 1 | 1 | 190 | 0 | 0 | n/a | n/a | 3 | banked | | 2026-10-13-1.md |
+| 2026-10-13 | endless_mine_deep | 2 | 1 | 189 | 0 | 0 | n/a | n/a | 3 | banked | | 2026-10-13-1.md |
+| 2026-10-13 | endless_mine_deep | 3 (deep sentry) | 1 | 502 | 0 | 0 | n/a | n/a | 3 | banked | guardian slain before Heard mechanic played (PD-208) | 2026-10-13-1.md |
+| 2026-10-13 | endless_mine_deep | 4 | 1 | 177 | 0 | 0 | n/a | n/a | 3 | banked | | 2026-10-13-1.md |
+| 2026-10-13 | endless_mine_deep | 5 | 1 | 128 | 0 | 0 | n/a | n/a | 3 | banked | | 2026-10-13-1.md |
+| 2026-10-13 | endless_mine_deep | 6 (foreman) | 1 | 162 | 0 | 0 | n/a | n/a | 4 | banked | guardian read as "a very fast pillager" (PD-208) | 2026-10-13-1.md |
+| 2026-10-13 | ancient_city | 1 | 1 | 119 | 0 | 0 | n/a | n/a | n/a | finished | | 2026-10-13-1.md |
+| 2026-10-13 | ancient_city | 2 | 1 | 311 | 0 | 0 | n/a | n/a | n/a | finished | | 2026-10-13-1.md |
+| 2026-10-13 | ancient_city | 3 | 1 | 232 | 0 | 0 | n/a | n/a | n/a | finished | | 2026-10-13-1.md |
+| 2026-10-13 | ancient_city | 4 (wardens_rest, final) | 1 | 309 | 0 | 0 | n/a | n/a | n/a | FINISHED | compass to 17, diary 13 pages | 2026-10-13-1.md |
+| 2026-10-13 | prismarine | 1 | 1 | 135 | 0 | 0 | n/a | n/a | n/a | finished | | 2026-10-13-1.md |
+| 2026-10-13 | prismarine | 2 | 1 | 215 | 0 | 0 | n/a | n/a | n/a | finished | | 2026-10-13-1.md |
+| 2026-10-13 | prismarine | 3 | 1 | 274 | 0 | 0 | n/a | n/a | n/a | finished | | 2026-10-13-1.md |
+| 2026-10-13 | prismarine | 4 (monument_heart, final) | 1 | 536 | 0 | 0 | n/a | n/a | n/a | FINISHED | compass to 19, longest floor of session | 2026-10-13-1.md |
+| 2026-10-13 | drowned_vault | 1 | 1 | 27 | 0 | 0 | n/a | n/a | 0 | abandoned | disconnect mid-floor; settlement unverified | 2026-10-13-1.md |
+
+- 2026-10-13-1 session: guardian floors spike floor time (502 s, 162 s) without spiking threat at compass 15+ (PD-208). Two finishes banked 10 and 16; home salvage paid ~600 xp and 30 diamonds across four visits.
+- 2026-10-13: new knob `shellDupeEmeralds` (default 2). A duplicate shell token consumed on right-click and pays 2 emeralds, between the 1 for a vault key and the 3 for an ominous key. Reason: the owner drew four Sandstone Shells in one Drowned Vault visit and each was dead weight (PD-206's dupe branch refused without consuming, and the salvage bench refuses echo shards). Watch emerald inflow from `shell_dupe` journal events at drowned rates (~2/21 weight per chest roll).

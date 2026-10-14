@@ -69,6 +69,7 @@
   "salvageBlock": "minecraft:stone",
   "salvageKeyEmeralds": 0,
   "salvageOminousKeyEmeralds": 0,
+  "shellDupeEmeralds": 0,
   "salvageMaterialBonus": 0,
   "lootDurabilityPercent": 10,
   "craftedDurabilityPercent": 10,

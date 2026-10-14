@@ -83,7 +83,9 @@ final class OmenBar {
         boolean active = record.phase == RunSession.Phase.ACTIVE;
         int floorCount = active ? record.interval.floorIndex + 1 : Math.max(1, record.interval.floorIndex);
         int chests = !active && record.floor.rewardChests >= 0 ? record.floor.rewardChests
-                : Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorCount);
+                : Wager.scaledChests(Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorCount),
+                        Wager.sum(record.floor.affixes, AffixManifest.current().definitions()),
+                        PocketDungeonsConfig.lootPercentPerWager());
         String title;
         if (active) {
             int total = record.floor.spawnersTotal;

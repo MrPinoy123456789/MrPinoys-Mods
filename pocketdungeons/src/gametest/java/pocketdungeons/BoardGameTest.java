@@ -35,7 +35,7 @@ public final class BoardGameTest {
 
         DungeonScreen.Board board = new DungeonScreen.Board(
                 Component.literal("OSSUARY \u00b7 floor 1 of 3").withStyle(ChatFormatting.YELLOW),
-                Component.literal("Charnel Steps\n1 scrap\nloot \u00d73"));
+                Component.literal("Charnel Steps\n1 scrap\n3 rolls"));
         DungeonScreen.summonDoor(level, origin, wall, board);
         List<Display.TextDisplay> shown = displays(level, origin);
         helper.assertTrue(shown.size() == 2, "a title and a body display (found " + shown.size() + ")");
@@ -43,7 +43,7 @@ public final class BoardGameTest {
 
         // Updating in place reuses both layers, never doubles them.
         DungeonScreen.summonDoor(level, origin, wall, new DungeonScreen.Board(
-                Component.literal("OSSUARY \u00b7 floor 2 of 3"), Component.literal("Bone Hall\n2 scrap\nloot \u00d73")));
+                Component.literal("OSSUARY \u00b7 floor 2 of 3"), Component.literal("Bone Hall\n2 scrap\n3 rolls")));
         shown = displays(level, origin);
         helper.assertTrue(shown.size() == 2 && bodies(shown) == 1, "an update keeps one title and one body");
         boolean retitled = shown.stream().anyMatch(e -> !e.entityTags().contains(DungeonScreen.BODY_TAG)
@@ -74,7 +74,7 @@ public final class BoardGameTest {
                 Component.literal("Ossuary").withStyle(ChatFormatting.YELLOW),
                 Component.literal("Floor 1 of 3").withStyle(ChatFormatting.YELLOW),
                 Component.literal("Pitch dark. Bring torches.").withStyle(ChatFormatting.GRAY),
-                Component.literal("Charnel Steps\n1 scrap\nloot \u00d73"));
+                Component.literal("Charnel Steps\n1 scrap\n3 rolls"));
         DungeonScreen.summonDoor(level, origin, wall, new DungeonScreen.Board(
                 Component.literal("t"), Component.literal("b"), sheets));
         List<Display.TextDisplay> shown = displays(level, origin);

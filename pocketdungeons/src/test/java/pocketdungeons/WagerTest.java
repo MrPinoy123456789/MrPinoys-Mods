@@ -28,6 +28,7 @@ public class WagerTest {
         bounds();
         sums();
         text();
+        scaledChests();
         System.out.println("WagerTest passed");
     }
 
@@ -127,6 +128,16 @@ public class WagerTest {
         check(Wager.lootText(0, 50).equals("Loot 100%"), "the line for a bare floor");
         check(Wager.lootText(4, 50).equals("Loot 300%"), "the line for wager 4");
         check(!Wager.lootText(4, 50).toLowerCase().contains("wager"), "the player never reads the word wager");
+    }
+
+    /** PD-207: the Loot percent is real: it scales the floor's chest rolls. */
+    private static void scaledChests() {
+        check(Wager.scaledChests(3, 0, 50) == 3, "Loot 100% pays the base rolls");
+        check(Wager.scaledChests(3, 2, 50) == 6, "Loot 200% doubles 3 rolls to 6");
+        check(Wager.scaledChests(3, 3, 50) == 8, "Loot 250% pays 7.5, rounded to 8");
+        check(Wager.scaledChests(3, 6, 50) == 12, "Loot 400% quadruples 3 rolls to 12");
+        check(Wager.scaledChests(3, -3, 50) == 3, "a negative wager never pays below base");
+        check(Wager.scaledChests(3, 6, 0) == 3, "a zero knob pays the base rolls always");
     }
 
     private static void check(boolean ok, String message) {

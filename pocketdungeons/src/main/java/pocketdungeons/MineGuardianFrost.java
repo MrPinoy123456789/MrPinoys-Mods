@@ -76,7 +76,7 @@ final class MineGuardianFrost implements MineGuardians.Guardian {
             if (stray == null) {
                 continue;
             }
-            MineGuardians.tag(stray);
+            MineGuardians.tag(stray, spawn.terminal());
             MineGuardians.scale(stray, spawn.floorLevel(), spawn.hardness());
             if (set.strays.isEmpty()) {
                 stray.setCustomName(Component.literal(NAME).withStyle(ChatFormatting.AQUA));

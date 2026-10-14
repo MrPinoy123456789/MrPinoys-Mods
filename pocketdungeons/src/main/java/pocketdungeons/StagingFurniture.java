@@ -332,6 +332,30 @@ final class StagingFurniture {
     }
 
     /**
+     * PD-116 (playtest 2026-10-13): while a preview stands, the picked
+     * selector door stands open so the party looks through it at the window
+     * glass, and the other two stay closed. {@code step} is the door number
+     * (1, 2 or 3). A step outside the range closes them all, which is also
+     * how the doors come back when the preview clears and they are re-placed.
+     */
+    static void setSelectorDoorsOpen(ServerLevel level, BlockPos o, DoorMask.Direction wall, int step) {
+        for (int i = 0; i < SELECTOR_DOORS.length; i++) {
+            setDoorOpen(level, selectorDoorPos(o, wall, SELECTOR_DOORS[i]), i + 1 == step);
+        }
+    }
+
+    /** Sets {@link DoorBlock#OPEN} on both halves of the door at {@code lower}, if a door stands there. */
+    private static void setDoorOpen(ServerLevel level, BlockPos lower, boolean open) {
+        BlockState state = level.getBlockState(lower);
+        if (!(state.getBlock() instanceof DoorBlock)) {
+            return;
+        }
+        RoomBuilder.set(level, lower, state.setValue(DoorBlock.OPEN, open));
+        RoomBuilder.set(level, lower.above(),
+                state.setValue(DoorBlock.OPEN, open).setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
+    }
+
+    /**
      * Takes selector door {@code step} (2 or 3) back out and hands its bulb
      * position back to plain wall, for a door the owner's key cannot reach
      * yet ({@code Instances.hideLockedDoors}). The wall behind is already

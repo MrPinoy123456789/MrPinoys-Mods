@@ -76,7 +76,7 @@ public final class BankAnywhereGameTest {
 
         RunLifecycle.settleSafeVisit(server, record);
         IntervalBanking.Settlement expected = IntervalBanking.settle(steps, List.of(), 20,
-                ZoneRules.DEFAULT.bonusChests(steps.size()));
+                record.interval.floorChests);
         if (expected.chests() != 4) {
             helper.fail("four floors should pay 3 plus 1 depth bonus, got " + expected);
             return;
@@ -111,9 +111,9 @@ public final class BankAnywhereGameTest {
             }
             // D24: a checkpoint exit settles exactly as the home lever does.
             IntervalBanking.Settlement homeExpected = IntervalBanking.settle(steps,
-                    List.of(10, 10, 10), 10, 0);
+                    List.of(10, 10, 10), 10, record.interval.floorChests);
             IntervalBanking.Settlement checkpointExpected = IntervalBanking.settle(steps,
-                    List.of(10, 10, 10), 10, 0);
+                    List.of(10, 10, 10), 10, record.interval.floorChests);
             if (!homeExpected.equals(checkpointExpected)) {
                 helper.fail("checkpoint and home should settle identically: " + homeExpected
                         + " vs " + checkpointExpected);
@@ -342,6 +342,9 @@ public final class BankAnywhereGameTest {
         record.interval.floorSteps.addAll(steps);
         record.interval.floorOmens.addAll(omens);
         record.interval.floorIndex = steps.size();
+        for (int i = 1; i <= steps.size(); i++) {
+            record.interval.floorChests.add(Omen.baseRewardChests() + ZoneRules.DEFAULT.bonusChests(i));
+        }
         return record;
     }
 

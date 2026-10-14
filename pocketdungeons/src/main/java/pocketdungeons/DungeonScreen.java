@@ -120,12 +120,13 @@ final class DungeonScreen {
     private static final double DOOR_BODY_CENTER_Y = (4.0 + DOOR_TITLE_BOTTOM_Y) / 2.0;
     /**
      * The board body, 20 percent larger than the 0.6 it had (playtest
-     * 2026-10-02-1), and 20 percent larger again (playtest 2026-10-03-2,
-     * "rows about 20% bigger"). Ten rows span about y 2.5 to 4.7, inside the
-     * four-row backdrop; the width is the part to check in play, since it
-     * depends on the uniform font.
+     * 2026-10-02-1), 20 percent larger again (playtest 2026-10-03-2,
+     * "rows about 20% bigger"), and another 20 percent on top (playtest
+     * 2026-10-13, PD-117, same complaint). Ten rows now span about y 2.2 to
+     * 5.0, still inside the four-row backdrop and under the 5.4 heading; the
+     * width is the part to check in play, since it depends on the uniform font.
      */
-    private static final float HISTORY_SCALE = 0.86f;
+    private static final float HISTORY_SCALE = 1.03f;
     /** The "FLOOR HISTORY" heading: its own display, much larger than the rows. */
     private static final float HISTORY_HEADING_SCALE = 1.6f;
     /**
@@ -345,9 +346,9 @@ final class DungeonScreen {
      * 2026-10-06-1, item 1), in colour groups with no labels:
      * <pre>
      * INFESTATION . floor 3 of 4          title, yellow
-     * Hollow Walls . Overclocked          name white, affixes magenta
+     * Hollow Walls . Overclocked . Loot 250%   name white, affixes magenta, Loot gold
      * 2 scrap                             what you get, cyan
-     * loot x3 . costs 2 scrap             loot green, price yellow
+     * 8 rolls . costs 2 scrap             rolls green, price yellow
      * </pre>
      * (the real separator is {@link BoardText#SEP}). The cyan line is the member's
      * floor pay (scrap, or emeralds above the floor), a node dungeon's ore, the floor's
@@ -396,9 +397,11 @@ final class DungeonScreen {
             lines.add(gets);
         }
 
-        // The loot rolls, then the door's price when it has one.
-        int chests = Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorNumber);
-        MutableComponent loot = Component.literal(BoardText.lootText(chests)).withStyle(ChatFormatting.GREEN);
+        // The rolls the floor pays at the Loot percent shown, then the door's price.
+        int chests = Wager.scaledChests(Omen.baseRewardChests() + ZoneRules.of(record).bonusChests(floorNumber),
+                Wager.sum(effective, AffixManifest.current().definitions()),
+                PocketDungeonsConfig.lootPercentPerWager());
+        MutableComponent loot = Component.literal(BoardText.rollsText(chests)).withStyle(ChatFormatting.GREEN);
         if (Keystone.livesCost(owner, offer) > 0) {
             loot.append(Component.literal(BoardText.SEP + DoorLives.costText(Keystone.livesCost(owner, offer)))
                     .withStyle(ChatFormatting.YELLOW));

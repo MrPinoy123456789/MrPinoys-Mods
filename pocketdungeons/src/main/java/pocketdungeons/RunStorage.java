@@ -28,7 +28,9 @@ import java.util.UUID;
  * 2026-10-06 design, item 5). Every staging room is stamped with an ender chest set
  * into its wall ({@link StagingFurniture#placeRunStorage}); right-clicking it, or
  * any other ender chest in the safe room, at the Doors or mid-run (J6), opens the
- * player's own 27 slots, so it feels vanilla while being gated behind the scenes.
+ * player's own 54 slots, so it feels vanilla while being gated behind the scenes.
+ * The block cannot double the way a chest can, but the menu is virtual, so it is
+ * sized like a double chest anyway (owner request, 2026-10-14).
  *
  * <p>The contents belong to the player, not the run: they live in {@link DungeonLog}
  * ({@link DungeonLog#storageOf}), the way the dungeon pack does, and survive floors,
@@ -42,7 +44,7 @@ import java.util.UUID;
  */
 final class RunStorage {
 
-    static final int SLOTS = 27;
+    static final int SLOTS = 54;
 
     /** The menu title. The block is an ender chest, so it says whose storage this is not. */
     static final String TITLE = "Dungeon Storage";
@@ -100,7 +102,7 @@ final class RunStorage {
         MinecraftServer server = player.level().getServer();
         StorageContainer storage = openFor(server, player.getUUID());
         player.openMenu(new SimpleMenuProvider(
-                (id, inventory, p) -> ChestMenu.threeRows(id, inventory, storage),
+                (id, inventory, p) -> ChestMenu.sixRows(id, inventory, storage),
                 Component.literal(TITLE)));
         return true;
     }
@@ -148,7 +150,7 @@ final class RunStorage {
     /**
      * Migration (design item 5): anything still in a live run's old per-run storage when
      * the run closes moves into its member's Dungeon Storage, not the pack. What does not
-     * fit the 27 slots goes to the dungeon pack record, the way a stack that did not fit
+     * fit the storage goes to the dungeon pack record, the way a stack that did not fit
      * always has. A run that never held old storage does nothing here.
      */
     static void migrateLegacy(MinecraftServer server, InstanceRecord record) {
@@ -180,7 +182,7 @@ final class RunStorage {
     }
 
     /**
-     * A 27 slot container backed by the log: built from the saved list, written back on
+     * A 54 slot container backed by the log: built from the saved list, written back on
      * every change and when the last viewer closes it. One per player while it is open.
      */
     static final class StorageContainer extends SimpleContainer {

@@ -34,6 +34,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-01-2.md:** the sculk sensor room finally connected omen to a cause in his head: he noticed the sensor text (though it flashed too fast to read, PD-100), solved the room by hoeing the sensors, and later guessed "is it my bad omen?" about fast enemies. He banked immediately after clearing a floor at max omen 4 (band 2), which may be the first omen-influenced exit. Omen is starting to be something he reasons about (medium).
 - **2026-10-02-1.md:** omen is now clearly read: player asked about Silence affix duration, asked for an omen-gain sound, and proposed Silence should give omen on consumable use rather than blocking it. The sculk-sensor line and spider-speed confusion show the bar is being used as an explanation, which is progress (high).
 - **2026-10-06-1.md:** he watches the bar closely enough to spot it lying: "My omen was 4/4 but the bar wasn't full, it didn't seem to progress properly with deaths and eating" (PD-158; journal confirms interval omen hit 4). Reads it, distrusts it now (high).
+- **2026-10-13-1.md:** lives never dropped below 5 across ~14 floors and three trips, so the pressure never bit; no spontaneous sidebar or lives mentions (low).
 
 ## A2. What makes a player go home, and when?
 - **Why:** bank-anywhere replaced the forced safe room. The depth bonus and the
@@ -57,6 +58,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-02-1.md:** player said outright "I really see no need to continue descending after I've completed 3 floors. The new 'Go Home' UI/UX should illustrate this." The desired stop point is now 3 floors, and the screen should show it with diagrams, a progress bar, and rewards at nodes rather than paragraphs (high).
 - **2026-10-02-2.md:** two more voluntary home-lever banks, both after floor 3 (band 1, then band 0), no comment on the screen itself. The Go Home redesign is still untested in play (low).
 - **2026-10-08-1.md:** the pull home is now the finish itself: three full dungeon finishes in one session (Infestation, Spawner Dungeon, Copper Works), all unprompted, plus two mid-trip lever banks. The friction moved to the end screens: "Haul 0 scrap" after the finish auto-bank (PD-179) and the unreadable "Home 4 chests" line (PD-180) (high).
+- **2026-10-13-1.md:** three voluntary trip ends at natural stops (F6 guardian bank, ancient_city finish, prismarine finish), plus a fourth run abandoned by disconnect, not choice. Home-room pull observed: salvage bench, Librarian Mending buy, villager sales all used unprompted in the gap (medium).
 
 ## A3. Does the strict resource economy feel tense or tedious?
 - **Why:** scarcity of blocks and durability is a core strength (owner). It
@@ -76,6 +78,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-01-1.md:** the bench paid once for 1 XP, but surplus pressure shifted to themed materials: "I have very little use for this amount of magma cream and blaze powder." The economy still needs sinks for category-specific drops, not just keys and gear (high).
 - **2026-10-01-2.md:** economy produced the densest feedback of any session: lapis essentially never drops (supply_tier_2 only, weight 2) while enchanting is live, totems are dead loot ("need an omen reducing mechanic"), the enchanting table should be crafted not looted, netherite came too early ("tier should be gated"), mending gear is common enough to break the durability economy, arrows are usefully scarce, and he wants sand for brewing. Surplus and scarcity are both mispriced in places (high).
 - **Owner direction 2026-10-01:** Mending becomes an expensive operation that "locks in" a piece of gear (probably a paid station action, emerald sink), not a common random enchant on loot.
+- **2026-10-13-1.md:** "not getting enough sand or gun powder" (what for unasked successfully); a mid-mine sink for spare vault and ominous keys requested; "cakes should stack" as pack pressure; salvage paid 21 gear into ~600 xp plus 30 diamonds over the session, a big diamond inflow worth watching (high).
 - **Changed 2026-10-02 (fix batch, `docs/plan-2026-10-02-1.md`):** stack caps removed; tier 3 spawner gear untrimmed and armour drops floored at 0.08; echo shards per interval, floor chance and Ordeal chance; ender chest loot became obsidian; a Guard's Bag; dead-end fountains; Silence charges omen instead of blocking. Evidence to collect: `echo_shards` journal events (L13), armour pieces per floor, whether the stack merge complaint is gone. Still open: sinks for string, bones, blaze powder, magma cream and end stone (ROADMAP backlog).
 - **2026-10-02-1.md:** economy feedback exploded into concrete asks: remove custom stack caps; too much trimmed armour and armour in general; spawners mixing mob types; bones/blaze/string/endstone/ender chests/ominous banners all dead loot without sinks; need more echo shards (1 per interval + 50% chance per floor, ordeals too); staging-room storage; dead-end fountain boon; guard kit; set-bonus trims. The scarcity/surplus balance is now the dominant design problem (high).
 - **2026-10-02-2.md:** the shard rule is settled: one guaranteed shard per third floor plus random Ordeal rewards, no plain floor chance (he disliked a `floor` shard). Stations should be crafted, not handed out by Lemon; reroll moves to the enchanting table (pick a property); Mending is sold as a book by the librarian, not "locked in"; tridents cannot be salvaged; piglin trading should draw from a dungeon loot table; mending should cost more XP or repair slower (high).
@@ -130,6 +133,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-10-02-1.md:** echo-shard subtraction on Greater doors verified "Good"; player proposed a clear shard economy (1 per interval, 50% per floor, ordeals chance). Doors are now meaningful, but the resource pacing needs tuning (medium).
 - **2026-10-02-2.md:** doors ran at keystone 12 to 15 with step 2 and step 3 offers each descent (Molten, Overclocked, Feral); no door choice was questioned. The staging door preview itself is the friction (PD-116) (low).
 - **2026-10-08-1.md:** the deepest door verdict yet: "The 3 random doors doesn't really work with the new dungeon act system", "players should be able to choose the act and dungeon", repeated as his top "first thing you'd change" at wrap. The random-offer model itself is now on the table (PD-181) (high).
+- **2026-10-13-1.md:** under the act/dungeon picker, per-floor doors are being browsed (3-5 previews before each commit) and a deliberate step-3 level-18 explosive-affix drowned_vault pick closed the session. New wording collision: `loot x3` vs `Loot 250%` read as the same number (PD-207) (medium).
 
 ## A7. What pulls a player into another session?
 - **Why:** the game has to stand on its own and hold people for hours.
@@ -156,6 +160,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **2026-09-30-2.md:** good spikes came from surprise slimes, dungeon-wide endermen, darkness that made the player pause before moving, and varied ominous enemies and rooms. The level 7 ominous floors still did not feel much harder than the prior level (medium).
 - **2026-10-01-1.md:** basalt_foundry's identity produced the spike this time: fire damage was heavy enough to rescue twice and the player framed preparation as part of the theme. That is good pressure, but it ended in a run failure before any floor completed (medium).
 - **2026-10-08-1.md:** the Spawner capstone produced the session's peak: floor omen 4, lives 1, "just barely enough resources to succeed. Including enough pet dogs for the initial wave". Drags: ~30 s poison downtime ("hide for 30 seconds", PD-178) and the hopper-key toll room he named worst of the night (PD-186) (medium).
+- **2026-10-13-1.md:** spikes were the guardian floor (deep mine F3, 502 s) and the prismarine finale (F4, 536 s); everything else ran 119-311 s. No drags named. Guardian floors spiking time without spiking threat is the new pattern to watch (PD-208) (medium).
 
 ## A9. Does the room (home) matter to the player?
 - **Why:** the room is the long-term product: decorating, trophies, showing it
@@ -166,6 +171,7 @@ mind** (the answer that would make us change the design), status, and evidence.
 - **Evidence:** 2026-09-27-1.md: the home room gives no sign it is yours or buildable; the player began furnishing it with reward chests unprompted (medium).
 - **Changed 2026-09-27:** going home prints a line saying the room is theirs to build in and that chests there are safe storage. Retest: do they decorate?
 - **2026-09-29-2.md:** yes, but blocked: he tried to grow a tree at home and could not (interior ~6 blocks, trees need 7+). The "productive home" pull keeps resurfacing; home headroom is now the obstacle (medium).
+- **2026-10-13-1.md:** the post-run home routine is now real: he spent ~5 min there unprompted salvaging gear to diamonds, buying a 64-emerald Mending book, and selling rotten flesh. Home is a workshop, though still not a decorated one (medium).
 
 ---
 

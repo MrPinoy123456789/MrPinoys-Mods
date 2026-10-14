@@ -142,13 +142,16 @@ final class SalvageStation {
      *       with them;</li>
      *   <li>wooden tools: 1 plank in the high band, 2 sticks in the middle;</li>
      *   <li>stone tools: 1 cobblestone in the high or middle band;</li>
-     *   <li>a shield: 1 plank in the high or middle band.</li>
+     *   <li>a shield: 1 plank in the high or middle band;</li>
+     *   <li>a trident (owner ruling 2026-10-13, PD-115): sand for the sea it
+     *       came from plus half that count in iron for the prongs, counting
+     *       as a large piece, so high wear pays 2 sand and 1 iron.</li>
      * </ul>
      * Under 25 percent nothing, before the {@code salvageMaterialBonus} knob (default 1)
      * adds its count to every band; anything else (bows, flint and steel) gives
-     * {@link ItemStack#EMPTY}. Never nuggets.
+     * an empty list. Never nuggets.
      */
-    static ItemStack materialsBack(ItemStack stack) {
+    static List<ItemStack> materialsBack(ItemStack stack) {
         return materialsBack(stack, PocketDungeonsConfig.salvageMaterialBonus());
     }
 
@@ -158,32 +161,52 @@ final class SalvageStation {
      * nothing under 25 percent pays {@code bonus}, one that paid 1 pays {@code 1 + bonus}, and so on.
      * Pieces that give nothing at any wear (bows, flint and steel) still give nothing.
      */
-    static ItemStack materialsBack(ItemStack stack, int bonus) {
+    static List<ItemStack> materialsBack(ItemStack stack, int bonus) {
         SalvageMath.Band band = SalvageMath.band(stack.getMaxDamage() - stack.getDamageValue(),
                 stack.getMaxDamage());
         boolean low = band == SalvageMath.Band.LOW;
         String path = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         if (path.equals("shield")) {
-            return counted(Items.OAK_PLANKS, low ? 0 : 1, bonus);
+            return one(counted(Items.OAK_PLANKS, low ? 0 : 1, bonus));
+        }
+        // PD-115 (playtest 2026-10-13): a trident matched no material rule and
+        // was eaten for nothing. The bonus goes in before the halving so the
+        // knob still scales the payout.
+        if (path.equals("trident")) {
+            int sand = SalvageMath.withBonus(SalvageMath.materials(true, band), bonus);
+            if (sand <= 0) {
+                return List.of();
+            }
+            List<ItemStack> back = new ArrayList<>(2);
+            back.add(new ItemStack(Items.SAND, sand));
+            if (sand / 2 > 0) {
+                back.add(new ItemStack(Items.IRON_INGOT, sand / 2));
+            }
+            return List.copyOf(back);
         }
         if (!isArmourOrTool(path)) {
-            return ItemStack.EMPTY;
+            return List.of();
         }
         if (path.startsWith("wooden_")) {
             return switch (band) {
-                case HIGH -> counted(Items.OAK_PLANKS, 1, bonus);
-                case MID -> counted(Items.STICK, 2, bonus);
-                case LOW -> counted(Items.STICK, 0, bonus);
+                case HIGH -> one(counted(Items.OAK_PLANKS, 1, bonus));
+                case MID -> one(counted(Items.STICK, 2, bonus));
+                case LOW -> one(counted(Items.STICK, 0, bonus));
             };
         }
         if (path.startsWith("stone_")) {
-            return counted(Items.COBBLESTONE, low ? 0 : 1, bonus);
+            return one(counted(Items.COBBLESTONE, low ? 0 : 1, bonus));
         }
         Item material = metalOf(path);
         if (material == null) {
-            return ItemStack.EMPTY;
+            return List.of();
         }
-        return counted(material, SalvageMath.materials(isLarge(stack), band), bonus);
+        return one(counted(material, SalvageMath.materials(isLarge(stack), band), bonus));
+    }
+
+    /** {@code stack} as a one-element list, or the empty list when it is empty. */
+    private static List<ItemStack> one(ItemStack stack) {
+        return stack.isEmpty() ? List.of() : List.of(stack);
     }
 
     /** {@code base} plus {@code bonus} of {@code item}, or nothing when that is not positive. */
@@ -380,8 +403,7 @@ final class SalvageStation {
             ItemStack stack = input.getItem(i);
             Kind kind = stack.isEmpty() ? Kind.REFUSED : classify(stack).kind();
             if (kind == Kind.GEAR || kind == Kind.MOB_GEAR) {
-                ItemStack back = materialsBack(stack);
-                if (!back.isEmpty()) {
+                for (ItemStack back : materialsBack(stack)) {
                     materials.merge(back.getItem(), back.getCount() * stack.getCount(), Integer::sum);
                 }
             }

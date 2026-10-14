@@ -479,19 +479,89 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** no screen is a dead end or closes on an unmade change; Invite and Banned show a plain notice when empty (no disconnect); Esc never leaves or resets anything; a banned player cannot be invited, cannot join and cannot visit; building rights show a star and need a confirm; found diaries and shells come first.
 - **Fail signs:** a disconnect on opening a list, Leave as the Esc action, a banned player still getting in.
 
-### L64: leaving, failing and the Home room (2026-10-09)
-- **Status:** owed (built, never played)
-- **Changed:** leaving a floor in progress for any reason (menu Leave, exit, disconnect, joining another party) fails the dungeon for the leaver, who keeps the fail share (50 percent) of their haul; leaving between floors cashes out in full; a host who leaves a floor fails it for everyone; a failed dungeon sends the party back to the Home room instead of out (PD-191 to PD-193).
-- **Do:** with two accounts: a rider leaves mid-floor; a rider leaves between floors; the host leaves mid-floor; the party dies on its fifth life; a rider joins another party from inside a dungeon.
-- **Pass:** the haul banks half, all, half for everyone, half, half in each case; after a failed dungeon the party stands together in the Home room with the doors ready and no lobby to reopen; the leaver is told what they kept.
-- **Fail signs:** a full bank from a mid-floor leave, the party booted out after a fail, a rider stuck in the dungeon after the host left.
-
 ### L65: small changes of 2026-10-09
 - **Status:** owed (built, never played)
 - **Changed:** the librarian and the Deepslate and Frostworks merchants buy lapis for emeralds; trimmed armour can be scrapped at the grindstone; the floor history board says FAILED, QUIT or CLEARED only; the trip sidebar shows floor, lives, spawners, haul and compass (`/dungeon display off` hides it).
 - **Do:** sell lapis; scrap a trimmed piece; finish, quit and fail one dungeon each and read the board; read the sidebar through a floor without prompting.
 - **Pass:** lapis sells; the trimmed piece scraps; the board rows read as above; the player can say their floor and haul without looking at chat.
 - **Fail signs:** a trimmed piece refused, a board row with another word, the sidebar hiding behind the omen bar or never repainting.
+
+### L66: PD-204 to PD-206 fixes (2026-10-10)
+- **Status:** owed (fixed in code 2026-10-10, all suites green; never played)
+- Kennels: spawner wolves charge the player they can see (PD-204: `Instances.inDungeon` now matches namespaced ids); Lost Dog and guard-downed packs stay calm.
+- rising_lava: the lava starts on the two side walls (never on the entrance or exit wall) and closes on the middle lane; the warning lamp sits beside the exit lever at the same height (PD-205).
+- Shell tokens: right-click a held token to unlock the shell directly; the token lore says so (PD-206).
+- **Fail signs:** a Kennels wolf ignoring the player, lava starting on a doorway wall, the lamp floating above the lever, a used token doing nothing.
+
+### L77: Floor 9, the Frostbite
+
+- **Status:** owed 2026-10-13 (`2026-10-13-1.md`): the player banked after floor 6 and has never
+  descended past F6 in either mine. Not observed.
+- [ ] Lit campfires stand around the terminal room and a named stray, "The Frostbite", hunts with
+      her kin.
+- [ ] A wind sound and "The cold is coming. Find a fire." play, then about three seconds later the
+      freeze starts: the blue overlay builds on anyone away from a fire.
+- [ ] Standing near a lit campfire thaws fast; breaking or dousing a fire removes that shelter.
+- [ ] The cold cannot kill on its own (the same health floor as the Frostworks finale).
+- [ ] Killing the last stray lifts the cold at once and the pad opens; tier C guardian loot.
+
+### L85: LX: Restless widened and Blackout (roadmap T12, 2026-10-11)
+- **Status:** owed (built, never played)
+- **Changed:** Restless now raises any fallen mob, not only the undead, as the floor theme's stand-in (wolves as skeletons, spiders as cave spiders, Frostworks as strays, drowned in the Drowned Vault and Prismarine, and so on). Bosses, elites, finale and wave mobs, pets and a mob that has already risen never rise; fire keeps them down; the 2 second groan and soul puff stay. New affix Blackout (short name Blkt, level 0): about 30 percent of the plain rooms lose all their lights. The entrance, the exit, rooms that need light and the lever Ordeal rooms stay lit.
+- **Do:** run a floor with Restless (a Kennels or Ossuary floor is quickest) and kill a wolf or spider away from fire; then run a floor with Blackout and walk the whole floor.
+- **Pass:** the groan and souls show, and 2 seconds later a skeleton or cave spider stands where the wolf or spider fell; it does not rise again; a burning one stays down; finale wave mobs and the boss never rise. Under Blackout some rooms are fully dark, the same rooms every time the same floor is stamped, and the entrance, exit, lever Ordeal rooms and kennel rooms stay lit; the affix shows as Blackout on the keystone and the title.
+- **Fail signs:** a boss or finale wave mob rising, a tamed wolf rising, a dark lever Ordeal room (lever or lamp unreadable), a dark exit, a risen mob that rises again, Blackout darkening nothing or everything.
+
+### L87: LX: Mineshaft dark phase (roadmap T20, 2026-10-11)
+- **Status:** owed (built, never played)
+- **Changed:** The Deep Face finale now has a dark phase. When half the wave is dead the beams creak (sound plus the action bar line "The beams creak."); 3 seconds later (knob `mineshaftDarkTellSeconds`, never under 2) every torch and lantern on the floor goes out, the action bar says "Light a torch.", and a second batch of glowing cave spiders joins (knob `mineshaftDarkSpiders`, 3 for a party of one, +50 percent per extra member, at most 10). The pad stays shut until they are dead. Lights come back when the finale is won or the floor ends. Spared: lights within 4 blocks of the exit pad, rooms that need light, lever Ordeal rooms.
+- **Do:** run a Mineshaft to The Deep Face, clear the spawners, kill half the wave, then fight on in the dark. Place your own torch. Win, and look again.
+- **Pass:** the creak and action bar come first with a clear pause; then the shaft goes dark in one go, the pad area stays lit, spiders are visible by their glow, a placed torch lights its patch, the fight is survivable with poison at party sizes 1 to 4, and every light is back after the win.
+- **Fail signs:** no pause before the dark, a dark pad or lever, spiders invisible or a flood of them, poison deaths with no counterplay, a party with no torches stuck in a fight it cannot see, lights missing after the win or after leaving.
+
+### L88: LX: Ossuary coffins finale (roadmap T21, 2026-10-11)
+- **Status:** owed (built, never played)
+- **Changed:** The Last Rest (Ossuary final floor) now holds six sealed coffins (polished blackstone, 2 high, 3 long, a chiseled cap at the head). When the floor's spawners are cleared and the countdown ends, the finale wave lies in the coffins instead of standing up around you: the skeletons and zombies rise one coffin at a time. A coffin cracks when you come within 4 blocks, or 15 seconds after the last one cracked (a skipped coffin opens behind you). Each coffin cracks for 2.5 seconds (stone crack sound climbing in pitch, dust off the lid) before the lid breaks and its mobs stand up and come for you. At most 6 coffin mobs are awake at once; two coffins never crack together (3 seconds apart at least). A solo player faces 7 mobs in 6 coffins (one holds two).
+- **Do:** play an Ossuary run to the final floor (Compass 4), clear the spawner, and walk through the hall. Then try again and stand still in a corner, and again with a friend. Mine a lid with a pickaxe before the wave. Kill the last mob.
+- **Pass:** the lids are visible before the wave and nothing hostile shows before the countdown ends. Coffins open one at a time with a clear tell. A coffin you ignore still opens within about 15 seconds of the previous one. Mining a lid frees its mobs at once. The pad stays shut until every coffin mob is dead and opens after; no coffin mob rises a second time with Restless on the floor. Every door lane is walkable and the exit hall is untouched. Leaving the floor and coming back (a new stamp) shows sealed coffins again.
+- **Fail signs:** all coffins opening together, a coffin that never opens, visible or audible sleepers before their lid breaks, a mob stuck inside a coffin (check a coffin with two occupants), the pad opening with a coffin still sealed, a door lane blocked by a coffin, a crash or log error from OssuaryFinale, a coffin mob dying to a fall or suffocation.
+- **Knobs:** code constants in `OssuaryRules` (`MAX_COFFINS` 8, `COFFIN_WAVE_CAP` 24, `AWAKE_CAP` 6, `WAKE_RADIUS` 4.0, `SKIP_DELAY_TICKS` 300, `MIN_GAP_TICKS` 60, `CRACK_TICKS` 50). They are not config keys; change the number and rebuild.
+
+### L89: LX: Kennels handler (roadmap T22, 2026-10-12)
+- **Status:** owed (built, never played)
+- **Changed:** In the Kennels finale the pillager is now "The Handler". When the Alpha is at half health the handler raises its arm and a horn sounds; 5 seconds later the wolves of the pack (the Alpha too) grow to 1.4 times size, turn angry and glow red. Killing the handler during the 5 seconds stops it; killing it afterwards shrinks the pack back and ends the glow.
+- **Do:** run the Kennels to The Alpha's Den, clear the spawners, and hurt the Alpha to half. Try three runs: let the windup finish; kill the handler in the windup; kill the handler after the pack has grown. Also try killing the handler before the Alpha reaches half.
+- **Pass:** the arm-up pose and the horn are clear a full 5 seconds before anything changes; "Kill the handler!" shows on the action bar; the red outline reads through walls and is red, not gold; grown wolves still path through the den doors and gaps and can hit you; a cancel leaves the pack normal; a late kill shrinks it and the outline goes; with the handler already dead nothing happens; no red outline or team left after leaving or finishing the floor.
+- **Fail signs:** the pose not showing on the pillager, a horn too quiet to notice, wolves stuck in doorways at 1.4, the outline staying after the shrink, wolves going passive, the handler rising as a Restless mob, a team listed under `/team list` after the run.
+
+### L91: Infestation: creeping bricks and The Queen (2026-10-12)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** RM-T24. In the Infestation, Chewed Corridors rooms (burrow tunnel, gnawed vein) and the Silverfish Nests slime pit grow creeping bricks when a member walks in: a mossy stone brick appears, turns to stone brick, then infested stone brick, then bursts into one silverfish. The final floor's wave is now one giant silverfish, The Queen, who burrows, sends up bricks that burst into silverfish, and rises again.
+- **Do:** 1 account (2 to feel the party scaling). Run the Infestation. Walk into a gnawed vein or burrow tunnel and watch the first brick. Smash one with a pickaxe at each stage. Let one burst. Reach The Queen's Nest, clear its spawners, and fight The Queen through at least two burrows. Leave one brick alone in the adds phase and kill The Queen with silverfish still alive. Leave the floor mid adds phase once (quit door) and re-enter the lobby.
+- **Pass:** A brick is readable by sound and cracks at each change (moss thud, stone knock, silverfish chitter, shaking and rattling just before the burst). A smashed brick leaves air, no item, no silverfish. A burst leaves no item and one silverfish. No more than the room cap of bricks grows at once. The Queen is large, named, with a boss bar. About 3 seconds before she burrows she rears up with a roar and dust. She vanishes under the floor in a dust puff and cannot be hurt. The floor cracks for about 2 seconds, then bricks appear around the arena, none on a member or on the pad. About 2 seconds before she returns the ground heaves at the spot she rises. The pad stays shut until she and every silverfish are dead. Killing her removes the bricks and the silverfish and opens the pad.
+- **Fail signs:** A brick that never changes, changes with no sound, or drops an item. A silverfish from a brick you smashed. Bricks stacking up past the cap or blocking a door lane or the pad. The Queen burrowing with no warning, taking hits while burrowed, visible while burrowed, stuck underground after the adds phase, or surfacing inside a wall. Silverfish piling past the cap. The finale ending with The Queen alive, or the pad opening with bricks or silverfish left. Blocks left mossy or infested after leaving the floor. A silverfish hiding in the stone and vanishing (it counts as dead). Adds phase feeling unfair: tune `infestationBricksPerPhase`, `infestationSilverfishCap`, `infestationAddsMaxSeconds`, `creepingMossySeconds`.
+
+### L92: LX: Silent Deep Hush rule (roadmap T31, 2026-10-12)
+- **Status:** owed (built, never played)
+- **Changed:** The Silent Deep room now holds seven sculk sensors and one shrieker. Once its spawner is cleared and the finale starts, the room's Heard meter (the sidebar line) runs the fight: bow shots, hits you take, deaths of the wave, sprinting, sensor pulses and, slowly, time all fill it (ceiling 16). At three quarters the action bar says the sculk stirs. When it fills, a heartbeat and "The deep heard you." run for 3 seconds, then the shrieker screams, darkness settles and one Warden whelp comes. The meter is deaf while the whelp is out, then starts again. Never the real Warden. The Deep Sentry and the data wave are unchanged. Winning removes the whelp. A final floor that drew no Silent Deep room runs the plain finale.
+- **Do:** one account, then two. Reach the Silent Deep from any layer 3 floor, clear the spawner, then fight three ways: (1) sneak and use melee only, (2) sprint around the room shooting a bow, (3) stand still and let the wave come. Watch the Heard line on the sidebar. Leave the knobs (hushCeiling, hushPulseRise, hushBowRise, hushHitRise, hushDeathRise, hushSprintRise, hushQuietSeconds, hushWhelps) at their defaults first.
+- **Pass:** the room reads as listening on sight (sensors on the plinth corners and out on the floor, the shrieker on the obelisk, no sensor in a door lane or on a spawn point); a quiet fight rises slowly and usually stays under the ceiling, a loud one fills it within about half a minute; the warning line comes before the fill; the heartbeat and line are clear a full 3 seconds before the dark; one whelp for a party of one is survivable with a torch and a door; the meter does not rise while the whelp is out; the pad opens after the last mob dies and the whelp is gone; nothing blocks the way to the pad.
+- **Fail signs:** the answer with no tell, darkness before the heartbeat (the shrieker can shriek on its own at close range, which darkens in vanilla), a whelp that cannot be escaped or killed, two answers back to back, the meter rising during the countdown, the whelp surviving the win, a sensor on a spawn point or in a door lane, a Warden that is not a small whelp, a ceiling that fills in the first ten seconds or never.
+
+### L93: Frostworks: The Big Freeze cold and braziers
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** roadmap T33. When the Frostworks finale wave stands, The Big Freeze turns cold: after a 3 second tell (wind sound, action bar "The cold is coming. Find a fire.") every member inside the room gains vanilla freeze ticks (blue overlay, slowdown, then 1 damage every 2 seconds when fully frozen). Five lit campfires on two block plinths are the warm spots; within 4 blocks of one a member thaws in about 2 seconds. A member at 1 heart is held under the freeze line. Two ice pillars give cover from Jack Frost's arrows. The cold ends at once on the win and when the floor ends.
+- **Do:** one account. Start a Frostworks run and reach the final floor with a `big_freeze` room (use a seed or `/dungeon admin` to force it; the room only rolls on a straight cell). Clear the floor's spawners, stand INSIDE The Big Freeze when the wave spawns. Stand away from the braziers for 30 seconds, then walk to one. Repeat with health at 1 heart (let a zombie hit you, or `/damage`). Then kill the wave. Try the knobs `frostColdTicksPerSecond` (default 6) and `frostBrazierRadius` (default 4) if it feels wrong. Also try once with leather boots on.
+- **Pass:** the wind and the action bar line come at least 2 seconds before the screen edge frosts; the overlay builds slowly and the walk slows; the five campfires are easy to find from anywhere in the room and the flames cannot be stood in; standing by one clears the overlay in about 2 seconds; at 1 heart the cold never kills you; the overlay is gone the instant the last mob dies; the pad opens as normal.
+- **Fail signs:** no tell, or the overlay starting before the wind; a brazier you can climb onto or a flame you can be burned by; braziers missing or unlit after stamping (then the log says "no cold this run"); the whole room warm (radius too big) or no spot warm; death from freeze damage; the overlay lingering after the win or after leaving; a party that fights outside the room never feeling the cold (open question: the wave spawns near the first member, wherever they are).
+
+### L94: RM T34: Haunts, The Counted in the Ossuary (2026-10-11)
+- **Status:** owed (built, tests green; never played)
+- **Changed:** the Ossuary (3 floors, compass 4 and up) is haunted. The floor title adds "Something walks here." A skeleton called The Counted wakes after about 90 seconds on the floor and moves only while nobody looks at it. Floor 1: it is seen at the edge of a room, never attacks, and vanishes when approached (three times, then it gives up for the floor). Floor 2: it reaches you and misses. Floor 3: it strikes for 3 health and slows you for 3 seconds, then stays away 40 seconds. The first tell writes "It moves when you look away." to chat and the action bar, once per trip. Its diary page (Entry 27, "The Counted") comes with the Ossuary page on the first finish. Never in the entrance room, the pad room, an Ordeal room or a finale. A killed Counted stays gone for the floor and drops nothing. Knobs: `haunts*` in `pocketdungeons.json`.
+- **Do:** run the Ossuary three floors in one trip with a compass of 4 or more, floor 1 first. On each floor stay in the open for two minutes. Once it shows, look at it, look away, look back; walk toward it; stand in a doorway with it in the next room.
+- **Pass:** the title shows the line on all three floors; the blue soul flames and the bone knock are noticeable in the dark rooms (dim floors) before it is close; the chat line appears once; on floor 1 it never hits and goes when you come within about 7 blocks; on floor 2 you hear a swipe and take nothing; on floor 3 the hit is 3 health with slowness and never kills a player at 1 to 3 health; it freezes the moment it is on your screen and creeps when it is not, including when you look at it only through a doorway or across a corner; it never appears in the first room or the pad room; it is gone when the floor ends.
+- **Fail signs:** the tell is invisible in a dim room; it moves while you watch it; it stays frozen when only a wall is between you; it hits on floor 1 or 2; a hit takes more than the knob; it follows you into the pad room; it is still standing on the next floor; it drops bones or xp.
+- **Tune:** `hauntLookConeDegrees` (60 is the half angle of the view that freezes it; raise it if it creeps while visible at the screen edge), `hauntWakePressure` (90 seconds), `hauntRetreatSeconds` (40), `hauntStrikeDamage` (3), `hauntTellSeconds` (2).
 
 # Rooms (id: roles, tier, depth, requirements)
 
@@ -512,6 +582,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - burrow_tunnel: encounter/loot/corridor, tier 1, depth 0+
 - charnel_niches: encounter/loot/corridor, tier 1, depth 0+
 - chasm: corridor, tier 1, depth 0+
+- clay_shelves: loot/corridor, tier 1, depth 0+
 - collapsing_bridge: corridor, tier 2, depth 2+, pressure local
 - copper_boiler: encounter/loot/corridor, tier 1, depth 1+
 - copper_ore_chute: encounter/loot/corridor, tier 1, depth 1+
@@ -544,6 +615,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - frost_ice_vault: encounter/loot/corridor, tier 1, depth 1+
 - frost_snowdrift: encounter/loot/corridor, tier 1, depth 1+
 - frostworks_glaze: corridor, depth 1+
+- fungal_hollow: encounter/loot/corridor, tier 1, depth 0+
 - gallery: corridor, tier 2, depth 0+
 - gnawed_vein: encounter/loot/corridor, tier 1, depth 0+
 - great_crucible: encounter/loot/corridor, tier 1, depth 0+
@@ -562,6 +634,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - hall_tee: encounter/loot/corridor, depth 0+
 - hay_loft: corridor, tier 1, depth 0+
 - hold_the_plate: corridor, tier 1, depth 1+, pressure local, access gated
+- hollow_log: loot/corridor, tier 1, depth 0+
 - hush_gallery: encounter, tier 2, depth 1+
 - ice_run: corridor, tier 2, depth 0+, pressure local
 - infested_wall: corridor, tier 2, depth 1+, access gated
@@ -577,6 +650,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - lush_hollow: encounter/loot/corridor, tier 1, depth 0+
 - lush_root_gallery: encounter/loot/corridor, tier 1, depth 0+
 - master_furnace: encounter/loot/corridor, tier 1, depth 0+
+- milking_stalls: corridor, tier 1, depth 0+
 - mineshaft_collapse: encounter/loot/corridor, tier 1, depth 1+
 - mineshaft_crossing: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_dead_end: encounter/loot/corridor, tier 1, depth 1+
@@ -607,6 +681,8 @@ tool on the MCP server (`mcp.mjs --admin`).
 - sorting_floor: corridor, tier 2, depth 0+, access gated
 - soul_sand_valley: encounter/corridor, tier 2, depth 0+
 - spawner_den: encounter, depth 2+
+- specimen_byre: corridor, tier 1, depth 0+
+- still_pond: loot/corridor, tier 1, depth 0+
 - sump: corridor, tier 2, depth 0+
 - the_altar: loot, tier 2, depth 2+, pressure omen
 - the_herd: corridor, tier 1, depth 0+
@@ -618,6 +694,8 @@ tool on the MCP server (`mcp.mjs --admin`).
 - warden_hall: exit, tier 1, depth 0+
 - wardens_deep: encounter/loot/corridor, tier 1, depth 0+
 - warped_forest: encounter/loot/corridor, tier 2, depth 0+
+- witch_haven: encounter, tier 1, depth 0+
 - wither_hall: exit, tier 1, depth 0+
 - wither_loft: encounter, tier 3, depth 2+, access gated
 - world_rim: encounter/loot/corridor, tier 1, depth 0+
+- zero_bay: corridor, tier 1, depth 0+

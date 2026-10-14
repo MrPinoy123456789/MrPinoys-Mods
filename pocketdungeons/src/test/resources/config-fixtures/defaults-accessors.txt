@@ -152,6 +152,7 @@ scrapPerAct = 1
 sculkHeardMax = 4
 sculkHeardMaxAncient = 2
 sculkUnheardScrap = 1
+shellDupeEmeralds = 2
 sidebarEnabled = true
 sidebarRepaintTicks = 20
 silencedConsumablesPerOmen = 3

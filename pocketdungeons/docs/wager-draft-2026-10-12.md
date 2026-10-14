@@ -65,7 +65,8 @@ The player never sees the word "wager" or its raw number. The door shows a loot 
 - The door board and the deal sheet: "Loot 200%" after the affix names, white at 100 and gold above. The piece the
   floor adds is named in the line of what the floor gives, beside the other promises.
 - The floor title: the affix lines, then "Loot 200%" as the last line (always shown, "Loot 100%" with no affixes).
-- Display only: the percentage changes nothing by itself; the mechanics are the copper chest rule above.
+- The percent is real (decision-2026-10-13-loot-percent-pays): the floor pays round((base + depth) x pct/100)
+  rolls. The copper chest rule above is a second, separate payout.
 - The chest or vault itself needs nothing.
 
 ## Decisions (owner, 2026-10-12)

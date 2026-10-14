@@ -13,18 +13,18 @@ import java.util.List;
 public class IntervalBankingTest {
 
     public static void main(String[] args) {
-        testChestsCarryTheDepthBonus();
+        testChestsAreTheDeepestBarrel();
         testEveryWayHomeSettlesIdentically();
         testEmptyTripBanksBaseChests();
         testWords();
         System.out.println("IntervalBankingTest passed");
     }
 
-    private static void testChestsCarryTheDepthBonus() {
-        check(settle(List.of(1, 1, 1)).chests() == 3, "no bonus: 3");
+    private static void testChestsAreTheDeepestBarrel() {
+        check(settle(List.of(1, 1, 1)).chests() == 3, "unwagered floors: 3 rolls each");
         IntervalBanking.Settlement deep = IntervalBanking.settle(List.of(1, 1, 1, 1), List.of(), 0,
-                ZoneRules.DEFAULT.bonusChests(4));
-        check(deep.chests() == 4, "floor 4: 3 plus 1 bonus");
+                List.of(3, 3, 4, 8));
+        check(deep.chests() == 8, "the barrel line is the deepest floor's rolls, depth and wager in");
     }
 
     /**
@@ -42,7 +42,7 @@ public class IntervalBankingTest {
 
     /** A trip with no cleared floors still banks the base chest count. */
     private static void testEmptyTripBanksBaseChests() {
-        IntervalBanking.Settlement none = IntervalBanking.settle(List.of(), List.of(), 0, 0);
+        IntervalBanking.Settlement none = IntervalBanking.settle(List.of(), List.of(), 0, List.of());
         check(none.chests() == Omen.baseRewardChests(), "no floors: base chests");
         check(none.levels() == 0 && none.scrapLeft() == 0, "no floors: nothing else");
     }
@@ -103,7 +103,8 @@ public class IntervalBankingTest {
     }
 
     private static IntervalBanking.Settlement settle(List<Integer> steps) {
-        return IntervalBanking.settle(steps, List.of(), 0, 0);
+        return IntervalBanking.settle(steps, List.of(), 0,
+                java.util.Collections.nCopies(steps.size(), Omen.baseRewardChests()));
     }
 
     private static void checkEquals(String actual, String expected) {

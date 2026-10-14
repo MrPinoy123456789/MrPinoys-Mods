@@ -1342,7 +1342,7 @@ final class Instances {
             return false;
         }
 
-        windowPreview(level, record, entranceOrigin, dungeonDoor);
+        windowPreview(level, record, entranceOrigin, dungeonDoor, step);
 
         record.floor.previewPlan = plan;
         record.floor.previewCellOrigin = entranceOrigin;
@@ -1364,25 +1364,18 @@ final class Instances {
      */
     static void windowPreview(ServerLevel level, InstanceRecord record, BlockPos entranceOrigin,
                               DoorMask.Direction dungeonDoor) {
+        windowPreview(level, record, entranceOrigin, dungeonDoor, 0);
+    }
+
+    static void windowPreview(ServerLevel level, InstanceRecord record, BlockPos entranceOrigin,
+                              DoorMask.Direction dungeonDoor, int step) {
         BedrockEnvelope.applyToCell(level, entranceOrigin, InstanceTeardown.standingSides(record, entranceOrigin));
-        // Replace the selected door with a glass window. The selector
-        // door for this step is at a fixed offset within the door slot; the
-        // simplest approach is to fill the entire door slot with glass, since
-        // the other two doors are still selector doors and this one is now a
-        // window.
-        RoomBuilder.windowDoor(level, record.stagingCellOrigin, mcDirection(dungeonDoor));
-        // Glass in the entrance cell's wall on the staging side too, so the
-        // party can see through into the room. Glass (not open air) so the
-        // player cannot walk in before committing.
-        RoomBuilder.windowDoor(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)));
-        // PD-85: the selector doors stand in front of that slot and cover all
-        // but its top course, so the view the party actually gets is a side
-        // window beside the doors, cut through both walls. The slot glass
-        // stays: it is the seal, and its top course is still a view.
         BlockState glass = Blocks.GLASS.defaultBlockState();
         if (HallRoom.isHallStaging(record)) {
             // The Astrolabe Room (owner, 2026-10-09): the whole 14 by 3 wall behind the doors is the window,
-            // in both cells' walls, leaving the copper bulbs in the staging wall's top course alone.
+            // in both cells' walls, leaving the copper bulbs in the staging wall's top course alone. The
+            // entrance cell's previewWall skips the door lane, so its slot is glassed on its own.
+            RoomBuilder.windowDoor(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)));
             java.util.Set<Integer> bulbs = HallRoom.bulbAlongs(level.getServer(), record);
             record.floor.previewWallOriginal.clear();
             RoomBuilder.previewWall(level, record.stagingCellOrigin, mcDirection(dungeonDoor), glass,
@@ -1392,6 +1385,18 @@ final class Instances {
                     record.floor.previewWallOriginal);
             return;
         }
+        // PD-116 (playtest 2026-10-13): the window is the strip of wall
+        // behind the three selector doors, filled with glass at door height
+        // so every door has one and the bulbs in the course above keep
+        // burning; the picked door stands open and the other two closed.
+        // Glass (not open air) so the player cannot walk in before committing.
+        RoomBuilder.previewSelectorWindow(level, record.stagingCellOrigin, mcDirection(dungeonDoor), glass);
+        RoomBuilder.previewSelectorWindow(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)),
+                glass);
+        StagingFurniture.setSelectorDoorsOpen(level, record.stagingCellOrigin, dungeonDoor, step);
+        // PD-85: the selector doors stand in front of that slot and cover all
+        // but its top course, so the view the party actually gets is a side
+        // window beside the doors, cut through both walls.
         RoomBuilder.previewSideWindow(level, record.stagingCellOrigin, mcDirection(dungeonDoor), glass);
         RoomBuilder.previewSideWindow(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)), glass);
     }
@@ -1426,15 +1431,19 @@ final class Instances {
             return;
         }
         InstanceTeardown.clearCells(level, record, List.of(record.floor.previewCellOrigin));
-        // The window filled the door slot itself, and the selector doors stand
-        // one block inside the room, so re-placing them never covered it: seal
-        // the slot back to wall (the clear already put the bedrock behind it).
-        RoomBuilder.sealDoor(level, record.stagingCellOrigin, mcDirection(record.roomDungeonDoor));
-        sealPreviewSideWindow(level, record.stagingCellOrigin, record.roomDungeonDoor);
         if (HallRoom.isHallStaging(record)) {
+            RoomBuilder.sealDoor(level, record.stagingCellOrigin, mcDirection(record.roomDungeonDoor));
             RoomBuilder.previewWall(level, record.stagingCellOrigin, mcDirection(record.roomDungeonDoor),
                     RoomBuilder.shellWallAt(level, record.stagingCellOrigin), null, null);
+        } else {
+            // PD-116: the window was the wall strip behind the selector doors,
+            // so the same strip goes back to shell wall. The bulb course was
+            // never glass and needs no restore.
+            RoomBuilder.previewSelectorWindow(level, record.stagingCellOrigin,
+                    mcDirection(record.roomDungeonDoor),
+                    RoomBuilder.shellWallAt(level, record.stagingCellOrigin));
         }
+        sealPreviewSideWindow(level, record.stagingCellOrigin, record.roomDungeonDoor);
         record.floor.previewWallOriginal.clear();
         if (!HallRoom.armFor(level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner)) {
             StagingFurniture.placeSelectorDoors(level, record.stagingCellOrigin,
@@ -1801,6 +1810,14 @@ final class Instances {
      */
     static void connectStagingToEntrance(ServerLevel level, BlockPos stagingOrigin, BlockPos entranceOrigin,
                                          DoorMask.Direction dungeonDoor) {
+        // PD-116: the selector window's third column goes back to wall before
+        // the doorway opens, since it sits one along outside the slot. The
+        // entrance half copies the course beside it, a themed cell not being
+        // the staging room's shell.
+        RoomBuilder.sealSelectorWindowEnd(level, stagingOrigin, mcDirection(dungeonDoor),
+                RoomBuilder.shellWallAt(level, stagingOrigin));
+        RoomBuilder.sealSelectorWindowEndLikeBeside(level, entranceOrigin,
+                mcDirection(CellGeometry.opposite(dungeonDoor)));
         RoomBuilder.openDoor(level, stagingOrigin, mcDirection(dungeonDoor));
         RoomBuilder.openDoor(level, entranceOrigin, mcDirection(CellGeometry.opposite(dungeonDoor)));
         // PD-85: the side window was only for looking; the doorway replaces

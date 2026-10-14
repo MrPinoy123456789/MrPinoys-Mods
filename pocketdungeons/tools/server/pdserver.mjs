@@ -35,6 +35,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { freemem, platform, tmpdir } from 'node:os'
 import { dedupeHeard, eventOf, isVanillaNoise, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
+import { cursorOffset, saveCursor } from './chat-cursor.mjs'
 import { Kinetic, remoteConfig } from './kinetic.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -267,22 +268,31 @@ async function logBytes(offset) {
   return buf
 }
 
-/** New event lines since the saved cursor; a shorter log than the cursor means the server restarted. */
-async function readNew(fromStart) {
+// PD-118: the last offset this process actually used. A corrupt cursor file used
+// to silently reset a running `wait` to offset 0 and replay the whole log; now a
+// bad read keeps this instead (chat-cursor.mjs owns the file).
+let lastCursorOffset = 0
+
+/**
+ * New event lines since the saved cursor; a shorter log than the cursor means
+ * the server restarted. {@code moveCursor} false reads without advancing the
+ * saved offset: `chat --all` is a look back, not a consume, and must not hide
+ * lines from a `wait` that runs after it.
+ */
+async function readNew(fromStart, moveCursor = true) {
   const info = await logInfo()
   if (!info) return []
-  let cursor = { offset: 0 }
-  if (!fromStart && existsSync(readCursorPath)) {
-    try { cursor = JSON.parse(readFileSync(readCursorPath, 'utf8')) } catch { cursor = { offset: 0 } }
-  }
-  if (cursor.offset > info.size) cursor.offset = 0
-  if (cursor.offset === info.size) return []
-  const buf = await logBytes(cursor.offset)
+  let offset = fromStart ? 0 : cursorOffset(readCursorPath, lastCursorOffset)
+  if (offset > info.size) offset = 0
+  if (offset === info.size) return []
+  const buf = await logBytes(offset)
   // Only consume whole lines, so a half-written line is read next time. PD-79: the
   // cursor used to jump to the file size, which skipped such a line for good.
   const { text, bytes } = wholeLines(buf)
-  mkdirSync(dirname(readCursorPath), { recursive: true })
-  writeFileSync(readCursorPath, JSON.stringify({ offset: cursor.offset + bytes }))
+  if (moveCursor) {
+    saveCursor(readCursorPath, offset + bytes)
+    lastCursorOffset = offset + bytes
+  }
   return text.split(/\r?\n/).map(eventOf).filter(Boolean)
 }
 
@@ -459,7 +469,9 @@ async function cmd() {
 async function chat() {
   const all = flag('--all')
   const follow = flag('--follow')
-  for (const e of await readNew(all)) console.log(e)
+  // --all is a look back over history, not a consume: it must not move the
+  // cursor, or a later `wait` would skip everything it printed (PD-118).
+  for (const e of await readNew(all, !all)) console.log(e)
   if (!follow) return
   for (;;) {
     await sleep(panel ? 2000 : 1000)
@@ -490,6 +502,34 @@ async function sync() {
 async function wait() {
   const timeout = Number(flagValue('--timeout', 240)) * 1000
   const player = flagValue('--player', null)
+  // PD-118: two `wait`s for one player used to run side by side, each moving the
+  // shared cursor past lines the other never printed. One wait per player (or
+  // per cursor when no player is named) takes a lock file that is stale after
+  // two timeouts, so a crashed wait cannot block the next one for good.
+  const waitLock = `${readCursorPath}.wait-${player ?? 'all'}.lock`
+  const waitLockStale = timeout * 2 + 30000
+  try {
+    closeSync(openSync(waitLock, 'wx'))
+  } catch (e) {
+    if (e.code !== 'EEXIST') throw e
+    let fresh = true
+    try { fresh = Date.now() - statSync(waitLock).mtimeMs <= waitLockStale } catch { fresh = false }
+    if (fresh) {
+      console.log(`another wait is already running for ${player ?? 'this log'}; refusing a second one`)
+      process.exitCode = 1
+      return
+    }
+    try { unlinkSync(waitLock) } catch { /* the stale holder just released it */ }
+    try { closeSync(openSync(waitLock, 'wx')) } catch { /* raced; run anyway */ }
+  }
+  try {
+    await waitLoop(timeout, player)
+  } finally {
+    try { unlinkSync(waitLock) } catch { /* already gone */ }
+  }
+}
+
+async function waitLoop(timeout, player) {
   const startedAt = Date.now()
   const startSize = await logSize()
   let up = null

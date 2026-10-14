@@ -5,11 +5,12 @@ import java.util.List;
 /** Pure regression for {@link BoardText}: the door board's words and the palette simplification. */
 public class BoardTextTest {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         testTitle();
         testPrices();
         testPalette();
         testNotes();
+        testHistoryScale();
         System.out.println("BoardTextTest passed");
     }
 
@@ -17,13 +18,13 @@ public class BoardTextTest {
         eq(BoardText.titleLine("Infestation", 3, 4), "INFESTATION \u00b7 floor 3 of 4");
         eq(BoardText.titleLine("Ossuary", 1, 3), "OSSUARY \u00b7 floor 1 of 3");
         eq(BoardText.endlessTitle("Endless Mine", 6), "ENDLESS MINE \u00b7 floor 6");
-        eq(BoardText.lootText(3), "loot \u00d73");
+        eq(BoardText.rollsText(8), "8 rolls");
     }
 
     private static void testPrices() {
         eq(BoardText.costText(1), "costs 1 scrap");
         eq(BoardText.costText(2), "costs 2 scrap");
-        for (String line : List.of(BoardText.titleLine("A", 1, 2), BoardText.lootText(1), BoardText.costText(2))) {
+        for (String line : List.of(BoardText.titleLine("A", 1, 2), BoardText.rollsText(1), BoardText.costText(2))) {
             check(!line.contains("--") && line.indexOf('\u2014') < 0, "no dash punctuation: " + line);
         }
     }
@@ -72,6 +73,17 @@ public class BoardTextTest {
         // Structural blocks are scenery, not resources.
         eq(String.join(",", BoardText.paletteWords(List.of("stone", "coal_ore", "oak_planks", "deepslate"))), "coal");
         check(BoardText.paletteWords(List.of()).isEmpty() && BoardText.paletteWords(null).isEmpty(), "empty in, empty out");
+    }
+
+    /**
+     * PD-117 (playtest 2026-10-13): the history board's rows read too small
+     * at 0.86. The scale now sits at 1.03, about 20 percent bigger.
+     */
+    private static void testHistoryScale() throws Exception {
+        String src = java.nio.file.Files.readString(
+                java.nio.file.Path.of("src/main/java/pocketdungeons/DungeonScreen.java"));
+        check(src.contains("HISTORY_SCALE = 1.03f"), "the history rows are a fifth bigger again");
+        check(!src.contains("HISTORY_SCALE = 0.86f"), "the 0.86 scale is gone");
     }
 
     private static void eq(String actual, String expected) {

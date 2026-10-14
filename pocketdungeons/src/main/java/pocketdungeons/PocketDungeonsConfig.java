@@ -332,6 +332,9 @@ public final class PocketDungeonsConfig {
     /** Emeralds per ominous vault key. */
     private static final Knob<Integer> SALVAGE_OMINOUS_KEY_EMERALDS = integer("salvageOminousKeyEmeralds", 3,
             v -> v >= 0, "must be >= 0");
+    /** Emeralds a duplicate shell token pays on right-click, once the palette is already unlocked. */
+    private static final Knob<Integer> SHELL_DUPE_EMERALDS = integer("shellDupeEmeralds", 2,
+            v -> v >= 0 && v <= 64, "must be 0 to 64");
     /**
      * Tuning knob (2026-10-08): extra pieces of material every salvaged item pays in every
      * wear band, so what paid 0 pays 1, 1 pays 2, 2 pays 3. 0 restores the old table.
@@ -496,7 +499,7 @@ public final class PocketDungeonsConfig {
     /** Most the wager tier chance reaches, in percent. */
     private static final Knob<Integer> WAGER_TIER_CHANCE_CAP = integer("wagerTierChanceCap", 90,
             v -> v >= 0 && v <= 100, "must be 0 to 100");
-    /** Display only: the Loot percent the door board shows is 100 plus this per wager point. */
+    /** The Loot percent the door board shows and the barrel pays: 100 plus this per wager point. */
     private static final Knob<Integer> LOOT_PERCENT_PER_WAGER = integer("lootPercentPerWager", 50,
             v -> v >= 0 && v <= 200, "must be 0 to 200");
     private static final Knob<Integer> FINALE_COUNTDOWN_SECONDS = integer("finaleCountdownSeconds", 3,
@@ -1664,6 +1667,10 @@ public final class PocketDungeonsConfig {
 
     public static int salvageOminousKeyEmeralds() {
         return SALVAGE_OMINOUS_KEY_EMERALDS.get();
+    }
+
+    public static int shellDupeEmeralds() {
+        return SHELL_DUPE_EMERALDS.get();
     }
 
     public static List<PowerBonusEntry> powerBonuses() {

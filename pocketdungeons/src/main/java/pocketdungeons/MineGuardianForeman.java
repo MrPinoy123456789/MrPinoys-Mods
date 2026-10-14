@@ -93,7 +93,7 @@ final class MineGuardianForeman implements MineGuardians.Guardian {
             PocketDungeonsMod.LOG.warn("The mine foreman failed to spawn at {}", spawn.centre().toShortString());
             return;
         }
-        MineGuardians.tag(foreman);
+        MineGuardians.tag(foreman, spawn.terminal());
         MineGuardians.scale(foreman, spawn.floorLevel(), spawn.hardness());
         foreman.setCustomName(Component.literal(NAME).withStyle(ChatFormatting.GOLD));
         foreman.setCustomNameVisible(true);

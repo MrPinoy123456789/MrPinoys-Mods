@@ -43,6 +43,7 @@ public final class MineGuardianGameTest {
 
     private static InstanceRecord mineRecord(GameTestHelper helper, String mineId) {
         BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+        loadCell(helper.getLevel(), origin);
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
         InstanceLayout layout = new InstanceLayout(origin, geometry, origin.offset(3, 1, 3), 0.0f,
                 origin.offset(8, 1, 8), geometry.bounds(), 1L, 4, 4, 1, true, Set.of(), 3, origin,
@@ -54,11 +55,24 @@ public final class MineGuardianGameTest {
         return record;
     }
 
+    /** Loads every chunk the cell touches, so a tick-0 spawn never lands in a pending chunk. */
+    private static void loadCell(ServerLevel level, BlockPos cellOrigin) {
+        level.getChunk(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4);
+        level.getChunk((cellOrigin.getX() + RoomGeometry.CELL - 1) >> 4, cellOrigin.getZ() >> 4);
+        level.getChunk(cellOrigin.getX() >> 4, (cellOrigin.getZ() + RoomGeometry.CELL - 1) >> 4);
+        level.getChunk((cellOrigin.getX() + RoomGeometry.CELL - 1) >> 4,
+                (cellOrigin.getZ() + RoomGeometry.CELL - 1) >> 4);
+    }
+
     private static List<Mob> guardians(ServerLevel level, BlockPos terminalOrigin) {
+        // Count by scope tag, not position: a mob belongs to the terminal that spawned it however
+        // far it has drifted, and a neighbouring test's guardian mob (cells pack close together)
+        // is never counted or discarded here.
         AABB bounds = CellGeometry.cellBounds(terminalOrigin).inflate(RoomGeometry.CELL * 2.0);
         List<Mob> out = new ArrayList<>();
         for (Mob mob : level.getEntitiesOfClass(Mob.class, bounds)) {
-            if (mob.entityTags().contains(MineGuardians.GUARDIAN_TAG)) {
+            if (mob.entityTags().contains(MineGuardians.GUARDIAN_TAG)
+                    && MineGuardians.scopedTo(mob, terminalOrigin)) {
                 out.add(mob);
             }
         }

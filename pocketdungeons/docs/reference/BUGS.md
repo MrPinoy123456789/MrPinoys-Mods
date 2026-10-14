@@ -5324,26 +5324,26 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "Tridents can't be salvaged."
 **Severity:** Medium (surplus gear has no outlet; related to PD-108).
-**Status:** Open. Check `SalvageStation.classify` for the trident; PD-108's refusal text may or may not name it.
+**Status:** Fixed in code 2026-10-13, live check owed. `classify` always took the trident (damageable, so MOB_GEAR), but `materialsBack` matched no gear suffix and returned nothing, so it was eaten for zero payout. Owner ruling: it counts as a large piece that pays sand plus half that count in iron, so high wear gives 2 sand and 1 iron ingot, mid wear 1 sand. Covered by `SalvageGameTest.tridentSalvagesToSandAndIron`.
 
 ### PD-116: Selecting a staging door replaces its light with the preview glass; door 3 has no glass (Medium)
 
 **Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "Two of the lights for the selection doors disappeared and were replaced by the preview glass", on the two lowest-level doors when one is selected for preview; "this new 3rd door doesn't have preview glass behind it currently."
 **Severity:** Medium (related to PD-85).
-**Status:** Open.
-**Player's proposed fix:** the selected door temporarily vanishes while its light stays on so he looks through it; changing the selection restores that door and hides the new one.
+**Status:** Fixed in code 2026-10-13, live check owed. `windowDoor` filled the slot (alongs 7..8, Y1..3) with glass, which wrote over the bulbs at alongs 7 and 8 and never reached door 3 (along 9). The preview now fills the wall strip behind all three doors at door height only (`RoomBuilder.previewSelectorWindow`, alongs 7..9, Y1..2), the bulb course at Y=3 is never touched, and the picked door stands open while the other two stay closed. Clear and commit restore the same footprint. Covered by `DoorCommitGameTest.previewWindowsAllThreeDoorsAndKeepsTheLights`.
+**Player's proposed fix:** the selected door temporarily vanishes while its light stays on so he looks through it; changing the selection restores that door and hides the new one. (Shipped as: the picked door opens instead of vanishing.)
 **Fix idea:** put preview glass behind all three doors and stop the preview from overwriting the door light blocks.
 
 ### PD-117: The floor history board's row text is still too small (Low)
 
 **Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "Floor history look good but the row text should be 20% bigger."
-**Severity:** Low. **Status:** Open. Raise the row scale (`HISTORY_SCALE`) by about 20 percent and check the rows still fit the wall.
+**Severity:** Low. **Status:** Fixed in code 2026-10-13, live check owed. `HISTORY_SCALE` 0.86 to 1.03 (about 20 percent); ten rows still fit inside the four-row backdrop under the heading by the geometry, but the real check is a live look at width, since the font is not monospaced. `BoardTextTest` asserts the new scale.
 
 ### PD-118: Lemon tooling hides and delays player questions (High, harness)
 
 **Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`; the owner also reported "you're missing my messages".
 **Severity:** High (at least 8 questions hit the 45 s fallback "I do not know that one yet"; the owner nearly lost data).
-**Status:** Open. Worked around live with a persistent `tail -F latest.log | grep` monitor, after which every ask arrived within seconds.
+**Status:** Fixed in code 2026-10-13, live check owed on the real panel. The cursor moved into `tools/server/chat-cursor.mjs`: writes are atomic (temp file then rename), a corrupt file keeps the caller's last offset instead of rewinding to 0, and `chat --all` reads without moving it. A second `wait` for the same player takes a lock file and refuses, stale after two timeouts plus 30 s. Covered by `tools/server/chat-cursor.test.mjs`; `wait-filter.test.mjs` still passes all 47 cases. Worked around live with a persistent `tail -F latest.log | grep` monitor.
 **Repro:** a background `server wait --player <p> --timeout 240` loop printed `no new events (timeout)` while `Lemon ask` lines sat in `run/logs/latest.log`; later a wait printed the whole log from `server ready` (offset 0) twice. At 20:44 the cursor file `run/.agent-chat-cursor.json` held offset 457312, equal to the log size, while two asks (20:42:09, 20:44:11) had never been printed. Some asks never produced a `lemon ask` line at all before the fallback (`Lemon unanswered` only).
 **Likely cause:** `tools/server/pdserver.mjs` lines 138 to 153: a cursor parse failure silently resets the offset to 0 (`catch { cursor = { offset: 0 } }`), the cursor write is not atomic, and `wait` and `chat --all` share it, so overlapping or concurrent runs can corrupt or advance it past lines that were never printed.
 **Fix idea:** write the cursor atomically (temp file then rename), keep the old offset when it cannot be parsed, never let `chat --all` move it, and refuse a second concurrent `wait` for the same player. Add a test with a corrupted cursor.
@@ -5769,3 +5769,11 @@ Tests: `IronDoorGameTest.floodedHallDoorsAreLatchesThatOpenAndClose` (every door
 ### PD-206: Shell token claim flow is not intuitive (Medium, UX)
 **Reported:** 2026-10-10-1, after the Kennels finish: "I got 'Sandstone Shell' how do I claim it?" then "Holding the item in my hand and navigating to the menu is not very intuitive, needs a better system". The current path (hold token, Home, menu, Manage Room, Change Shell, Unlock) is four screens deep and unexplained anywhere a chest actually gives you the token.
 **Status:** Fixed 2026-10-10 (code, awaiting live check). Took the simplest option: right-clicking a shell token now unlocks that shell directly, consuming the token, through a new `ShellTokenListener` (`UseItemCallback`) that resolves the token's stored shell id and runs the same unlock path the menu used. The menu route still works for anyone holding a token already or finding the screen first. Token lore in the shell loot tables now says to use the item instead of pointing at the menu, and the token is an echo shard instead of cobblestone so a right-click on a block cannot place it (UseItemCallback never fires on a block click). Tokens already in inventories stay cobblestone. Test: `ShellTokenGameTest.shellTokenClaimsOnUse` (a mock player holding a token uses it; the shell is recorded as unlocked and the stack consumed). Unverified live: whether a player who finds a token reads the lore and thinks to right-click it, and whether the deeper menu path is still discoverable when wanted.
+
+### PD-207: Door board shows two different "loot" wordings that read as the same thing (Low, UX)
+**Reported:** 2026-10-13-1, deep mine floor 2 door board: "What is loot 250% and loot x3?" The wager line (`Loot 250%`, the affix cost paid in chest odds) and the floor-pay line (`loot x3`, how many rolls the floor pays) both print the word "loot" with a number, and on first sight they collided into one unexplained pair of numbers.
+**Status:** Fixed in code 2026-10-13, live verification owed. The owner merged the two into one system (docs/decision-2026-10-13-loot-percent-pays.md): the Loot percent is now the multiplier the barrel pays, and the green line reads the scaled count as `8 rolls`. Verified by WagerTest.scaledChests and the updated IntervalBanking/BoardText tests; needs a live door board to confirm the wording reads clean.
+
+### PD-208: Mine guardians die before their mechanics register for an overleveled player (Medium, tuning/readability)
+**Reported:** 2026-10-13-1, deep mine floors 3 and 6, player at compass 15 in full diamond. Deep Sentry slain at 05:40:19 with no "the deep heard you" whelp answer during its own fight ("I fought the whelp a couple times but didnt get caught during the deep sentry fight"). Foreman slain at 05:56:13; asked about the vents and the water vat: "I didnt see any of that" and then "The foreman was just a very fast pillager". Both guardians are alive long enough to be killed but not long enough to be themselves.
+**Status:** Owed. Two unverified roots: (a) tuning, the guardians' HP/damage budgets let a geared player burst them under the mechanic's windup; (b) the Foreman's vent/vat decor may not have placed or pulsed at all on that floor, which would be a bug not a tuning miss. Check a floor 12 repeat (or a biased Foreman rerun on a less-geared account) before tuning, and confirm the vent decor actually spawns live.

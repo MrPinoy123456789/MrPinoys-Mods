@@ -93,7 +93,7 @@ final class MineGuardianSentry implements MineGuardians.Guardian {
             PocketDungeonsMod.LOG.warn("The deep sentry failed to spawn at {}", spawn.centre().toShortString());
             return;
         }
-        MineGuardians.tag(sentry);
+        MineGuardians.tag(sentry, spawn.terminal());
         MineGuardians.scale(sentry, spawn.floorLevel(), spawn.hardness());
         sentry.setCustomName(Component.literal(NAME).withStyle(ChatFormatting.DARK_AQUA));
         sentry.setCustomNameVisible(true);
@@ -303,7 +303,7 @@ final class MineGuardianSentry implements MineGuardians.Guardian {
         }
         Warden whelp = at == null ? null : Whelp.create(run.level, at, hearer);
         if (whelp != null) {
-            MineGuardians.tag(whelp);
+            MineGuardians.tag(whelp, run.terminal);
             run.whelp = whelp.getUUID();
         }
     }

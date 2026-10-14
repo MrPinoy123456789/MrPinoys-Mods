@@ -137,6 +137,7 @@
   "salvageBlock": "minecraft:grindstone",
   "salvageKeyEmeralds": 1,
   "salvageOminousKeyEmeralds": 3,
+  "shellDupeEmeralds": 2,
   "salvageMaterialBonus": 1,
   "lootDurabilityPercent": 110,
   "craftedDurabilityPercent": 110,

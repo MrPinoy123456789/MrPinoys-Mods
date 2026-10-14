@@ -119,10 +119,39 @@ final class MineGuardians {
         (guardian == null ? (Guardian) MineGuardians::placeholder : guardian).spawn(spawn);
     }
 
-    /** Marks {@code mob} as part of the floor's guardian, so the pad stays shut while it lives. */
-    static void tag(Mob mob) {
+    /**
+     * Marks {@code mob} as part of the floor's guardian at {@code terminal}, so the pad stays shut
+     * while it lives. The scope tag ties the mob to its own terminal cell: {@link #alive} scans wide
+     * because a wave chases players, and two nearby floors' guardians must not hold each other's pad.
+     */
+    static void tag(Mob mob, BlockPos terminal) {
         mob.setPersistenceRequired();
         mob.addTag(GUARDIAN_TAG);
+        mob.addTag(scopeTag(terminal));
+    }
+
+    /** The tag that ties a guardian mob to the terminal cell it spawned for. */
+    private static String scopeTag(BlockPos terminal) {
+        return GUARDIAN_TAG + "@" + terminal.getX() + "," + terminal.getY() + "," + terminal.getZ();
+    }
+
+    /**
+     * Whether {@code mob} belongs to the guardian at {@code terminal}: it carries that terminal's
+     * scope tag, or it carries none at all (a mob tagged before scopes existed keeps the old rules).
+     * Package-visible for {@code MineGuardianGameTest}, which counts a floor's mobs by scope, not spot.
+     */
+    static boolean scopedTo(Mob mob, BlockPos terminal) {
+        String mine = scopeTag(terminal);
+        boolean scoped = false;
+        for (String tag : mob.entityTags()) {
+            if (tag.startsWith(GUARDIAN_TAG + "@")) {
+                scoped = true;
+                if (tag.equals(mine)) {
+                    return true;
+                }
+            }
+        }
+        return !scoped;
     }
 
     /**
@@ -197,7 +226,7 @@ final class MineGuardians {
                 PocketDungeonsMod.LOG.warn("Guardian wave mob failed to spawn at {}", at.toShortString());
                 continue;
             }
-            tag(mob);
+            tag(mob, spawn.terminal());
             mob.setCustomName(Component.literal("Guardian").withStyle(ChatFormatting.RED));
             scale(mob, spawn.floorLevel(), spawn.hardness());
         }
@@ -208,7 +237,8 @@ final class MineGuardians {
         // A wave chases players, so look well beyond the cell the guardian spawned in.
         AABB bounds = CellGeometry.cellBounds(terminalOrigin).inflate(RoomGeometry.CELL * 2.0);
         for (Mob mob : level.getEntitiesOfClass(Mob.class, bounds)) {
-            if (mob.isAlive() && mob.entityTags().contains(GUARDIAN_TAG)) {
+            if (mob.isAlive() && mob.entityTags().contains(GUARDIAN_TAG)
+                    && scopedTo(mob, terminalOrigin)) {
                 return true;
             }
         }

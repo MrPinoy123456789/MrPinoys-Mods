@@ -13,6 +13,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CopperBulbBlock;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Set;
@@ -159,6 +162,60 @@ public final class DoorCommitGameTest {
         helper.succeed();
     }
 
+    /**
+     * PD-116 (playtest 2026-10-13): a door preview used to fill the whole
+     * door slot with glass, which replaced the lights over doors 1 and 2
+     * and left door 3 with no window at all. The window now stands behind
+     * every selector door at door height, the bulbs keep burning, and the
+     * picked door stands open; clearing the preview puts the wall back.
+     */
+    @GameTest(maxTicks = 400)
+    public void previewWindowsAllThreeDoorsAndKeepsTheLights(GameTestHelper helper) {
+        Scene scene = new Scene(helper);
+        try {
+            scene.build();
+            BlockPos staging = scene.record.stagingCellOrigin;
+            // A first staging room is the Astrolabe Room; the three selector
+            // doors the report was about stand once the trip has a dungeon.
+            scene.record.interval.dungeonId = "test_dungeon";
+            scene.record.interval.floorIndex = 1;
+            StagingFurniture.clearSelectorDoors(scene.level, staging, DoorMask.Direction.SOUTH);
+            StagingFurniture.clearBulbs(scene.level, staging, DoorMask.Direction.SOUTH);
+            StagingFurniture.placeSelectorDoors(scene.level, staging, DoorMask.Direction.SOUTH);
+            StagingFurniture.placeFurniture(scene.level, staging, DoorMask.Direction.SOUTH, true);
+            helper.assertTrue(Instances.previewDoor(scene.server, scene.level, scene.record, scene.offer, 3),
+                    "the third door previews");
+            for (int along = 7; along <= 9; along++) {
+                for (int y = 1; y <= 2; y++) {
+                    scene.assertBlock(staging, along, y, Blocks.GLASS,
+                            "glass behind the door at along " + along + ", y " + y);
+                }
+                scene.assertBulb(staging, along, "the light over the door at along " + along);
+            }
+            scene.assertDoorOpen(staging, 9, true, "the picked door stands open");
+            scene.assertDoorOpen(staging, 7, false, "door 1 stays closed");
+            scene.assertDoorOpen(staging, 8, false, "door 2 stays closed");
+
+            Instances.clearPreview(scene.level, scene.record, false);
+            for (int along = 7; along <= 9; along++) {
+                for (int y = 1; y <= 2; y++) {
+                    BlockPos pos = new BlockPos(staging.getX() + along, staging.getY() + y,
+                            staging.getZ() + RoomGeometry.CELL - 1);
+                    helper.assertTrue(!scene.level.getBlockState(pos).is(Blocks.GLASS)
+                                    && scene.level.getBlockState(pos).equals(
+                                    scene.level.getBlockState(new BlockPos(staging.getX() + 13, staging.getY() + y,
+                                            staging.getZ() + RoomGeometry.CELL - 1))),
+                            "along " + along + " y " + y + " is wall again, got " + scene.level.getBlockState(pos));
+                }
+                scene.assertBulb(staging, along, "the light over along " + along + " survives the clear");
+                scene.assertDoorOpen(staging, along, false, "the door at along " + along + " is closed again");
+            }
+        } finally {
+            scene.tearDown();
+        }
+        helper.succeed();
+    }
+
     /** One lobby, one run record and one mock owner, in the test level standing in for the dungeon level. */
     private static final class Scene {
         final GameTestHelper helper;
@@ -220,6 +277,31 @@ public final class DoorCommitGameTest {
             record.floor.selectedStep = 1;
             helper.assertTrue(RunLifecycle.saveAndDespawnRoom(player, server, level, record),
                     "the room saves and despawns");
+        }
+
+        /** Asserts the wall-ring block on the south wall of {@code staging} at {@code along}, {@code y}. */
+        void assertBlock(BlockPos staging, int along, int y, net.minecraft.world.level.block.Block block,
+                         String message) {
+            BlockPos pos = new BlockPos(staging.getX() + along, staging.getY() + y,
+                    staging.getZ() + RoomGeometry.CELL - 1);
+            helper.assertTrue(level.getBlockState(pos).is(block), message + ", got " + level.getBlockState(pos));
+        }
+
+        /** Asserts the block over a selector door is still a copper bulb, lit or not. */
+        void assertBulb(BlockPos staging, int along, String message) {
+            BlockPos pos = new BlockPos(staging.getX() + along, staging.getY() + 3,
+                    staging.getZ() + RoomGeometry.CELL - 1);
+            helper.assertTrue(level.getBlockState(pos).getBlock() instanceof CopperBulbBlock,
+                    message + ", got " + level.getBlockState(pos));
+        }
+
+        /** Asserts the {@link DoorBlock#OPEN} state of the selector door at {@code along}, in the door row. */
+        void assertDoorOpen(BlockPos staging, int along, boolean open, String message) {
+            BlockPos pos = new BlockPos(staging.getX() + along, staging.getY() + 1,
+                    staging.getZ() + RoomGeometry.CELL - 2);
+            helper.assertTrue(level.getBlockState(pos).hasProperty(DoorBlock.OPEN)
+                            && level.getBlockState(pos).getValue(DoorBlock.OPEN) == open,
+                    message + ", got " + level.getBlockState(pos));
         }
 
         /** The block states of the room cell and the staging cell, folded in a fixed order. */

@@ -451,7 +451,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Status:** partial 2026-10-07 (`2026-10-07-1.md`): the two-sheet board replaced this wording; on Copper Works the right sheet read "Boiler Hall, Explosive, 6 emeralds iron coal, lootx3" (emerald pay while overleveled, ore as plain words, loot count in green). But PD-161: the ore promise lied, all four floors had `nodes_total` 0. Mineshaft doors still unseen this build; em-dash-era "MINESHAFT - floor N of 3" title not rechecked. Earlier: owed
 - **Changed:** 2026-10-06 (design items 1 and 6, `DungeonScreen.previewContent`): Mineshaft floors pay chart scrap like any floor, and the door board shows the ore as plain words.
 - **Do:** Preview each Mineshaft door. Read the title, the name, the cyan line and the loot line. On a capstone door read the title width.
-- **Pass:** Title `MINESHAFT - floor N of 3` (middle dot) in yellow; cyan line `2 scrap` then coal, copper, iron, gold; `loot x3` in green; dim or dark on its own line. Titles fit the backdrop; the Wither's Keep and Spawner Dungeon titles measure about 8.4 and 9.3 blocks on an 8 block backdrop, so note how they look.
+- **Pass:** Title `MINESHAFT - floor N of 3` (middle dot) in yellow; cyan line `2 scrap` then coal, copper, iron, gold; the rolls line (`3 rolls` at Loot 100%) in green; dim or dark on its own line. Titles fit the backdrop; the Wither's Keep and Spawner Dungeon titles measure about 8.4 and 9.3 blocks on an 8 block backdrop, so note how they look.
 - **Fail signs:** No scrap on a resource door; labels like Rewards: or Resources:; a title that runs off the panel.
 
 ## L46. 2026-10-06: GO HOME reads scrap and charts
@@ -598,7 +598,11 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Fail signs:** a disconnect on opening a list, Leave as the Esc action, a banned player still getting in.
 
 ## L64: leaving, failing and the Home room (2026-10-09)
-- **Status:** owed (built, never played)
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): a mid-floor disconnect exercised the path
+  for real (`leave_dungeon` reason `disconnect` on drowned_vault floor 1, the journal's last
+  events). What we cannot see from outside: whether the half-haul banked and the run failed for
+  him, and whether he lands in the Home room on rejoin. Verify on his next join. Multiplayer
+  cases (rider/host leaves, fifth death) still unobserved.
 - **Changed:** leaving a floor in progress for any reason (menu Leave, exit, disconnect, joining another party) fails the dungeon for the leaver, who keeps the fail share (50 percent) of their haul; leaving between floors cashes out in full; a host who leaves a floor fails it for everyone; a failed dungeon sends the party back to the Home room instead of out (PD-191 to PD-193).
 - **Do:** with two accounts: a rider leaves mid-floor; a rider leaves between floors; the host leaves mid-floor; the party dies on its fifth life; a rider joins another party from inside a dungeon.
 - **Pass:** the haul banks half, all, half for everyone, half, half in each case; after a failed dungeon the party stands together in the Home room with the doors ready and no lobby to reopen; the leaver is told what they kept.
@@ -722,6 +726,11 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 
 ## L75: Floor 3, the Deep Sentry
 
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the sentry spawned named on the terminal
+  floor and was slain by the player (log: `Skeleton[The Deep Sentry] died` at 05:40:19), and the
+  pad held to floor end. The meter never reached the whelp answer during his fight (he burst it
+  down at compass 15, full diamond; PD-208), though whelps answered silent_deep sensors elsewhere
+  on the floor. Tier A loot on clear not confirmed.
 - [ ] Entering floor 3 of the Deep Mine (Act 2 endless mine), the terminal room holds sculk sensors
       and a named bow skeleton, "The Deep Sentry".
 - [ ] Fighting fills an invisible meter: shooting a bow, taking hits and sprinting push it faster,
@@ -734,6 +743,11 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 
 ## L76: Floor 6, the Foreman
 
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the Foreman spawned named and was slain
+  (log: `Vindicator[The Foreman] died` at 05:56:13), and the floor paid normally after. The
+  player saw no vents or vat at all ("I didnt see any of that", "just a very fast pillager");
+  unverified whether the decor placed but went unnoticed under a fast kill, or never placed
+  (PD-208). Vents, sweep, vat weaken and tier B loot all unobserved.
 - [ ] The terminal floor shows copper grates and one water cauldron; a named vindicator, "The
       Foreman", stands among them.
 - [ ] A vent hisses and smokes for two seconds, then fires; standing on it ignites.
@@ -745,6 +759,8 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 
 ## L77: Floor 9, the Frostbite
 
+- **Status:** owed 2026-10-13 (`2026-10-13-1.md`): the player banked after floor 6 and has never
+  descended past F6 in either mine. Not observed.
 - [ ] Lit campfires stand around the terminal room and a named stray, "The Frostbite", hunts with
       her kin.
 - [ ] A wind sound and "The cold is coming. Find a fire." play, then about three seconds later the
@@ -904,15 +920,22 @@ Fragment for LIVE_CHECKS.md (the owner merges it). Branch `feature/rm-t10-quick-
 - **Tune:** `hauntLookConeDegrees` (60 is the half angle of the view that freezes it; raise it if it creeps while visible at the screen edge), `hauntWakePressure` (90 seconds), `hauntRetreatSeconds` (40), `hauntStrikeDamage` (3), `hauntTellSeconds` (2).
 
 ## L95: Endless Mine per act (2026-10-12)
-- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the Deep Mine was directly reachable and
+  ran floors 1-6; it read as distinct on sight ("Different rooms than what I remember").
+  Guardians on F3 and F6 spawned and gated the pad (L75/L76 partial). Tier barrels not opened
+  on camera; F9+ unobserved; the act-gated door offer itself was not watched from the Astrolabe.
 - **Changed:** T40. Each act has its own Endless Mine (Act 1 `endless_mine`, Act 2 the Deep Mine). A guardian waits on every third floor (placeholder wave of zombies, or skeletons in the Deep Mine); its floor pays tier A, then B, then C for every guardian after. Clearing floor 3 counts toward opening the next act. No layers, no sealed shaft.
 - **Do:** One account at compass 3 or more. Open the Astrolabe Room, take the Endless Mine door, clear floors 1 to 9 (go home and return as needed). Then, with Act 2 open and compass 6, turn the astrolabe to Act 2 and enter the Deep Mine. Also load a pre-change save that had passed floor 5 or 11 and check its acts.
 - **Pass:** Floors 1, 2, 4, 5 have no wave; floors 3, 6, 9 do and the pad refuses ("The guardian still stands") until the wave is dead. The barrel on floor 3 holds only coal, iron, copper (and cobblestone, torch); floor 6 adds gold and lapis; floor 9 adds redstone and sometimes a diamond. Checkpoint line names the guardian and tier. Clearing floor 3 of the Act 1 mine counts as the Mine leg of Act 1. The Deep Mine looks like deepslate with tuff and dripstone and opens in Act 2. An old save keeps its acts.
 - **Fail signs:** A wave on a non-third floor, a guardian that cannot be reached or never shuts the pad, a barrel with the wrong tier, a mine door missing from the Act 2 astrolabe, an old save losing an act, a sealed-shaft message, a stuck or empty Deep Mine floor.
 
 ## L96: Wager: Loot percent, the extra copper chest piece, Blood (2026-10-12)
-- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
-- **Changed:** T50. Every door board and the floor title now end the affix list with "Loot n%" (100 plus 50 per wager point; a floor with no affixes reads "Loot 100%", white at 100, gold above on the board). A floor whose affixes wager something pays one extra piece (weapon, tool, armour or material) into its copper chest, and the door board names it beside the other things the floor gives. Blood is a new affix that takes one life when the door is committed (never the last life).
-- **Do:** Solo or two accounts, a compass at 5 or above so doors carry affixes (compass 25 and 45 give two and three affixes). Open the Astrolabe Room or a staging room, right-click each of the three doors and read the board. Note the Loot percent and the extra piece it names. Commit a door with at least two affixes, clear the floor, open the copper chest. Then find a Blood door (it is one of the seeded affixes, so it comes with the compass level): commit it with 5 lives, again at 2 lives, and with 1 life.
-- **Pass:** Every board shows "Loot n%" beside the affix names and in the affix line of the deal sheet; the floor title shows it as the last line. The copper chest holds the exact piece the board named (same item, same enchants), and a "Loot 100%" floor pays no extra piece. High Loot floors name a better tier piece far more often than low ones, and never above the dungeon loot band (Act 1 stays stone and iron). The Blood door board says "Costs 1 life"; committing takes one life ("paid a life for the door", Lives drops by 1); at 1 life the lever refuses with the lives line and nothing is spent. The piece reads as worth the risk at Loot 400% and above.
-- **Fail signs:** The chest piece differs from the board (a different item or no enchant where the board said enchanted); a "Loot 100%" floor pays an extra piece; a "wager" word or a raw number appears; a tier above the band (netherite in Act 1); Blood takes a life twice, or takes the last life; every door on a floor is refused because all three carry Blood at low lives (a trap: tell the owner); the title line is missing or overlaps another title.
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the Loot percent line is on the board and
+  was read, but read as ambiguous against `loot x3` ("What is loot 250% and loot x3?", PD-207).
+  Fixed in code same day: Loot n% is now the multiplier the barrel pays (round((base + depth)
+  x n/100) rolls), and the green line reads the scaled count as `8 rolls`, so one loot system.
+  Extra copper chest piece and Blood door unobserved.
+- **Changed:** T50, amended 2026-10-13 (docs/decision-2026-10-13-loot-percent-pays.md). Every door board and the floor title end the affix list with "Loot n%" (100 plus 50 per wager point; a floor with no affixes reads "Loot 100%", white at 100, gold above on the board). The percent is the floor's loot multiplier: the barrel pays round((base + depth bonus) x n/100) rolls, and the board's green line shows that count as "N rolls". A floor whose affixes wager something pays one extra piece (weapon, tool, armour or material) into its copper chest, and the door board names it beside the other things the floor gives. Blood is a new affix that takes one life when the door is committed (never the last life).
+- **Do:** Solo or two accounts, a compass at 5 or above so doors carry affixes (compass 25 and 45 give two and three affixes). Open the Astrolabe Room or a staging room, right-click each of the three doors and read the board. Note the Loot percent, the "N rolls" line (it should be the percent of the base 3 plus depth, rounded), and the extra piece it names. Commit a door with at least two affixes, clear the floor, count the barrel rolls and open the copper chest. Then find a Blood door (it is one of the seeded affixes, so it comes with the compass level): commit it with 5 lives, again at 2 lives, and with 1 life.
+- **Pass:** Every board shows "Loot n%" beside the affix names and in the affix line of the deal sheet, and "N rolls" where "loot x3" used to sit; the two numbers agree (Loot 250% on base 3 reads 8 rolls). The floor title shows the percent as the last line. The barrel holds the rolls the board promised. The copper chest holds the exact piece the board named (same item, same enchants), and a "Loot 100%" floor pays no extra piece. High Loot floors name a better tier piece far more often than low ones, and never above the dungeon loot band (Act 1 stays stone and iron). The Blood door board says "Costs 1 life"; committing takes one life ("paid a life for the door", Lives drops by 1); at 1 life the lever refuses with the lives line and nothing is spent. The piece reads as worth the risk at Loot 400% and above.
+- **Fail signs:** The board still says "loot x3" or shows two different loot wordings; the barrel count does not match the rolls line or the percent; the chest piece differs from the board (a different item or no enchant where the board said enchanted); a "Loot 100%" floor pays an extra piece; a "wager" word or a raw number appears; a tier above the band (netherite in Act 1); Blood takes a life twice, or takes the last life; every door on a floor is refused because all three carry Blood at low lives (a trap: tell the owner); the title line is missing or overlaps another title.

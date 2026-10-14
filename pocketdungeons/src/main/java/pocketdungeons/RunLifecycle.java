@@ -1445,9 +1445,14 @@ final class RunLifecycle {
         // deeper floors.
         ZoneRules rules = ZoneRules.of(record);
         bankFloorOmen(record);
-        // A won finale pays one more chest (design pass 2026-10-09, Q4).
-        int chests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared) + FinaleWave.rewardChests(record);
+        // PD-207: the wager percent the board showed is the floor's loot
+        // multiplier: Loot 250% pays 250% of the base plus depth rolls. A won
+        // finale still adds its flat chest on top (design pass 2026-10-09, Q4).
+        int chests = Wager.scaledChests(Omen.baseRewardChests() + rules.bonusChests(floorsCleared),
+                Wager.sum(record.floor.affixes, AffixManifest.current().definitions()),
+                PocketDungeonsConfig.lootPercentPerWager()) + FinaleWave.rewardChests(record);
         record.floor.rewardChests = chests;
+        record.interval.floorChests.add(chests);
 
         // The reward corner on the far side of the terminal cell: one barrel
         // holding every roll the floor earned (plus the finish vault's rolls),
@@ -1863,10 +1868,9 @@ final class RunLifecycle {
      */
     static IntervalBanking.Settlement settlementFor(MinecraftServer server, InstanceRecord record,
                                                     UUID member) {
-        int floors = record.interval.floorSteps.size();
         return IntervalBanking.settle(record.interval.floorSteps, record.interval.floorLevels,
                 DungeonLog.forServer(server).get(member).keystoneLevel(),
-                ZoneRules.of(record).bonusChests(floors));
+                record.interval.floorChests);
     }
 
     /**
@@ -1939,9 +1943,8 @@ final class RunLifecycle {
         }
         IntervalState interval = record.interval;
         int floors = interval.floorSteps.size();
-        int bonusChests = ZoneRules.of(record).bonusChests(floors);
         IntervalBanking.Settlement shared = IntervalBanking.settle(interval.floorSteps,
-                interval.floorLevels, 0, bonusChests);
+                interval.floorLevels, 0, interval.floorChests);
 
         // Every way home banks the haul (D24), for members who are not online too.
         java.util.Map<UUID, DungeonLog.BankResult> banked = new java.util.HashMap<>();
@@ -1962,7 +1965,7 @@ final class RunLifecycle {
                 IntervalBanking.Settlement settled = new IntervalBanking.Settlement(
                         0, 0, shared.chests());
                 PlaytestJournal.bank(memberPlayer, record, trigger, floors, settled, shared.chests(),
-                        bonusChests, memberEntry.keystoneLevel());
+                        ZoneRules.of(record).bonusChests(floors), memberEntry.keystoneLevel());
                 PlaytestJournal.inventorySnapshot(memberPlayer, record, "bank");
                 DungeonLog.BankResult homeBank = banked.get(member);
                 if (homeBank == null || homeBank.banked() + homeBank.lost() == 0) {

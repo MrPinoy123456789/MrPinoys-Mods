@@ -58,6 +58,15 @@ final class Wager {
         return "Loot " + lootPercent(wager, perPoint) + "%";
     }
 
+    /**
+     * The rolls a cleared floor pays: {@code baseChests} scaled by its wager's
+     * loot percent, rounded half up. One loot system (PD-207): the percent on
+     * the board is the multiplier the barrel pays.
+     */
+    static int scaledChests(int baseChests, int wager, int perPoint) {
+        return Math.round(baseChests * lootPercent(wager, perPoint) / 100f);
+    }
+
     private static AffixDefinition find(String id, List<AffixDefinition> definitions) {
         if (id == null || definitions == null) {
             return null;

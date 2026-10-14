@@ -116,7 +116,7 @@ final class MineGuardianCoffins implements MineGuardians.Guardian {
             if (at == null) {
                 continue;
             }
-            Mob sleeper = spawnSleeper(level, at, setup);
+            Mob sleeper = spawnSleeper(level, at, terminal, setup);
             if (sleeper == null) {
                 continue;
             }
@@ -132,12 +132,13 @@ final class MineGuardianCoffins implements MineGuardians.Guardian {
     }
 
     /** A skeleton asleep inside the coffin's lower block: no AI, no damage, unseen, silent, unmoving. */
-    private static Mob spawnSleeper(ServerLevel level, BlockPos base, java.util.function.Consumer<Mob> setup) {
+    private static Mob spawnSleeper(ServerLevel level, BlockPos base, BlockPos terminal,
+                                    java.util.function.Consumer<Mob> setup) {
         Mob sleeper = EntityTypes.SKELETON.spawn(level, base, EntitySpawnReason.TRIGGERED);
         if (sleeper == null) {
             return null;
         }
-        MineGuardians.tag(sleeper);
+        MineGuardians.tag(sleeper, terminal);
         setup.accept(sleeper);
         sleeper.setNoAi(true);
         sleeper.setInvulnerable(true);

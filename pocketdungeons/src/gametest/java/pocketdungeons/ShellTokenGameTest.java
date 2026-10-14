@@ -12,7 +12,7 @@ import net.minecraft.world.item.Items;
 /**
  * PD-206: a shell token claims itself on right-click, so the player never has
  * to find the room menu's Unlock button. The token is consumed on the first
- * claim and refused, not eaten, on a repeat.
+ * claim, and a repeat claim cashes it for the dupe emerald knob.
  */
 public final class ShellTokenGameTest {
 
@@ -40,12 +40,16 @@ public final class ShellTokenGameTest {
                 "the palette joined the player's permanent set");
         helper.assertTrue(player.getMainHandItem().isEmpty(), "the token was consumed");
 
-        // A second claim of an owned shell refuses and keeps the token.
+        // A repeat claim of an owned shell cashes itself for the dupe
+        // emerald knob instead of sitting dead in the pack (2026-10-13).
+        int before = player.getInventory().countItem(Items.EMERALD);
         player.setItemInHand(InteractionHand.MAIN_HAND, ShellTokenListener.token("sandstone"));
         helper.assertTrue(ShellTokenListener.claim(player) == InteractionResult.SUCCESS_SERVER,
                 "a repeat claim still answers the click");
-        helper.assertTrue(player.getMainHandItem().getCount() == 1,
-                "an already-unlocked token is not eaten");
+        helper.assertTrue(!player.getMainHandItem().is(Items.ECHO_SHARD),
+                "an already-unlocked token cashes itself");
+        helper.assertValueEqual(before + PocketDungeonsConfig.shellDupeEmeralds(),
+                player.getInventory().countItem(Items.EMERALD), "the dupe paid its emeralds");
         helper.succeed();
     }
 }

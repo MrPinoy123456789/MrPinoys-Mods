@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Design 2026-10-06-1 item 5: Dungeon Storage is a 27 slot container backed by {@link DungeonLog}.
+ * Design 2026-10-06-1 item 5: Dungeon Storage is a 54 slot container backed by {@link DungeonLog}.
  * It persists on every change, survives a teardown, takes what an old per-run storage still held,
  * and a failed run leaves it alone (J2). J6: it opens from any ender chest in the
  * safe room or at the Doors, run or no run.
@@ -145,7 +145,7 @@ public final class DungeonStorageGameTest {
         DungeonLog back = DungeonLog.CODEC.decode(com.mojang.serialization.JsonOps.INSTANCE, json)
                 .result().orElseThrow().getFirst();
         List<ItemStack> read = back.storageOf(id);
-        helper.assertTrue(read.size() == RunStorage.SLOTS, "all 27 slots come back: " + read.size());
+        helper.assertTrue(read.size() == RunStorage.SLOTS, "all slots come back: " + read.size());
         helper.assertTrue(read.get(3).is(Items.COBBLESTONE) && read.get(3).getCount() == 64, "slot 3 is kept");
         helper.assertTrue(read.get(20).is(Items.TORCH) && read.get(20).getCount() == 7, "slot 20 is kept");
         helper.assertTrue(read.get(4).isEmpty(), "an empty slot stays empty, so the layout holds");

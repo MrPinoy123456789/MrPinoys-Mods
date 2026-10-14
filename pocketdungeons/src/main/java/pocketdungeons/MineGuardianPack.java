@@ -38,7 +38,7 @@ final class MineGuardianPack implements MineGuardians.Guardian {
             PocketDungeonsMod.LOG.warn("The mine packmaster failed to spawn at {}", spawn.centre().toShortString());
             return;
         }
-        MineGuardians.tag(handler);
+        MineGuardians.tag(handler, spawn.terminal());
         MineGuardians.scale(handler, spawn.floorLevel(), spawn.hardness());
         handler.setCustomName(Component.literal(NAME).withStyle(ChatFormatting.RED));
         handler.setCustomNameVisible(true);
@@ -53,7 +53,7 @@ final class MineGuardianPack implements MineGuardians.Guardian {
             if (pack == null) {
                 continue;
             }
-            MineGuardians.tag(pack);
+            MineGuardians.tag(pack, spawn.terminal());
             MineGuardians.scale(pack, spawn.floorLevel(), spawn.hardness());
             HostileWolves.mark(pack);
         }

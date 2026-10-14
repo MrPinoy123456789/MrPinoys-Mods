@@ -11,8 +11,7 @@ import java.util.Set;
  * {@code BoardTextTest} runs with plain {@code javac}. {@link DungeonScreen} owns
  * the colours and the displays; this owns the words.
  *
- * <p>Separators are {@link #SEP} (a middle dot with spaces) everywhere; the
- * multiplication sign in {@link #lootText} is in the default font.
+ * <p>Separators are {@link #SEP} (a middle dot with spaces) everywhere.
  */
 final class BoardText {
 
@@ -100,9 +99,9 @@ final class BoardText {
         return "Clear the spawners to open the way.";
     }
 
-    /** {@code "loot \u00d73"}: the completion rolls a floor would pay. */
-    static String lootText(int chests) {
-        return "loot \u00d7" + chests;
+    /** {@code "loot \u00d73"}: the completion rolls a floor pays at its Loot percent. */
+    static String rollsText(int chests) {
+        return chests + " rolls";
     }
 
 

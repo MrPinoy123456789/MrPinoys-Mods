@@ -383,6 +383,48 @@ final class RoomBuilder {
     }
 
     /**
+     * PD-116 (playtest 2026-10-13): fills the wall blocks behind all three
+     * selector doors, alongs {@code DOOR_MIN}..{@code DOOR_MAX + 1} at
+     * Y=1..{@code DOOR_HEIGHT - 1}, with {@code state}: glass while a preview
+     * stands, the room's wall again when it clears. The course at
+     * {@code DOOR_HEIGHT} holds the door bulbs and is never touched, so a
+     * preview cannot knock the lights out, and the third door, which used to
+     * stand over plain wall, gets a window like the other two.
+     */
+    static void previewSelectorWindow(ServerLevel level, BlockPos cellOrigin, Direction wall, BlockState state) {
+        for (int y = 1; y < DOOR_HEIGHT; y++) {
+            for (int i = DOOR_MIN; i <= DOOR_MAX + 1; i++) {
+                set(level, sideWindowPos(cellOrigin, wall, i, y), state);
+            }
+        }
+    }
+
+    /**
+     * PD-116: hands the selector window's extra column (along
+     * {@code DOOR_MAX + 1}, Y=1..{@code DOOR_HEIGHT - 1}) back to {@code state}
+     * on a commit, when the real doorway opens the two-wide slot beside it.
+     */
+    static void sealSelectorWindowEnd(ServerLevel level, BlockPos cellOrigin, Direction wall, BlockState state) {
+        for (int y = 1; y < DOOR_HEIGHT; y++) {
+            set(level, sideWindowPos(cellOrigin, wall, DOOR_MAX + 1, y), state);
+        }
+    }
+
+    /**
+     * PD-116: {@link #sealSelectorWindowEnd} for a cell whose wall is not a
+     * known shell (a themed dungeon cell), copying each course from the block
+     * one further along the wall so the patch matches whatever the template
+     * built there, the way {@link #sealPreviewSideWindowLikeBeside} does.
+     */
+    static void sealSelectorWindowEndLikeBeside(ServerLevel level, BlockPos cellOrigin, Direction wall) {
+        for (int y = 1; y < DOOR_HEIGHT; y++) {
+            BlockPos pos = sideWindowPos(cellOrigin, wall, DOOR_MAX + 1, y);
+            BlockPos beside = sideWindowPos(cellOrigin, wall, DOOR_MAX + 2, y);
+            set(level, pos, level.getBlockState(beside));
+        }
+    }
+
+    /**
      * PD-85: closes the preview side window on a cell whose wall is not a
      * known shell (a themed dungeon cell), copying each course from the block
      * one further along the wall so the patch matches whatever the template

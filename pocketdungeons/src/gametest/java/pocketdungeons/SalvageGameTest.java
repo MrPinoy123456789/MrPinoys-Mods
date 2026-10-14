@@ -13,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -89,7 +90,7 @@ public final class SalvageGameTest {
     public void kitSalvagesAndTheKeystoneDoesNot(GameTestHelper helper) {
         ItemStack bagSword = tagged(Items.STONE_SWORD, "bag", 1);
         helper.assertTrue(SalvageStation.classify(bagSword).takes(), "kit gear is taken");
-        helper.assertTrue(SalvageStation.materialsBack(bagSword).is(Items.COBBLESTONE), "a kit stone sword gives cobblestone");
+        helper.assertTrue(SalvageStation.materialsBack(bagSword).get(0).is(Items.COBBLESTONE), "a kit stone sword gives cobblestone");
         helper.assertTrue(SalvageStation.classify(new ItemStack(Items.BOW)).kind() == SalvageStation.Kind.MOB_GEAR,
                 "an untagged bow is mob gear");
         helper.assertTrue(!SalvageStation.classify(new ItemStack(Items.EMERALD)).takes(),
@@ -162,17 +163,18 @@ public final class SalvageGameTest {
 
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.CHAINMAIL_CHESTPLATE), 40, 40))
                 .isEmpty(), "chainmail left the loot and its salvage rule went with it (K2.6)");
-        ItemStack scrap = SalvageStation.materialsBack(worn(new ItemStack(Items.NETHERITE_LEGGINGS), 100, 50));
+        ItemStack scrap = SalvageStation.materialsBack(worn(new ItemStack(Items.NETHERITE_LEGGINGS), 100, 50)).get(0);
         helper.assertTrue(scrap.is(Items.NETHERITE_SCRAP) && scrap.getCount() == 1 + bonus,
                 "worn netherite leggings give 1 scrap plus the bonus");
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_SWORD), 20, 20))
-                .is(Items.OAK_PLANKS), "a fresh wooden sword gives a plank");
-        ItemStack sticks = SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_PICKAXE), 20, 10));
+                .get(0).is(Items.OAK_PLANKS), "a fresh wooden sword gives a plank");
+        ItemStack sticks = SalvageStation.materialsBack(worn(new ItemStack(Items.WOODEN_PICKAXE), 20, 10)).get(0);
         helper.assertTrue(sticks.is(Items.STICK) && sticks.getCount() == 2 + bonus,
                 "a half-worn wooden tool gives 2 sticks plus the bonus");
         helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.SHIELD), 100, 30))
-                .is(Items.OAK_PLANKS), "a shield gives a plank");
-        ItemStack wornStone = SalvageStation.materialsBack(worn(new ItemStack(Items.STONE_PICKAXE), 40, 5));
+                .get(0).is(Items.OAK_PLANKS), "a shield gives a plank");
+        ItemStack wornStone = SalvageStation.materialsBack(worn(new ItemStack(Items.STONE_PICKAXE), 40, 5)).stream()
+                .findFirst().orElse(ItemStack.EMPTY);
         helper.assertTrue(bonus == 0 ? wornStone.isEmpty()
                         : wornStone.is(Items.COBBLESTONE) && wornStone.getCount() == bonus,
                 "a worn-out stone pickaxe gives nothing, or just the bonus");
@@ -181,6 +183,27 @@ public final class SalvageGameTest {
         helper.assertTrue(SalvageStation.materialsBack(new ItemStack(Items.BOW)).isEmpty(), "a bow gives nothing");
 
         cleanUp(server, player);
+        helper.succeed();
+    }
+
+    /**
+     * PD-115 (playtest 2026-10-13): the bench took a trident but no material
+     * rule matched, so it was eaten for nothing. Owner ruling: it counts as a
+     * large piece that pays sand plus half that count in iron.
+     */
+    @GameTest
+    public void tridentSalvagesToSandAndIron(GameTestHelper helper) {
+        List<ItemStack> fresh = SalvageStation.materialsBack(new ItemStack(Items.TRIDENT), 0);
+        helper.assertTrue(fresh.size() == 2 && fresh.get(0).is(Items.SAND) && fresh.get(0).getCount() == 2
+                        && fresh.get(1).is(Items.IRON_INGOT) && fresh.get(1).getCount() == 1,
+                "a fresh trident pays 2 sand and 1 iron, got " + fresh);
+        List<ItemStack> wornMid = SalvageStation.materialsBack(worn(new ItemStack(Items.TRIDENT), 96, 48), 0);
+        helper.assertTrue(wornMid.size() == 1 && wornMid.get(0).is(Items.SAND) && wornMid.get(0).getCount() == 1,
+                "a half-worn trident pays 1 sand, got " + wornMid);
+        helper.assertTrue(SalvageStation.materialsBack(worn(new ItemStack(Items.TRIDENT), 96, 10), 0).isEmpty(),
+                "a worn-out trident pays nothing");
+        helper.assertTrue(SalvageStation.classify(new ItemStack(Items.TRIDENT)).takes(),
+                "the bench takes a trident");
         helper.succeed();
     }
 
