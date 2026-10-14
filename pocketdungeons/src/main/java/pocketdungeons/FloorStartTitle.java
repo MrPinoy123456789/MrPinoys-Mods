@@ -41,6 +41,11 @@ final class FloorStartTitle {
         if (hauntLine != null) {
             affixes.add(hauntLine);
         }
+        // A floor objective says its piece the same way; a fallback floor reads like an ordinary one.
+        String objectiveLine = FloorObjectives.titleLine(record);
+        if (objectiveLine != null) {
+            affixes.add(objectiveLine);
+        }
         if (!isHome(record.floor.theme)) {
             affixes.addAll(affixLabels(record.floor.affixes));
             // The loot line closes the list, always ("Loot 100%" with no affixes). It reads the set the door

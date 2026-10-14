@@ -233,4 +233,12 @@ final class FloorState {
      * fourth on the final floor wakes the Warden ({@link SculkOmen}).
      */
     int sculkAnswers;
+
+    /**
+     * This floor's armed objective ({@link FloorObjectives#arm}), or
+     * {@code null} on an ordinary spawner floor and before any commit. A state
+     * with {@code fallback} set means the objective could not be placed and
+     * the floor runs as a spawner floor anyway.
+     */
+    FloorObjectives.ObjectiveState objective;
 }

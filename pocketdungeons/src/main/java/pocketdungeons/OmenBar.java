@@ -89,8 +89,13 @@ final class OmenBar {
         String title;
         if (active) {
             int total = record.floor.spawnersTotal;
+            // An objective floor shows its own progress line in place of the
+            // spawner fraction; a fallback floor reads like a spawner floor.
+            String objectiveLine = FloorObjectives.of(record) != FloorObjective.SPAWNERS
+                    && !FloorObjectives.isFallback(record) ? FloorObjectives.objectiveLine(record) : null;
             title = OmenBarText.activeTitle(record.interval.omen, chests, record.floor.spawnersCleared, total,
-                    DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()));
+                    DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()),
+                    objectiveLine);
         } else {
             title = OmenBarText.clearedTitle(record.interval.floorIndex, TripView.dungeonName(record),
                     record.interval.endlessMine, record.interval.finished, TripView.finalAhead(record),

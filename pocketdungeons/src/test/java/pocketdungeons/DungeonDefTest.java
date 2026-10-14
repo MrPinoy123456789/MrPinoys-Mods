@@ -57,6 +57,7 @@ public class DungeonDefTest {
         testPackValidatorFindings();
         testShippedDungeons();
         testNodeLight();
+        testObjective();
         testHiddenOre();
         testNotes();
         testFloorLevels();
@@ -238,6 +239,45 @@ public class DungeonDefTest {
         expectThrows(() -> DungeonDef.fromJson(T + "x", dash), "a note with dash punctuation is refused");
         check(new DungeonDef.Node("a", "a", 1, "", "", List.of(), 0, false).notes().isEmpty(),
                 "the short node constructors carry no note");
+    }
+
+    /** Floor objectives: spawners by default, the known words parse, a stranger is refused, a final is always spawners. */
+    private static void testObjective() {
+        DungeonDef plain = DungeonDef.fromJson(T + "x", JsonParser.parseString(JSON).getAsJsonObject());
+        for (DungeonDef.Node node : plain.nodes()) {
+            check(node.objective().equals(DungeonDef.Node.OBJECTIVE_SPAWNERS),
+                    "absent objective defaults to spawners: " + node.id());
+        }
+        check(n("q", 1).objective().equals(DungeonDef.Node.OBJECTIVE_SPAWNERS),
+                "the older node constructors are spawners");
+        for (String word : List.of("heist", "claim", "haunt", "spawners")) {
+            DungeonDef d = DungeonDef.fromJson(T + "x", JsonParser.parseString(JSON.replace(
+                    "{\"id\": \"b\", \"name\": \"Furnaces\",",
+                    "{\"id\": \"b\", \"name\": \"Furnaces\", \"objective\": \"" + word + "\","))
+                    .getAsJsonObject());
+            check(d.node("b").objective().equals(word), "objective " + word + " parses");
+        }
+        expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(JSON.replace(
+                "{\"id\": \"b\", \"name\": \"Furnaces\",",
+                "{\"id\": \"b\", \"name\": \"Furnaces\", \"objective\": \"race\","))
+                .getAsJsonObject()), "unknown node objective");
+
+        // A final floor keeps the spawner gate: the finale counts on it.
+        DungeonDef.Node heistFinal = new DungeonDef.Node("z", "z", 2, "", "", List.of(), 0, true,
+                "lit", List.of(), DungeonDef.Node.INHERIT_NODE_ROOMS, DungeonDef.Node.UNSET_LEVEL,
+                "", "heist");
+        expectProblem(def(DungeonDef.Kind.DUNGEON, 2, List.of(n("a", 1), heistFinal),
+                List.of(e("a", "z"))), "final node z must keep the spawners objective",
+                "a final node with a heist objective");
+        expectClean(def(DungeonDef.Kind.DUNGEON, 2, List.of(n("a", 1), fin("z", 2)),
+                List.of(e("a", "z"))), "a default final node is clean");
+        // The same rule reaches a final parsed out of JSON.
+        JsonObject heistJson = JsonParser.parseString(JSON.replace(
+                "{\"id\": \"z\", \"name\": \"Freeze\", \"layer\": 3, \"final\": true}",
+                "{\"id\": \"z\", \"name\": \"Freeze\", \"layer\": 3, \"final\": true, \"objective\": \"claim\"}"))
+                .getAsJsonObject();
+        expectProblem(DungeonDef.fromJson(T + "frostworks", heistJson),
+                "final node z must keep the spawners objective", "a parsed final with a claim objective");
     }
 
     private static void testHiddenOre() {

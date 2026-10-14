@@ -105,6 +105,10 @@ final class RitualListener {
         if (result != null) {
             return result;
         }
+        result = floorObjective(serverPlayer, level, pos);
+        if (result != null) {
+            return result;
+        }
         result = dungeonStorage(serverPlayer, level, pos);
         if (result != null) {
             return result;
@@ -233,6 +237,17 @@ final class RitualListener {
                         "Your kit was handed over when you chose your bag. Nothing refills it.")
                         .withStyle(ChatFormatting.YELLOW)));
             }
+            return InteractionResult.SUCCESS_SERVER;
+        }
+        return null;
+    }
+
+    // A floor objective's own blocks claim their clicks ahead of the storage
+    // and container handling below: a strongbox or a claim point is the
+    // objective's to answer, never a container's. Anything an objective does
+    // not claim falls through.
+    private static InteractionResult floorObjective(ServerPlayer serverPlayer, Level level, BlockPos pos) {
+        if (DungeonWorldRules.inDungeon(level) && FloorObjectives.onUse(serverPlayer, pos)) {
             return InteractionResult.SUCCESS_SERVER;
         }
         return null;

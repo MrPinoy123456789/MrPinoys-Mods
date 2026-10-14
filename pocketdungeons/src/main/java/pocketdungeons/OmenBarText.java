@@ -49,11 +49,24 @@ final class OmenBarText {
      */
     static String activeTitle(int omen, int chests, int spawnersCleared, int spawnersTotal,
                               int spawnersNeeded) {
+        return activeTitle(omen, chests, spawnersCleared, spawnersTotal, spawnersNeeded, null);
+    }
+
+    /**
+     * {@link #activeTitle(int, int, int, int, int)} on a floor whose gate is
+     * an objective rather than the spawner fraction: {@code objectiveLine}
+     * leads instead ({@code "Veins 2/3 | Lives 3"}). A null or blank line
+     * falls back to the spawner form.
+     */
+    static String activeTitle(int omen, int chests, int spawnersCleared, int spawnersTotal,
+                              int spawnersNeeded, String objectiveLine) {
         // Playtest 2026-09-26 (A1): the title was too long to read, and the one
         // thing the player tracks is the spawner gate. It leads; lives follow
         // (J3: the risk meter is lives, 5 - omen).
         StringBuilder title = new StringBuilder();
-        if (spawnersTotal > 0) {
+        if (objectiveLine != null && !objectiveLine.isBlank()) {
+            title.append(objectiveLine);
+        } else if (spawnersTotal > 0) {
             int needed = Math.max(1, spawnersNeeded);
             int cleared = Math.max(0, spawnersCleared);
             int remaining = Math.max(0, needed - cleared);

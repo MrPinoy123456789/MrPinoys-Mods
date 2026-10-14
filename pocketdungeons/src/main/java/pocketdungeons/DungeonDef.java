@@ -325,10 +325,13 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      * node room guarantee for this floor; {@link #INHERIT_NODE_ROOMS} means inherit.
      * {@code level} (D26) overrides the floor's level; {@link #UNSET_LEVEL} means
      * {@code baseLevel + layer - 1} ({@link FloorLevels}).
+     * {@code objective} is what the floor's pad gate asks for: {@code spawners}
+     * (the default) or one of the floor objectives ({@code heist}, {@code claim},
+     * {@code haunt}); a final node always gates on spawners.
      */
     record Node(String id, String name, int layer, String theme, String signatureAffix,
                 List<String> roomBias, int roomCount, boolean isFinal, String light,
-                List<Reward> rewards, int minNodeRooms, int level, String notes) {
+                List<Reward> rewards, int minNodeRooms, int level, String notes, String objective) {
 
         /**
          * The longest floor or dungeon note, in characters. The note is the one line of the door board that
@@ -340,6 +343,11 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         static final String LIGHT_DIM = "dim";
         static final String LIGHT_DARK = "dark";
 
+        static final String OBJECTIVE_SPAWNERS = "spawners";
+        static final String OBJECTIVE_HEIST = "heist";
+        static final String OBJECTIVE_CLAIM = "claim";
+        static final String OBJECTIVE_HAUNT = "haunt";
+
         /** {@link #minNodeRooms} value meaning "use the dungeon's own {@code minNodeRooms}". */
         static final int INHERIT_NODE_ROOMS = -1;
 
@@ -350,7 +358,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         Node(String id, String name, int layer, String theme, String signatureAffix,
              List<String> roomBias, int roomCount, boolean isFinal) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, LIGHT_LIT,
-                    List.of(), INHERIT_NODE_ROOMS, UNSET_LEVEL, "");
+                    List.of(), INHERIT_NODE_ROOMS, UNSET_LEVEL, "", OBJECTIVE_SPAWNERS);
         }
 
         /** A node with light and rewards, inheriting the dungeon's node room guarantee. */
@@ -358,7 +366,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
              List<String> roomBias, int roomCount, boolean isFinal, String light,
              List<Reward> rewards) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
-                    INHERIT_NODE_ROOMS, UNSET_LEVEL, "");
+                    INHERIT_NODE_ROOMS, UNSET_LEVEL, "", OBJECTIVE_SPAWNERS);
         }
 
         /** A node with no note: the shape this record had before floor notes. */
@@ -366,7 +374,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
              List<String> roomBias, int roomCount, boolean isFinal, String light,
              List<Reward> rewards, int minNodeRooms, int level) {
             this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
-                    minNodeRooms, level, "");
+                    minNodeRooms, level, "", OBJECTIVE_SPAWNERS);
         }
 
         /**
@@ -399,6 +407,12 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             light = light == null || light.isEmpty() ? LIGHT_LIT : light;
             if (!LIGHT_LIT.equals(light) && !LIGHT_DIM.equals(light) && !LIGHT_DARK.equals(light)) {
                 throw new IllegalArgumentException("node light must be lit, dim or dark: " + id + " has " + light);
+            }
+            objective = objective == null || objective.isEmpty() ? OBJECTIVE_SPAWNERS : objective;
+            if (!OBJECTIVE_SPAWNERS.equals(objective) && !OBJECTIVE_HEIST.equals(objective)
+                    && !OBJECTIVE_CLAIM.equals(objective) && !OBJECTIVE_HAUNT.equals(objective)) {
+                throw new IllegalArgumentException("node objective must be spawners, heist, claim or haunt: "
+                        + id + " has " + objective);
             }
             if (id == null || id.isBlank()) {
                 throw new IllegalArgumentException("node id must not be blank");
@@ -686,6 +700,11 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 if (!outgoing.isEmpty()) {
                     out.add("final node " + node.id() + " must not have edges out");
                 }
+                // The finale gates on spawners, so a final floor keeps the default objective.
+                if (!Node.OBJECTIVE_SPAWNERS.equals(node.objective())) {
+                    out.add("final node " + node.id() + " must keep the spawners objective"
+                            + " (the finale gates on spawners) but has " + node.objective());
+                }
                 continue;
             }
             boolean freeExit = false;
@@ -906,7 +925,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     rewards,
                     node.has("minNodeRooms") ? requiredInt(node, "minNodeRooms") : Node.INHERIT_NODE_ROOMS,
                     node.has("level") ? requiredInt(node, "level") : Node.UNSET_LEVEL,
-                    optionalString(node, "notes")));
+                    optionalString(node, "notes"),
+                    node.has("objective") && !node.get("objective").isJsonNull()
+                            ? node.get("objective").getAsString().trim() : Node.OBJECTIVE_SPAWNERS));
         }
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {

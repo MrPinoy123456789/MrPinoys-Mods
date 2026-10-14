@@ -1591,7 +1591,7 @@ final class Instances {
         if (dealt.ominousRolled()) {
             announceOminousRoll(server, record);
         }
-        armCommittedFloor(level, record, offer, layout, effectiveThemeId, openingMine);
+        armCommittedFloor(level, record, offer, plan, layout, effectiveThemeId, openingMine);
         refreshStagingAfterCommit(server, level, record);
 
         // M78: publish the Mine rules at the commitment surface the first time
@@ -1755,7 +1755,8 @@ final class Instances {
 
     /** The capstone's harder start and the boss a boss capstone zone gets on its floor. */
     private static void armCommittedFloor(ServerLevel level, InstanceRecord record, Keystone.Offer offer,
-                                          InstanceLayout layout, String effectiveThemeId, boolean openingMine) {
+                                          DungeonPlan plan, InstanceLayout layout, String effectiveThemeId,
+                                          boolean openingMine) {
         // J3: a capstone dungeon's final floor opens two levels harder (it
         // used to start with omen on it, D16a reworked).
         if (offer.door() != null && !openingMine && !record.interval.endlessMine) {
@@ -1778,6 +1779,10 @@ final class Instances {
             MineGuardians.spawnIfGuardianFloor(level, record, layout.terminal(),
                     record.interval.floorIndex + 1, offer.level());
         }
+
+        // The node's floor objective arms last, once the floor stands and the
+        // trip sits at its node; a spawners floor keeps a null state.
+        FloorObjectives.arm(level, record, plan, offer);
     }
 
     /** The staging room's door screen and every member's trial omen, once the floor is running. */

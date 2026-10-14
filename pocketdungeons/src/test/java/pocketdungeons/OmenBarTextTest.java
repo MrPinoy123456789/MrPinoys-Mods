@@ -50,6 +50,13 @@ public class OmenBarTextTest {
         checkEquals(OmenBarText.activeTitle(4, 1, 0, 0, 0),
                 "Spawners done | Lives 1 | one more fall ends the run");
         checkEquals(OmenBarText.activeTitle(3, 1, 0, 0, 0), "Spawners done | Lives 2");
+        // An objective floor's progress line leads in place of the spawner fraction.
+        checkEquals(OmenBarText.activeTitle(2, 2, 1, 8, 3, "Veins 2/3"), "Veins 2/3 | Lives 3");
+        checkEquals(OmenBarText.activeTitle(4, 1, 0, 0, 0, "Strongboxes 1/2"),
+                "Strongboxes 1/2 | Lives 1 | one more fall ends the run");
+        // A null or blank line falls back to the spawner form.
+        checkEquals(OmenBarText.activeTitle(2, 2, 2, 8, 3, null), "Spawners 2/3 | Lives 3");
+        checkEquals(OmenBarText.activeTitle(2, 2, 2, 8, 3, "  "), "Spawners 2/3 | Lives 3");
         // The bar's colour follows the lives: 5 and 4 green, 3 and 2 yellow, 1 red.
         int[] expected = {0, 0, 1, 1, 2};
         for (int omen = 0; omen <= 4; omen++) {

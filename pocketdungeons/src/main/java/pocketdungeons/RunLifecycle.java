@@ -1235,20 +1235,32 @@ final class RunLifecycle {
      * @return whether the pad refused
      */
     private static boolean padGatesRefuse(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
-        // M67: every trial spawner on the floor counts toward the
-        // completion gate, not just gated encounter cells. The threshold
-        // (default 0.75) lets the player skip some spawners without
-        // letting them sprint past the entire floor.
-        Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, player.level());
-        int cleared = TrialContent.countCleared(player.level(), spawners);
-        if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
-                PocketDungeonsConfig.spawnerClearThreshold())) {
-            int more = DifficultyProfile.spawnersStillNeeded(cleared, spawners.size(),
-                    PocketDungeonsConfig.spawnerClearThreshold());
-            player.sendSystemMessage(Component.literal(
-                    "Not yet: clear " + more + " more trial spawner" + (more == 1 ? "" : "s") + ".")
-                    .withStyle(ChatFormatting.YELLOW));
-            return true;
+        // A floor objective replaces the spawner gate with its own refusal;
+        // a fallback objective (its placement could not be made) runs the
+        // ordinary spawner gate below.
+        FloorObjective objective = FloorObjectives.of(record);
+        if (objective != FloorObjective.SPAWNERS && !FloorObjectives.isFallback(record)) {
+            String objectiveRefusal = FloorObjectives.padRefusal(record);
+            if (objectiveRefusal != null) {
+                player.sendSystemMessage(Component.literal(objectiveRefusal).withStyle(ChatFormatting.YELLOW));
+                return true;
+            }
+        } else {
+            // M67: every trial spawner on the floor counts toward the
+            // completion gate, not just gated encounter cells. The threshold
+            // (default 0.75) lets the player skip some spawners without
+            // letting them sprint past the entire floor.
+            Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, player.level());
+            int cleared = TrialContent.countCleared(player.level(), spawners);
+            if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
+                    PocketDungeonsConfig.spawnerClearThreshold())) {
+                int more = DifficultyProfile.spawnersStillNeeded(cleared, spawners.size(),
+                        PocketDungeonsConfig.spawnerClearThreshold());
+                player.sendSystemMessage(Component.literal(
+                        "Not yet: clear " + more + " more trial spawner" + (more == 1 ? "" : "s") + ".")
+                        .withStyle(ChatFormatting.YELLOW));
+                return true;
+            }
         }
         // M11: the boss is the ultimate gated completion for a zone whose
         // capstone is the boss, the same shape as the spawner gate above
@@ -1450,7 +1462,8 @@ final class RunLifecycle {
         // finale still adds its flat chest on top (design pass 2026-10-09, Q4).
         int chests = Wager.scaledChests(Omen.baseRewardChests() + rules.bonusChests(floorsCleared),
                 Wager.sum(record.floor.affixes, AffixManifest.current().definitions()),
-                PocketDungeonsConfig.lootPercentPerWager()) + FinaleWave.rewardChests(record);
+                PocketDungeonsConfig.lootPercentPerWager()) + FinaleWave.rewardChests(record)
+                + FloorObjectives.bonusRolls(record);
         record.floor.rewardChests = chests;
         record.interval.floorChests.add(chests);
 

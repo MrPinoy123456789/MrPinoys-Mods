@@ -74,7 +74,7 @@ final class RoomProtection {
         boolean node = record != null && record.floor.nodes.contains(pos);
         boolean soft = (record != null && record.floor.softBreakables.contains(pos))
                 || state.is(DUNGEON_BREAKABLE);
-        return BreakRule.decide(Ordeals.isFixture(pos),
+        return BreakRule.decide(Ordeals.isFixture(pos) || FloorObjectives.isFixture(pos),
                 DungeonTools.isPlayerPlaced(pos, player.getUUID()), node, soft,
                 DungeonTools.isCorrectTool(player.getMainHandItem(), state));
     }
