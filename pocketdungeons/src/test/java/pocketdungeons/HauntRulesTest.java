@@ -23,6 +23,7 @@ public class HauntRulesTest {
         testPressure();
         testStrike();
         testDecision();
+        testHuntDecision();
         testMeta();
         testShippedData();
         System.out.println("HauntRulesTest passed");
@@ -148,6 +149,33 @@ public class HauntRulesTest {
         }
     }
 
+    // ---- the hunter's decision ---------------------------------------------------------------------
+
+    private static void testHuntDecision() {
+        // A sighting stage only ever advances: it never acts and never vanishes on approach.
+        for (double distance = 0.0; distance <= 30.0; distance += 0.5) {
+            for (boolean tell : new boolean[]{true, false}) {
+                eq(HauntRules.decideHunt(HauntRules.Stage.SIGHTING, distance, tell), HauntRules.Move.ADVANCE);
+            }
+        }
+        // The later stages act at reach once the tell has run, and hold until then.
+        eq(HauntRules.decideHunt(HauntRules.Stage.NEAR_MISS, 20.0, false), HauntRules.Move.ADVANCE);
+        eq(HauntRules.decideHunt(HauntRules.Stage.NEAR_MISS, 2.0, false), HauntRules.Move.FREEZE);
+        eq(HauntRules.decideHunt(HauntRules.Stage.NEAR_MISS, 2.0, true), HauntRules.Move.NEAR_MISS);
+        eq(HauntRules.decideHunt(HauntRules.Stage.STRIKE, 2.0, false), HauntRules.Move.FREEZE);
+        eq(HauntRules.decideHunt(HauntRules.Stage.STRIKE, 2.0, true), HauntRules.Move.STRIKE);
+        eq(HauntRules.decideHunt(HauntRules.Stage.STRIKE, 2.3, true), HauntRules.Move.ADVANCE);
+        // No HUNT move is a vanish or is gated on being unseen: the keeper always comes on.
+        for (HauntRules.Stage stage : HauntRules.Stage.values()) {
+            for (double distance = 0.0; distance <= 30.0; distance += 0.5) {
+                for (boolean tell : new boolean[]{true, false}) {
+                    check(HauntRules.decideHunt(stage, distance, tell) != HauntRules.Move.VANISH,
+                            "a hunting haunt never vanishes: " + stage + " " + distance);
+                }
+            }
+        }
+    }
+
     // ---- the definition parser --------------------------------------------------------------------
 
     private static final String GOOD = """
@@ -167,6 +195,8 @@ public class HauntRulesTest {
         // Behaviour names are case insensitive but the set is closed.
         eq(HauntMeta.fromJson(parse(GOOD.replace("STALK_WHEN_UNSEEN", "stalk_when_unseen")), "x").behaviour(),
                 HauntDefinition.Behaviour.STALK_WHEN_UNSEEN);
+        eq(HauntMeta.fromJson(parse(GOOD.replace("STALK_WHEN_UNSEEN", "HUNT")), "x").behaviour(),
+                HauntDefinition.Behaviour.HUNT);
         rejects(GOOD.replace("STALK_WHEN_UNSEEN", "TELEPORT_BEHIND"), "behaviour must be one of");
         rejects(GOOD.replace("\"label\": \"The Counted\", ", ""), "missing required field: label");
         rejects(GOOD.replace("[\"ossuary\"]", "[]"), "dungeons must be a non-empty array");
@@ -217,6 +247,15 @@ public class HauntRulesTest {
             check(!text.contains(String.valueOf((char) 0x2014)) && !text.contains(" " + "-".repeat(2) + " "), "no dash punctuation in: " + text);
         }
         check(HauntRules.TITLE_LINE.equals("Something walks here."), "the title line is the approved one");
+        // The Keeper hunts the lighthouse floor.
+        HauntDefinition keeper = HauntMeta.fromJson(read("dungeon_haunt/the_keeper.json"),
+                "pocketdungeons:the_keeper");
+        eq(keeper.behaviour(), HauntDefinition.Behaviour.HUNT);
+        check(keeper.dungeons().contains("pocketdungeons:lighthouse_below"), "The Keeper walks the lighthouse");
+        eq(keeper.label(), "The Keeper");
+        check(!keeper.ruleLine().contains(String.valueOf((char) 0x2014))
+                        && !keeper.ruleLine().contains(" " + "-".repeat(2) + " "),
+                "no dash punctuation in: " + keeper.ruleLine());
     }
 
     // ---- helpers ----------------------------------------------------------------------------------

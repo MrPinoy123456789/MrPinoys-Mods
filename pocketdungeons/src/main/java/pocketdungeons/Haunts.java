@@ -1,5 +1,6 @@
 package pocketdungeons;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -77,6 +78,12 @@ final class Haunts {
         long tellStart = -1;
         int vanishes;
         boolean spent;
+        /** The level the floor stands in, refreshed each watch tick so {@link #banishFor} can reach it. */
+        ServerLevel level;
+        /** A hunting keeper is held (no AI) until this tick after a cancelled hit. */
+        long staggeredUntil;
+        /** A hunting keeper cannot be staggered again until this tick, so it is never stunlocked. */
+        long staggerImmuneUntil;
 
         State(long seed, HauntDefinition def) {
             this.seed = seed;
@@ -92,6 +99,8 @@ final class Haunts {
     static ServerLevel levelForTesting;
     /** Test seam: records the body tick may resolve without being in the live registry. */
     private static final Map<Integer, InstanceRecord> TEST_RECORDS = SessionState.clearedAtStop(new HashMap<>());
+    /** Test seam: haunt definitions pinned by dungeon id, for a floor whose dungeon has no data yet. */
+    private static final Map<String, HauntDefinition> TEST_HAUNTS = SessionState.clearedAtStop(new HashMap<>());
 
     private Haunts() {}
 
@@ -101,11 +110,17 @@ final class Haunts {
         TEST_RECORDS.put(record.slot, record);
     }
 
+    /** Test seam: the haunt a dungeon id resolves to, ahead of the manifest (a dungeon not yet shipped). */
+    static void hauntForTesting(String dungeonId, HauntDefinition def) {
+        TEST_HAUNTS.put(JsonPackSupport.qualify(dungeonId), def);
+    }
+
     /** Test seam: the end of {@link #registerForTesting}; drops the record and its haunt state. */
     static void forgetForTesting(InstanceRecord record) {
         TEST_RECORDS.remove(record.slot);
         STATES.remove(record.slot);
         TAUGHT.remove(record.slot);
+        TEST_HAUNTS.clear();
         if (TEST_RECORDS.isEmpty()) {
             levelForTesting = null;
         }
@@ -122,6 +137,9 @@ final class Haunts {
 
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(Haunts::tickBodies);
+        // A hunting keeper takes no damage: a hit staggers it instead. The lamps are the answer, not the sword.
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
+                !(entity instanceof Mob mob) || !stagger(mob));
     }
 
     // ---- which floors are haunted -----------------------------------------------------------------
@@ -131,11 +149,14 @@ final class Haunts {
         if (!PocketDungeonsConfig.hauntsEnabled() || record == null || record.layout == null) {
             return null;
         }
-        DungeonDef def = TripView.def(record);
-        if (def == null || def.kind() == DungeonDef.Kind.CAPSTONE) {
-            return null;
+        HauntDefinition haunt = TEST_HAUNTS.get(JsonPackSupport.qualify(record.interval.dungeonId));
+        if (haunt == null) {
+            DungeonDef def = TripView.def(record);
+            if (def == null || def.kind() == DungeonDef.Kind.CAPSTONE) {
+                return null;
+            }
+            haunt = HauntManifest.current().forDungeon(def.id());
         }
-        HauntDefinition haunt = HauntManifest.current().forDungeon(def.id());
         if (haunt == null || record.layout.keystoneLevel() < haunt.minCompass()) {
             return null;
         }
@@ -217,21 +238,35 @@ final class Haunts {
         if (state.spent) {
             return;
         }
+        boolean hunt = state.def.behaviour() == HauntDefinition.Behaviour.HUNT;
         long now = server.getTickCount();
+        state.level = level;
         List<ServerPlayer> members = livingMembers(server, record);
         if (floorInFight(record)) {
-            banish(level, state, true);
+            banish(level, state, !hunt);
+            if (hunt) {
+                state.retreatUntil = now + PocketDungeonsConfig.hauntRetreatSeconds() * 20L;
+            }
             return;
         }
         if (state.mob != null) {
             Entity body = level.getEntity(state.mob);
             if (body == null || !body.isAlive()) {
-                // Killed (or lost): a slain haunt stays gone for the floor and pays nothing.
                 state.mob = null;
-                state.spent = true;
+                if (hunt) {
+                    // A keeper is never spent: a body lost to the void, a command or a bug means it returns
+                    // once the ordinary retreat has run.
+                    PocketDungeonsMod.LOG.warn("Haunt {} lost its body in slot {}; it will return",
+                            state.def.id(), record.slot);
+                    state.retreatUntil = now + PocketDungeonsConfig.hauntRetreatSeconds() * 20L;
+                } else {
+                    // Killed (or lost): a slain haunt stays gone for the floor and pays nothing.
+                    state.spent = true;
+                }
                 return;
             }
-            if (now - state.spawnedTick > PocketDungeonsConfig.hauntLingerSeconds() * 20L
+            // The linger vanish does not apply to a hunting keeper; it stays until the floor or a beacon ends it.
+            if ((!hunt && now - state.spawnedTick > PocketDungeonsConfig.hauntLingerSeconds() * 20L)
                     || excluded(record, body.blockPosition())) {
                 vanish(level, record, state, (Mob) body);
             }
@@ -248,6 +283,16 @@ final class Haunts {
             }
         }
         if (!anyoneOpen) {
+            return;
+        }
+        if (hunt) {
+            // A hunt ignores pressure: the keeper wakes once, a grace after the floor opened
+            // (startedAtTick is the overworld game time of the commit, so the grace is too).
+            long floorNow = server.overworld().getGameTime();
+            long grace = PocketDungeonsConfig.hauntHuntGraceSeconds() * 20L;
+            if (record.floor.startedAtTick <= 0 || floorNow - record.floor.startedAtTick >= grace) {
+                wake(level, record, state, members, now);
+            }
             return;
         }
         state.pressure += PocketDungeonsConfig.hauntPressurePerSecond()
@@ -327,6 +372,12 @@ final class Haunts {
             hold(mob);
             return;
         }
+        boolean hunt = state.def.behaviour() == HauntDefinition.Behaviour.HUNT;
+        if (hunt && now < state.staggeredUntil) {
+            // A cancelled hit holds the keeper still until the stagger runs out.
+            hold(mob);
+            return;
+        }
         ServerPlayer nearest = members.get(0);
         for (ServerPlayer member : members) {
             if (member.distanceToSqr(mob) < nearest.distanceToSqr(mob)) {
@@ -334,11 +385,14 @@ final class Haunts {
             }
         }
         double distance = Math.sqrt(nearest.distanceToSqr(mob));
-        boolean seen = seenByAny(members, mob);
         long lead = PocketDungeonsConfig.hauntTellSeconds() * 20L;
         HauntRules.Stage stage = stageOf(record);
-        HauntRules.Move move = HauntRules.decide(stage, seen, distance,
-                PocketDungeonsConfig.hauntSightingApproachBlocks(), HauntRules.tellDone(now, state.tellStart, lead));
+        boolean tellDone = HauntRules.tellDone(now, state.tellStart, lead);
+        // A hunting keeper walks whether seen or not; the stalker's freeze on a look never applies to it.
+        HauntRules.Move move = hunt
+                ? HauntRules.decideHunt(stage, distance, tellDone)
+                : HauntRules.decide(stage, seenByAny(members, mob), distance,
+                        PocketDungeonsConfig.hauntSightingApproachBlocks(), tellDone);
         if ((move == HauntRules.Move.STRIKE || move == HauntRules.Move.NEAR_MISS)
                 && excluded(record, nearest.blockPosition())) {
             move = HauntRules.Move.FREEZE;
@@ -356,7 +410,8 @@ final class Haunts {
                     }
                 }
                 if (now % PATH_PERIOD == 0 || mob.getNavigation().isDone()) {
-                    mob.getNavigation().moveTo(nearest, 1.0);
+                    mob.getNavigation().moveTo(nearest,
+                            hunt && record.floor.affixes.contains(AffixIds.OMINOUS) ? 1.15 : 1.0);
                 }
             }
             case VANISH -> vanish(level, record, state, mob);
@@ -469,7 +524,9 @@ final class Haunts {
     private static void vanish(ServerLevel level, InstanceRecord record, State state, Mob mob) {
         leave(level, state, mob);
         state.retreatUntil = level.getServer().getTickCount() + PocketDungeonsConfig.hauntRetreatSeconds() * 20L;
-        if (stageOf(record) == HauntRules.Stage.SIGHTING) {
+        // A hunting keeper never spends: it counts no vanishes and always comes back after the retreat.
+        if (state.def.behaviour() != HauntDefinition.Behaviour.HUNT
+                && stageOf(record) == HauntRules.Stage.SIGHTING) {
             state.vanishes++;
             if (state.vanishes >= PocketDungeonsConfig.hauntSightingVanishes()) {
                 state.spent = true;
@@ -498,6 +555,55 @@ final class Haunts {
         if (spend) {
             state.spent = true;
         }
+    }
+
+    // ---- hunting (The Keeper) ------------------------------------------------------------------------
+
+    /**
+     * A lit beacon drives a hunting keeper off the floor: the body vanishes where it stands and the state
+     * waits {@code seconds} before it may wake again. A keeper is never spent; the beacons are the pad's
+     * answer to it, not a kill. Safe to call with no body up (the retreat is still pushed).
+     */
+    static void banishFor(InstanceRecord record, int seconds) {
+        State state = STATES.get(record.slot);
+        if (state == null || state.level == null) {
+            return;
+        }
+        ServerLevel level = state.level;
+        Entity body = state.mob == null ? null : level.getEntity(state.mob);
+        if (body instanceof Mob mob && mob.isAlive()) {
+            leave(level, state, mob);
+        } else {
+            state.mob = null;
+        }
+        state.retreatUntil = level.getServer().getTickCount() + Math.max(0, seconds) * 20L;
+    }
+
+    /**
+     * A hit on a hunting keeper (ALLOW_DAMAGE): the damage never lands, and unless it is still inside
+     * the stagger immunity window the keeper is held without AI for {@code hauntStunSeconds}, after which
+     * five more seconds of immunity keep it from being stunlocked. True only for a live HUNT body, so the
+     * Counted stays as mortal as ever.
+     */
+    private static boolean stagger(Mob mob) {
+        if (!mob.entityTags().contains(TAG)) {
+            return false;
+        }
+        for (State state : STATES.values()) {
+            if (state.mob == null || !state.mob.equals(mob.getUUID())
+                    || state.def.behaviour() != HauntDefinition.Behaviour.HUNT) {
+                continue;
+            }
+            long now = mob.level() instanceof ServerLevel mobLevel ? mobLevel.getServer().getTickCount() : 0;
+            if (now >= state.staggerImmuneUntil) {
+                long stun = PocketDungeonsConfig.hauntStunSeconds() * 20L;
+                hold(mob);
+                state.staggeredUntil = now + stun;
+                state.staggerImmuneUntil = now + stun + 100L;
+            }
+            return true;
+        }
+        return false;
     }
 
     // ---- ending a floor -----------------------------------------------------------------------------

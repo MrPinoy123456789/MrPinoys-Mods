@@ -114,4 +114,23 @@ final class HauntRules {
         }
         return Move.ADVANCE;
     }
+
+    /**
+     * What a hunting haunt (The Keeper) does this tick. Looking at it does not hold it, so {@code seen} never
+     * enters the decision, and a sighting stage never vanishes on approach: the keeper only advances. The act
+     * ladder is the stalker's otherwise: at {@link #REACH} a near miss or a strike by stage, and only once the
+     * tell has run its lead, holding until then.
+     */
+    static Move decideHunt(Stage stage, double distance, boolean tellDone) {
+        if (stage == Stage.SIGHTING) {
+            return Move.ADVANCE;
+        }
+        if (distance <= REACH) {
+            if (!tellDone) {
+                return Move.FREEZE;
+            }
+            return stage == Stage.STRIKE ? Move.STRIKE : Move.NEAR_MISS;
+        }
+        return Move.ADVANCE;
+    }
 }

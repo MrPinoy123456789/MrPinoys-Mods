@@ -28,7 +28,12 @@ record HauntDefinition(String id, String label, Set<String> dungeons, int minCom
      */
     enum Behaviour {
         /** Moves only while no member looks at it; strikes if it reaches one. */
-        STALK_WHEN_UNSEEN
+        STALK_WHEN_UNSEEN,
+        /**
+         * Wakes once, a grace after the floor opens, and stalks the party whether seen or not. It cannot be
+         * killed: a hit only staggers it, and a lit beacon drives it off for a while (The Keeper).
+         */
+        HUNT
     }
 
     HauntDefinition {
