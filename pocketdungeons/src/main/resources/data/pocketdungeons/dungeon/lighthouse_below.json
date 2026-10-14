@@ -1,0 +1,170 @@
+{
+  "name": "The Lighthouse Below",
+  "token": { "mat": "minecraft:sea_lantern" },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:drowned",
+        "count": 5
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:drowned",
+      "name": "The Drowned Keeper",
+      "health": 120,
+      "mainhand": "minecraft:trident"
+    }
+  },
+  "notes": "A drowned stair under the sea. The Keeper still climbs it.",
+  "act": 3,
+  "baseLevel": 14,
+  "kind": "dungeon",
+  "mainTheme": "lighthouse_below",
+  "lootBand": {
+    "min": 3,
+    "max": 3
+  },
+  "nodePalette": [
+    "coal_ore",
+    "deepslate_iron_ore",
+    "clay"
+  ],
+  "diary": "entry_29",
+  "deviation": {
+    "chance": 0.15,
+    "themes": [
+      "prismarine"
+    ]
+  },
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 1,
+    "sizeMin": 1,
+    "sizeMax": 2,
+    "blocks": [
+      "coal_ore"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "the_stair_mouth",
+      "name": "The Stair Mouth",
+      "layer": 1,
+      "light": "dim",
+      "objective": "haunt"
+    },
+    {
+      "id": "lamp_landing",
+      "name": "Lamp Landing",
+      "notes": "The first landing. Light the lamps before the climb hears you.",
+      "layer": 2,
+      "light": "dim",
+      "objective": "haunt",
+      "roomBias": [
+        "flooded_hall",
+        "lamp_stair"
+      ]
+    },
+    {
+      "id": "flooded_bunks",
+      "name": "Flooded Bunks",
+      "notes": "The keepers' bunks, under a fathom of black water.",
+      "layer": 2,
+      "light": "dim",
+      "objective": "haunt",
+      "roomBias": [
+        "sump",
+        "keepers_quarters"
+      ]
+    },
+    {
+      "id": "iron_galleries",
+      "name": "Iron Galleries",
+      "notes": "Barred galleries between the stairs. Something keeps pace.",
+      "layer": 3,
+      "light": "dim",
+      "objective": "haunt",
+      "roomBias": [
+        "deep_dark_landing"
+      ]
+    },
+    {
+      "id": "storm_lantern",
+      "name": "The Storm Lantern",
+      "notes": "A prismarine lamp room, borrowed from the monument.",
+      "layer": 3,
+      "light": "dim",
+      "objective": "haunt",
+      "theme": "prismarine",
+      "rewards": [
+        {
+          "item": "emerald",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "the_long_climb",
+      "name": "The Long Climb",
+      "notes": "The last stretch of stair. The lamps thin out above.",
+      "layer": 4,
+      "light": "dark",
+      "objective": "haunt",
+      "roomBias": [
+        "chasm",
+        "lamp_stair"
+      ]
+    },
+    {
+      "id": "the_burning_lens",
+      "name": "The Burning Lens",
+      "notes": "The lamp room itself. The Keeper answers for it.",
+      "layer": 5,
+      "final": true,
+      "roomBias": [
+        "ominous_bargain",
+        "lantern_room"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "the_stair_mouth",
+      "to": "lamp_landing"
+    },
+    {
+      "from": "the_stair_mouth",
+      "to": "flooded_bunks"
+    },
+    {
+      "from": "lamp_landing",
+      "to": "iron_galleries"
+    },
+    {
+      "from": "flooded_bunks",
+      "to": "iron_galleries"
+    },
+    {
+      "from": "flooded_bunks",
+      "to": "storm_lantern"
+    },
+    {
+      "from": "lamp_landing",
+      "to": "storm_lantern",
+      "lives": 1
+    },
+    {
+      "from": "iron_galleries",
+      "to": "the_long_climb"
+    },
+    {
+      "from": "storm_lantern",
+      "to": "the_long_climb"
+    },
+    {
+      "from": "the_long_climb",
+      "to": "the_burning_lens"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "template": "pocketdungeons:rooms/lantern_room",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "theme": ["lighthouse_below"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "lighthouse_below",
+  "dungeons": ["lighthouse_below"],
+  "acts": [3],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:coal_ore", "from": [1, 1, 12], "to": [1, 2, 13], "count": 2 },
+    { "block": "minecraft:deepslate_iron_ore", "from": [14, 1, 2], "to": [14, 2, 3], "count": 2 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "glass"
+}

@@ -256,6 +256,7 @@ final class RoomTemplateGenerator {
         specs.addAll(SculkRoomSpecs.list());
         specs.addAll(KennelSpecs.list());
         specs.addAll(SunkenTreasurySpecs.list());
+        specs.addAll(LighthouseBelowSpecs.list());
         return specs;
     }
 

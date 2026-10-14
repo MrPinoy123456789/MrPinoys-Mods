@@ -1,0 +1,24 @@
+{
+  "template": "pocketdungeons:rooms/lamp_stair",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["lighthouse_below"],
+  "light": "dim",
+  "corridor": "wide",
+  "biome": "lighthouse_below",
+  "dungeons": ["lighthouse_below"],
+  "acts": [3],
+  "nodes": [
+    { "block": "minecraft:coal_ore", "from": [9, 1, 1], "to": [11, 2, 1], "count": 2 },
+    { "block": "minecraft:deepslate_iron_ore", "from": [1, 1, 9], "to": [1, 2, 10], "count": 2 },
+    { "block": "minecraft:clay", "from": [4, 1, 13], "to": [5, 2, 13], "count": 3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}
