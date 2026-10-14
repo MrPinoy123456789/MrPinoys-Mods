@@ -18,7 +18,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * The floor soak: plans every floor of every Act 1 and Act 2 dungeon over many seeds, the way a real
+ * The floor soak: plans every floor of every covered dungeon over many seeds, the way a real
  * door preview does (the dungeon's node as the floor context, its theme, its room bias, the pilgrim
  * bag tags, the configured path lengths and attempt budget), and checks what must hold for a floor to
  * be finishable. A finding here is a floor a player could be stuck on.
@@ -57,6 +57,11 @@ public final class FloorSoakGameTest {
     @GameTest(maxTicks = 100) public void frostworks(GameTestHelper h) { soak(h, "frostworks"); }
     @GameTest(maxTicks = 100) public void cowPits(GameTestHelper h) { soak(h, "cow_pits"); }
     @GameTest(maxTicks = 100) public void ancientCity(GameTestHelper h) { soak(h, "ancient_city"); }
+    // Act 3
+    @GameTest(maxTicks = 100) public void sunkenTreasury(GameTestHelper h) { soak(h, "sunken_treasury"); }
+    @GameTest(maxTicks = 100) public void lighthouseBelow(GameTestHelper h) { soak(h, "lighthouse_below"); }
+    // Act 4
+    @GameTest(maxTicks = 100) public void gildedSeam(GameTestHelper h) { soak(h, "gilded_seam"); }
 
     private static int seeds() {
         String value = System.getenv("PD_SOAK_SEEDS");

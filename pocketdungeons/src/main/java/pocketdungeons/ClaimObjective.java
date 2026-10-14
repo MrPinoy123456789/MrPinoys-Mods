@@ -151,6 +151,8 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
                 BlockPos at = MineGuardians.freeSpotInCell(level,
                         record.layout.geometry().cellOrigin(cell), cellTaken, random);
                 if (at == null) {
+                    PocketDungeonsMod.LOG.info("claim vein: no spot in cell {} (origin {})",
+                            cell, record.layout.geometry().cellOrigin(cell));
                     continue;
                 }
                 level.setBlock(at, VEIN_BLOCK.defaultBlockState(), FLAGS);

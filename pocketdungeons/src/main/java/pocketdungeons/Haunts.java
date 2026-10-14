@@ -410,8 +410,12 @@ final class Haunts {
                     }
                 }
                 if (now % PATH_PERIOD == 0 || mob.getNavigation().isDone()) {
-                    mob.getNavigation().moveTo(nearest,
-                            hunt && record.floor.affixes.contains(AffixIds.OMINOUS) ? 1.15 : 1.0);
+                    // A drowned body crawls on land at 1.0; the hunt knob lifts it to a stalking pace.
+                    double speed = hunt
+                            ? PocketDungeonsConfig.hauntHuntSpeed()
+                                    * (record.floor.affixes.contains(AffixIds.OMINOUS) ? 1.2 : 1.0)
+                            : 1.0;
+                    mob.getNavigation().moveTo(nearest, speed);
                 }
             }
             case VANISH -> vanish(level, record, state, mob);

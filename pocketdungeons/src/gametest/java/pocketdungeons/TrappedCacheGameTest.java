@@ -73,7 +73,9 @@ public final class TrappedCacheGameTest {
             helper.assertTrue(level.getEntitiesOfClass(Mob.class, cell, e -> e.entityTags().contains(TrappedCache.TAG)).isEmpty(),
                     "nobody stands before the telegraph has run");
 
-            helper.runAfterDelay(TrappedCache.DELAY_TICKS + 10, () -> {
+            // Check right after the spawn tick: the mobs chase the opener, and a long delay lets them
+            // walk onto a door lane even though the spawn spots are all off it.
+            helper.runAfterDelay(TrappedCache.DELAY_TICKS + 2, () -> {
                 try {
                     List<Mob> mobs = level.getEntitiesOfClass(Mob.class, cell,
                             e -> e.entityTags().contains(TrappedCache.TAG));

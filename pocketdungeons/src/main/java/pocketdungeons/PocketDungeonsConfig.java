@@ -716,6 +716,9 @@ public final class PocketDungeonsConfig {
     /** Seconds a hit staggers a hunting keeper for; it is immune for five more */
     private static final Knob<Integer> HAUNT_STUN_SECONDS = integer("hauntStunSeconds", 3,
             v -> v >= 1 && v <= 10, "must be 1 to 10");
+    /** Path speed multiplier a hunting keeper walks at; a drowned body crawls on land at 1.0 */
+    private static final Knob<Double> HAUNT_HUNT_SPEED = decimal("hauntHuntSpeed", 2.5,
+            v -> v >= 0.5 && v <= 6.0, "must be 0.5 to 6.0");
     /** Seconds a member stands on a haunt floor beacon plate to light it */
     private static final Knob<Integer> BEACON_CHARGE_SECONDS = integer("beaconChargeSeconds", 3,
             v -> v >= 1 && v <= 10, "must be 1 to 10");
@@ -1675,6 +1678,10 @@ public final class PocketDungeonsConfig {
 
     public static int hauntStunSeconds() {
         return HAUNT_STUN_SECONDS.get();
+    }
+
+    public static double hauntHuntSpeed() {
+        return HAUNT_HUNT_SPEED.get();
     }
 
     public static int beaconChargeSeconds() {

@@ -53,6 +53,7 @@ frostBrazierRadius = 4
 frostColdTicksPerSecond = 6
 hallEnabled = true
 hauntHuntGraceSeconds = 20
+hauntHuntSpeed = 2.5
 hauntLingerSeconds = 45
 hauntLookConeDegrees = 60
 hauntNearMissFloor = 2

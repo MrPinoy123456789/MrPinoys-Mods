@@ -62,7 +62,7 @@ public final class HeistFloorGameTest {
                 Map.of(), Set.of(), ENTRANCE, TERMINAL, List.of(ENTRANCE, MID, TERMINAL), null);
     }
 
-    /** Loads every chunk a cell touches and lays a stone floor so fixtures can stand. */
+    /** Loads every chunk a cell touches, lays a stone floor and clears the air so fixtures can stand. */
     private static void prepareCells(ServerLevel level, PlanGeometry geometry) {
         for (BlockPos cellOrigin : geometry.cellOrigins()) {
             level.getChunk(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4);
@@ -73,6 +73,11 @@ public final class HeistFloorGameTest {
             for (int x = 0; x < RoomGeometry.CELL; x++) {
                 for (int z = 0; z < RoomGeometry.CELL; z++) {
                     level.setBlock(cellOrigin.offset(x, 0, z), Blocks.STONE.defaultBlockState(), 3);
+                    // The test cells sit at real-world height: some land in solid rock. Free
+                    // spots need air, so carve the cell up to head height plus clearance.
+                    for (int y = 1; y <= 6; y++) {
+                        level.setBlock(cellOrigin.offset(x, y, z), Blocks.AIR.defaultBlockState(), 3);
+                    }
                 }
             }
         }
