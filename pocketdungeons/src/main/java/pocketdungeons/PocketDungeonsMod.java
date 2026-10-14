@@ -66,6 +66,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         HallRoom.register();
         Restless.register();
         Haunts.register();
+        FloorObjectives.register();
         PetCap.register();
         CapstoneFights.register();
         FinaleScripts.registerAll();

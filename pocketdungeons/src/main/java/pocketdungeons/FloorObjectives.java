@@ -1,10 +1,14 @@
 package pocketdungeons;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -35,8 +39,31 @@ final class FloorObjectives {
     /** The floor title's one line for a haunt objective floor. */
     static final String HAUNT_TITLE = "The keeper watches.";
 
+    /** Test seam: pins the objective a record's node resolves to, for a floor built without dungeon data. */
+    private static final Map<Integer, FloorObjective> TEST_OBJECTIVES =
+            SessionState.clearedAtStop(new HashMap<>());
+    /** Test seam: records the fixture scan may resolve without being in the live registry. */
+    private static final Map<Integer, InstanceRecord> TEST_RECORDS =
+            SessionState.clearedAtStop(new HashMap<>());
+
+    /** Test seam: lets a gametest arm and query an objective on a record it built itself. */
+    static void registerForTesting(InstanceRecord record, FloorObjective objective) {
+        TEST_RECORDS.put(record.slot, record);
+        TEST_OBJECTIVES.put(record.slot, objective);
+    }
+
+    /** Test seam: the end of {@link #registerForTesting}; drops the record and its override. */
+    static void forgetForTesting(InstanceRecord record) {
+        TEST_RECORDS.remove(record.slot);
+        TEST_OBJECTIVES.remove(record.slot);
+    }
+
     /** The objective the node's data declares for the floor the record is on; spawners when there is none. */
     static FloorObjective of(InstanceRecord record) {
+        FloorObjective forced = TEST_OBJECTIVES.get(record.slot);
+        if (forced != null) {
+            return forced;
+        }
         DungeonDef def = TripView.def(record);
         DungeonDef.Node node = def == null ? null : def.node(record.interval.nodeId);
         return FloorObjective.of(node == null ? null : node.objective());
@@ -63,6 +90,10 @@ final class FloorObjectives {
     static void arm(ServerLevel level, InstanceRecord record, DungeonPlan plan, Keystone.Offer offer) {
         FloorObjective kind = of(record);
         if (kind == FloorObjective.SPAWNERS) {
+            return;
+        }
+        if (kind == FloorObjective.HEIST) {
+            record.floor.objective = HeistObjective.arm(level, record, plan);
             return;
         }
         record.floor.objective = new ObjectiveState(kind, true);
@@ -129,15 +160,55 @@ final class FloorObjectives {
         };
     }
 
+    /**
+     * One watch tick of the floor's armed objective, once a second from the
+     * same loop that runs {@link Haunts#tick}: the heist's vault channel and
+     * its ominous echo wave. A no-op on every floor without an armed state.
+     */
+    static void tick(MinecraftServer server, InstanceRecord record) {
+        ObjectiveState state = record.floor.objective;
+        if (state != null) {
+            state.tick(server, record);
+        }
+    }
+
+    /**
+     * The objective-level listeners: a hit on a member cracking the vault
+     * breaks the channel, which the heist's state keeps and resets.
+     */
+    static void register() {
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
+            if (!(entity instanceof ServerPlayer player) || blocked) {
+                return;
+            }
+            InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+            ObjectiveState state = record == null ? null : record.floor.objective;
+            if (state != null) {
+                state.channelerHurt(player);
+            }
+        });
+    }
+
     /** The armed objective state claiming {@code pos} as a fixture, or {@code null}. */
     private static ObjectiveState stateAt(BlockPos pos) {
         for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
-            ObjectiveState state = record.floor == null ? null : record.floor.objective;
-            if (state != null && state.fixtureAt(pos) != null) {
+            ObjectiveState state = stateOf(record, pos);
+            if (state != null) {
+                return state;
+            }
+        }
+        for (InstanceRecord record : TEST_RECORDS.values()) {
+            ObjectiveState state = stateOf(record, pos);
+            if (state != null) {
                 return state;
             }
         }
         return null;
+    }
+
+    private static ObjectiveState stateOf(InstanceRecord record, BlockPos pos) {
+        ObjectiveState state = record.floor == null ? null : record.floor.objective;
+        return state != null && state.fixtureAt(pos) != null ? state : null;
     }
 
     /**
@@ -186,5 +257,11 @@ final class FloorObjectives {
         boolean onUse(ServerPlayer player, BlockPos pos) {
             return false;
         }
+
+        /** One watch tick of this objective (the heist's channel and echo wave); the base has none. */
+        void tick(MinecraftServer server, InstanceRecord record) {}
+
+        /** A member took damage; the base objective holds no channel to break. */
+        void channelerHurt(ServerPlayer player) {}
     }
 }

@@ -822,6 +822,17 @@ final class TrialContent {
     }
 
     /**
+     * The loot table a heist strongbox pays: the floor's tier chest table,
+     * resolved the same way a completion chest's is (theme suffix first,
+     * then the packaged table). Deferred loot: the caller sets it on the
+     * container and vanilla rolls it once, on open.
+     */
+    static ResourceKey<LootTable> strongboxTable(ServerLevel level, int tier, boolean ominous,
+                                               String lootSuffix) {
+        return resolveLootTable(level, LootTables.tierTable(tier, ominous), lootSuffix);
+    }
+
+    /**
      * Sets each of the reward room's three chests to the run's tier table (U8
      * Stage 2), or removes it if the run did not earn it. Chests are read back at
      * their authored positions -- {@code (4,1,4)}, {@code (8,1,4)},

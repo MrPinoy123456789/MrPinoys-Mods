@@ -2724,6 +2724,8 @@ final class Instances {
             PotionDrip.tick(server, record);
             // Haunts: the roaming creature of the floor (docs/haunts-draft-2026-10-11.md).
             Haunts.tick(server, record);
+            // Floor objectives: a heist's vault channel and its ominous echo wave.
+            FloorObjectives.tick(server, record);
         }
         // Roadmap T32: the Copper Works furnace countdown is the trip's, not
         // the floor's, so it ticks whether or not the current floor is still
