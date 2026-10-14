@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -29,11 +30,13 @@ import java.util.Set;
  * The {@link FloorObjective#CLAIM} floor (gilded seam shape): the floor hides
  * {@code claimQuota + claimExtraVeins} gilded blackstone veins in its cells,
  * and the pad holds until the party has claimed the quota by hand. A claim is
- * a right-click: the vein turns to plain blackstone, Tremor rises by one, and
- * the floor answers. Once Tremor reaches {@code claimWaveTremor} every further
- * claim raises a hoglin pack at the vein, and at {@code claimHunterTremor} the
- * floor sends The Assayer once. Veins claimed past the quota pay one bonus
- * reward roll each ({@link FloorObjectiveRules#bonusRolls}).
+ * a break: the vein is unprotected and any tool or fist mines it, the count
+ * and the Tremor rise by one, and the floor answers. Once Tremor reaches
+ * {@code claimWaveTremor} every further claim raises a hoglin pack at the
+ * vein, and at {@code claimHunterTremor} the floor sends The Assayer once.
+ * Veins claimed past the quota pay one bonus reward roll each
+ * ({@link FloorObjectiveRules#bonusRolls}). Unclaimed veins wink a sparkle
+ * once a second so they read as the objective.
  *
  * <p>Placement runs under the generic fallback rule: no free spot for a single
  * vein means no claim, the state arms as {@code fallback}, and the floor reads
@@ -45,9 +48,6 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
 
     /** The block a vein is before it is claimed: gilded blackstone, a seam worth working. */
     private static final Block VEIN_BLOCK = Blocks.GILDED_BLACKSTONE;
-
-    /** The block a claimed vein becomes: plain blackstone, the gold worked out. */
-    private static final Block SPENT_BLOCK = Blocks.BLACKSTONE;
 
     /** Tag on every mob a claim raises, so tests and tools can find them. */
     static final String WAVE_TAG = PocketDungeonsMod.MOD_ID + ".claim_wave";
@@ -78,8 +78,11 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
     /** The plan the floor was armed from, kept for the Assayer's neighbour lookup. */
     private DungeonPlan plan;
 
-    /** The vein positions; each is a fixture until (and after) it is claimed. */
+    /** The vein positions, claimed or not; kept for tests and bookkeeping. */
     final List<BlockPos> veins = new ArrayList<>();
+
+    /** The veins still standing. A vein is never a fixture: breaking it IS the claim. */
+    final Set<BlockPos> unclaimed = new HashSet<>();
 
     /** The veins the quota actually demands: {@code claimQuota} clamped to what was placed. */
     int quota;
@@ -156,8 +159,8 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
                     continue;
                 }
                 level.setBlock(at, VEIN_BLOCK.defaultBlockState(), FLAGS);
-                state.fixtures.add(at);
                 state.veins.add(at);
+                state.unclaimed.add(at);
             }
         }
     }
@@ -185,17 +188,23 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
     }
 
     /**
-     * A right-click on an unclaimed vein claims it on the spot: the block
-     * spends to plain blackstone, the count and the Tremor rise, the floor
-     * growls loud enough to hear across the cell, and the pressure answers.
-     * A spent vein (already blackstone) credits nothing.
+     * A vein is worked by breaking it: unprotected, mineable by any tool or a
+     * fist, and the break itself is the claim. The count and the Tremor rise,
+     * the floor growls loud enough to hear across the cell, and the pressure
+     * answers. A vein already mined (gone from {@link #unclaimed}) credits
+     * nothing.
      */
     @Override
-    boolean onUse(ServerPlayer player, BlockPos pos) {
-        if (fallback || !fixtures.contains(pos) || !level.getBlockState(pos).is(VEIN_BLOCK)) {
+    boolean breakClaims(BlockPos pos) {
+        return !fallback && unclaimed.contains(pos);
+    }
+
+    @Override
+    boolean onBreak(ServerPlayer player, BlockPos pos) {
+        if (!breakClaims(pos)) {
             return false;
         }
-        level.setBlock(pos, SPENT_BLOCK.defaultBlockState(), FLAGS);
+        unclaimed.remove(pos);
         claimed++;
         tremor++;
         level.playSound(null, pos, SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 1.2f, 0.8f);
@@ -212,13 +221,24 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
         return true;
     }
 
+    /** Each unclaimed vein winks once a second so it reads as a thing to break. */
+    @Override
+    void tick(MinecraftServer server, InstanceRecord record) {
+        if (fallback) {
+            return;
+        }
+        for (BlockPos vein : unclaimed) {
+            FloorObjectives.sparkle(level, vein);
+        }
+    }
+
     @Override
     String padRefusal() {
         if (fallback || claimed >= quota) {
             return null;
         }
         int left = quota - claimed;
-        return "The seam holds. Claim " + left + " more vein" + (left == 1 ? "." : "s.");
+        return "The seam holds. Break " + left + " more gilded vein" + (left == 1 ? "." : "s.");
     }
 
     @Override

@@ -74,11 +74,19 @@ public final class TrappedCacheGameTest {
                     "nobody stands before the telegraph has run");
 
             // Check right after the spawn tick: the mobs chase the opener, and a long delay lets them
-            // walk onto a door lane even though the spawn spots are all off it.
-            helper.runAfterDelay(TrappedCache.DELAY_TICKS + 2, () -> {
+            // walk onto a door lane even though the spawn spots are all off it. Fresh entities take a
+            // tick or two to show in the section index, so poll briefly for the full count.
+            int[] ticksLeft = {10};
+            helper.onEachTick(() -> {
+                if (helper.getTick() < TrappedCache.DELAY_TICKS + 2) {
+                    return;
+                }
+                List<Mob> mobs = level.getEntitiesOfClass(Mob.class, cell,
+                        e -> e.entityTags().contains(TrappedCache.TAG));
+                if (mobs.size() < TrappedCache.ambushSize(1) && ticksLeft[0]-- > 0) {
+                    return;
+                }
                 try {
-                    List<Mob> mobs = level.getEntitiesOfClass(Mob.class, cell,
-                            e -> e.entityTags().contains(TrappedCache.TAG));
                     helper.assertTrue(mobs.size() == TrappedCache.ambushSize(1),
                             "the ambush is " + TrappedCache.ambushSize(1) + " mobs, once; found " + mobs.size());
                     for (Mob mob : mobs) {

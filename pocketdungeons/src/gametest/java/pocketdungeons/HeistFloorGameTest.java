@@ -152,7 +152,7 @@ public final class HeistFloorGameTest {
             }
 
             // 2. The pad stays sealed.
-            helper.assertValueEqual(FloorObjectives.padRefusal(record), HeistObjective.SEALED_LINE,
+            helper.assertValueEqual(FloorObjectives.padRefusal(record), HeistObjective.SEALED_PAD,
                     "the pad refuses while the vault is sealed");
             helper.assertValueEqual(FloorObjectives.objectiveLine(record), HeistObjective.SEALED_LINE,
                     "the bar reads sealed");
@@ -172,10 +172,14 @@ public final class HeistFloorGameTest {
                     BreakRule.decide(FloorObjectives.isFixture(state.core), false, false, false, true),
                     BreakRule.Verdict.REFUSE_FIXTURE, "the break rule refuses the core");
 
-            // 4. The channel: a click starts it, leaving reach resets it, a hit breaks it,
-            // and letting it run cracks the vault.
+            // 4. The channel: a click starts it, a swing starts it too (the break rule feeds the
+            // core's hits to FloorObjectives.onAttack), leaving reach resets it, a hit on the
+            // channeler breaks it, and letting it run cracks the vault.
             helper.assertTrue(FloorObjectives.onUse(member, state.core), "the core claims the click");
             helper.assertTrue(member.getUUID().equals(state.channeler), "the channel started");
+            state.channeler = null;
+            helper.assertTrue(FloorObjectives.onAttack(member, state.core),
+                    "a swing at the core starts the channel the same as a click");
             member.teleportTo(level, state.core.getX() + 20.5, state.core.getY(), state.core.getZ() + 0.5,
                     Set.of(), 0.0f, 0.0f, false);
             FloorObjectives.tick(level.getServer(), record);

@@ -208,7 +208,7 @@ public final class HauntFloorGameTest {
 
             // 2. The pad holds on the dark lamp line; the bar counts the beacons.
             helper.assertValueEqual(FloorObjectives.padRefusal(rig.record),
-                    "The lamp is dark. Light 2 more beacons.", "the pad wants both beacons");
+                    "The lamp is dark. Stand on 2 more beacon plates.", "the pad wants both beacons");
             helper.assertValueEqual(FloorObjectives.objectiveLine(rig.record), "Beacons 0/2",
                     "the bar reads the beacon count");
 
@@ -354,7 +354,7 @@ public final class HauntFloorGameTest {
                     helper.assertTrue(body.isRemoved(), "the lit beacon drove the keeper off");
                     helper.assertTrue(!Haunts.hasBody(rig.slot), "the director holds no body");
                     helper.assertValueEqual(FloorObjectives.padRefusal(rig.record),
-                            "The lamp is dark. Light 1 more beacon.", "one beacon to go");
+                            "The lamp is dark. Stand on 1 more beacon plate.", "one beacon to go");
                     helper.assertValueEqual(FloorObjectives.objectiveLine(rig.record), "Beacons 1/2",
                             "the bar reads one lit");
 
@@ -418,7 +418,7 @@ public final class HauntFloorGameTest {
             helper.assertValueEqual(state.beacons.size(), 1, "only the mid cell could host a beacon");
             helper.assertValueEqual(state.quota, 1, "the quota drops to what was placed");
             helper.assertValueEqual(FloorObjectives.padRefusal(record),
-                    "The lamp is dark. Light 1 more beacon.", "a short floor wants one beacon");
+                    "The lamp is dark. Stand on 1 more beacon plate.", "a short floor wants one beacon");
             helper.assertValueEqual(FloorObjectives.objectiveLine(record), "Beacons 0/1",
                     "the bar reads the reduced quota");
 

@@ -1,6 +1,8 @@
 package pocketdungeons;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -45,6 +47,9 @@ final class HauntObjective extends FloorObjectives.ObjectiveState {
 
     /** Blocks from a plate's feet centre within which a standing member charges its beacon. */
     private static final double PLATE_REACH = 0.7;
+
+    /** The overlay a member sees once a second while standing on a charging plate. */
+    static final String CHARGE_LINE = "The lamp is waking. Stay on the plate.";
 
     /** The copper bulb a beacon carries, unlit until charged (waxed, the way the room kits place it). */
     private static final BlockState BULB_UNLIT = Blocks.COPPER_BULB.waxed().unaffected().defaultBlockState()
@@ -157,7 +162,10 @@ final class HauntObjective extends FloorObjectives.ObjectiveState {
             if (beacon.lit) {
                 continue;
             }
-            if (someoneOn(server, record, beacon.plate)) {
+            FloorObjectives.sparkle(level, beacon.bulb);
+            ServerPlayer stander = standerOn(server, record, beacon.plate);
+            if (stander != null) {
+                stander.sendOverlayMessage(Component.literal(CHARGE_LINE).withStyle(ChatFormatting.GOLD));
                 if (beacon.chargingSince < 0) {
                     beacon.chargingSince = now;
                 } else if (now - beacon.chargingSince >= chargeTicks) {
@@ -169,18 +177,18 @@ final class HauntObjective extends FloorObjectives.ObjectiveState {
         }
     }
 
-    /** Whether any living member is standing on {@code plate} (feet in or beside the block). */
-    private boolean someoneOn(MinecraftServer server, InstanceRecord record, BlockPos plate) {
+    /** The living member standing on {@code plate} (feet in or beside the block), or {@code null}. */
+    private ServerPlayer standerOn(MinecraftServer server, InstanceRecord record, BlockPos plate) {
         Vec3 centre = Vec3.atBottomCenterOf(plate);
         for (UUID id : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(id);
             if (player != null && player.level() == level && player.isAlive() && !player.isSpectator()
                     && (player.blockPosition().equals(plate)
                             || player.position().distanceToSqr(centre) <= PLATE_REACH * PLATE_REACH)) {
-                return true;
+                return player;
             }
         }
-        return false;
+        return null;
     }
 
     /** A charged beacon lights: the bulb burns, the count rises and the keeper is driven off for a while. */
@@ -202,7 +210,7 @@ final class HauntObjective extends FloorObjectives.ObjectiveState {
             return null;
         }
         int left = quota - beaconsLit;
-        return "The lamp is dark. Light " + left + " more beacon" + (left == 1 ? "." : "s.");
+        return "The lamp is dark. Stand on " + left + " more beacon plate" + (left == 1 ? "." : "s.");
     }
 
     @Override

@@ -71,6 +71,10 @@ final class RoomProtection {
      */
     static BreakRule.Verdict verdict(Player player, BlockPos pos, BlockState state) {
         InstanceRecord record = Instances.dungeonRecordAt(pos);
+        // An objective's breakable block (a claim vein) is its own verb: any tool, fists included.
+        if (FloorObjectives.isBreakClaim(pos)) {
+            return BreakRule.Verdict.ALLOW_NODE;
+        }
         boolean node = record != null && record.floor.nodes.contains(pos);
         boolean soft = (record != null && record.floor.softBreakables.contains(pos))
                 || state.is(DUNGEON_BREAKABLE);
@@ -94,6 +98,8 @@ final class RoomProtection {
             record.floor.nodesMined++;
             PlaytestJournal.countNodeMined(serverPlayer.getUUID());
         }
+        // An objective's breakable block (a claim vein) credits its break here.
+        FloorObjectives.onBreak(record, serverPlayer, pos);
     }
 
     /**
@@ -151,7 +157,10 @@ final class RoomProtection {
             return InteractionResult.PASS;
         }
         if (verdict == BreakRule.Verdict.REFUSE_FIXTURE) {
-            return InteractionResult.FAIL; // an Ordeal's lever or lamp
+            // An Ordeal's lever or lamp, or an objective's fixture: the vault core answers a hit
+            // the same as a use, so the swing starts its channel.
+            FloorObjectives.onAttack(serverPlayer, pos);
+            return InteractionResult.FAIL;
         }
         // Wrong tool: cancel the mining start and give feedback.
         String message = DungeonTools.requiredToolMessage(state);

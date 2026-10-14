@@ -20,7 +20,7 @@ import java.util.UUID;
 
 /**
  * The claim floor objective (act 3-4 floor types): the floor hides gilded blackstone veins in
- * every cell but the entrance, the pad holds until the party claims the quota by right-click,
+ * every cell but the entrance, the pad holds until the party claims the quota by breaking them,
  * every claim raises Tremor (an ominous floor starts one louder), loud claims raise hoglin
  * packs, and at the hunter tremor the floor sends The Assayer once. Veins past the quota pay
  * bonus reward rolls.
@@ -96,6 +96,16 @@ public final class ClaimFloorGameTest {
         }
     }
 
+    /**
+     * Works a vein the way a player does: the block breaks (no drop needed in the test world) and
+     * the break credits the floor's objective, the same handoff {@code afterBlockBreak} runs.
+     */
+    private static void breakVein(ServerLevel level, ServerPlayer member, InstanceRecord record,
+                                  BlockPos vein) {
+        level.destroyBlock(vein, false);
+        FloorObjectives.onBreak(record, member, vein);
+    }
+
     /** Every wave mob this floor raised, found by the claim's own tag. */
     private static List<Mob> waveMobs(ServerLevel level, AABB bounds) {
         List<Mob> out = new ArrayList<>();
@@ -159,8 +169,9 @@ public final class ClaimFloorGameTest {
             ClaimObjective state = (ClaimObjective) record.floor.objective;
             helper.assertTrue(!state.fallback, "the seam placed on this floor");
 
-            // 1. Quota plus extras for a one-member party, every vein gilded, every vein a
-            // fixture, none in the entrance, at most two to a cell.
+            // 1. Quota plus extras for a one-member party, every vein gilded, every vein
+            // breakable by bare hands (a vein is worked, not protected), none in the entrance,
+            // at most two to a cell.
             int want = PocketDungeonsConfig.claimQuota() + PocketDungeonsConfig.claimExtraVeins();
             helper.assertValueEqual(state.veins.size(), want, "quota plus extras were placed");
             helper.assertValueEqual(state.quota, PocketDungeonsConfig.claimQuota(),
@@ -168,7 +179,10 @@ public final class ClaimFloorGameTest {
             for (BlockPos vein : state.veins) {
                 helper.assertTrue(level.getBlockState(vein).is(Blocks.GILDED_BLACKSTONE),
                         "a vein is gilded blackstone at " + vein.toShortString());
-                helper.assertTrue(FloorObjectives.isFixture(vein), "a vein is a fixture");
+                helper.assertTrue(!FloorObjectives.isFixture(vein),
+                        "a vein is breakable, not a fixture");
+                helper.assertTrue(RoomProtection.verdict(member, vein,
+                        level.getBlockState(vein)).allowed(), "a fist breaks a vein");
             }
             helper.assertValueEqual(veinsInCell(geometry, ENTRANCE, state.veins), 0,
                     "no vein stands in the entrance cell");
@@ -179,19 +193,19 @@ public final class ClaimFloorGameTest {
 
             // 2. The pad counts the claims down as the seam is worked.
             helper.assertValueEqual(FloorObjectives.padRefusal(record),
-                    "The seam holds. Claim 3 more veins.", "the pad wants the full quota");
+                    "The seam holds. Break 3 more gilded veins.", "the pad wants the full quota");
             helper.assertValueEqual(FloorObjectives.objectiveLine(record), "Veins 0/3",
                     "the bar reads the seam's progress");
-            helper.assertTrue(FloorObjectives.onUse(member, state.veins.get(0)),
-                    "the first vein claims the click");
-            helper.assertTrue(level.getBlockState(state.veins.get(0)).is(Blocks.BLACKSTONE),
-                    "a claimed vein spends to blackstone");
+            breakVein(level, member, record, state.veins.get(0));
+            helper.assertValueEqual(state.claimed, 1, "the broken vein claims");
+            helper.assertTrue(level.getBlockState(state.veins.get(0)).isAir(),
+                    "a claimed vein is mined out");
             helper.assertValueEqual(FloorObjectives.padRefusal(record),
-                    "The seam holds. Claim 2 more veins.", "two left");
-            FloorObjectives.onUse(member, state.veins.get(1));
+                    "The seam holds. Break 2 more gilded veins.", "two left");
+            breakVein(level, member, record, state.veins.get(1));
             helper.assertValueEqual(FloorObjectives.padRefusal(record),
-                    "The seam holds. Claim 1 more vein.", "the last vein reads singular");
-            FloorObjectives.onUse(member, state.veins.get(2));
+                    "The seam holds. Break 1 more gilded vein.", "the last vein reads singular");
+            breakVein(level, member, record, state.veins.get(2));
 
             // 3. At quota the pad opens; the floor's spawners were never part of the gate.
             helper.assertTrue(FloorObjectives.padRefusal(record) == null, "the pad is open");
@@ -200,8 +214,8 @@ public final class ClaimFloorGameTest {
 
             // 4. Digging past the quota pays bonus rolls, and the wave-tremor claim raises
             // hoglins tagged as an omen wave.
-            FloorObjectives.onUse(member, state.veins.get(3));
-            FloorObjectives.onUse(member, state.veins.get(4));
+            breakVein(level, member, record, state.veins.get(3));
+            breakVein(level, member, record, state.veins.get(4));
             helper.assertValueEqual(FloorObjectives.bonusRolls(record), 2,
                     "two veins past the quota pay two rolls");
             List<Mob> hoglins = waveMobs(level, mobBounds);
@@ -215,7 +229,7 @@ public final class ClaimFloorGameTest {
                     "Veins 5/3, the seam is loud.", "a loud seam says so");
 
             // 5. The hunter-tremor claim sends The Assayer, exactly once.
-            FloorObjectives.onUse(member, state.veins.get(5));
+            breakVein(level, member, record, state.veins.get(5));
             helper.assertValueEqual(assayers(level, mobBounds).size(), 1, "The Assayer stands");
             Mob assayer = assayers(level, mobBounds).get(0);
             helper.assertTrue(assayer.hasCustomName()
@@ -230,16 +244,16 @@ public final class ClaimFloorGameTest {
                     new java.util.HashSet<>(state.veins), level.getRandom());
             helper.assertTrue(bonus != null, "a bonus vein spot exists");
             level.setBlock(bonus, Blocks.GILDED_BLACKSTONE.defaultBlockState(), 3);
-            state.fixtures.add(bonus);
-            helper.assertTrue(FloorObjectives.onUse(member, bonus), "the bonus vein claims");
+            state.unclaimed.add(bonus);
+            breakVein(level, member, record, bonus);
             helper.assertValueEqual(assayers(level, mobBounds).size(), 1,
                     "no second Assayer comes");
 
-            // 6. Idempotent: a spent vein credits nothing.
+            // 6. Idempotent: a mined-out vein credits nothing.
             int claimed = state.claimed;
-            helper.assertTrue(!FloorObjectives.onUse(member, state.veins.get(0)),
-                    "a spent vein does not claim the click");
-            helper.assertValueEqual(state.claimed, claimed, "a spent vein credits nothing");
+            helper.assertTrue(!FloorObjectives.onBreak(record, member, state.veins.get(0)),
+                    "a mined-out vein does not claim");
+            helper.assertValueEqual(state.claimed, claimed, "a mined-out vein credits nothing");
             helper.succeed();
         } finally {
             for (Mob mob : waveMobs(level, mobBounds)) {

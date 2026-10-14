@@ -2,6 +2,7 @@ package pocketdungeons;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -143,6 +144,52 @@ final class FloorObjectives {
     }
 
     /**
+     * A left-click on one of an armed objective's protected blocks, so a hit can do the thing a
+     * click does: the vault core answers a swing the same as a use. Fixtures stay unbreakable;
+     * this is feedback, not a break.
+     */
+    static boolean onAttack(ServerPlayer player, BlockPos pos) {
+        ObjectiveState state = stateAt(pos);
+        return state != null && state.onAttack(player, pos);
+    }
+
+    /**
+     * Whether breaking {@code pos} is an armed objective's verb (a claim's vein): the break rule
+     * lets it go under any tool, fists included, and {@link #onBreak} credits it. These blocks are
+     * not fixtures, so they are found by their own scan of every live instance.
+     */
+    static boolean isBreakClaim(BlockPos pos) {
+        for (InstanceRecord record : InstanceRegistry.bySlot.values()) {
+            if (claimsBreak(record, pos)) {
+                return true;
+            }
+        }
+        for (InstanceRecord record : TEST_RECORDS.values()) {
+            if (claimsBreak(record, pos)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean claimsBreak(InstanceRecord record, BlockPos pos) {
+        ObjectiveState state = record.floor == null ? null : record.floor.objective;
+        return state != null && state.breakClaims(pos);
+    }
+
+    /** A break landing on {@code pos} inside {@code record}'s floor, for the objective to credit. */
+    static boolean onBreak(InstanceRecord record, ServerPlayer player, BlockPos pos) {
+        ObjectiveState state = record.floor == null ? null : record.floor.objective;
+        return state != null && state.onBreak(player, pos);
+    }
+
+    /** The objective's once-a-second wink over a block that still needs doing. */
+    static void sparkle(ServerLevel level, BlockPos pos) {
+        level.sendParticles(ParticleTypes.WAX_ON, pos.getX() + 0.5, pos.getY() + 0.8,
+                pos.getZ() + 0.5, 2, 0.3, 0.3, 0.3, 0.0);
+    }
+
+    /**
      * Whether {@code pos} is a block an armed objective protects (the same
      * protection an Ordeal's lever gets in {@link RoomProtection}): scanned
      * across every live instance, since a block's own floor answers.
@@ -263,6 +310,21 @@ final class FloorObjectives {
 
         /** A right-click on one of this objective's blocks; the base claims nothing. */
         boolean onUse(ServerPlayer player, BlockPos pos) {
+            return false;
+        }
+
+        /** A left-click on one of this objective's blocks; the base ignores it. */
+        boolean onAttack(ServerPlayer player, BlockPos pos) {
+            return false;
+        }
+
+        /** Whether breaking this block is the objective's verb (a claim vein); the base is none. */
+        boolean breakClaims(BlockPos pos) {
+            return false;
+        }
+
+        /** A break on a {@link #breakClaims} block; the base credits none. */
+        boolean onBreak(ServerPlayer player, BlockPos pos) {
             return false;
         }
 

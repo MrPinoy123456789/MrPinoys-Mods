@@ -55,8 +55,10 @@ import java.util.UUID;
  */
 final class HeistObjective extends FloorObjectives.ObjectiveState {
 
-    /** The sealed line: the bar's progress before the crack and the pad's refusal. */
+    /** The sealed line: the bar's progress before the crack. */
     static final String SEALED_LINE = "The vault is sealed.";
+    /** The pad's refusal while sealed: names the verb, a channel is any hit or click on the core. */
+    static final String SEALED_PAD = "The vault is sealed. Crack the core.";
     /** The bar's progress line once the vault is open. */
     static final String OPEN_LINE = "The vault is open.";
     /** The overlay line a channelling member sees once a second. */
@@ -227,8 +229,17 @@ final class HeistObjective extends FloorObjectives.ObjectiveState {
         return true;
     }
 
+    /** A swing at the core works the same as a click: it starts the channel. */
+    @Override
+    boolean onAttack(ServerPlayer player, BlockPos pos) {
+        return onUse(player, pos);
+    }
+
     @Override
     void tick(MinecraftServer server, InstanceRecord record) {
+        if (!cracked && core != null) {
+            FloorObjectives.sparkle(level, core);
+        }
         long now = server.getTickCount();
         if (ominousEchoAt != 0 && now >= ominousEchoAt) {
             ominousEchoAt = 0;
@@ -261,7 +272,7 @@ final class HeistObjective extends FloorObjectives.ObjectiveState {
 
     @Override
     String padRefusal() {
-        return cracked || fallback ? null : SEALED_LINE;
+        return cracked || fallback ? null : SEALED_PAD;
     }
 
     @Override
