@@ -60,6 +60,7 @@
       "pocketdungeons.BroodChamberGameTest",
       "pocketdungeons.BlackoutGameTest",
       "pocketdungeons.SeamGameTest",
+      "pocketdungeons.HauntFloorGameTest",
       "pocketdungeons.LemonGameTest",
       "pocketdungeons.LootTagGameTest",
       "pocketdungeons.FloorHistoryGameTest",
