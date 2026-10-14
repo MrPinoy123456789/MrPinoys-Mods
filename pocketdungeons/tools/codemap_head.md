@@ -12,7 +12,7 @@ Grep this file before reading source: `grep -n -i "sculk" docs/CODEMAP.md`. The 
 | A room (spec, template, manifest) | `*Specs.java`, `RoomTemplateGenerator`, `dungeon_room/*.json` | `room-building` |
 | A dungeon, floor, node, reward | `dungeon/*.json`, `DungeonDef`, `RunLifecycle.promisedItems`, `PromisedGear` | `dungeon-content` |
 | Door picker, preview, commit | `HallRoom`, `StagingFurniture`, `Instances.previewDoor` and `commitDoor`, `RunLifecycle.commitDoor` | |
-| Floor clear, bank, leave, fail | `RunLifecycle` (`bankHaul`, `advanceFloor`, `completeRun`), `Instances.failRunOmen`, `failRunLeft` | decision docs in `docs/` |
+| Floor clear, bank, leave, fail | `RunLifecycle` (`bankHaul`, `advanceFloor`, `completeRun`), `Instances.failRunOmen`, `failRunLeft` | `docs/DECISIONS.md` |
 | Scrap, haul, compass math | `ScrapMath`, `FloorPay`, `IntervalBanking`, `DungeonLog` | |
 | Sculk, Heard meter, whelp | `PressureSources`, `SculkOmen`, `Whelp`, `SonicBoomWhelpMixin` | |
 | Wolves, Kennels, pillagers | `HostileWolves`, `KennelSpecs`, `FeralContent`, `kennels` data | |

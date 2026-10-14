@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * The wager of a floor (docs/wager-draft-2026-10-12.md): the sum of what its affixes wager, and the words the
+ * The wager of a floor (docs/DECISIONS.md): the sum of what its affixes wager, and the words the
  * player reads for it. No Minecraft imports, so {@code WagerTest} runs with plain {@code javac}.
  *
  * <p>The player never sees the raw number; the door board and the floor title show it as a loot percentage,

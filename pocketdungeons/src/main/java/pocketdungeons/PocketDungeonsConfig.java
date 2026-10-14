@@ -671,7 +671,7 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> LUSH_SLIME_MAX_ALIVE = integer("lushSlimeMaxAlive", 40,
             v -> v >= 4 && v <= 200, "must be 4 to 200");
     /**
-     * Haunts (docs/haunts-draft-2026-10-11.md): a floor wide roaming creature with a learnable rule. The pressure
+     * Haunts (docs/DECISIONS.md): a floor wide roaming creature with a learnable rule. The pressure
      * rises by {@code hauntPressurePerSecond} each second the party spends on a haunted floor and the haunt wakes
      * when it reaches {@code hauntWakePressure}. The floor number in the dungeon sets its stage: a sighting before
      * {@code hauntNearMissFloor}, a near miss before {@code hauntStrikeFloor}, a strike from there on (the strike

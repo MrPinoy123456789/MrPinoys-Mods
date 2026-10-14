@@ -124,9 +124,9 @@ Ominous mode swaps `trial_key` for `ominous_trial_key`. The generators scale mob
 ## Docs to keep in step
 
 A change to a dungeon's economy or rules updates `docs/reference/` (the relevant table or `BUGS.md` status) and,
-for a model change, a dated `docs/decision-<date>-<topic>.md`. The Lemon guide (`tools/lemon/GUIDE.md`) and `docs/INTEGRATION.md` section 1.10
+for a model change, appends a dated section to `docs/DECISIONS.md`. The Lemon guide (`tools/lemon/GUIDE.md`) and `docs/INTEGRATION.md` section 1.10
 were brought up to the haul model on 2026-10-10; keep them in step, then rebuild the pack with
-`node tools/lemon/build-pack.mjs`. The September owner decisions log inside the pack (`AUDIT_2026-09.md` section 11)
+`node tools/lemon/build-pack.mjs`. The September owner decisions log inside the pack (`docs/DECISIONS.md`)
 is stale on bands, top-ups and keys; the guide outranks it.
 
 ## A new dungeon needs an adventure node and a way in

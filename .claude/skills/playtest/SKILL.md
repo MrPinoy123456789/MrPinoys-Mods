@@ -33,7 +33,7 @@ Gather silently; do not paste any of this at the player.
    still need one look in real play. Note which `owed` rows this session's log
    or journal can confirm or refute.
 4. **What the design intends.** Skim the parts of
-   `pocketdungeons/docs/AUDIT_2026-09.md` section 11 (owner decisions log),
+   `pocketdungeons/docs/DECISIONS.md` (owner decisions log),
    `pocketdungeons/docs/ZONES_SPEC.md` and `docs/RULES.md` (once it exists) that
    touch what happened. You are looking for **gaps between intent and
    experience**, not material to explain.

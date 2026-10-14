@@ -8,13 +8,12 @@ a heading, a Status line, then Changed, Do, Pass and Fail signs. Fill in every T
 than one "## " section when a task owes more than one check. Refuses to overwrite an existing fragment.
 
 fold: gives each "## " section the next free number (## L67: title), appends it to the end of LIVE_CHECKS.md
-(CRLF kept) and moves the fragment to docs/playtests/live-checks/folded/. A fragment that still has a TODO
+(CRLF kept) and removes the folded fragment file. A fragment that still has a TODO
 is skipped and named. Fragments fold in file name order, so the numbering is the same on every run.
 """
 import datetime
 import os
 import re
-import shutil
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +24,6 @@ ROOT = os.path.dirname(HERE)
 PLAYTESTS = os.path.join(ROOT, 'docs', 'playtests')
 LIVE = os.path.join(PLAYTESTS, 'LIVE_CHECKS.md')
 FRAGMENTS = os.path.join(PLAYTESTS, 'live-checks')
-FOLDED = os.path.join(FRAGMENTS, 'folded')
 
 TEMPLATE = '''## %(title)s
 - **Status:** owed (built, never played; listed here so the knowledge pack carries it)
@@ -103,12 +101,8 @@ def fold(dry):
     if added and not dry:
         body = live.rstrip('\n') + '\n\n' + '\n\n'.join(added) + '\n'
         save(LIVE, body, crlf)
-        os.makedirs(FOLDED, exist_ok=True)
         for name in folded:
-            dest = os.path.join(FOLDED, name)
-            if os.path.exists(dest):
-                os.remove(dest)
-            shutil.move(os.path.join(FRAGMENTS, name), dest)
+            os.remove(os.path.join(FRAGMENTS, name))
     for s in skipped:
         print('skipped %s' % s)
     print('%s %d section(s) from %d fragment(s)' % ('would fold' if dry else 'folded', len(added), len(folded)))

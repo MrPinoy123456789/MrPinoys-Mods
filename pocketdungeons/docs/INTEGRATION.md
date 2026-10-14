@@ -200,7 +200,7 @@ authoring advice is in the `dungeon-content` skill.
   form `gear:<slot>:<tier>` (slots `weapon`, `tool`, `armour`) promises a
   rolled piece of gear: the door board names it and the copper chest pays it.
   `objective` is what the floor's pad gate asks for: `spawners` (the default)
-  or `heist`, `claim` or `haunt` (`docs/decision-2026-10-13-act34-floor-types.md`).
+  or `heist`, `claim` or `haunt` (`docs/DECISIONS.md`).
   A `final` node must keep `spawners`; the finale gates on spawners. Objective
   blocks (a vault core, gilded veins, beacons) are code-placed at commit, not
   authored into rooms: `FloorObjectives` arms them on the stamped floor, and a

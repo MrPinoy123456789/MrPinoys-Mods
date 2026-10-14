@@ -14,7 +14,7 @@ Let running agents finish or tell them to stop at a clean break with a "Handoff"
 (`orchestrate-build` skill). Merge what is done (`integrate-branches` skill) so the outsider starts from a green tree.
 Record the green run's numbers: the outsider will quote them.
 
-## 2. The pack (`pocketdungeons/docs/devin/` is the worked example; copy and adapt it)
+## 2. The pack (create `pocketdungeons/docs/devin/` for the handoff, delete it once integrated)
 
 | File | What it holds |
 |---|---|

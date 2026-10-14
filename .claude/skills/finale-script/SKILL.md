@@ -48,7 +48,7 @@ register("pocketdungeons:moss_crypt", new MossCryptFinale());
 
 Never touch `PocketDungeonsMod`; it already calls `registerAll()`.
 
-## Fairness (docs/haunts-draft-2026-10-11.md)
+## Fairness (docs/DECISIONS.md)
 
 - A tell before a strike: a sound or particles, at least about 2 seconds (40 ticks), before anything hurts. Lights going
   out, a handler winding up, coffins rising all announce themselves first.

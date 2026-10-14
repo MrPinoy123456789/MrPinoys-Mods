@@ -21,17 +21,10 @@ Rules:
 
 # Game guide
 
-# Lemon game guide
-
-Plain-words mechanics Lemon may explain freely. Rewritten 2026-10-10 against the
-code after the haul, Astrolabe Room, sculk, finale and leaving-rule changes. The
-owner corrects and extends it. Keep each entry to what a player needs, in the
-words Lemon would use.
-
-**This guide wins.** The "owner decisions" section further down this briefing is
-the September log and still talks about keystones, bands and refills. Where it
-disagrees with this guide, trust this guide. The player words are compass, scrap,
-haul, lives and charts. Do not say keystone, omen, interval or node to a player.
+Plain-words mechanics Lemon may explain freely. Keep each entry to what a player
+needs, in the words Lemon would use. The player words are compass, scrap, haul,
+lives, Loot percent and charts. Do not say keystone, omen, wager, interval or
+node to a player.
 
 ## The loop
 
@@ -44,37 +37,48 @@ haul, lives and charts. Do not say keystone, omen, interval or node to a player.
   free (`/dungeon key`); a lost one is replaced at the level you earned. A level
   costs `4 + floor(compass / 3)` scrap: compass 1 costs 4, compass 10 costs 7.
 - **The Astrolabe Room:** the first room of a trip. Right-click the astrolabe to
-  turn to the next open act (sneak to turn back). Each door is a dungeon. The
-  copper bulb says how it stands: lit is open, oxidized is finished (the sign
+  turn to the next open act (sneak to turn back). Each door is a dungeon; the
+  side doors hold the act's Endless Mine. Clearing an act's capstone and floor 3
+  (the first guardian) of that act's Endless Mine opens the next act. The copper
+  bulb says how a dungeon stands: lit is open, oxidized is finished (the sign
   says Play again), dark behind an iron door is locked (the sign says the compass
   it needs, or Finish the act). Open a door to look inside through the wide
   glass wall; the DESCEND lever glints beside the door you picked. Pull it to go.
-- **Floors and spawners:** most floors clear on the spawner gate (the bar
+- **Floors and objectives:** most floors clear on the spawner gate (the bar
   shows `Spawners 2/3`) to open the way on. Some floors ask for something else
   instead, and the pad's refusal line says what is left: a heist floor (Sunken
-  Treasury) wants the vault core channelled open, a claim floor (Gilded Seam)
-  wants gilded veins claimed by hand, a haunt floor (Lighthouse Below) wants
-  its beacon plates stood on until the lamps light.
+  Treasury) wants the vault core channelled open for 5 seconds, a claim floor
+  (Gilded Seam) wants gilded veins claimed by hand (extra veins past the quota
+  wake hoglins and The Assayer, and pay extra barrel rolls), a haunt floor
+  (Lighthouse Below) wants its beacon plates stood on for 3 seconds until the
+  lamps light, which also banishes the Keeper for 15 seconds.
 - **Doors between floors:** later floors offer three doors. The way forward is
-  free. A side door costs 1 or 2 lives, shared by the party, and is never sold if
-  it would take the last life. The door board says the price and what the floor
-  offers.
+  free. A side door or a door with the Blood affix costs 1 life (or 2 for some
+  side branches), shared by the party, and is refused if it would take the last
+  life. The door board shows the affixes, `Loot n%`, the barrel roll count
+  (`N rolls`), and any promised piece in the copper chest.
 - **Names:** players call the room between floors "the Doors"; use that name.
 - **The sidebar:** shows floor, lives, spawners, haul and compass. `/dungeon
   display off` hides it. Chat is only the log; players mostly do not read it live.
 
-## Scrap, haul and lives
+## Scrap, haul, Loot percent and lives
 
 - **Haul:** scrap carried on this trip. Each cleared floor pays into it. It is at
   risk until it is banked.
 - **What a floor pays:** the door's step (+1, +2 or +3), plus 1 for each act
   above the first, plus 1 on a dungeon's last floor. A floor below your compass
-  pays half (at least 1). An Endless Mine floor pays more the deeper it goes.
+  pays half (at least 1). Overclocked pays +1 extra scrap if cleared under 6:00.
+- **Loot percent (`Loot n%`):** harder affixes raise the floor's Loot percent
+  (100% with no affixes, higher with more or tougher affixes). It scales how many
+  rolls your reward barrel gets (`N rolls` on the door board), and any floor
+  above 100% also puts one extra piece of gear or material into the floor's
+  copper chest, named right on the door board.
 - **Banking:** going home (the HOME lever, which asks first) or finishing a
-  dungeon banks the whole haul into your compass and rolls reward chests into your reward barrel. A finish also pays emeralds and
-  vault chests; finishing the same dungeon again pays half the emeralds.
-- **Lives:** the party shares 5 lives per trip. A death costs one; a side door
-  costs one or two. The fifth death fails the dungeon.
+  dungeon banks the whole haul into your compass and rolls the deepest floor's
+  reward count into your reward barrel. A finish also pays emeralds and vault
+  chests; finishing the same dungeon again pays half the emeralds.
+- **Lives:** the party shares 5 lives per trip. A death costs one; Blood or a
+  side door costs one (or two). The fifth death fails the dungeon.
 - **Failing:** a failed dungeon keeps half of everyone's haul, and the party is
   sent back to the Home room (not out of the dungeon dimension), still together,
   with the pack as carried and the doors ready to choose again.
@@ -93,11 +97,19 @@ haul, lives and charts. Do not say keystone, omen, interval or node to a player.
   Keys you never use turn into emeralds when the haul banks (home, a finish or a
   failed dungeon at its share).
 - **Promised gear:** some floors say on the door board that the copper chest pays
-  a named piece of gear. It is the same piece the board named.
+  a named piece of gear. It is the exact piece the board named.
 
-## Danger
+## Danger, affixes, haunts and finales
 
 - **Waiting:** lingering in a room that is not solved sends waves.
+- **Affixes:** Swarming (more mobs), Overclocked (faster spawners, +1 scrap if
+  cleared under 6:00), Silenced (every 3rd consumable sends a wave, action bar
+  shows `Silenced: n/3`), Blackout (some rooms are dark; entrance, exit and lever
+  rooms stay lit), Explosive (floor mines with a short fuse), Molten (floor
+  lava), Loaded (opening the free tool cache chest springs a small ambush once),
+  Restless (fallen mobs rise once after 2 seconds unless killed with fire),
+  Voided (floor holes in plain rooms at high compass), Cooked (ominous run),
+  Blood (costs 1 life when committing the door).
 - **Sculk and the Heard meter:** any room with sculk sensors or shriekers
   listens. Each sensor pulse fills that room's Heard meter (the sidebar shows
   `Heard 2/4`; the Ancient City fills at 2). Only a full meter answers: darkness
@@ -106,29 +118,59 @@ haul, lives and charts. Do not say keystone, omen, interval or node to a player.
   answer by itself. In a room with only a shrieker, a shriek answers at once.
   Clearing a sculk room's spawner without it ever answering pays +1 scrap. The
   real Warden wakes only on the Ancient City's last floor, on the second answer.
-- **Finales:** the last floor of most dungeons ends in a last stand. When the
-  spawners are cleared, a wave stands up around the party (and from Act 2 a named
-  elite leads it). The exit stays shut until all of it is dead. The Copper Works
-  mobs wear copper gear; none of it drops.
-- **Restless:** an affix. The dead get up once. Fire keeps them down.
-- **The Kennels:** pillagers raise wolves there, and every untamed wolf in the
-  dungeon is hostile; do not try to feed them. Kill a guard tower's crossbow
-  pillager and its pack goes quiet. The Lost Dog and Wolf Hollow wolves are the
-  friendly ones: clear the room and the dog is yours. You keep at most 3 tamed
-  wolves standing with you; the extras sit.
+- **Haunts:** floors that say "Something walks here." have a floor-wide stalker
+  that wakes after you spend time on the floor. Floor 1 is a sighting (it
+  vanishes when approached), floor 2 is a near miss, and from floor 3 it strikes.
+  In the Ossuary, The Counted moves only while nobody looks at it. In Lighthouse
+  Below, The Keeper walks whether watched or not; hitting it staggers it for 3
+  seconds, and lighting a beacon banishes it for 15 seconds. Haunts never enter
+  the entrance room, the exit pad room, an armed Ordeal room or a finale.
+- **Finales:** the last floor of most dungeons ends in a boss or last stand once
+  spawners are cleared, and the exit stays shut until it is won:
+  - *Mineshaft:* halfway through the wave the lights go out and cave spiders join.
+  - *Lush Caves:* potions drip from the ceiling on deeper floors (step aside when
+    you see sparks); the finale is a giant slime that splits into double children.
+  - *Infestation:* mossy bricks ripen into stone and infested stone before
+    bursting into silverfish (smash them early); The Queen burrows between phases.
+  - *The Kennels:* hostile wolves; when the Alpha hits half health The Handler
+    winds up a horn for 5 seconds to empower the pack (kill the handler to stop
+    or undo it).
+  - *Ossuary:* six sealed coffins crack open one by one as you cross the hall.
+  - *Spawner Dungeon (Act 1 capstone):* four caged spawners each release one of
+    the earlier Act 1 mechanics when broken; after the fourth, the Brood Mother
+    arrives.
+  - *Cow Pits:* three floors (Pen Gate, Milking Parlour with milk churns, Big
+    Barn); feeding Specimen 0 wakes the herd for an optional boss fight and chest.
+  - *Deepslate:* the Silent Deep finale runs on the Heard meter (loud fighting,
+    bows and sprinting fill it and call a whelp).
+  - *Copper Works:* a 20-minute furnace clock ticks down across the dungeon (each
+    cleared spawner buys 60 seconds; if it hits zero the finale starts early with
+    faster vents). In the Master Furnace, grates hiss before firing and luring
+    the Foreman into a water vat weakens him.
+  - *Frostworks:* the Big Freeze chills anyone away from the five lit campfires.
+- **Wolves:** untamed wolves in the Kennels are hostile; do not try to feed them.
+  Kill a guard tower's crossbow pillager and its pack goes quiet. The Lost Dog
+  and Wolf Hollow wolves are the friendly ones: clear the room and the dog is
+  yours (up to 3 follow you; extras sit).
 - **Fire:** fire does not spread inside dungeons.
-- **Mining:** the Endless Mine hides ore in the walls and holds richer ore the
-  deeper you go.
+- **Endless Mine:** each act has its own Endless Mine (Act 1 `endless_mine`, Act
+  2 the Deep Mine). Every third floor (3, 6, 9 and on) holds a guardian fight and
+  pays a guardian loot table in the barrel (floor 3 tier A, floor 6 tier B, floor
+  9 and every guardian after tier C), escalating each lap. Clearing floor 3
+  counts toward opening the next act. Walls hide diggable ore that gets richer
+  with depth.
 
 ## Gear and stations
 
-- **Kit:** picked at the bag chest, given once. Resource dungeons are the restock.
+- **Kit:** picked at the bag chest, given once. Resource dungeons and mines are
+  the restock.
 - **Durability:** tools, weapons and armour have capped durability; wood is scarce
   early, so spend it carefully.
 - **Stations in your room:** an enchanting table rerolls a piece of gear for lapis;
   a grindstone is the scrap bench (all gear can be scrapped, trimmed armour too,
   except imbued pieces). Lapis also sells for emeralds to the librarian and to the
-  Deepslate and Frostworks merchants.
+  Deepslate and Frostworks merchants. Right-clicking a held shell token unlocks
+  that room shell directly.
 - **Your room:** Manage Room has name, public or private, shell, visitors and
   reset room. Manage Party has invite, banned, and for each person Can build and
   Ban, plus who has played with you. A banned player cannot join your party or
@@ -146,45 +188,6 @@ Format:
     ## <room_id>
     - nudge: <where to look or what to notice>
     - clue: <which part matters, not the order>
-
-# How the game is meant to work (owner decisions)
-
-## 11. Owner decisions log
-
-> Superseded in parts (note added 2026-10-10). Keystone bands and banking per door step,
-> the "go home and bank one band worse" rule, the kit top-up and the key-redemption rows
-> no longer describe the game. The current model is the haul, the compass and lives
-> (`docs/decision-2026-10-07-haul-and-blood-doors.md`, `docs/decision-2026-10-09-playtest-design-pass.md`
-> and `tools/lemon/GUIDE.md`). Where this log and those disagree, they win.
-
-Decisions taken while the waves ran. A future `docs/RULES.md` (the player and
-operator rules reference, written once wave 2 settles) must state each of these.
-
-| Date | Decision |
-|---|---|
-| 2026-09-26 | Keystone banks per floor cleared, as the average of the cleared floors' door steps over `floorsPerSafeVisit`; remainders carry over. |
-| 2026-09-26 | Bank anywhere: every between-floors staging room offers "go home and bank"; no forced safe room. Leaving at a checkpoint banks one band worse. |
-| 2026-09-26 | Owner disconnect gets a reconnect grace (about two minutes) before the party's run ends. |
-| 2026-09-26 | Persistent dungeon inventory; the class kit tops up at each safe visit, scaled by omen band (low full, mid partial, high none), never above baseline. |
-| 2026-09-26 | **The kit is granted once**: when the bag is chosen at the bag chest. Entering and leaving never grant items. A player who chose a bag before this rule gets one migration grant on their next entry (`DungeonLog` flag `kit_granted`). Before it, every entry with an empty orphan reapplied the kit and the exit delivered the pack into the room's chests, so walking in and out stocked a fresh kit each time. |
-| 2026-09-26 | **Top-up counting rule**: a kit line's deficit counts that item type, tagged or not (placing and breaking a kit block cannot launder it into a refill), in the member's dungeon inventory and in the containers and item-holding entities of the saved room the party returns to and of the member's own saved room, nested shulker and bundle contents included. Stackables restore `floor(deficit x band fraction x zone kitTopUpScale)` (fractions 1.0, 0.5, 0.0 by default, config); tools are replaced only when missing, at the calm band only, never repaired; a bucket-style line refills a held empty rather than minting beside it. Runs at every interval settlement, the one-band-worse checkpoint exit included. |
-| 2026-09-26 | **Placed-block allowance**: kit blocks placed in the world (cobblestone built into the room, say) are not counted, so a safe visit can refill them. Accepted as a band-bounded source of room-building material: at most one kit's deficit per member per settlement. The same bound covers a kit handed to a party member or parked in a third player's room, which the count cannot see. |
-| 2026-09-26 | Economy: one Forge station (gamble, blacksmith and reroll merged); retire Cube extract and imbue powers with a refund; replace Pocket2 with in-floor bonus rooms. |
-| 2026-09-27 | **Loot, after the playtest** (`docs/playtests/2026-09-27-1.md`): fewer emeralds low (tier 1 chest and vault emerald weight x0.2, tier 2 x0.6; trial spawner key/emerald rewards 8/2 at tier 1, 6/4 at tier 2, 5/5 at tier 3); armour trim templates are later game only (removed from tier 1 and 2 chests and vaults, kept at tier 3); wood early (tier 1 log weight x4, tier 2 gains oak logs, supply tier 1 logs and planks x2); bones cut to about a quarter from every source (chest, supply and ossuary tables as a binomial count; mob loot in the dungeon in code, `DungeonDrops`); weapons and armour twice as common in chests and vaults, and a dungeon mob's gear drops at least 20% of the time. Class kits (the Shepherd's bones) are unchanged. |
-| 2026-09-27 | **Weapon and armour durability cap**, gentler than tools: weapons 24 (wood, gold), 40 (stone, copper), 64 (iron), 96 (diamond), 128 (netherite); armour 32, 48, 64, 96, 128 by material; bow, crossbow and shield 64; trident and mace 96. Applied on craft and to every item that appears in the dungeon (loot, mob drops, spawner rewards), never raising an item and keeping its wear proportional (PD-69). |
-| 2026-09-26 | **Free-door quit keeps its current behaviour, documented here.** `/dungeon quit` is owner only and only during an active floor. It always costs `timedOutDepletion` keystone levels (config default 2), whichever door opened the floor, the free door included. It then resets the owner to their safe room to pick a new door. The free door's only special treatment is the fuel grant (`fuelPerFreeRun`) at safe-visit settlement. Code: `RunLifecycle.quitDoor` and `applyQuitPenalty`, `Keystones.Outcome.QUIT`. This supersedes the older design note (M12) that a free-door run never costs a level. |
-| 2026-09-27 | **Omen adds danger, not reward cuts** (owner, after playtest 2026-09-27-3): rising omen brings loot-less mob waves, tougher spawns and hazards; chests and keystone progress are no longer cut by band. Omen still drives the depth bonus and head start. |
-| 2026-09-27 | **Fail condition**: each death rescue adds omen; a death while omen is maxed fails the run: the player is sent home, unbanked floors pay nothing, and the dungeon inventory reverts to its snapshot from when the interval began (so spent resources return too). Keystone level and home are untouched. |
-| 2026-09-27 | **Quit costs 1 level** (was 2, via `timedOutDepletion`), and the quit confirmation states the exact cost first. Supersedes the free-door quit row above on the amount. |
-| 2026-10-05 | **Dungeon structure** (`docs/DUNGEON_STRUCTURE_DESIGN.md`, questionnaire with the owner): one trip is one dungeon. The first door picks a dungeon, a named graph of floors with one theme; going home banks and ends the attempt; the final floor ends it. "Set" and "interval" leave player text. `floorsPerSafeVisit` stays only as the banking divisor (3). |
-| 2026-10-05 | **Dungeon graph**: length varies by dungeon. A door is a branch to one next floor. Steps +1, +2, +3 are dealt to the doors at random (seeded) and cost nothing; the keystone 7 and 15 door gates and Greater doors are removed. Echo shards buy side branches (edges priced per dungeon, at least one free edge out of every floor). The staging room shows the whole dungeon map, with later steps hidden. |
-| 2026-10-05 | **Campaign**: five acts as Steve's playthrough in order (First Iron, The Deep, The Monument, The Nether, The End), each dungeon one of his memories. Clearing an act's capstone unlocks the next act; keystone never gates access. Act 5 ends with Herobrine escaping and Alex saving the player; the post-campaign modes are the search, and the lore's seal is a later endgame capstone. The act sets the loot band; keystone + step sets difficulty. |
-| 2026-10-05 | **Dungeon rewards**: finishing pays the guaranteed echo shard plus a themed vault, and on first clear the dungeon's diary page; this replaces the full-trip shard, and the per-floor shard roll is removed. Resource dungeons (Mineshaft, Cow Pits) pay only nodes (no keystone, shard or vault), limited by tool durability. The Endless Mine opens after Act 1, and each depth layer needs its act cleared. |
-| 2026-10-05 | **Kits and party**: five starting kits, granted once, no refills (supersedes the 2026-09-26 top-up rows). The party leader's progress sets which dungeons and branches are offered; any member can pull a door, choose a branch or go home, unless the leader turns on whitelist only (deciding limited to listed members). Every member present at a capstone clear unlocks the next act. |
-| 2026-10-05 | **Rooms**: narrower and darker rooms where it fits (still 4-way capable); biome rooms per dungeon (Lush Cave, Warped Forest); breakable blocks become themed resource nodes, and only nodes and the player's own placed blocks can be broken in a dungeon cell (supersedes "right tool for the job" on any interior block); fewer torches, more planks and coal. First playtest is the graph mechanics on existing themes, before new content. |
-| 2026-10-05 | **Dungeon structure, the proposals confirmed**: a dungeon has 3 to 6 layers, at most 3 edges out of a floor, and branches may rejoin; a floor with fewer than 3 edges out fills the spare doors with the same branch at the other steps. A floor may declare a signature affix, otherwise affixes are seeded as today; omen stays per trip and a capstone floor starts with omen; merchants are named for what they buy; the Store and Altar stay ordinary rooms in each dungeon's pool; run storage is unchanged. |
-| 2026-10-05 | **One main theme, with deviation**: every kind of dungeon (story, resource, capstone, endless) has one main theme, but its floors and rooms may come from other dungeons' themes as long as they still fit (a Mineshaft with a Lush Cave floor). |
-| 2026-10-05 | **Theme deviation guardrails**: a floor or room only borrows from a dungeon of the same act or an earlier one; the loot band, node tiers and merchant currency follow the dungeon's act and main theme, not the borrowed theme; the entry and final floors always use the main theme. |
 
 # Open research questions (ask about these at breaks)
 
@@ -254,6 +257,20 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Fail signs:** a stackable item with `pocketdungeons:{bag:1}` custom data in
   `context`.
 
+### L6. PD-79: Lemon answers in time
+
+- **Status:** partial again 2026-10-08 (`2026-10-08-1.md`): about 25 player asks, but five hit the 45 s fallback and journaled `llm_late` and one went fully unanswered (wait_s 117). Every miss was agent-side latency between watcher polls, not a server fault; `lemon_think` auto-hold works but cannot beat an agent that is between polls. Harness fix wanted: the watcher should auto-reply a hold line, not just think. Earlier: partial again 2026-10-07 (`2026-10-07-1.md`): most asks answered in seconds, but `lemon_reply` intermittently returned "No player was found" with the player online (PD-163), and one ask hit `lemon unanswered` over it; a second raced the 45 s fallback after slow investigation. Keep watching. Earlier: passed 2026-10-04 (`2026-10-04-1.md`): about 30 player asks, `wait` returned each in 3 to 13 s, no `lemon unanswered` for a player question. Keep watching one more session; earlier failure (PD-118) not seen.
+- **Fixed:** 2026-10-01: `lemon think` now really holds the question (it used to
+  be ignored, so the fallback fired at 45 seconds anyway), and `wait` no longer
+  skips a log line caught mid-write. Most past timeouts were the agent
+  investigating before answering: see `docs/LEMON_AGENT.md` section 4, step 4.
+- **Do:** for every `lemon ask`, call `lemon reply` or `lemon think` first, then
+  investigate. Write down the ask time, the time `wait` returned it and the
+  reply time.
+- **Pass:** no `lemon unanswered` line for a player question across a session.
+- **Fail signs:** `lemon unanswered` in the events. Note whether `wait` returned
+  the ask late (a harness bug) or you replied late.
+
 ### L8. Torches drop nothing; foundry chests carry glass bottles
 
 - **Status:** owed
@@ -278,6 +295,29 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** bias `kennel_crossing`, `blaze_cellar` and `rotation_lock` in turn (ask first). For the bench, right-click it holding a sword. Watch for a second blacksmith near the staging room.
 - **Pass:** wolves appear inside the kennel pen and the gate lets them out; blaze_cellar shows a spawner counter; rotation_lock opens on frame position 8; the sensor line stays readable; the held item stays in hand; one blacksmith only.
 
+### L10. 2026-10-02 changes: Lemon, echo shards, floor history
+
+- **Status:** partial, passed 2026-10-02-1.md (keystone summon and echo-shard Greater doors), failed UI details.
+- **2026-10-02-1.md:** keystone right-click summoned Lemon (`lemon summoned` event) and opened her menu. Echo shards were correctly subtracted on a Greater door. Floor history board is visible and read, but needs formatting changes: large "FLOOR HISTORY" heading, ~20% bigger text, aligned columns, date only, progress notation `1/3` yellow, `2/3` yellow, `3/3` green, `4+/3` orange, short affix nicknames only on affixes, not floor names. Lemon's journal item can be taken from the menu (PD-105).
+- **Follow-up 2026-10-02:** the board formatting changes and PD-105 (Lemon's journal) were worked the same day; see L12 and L14. Status stays partial until they are seen in play.
+- **Changed:** 2026-10-02. Right-clicking the keystone in the main hand
+  summons Lemon (or moves her to a fresh spot); Lemon holds a journal, and
+  right-clicking her opens the lodestone menu. Greater doors take echo shards
+  from the pack at the commit lever (no engine bank); an old balance is handed
+  back as shards. The engine bay is now the floor history board. The guided
+  task line, the weekly bounties and the tracker screen are gone.
+- **Do:** watch. If the player has never summoned Lemon, ask once at a break
+  whether they have tried right-clicking their keystone (that one is not a
+  discovery check). Note the board after a floor clear, a quit and a max-omen
+  failure.
+- **Pass:** a summon logs `lemon summoned`; the menu opens from Lemon; a
+  Greater door with too few shards says "Not enough echo shards"; with enough,
+  the shards leave the pack on the pull; the board lists the newest floor at
+  the top with its level, affixes, time and how it ended (room and cause for a
+  failure).
+- **Ask after:** whether the board is readable from where they stand, and
+  whether they read it at all.
+
 ### L11. 2026-10-02: rubble doorways and sealed two-story rooms
 
 - **Status:** owed (not encountered in 2026-10-02-1.md; player did not pick the Sapper's Bag or roll a creeper kennel).
@@ -301,6 +341,23 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** watch. For PD-109 bias `tripwire_hall` (ask first) and look at the room before entering: six hooks, three strings across, six dispensers. For PD-105 right-click Lemon with an empty hand and note whether the book moves.
 - **Pass:** a tier 3 room drops little or no trimmed armour; a themeless room spawns one family (undead, bones or spiders); the gate line names a count; the sculk line has a warden sound; no spider sits in a corner for long; the tripwire traps are present and fire; Lemon keeps the book.
 
+### L13. 2026-10-02: economy changes (stack caps, echo shards, armour, fountain)
+
+- **Status:** partial, 2026-10-07-1.md: another dead-end fountain use (food boon, journal `fountain` 00:47:25), unremarked on. 2026-10-02-2.md: a dead-end fountain was used once (food boon, `fountain` event at 20:42 local) and worked; `echo_shards` events seen with sources `floor`, `interval` and `ordeal`. No stack-merge complaint. Failed on design: the player does not want the `floor` source (0.5 per floor); he wants one shard per full interval plus Ordeal chance only. Not seen: armour drop volume, ender chest as obsidian, the Guard's Bag, fountain reuse.
+- **Changed:** 2026-10-02: no stack caps; echo shards from every full interval, from floors (50 percent) and from Ordeals (25 percent); fewer armour drops; ender chests in loot are obsidian; dead-end fountains (15 percent); a Guard's Bag (sword, shield, bread).
+- **Do:** watch. Count echo shards gained per interval from the `echo_shards` journal events. Ask the player whether shards now feel plentiful. If a dead end holds a fountain (a water cauldron on a chiseled block: quartz heals, sandstone feeds, deepslate cleanses omen) note whether they find and use it. Offer the Guard's Bag only if the player asks about kits.
+- **Pass:** `echo_shards` events with sources `interval`, `floor` and `ordeal`; blocks, torches and arrows stack to 64; no ender chest in loot; the fountain empties after one use, gives its boon, and its pedestal turns to plain chiseled stone bricks.
+- **Fail signs:** shards granted twice for one interval, a capped stack in the pack, a fountain that can be drunk twice (including after pouring a water bucket into it), a floor that never completes because of a fountain.
+
+### L14. 2026-10-02: Silence, omen sound, floor-start title, floor history board
+
+- **Status:** partial, 2026-10-02-2.md: floor-start title passed ("The name and affixes ... was good", wants a slightly longer delay between lines); the board passes on formatting but the rows should be about 20 percent bigger (PD-117). Silence ran last session, not this one (this session had Molten, Overclocked and Feral). Omen sound and the board's fit from the wall are still unconfirmed.
+- **Changed:** 2026-10-02: Silenced runs charge 1 omen per 3 consumables used instead of blocking them; every omen gain makes a sound (at most once a second); committing a floor shows its name and then each affix with a thud; the floor history board has a large heading, bigger text, fixed-width columns (uniform font), date only, `1/3` style progress (yellow, yellow, green, orange past the interval) and short affix names (Cooked, Feral, Swarm, OC'd, Molten, Mute, Boom, Void, Loaded).
+- **Do:** watch. On a Silenced floor note what the player does with food and potions. Ask after a floor start whether the title reads well, and whether the board is readable from where they stand. The board width depends on the uniform font and is untested in play: if rows run off the wall, lower `HISTORY_SCALE` in `DungeonScreen`.
+- **Pass:** a Silenced consumable raises omen after the third use with the SILENCE line and a sound; the title shows the floor name then affixes one per beat; the board columns line up and fit the wall.
+- **Fail signs:** rows wrapping or clipped, a title that never clears, an omen sound on every tick.
+- **Short names (owner rule 2026-10-02):** contractions of at most five letters, only for names longer than five: Ck'd (Cooked), Swrm (Swarming), OC'd (Overclocked), Mltn (Molten), Slncd (Silenced), Xplsv (Explosive), Vd'd (Voided), Ld'd (Loaded). Feral is already short and keeps its name. Replace the list in the line above.
+
 ### L16. 2026-10-02: diaries read in the book screen
 
 - **Status:** owed
@@ -317,6 +374,14 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** the book leaves the hand, Lemon speaks a tip and the count, a duplicate is refused and kept.
 - **Fail signs:** the book is consumed without a line, or the click opens the menu instead.
 
+### L18. 2026-10-02: themed merchants
+
+- **Status:** partial, 2026-10-04-1.md: the Store appeared unsteered on floor 1 and as an anomaly store on prismarine floor 3 (PD-137 fix works). Frost Peddler priced stock in bones, rotten flesh and emeralds and the owner liked the prices. Faults: entered backwards (PD-140), vendor wanders off (PD-141), item teleports on purchase and name follows the theme not the stock (PD-142). Not seen: a reload, a wrong item taken. Still owed for those. Earlier: owed, 2026-10-02-2.md: the player asked for a merchant ("I haven't seen a merchant yet"); with consent the run was steered with `dungeon admin bias the_store 20` but no Store showed before the wrap. Bias cleared. Retry with a bias held on door selection (`room_bias_hold`). 2026-10-03-2.md: bias x20 then x50 over about 7 floors, still no Store (PD-137); the vanilla trading screen was never seen. Still owed. PD-137 fixed 2026-10-03: the Store could never be placed (a one-door room with only the corridor role); it is a loot room now, so a bias should place it on most floors.
+- **Changed:** 2026-10-02 (another agent, see `docs/reference/THEMED_MERCHANTS.md`): the Store's merchant is chosen by the floor's theme and prices stock in that floor's mob drops (bones, string, blaze rods, magma cream, ender pearls and so on). Themes without a merchant keep the emerald shopkeeper. The four game tests pass; the live behaviour is unseen.
+- **Do:** bias a Store room on an ossuary or basalt_foundry floor (ask first). Watch whether the player brings the right drops and whether the prices read as fair.
+- **Pass:** the merchant is named for the theme, the shop shows drop prices, buying takes the drops, a saved shop survives a reload.
+- **Fail signs:** a purchase that takes the wrong item, a shop that sells its own currency, a villager that loses its stock on reload.
+
 ### L19. 2026-10-02: placement notices
 
 - **Status:** owed
@@ -325,6 +390,14 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** red line and low note in the staging room and on floors; green line and chime in the safe room; a block placed in the safe room is still there after a run and a return; a row of blocks does not play a row of notes.
 - **Fail signs:** green in the staging room, red in the safe room, a green block that is gone on return, chat spam, no sound.
 
+### L20. 2026-10-03: gated puzzle rooms face the approach (PD-133)
+
+- **Status:** partial and failed (note 2026-10-10: `sensor_gallery` is retired and gone from the room list, the Hush Gallery replaced it, so only rotation_lock and sorting_floor remain to bias; sensor halls are L58), 2026-10-04-1.md: rotation_lock (frostworks) and sensor_gallery (frostworks, ender_archive) were entered with no closed door in the way, solves not watched; sorting_floor FAILED (PD-144: pre solved, two door sets, water everywhere, free sticks). Owed: a watched solve of each, and sorting_floor after the fix. Earlier: owed
+- **Changed:** 2026-10-03: every gated room (rotation_lock, frame_lock, plate_pair, item_plate, flow_puzzle, hold_the_plate, sorting_floor, sensor_gallery and the knowledge rooms) is turned so its open side faces the cell you arrive from. sorting_floor and sensor_gallery used to be dead ends with a door into the wall; they are real pass-through gates now, with regenerated templates.
+- **Do:** bias `rotation_lock`, then `sorting_floor` and `sensor_gallery` (ask first). Walk in from the previous room.
+- **Pass:** the iron door is always on the far side; the room can be entered and solved; solving opens the way on.
+- **Fail signs:** a closed iron door facing the way in, a gate that opens nothing, a sensor gallery door that never opens.
+
 ### L21. 2026-10-03: party members in the leader's rooms (PD-131, PD-132)
 
 - **Status:** owed, 2026-10-04-1.md: solo session, not exercised. Earlier: owed
@@ -332,6 +405,30 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** with two players, have the companion craft and salvage holding a stack of blocks, place a block in the leader's room, and click the bag chest before and after picking.
 - **Pass:** every station opens every time; blocks place; a bagless companion can always pick a bag after the leader did.
 - **Fail signs:** a station that refuses, a placement refused for a companion, the bag chest missing for a bagless member.
+
+### L24. 2026-10-05: the dungeon feels connected (Stage 1 hypothesis 1, A6)
+
+- **Status:** partial pass 2026-10-05 (`2026-10-05-1.md`): asked directly after one Mineshaft trip, "yes, it felt good"; he had already named a floor unprompted ("The Main Drift"). Caveat: one resource dungeon only, and floors 1 and 2 were all generic halls (PD-149), so the pass leans on the structure rather than themed rooms.
+- **Changed:** 2026-10-05: a trip is one dungeon. The first staging room offers three dungeons from the unlocked acts; later doors are the edges of the node just cleared; the floors share a main theme with at most one borrowed theme (`docs/DUNGEON_STRUCTURE_DESIGN.md` section 8).
+- **Do:** discovery check, watch only. Play a full dungeon with the owner or a new player and do not explain the structure. Afterwards ask him to name the dungeon and its floors, and note unprompted comments on place and theme. Journal events: `dungeon_chosen`, `node_entered`, `edge_taken`.
+- **Pass:** he names the dungeon and at least two floors, and says it feels like one place.
+- **Fail signs:** "still feels random"; one theme over five floors reads as samey (51 of 61 rooms are generic, so watch for it); he cannot say which dungeon he was in.
+
+### L29. 2026-10-05: the dungeon map and the first doors
+
+- **Status:** partial 2026-10-05 (`2026-10-05-1.md`): the Spawner Dungeon stood on a door 1 or 2 slot on the first trip (pass on the offer rule). The map/door screen was seen but read as too much text (PD-151); comprehension unconfirmed.
+- **Changed:** 2026-10-05: right-clicking the floor history board (or `/dungeon map`) shows the dungeon graph: current node, final node, edge costs, reachable nodes. Before a trip it lists the three dungeons on offer. The Spawner Dungeon stands on door 1 or 2 until cleared.
+- **Do:** open the board on a fresh trip and mid trip; start several trips as a player who has not cleared Act 1.
+- **Pass:** the map is read and understood; the Spawner Dungeon is on door 1 or 2 on every trip until cleared; after the clear the next act's capstone takes over.
+- **Fail signs:** the map is never opened; the Spawner Dungeon on door 3 or missing; text wider than the dialog.
+
+### L31. 2026-10-05: the Spawner Dungeon and Ancient City capstones
+
+- **Status:** half passed 2026-10-08 (`2026-10-08-1.md`): Spawner Dungeon cleared live at floor omen 4, lives 1, all 4 spawners then the brood wave; `dungeon_finished` journaled and the milestone title landed ("The Spawner Dungeon Cleared Go Home worked"). Difficulty verdict: "just barely enough resources to succeed". Ancient City still owed. Earlier: owed, 2026-10-07-1.md: he cleared two Act 2 dungeons tonight (Copper Works, Cow Pits), so Act 2 is open for him, but whether that came from a legitimate capstone clear or bypassed gating is unverified (no /dungeon map opened, dungeonsFinished unread). Neither capstone was entered. Earlier: owed, 2026-10-05-1.md: the Spawner Dungeon was offered correctly (step 2, Overclocked, door 1 or 2) but he chose the Mineshaft; never entered.
+- **Changed:** 2026-10-05: Spawner Dungeon (Act 1): four classic spawners, then a final wave; the pad stays shut until both stages are done. Ancient City (Act 2): every sculk sensor and shrieker raises omen, a real Warden arrives at omen 4 and does not gate the pad.
+- **Do:** solo and in a party of two, clear each. Note the brood size, how the spawner break and the exhaust rule feel, and what the omen bar does in the Ancient City.
+- **Pass:** the pad opens only after the brood, a clear unlocks the next act with a title, the Warden arrives and the party can still finish by reaching the terminal.
+- **Fail signs:** the pad opens early or never opens; the Warden spawns twice or elsewhere; a brood that is trivial or unwinnable for two.
 
 ### L32. 2026-10-05: the Wither and the Herobrine fight
 
@@ -356,6 +453,14 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** with two players, have the companion pull HOME with the whitelist off, then on, then after being added.
 - **Pass:** off: the companion can; on: refused with "The party leader has limited who decides here"; listed: allowed. Watch whether a companion ends a trip the leader wanted to continue.
 - **Fail signs:** a refused leader; a companion who can still pull a lever with the whitelist on; the door screen not saying why.
+
+### L35. 2026-10-05: Cow Pits finite cows and resource dungeon rewards
+
+- **Status:** partial, 2026-10-07-1.md: Cow Pits finished for the first time (2 floors, `dungeon_finished first:true`, diary entry_15 arrived in the pack). Finite-cow limit not exercised (no breeding attempted). Copper Works x4 floors rolled `nodes_total` 0 with its palette advertised on the doors (PD-161). Earlier: owed, 2026-10-05-1.md: Mineshaft half exercised. Two of three floors rolled zero nodes (PD-149) and the one themed ore room was too generous (PD-155). Diary page not seen (no finish). Cow Pits untouched: it is Act 2.
+- **Changed:** 2026-10-05 (D11, D12): resource dungeons deal step 0, pay no shard or vault, and give a diary page on the first finish. Cow Pits has 6 to 10 adult cows, no wheat and no breeding.
+- **Do:** run Mineshaft and Cow Pits; try to breed or feed cows, count the beef and leather, and note ore mined against durability spent (a farming risk).
+- **Pass:** cows cannot be multiplied, the haul is real but bounded, the key does not climb, the diary page arrives on the first finish only.
+- **Fail signs:** an infinite cow loop; durability not a real cost so the resource dungeon is farmed; a shard or vault from a resource dungeon.
 
 ### L36. 2026-10-05: Endless Mine seal and the deepest floor
 
@@ -397,6 +502,14 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** The fill steps in quarters and is full at 4/4; the colour goes green, yellow, red; one more fall ends the run shows from omen 3.
 - **Fail signs:** A part filled bar at 4/4.
 
+### L45. 2026-10-06: resource doors show scrap and ore
+
+- **Status:** partial 2026-10-07 (`2026-10-07-1.md`): the two-sheet board replaced this wording; on Copper Works the right sheet read "Boiler Hall, Explosive, 6 emeralds iron coal, lootx3" (emerald pay while overleveled, ore as plain words, loot count in green). But PD-161: the ore promise lied, all four floors had `nodes_total` 0. Mineshaft doors still unseen this build; em-dash-era "MINESHAFT - floor N of 3" title not rechecked. Earlier: owed
+- **Changed:** 2026-10-06 (design items 1 and 6, `DungeonScreen.previewContent`): Mineshaft floors pay chart scrap like any floor, and the door board shows the ore as plain words.
+- **Do:** Preview each Mineshaft door. Read the title, the name, the cyan line and the loot line. On a capstone door read the title width.
+- **Pass:** Title `MINESHAFT - floor N of 3` (middle dot) in yellow; cyan line `2 scrap` then coal, copper, iron, gold; the rolls line (`3 rolls` at Loot 100%) in green; dim or dark on its own line. Titles fit the backdrop; the Wither's Keep and Spawner Dungeon titles measure about 8.4 and 9.3 blocks on an 8 block backdrop, so note how they look.
+- **Fail signs:** No scrap on a resource door; labels like Rewards: or Resources:; a title that runs off the panel.
+
 ### L47. 2026-10-06: hidden ore is found by digging
 
 - **Status:** owed
@@ -420,6 +533,23 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** Visit a station room in the dungeon and try each station. Put a scrapable drop on the anvil; put a gear piece on the enchanting table.
 - **Pass:** Salvage opens regardless of level; the enchanting table rerolls; no gamble screen, no blacksmith villager, no lock-in prompt.
 - **Fail signs:** A "too low level" refusal; the smithing table opening reroll; the Cube answering a use.
+
+### L52. 2026-10-06: the librarian sells rolled gear
+
+- **Status:** partial 2026-10-10 (`2026-10-09-1.md`): Mending offer confirmed live: `shop_purchase` enchanted_book from the home Librarian for 64 emeralds (the L52 price point). Buy-back used heavily same trip (40 rotten flesh, 8 lapis). Offer count and restock-on-homecoming still unverified. Earlier: partial 2026-10-08 (`2026-10-07-2.md`): he built the lectern (and enchanting table, grindstone, smithing table) in his safe room and bought rolled gear from the Librarian: `shop_purchase` diamond_leggings for 18 emeralds. Offer count, Mending price and restock-on-homecoming still unverified. Earlier: owed, 2026-10-07-1.md: not exercised
+- **Changed:** 2026-10-06 (J5a, `LibrarianNPC`, `VendorMath`, `VendorStock`): the home librarian is a real villager whose offers are rolled gear tiers up to the owner's act, plus Mending for 64 emeralds, plus a buy-back of surplus drops.
+- **Do:** Open the librarian after finishing an Act 1 floor and again after an Act 2 unlock. Buy a gear offer.
+- **Pass:** Act 1 shows six offers (tiers I and II); Act 2 adds tier III for nine; never tier IV; every reroll on a homecoming changes the stock; Mending costs 64 emeralds.
+- **Fail signs:** Vanilla librarian enchanted book trades; stock that never changes; tier IV before a capstone.
+
+### L54. 2026-10-07: Haul and Blood Doors
+
+- **Status:** partial 2026-10-08 (`2026-10-08-1.md`): the model is no longer invisible: three lever banks and three finishes all journaled correctly, and lives pressure landed ("It was definitely pressure" at lives 2, two rescues). New legibility breaks: "Haul 0 scrap" on the GO HOME board after a finish (PD-179) and "Home 4 chests" unreadable (PD-180). Still untested: blood door taken, last-life refusal, disconnect/grace, party compasses. Earlier: partial 2026-10-08 (`2026-10-07-2.md`): every bank path verified in the journal (home lever x2, finish "banked 5", fifth-death fail "banked 4 of 8"), compass lore correct in and out of trip, GO HOME board shows per-member haul, lives, unfinished and the half-loss line, and floor clears pay zero emeralds. Model mechanics pass. Failed checks: blood door never taken (lives:1 edge previewed only), last-life refusal untested, disconnect/grace untested, milestone title not reached (first:false finishes), migration join message unverified. New breaks filed: owner death purges the party run at any lives count (PD-167), quit and purge never settle the haul (PD-168), quit strands dungeon gear in the overworld (PD-169), ominous keys cannot pay the vault toll (PD-170). Player's one-sentence explain: "I can't tell yet, feels like it doesn't exist": the model works but is invisible; his proposal "pull the lever is the payout ritual" is logged in the report. Earlier: owed
+- **Note 2026-10-10:** read the `/5` in the examples below as the live price; a level now costs `4 + floor(compass / 3)` scrap (L56), and the leaving rules are L64.
+- **Changed:** 2026-10-07 (`docs/DECISIONS.md`, PD-162): scrap rides in a per-trip haul that banks into the compass bar at home or a finish and is half lost to a failed dungeon; a side door costs the party a life; floors below your compass pay 1; no overlevel emeralds.
+- **Do:** (1) As a migrated compass 12 player: read the compass lore (`Compass 12: 0/5 scrap to 13`) and the one time join message; clear a Copper Works floor and read the clear line (`+1 scrap (you are above this floor). Haul 1.`). (2) Take a side door and watch Lives drop; try it at Lives 1. (3) Go home with a haul. (4) Fail on purpose with a haul. (5) Party of two with different compasses. (6) Disconnect mid trip, rejoin inside the grace, then let a grace expire. (7) Count emeralds over the session and deaths per trip. (8) Ask the player to explain the system in one sentence.
+- **Pass:** the lore, clear line, GO HOME board (`Haul N scrap`, `Lives N`, `Unfinished: ...`, footer while a haul is at risk) and door board (`Costs 1 life`) agree; going home says `Home. Banked N scrap: compass X, y/5 to Z.`; a failure says `Half your haul made it out: banked A of B scrap.`; the last life is never for sale; emeralds no longer come from floor clears.
+- **Fail signs:** the player still asks which of two numbers is their level; a side door is taken without thought (the price of a life is too low); a failure feels like nothing; an absent member's haul vanishes.
 
 ### L55: the Astrolabe Room (wave B, 2026-10-09)
 - **Status:** owed (built, never played; listed here so the knowledge pack carries it)
@@ -470,6 +600,14 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Endless Mine: do the walls hide coal and iron, and does digging find it? Is it richer four floors down?
 - Deepslate: does `deep_shaft_landing` show enough ore on the landing?
 
+### L61: the Kennels rework (2026-10-09)
+- **Status:** partial 2026-10-10 (`2026-10-10-1.md`): the Kennels now runs end to end (3 floors to Alpha's Den finish, wolves spawn on stone floors, rooms unburned: PD-194/PD-195 verified fixed). New breaks: spawner wolves are passive not hostile (PD-204), rising_lava door axis dumps the player into lava and its lamp is decoupled from the lever (PD-205), shell token claim flow is unintuitive (PD-206). Kennel Run charge, Guard Tower calm line, strays and The Alpha's feel still unjudged. Earlier: failed 2026-10-10 (`2026-10-09-1.md`): soft-locked floor and fire spread; session ended on his call.
+- Do the Kennel Run wolves charge as you enter? Is the room survivable at Act 1 level?
+- Guard Tower: can you run past, shoot the guard, and does "The pack goes quiet." fire when it falls? Does the ladder climb work with wolves biting?
+- Do the Kennels spawners (pillagers, wolves, vindicators from tier 2) read as breeders and their dogs? Any raid banner, Bad Omen or patrol behaviour from the pillagers?
+- Lost wolves (Wolf Hollow, Lost Dog): still friendly and tameable?
+- Warden whelp (L58): does it skip the roar, is 0.3 speed about the player, does the Heard meter hold while it is out?
+
 ### L62: promised gear and carried keys (2026-10-10)
 - **Status:** owed (built, never played; listed here so the knowledge pack carries it)
 - Deepslate Collapsed Landing's door names an enchanted weapon beside its 2 emeralds; the copper chest holds that same piece after the clear.
@@ -482,6 +620,17 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Do:** with consent, open each screen in turn from the wall lodestone, in your Home room and inside a dungeon. Ban a friend with two accounts, then try to invite them, have them join your party and visit your room. Unban.
 - **Pass:** no screen is a dead end or closes on an unmade change; Invite and Banned show a plain notice when empty (no disconnect); Esc never leaves or resets anything; a banned player cannot be invited, cannot join and cannot visit; building rights show a star and need a confirm; found diaries and shells come first.
 - **Fail signs:** a disconnect on opening a list, Leave as the Esc action, a banned player still getting in.
+
+### L64: leaving, failing and the Home room (2026-10-09)
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): a mid-floor disconnect exercised the path
+  for real (`leave_dungeon` reason `disconnect` on drowned_vault floor 1, the journal's last
+  events). What we cannot see from outside: whether the half-haul banked and the run failed for
+  him, and whether he lands in the Home room on rejoin. Verify on his next join. Multiplayer
+  cases (rider/host leaves, fifth death) still unobserved.
+- **Changed:** leaving a floor in progress for any reason (menu Leave, exit, disconnect, joining another party) fails the dungeon for the leaver, who keeps the fail share (50 percent) of their haul; leaving between floors cashes out in full; a host who leaves a floor fails it for everyone; a failed dungeon sends the party back to the Home room instead of out (PD-191 to PD-193).
+- **Do:** with two accounts: a rider leaves mid-floor; a rider leaves between floors; the host leaves mid-floor; the party dies on its fifth life; a rider joins another party from inside a dungeon.
+- **Pass:** the haul banks half, all, half for everyone, half, half in each case; after a failed dungeon the party stands together in the Home room with the doors ready and no lobby to reopen; the leaver is told what they kept.
+- **Fail signs:** a full bank from a mid-floor leave, the party booted out after a fail, a rider stuck in the dungeon after the host left.
 
 ### L65: small changes of 2026-10-09
 - **Status:** owed (built, never played)
@@ -497,6 +646,149 @@ tool on the MCP server (`mcp.mjs --admin`).
 - Shell tokens: right-click a held token to unlock the shell directly; the token lore says so (PD-206).
 - **Fail signs:** a Kennels wolf ignoring the player, lava starting on a doorway wall, the lamp floating above the lever, a used token doing nothing.
 
+### L67: Cow Pits: the Milking Parlour and Specimen 0 (2026-10-12)
+- **Status:** owed (built, never played)
+
+Play a full Cow Pits run and check:
+
+- The dungeon is exactly three floors: Pen Gate, the Milking Parlour, the Big Barn.
+- Parlour rooms read as a clinical dairy: white tile, barred stalls, numbered specimens
+  ("Specimen 101" and friends). Churns (barrels) each hold 2 milk buckets; a bucket used on a
+  stall cow does nothing.
+- On the Big Barn, find the zero_bay room: Specimen 0 on a pedestal behind bars, the sign
+  "Specimen 0 / (do not feed)" in front.
+- Right click Specimen 0 with any food (not wheat, not a bucket): the food is consumed, a moo
+  plays, the title "Specimen 0 wakes." shows, then about 3 seconds later the herd turns.
+- Specimen 0 grows (default 3x), shows the boss bar, melee attacks; every tagged cow on the
+  floor joins in. The pad stays shut until the herd is dead, then pays the finale chest.
+- Leave the cow alone instead: the pad opens with no fight and no extra chest.
+- Wheat is still refused on every cow, and baby cows still cannot appear.
+- Note whether zero_bay actually appears on the final floor often enough.
+
+### L68: Copper Works: the furnace clock, vents and vats (2026-10-12)
+- **Status:** owed (built, never played)
+
+Play a full Copper Works run and check:
+
+- On floor one, a title line explains the clock ("The furnace is counting down."
+  plus "Every cleared spawner buys it time."), and a timer rides the action bar
+  counting down from 20:00.
+- Clear a spawner: the clock jumps up by 60 seconds (config: copperClockBonusSeconds).
+- The action bar timer turns dark red inside the last two minutes.
+- Let the clock hit zero (or set copperClockMinutes low): nobody takes damage or
+  dies; the title reads "The furnace blows." / "The Foreman does not wait." Ride
+  to the final floor: the finale starts on its own with no five-second drum and
+  the wave stands almost at once. Clearing more spawners there does not restart
+  the countdown.
+- With the clock blown, the vents pulse noticeably faster (about 2x).
+- On master_furnace: six floor grates in a serpentine band hiss and smoke for a
+  full two seconds, then burst into flame and ignite whoever stands on the tile
+  (about three seconds of burn). The sweep order is the same every pulse.
+  Standing on the south exit row never burns.
+- Two water cauldrons stand in the room. Lure or knock the Foreman into one: he
+  splashes, takes a point of drown damage each second, and carries Weakness plus
+  Slowness for about four seconds. The first time, chat reads "The water bites
+  him."
+- The reward pad and the exit door stay reachable for the whole fight.
+- Time the run before zero instead: the normal spawner-clear finale still works,
+  countdown included.
+
+### L69: Lush Caves: the swamp rooms (2026-10-12)
+- **Status:** owed (built, never played)
+
+Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
+
+- The swamp reads as a swamp: watch for the new rooms on Moss Gate, Glow Berry
+  Hollow, Clay Burrow and Wolf Hollow.
+- The witch haven: a plank hut on the marsh with a brewing cauldron inside. A
+  witch lives in the hut; the room's trial spawner throws mostly witches (plus
+  spiders; bogged on ominous). Fight is fair at floor 1.
+- The clay shelves: terraced clay along one wall with vines down the step
+  faces. Climb it (one block steps); a chest waits on the top shelf. The clay
+  itself is diggable.
+- The fungal hollow: two giant mushrooms (one red, one brown) over mycelium and
+  podzol, a spore blossom under the red cap.
+- The still pond: a dead end room of water with a low clay bar mid-pond holding
+  a chest. Wade or swim to it; lily pads on the water.
+- The hollow log: a fallen log the path runs straight through; a nook in the
+  bark hides a chest.
+- Bogged marsh turns up on Glow Berry Hollow runs: mud floor, bogged archers.
+- The Sapping Den floor: still silverfish flavoured (burrow tunnels now, no
+  infested wall), and it stays a deviation floor inside Lush Caves.
+
+### L70: Floor 3, the young queen
+- **Status:** owed (built, never played)
+
+- [ ] Entering floor 3 of the Act 1 mine, the terminal room shows crack dust and a rumble, then a
+      silverfish about one and a half times normal size named "The Princess" surfaces and fights.
+- [ ] Mossy bricks around the room ripen and hatch silverfish adds while she fights.
+- [ ] The exit pad refuses while she or any of her brood lives: "The guardian still stands. Finish it
+      first."
+- [ ] With the last fish dead the pad opens and the floor pays the tier A guardian table.
+
+### L71: Floor 6, the packmaster
+- **Status:** owed (built, never played)
+
+- [ ] A named pillager ("The Packmaster") waits with a ring of wolves; a horn sounds on entry.
+- [ ] The wolves are angry from the start, not just on hit.
+- [ ] Killing the packmaster first quiets the pack ("The pack goes quiet") but the pad stays shut
+      until the wolves are dead too.
+- [ ] Tier B guardian loot on clear.
+
+### L72: Floor 9, the coffins
+- **Status:** owed (built, never played)
+
+- [ ] Upright dark coffins stand around the terminal room; "Stone lids shift in the dark." plays.
+- [ ] They crack open one at a time, never two at once, and each sleeper stands up and hunts.
+- [ ] Breaking a coffin's blocks opens it early.
+- [ ] The pad stays shut until every sleeper is dead; tier C guardian loot on clear.
+
+### L73: Lap two
+- **Status:** owed (built, never played)
+
+- [ ] Floors 12, 15, 18 repeat queen, pack, coffins in order, noticeably harder: more bricks, more
+      wolves, more coffins, faster tells (but tells never feel under two seconds).
+
+### L74: Edges
+- **Status:** owed (built, never played)
+
+- [ ] Leaving and re-entering a guardian floor mid fight does not duplicate or lose mobs.
+- [ ] `mineGuardianMobCap` lowered to a small number trims waves without errors.
+- [ ] Act 2's mine still plays the plain placeholder wave (skeletons) on its guardian floors.
+
+### L75: Floor 3, the Deep Sentry
+
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the sentry spawned named on the terminal
+  floor and was slain by the player (log: `Skeleton[The Deep Sentry] died` at 05:40:19), and the
+  pad held to floor end. The meter never reached the whelp answer during his fight (he burst it
+  down at compass 15, full diamond; PD-208), though whelps answered silent_deep sensors elsewhere
+  on the floor. Tier A loot on clear not confirmed.
+- [ ] Entering floor 3 of the Deep Mine (Act 2 endless mine), the terminal room holds sculk sensors
+      and a named bow skeleton, "The Deep Sentry".
+- [ ] Fighting fills an invisible meter: shooting a bow, taking hits and sprinting push it faster,
+      and "The sculk stirs." shows as it nears full.
+- [ ] A full meter plays a heartbeat and "The deep heard you.", then about three seconds later
+      darkness lands and a small Warden (a whelp, not the Warden) comes for the nearest player.
+- [ ] While the whelp is out the meter is quiet; a second answer only comes after it is gone.
+- [ ] The exit pad refuses while the sentry or any answer lives: "The guardian still stands. Finish
+      it first." Tier A guardian loot on clear.
+
+### L76: Floor 6, the Foreman
+
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the Foreman spawned named and was slain
+  (log: `Vindicator[The Foreman] died` at 05:56:13), and the floor paid normally after. The
+  player saw no vents or vat at all ("I didnt see any of that", "just a very fast pillager");
+  unverified whether the decor placed but went unnoticed under a fast kill, or never placed
+  (PD-208). Vents, sweep, vat weaken and tier B loot all unobserved.
+- [ ] The terminal floor shows copper grates and one water cauldron; a named vindicator, "The
+      Foreman", stands among them.
+- [ ] A vent hisses and smokes for two seconds, then fires; standing on it ignites.
+- [ ] The vents sweep the floor in a serpentine order, faster the deeper the guardian.
+- [ ] Pushing or kiting the Foreman into the cauldron splashes, weakens and slows him ("The vat
+      weakens him. Keep him in it." shows once).
+- [ ] When he dies the vents stop and the floor looks untouched (no leftover grates or cauldron);
+      tier B guardian loot on clear.
+
 ### L77: Floor 9, the Frostbite
 
 - **Status:** owed 2026-10-13 (`2026-10-13-1.md`): the player banked after floor 6 and has never
@@ -509,21 +801,109 @@ tool on the MCP server (`mcp.mjs --admin`).
 - [ ] The cold cannot kill on its own (the same health floor as the Frostworks finale).
 - [ ] Killing the last stray lifts the cold at once and the pad opens; tier C guardian loot.
 
-### L85: LX: Restless widened and Blackout (roadmap T12, 2026-10-11)
+### L78: Lap two and edges
+- **Status:** owed (built, never played)
+
+- [ ] Floors 12, 15, 18 repeat Sentry, Foreman, Frostbite noticeably harder: the meter fills sooner,
+      more vents firing faster, more strays, faster tells (never under about two seconds).
+- [ ] Leaving and re-entering a guardian floor mid fight does not duplicate or lose mobs, and does
+      not restart a tell that already ran.
+- [ ] `mineGuardianMobCap` lowered keeps the wave sizes sane (the sentry's answer waits instead of
+      spawning over the cap).
+- [ ] Act 1's mine still plays its own guardians (queen, packmaster, coffins) untouched.
+- [ ] The Frostbite is never announced, named or described as a Warden anywhere.
+
+### L79: The Brood Chamber
+- **Status:** owed (built, never played)
+
+- [ ] The final floor of the Spawner Dungeon is the Brood Chamber: four caged spawners, and the
+      exit pad refuses entry to the next floor while any cage stands.
+- [ ] Each cage freed releases exactly one earlier Act 1 mechanic, and the tell names it: coffins
+      cracking ("Stone lids shift in the dark."), creeping bricks ("The mortar twitches."), the
+      dark ("The beams creak." then "Light a torch."), then the drip ("Something drips from
+      above.").
+- [ ] A cage doused by the wave's exhaust rule frees its mechanic the same as a broken one.
+- [ ] Breaking cages in different orders changes the fight: whichever cage goes first frees its
+      mechanic first, and every earlier mechanic keeps running until the floor ends.
+- [ ] The dark phase spares the torches near the pad and the room's middle; lights come back when
+      the floor ends (win or loss).
+
+### L80: The Brood Mother
+- **Status:** owed (built, never played)
+
+- [ ] The fourth cage calls "The Brood Mother hauls herself out of the dark." plus a title card,
+      and a scaled up cave spider with a red boss bar arrives beside the last wave.
+- [ ] Her bar fills the screen top, tracks her health, and vanishes when she dies.
+- [ ] At half health a raid horn plays and "The Brood Mother shrieks for her brood!"; a few
+      seconds later every surviving brood mob grows, glows and turns on the party. If she dies
+      during the windup the pack stays its old size.
+- [ ] Once she is up, the drip falls about twice as fast.
+- [ ] The exit pad refuses until the mother and every tagged brood mob are dead, including any
+      that chased a player out of the room.
+
+### L81: Edges and tuning
+- **Status:** owed (built, never played)
+
+- [ ] A full chamber does not pile mobs over `broodMobCap`: new coffins, fish, spiders and wave
+      mobs wait for room rather than crowding in.
+- [ ] Leaving and re-entering the floor mid fight does not duplicate the mother, the bar, or any
+      phase's mobs.
+- [ ] The chamber works solo and at a party of four or more; her health and the headcounts scale
+      but the fight stays readable.
+- [ ] The other three capstones (Ancient City Warden, Wither Keep, Herobrine) play unchanged.
+
+### L82: T10. Affix quick changes (2026-10-11)
+- **Status:** owed (built, never played)
+
+
+- [ ] Explosive: step on a floor mine. The fuse is a little longer (25 ticks, about 1.25 s) before the blast; you can still step off in time.
+- [ ] Silenced: on a Silenced run, eat or drink three consumables. The action bar shows "Silenced: 1/3", "Silenced: 2/3", then "Silenced: 3/3" with the wave. Only the user sees it; a party mate sees nothing.
+- [ ] Cooked: clear a floor that carries Cooked. The big text shows the usual "GO HOME or DESCEND" and, a beat later, "Cooked: ominous loot". Clear a floor without Cooked: no extra line.
+- [ ] Restless: the affix does not appear before compass 5.
+- [ ] Voided: first compass 45 trip with Voided. No puzzle room (Frame Lock, Rising Lava, Ropewalk and so on) has its floor ripped open; holes appear only in plain halls and open fight or loot rooms.
+
+### L83: Overclocked
+- **Status:** owed (built, never played)
+
+1. Take a door whose floor carries Overclocked. The floor title lists OVERCLOCKED, then "Under 6:00: +1 scrap".
+2. Clear the floor in under 6 minutes of the commit. The pay line reads one scrap more than the same floor without the affix (act and step as dealt). The haul agrees.
+3. Repeat and clear it slower than 6 minutes. The pay is the plain dealt step.
+4. Spawners still come back fast (cooldown factor 0.4 unchanged).
+5. Check the knobs `overclockedParSeconds` and `overclockedBonus` in `config/pocketdungeons.json`. A value there overrides the default. The affix blurb names 6 minutes and +1 in fixed words, so change the blurb with the knob.
+
+### L84: Loaded
+- **Status:** owed (built, never played)
+
+1. On a Loaded floor, find the tool chest in a loot room. Walk up to it: nothing happens until you open it.
+2. Open it. You hear the soul-escape sound, smoke puffs at several spots near the chest, and "Trapped." shows red on the action bar. About a second later 3 mobs (zombies and skeletons) stand at those spots and come for you. The chest still holds its tools and bread or torches.
+3. Close it and open it again: no second ambush.
+4. Party of 2 and 3: 4 and 5 mobs.
+5. The mobs stand in the room corner by the chest, never in the middle cross where the doors line up. Walk out of the room by every door: none is blocked.
+6. The ambush mobs drop nothing.
+
+### L85: Restless widened and Blackout (roadmap T12, 2026-10-11)
 - **Status:** owed (built, never played)
 - **Changed:** Restless now raises any fallen mob, not only the undead, as the floor theme's stand-in (wolves as skeletons, spiders as cave spiders, Frostworks as strays, drowned in the Drowned Vault and Prismarine, and so on). Bosses, elites, finale and wave mobs, pets and a mob that has already risen never rise; fire keeps them down; the 2 second groan and soul puff stay. New affix Blackout (short name Blkt, level 0): about 30 percent of the plain rooms lose all their lights. The entrance, the exit, rooms that need light and the lever Ordeal rooms stay lit.
 - **Do:** run a floor with Restless (a Kennels or Ossuary floor is quickest) and kill a wolf or spider away from fire; then run a floor with Blackout and walk the whole floor.
 - **Pass:** the groan and souls show, and 2 seconds later a skeleton or cave spider stands where the wolf or spider fell; it does not rise again; a burning one stays down; finale wave mobs and the boss never rise. Under Blackout some rooms are fully dark, the same rooms every time the same floor is stamped, and the entrance, exit, lever Ordeal rooms and kennel rooms stay lit; the affix shows as Blackout on the keystone and the title.
 - **Fail signs:** a boss or finale wave mob rising, a tamed wolf rising, a dark lever Ordeal room (lever or lamp unreadable), a dark exit, a risen mob that rises again, Blackout darkening nothing or everything.
 
-### L87: LX: Mineshaft dark phase (roadmap T20, 2026-10-11)
+### L86: RM-T13 data fixes (Deepslate depth, Lush Caves and Copper Works ore)
+- **Status:** owed (built, never played)
+
+- Deepslate is four floors: Shaft Head, then Lantern Stairs or Sculk Shallows, then Deep Quarry, Cracked Barracks or Tuff Cellars, then The Silent Deep. Each layer 3 door board leads straight to the Silent Deep, and a full run takes four floors.
+- Tuff Cellars can roll the Deep Dark Landing (its note now says a shrieker waits below); the room still appears and the shrieker works there.
+- Lush Caves: mining the walls on a floor turns up diggable sand and clay now and then (one to two buried pockets per floor), plus a little iron.
+- Copper Works: a floor with no ore room still shows coal and iron buried in the walls (one to two pockets); the board's ore promise matches what the floor holds.
+
+### L87: Mineshaft dark phase (roadmap T20, 2026-10-11)
 - **Status:** owed (built, never played)
 - **Changed:** The Deep Face finale now has a dark phase. When half the wave is dead the beams creak (sound plus the action bar line "The beams creak."); 3 seconds later (knob `mineshaftDarkTellSeconds`, never under 2) every torch and lantern on the floor goes out, the action bar says "Light a torch.", and a second batch of glowing cave spiders joins (knob `mineshaftDarkSpiders`, 3 for a party of one, +50 percent per extra member, at most 10). The pad stays shut until they are dead. Lights come back when the finale is won or the floor ends. Spared: lights within 4 blocks of the exit pad, rooms that need light, lever Ordeal rooms.
 - **Do:** run a Mineshaft to The Deep Face, clear the spawners, kill half the wave, then fight on in the dark. Place your own torch. Win, and look again.
 - **Pass:** the creak and action bar come first with a clear pause; then the shaft goes dark in one go, the pad area stays lit, spiders are visible by their glow, a placed torch lights its patch, the fight is survivable with poison at party sizes 1 to 4, and every light is back after the win.
 - **Fail signs:** no pause before the dark, a dark pad or lever, spiders invisible or a flood of them, poison deaths with no counterplay, a party with no torches stuck in a fight it cannot see, lights missing after the win or after leaving.
 
-### L88: LX: Ossuary coffins finale (roadmap T21, 2026-10-11)
+### L88: Ossuary coffins finale (roadmap T21, 2026-10-11)
 - **Status:** owed (built, never played)
 - **Changed:** The Last Rest (Ossuary final floor) now holds six sealed coffins (polished blackstone, 2 high, 3 long, a chiseled cap at the head). When the floor's spawners are cleared and the countdown ends, the finale wave lies in the coffins instead of standing up around you: the skeletons and zombies rise one coffin at a time. A coffin cracks when you come within 4 blocks, or 15 seconds after the last one cracked (a skipped coffin opens behind you). Each coffin cracks for 2.5 seconds (stone crack sound climbing in pitch, dust off the lid) before the lid breaks and its mobs stand up and come for you. At most 6 coffin mobs are awake at once; two coffins never crack together (3 seconds apart at least). A solo player faces 7 mobs in 6 coffins (one holds two).
 - **Do:** play an Ossuary run to the final floor (Compass 4), clear the spawner, and walk through the hall. Then try again and stand still in a corner, and again with a friend. Mine a lid with a pickaxe before the wave. Kill the last mob.
@@ -531,12 +911,24 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Fail signs:** all coffins opening together, a coffin that never opens, visible or audible sleepers before their lid breaks, a mob stuck inside a coffin (check a coffin with two occupants), the pad opening with a coffin still sealed, a door lane blocked by a coffin, a crash or log error from OssuaryFinale, a coffin mob dying to a fall or suffocation.
 - **Knobs:** code constants in `OssuaryRules` (`MAX_COFFINS` 8, `COFFIN_WAVE_CAP` 24, `AWAKE_CAP` 6, `WAKE_RADIUS` 4.0, `SKIP_DELAY_TICKS` 300, `MIN_GAP_TICKS` 60, `CRACK_TICKS` 50). They are not config keys; change the number and rebuild.
 
-### L89: LX: Kennels handler (roadmap T22, 2026-10-12)
+### L89: Kennels handler (roadmap T22, 2026-10-12)
 - **Status:** owed (built, never played)
 - **Changed:** In the Kennels finale the pillager is now "The Handler". When the Alpha is at half health the handler raises its arm and a horn sounds; 5 seconds later the wolves of the pack (the Alpha too) grow to 1.4 times size, turn angry and glow red. Killing the handler during the 5 seconds stops it; killing it afterwards shrinks the pack back and ends the glow.
 - **Do:** run the Kennels to The Alpha's Den, clear the spawners, and hurt the Alpha to half. Try three runs: let the windup finish; kill the handler in the windup; kill the handler after the pack has grown. Also try killing the handler before the Alpha reaches half.
 - **Pass:** the arm-up pose and the horn are clear a full 5 seconds before anything changes; "Kill the handler!" shows on the action bar; the red outline reads through walls and is red, not gold; grown wolves still path through the den doors and gaps and can hit you; a cancel leaves the pack normal; a late kill shrinks it and the outline goes; with the handler already dead nothing happens; no red outline or team left after leaving or finishing the floor.
 - **Fail signs:** the pose not showing on the pillager, a horn too quiet to notice, wolves stuck in doorways at 1.4, the outline staying after the shrink, wolves going passive, the handler rising as a Restless mob, a team listed under `/team list` after the run.
+
+### L90: RM-T23 Lush Caves potion drip and giant slime
+- **Status:** owed (built, never played)
+
+- Floors 1 and 2 of a Lush Caves run drip nothing, not even after a long wait. From floor 3 a splash potion falls on you about every 45 seconds (varies by a third either way); floor 4 is a little faster.
+- The fall reads: you hear a brewing sound, see witch sparks and drips on the spot you stand on, and the potion comes down slowly over about 2 seconds. Stepping a few blocks aside makes it miss you. A low ceiling (under 3 blocks of air) skips the drip.
+- Fairness at compass 1: about 7 in 10 brews are harmful (poison, slowness, weakness, nausea), the rest good (regeneration, speed, jump boost). Nothing hurts instantly and nothing kills; poison stops at half a heart. Judge whether 70 percent harmful feels fair or needs a lower `potionDripHarmfulPercent`.
+- Nothing drips in the entrance room, on or near the lodestone pad, in the safe or staging rooms, or while someone stands on the pad.
+- The final floor, after the spawners are cleared: "stirs" title, then one giant slime (The Great Drip) with a boss bar, and the drip is about twice as frequent for the fight. Check it fits the room and is not stuck in a wall.
+- Kill the giant slime: it splits into twice the usual number of slimes (4 to 8 half size slimes instead of 2 to 4). Kill one of those: it splits the normal way. The pad message keeps counting down slimes left, and the pad opens only when every slime is dead; the drip goes back to normal after the win.
+- A real slime death: confirm the pad never opens in the second after the giant slime dies (before its children appear), and that no slimes are left behind, invisible or uncounted.
+- Leave the floor mid fight (or end the run): no potions keep falling and no slimes remain on the next floor.
 
 ### L91: Infestation: creeping bricks and The Queen (2026-10-12)
 - **Status:** owed (built, never played; listed here so the knowledge pack carries it)
@@ -545,7 +937,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** A brick is readable by sound and cracks at each change (moss thud, stone knock, silverfish chitter, shaking and rattling just before the burst). A smashed brick leaves air, no item, no silverfish. A burst leaves no item and one silverfish. No more than the room cap of bricks grows at once. The Queen is large, named, with a boss bar. About 3 seconds before she burrows she rears up with a roar and dust. She vanishes under the floor in a dust puff and cannot be hurt. The floor cracks for about 2 seconds, then bricks appear around the arena, none on a member or on the pad. About 2 seconds before she returns the ground heaves at the spot she rises. The pad stays shut until she and every silverfish are dead. Killing her removes the bricks and the silverfish and opens the pad.
 - **Fail signs:** A brick that never changes, changes with no sound, or drops an item. A silverfish from a brick you smashed. Bricks stacking up past the cap or blocking a door lane or the pad. The Queen burrowing with no warning, taking hits while burrowed, visible while burrowed, stuck underground after the adds phase, or surfacing inside a wall. Silverfish piling past the cap. The finale ending with The Queen alive, or the pad opening with bricks or silverfish left. Blocks left mossy or infested after leaving the floor. A silverfish hiding in the stone and vanishing (it counts as dead). Adds phase feeling unfair: tune `infestationBricksPerPhase`, `infestationSilverfishCap`, `infestationAddsMaxSeconds`, `creepingMossySeconds`.
 
-### L92: LX: Silent Deep Hush rule (roadmap T31, 2026-10-12)
+### L92: Silent Deep Hush rule (roadmap T31, 2026-10-12)
 - **Status:** owed (built, never played)
 - **Changed:** The Silent Deep room now holds seven sculk sensors and one shrieker. Once its spawner is cleared and the finale starts, the room's Heard meter (the sidebar line) runs the fight: bow shots, hits you take, deaths of the wave, sprinting, sensor pulses and, slowly, time all fill it (ceiling 16). At three quarters the action bar says the sculk stirs. When it fills, a heartbeat and "The deep heard you." run for 3 seconds, then the shrieker screams, darkness settles and one Warden whelp comes. The meter is deaf while the whelp is out, then starts again. Never the real Warden. The Deep Sentry and the data wave are unchanged. Winning removes the whelp. A final floor that drew no Silent Deep room runs the plain finale.
 - **Do:** one account, then two. Reach the Silent Deep from any layer 3 floor, clear the spawner, then fight three ways: (1) sneak and use melee only, (2) sprint around the room shooting a bow, (3) stand still and let the wave come. Watch the Heard line on the sidebar. Leave the knobs (hushCeiling, hushPulseRise, hushBowRise, hushHitRise, hushDeathRise, hushSprintRise, hushQuietSeconds, hushWhelps) at their defaults first.
@@ -566,6 +958,27 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Pass:** the title shows the line on all three floors; the blue soul flames and the bone knock are noticeable in the dark rooms (dim floors) before it is close; the chat line appears once; on floor 1 it never hits and goes when you come within about 7 blocks; on floor 2 you hear a swipe and take nothing; on floor 3 the hit is 3 health with slowness and never kills a player at 1 to 3 health; it freezes the moment it is on your screen and creeps when it is not, including when you look at it only through a doorway or across a corner; it never appears in the first room or the pad room; it is gone when the floor ends.
 - **Fail signs:** the tell is invisible in a dim room; it moves while you watch it; it stays frozen when only a wall is between you; it hits on floor 1 or 2; a hit takes more than the knob; it follows you into the pad room; it is still standing on the next floor; it drops bones or xp.
 - **Tune:** `hauntLookConeDegrees` (60 is the half angle of the view that freezes it; raise it if it creeps while visible at the screen edge), `hauntWakePressure` (90 seconds), `hauntRetreatSeconds` (40), `hauntStrikeDamage` (3), `hauntTellSeconds` (2).
+
+### L95: Endless Mine per act (2026-10-12)
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the Deep Mine was directly reachable and
+  ran floors 1-6; it read as distinct on sight ("Different rooms than what I remember").
+  Guardians on F3 and F6 spawned and gated the pad (L75/L76 partial). Tier barrels not opened
+  on camera; F9+ unobserved; the act-gated door offer itself was not watched from the Astrolabe.
+- **Changed:** T40. Each act has its own Endless Mine (Act 1 `endless_mine`, Act 2 the Deep Mine). A guardian waits on every third floor (placeholder wave of zombies, or skeletons in the Deep Mine); its floor pays tier A, then B, then C for every guardian after. Clearing floor 3 counts toward opening the next act. No layers, no sealed shaft.
+- **Do:** One account at compass 3 or more. Open the Astrolabe Room, take the Endless Mine door, clear floors 1 to 9 (go home and return as needed). Then, with Act 2 open and compass 6, turn the astrolabe to Act 2 and enter the Deep Mine. Also load a pre-change save that had passed floor 5 or 11 and check its acts.
+- **Pass:** Floors 1, 2, 4, 5 have no wave; floors 3, 6, 9 do and the pad refuses ("The guardian still stands") until the wave is dead. The barrel on floor 3 holds only coal, iron, copper (and cobblestone, torch); floor 6 adds gold and lapis; floor 9 adds redstone and sometimes a diamond. Checkpoint line names the guardian and tier. Clearing floor 3 of the Act 1 mine counts as the Mine leg of Act 1. The Deep Mine looks like deepslate with tuff and dripstone and opens in Act 2. An old save keeps its acts.
+- **Fail signs:** A wave on a non-third floor, a guardian that cannot be reached or never shuts the pad, a barrel with the wrong tier, a mine door missing from the Act 2 astrolabe, an old save losing an act, a sealed-shaft message, a stuck or empty Deep Mine floor.
+
+### L96: Wager: Loot percent, the extra copper chest piece, Blood (2026-10-12)
+- **Status:** partial 2026-10-13 (`2026-10-13-1.md`): the Loot percent line is on the board and
+  was read, but read as ambiguous against `loot x3` ("What is loot 250% and loot x3?", PD-207).
+  Fixed in code same day: Loot n% is now the multiplier the barrel pays (round((base + depth)
+  x n/100) rolls), and the green line reads the scaled count as `8 rolls`, so one loot system.
+  Extra copper chest piece and Blood door unobserved.
+- **Changed:** T50, amended 2026-10-13 (docs/DECISIONS.md). Every door board and the floor title end the affix list with "Loot n%" (100 plus 50 per wager point; a floor with no affixes reads "Loot 100%", white at 100, gold above on the board). The percent is the floor's loot multiplier: the barrel pays round((base + depth bonus) x n/100) rolls, and the board's green line shows that count as "N rolls". A floor whose affixes wager something pays one extra piece (weapon, tool, armour or material) into its copper chest, and the door board names it beside the other things the floor gives. Blood is a new affix that takes one life when the door is committed (never the last life).
+- **Do:** Solo or two accounts, a compass at 5 or above so doors carry affixes (compass 25 and 45 give two and three affixes). Open the Astrolabe Room or a staging room, right-click each of the three doors and read the board. Note the Loot percent, the "N rolls" line (it should be the percent of the base 3 plus depth, rounded), and the extra piece it names. Commit a door with at least two affixes, clear the floor, count the barrel rolls and open the copper chest. Then find a Blood door (it is one of the seeded affixes, so it comes with the compass level): commit it with 5 lives, again at 2 lives, and with 1 life.
+- **Pass:** Every board shows "Loot n%" beside the affix names and in the affix line of the deal sheet, and "N rolls" where "loot x3" used to sit; the two numbers agree (Loot 250% on base 3 reads 8 rolls). The floor title shows the percent as the last line. The barrel holds the rolls the board promised. The copper chest holds the exact piece the board named (same item, same enchants), and a "Loot 100%" floor pays no extra piece. High Loot floors name a better tier piece far more often than low ones, and never above the dungeon loot band (Act 1 stays stone and iron). The Blood door board says "Costs 1 life"; committing takes one life ("paid a life for the door", Lives drops by 1); at 1 life the lever refuses with the lives line and nothing is spent. The piece reads as worth the risk at Loot 400% and above.
+- **Fail signs:** The board still says "loot x3" or shows two different loot wordings; the barrel count does not match the rolls line or the percent; the chest piece differs from the board (a different item or no enchant where the board said enchanted); a "Loot 100%" floor pays an extra piece; a "wager" word or a raw number appears; a tier above the band (netherite in Act 1); Blood takes a life twice, or takes the last life; every door on a floor is refused because all three carry Blood at low lives (a trap: tell the owner); the title line is missing or overlaps another title.
 
 ### L97: Heist floor: the vault cracks and wakes (2026-10-13)
 - **Status:** owed (built, never played; listed here so the knowledge pack carries it)

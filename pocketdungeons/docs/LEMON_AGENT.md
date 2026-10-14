@@ -151,7 +151,7 @@ and its behaviour is in the Java source under
      the rows before you end (section 7).
    - Read the newest one or two files in `pocketdungeons/docs/playtests/` named
      like `2026-09-27-1.md`: what happened last time, and their open questions.
-   - Skim `pocketdungeons/docs/AUDIT_2026-09.md` section 11 (the decisions log)
+   - Skim `pocketdungeons/docs/DECISIONS.md` (the decisions log)
      so you know how the game is meant to work.
    - Create today's notes file (section 6).
 3. **Check the server:** `server status`. If it prints `DOWN.`, run `server start`

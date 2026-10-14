@@ -1,6 +1,6 @@
 ---
 name: design-brief
-description: Run a Pocket Dungeons design decision the way the owner likes it. Researches comparable games when asked, proposes two or three options with one recommendation and waits for approval before coding, writes a self-contained prompt for another model when asked, and records the approved result as a dated decision doc with a supersedes list and open questions. Use for scrap or economy models, risk systems, room or ordeal redesigns, board and screen text, and any "propose before you build" request.
+description: Run a Pocket Dungeons design decision the way the owner likes it. Researches comparable games when asked, proposes two or three options with one recommendation and waits for approval before coding, writes a self-contained prompt for another model when asked, and records the approved result as a dated section in docs/DECISIONS.md with a supersedes list and open questions. Use for scrap or economy models, risk systems, room or ordeal redesigns, board and screen text, and any "propose before you build" request.
 ---
 
 # Design before building
@@ -43,7 +43,7 @@ version (the Plate Relay replaced the climbing room that way).
 - **Naming is settled law:** the player-facing words are compass (level), scrap, haul, lives, charts (check the
   current decision doc before using older words like "chart scrap" or "keystone"). Internal names may differ.
 - Things the owner has ruled out or deferred stay that way unless they reopen them (read `docs/reference/BUGS.md`
-  notes and the latest `docs/decision-*.md`).
+  notes and the latest `docs/DECISIONS.md`).
 
 ## Writing a prompt for another model
 
@@ -51,14 +51,13 @@ When asked to "write a prompt to get Opus to find the best system": produce one 
 document the model can act on with no other context. Include: the project in two sentences; the house rules
 (dash rule); the problem and the player quotes; what exists today with file paths; the hard constraints above;
 the question to answer; the required output format (options, recommendation, spec table, migration, knobs,
-open questions); and an explicit "do not write code". Save it under `docs/` (for example
-`docs/playtests/<date>-claude-prompt.md` for fix prompts, or `docs/design-<date>-<n>.md` for a design brief) and
-give the owner the path. The reply from the other model is pasted back by the owner; then build it.
+open questions); and an explicit "do not write code". Delete any temporary prompt or reply file once the
+decision is recorded in `docs/DECISIONS.md` so throwaway prompts do not accumulate in `docs/`.
 
 ## The decision record
 
-After approval write `docs/decision-<yyyy-mm-dd>-<topic>.md`. The shape that worked (see
-`docs/decision-2026-10-07-haul-and-blood-doors.md`):
+After approval append a dated `## <yyyy-mm-dd>: <Topic>` section to `docs/DECISIONS.md` (do not create a
+separate `decision-*.md` file). The shape that works:
 
 - one-sentence statement of the model in the player's words;
 - a table of the numbers, where each lives, and what is at risk;
@@ -76,6 +75,6 @@ Update the files a decision touches: `BUGS.md` statuses, the docs it supersedes,
 
 For a larger brief ("design pass, then implement"): Phase 1 is design only with no code changes and ends in
 a document and questions; Phase 2 starts only after the owner approves or revises. Read the report's "Design
-decisions" section first, then the doc the model lives in (the latest `docs/decision-*.md` records outrank `docs/DUNGEON_STRUCTURE_DESIGN.md`, whose "Current state"
-block at the top lists what has been superseded), then the relevant source. `docs/design-2026-10-06-1.md` is the template: numbered sections per topic,
+decisions" section first, then the doc the model lives in (the latest `docs/DECISIONS.md` records outrank `docs/DUNGEON_STRUCTURE_DESIGN.md`, whose "Current state"
+block at the top lists what has been superseded), then the relevant source. `docs/DECISIONS.md` is the template: numbered sections per topic,
 "Phase 2 notes", "Open questions".

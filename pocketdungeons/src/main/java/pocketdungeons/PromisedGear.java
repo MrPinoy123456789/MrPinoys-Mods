@@ -60,7 +60,7 @@ final class PromisedGear {
     }
 
     /**
-     * The extra piece a wagered floor pays into its copper chest (docs/wager-draft-2026-10-12.md), or {@code null}
+     * The extra piece a wagered floor pays into its copper chest (docs/DECISIONS.md), or {@code null}
      * when there is none: the knob is off, the floor has no dungeon or node, or its affixes wager nothing.
      * {@code affixes} is the set the door board dealt ({@link FloorState#boardAffixes}), so the board and the chest
      * agree. The base tier is the node's own promised gear tier, else the loot band floor; the pick never leaves the

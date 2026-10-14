@@ -4,7 +4,7 @@ package pocketdungeons;
  * M69: the bounded operation model an {@link AffixDefinition} carries.
  *
  * <p>Every affix bends a rule and pays for it with a gift
- * ({@code docs/reference/MYTHIC_PLUS_RECONCILIATION.md} 5.0). The curse and the
+ * ({@code docs/DECISIONS.md} 5.0). The curse and the
  * gift are both expressed here as bounded parameters, so a third-party
  * definition declares what its affix does in data rather than in Java. An
  * operation a JSON file declares that is not one of these fields is a load

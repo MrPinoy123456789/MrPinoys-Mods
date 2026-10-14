@@ -2468,7 +2468,7 @@ final class RunLifecycle {
     }
 
     /**
-     * T2.6 / {@code docs/MYTHIC_PLUS_RECONCILIATION.md} §7.2: leadership does not
+     * T2.6 / {@code docs/DECISIONS.md} §7.2: leadership does not
      * transfer. If the owner is the one leaving <em>and someone else is still in
      * the party</em>, the whole run ends with them (a lost connection first gets
      * {@link #holdForOwner}'s grace). That is stricter than plain

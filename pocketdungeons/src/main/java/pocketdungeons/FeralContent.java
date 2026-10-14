@@ -24,7 +24,7 @@ import java.util.Optional;
  * <h2>Why nothing here angers them</h2>
  *
  * <p>Read out of the 26.2 bytecode rather than tuned by guess
- * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} section 7.4):
+ * ({@code docs/DECISIONS.md} section 7.4):
  *
  * <table>
  *   <caption>Verified wolf behaviour</caption>

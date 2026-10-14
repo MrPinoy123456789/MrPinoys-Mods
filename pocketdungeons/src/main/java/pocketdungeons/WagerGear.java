@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * The extra piece a wagered floor pays into its copper chest (docs/wager-draft-2026-10-12.md, owner clarification
+ * The extra piece a wagered floor pays into its copper chest (docs/DECISIONS.md, owner clarification
  * of 2026-10-12). Pure maths, no Minecraft imports; {@link PromisedGear#rollExtra} turns the pick into a stack.
  *
  * <p>The slot is picked evenly from {@link #SLOTS}. The tier starts at the floor's base tier (the node's own

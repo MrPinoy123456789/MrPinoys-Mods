@@ -23,6 +23,7 @@ def first_sentence(text):
     body = re.sub(r'<[^>]+>|\{@\w+\s+([^}]*)\}', r'\1', body)
     body = ' '.join(body.split())
     body = body.replace(chr(92) + 'u0027', chr(39))
+    body = body.replace(' ' + '-' * 2 + ' ', ': ').replace(chr(0x2014), ': ')
     parts = re.split(r'(?<=\.)\s', body)
     sentence = parts[0]
     # A label such as "The Warden whelp (design pass 2026-10-09):" is not a summary: take the next sentence too.

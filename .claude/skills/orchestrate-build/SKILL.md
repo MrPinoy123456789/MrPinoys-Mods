@@ -76,4 +76,5 @@ When the owner says to wrap up: message every running agent to commit, stop at a
 
 The owner may ask for reports only at the end. Then stay quiet between merges: one line per notification at most. At the
 end give: what is merged and green, what is not built, anything that changed the plan, what only a live server can
-confirm, and the machine problems that mattered.
+confirm, and the machine problems that mattered. Once the wave is integrated and verified, delete the temporary
+`docs/roadmap-build-*.md` and `docs/reports/` files so throwaway build docs do not pile up.

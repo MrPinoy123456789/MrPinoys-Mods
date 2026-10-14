@@ -9,14 +9,14 @@ In a prompt, write the task, the branch name and the report path, then: "Follow 
 An agent reading this file should treat everything below as its standing orders.
 
 ## Setup
-- The base for the roadmap build is `feature/act-1-2-roadmap` (the task may name another; the task wins).
-  Preferred: `tools/new_worktree.sh <id> <topic>` from the repo root makes `.claude/worktrees/rm-<id>` on
-  `feature/rm-<id>-<topic>` off the base and prints the path. If you were handed a worktree instead, first run
-  `git merge feature/act-1-2-roadmap`, then create your branch (named in the task). Merge the base again before your
+- The default base branch is `master` (the task may name an integration branch via `PD_BASE`; the task wins).
+  Preferred: `tools/new_worktree.sh <id> <topic>` from `pocketdungeons/` makes `.claude/worktrees/rm-<id>` on
+  `feature/rm-<id>-<topic>` off the base and prints the path. If you were handed a worktree instead, first merge
+  the base branch, then create your branch (named in the task). Merge the base again before your
   final run. Never push, never touch `master` or another agent's branch, never deploy, never run
   `tools/server/pdserver.mjs`, never use the Lemon tools or any server.
 - Read `CLAUDE.md` at the repo root and the docs the task names. `docs/CODEMAP.md` says which class does what; grep it
-  before reading source. `docs/roadmap-build-2026-10-11.md` has the task table and the rules of this build.
+  before reading source. `docs/DECISIONS.md` has the settled owner decisions and workshop specs.
 
 ## Hot files (many tasks touch them): keep edits minimal and local
 `PocketDungeonsMod` (register calls), `PocketDungeonsConfig` (knobs), `FinaleWave`, `RoomContent`, `TrialContent`,

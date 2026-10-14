@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # House rule check (root CLAUDE.md): no em dash and no spaced double hyphen in text you wrote.
 #
-#   tools/check_dashes.sh            scan the lines this branch ADDED against feature/act-1-2-roadmap
+#   tools/check_dashes.sh            scan the lines this branch ADDED against master (or PD_BASE)
 #   PD_BASE=other-branch tools/check_dashes.sh
 #
 # Scans the added lines of: commits since the merge base with the base branch, staged changes, unstaged
@@ -14,7 +14,7 @@
 # that must keep one (a quoted spec, somebody else's text) can carry the marker  dashes-ok  anywhere on it.
 # Binary files and this script are skipped.
 set -u
-BASE="${PD_BASE:-feature/act-1-2-roadmap}"
+BASE="${PD_BASE:-master}"
 cd "$(dirname "$0")/.." || exit 2
 cd "$(git rev-parse --show-toplevel)" || exit 2
 if ! git rev-parse --verify --quiet "$BASE" > /dev/null; then echo "base branch $BASE does not exist"; exit 2; fi

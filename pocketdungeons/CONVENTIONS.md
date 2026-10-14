@@ -23,17 +23,14 @@ in the completion report, and keep it small and server-side only.
 
 - `plans/COMPLETED-MILESTONES.md`: architectural summaries of completed
   milestones. Append only; do not re-read the whole file when appending.
-- `docs/reference/LIVE_TEST_PASS.md`: outstanding live client verification
-  items. Append new sections; do not rewrite existing ones.
-- `docs/reference/ROADMAP.md`: milestone order, not status. No checkboxes.
+- `docs/playtests/LIVE_CHECKS.md`: live verification items still owed in play.
+- `docs/DECISIONS.md`: owner decisions, model changes and workshop ledgers.
 - Do not create a `PROGRESS.md` or recreate the retired `handoffs/` folder.
 
 ## Codec migration discipline
 
 A superseded `DungeonLog.Entry` field is marked superseded in its javadoc and
-its codec field kept, never deleted on the first pass. See "Per-player
-persistent state" in `docs/reference/D3_PROGRESSION_PLAN.md` for the full
-rationale.
+its codec field kept, never deleted on the first pass.
 
 ## No client mod
 

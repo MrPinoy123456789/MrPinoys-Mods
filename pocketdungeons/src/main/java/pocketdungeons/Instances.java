@@ -2722,7 +2722,7 @@ final class Instances {
             CapstoneFights.tick(server, record);
             // Roadmap T23: the Lush Caves potion drip.
             PotionDrip.tick(server, record);
-            // Haunts: the roaming creature of the floor (docs/haunts-draft-2026-10-11.md).
+            // Haunts: the roaming creature of the floor (docs/DECISIONS.md).
             Haunts.tick(server, record);
             // Floor objectives: a heist's vault channel and its ominous echo wave.
             FloorObjectives.tick(server, record);

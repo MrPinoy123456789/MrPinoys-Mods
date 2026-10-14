@@ -1,7 +1,7 @@
 package pocketdungeons;
 
 /**
- * The pure rules of haunts (docs/haunts-draft-2026-10-11.md), with no Minecraft imports so
+ * The pure rules of haunts (docs/DECISIONS.md), with no Minecraft imports so
  * {@code HauntRulesTest} runs with plain {@code javac}: which stage a floor gets, the look cone arithmetic, the
  * pressure, the strike damage and the one decision a stalker makes each tick.
  *

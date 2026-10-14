@@ -3,7 +3,7 @@
 protocol, no third-party dependency).
 
 Used for in-world verification of milestone work -- proving a change did the
-thing in a running 26.2 server, not just that it compiled. See docs/LIVE_TEST_PASS.md
+thing in a running 26.2 server, not just that it compiled. See docs/playtests/LIVE_CHECKS.md
 for what to verify this way.
 
 Usage:

@@ -3,7 +3,7 @@ package pocketdungeons;
 import java.util.Set;
 
 /**
- * One data driven haunt (docs/haunts-draft-2026-10-11.md): a floor wide creature with a rule the player can learn.
+ * One data driven haunt (docs/DECISIONS.md): a floor wide creature with a rule the player can learn.
  * A definition says who it is, where it walks, which of the closed {@link Behaviour} kinds drives it, what body
  * it wears and how it announces itself. The numbers a tuner moves (pressure, look cone, damage, retreat) are
  * {@link PocketDungeonsConfig} knobs shared by every haunt.

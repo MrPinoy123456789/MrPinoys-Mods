@@ -123,7 +123,7 @@ Not knobs today. Each is a `static final` or a literal; promote one with the rec
    (layer 2); or edit the JSON / generator (layers 3 and 4).
 3. Run the tests: `./gradlew.bat test runGameTest dungeonIntegrationTest --continue --console=plain > /a/tmp/run.txt 2>&1`
    (see `add-tests`). Update the test that pins the old number; add one if none does.
-4. Record it: a line in `docs/playtests/BALANCE.md` (what, old, new, why) and, for a model change, a `design-brief` decision doc.
+4. Record it: a line in `docs/playtests/BALANCE.md` (what, old, new, why) and, for a model change, a dated section in `docs/DECISIONS.md` (`design-brief` skill).
 5. Deploy with `deploy-test-server` and add a live check to `docs/playtests/LIVE_CHECKS.md` when the effect can only be felt in play.
 
 ## Adding a layer-1 knob (one declaration and one accessor in `PocketDungeonsConfig.java`)

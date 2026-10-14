@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * M2 T2.3 / {@code docs/MYTHIC_PLUS_RECONCILIATION.md} §3.2.2: a one-block bedrock
+ * M2 T2.3 / {@code docs/DECISIONS.md} §3.2.2: a one-block bedrock
  * shell just outside every cell's existing shell, so a player who digs through
  * a sealed room's polished-andesite floor or stone-brick ceiling meets bedrock
  * instead of dropping into open void -- the dungeon deliberately has no

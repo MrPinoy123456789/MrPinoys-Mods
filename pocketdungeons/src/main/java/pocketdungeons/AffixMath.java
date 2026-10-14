@@ -24,7 +24,7 @@ import java.util.UUID;
  * affix on top. Every affix is seeded.
  *
  * <p>There is deliberately <strong>no weekly rotation</strong>
- * ({@code docs/MYTHIC_PLUS_RECONCILIATION.md} section 4). A wall-clock seed
+ * ({@code docs/DECISIONS.md} section 4). A wall-clock seed
  * would make the keystone's name drift under the instance watcher, which
  * rewrites stale remotes in place; seeding from the key keeps the name a pure
  * function of {@code (level, affixSet)}.

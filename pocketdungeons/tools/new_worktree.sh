@@ -4,11 +4,11 @@
 #   tools/new_worktree.sh <task-id> <topic>      e.g.  tools/new_worktree.sh T10 quick-affix-fixes
 #
 # Creates <repo root>/.claude/worktrees/rm-<id> (id lower-cased) on the branch feature/rm-<id>-<topic>, started
-# from the integration branch feature/act-1-2-roadmap, and prints the worktree path on the last line. Safe to run
-# again: an existing worktree is kept, the integration branch is merged into it again when its tree is clean, and
+# from the base branch (default master, or PD_BASE), and prints the worktree path on the last line. Safe to run
+# again: an existing worktree is kept, the base branch is merged into it again when its tree is clean, and
 # the path is printed. Works from the main checkout or from any worktree. It never pushes.
 set -u
-BASE="feature/act-1-2-roadmap"
+BASE="${PD_BASE:-master}"
 if [ $# -ne 2 ]; then echo "usage: tools/new_worktree.sh <task-id> <topic>"; exit 2; fi
 ID="$(echo "$1" | tr 'A-Z' 'a-z')"
 TOPIC="$(echo "$2" | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"

@@ -1,0 +1,721 @@
+# Pocket Dungeons: Decisions
+
+Single record of owner decisions, model changes and workshop ledgers. Newer sections outrank older ones where they disagree.
+
+---
+
+## Standing foundational rules (September to October 2026)
+
+| Date | Decision |
+|---|---|
+| 2026-09-26 | **Owner disconnect grace:** Owner disconnect gets a reconnect grace (about two minutes) before the party's run ends. |
+| 2026-09-26 | **The kit is granted once:** Chosen at the bag chest; entering and leaving never grant items and nothing tops up a kit (`DungeonLog` flag `kit_granted`). |
+| 2026-09-27 | **Loot weights:** Fewer emeralds low (tier 1 chest and vault emerald weight x0.2, tier 2 x0.6; trial spawner key/emerald rewards 8/2 at tier 1, 6/4 at tier 2, 5/5 at tier 3); armour trim templates at tier 3 only; wood early (tier 1 log weight x4, tier 2 oak logs, supply tier 1 logs and planks x2); bones cut to a quarter (`DungeonDrops`); weapons and armour twice as common in chests and vaults. |
+| 2026-09-27 | **Weapon and armour durability caps:** Weapons 24 (wood, gold), 40 (stone, copper), 64 (iron), 96 (diamond), 128 (netherite); armour 32, 48, 64, 96, 128 by material; bow, crossbow and shield 64; trident and mace 96. Applied on craft and to every dungeon item, keeping wear proportional (PD-69). |
+| 2026-10-05 | **Dungeon structure (`docs/DUNGEON_STRUCTURE_DESIGN.md`):** One trip is one dungeon, chosen in the Astrolabe Room. Five acts follow Steve's playthrough; the act sets the loot band, compass + step sets difficulty. Every dungeon has one `mainTheme`, and deviating floors or rooms only borrow from the same or an earlier act while keeping the dungeon's loot band, node tiers and merchant currency; entry and final floors always use `mainTheme`. |
+---
+
+## 2026-10-07: Haul and Blood Doors
+
+Replaces the spendable scrap pool (plan 2026-10-06-2 J1, D28, D32, D33) after the
+2026-10-07 playtest (PD-162): the pool and the compass read as two competing levels, an
+overleveled player could not earn what a side branch charged, and nothing but emeralds was ever
+at stake. The owner asked for Darkest Dungeon style risk: failing loses progress, not everything.
+
+### The model
+
+The player's sentence: *Clearing floors fills your haul, and bringing it home fills your compass;
+if the dungeon claims you, you lose half the haul, and side doors cost a life.*
+
+| Number | Where it lives | At risk? |
+|---|---|---|
+| **Compass** (`DungeonLog.Entry.highestCharts`) | the keystone item, `Compass 12: 3/5 scrap to 13` | never; only rises |
+| **Chart progress** (`chartProgress`, 0 to 4) | the compass bar | never |
+| **Haul** (`haul`) | the clear line, the GO HOME board, the compass lore during a trip | yes: half lost to a failed dungeon |
+
+- **Earning.** A floor clear pays `ScrapMath.floorPay(step, floorLevel, compass)` into each
+  member's haul: the dealt step at or above their compass, 1 below it. No emeralds (D28 is gone).
+- **Banking.** Going home, a checkpoint exit, a grace expiry and a finish bank 100 percent of the
+  haul into the bar (`RunLifecycle.bankHaul`, from the log alone, so an absent member banks too).
+  A haul carried out of a trip that ended while the member was away banks in full when they next join.
+- **Failing.** The fifth death banks `failHaulKeepPercent` (default 50) of every member's haul,
+  present or detached, and loses the rest, besides the finish rewards.
+- **Side doors.** An edge now says `lives` (1, or 2 for Frostworks) instead of `cost`. The door
+  takes that many lives from the party (the trip's omen, the same lives a death spends) and is
+  refused unless at least one life would remain. The old `cost` key is rejected by the loader.
+- **Scrap is never spent.** There is no spendable pool.
+
+### Migration
+
+The compass keeps its level. The bar starts at what the old pool held past the compass's own
+whole charts (`ScrapMath.migratedProgress`, clamped to 0 to 4): a migrated or spent-down player
+lands on 0/5, a never spent pool of 16 at compass 3 keeps 1/5. The haul starts empty. The first
+join shows one message. The old `scrap` codec key is read once and never written again.
+
+### Supersedes
+
+- plan-2026-10-06-2: D28 (overlevel emeralds), D32 (scrap is paid and kept on the spot; amended:
+  scrap fills the haul and the bar fills at a bank, going home still loses nothing), D33 (side
+  branches cost scrap; replaced: they cost lives), D34 and J2 (amended: failure also halves the haul),
+  J1 (replaced in full), J3 (amended: only a death and a side door raise omen), section B "Paying a
+  floor", and "Changes to plan 2026-10-06-1" item 4 (the GO HOME board showed no scrap; it now shows the haul).
+- DUNGEON_STRUCTURE_DESIGN: D11 (going home banks the haul plus chests), W5 (party scrap balance),
+  the Banking row of the summary table.
+- Kept: D23 (the compass gates dungeons), D24 (every exit settles the same), D27 (floor level is the
+  node level plus the step), D29 (act completion).
+- Bugs: PD-162 is resolved by the model change; PD-166's command became `/dungeon admin compass` and `haul`.
+
+### Knobs
+
+- `failHaulKeepPercent` (pocketdungeons.json, default 50): the share a failed dungeon keeps.
+- An edge's `lives` in `dungeon/*.json`: 1 or 2.
+- `ScrapMath.SCRAP_PER_CHART` (5).
+
+### Open until played
+
+The price of a life (if players rarely die, a side door is nearly free), whether half is soft or
+harsh on failure, whether `+1 scrap` on a floor far below the compass reads as an insult, and
+whether a two life Frostworks door is ever taken.
+
+---
+
+## 2026-10-09: Playtest 2026-10-08-1 design pass
+
+The full spec, with option tables, numbers, text and knobs, is `docs/DECISIONS.md`
+(Opus's reply to `docs/DECISIONS.md`). This record is the owner-approved summary and the build
+order. If the two disagree, the reply wins until this file says otherwise.
+
+### The decisions, in the player's words
+
+1. **Choose your dungeon in the world, not from three random doors.** The first staging room is the
+   Astrolabe Room: turn the astrolabe to cycle unlocked acts, open a 1 by 2 door to look at the dungeon's
+   first room through the back glass, pull DESCEND to go. Special doors (Endless Mine) stand on the side walls.
+2. **Levels cost a little more each time, and deeper floors pay more.**
+   Level cost `4 + floor(compass / 3)`; a floor pays `step + (act - 1)`, plus 1 on a final floor; below your
+   compass it pays half (at least 1).
+3. **Sculk hears you.** One Heard meter per sculk room; full means darkness and a wave; crossing unheard pays
+   +1 scrap. `sensor_gallery` is replaced by the Hush Gallery.
+4. **The last floor ends in a fight.** Act 1: a finale wave. Act 2 and up: a wave with a named elite.
+5. **Copper Works mobs wear copper** (a per-dungeon `mobUniform`; nothing drops).
+6. **The hopper-key toll goes.** `barred_vault` becomes a real vanilla vault opened with the trial key;
+   `ominous_bargain` loses its gold toll.
+7. **A sidebar shows floor, lives, spawners, haul and compass.** Chat stays the log; critical lines also
+   show on titles and the action bar.
+8. **Feral retires for Restless.** New Act 1 dungeon The Kennels, a Hound Crypt floor in the Ossuary, a rare
+   Lost Dog room. Pets stay, per trip.
+9. **The Endless Mine hides ore** and gets richer with depth; `deep_shaft_landing` gets more ore.
+10. **Small items:** finished dungeons say Leave (the payout is already banked); every finish gets its own
+    title beat; effect caps generalise the poison cap.
+
+### Build order (each wave is one reviewable commit, tests green before the next)
+
+| Wave | Scope | Owed live before the next |
+|---|---|---|
+| A | sidebar, chat audit moves, Leave wording, finish title beat, effect caps | one trip: can he say his floor and haul unprompted |
+| B | Astrolabe Room (Q1): BUILT 2026-10-09, see PD-181 in `BUGS.md` for the list of deviations from the reply | played before C |
+| C | scrap curve (Q2): BUILT 2026-10-09, see PD-182 in `BUGS.md` | levels per trip |
+| D | finales and uniforms (Q4, Q5): BUILT 2026-10-09, see PD-184 and PD-185 in `BUGS.md` | Copper Works finish |
+| E | sculk and toll rooms (Q3, Q6): BUILT 2026-10-09, see PD-183 and PD-186 in `BUGS.md` | Hush Gallery, vault |
+| F | wolves and Restless (Q8): BUILT 2026-10-09, see PD-188 in `BUGS.md` (the wolf floor is Rootworks' Wolf Hollow, not the Ossuary's Hound Crypt) | |
+| G | ore (Q9): BUILT 2026-10-09, see PD-189 in `BUGS.md` | |
+
+### Supersedes
+
+- `docs/DECISIONS.md`: Earning (act and final bonus, half below compass), Knobs
+  (`SCRAP_PER_CHART` becomes `levelCost`), Migration (bar out of a varying cost). The haul model is kept.
+- `DUNGEON_STRUCTURE_DESIGN`: the three-door front offer, the forced capstone door, the Endless Mine on door 3,
+  the Ancient City pulse rules.
+- PD-181 to PD-190 answered; PD-178 generalised into `effectCaps`; PD-170 and PD-164 retired for the toll rooms.
+
+### To verify at build time (the reply asserts, the code decides)
+
+- Copper armour and copper tool item ids in 26.2.
+- Whether `Locks.Kind.HOPPER_KEY` has other users before `SpurToll` is retired.
+- Whether the finish vault repeats on a second finish (`Payout`), and whether the diary page repeats.
+- Which chat lines are chat-only today (`sendSystemMessage` audit) before moving them.
+- Whether `roomBias` is a hard filter anywhere besides Lemon's playtest bias.
+
+---
+
+## 2026-10-11: Affix workshop
+
+Running ledger. Nothing here is applied until the owner says so. Status: agreed, applied, deferred.
+
+Findings from the read (code, not decisions):
+- `weight` is loaded but unused; `AffixMath.pick` is a plain shuffle.
+- `incompatible` is empty on all ten affixes, and `pick` does not skip incompatible pairs despite the `AffixDefinition` javadoc.
+- Effect numbers mostly live in `PocketDungeonsConfig` (for example `swarmingMobFactor` 1.5, `overclockedCooldownFactor`), not in the affix JSON. The JSON values may be inert.
+- Feral is retired (`min_level` 999).
+
+| # | Affix | Decision | Exact change | Status |
+|---|---|---|---|---|
+| 1 | Cooked (`ominous`) | Keep. Show the ominous bonus on the floor clear big text (title). | Java change, not data: add a line to the floor clear title naming the Cooked bonus. Needs a build task and a LIVE_CHECKS entry. | agreed |
+| 2 | Swarming | Leave alone. | None. (Open nit: blurb says "more drops"; not verified.) | agreed |
+| 3 | Overclocked | Pay for speed: a floor cleared under a target time pays extra scrap. Target shown on the floor title. Cooldown factor 0.4 stays. | Java change (no par timer exists today). Starting numbers, to tune: target 360 s, bonus +1 scrap. Basis: BALANCE.md solo clears run about 190 to 640 s (median near 400), one outlier at 1190 s. Fix blurb to name the target. | agreed (numbers open) |
+| 4 | Loaded | Redesign as trapped chests: the guaranteed tool cache chest keeps its loot but opening it springs an ambush. Drop the dead `extra_trial_bodies` flag and the "more trial bodies" blurb. | Java change, build cost S to M (a use-block callback on the cache chest, no mixin; spawn a themed wave around the chest on first open, once). Data: keep `bonus_tool_pool`, remove `extra_trial_bodies`, rewrite blurb. Ambush size and mob list open. Must not soft-lock: ambush spawns outside the chest cell's doors and does not block the exit. | agreed (details open) |
+| 5 | Restless | Widen to every mob, not just undead. Risen mob is theme-matched (for example wolves rise as bone hounds). Fire still keeps them down. Keep the 2 s groan and soul telegraph. | Java change, build cost M: `RestlessRules.shouldRise` currently gates on undead type; add a per-theme rise table. Data: keep `undead_rise_chance` 0.3 and 0.5 (rename later). `min_level` 3 is dead (first affix at compass 5); set to 5 when convenient. Check each rise type against vanilla limits. | agreed (details open) |
+| 6 | Molten | Do nothing. (Held idea for Workshop 3: lava pockets with water making mineable obsidian.) | None. | agreed |
+| 7 | Explosive | Extend the mine fuse by 25 percent. No other change. | `RoomContent.java:452` `MINE_FUSE_TICKS` 20 to 25 (hard-coded constant, not a knob). Add a LIVE_CHECKS line when applied. Blurb nit left alone for now ("the only TNT you will ever find"). | agreed |
+| 8 | Silenced | Show the count: an action bar line "Silenced: n/3" after each consumable used. Rest unchanged. | Java change, build cost S: in `PressureSources.silencedUse` send an action bar message with the running count (the counter already exists). Player text per the player-text skill. Add a LIVE_CHECKS line. | agreed |
+| 9 | Voided | Exclude puzzle and ordeal cells from Voided, so a voided cell is only ever a plain traversal cell. Keep the three shapes. | Java change, build cost S: in `LayoutStamper.computeVoidedCells` skip cells whose room role is a puzzle or ordeal operation (read the role the way `isHazardEligible` does). Add a LIVE_CHECKS entry: first compass 45 trip. | agreed |
+| 10 | Incompatible pairs | None. Molten, Explosive and Voided can co-occur. (Note: `AffixMath.pick` ignores `incompatible` anyway, and `weight`; fix the javadoc or the pick when convenient.) | None. | agreed |
+| 11 | New affix: Blackout | Add. Sight pressure: lights go out in scattered cells, reusing the `DungeonLight` dim and dark logic. Ravenous and Tethered not kept. | New file `dungeon_affix/blackout.json` plus Java for the effect (build cost S to M; a closed-set operation like `dark_cells` in `AffixEffects` and `AffixMeta`). Label, blurb, min compass, which cells and whether a light source counters it are open. Must never darken a cell that `requiresLight`. | agreed, details open |
+| 12 | New: Wager and Blood | Every affix wagers 0 to 10 (`wager` in its JSON); a floor shows its total as "Loot n%" and a wagered floor pays one extra piece into the copper chest. Blood is a new affix that costs 1 life when the door is committed. | Built by T50: `Wager`, `WagerGear`, `dungeon_affix/blood.json`, `life_cost` in `AffixEffects`. Design: `docs/DECISIONS.md`. | built (T50), never played |
+
+### Workshop 1 complete
+
+Nothing applied. Every row except 2 and 6 needs Java. Live checks to add when each is built: 1, 3, 4, 5, 7, 8, 9, 11.
+
+---
+
+## 2026-10-11: Boss workshop
+
+Running ledger. Nothing here is applied until the owner says so. Status: agreed, applied, deferred.
+Build cost: S, M, L. No design here needs a new mixin unless flagged.
+
+| # | Dungeon (act) | Decision | Build cost | Exact change | Status |
+|---|---|---|---|---|---|
+| 1 | Mineshaft (1) | Dark phase: at half the wave dead the lights fail and the rest of the wave is cave spiders. | S | Finale code (`FinaleWave`) plus the `DungeonLight` dark logic; wave mix split in two phases in the dungeon's `finale` block (now 4 zombies, 3 cave spiders). Links to the Blackout affix. Add a LIVE_CHECKS entry. | agreed |
+| 2 | Lush Caves (1) | Owner concept, replaces the flood-phase proposal. Boss: a scaled-up slime; on its first split it becomes double the usual number of slimes. A dungeon wide effect: a random splash potion is dropped on the player at intervals (like the Cooked floor, but dungeon-owned), and the drop rate rises during the boss fight. | S to M | Finale code (`FinaleWave`): swap the drowned and slime wave for one giant slime (`Slime.setSize`, a plain entity API, no mixin). First split doubling needs a spawn listener on the children (vanilla splits 2 to 4, this tops it up), tagged so later splits are vanilla; check. Potion drop: a timed splash potion spawned above each member (vanilla `ThrownSplashPotion`), S. Pool, interval, telegraph and the boss rate multiplier open. Vanilla limits: all server-side, no client mod. | agreed (details open) |
+
+Carried to Workshop 3 (dungeon concept, not boss): treat one floor of Lush Caves as a swamp with witch haven rooms; fungal skeleton archers (vanilla bogged); clay shelves with vines to navigate; mushrooms; dead end pond rooms. Overlap to check: the potion drop is a dungeon wide effect, so decide whether it is an affix-like rule owned by the dungeon JSON or a new closed operation in `AffixEffects` (it would sit beside Cooked and Blackout).
+
+Lush Caves story frame (owner, 2026-10-11): witches brew potions and poisons on the upper floors; the lower floors have the brews dripping in from above. Working reading, not yet confirmed: witch haven rooms and bogged on the early floors (nodes 0 to 3 of 7: Moss Gate, Glow Berry Hollow, Clay Burrow, Wolf Hollow); the drip starts on the later floors, gets heavier with depth, and is heaviest on the Great Drip Cavern boss fight. Fits the floor name and the "drip" in `great_taproot`.
+
+Decision 2b (Lush Caves potion pool): option 1. About 70% harmful (poison, slowness, weakness, nausea), about 30% good (regeneration, speed, jump boost). Telegraph: the potion falls visibly about 2 seconds with a sound and particles. Early floors / later floors split taken as accepted (no objection). Numbers (interval, boss multiplier, per-floor ramp, harming from compass 5 or never) open. Status: agreed (details open).
+| 3 | Infestation (1) | Owner concept, replaces the egg-hatch proposal. Dungeon mechanic: a mossy stone brick appears, matures to stone brick, then to infested stone brick, then bursts and releases a silverfish. Boss: a giant silverfish that spawns in like the other bosses and attacks; after a while it burrows, and an adds phase starts: mossy bricks spawn and mature and burst into silverfish through the same mechanic. | M (mechanic) plus S to M (boss) | Mechanic: a staged block timer (`scheduleTick` or a mod tick list) over vanilla `MOSSY_STONE_BRICKS`, `STONE_BRICKS`, `INFESTED_STONE_BRICKS`; the burst spawns a silverfish and breaks the block with no drops (avoid the PD-75 free item leak). Boss: `Attributes.SCALE` on a Silverfish (vanilla, no mixin); burrow is invisible plus invulnerable plus teleported underground with block-dust particles, S. Vanilla limits: all server-side. Stage times, active brick cap, and rollout scope open. Counterplay to keep legible: each stage has a sound and crack particles, and the player can smash a brick before it matures. | agreed (details open) |
+
+Decision 3b (Infestation rollout): option 2. The creeping brick mechanic lives in the Silverfish Nests and Chewed Corridors rooms and in the boss fight, not floor wide. Status: agreed (details open).
+| 4 | The Kennels (1) | Kill the handler. The pillager handler makes a gesture, then the wolves scale up and turn red. Killing the handler is the counterplay. | S to M | `FinaleWave` + the finale `elite` block. Handler gesture: the vanilla celebrating arm pose (`Raider.setCelebrating`) plus a horn sound. Scale up: `Attributes.SCALE` on the wolves (vanilla). Red: true tint needs a client mod, so use the vanilla angry wolf state (red eyes) and a red glow outline from a scoreboard team colour. Prerequisites, not design: wolves must spawn (PD kennel floors are stone, wolves need grass) and fire spread must be off in the Kennels (2026-10-09-1). Trigger timing, scale amount, and whether killing the handler shrinks them back are open. | agreed (details open) |
+
+Decision 4b (Kennels trigger): option 1. At half the Alpha's health the handler starts a 5 second windup (celebrating pose, horn). Killing it during the windup cancels the empower; killing it afterwards shrinks the pack back. Scale amount open. Status: agreed (details open).
+| 5 | Ossuary (1) | Coffins. The burial hall has sealed sarcophagi; the wave rises from them one at a time as the player crosses the room. A skipped coffin opens when the player turns their back. | S to M | `FinaleWave` + the `last_rest` room (`FinalFloorSpecs`/room NBT); coffin blocks via vanilla state changes, rise telegraphed. Links to the Restless affix. No mixin. Coffin count, trigger radius and rise delay open. | agreed (details open) |
+| 6 | Spawner Dungeon (1 capstone) | Owner direction: as the Act 1 capstone it is the biggest fight, built from mechanics of the earlier Act 1 dungeons. Structure open. | M to L, last to build | `CapstoneFights`/`BroodWave` (four spawners at `CapstoneSpecs.BROOD_SPAWNERS`). Depends on the earlier mechanics existing first: Mineshaft dark phase, Lush Caves potion drip, Infestation creeping bricks, Kennels handler empower, Ossuary coffins. Build order: capstone after those. | agreed (structure open) |
+
+Decision 6b (Spawner Dungeon structure): option 1. Spawner as phase. Each of the four spawners, once broken, releases one earlier mechanic that then stays on (Ossuary coffins, Infestation bricks, Mineshaft dark phase, Lush Caves drip). After the fourth, the brood mother arrives with the Kennels handler-empower beat and a sped-up drip. Spawner to mechanic order, brood mother design and the numbers are open. Status: agreed (details open).
+| 7 | Endless Mine (1) | Deferred to Workshop 3 (decide a depth guardian with the Endless Mine concept). | n/a | None. | deferred |
+| 8 | Cow Pits (2) | Specimen 0. Feeding the pedestal cow ("Specimen 0 (do not feed)") wakes it: a huge cow (scaled) that leads the herd. Obeying the sign skips the fight and the reward chest. | S to M | `CowPits.WARD_PEDESTAL_NAME` and the Big Barn rooms; `Attributes.SCALE` on a cow, a use-item hook on the pedestal cow (no mixin). The Big Barn has no `finale` block today. Pedestal in the Barn (it is only in `cow_ward` now), the reward and the scale are open. | agreed (details open) |
+| 9 | Deepslate (2) | Hush rule. The Silent Deep uses the Heard meter: sensors listen, a loud fight fills it, a full meter answers with darkness and a Warden whelp (never the Warden). Plants the Ancient City rule early. | S to M | The Heard meter already exists (decision 2026-10-09); add sensors to the `silent_deep` room and a threshold of 4 for the whelp. The Deep Sentry elite stays. Meter rise per bow shot and per fight noise, and the whelp count, open. | agreed (details open) |
+| 10 | Copper Works (2) | Furnace fires. The Master Furnace vents pulse on a readable rhythm and burn anyone in a lit zone; the Foreman (vindicator, 60 hp, copper axe) weakens when he steps into the water vats. | S to M | `master_furnace` room (`FinalFloorSpecs`) plus the finale code; vent pulse by timed fire or magma blocks, vats by water blocks, no mixin. Pulse interval, damage, vat count and how much the Foreman weakens are open. Must keep an exit path clear of the vents. | agreed (details open) |
+| 11 | Frostworks (2) | Freezing meter. The Big Freeze uses vanilla freeze ticks: staying out of the warm spots (braziers) freezes players, so they move between fire and cover while the Frost Warden fights. | S | `big_freeze` room: powder snow or snow zones plus warm spots; `Entity.setTicksFrozen` (vanilla, no mixin). Braziers must be the readable counter (campfire or lava-free heat). Zone layout and freeze rate open. Overlap noted: Deepslate and Frostworks both have a bow elite. | agreed (details open) |
+| 12 | Ancient City (2 capstone) | Leave it; playtest first (L31). Option 2 (remix of the Act 2 mechanics) is held for Workshop 3. | n/a | None. Add nothing until a player has been through it. | deferred |
+| 13 | Prismarine (3) | Drain the Heart. The Heart of the Monument floods with the wave; levers or valves (the Rusted Pumps) drain it in stages, which beaches the guardians (slow and flopping on land). The water level is the visible clock. Avoids repeating `elders_chamber`. | M | New `monument_heart` room logic (`FinalFloorSpecs`) plus a finale block in `prismarine.json` (none today); vanilla water blocks and levers, no mixin. Land behaviour of guardians and drowned to verify live. Number of stages, guardian count and the reward are open. | agreed (details open) |
+| 14 | Drowned Vault (3 capstone) | A drowned boss. Replace the ravager with a scaled drowned holding a trident in a flooded arena; the water level provides the phases. Rename it so it no longer clashes with the one-Warden rule ("The Drowned Warden" is a ravager today). Option 1 (full Act 3 remix, L) held as a stretch once the Prismarine drain exists. | M | `BossContent.spawn` (ravager, tagged, `BOSS_SCALE_FACTOR` 3.0) and the `wardens_deep` room (`FinalFloorSpecs`). Drowned thrown tridents are vanilla; no mixin. New boss name, arena depth and phase water levels open. The pad gate `bossAlive` stays. | agreed (details open) |
+| 15 | Basalt Foundry (4) | The pour. The Great Crucible ladle tips on a timer (bell and glow telegraph), flooding a lane with lava while the wave attacks; players cross on cooled basalt (the lava hardens after a pour). The elite is a magma-armoured piglin brute. The pour sweeps across the room, unlike the Copper Works vents, which are fixed. | M | `great_crucible` (`FinalFloorLateSpecs`) plus a new finale block in `basalt_foundry.json` (none today); lava and basalt block swaps on a timer, no mixin. Lane count, pour interval and hardening time open. Must never trap a player with no basalt path. | agreed (details open) |
+| 16 | Blackstone (4) | The Hoard Lord. A scaled piglin brute with a gold phase: it takes less damage while gold lies on the floor, and players grab the gold (a visible pickup) to open it up. Avoids repeating the Foundry elite. | M | `bastion_keep` room (`FinalFloorLateSpecs`) plus a new finale block in `blackstone.json` (none today); damage reduction via an attribute modifier or effect while gold items are present, vanilla piglin behaviour, no mixin. Gold pile count, damage reduction and what the gold is worth (it must not become a free scrap source) open. | agreed (details open) |
+| 17 | The Wither's Keep (4 capstone) | Not decided. Proposed: leave it for a playtest first (the vanilla Wither with the two mixins is built). Owner paused here. | n/a | None. | open |
+
+### Workshop 2 paused
+
+Not yet walked: Ender Archive, The End (Act 5), Herobrine (Act 5 capstone). Wither's Keep awaits an answer. Nothing applied. Every decided row is Java (some with room NBT); a live check is owed when each is built.
+
+---
+
+## 2026-10-11: Dungeon and act concepts (Workshop 3)
+
+Running ledger for Workshop 3. Nothing is built until the owner approves the roadmap at the end.
+
+### Act shape
+
+| Item | Decision | Status |
+|---|---|---|
+| Act shape | Keep five acts, one capstone each, unlock chain as is (D8, D29). | agreed |
+| Act 3 | Propose a second Act 3 dungeon in the concepts step. | agreed |
+
+### Act 1
+
+| Dungeon | Decision | Status |
+|---|---|---|
+| Mineshaft | Keep the current concept (Steve's first mine, cave-ins and seams, dark phase finale). The Borrowed Mine idea not taken. | agreed |
+| Lush Caves | Keep, as the concept (swamp with witch havens and bogged on early floors, potion drip below, giant slime). Name stays "Lush Caves". Wolf Hollow and Sapping Den overlaps noted. | agreed |
+| Endless Mine | Layer guardian every 3 floors (was a layer every 5 to 6). Loot in three tiers A, B, C: the tier rises every guardian (floor 3 A, floor 6 B, floor 9 C), capped at C, so a player past floor 9 gets tier C every 3 floors. Each act has its own Endless Mine (five mines). Open: what each guardian is, what the tiers contain, what replaces the old act gate (D13, D29: a mine layer reached at 5, 11, 17, 23), and each act mine concept. Supersedes the single-mine, four-layer table in `ZONES_SPEC` section 3.5 and the Endless Mine rows of the unlock chain. | agreed (details open) |
+| Endless Mine act gate | Reaching floor 3 (the first guardian) in the previous act's mine counts toward opening the next act. Replaces D13 and D29 floors 5, 11, 17, 23. Which guardian counts when a player skips a mine, and the exact wording, open. | agreed |
+| Infestation | Keep, as the concept (the night Steve lost the stone house, creeping bricks in nest rooms, giant silverfish boss). The bricks belong to the Infestation; Lush Caves `sapping_den` should drop `infested_wall`. | agreed |
+| Kennels | Keep, as the concept (pillager lodge, hostile pack, handler and Alpha boss). Overlap noted: three dog rooms in Act 1 (`lost_dog`, Kennels, planned Hound Crypt). | agreed |
+| Ossuary | Keep, as the concept (a counted catacomb, coffins finale). The torch ending not taken. Overlap noted: Restless on an Ossuary floor doubles the rise. | agreed |
+| Spawner Dungeon | Keep, as the concept (the cage waiting since Steve's first night; four spawners each release an earlier mechanic; brood mother last). Build it last, after the five mechanics it echoes. | agreed |
+| Act 1 Endless Mine | Guardian approach 1: a mini of each Act 1 boss, escalating (floor 3 small silverfish queen, floor 6 a pack with a handler, floor 9 a coffin wave). Every guardian is harder than the last with no cap: past floor 9 the three repeat, each lap harder. Tiers A, B, C inside the act's loot band (A coal, iron, copper; B adds gold, lapis; C adds redstone and a diamond chance), placeholders for tuning. Hardness curve and the exact mini designs open. | agreed (details open) |
+| Cow Pits | Keep Specimen 0 and add a third floor, the Milking Parlour (a clinical dairy floor with more numbered specimens). Where it sits (between Pen Gate and The Big Barn, probably), its rooms and what the milk is open. Retire the borrowed mineshaft rooms from the roomBias when it exists. | agreed (details open) |
+| Deepslate | Keep the concept (where Steve found his first diamond, the echo that never stopped, the Hush rule finale). Shorten the run from 5 floors to 4; the 9 floor pool stays for variety. Which layer drops is open. Correction logged: node counts are the pool, a run walks one path (see the floors per run table in the chat). | agreed (details open) |
+| Deepslate layer | Drop layer 4. Layer 3 leads straight to The Silent Deep. The blood door (1 life) moves to Deep Quarry straight to the Silent Deep. `deep_dark_landing` (Pale Gallery) moves into Tuff Cellars or the Silent Deep approach. Collapsed Landing and Pale Gallery leave the graph. Exact JSON to be shown before any edit. | agreed |
+| Copper Works | Take the ticking clock: a visible countdown on the Master Furnace that the whole dungeon feeds. Clearing spawners and pipe floors slows it; at zero the furnace blows and the finale wave arrives early (a soft failure, not a run failure). Where it shows (action bar, boss bar or a sign), the numbers and how it relates to the Overclocked par time are open. Also owed: declare `hiddenOre` (copper, coal, iron) so the floors match the name, and give Gear Loft a room bias. | agreed (details open) |
+| Frostworks | Keep as is, with the cold and heat mechanic (freeze ticks, braziers as warm spots) at the finale. Run stays 5 floors. Footprints idea not taken. Open: whether cold and heat also runs on earlier floors, and the Frost Warden name next to the Warden rule. | agreed |
+| Ancient City | Keep as is (a city nobody built, every sensor armed, the Warden wakes itself). The Act 2 remix is not taken; boss stays a playtest question (L31). | agreed |
+| Act 2 Endless Mine | Keep: the Deep Mine, a working mine pushed deep (rails, lifts, carts), omen as echo. Guardians at floors 3, 6, 9 are minis of the Deep Sentry, the Foreman and the Frost Warden, each lap harder. Tiers A, B, C inside the Act 2 band, diamond in C. | agreed (details open) |
+
+### Act 3
+
+| Dungeon | Decision | Status |
+|---|---|---|
+| Prismarine | Keep as the concept (the monument, the drain finale). Tone: SCP pool rooms (liminal tiled pools, endless water, a hum). Add a mechanic to test: an invisible entity whose particle effects give away its position. The lighthouse sweep not taken. Open: what the entity does, where it lives, how it is hit. Pump room and water breathing to confirm live. | agreed (details open) |
+| Prismarine: The Wake (new ordeal) | The hunter becomes an Ordeal, room id `the_wake`, on the Guardian Galleries floor. Objective: cross a tiled pool hall to the far lever. Danger: an invisible hunter (drowned, invisibility effect) that only hunts players standing in water; its position shows as bubble and ripple particles plus a hum that rises as it nears, and a ping about 3 seconds before a bite. Counterplay: dry tile islands to hop between, or placed blocks as stepping stones (the skill route and the resource route, per ORDEALS.md vertical convention); hit the particles to kill it. Resolution: the lever and lamp pair, one way, protected. Party size adds hunters (1 per 2 members, max 3). Reward for killing it still open. Build cost M (new `HunterOrdeal` class, room NBT via the room-building skill, a target filter tick). Player lines draft: arm "Something is in the water.", resolve "The water is still." | draft |
+| Haunts | New mechanic class replaces the one room Wake: floor wide roaming creatures with a learnable rule, engaging the player now and then. Draft in `docs/DECISIONS.md`. The Wake becomes the first haunt, in Prismarine. Open: how the rule is learned, pressure source, kill reward. | draft |
+| Haunts: learning | Tell plus field note: the title says only "Something walks here"; the first real tell writes one rule line in chat; a diary entry tells the story. Slow introduction: on the first floor the haunt stalks without attacking and vanishes several times (horror pacing). Ladder counting open. | agreed (details open) |
+| Haunts: ladder | Counted by floor: floor 1 sighting (stalks, vanishes, no attack), floor 2 near miss, floor 3 onwards strikes. A 2 floor dungeon (Cow Pits) carries no haunt or only teases. | agreed |
+
+### Act 3 onwards: paused
+
+Owner, 2026-10-11: enough for Workshop 3. Test Acts 1 and 2 first and see what works before the remaining acts. Not walked: the Drowned Vault concept (the Shape; presented, unanswered), the second Act 3 dungeon (agreed to propose, not yet proposed), the Act 3 Endless Mine, Act 4 (Basalt Foundry, Blackstone, Wither's Keep, Act 4 mine), Act 5 (Ender Archive, The End, Herobrine, Act 5 mine). Boss decisions for those dungeons in `docs/DECISIONS.md` stand but are not to be built yet, except where they feed Acts 1 and 2.
+
+> Status at 2026-10-12: Acts 1 and 2 of this roadmap are built and merged (see `docs/DECISIONS.md`). The
+> Endless Mine rows above are built as one mine per act with the floor-3 gate (`docs/DECISIONS.md`).
+
+> Status at 2026-10-13: partially reopened for the three objective-floor
+> dungeons (Sunken Treasury, Lighthouse Below, Gilded Seam), built as the
+> heist, haunt and claim floor types (`docs/DECISIONS.md`).
+> The Drowned Vault concept and the remaining Act 3 to 5 items stay paused.
+---
+
+## 2026-10-11: Haunts (floor-wide stalkers)
+
+Status: draft for the owner. Nothing is built. Born in the concepts workshop, replacing the one room hunter ("The Wake" as a single Ordeal).
+
+### One sentence
+
+A haunt is a creature that roams a whole floor, follows one simple rule the player can learn, and engages the player now and then, the way a Lethal Company monster does.
+
+### How it differs from what exists
+
+| Mechanic | Scope | Lives in |
+|---|---|---|
+| Ordeal | one room, ends with a lever | `Ordeal.java`, `Ordeals.java` |
+| Affix | the whole run, a rule bent | `dungeon_affix/*.json` |
+| Heard meter | one sculk room, sound fills a bar | `SculkOmen` |
+| **Haunt** | **the whole floor, a creature with a rule** | new |
+
+### The parts
+
+1. **A definition per haunt** (data, a closed set of behaviour kinds, like affixes): id, label, which themes and compass levels, its behaviour kind, its tell (particles, a sound), its strike (damage or an effect), its counter, how long it retreats after a strike.
+2. **A director** that runs per floor. It decides when a haunt wakes, from a pressure number that rises with time on the floor, omen and noise, and falls when the party clears rooms. One haunt per floor at a start, capped by party size.
+3. **A closed set of behaviour kinds**, each a few lines of server tick code:
+   - `HUNT_IN_WATER`: only targets players standing in water (the Wake).
+   - `STALK_WHEN_UNSEEN`: moves only while no player looks at it (dot product of the look vector); strikes if reached.
+   - `DRAWN_BY_SOUND`: walks toward the loudest recent noise (ties to the Heard meter).
+   - `FOLLOWS_LIGHT`: drawn to lit torches and lanterns, avoids the dark.
+4. **Fairness rules, fixed for every haunt:**
+   - always a tell before a strike (a sound or particles, at least about 2 seconds);
+   - always a counter the player can learn without dying;
+   - after a strike it retreats, so it never chain kills;
+   - never active in the entrance room, the lodestone pad, an armed Ordeal's lever room, or during a finale;
+   - a death is an ordinary death: a life, as everywhere.
+5. **Legibility (owner decision 2026-10-11).** The floor title says "Something walks here." The first time a haunt gives a real tell, one chat line states the rule in few words (for example "It hunts in water."). A diary entry per haunt gives the story. Per the player-text skill. The rule is learned on first contact, not by dying.
+5a. **Slow introduction (owner decision 2026-10-11).** Horror game pacing. On the first floor of a dungeon the haunt stalks the player but does not attack, and vanishes, several times: seen at the edge of a room, gone when approached, its tell (particles, a sound) left behind. Only later does it strike. How the ladder is counted (by floor or by encounter) is open, see Open questions.
+6. **Scaling.** Compass sets the strike and the number of haunts; ominous adds one; party size raises the cap.
+
+### Vanilla limits (all server side, no client mod)
+
+- Bodies are ordinary mobs (drowned, skeleton, zombie, enderman) with the invisibility effect or a held pose; the tell is particles and sounds sent from the server.
+- Looking detection is the server comparing the look vector with the direction to the mob.
+- No custom model or animation. Anything that needs one is out.
+- Needs a tick hook per active haunt; the cap keeps cost low. No mixin is expected.
+
+### First haunts (one per theme, to test one at a time)
+
+| Haunt | Theme | Rule | Counter |
+|---|---|---|---|
+| The Wake | Prismarine | hunts players in water, shown by bubbles and a hum | stay on dry tile, or hit the ripples |
+| The Counted | Ossuary | moves only when unseen | keep it in view, back away |
+| The Listener | Deepslate and Ancient City | walks toward noise | go quiet, sneak, throw bait |
+| The Tenant | Lush Caves | follows light | douse torches, use the dark |
+
+### Build cost
+
+- Director and definition loader: M.
+- Each behaviour kind plus its tell: S to M.
+- First test: The Wake only, in Prismarine: M in total.
+
+### Risks
+
+- Feels like a second Heard meter or omen; keep the pressure number separate and visible, or fold it into omen. Open.
+- A haunt that cannot be seen or heard is unfair; every haunt needs a playtest of its tell.
+- Griefing a party by pulling a haunt onto a teammate; the retreat rule covers it.
+
+### Open questions
+
+1. DECIDED 2026-10-11: counted by floor (floor 1 sighting, floor 2 near miss, floor 3 onwards strikes). Consequence: a 2 floor dungeon (Cow Pits) never reaches a strike, so it carries no haunt, or only teases. Options considered: by floor, by encounter, by pressure. How the slow introduction is counted: by floor (floor 1 sighting, floor 2 near miss, floor 3 on strikes), by encounter (the first few meetings are teases whatever the floor), or by pressure. Run length varies from 2 to 5 floors, which favours counting by encounter.
+2. Whether pressure is its own number or the existing omen.
+3. Whether a killed haunt returns, and what killing one pays.
+
+---
+
+## 2026-10-11: Endless Mine, one per act
+
+Task T40 of `docs/DECISIONS.md`. Owner decisions from `docs/DECISIONS.md` (the Endless Mine
+rows and the act gate row). This is the engine and the data model; the real guardians are tasks T41 and T42.
+
+### The model, in the player's words
+
+Every act has its own Endless Mine. A guardian waits on every third floor (3, 6, 9 and on), and that floor is the
+checkpoint that pays: the first guardian pays tier A, the second tier B, the third and every one after pays tier C.
+Every guardian is harder than the last, with no cap. Clearing the first guardian floor of an act's mine counts
+toward opening the next act. There are no depth layers and no sealed shaft any more.
+
+### The numbers
+
+| What | Value | Lives in | At risk |
+|---|---|---|---|
+| Guardian cadence | every 3rd floor | knob `endlessGuardianEvery` (3) | nothing; the party can go HOME at any checkpoint |
+| Guardian number n | floor / 3 | `EndlessMineRules.guardianNumber` | |
+| Lap slot | `(n - 1) mod 3 + 1` (the act's three guardians repeat) | `EndlessMineRules.slot`, `lap` | |
+| Hardness | `1 + 0.25 (n - 1) + 0.5 lap`, no cap | knobs `endlessGuardianHardnessStep` (0.25), `endlessGuardianLapStep` (0.5) | guardian stats, count, damage (each guardian defines its own use) |
+| Loot tier | guardian 1 A, guardian 2 B, guardian 3 and later C | `EndlessMineRules.tierIndex`, tables `loot_table/endless_mine/act<N>_<a/b/c>.json` | |
+| Act 1 tier A | coal, iron, copper (plus cobblestone, torch) | `act1_a.json` | |
+| Act 1 tier B | A plus gold and lapis | `act1_b.json` | |
+| Act 1 tier C | B plus redstone, plus a 15 percent diamond | `act1_c.json` | |
+| Act 2 tier A | iron, gold, lapis (plus cobblestone, torch) | `act2_a.json` | |
+| Act 2 tier B | iron, gold, lapis, redstone, fatter piles | `act2_b.json` | |
+| Act 2 tier C | A and B stock, fattest piles, plus a 30 percent diamond (1 or 2) | `act2_c.json` | |
+| Floors between guardians | the ordinary floor haul, at the mine's loot band minimum | `LootBands.floorTier` | |
+| Act gate | the act's mine cleared to floor 3 (its first guardian) | `ActProgress.mineTarget`, `MineDepth.reaches` | |
+| Act 1 mine | `endless_mine`, band 1 to 2, base level 1, door at compass 3 | `dungeon/endless_mine.json` | |
+| Act 2 mine | `endless_mine_deep` (the Deep Mine): Deepslate, tuff, dripstone; band 2 to 3, base level 6, door at compass 6 | `dungeon/endless_mine_deep.json`, `dungeon_theme/endless_mine_deep.json`, `worldgen/processor_list/theme_deep_mine.json` | |
+
+Quantities in the tier tables are placeholders for tuning. The placeholder guardian is a ring of vanilla mobs
+(zombies in the Act 1 mine, skeletons in the Deep Mine), `round(1 + 2 hardness)` of them (3 at hardness 1, capped at
+24), their stats multiplied by `ordinary mob scale x (1 + hardness)`.
+
+### The rules
+
+1. A mine is a dungeon json of kind `endless` with an `act`, hall `special`. The astrolabe shows the mine of the act it
+   is turned to, once that act is open and the compass reaches the mine's level (`baseLevel`, so the Deep Mine opens
+   where the Act 2 dungeons do). Acts 3 to 5 get a mine by adding a dungeon json, a theme, an adventure, and tier
+   tables `act<N>_a/b/c`; no Java changes. Until a mine exists for an act, that act asks nothing of a mine.
+2. Every floor of a mine is stamped in that mine's own theme, palette, hidden ore and loot band. The run remembers which
+   mine it is in (`IntervalState.mineDungeonId`, in memory like the rest of the interval).
+3. On floor `k * 3` the terminal cell holds the guardian. The registered guardian for the act and the lap slot spawns;
+   with none registered the placeholder wave does. Its pad stays shut ("The guardian still stands. Finish it first.")
+   until every tagged mob is dead.
+4. Clearing a guardian floor fills the reward barrel from the guardian's tier table for the mine's act (the table
+   replaces the tier table for that floor; the chest count is unchanged). A floor between guardians fills it from the
+   ordinary tier table as before.
+5. The party can go HOME at any checkpoint as before. Banking is the same average-of-doors rule; the Mine never raises
+   the power ceiling.
+6. The deepest cleared floor is kept per mine. The Act 1 mine keeps the old `deepest_mine_floor` field; later mines
+   live in `mine_floors`. "Reaching floor 3" means clearing floor 3, the guardian floor, since the record is written
+   when a floor is cleared.
+7. A mine floor's level is the mine's `baseLevel` plus the floors down plus the dealt step, clamped to the compass
+   maximum.
+
+### Migration
+
+- Saves: `mine_floors` is a new optional map (act number to floor), left out of the written save while empty, so every
+  existing fixture still reads and writes byte for byte as before. `deepest_mine_floor` is unchanged and is the Act 1
+  mine's record. A malformed act key in `mine_floors` is dropped; a key for act 1 is ignored. Golden fixture
+  `src/test/resources/dungeonlog/mine_floors.json` pins the new shape; the existing fixtures pin the old ones.
+- Acts: a player who already passed an old layer threshold keeps the act. `MineDepth.reaches` treats the old record as
+  satisfying the new gate: floor 5 of the old mine for act 1 (and so any record of 3 or more), floor 11 for act 2,
+  17 for act 3, 23 for act 4. Opened acts are stored sets and are never taken away.
+- A shaft that was sealed at a layer boundary is not sealed any more; the in-memory sealing state is gone.
+
+### Supersedes
+
+- `docs/ZONES_SPEC.md` section 3.5 (the four depth layers, floors 1 to 5, 6 to 11, 12 to 17, 18 and on) and the
+  mine payout rows of its section 5 in so far as they name layers.
+- `docs/DUNGEON_STRUCTURE_DESIGN.md` D13 (each depth layer needs its act; the loot tier climbing every 3 floors within a
+  layer's band) and the Endless Mine part of D29 (the mine reached the bottom of the act's layer, floors 5, 11, 17, 23).
+  The mine still opens in Act 1 on `endlessMineUnlockLevel`.
+- The Mine theme's `loot_tier_every: 3` zone rule (removed from `dungeon_theme/endless_mine.json`).
+- `docs/DECISIONS.md`: the Endless Mine row, the act gate row and the Act 1 and Act 2 Endless Mine rows are now
+  built as an engine; the guardians themselves are T41 and T42.
+
+### Knobs
+
+- `endlessGuardianEvery` (3), `endlessGuardianHardnessStep` (0.25), `endlessGuardianLapStep` (0.5) in
+  `pocketdungeons.json`. The act gate follows `endlessGuardianEvery`.
+- `endlessMineUnlockLevel` (3): the compass for the Act 1 mine's door. Later mines use their `baseLevel`.
+- Loot: the six tier tables under `loot_table/endless_mine/` (quantities, weights, the diamond chances).
+- Per mine data: `lootBand`, `baseLevel`, `nodePalette`, `hiddenOre` in the dungeon json; the palette in the theme and
+  its processor list.
+- `tools/tune_loot.py` tunes spawner key weights only; it does not touch these tables. They are exempt from the K and K2
+  loot policy on purpose (`endless_mine/` in `tools/loot_rules.py` and `LootRulesTest`), because copper, gold and
+  redstone are the owner's asked-for mine payout.
+
+### Open until played
+
+- Does a guardian every 3 floors feel like a rhythm or a chore? Is the first guardian (floor 3, about three floors of
+  work) a fair gate for the next act?
+- Should the gate count arriving on floor 3 rather than clearing it? Today it is clearing, because the record is written
+  at a floor clear and the guardian floor is the paying checkpoint.
+- Is a ring of plain mobs a fair stand-in, and does the hardness curve (1, 1.25, 1.5, then 2.25, 2.5, 2.75, then 3.5)
+  climb too slowly or too fast? Do ordinary floors between guardians still feel worth the descent without the old
+  per-floor tier climb?
+- Tier C pays on every guardian from the third on, so deep mining is a steady faucet. Is that too much raw material?
+- The Deep Mine palette (tuff bricks 30 percent in place of stone bricks, dripstone block 8 percent in the floor) is
+  a first pass and unseen.
+
+---
+
+## 2026-10-12: Wager and the loot skew
+
+Owner direction, 2026-10-12: "Blood" becomes an affix that simply costs 1 life. Every affix has its own value based on its difficulty or wager; the sum of the values heavily skews the loot odds.
+
+Status: approved 2026-10-12 with the choices below. Built by task T50.
+
+### The rule in the player's words
+
+*The harder the floor's affixes, the better the loot. Every affix says how much it wagers; the door shows the total.*
+
+### Wager values (proposed, to tune)
+
+| Affix | Wager | Why |
+|---|---|---|
+| Swarming | 1 | more bodies, nothing new to learn |
+| Overclocked | 1 | faster spawners, but it pays a par bonus |
+| Silenced | 1 | a cost on healing, shown as n/3 |
+| Blackout | 2 | sight pressure |
+| Explosive | 2 | floor mines |
+| Molten | 2 | floor lava |
+| Loaded | 2 | an ambush on a free cache |
+| Restless | 2 | every mob rises once |
+| Voided | 3 | falls, compass 45+ |
+| Cooked | 3 | the whole run ominous |
+| Blood | 3 | costs 1 life |
+
+A floor's wager is the sum over its affixes. Compass 5 to 24 carries one seeded affix, 25 to 44 two, and so on, so a typical sum runs 1 to 3 early and 6 to 9 late.
+
+### Blood
+
+An affix that costs 1 life, nothing else. It follows the old blood door rule: refused unless at least one life would remain after the cost (`docs/DECISIONS.md`). It replaces the `lives` edges in the dungeon files (the Deepslate blood door could not be built under the loader; this removes that problem).
+
+### The skew: the copper chest piece (owner clarification, 2026-10-12)
+
+The summed wager decides what the copper chest at the end of the floor pays. It does not touch the chest and vault
+tier tables.
+
+**Rule.** A floor whose affixes wager something pays one extra piece of gear into its copper chest, seeded like
+promised gear (owner, trip salt, node; `PromisedGear.extraSeed`), so the door board and the chest agree. The piece is a
+weapon, a tool, a piece of armour or a material, picked evenly. The tier starts at the floor's base tier (the node's own
+`gear:<slot>:<tier>` reward if it has one, else the dungeon's loot band floor) and rises by one with a chance of
+`min(wagerTierChanceCap, wagerTierChancePerPoint x wager)` percent (20 per point, capped at 90), never above the dungeon's
+loot band (D10). Wager 0 pays nothing extra. `wagerGearEnabled` false turns the whole thing off.
+
+- `material` is a new gear slot: `loot_table/gear/material_1..4` (iron and lapis, then diamonds and emeralds, netherite
+  scrap at tier 4). Tier 4 tool and armour tables were added so a band 4 dungeon can draw them.
+- Not built: a better enchant level at wager 6 and up. The gear tables set `enchant_with_levels` in data, so a bonus
+  would need a second code path; left out.
+- Code: `Wager`, `WagerGear` (pure), `PromisedGear.extraPick` / `rollExtra`, `RunLifecycle.promisedItems`,
+  `DungeonScreen.previewGets`. Tests: `WagerTest`, `WagerGearTest`, `WagerGearGameTest`.
+
+#### Superseded options
+
+1. Upgrade chance on every chest draw: not chosen.
+2. **Luck weights on the tier tables (was recommended): superseded by the owner's clarification of 2026-10-12.**
+   No `quality` was added to any table.
+3. Bonus rolls on every chest: not chosen (fights finite resources).
+
+### Where the player sees it
+
+The player never sees the word "wager" or its raw number. The door shows a loot percentage,
+`100 + lootPercentPerWager x wager` (the knob is 50): "Loot 100%" for a floor with no affixes, "Loot 200%" at wager 2,
+"Loot 400%" at wager 6.
+
+- The door board and the deal sheet: "Loot 200%" after the affix names, white at 100 and gold above. The piece the
+  floor adds is named in the line of what the floor gives, beside the other promises.
+- The floor title: the affix lines, then "Loot 200%" as the last line (always shown, "Loot 100%" with no affixes).
+- The percent is real (docs/DECISIONS.md): the floor pays round((base + depth) x pct/100)
+  rolls. The copper chest rule above is a second, separate payout.
+- The chest or vault itself needs nothing.
+
+### Decisions (owner, 2026-10-12)
+
+1. Blood pays its 1 life once, when the door is committed.
+2. The skew is the extra copper chest piece (was: luck weights, option 2, superseded the same day).
+3. The player reads "Loot n%", never "wager".
+
+---
+
+## 2026-10-13: One loot system, the wager percent pays
+
+PD-207 (playtest 2026-10-13-1). The door board printed two numbers that both said "loot":
+`Loot 250%` (the affix wager, display only) and `loot x3` (the floor's barrel roll count). The
+player asked which was which on sight.
+
+Owner call: "lets just have the one loot system using the affix wager and %", then picked
+"Percent scales chest rolls" from the design options.
+
+### The rule
+
+`Loot n%` is the floor's loot multiplier and the only loot number. A cleared floor pays
+
+    rolls = round((baseRewardChests + depthBonus) x n / 100)
+
+with the won-finale chest still added flat on top (`FinaleWave.rewardChests`, not scaled; it is
+a completion prize, not odds). At `lootPercentPerWager` 50 that reads: Loot 100% pays the base,
+Loot 250% pays 8 rolls on a base of 3, Loot 400% pays 12. Rounding is half up
+(`Wager.scaledChests`).
+
+The wagered floor's extra copper chest piece (`WagerGear`) stays: it is gear, not loot rolls,
+and the deal sheet names it with the other promises.
+
+### What the player sees now
+
+- Door board name line: `Hollow Walls . Overclocked . Loot 250%` (white at 100, gold above).
+- Door board green line: `8 rolls . costs 2 scrap`, the count the percent implies for this
+  floor's depth. The word "loot" appears once.
+- Deal sheet and floor title: the same Loot percent, unchanged.
+- Cleared verdict and the bar between floors: `8 loot rolls, chart scrap` reads the real stored
+  count (`FloorState.rewardChests`).
+- HOME: `N chests in your reward barrel` is now the deepest floor's actual roll count
+  (`IntervalState.floorChests`, recorded at each clear), not a formula recomputed at settle.
+
+### Not done
+
+- The vault's finish rolls are not scaled; the percent wagers on the floor, not the finish.
+- No knob for the scaling itself: the shape is fixed by `lootPercentPerWager` plus
+  `baseRewardChests` and the zone's `depthBonus`. A separate scaling knob would split the one
+  system again.
+- `Payout.payoutCommand` still takes the chest count; it now receives the deepest floor's count.
+
+### Tests
+
+- `WagerTest.scaledChests`: 100% pays base, 200% doubles, 250% rounds 7.5 up to 8, a zero knob
+  and a negative wager never pay below base.
+- `IntervalBankingTest`: the settle count is the deepest floor's rolls; empty trip still banks
+  the base.
+- `BankAnywhereGameTest` builds its records with per-floor `floorChests`, mirroring production.
+
+Supersedes: nothing. Amends `docs/DECISIONS.md`'s "display only" line.
+
+Open question: whether the deal sheet should also state the scaled count (`8 rolls`) on floors
+the player has not committed yet, or only the percent. Both are on the board already.
+
+---
+
+## 2026-10-13: Act 3 and 4 floor types (heist, claim, haunt)
+
+The player's sentence: *a floor is no longer always a spawner hunt; three new
+kinds ask a different question.* A heist floor asks whether you can crack the
+vault and get out while it wakes. A claim floor asks how many veins you will
+stake while the seam fights back. A haunt floor asks whether you can light the
+beacons while the Keeper walks.
+
+Built as three dungeons: `sunken_treasury` (heist, act 3, baseLevel 13),
+`lighthouse_below` (haunt, act 3, baseLevel 14, carrying the haunt
+`the_keeper`) and `gilded_seam` (claim, act 4, baseLevel 17). A node's
+`objective` in `dungeon/*.json` picks the kind (`spawners` is the default, and
+a `final` node must keep it; the finale gates on spawners). `FloorObjectives`
+dispatches on the kind and arms an `ObjectiveState` on `FloorState.objective`
+at commit, which answers the pad's refusal, the bar's progress line, fixture
+protection, block use, the floor title and the reward roll bonus.
+`FloorObjectiveRules` holds the arithmetic with no Minecraft imports.
+
+### The numbers
+
+| Number | Default | Where it lives |
+|---|---|---|
+| Vault channel | 5 s | `heistCoreChannelSeconds` |
+| Crew at the crack | `heistCrewBase + members` drowned | `heistCrewBase`, `HeistObjective.raiseCrew` |
+| Strongboxes | `heistStrongboxBase + (members - 1) / 2` | `heistStrongboxBase`, `FloorObjectiveRules.strongboxes` |
+| Claim quota | 3 veins | `claimQuota` |
+| Veins placed | quota + extras, +1 more for a party of 3 or more | `claimExtraVeins`, `FloorObjectiveRules.veins` |
+| Tremor | +1 per claim; an ominous floor starts at 1 | `ClaimObjective` (fixed) |
+| Hoglin pack | at Tremor `claimWaveTremor` (4), `1 + members / 2` per claim | `claimWaveTremor`, `ClaimObjective.raisePack` |
+| The Assayer | at Tremor `claimHunterTremor` (6), once, x2 the scaled health | `claimHunterTremor`, `ClaimObjective.ASSAYER_HEALTH_MULT` |
+| Beacons | 2 | `HauntObjective.BEACONS` (constant) |
+| Beacon charge | 3 s standing on the plate | `beaconChargeSeconds` |
+| Beacon banish | 15 s off the floor | `beaconBanishSeconds` |
+| Hunt grace | 20 s after the floor opens | `hauntHuntGraceSeconds` |
+| Stagger | 3 s held, then 5 s immune | `hauntStunSeconds`, `Haunts.stagger` |
+| Ominous keeper | 1.15x walk speed | `Haunts` (fixed) |
+
+### The rules
+
+1. **Heist (dormant swap).** At commit every trial spawner on the floor is
+   captured, block state and block entity tag together, and swapped for
+   unbreakable reinforced deepslate, so the floor walks in silent.
+2. **Heist (core channel).** The Vault Core, a heavy core on a gold plinth,
+   stands in the terminal cell off the pad. A member who uses it channels for
+   `heistCoreChannelSeconds`; taking a hit or straying more than 4 blocks
+   resets the channel, and anybody may pick it up.
+3. **Heist (wake).** The crack puts every stand-in back exactly as stamped
+   (the spawners wake with their configs intact), opens each strongbox as a
+   barrel holding a deferred roll of the floor's tier chest table, unseals the
+   pad and raises the crew in a ring around the core. An ominous floor raises a
+   second identical wave about a second later.
+4. **Heist (strongboxes, pad).** Strongboxes are greed, never the gate: branch
+   cells first, never the entrance or terminal, at most two a cell. The pad
+   refuses "The vault is sealed." until the crack.
+5. **Claim (claim).** Gilded blackstone veins stand in every cell but the
+   entrance, branch cells first, at most two a cell. A right-click claims one:
+   it spends to plain blackstone, the count and the Tremor rise, and the floor
+   growls. The pad refuses ("The seam holds. Claim N more veins.") until the
+   quota.
+6. **Claim (Tremor, waves, Assayer).** From Tremor `claimWaveTremor` every
+   further claim raises a hoglin pack around the vein; at `claimHunterTremor`
+   the floor sends The Assayer once, a named piglin brute at x2 scaled health
+   standing near the terminal. Both are pressure only: a failed spawn never
+   un-credits the claim that triggered it. An ominous floor starts at Tremor 1.
+7. **Claim (bonus rolls).** Each vein claimed past the quota pays one extra
+   roll of the floor's reward table (`FloorObjectiveRules.bonusRolls`).
+8. **Haunt (HUNT).** The Keeper (`the_keeper`, behaviour HUNT) ignores the
+   pressure clock: it wakes once, `hauntHuntGraceSeconds` after the floor
+   opened, and walks whether seen or not, so the stalker's freeze-on-look
+   never applies. The stage ladder is preserved: early floors are sightings,
+   then near misses, then strikes from the strike floor on.
+9. **Haunt (invulnerable, stagger).** A hit on the Keeper never lands; unless
+   it is inside the immunity window it staggers, held without AI for
+   `hauntStunSeconds`, then immune for five more so it cannot be stunlocked.
+10. **Haunt (beacon charge and banish, pad).** Two beacons stand in branch
+    cells first (never the entrance or terminal), each a heavy weighted
+    pressure plate beside an unlit copper bulb. Standing on a plate for
+    `beaconChargeSeconds` lights the bulb and banishes the Keeper for
+    `beaconBanishSeconds`. The pad refuses ("The lamp is dark. Light N more
+    beacons.") until the quota is lit. The Keeper never enters the entrance,
+    the terminal or an armed Ordeal room, and it is never spent: a lost body
+    returns after the retreat.
+11. **Fallback (shared).** Every kind places under the generic recovery rule:
+    the quota drops to the placed count, at least one
+    (`FloorObjectiveRules.effectiveQuota`), and an objective that placed
+    nothing arms as `fallback`, which runs the floor exactly like a spawner
+    floor end to end (pad, bar, title and rewards all read ordinary).
+
+Objective blocks are fixtures: the code places them at arm time (`heist`,
+`claim`, `haunt` claim their blocks through `FloorObjectives.isFixture`, which
+`RoomProtection` protects and `RitualListener` routes right-clicks to). Rooms
+only supply the space.
+
+### Migration
+
+None needed. `FloorState.objective` is per-floor state only; nothing new
+persists, so a save in progress reads exactly as before.
+
+### Supersedes
+
+- `docs/DECISIONS.md`, "Act 3 onwards: paused": partially reopened
+  for these three dungeons only (`sunken_treasury`, `lighthouse_below`,
+  `gilded_seam`). The Drowned Vault concept and the remaining Act 3 to 5 items
+  stay paused.
+- `docs/DECISIONS.md`, the generic objective framework
+  note of section 3: built as `FloorObjectives` plus `ObjectiveState`, with
+  the generic recovery path as the fallback rule. The brainstorm doc stays as
+  provenance.
+
+### Knobs
+
+In `config/pocketdungeons.json`: `heistCoreChannelSeconds` (5),
+`heistCrewBase` (2), `heistStrongboxBase` (2), `claimQuota` (3),
+`claimExtraVeins` (3), `claimWaveTremor` (4), `claimHunterTremor` (6),
+`hauntHuntGraceSeconds` (20), `hauntStunSeconds` (3), `beaconChargeSeconds`
+(3), `beaconBanishSeconds` (15).
+
+Fixed in code: `HauntObjective.BEACONS` (2), `HeistObjective.CHANNEL_RANGE`
+(4), `HeistObjective.OMINOUS_ECHO_TICKS` (20, the ominous crew echo),
+`ClaimObjective.ASSAYER_HEALTH_MULT` (2.0), hoglin pack `1 + members / 2`,
+ominous Tremor start 1, ominous keeper speed 1.15x, stagger immunity 5 s.
+
+### Tests
+
+`FloorObjectiveRulesTest` covers the arithmetic pure (fallback, quotas, wave
+and hunter tremors, bonus rolls). `HeistFloorGameTest`, `ClaimFloorGameTest`
+and `HauntFloorGameTest` cover the floors end to end; `HauntRulesTest` covers
+`decideHunt`.
+
+### Open until played
+
+Whether 5 seconds of channel on the core reads as tension or dead time (and
+whether a hit breaking it is fair), whether the crew and The Assayer are the
+right weight at their acts (they scale as omen waves, untested live), whether
+leaving a claim floor while Tremor stays low is too safe (stake the 3 and walk
+before the seam answers), whether the Keeper's advance speed and stagger
+window read as horror or nuisance, and whether the extra claim rolls and
+strongbox payouts inflate the reward economy.

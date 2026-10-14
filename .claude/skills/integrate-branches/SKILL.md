@@ -69,11 +69,9 @@ If you fix a failure yourself, commit it as its own commit with the cause in the
 ## 4. Housekeeping on the integration branch
 
 - Live checks: every fragment needs a `## ` heading (fix `#` and `###` headings first), then
-  `python tools/livecheck.py fold`. It numbers sections from the next free L number and moves fragments to `folded/`.
+  `python tools/livecheck.py fold`. It numbers sections from the next free L number, appends them to `LIVE_CHECKS.md`, and deletes the folded fragments.
 - Code map: `python tools/gen_codemap.py`.
-- Stale design docs: add a one-paragraph "superseded by ..." note at the top of any doc a decision replaced. Do not
-  rewrite the old text.
-- Update the roadmap status table and the project memory.
+- Decisions and build artifacts: record any new settled decisions in `docs/DECISIONS.md`, and delete temporary build-wave files (`docs/reports/`, `docs/devin/`, `docs/roadmap-build-*.md`) once the wave is merged and verified.
 
 ## 5. Landing it
 

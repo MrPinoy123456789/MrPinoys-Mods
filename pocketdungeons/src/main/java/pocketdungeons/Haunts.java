@@ -37,7 +37,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * The haunt director (docs/haunts-draft-2026-10-11.md): one roaming creature per floor with a rule the player
+ * The haunt director (docs/DECISIONS.md): one roaming creature per floor with a rule the player
  * can learn. Pressure rises with the seconds the party spends on a haunted floor; when it reaches the wake
  * threshold the haunt walks in, and its stage comes from the floor number ({@link HauntRules#stageFor}): a
  * sighting on the first floor (it stalks, never attacks, and vanishes), a near miss on the second, a strike from

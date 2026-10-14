@@ -45,7 +45,7 @@ final class AffixDefinition {
     final Set<String> incompatible;
     final AffixEffects effects;
     /**
-     * What this affix wagers (docs/wager-draft-2026-10-12.md): how much harder it makes the floor, in {@code [0, 10]}.
+     * What this affix wagers (docs/DECISIONS.md): how much harder it makes the floor, in {@code [0, 10]}.
      * A floor's wager is the sum over its affixes ({@link Wager}); a file that names none wagers 1.
      */
     final int wager;

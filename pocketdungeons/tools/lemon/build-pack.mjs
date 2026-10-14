@@ -60,9 +60,10 @@ function agenda() {
 function liveChecks() {
   const md = read(join(mod, 'docs', 'playtests', 'LIVE_CHECKS.md')).replace(/\r\n/g, '\n')
   const rules = md.split('\n---\n')[0].split('\n').slice(1).join('\n').trim()
+  // Include both owed and partial/half checks so half-verified items stay on Lemon's radar
   const owed = md.split(/\n(?=## L\d)/).slice(1)
     .map(block => block.split(/\n## Done/)[0].trim())
-    .filter(block => /\*\*Status:\*\* owed/.test(block))
+    .filter(block => /\*\*Status:\*\* (owed|partial|half)\b/.test(block))
     .map(block => block.replace(/^## /, '### '))
   return owed.length ? `${rules}\n\n${owed.join('\n\n')}` : ''
 }
@@ -86,13 +87,11 @@ function rooms() {
 
 const guide = read(join(here, 'GUIDE.md'))
 const hints = read(join(here, 'HINTS.md'))
-const decisions = section(read(join(mod, 'docs', 'AUDIT_2026-09.md')), '## 11. Owner decisions log')
 
 const pack = [
   persona,
-  guide ? `# Game guide\n\n${guide.replace(/^# .*\n/, '').trim()}` : '',
-  hints ? `# Puzzle hint ladders\n\n${hints.replace(/^# .*\n/, '').trim()}` : '',
-  decisions ? `# How the game is meant to work (owner decisions)\n\n${decisions.replace(/^## .*\n/, '').trim()}` : '',
+  guide ? `# Game guide\n\n${guide.replace(/^# .*\r?\n/, '').trim()}` : '',
+  hints ? `# Puzzle hint ladders\n\n${hints.replace(/^# .*\r?\n/, '').trim()}` : '',
   `# Open research questions (ask about these at breaks)\n\n${agenda()}`,
   liveChecks() ? `# Live checks owed (this session's verification goals)\n\n${liveChecks()}` : '',
   `# Rooms (id: roles, tier, depth, requirements)\n\n${rooms()}`,
