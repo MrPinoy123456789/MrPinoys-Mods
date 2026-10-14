@@ -710,6 +710,18 @@ public final class PocketDungeonsConfig {
             v -> v >= 1 && v <= 8, "must be 1 to 8");
     private static final Knob<Integer> HAUNT_SIGHTING_APPROACH_BLOCKS = integer("hauntSightingApproachBlocks", 7,
             v -> v >= 3 && v <= 16, "must be 3 to 16");
+    /** Seconds after a hunt floor opens before its keeper wakes */
+    private static final Knob<Integer> HAUNT_HUNT_GRACE_SECONDS = integer("hauntHuntGraceSeconds", 20,
+            v -> v >= 5 && v <= 60, "must be 5 to 60");
+    /** Seconds a hit staggers a hunting keeper for; it is immune for five more */
+    private static final Knob<Integer> HAUNT_STUN_SECONDS = integer("hauntStunSeconds", 3,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    /** Seconds a member stands on a haunt floor beacon plate to light it */
+    private static final Knob<Integer> BEACON_CHARGE_SECONDS = integer("beaconChargeSeconds", 3,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    /** Seconds a lit beacon drives a hunting keeper off the floor */
+    private static final Knob<Integer> BEACON_BANISH_SECONDS = integer("beaconBanishSeconds", 15,
+            v -> v >= 5 && v <= 60, "must be 5 to 60");
     /** Seconds a member channels on the vault core before it cracks */
     private static final Knob<Integer> HEIST_CORE_CHANNEL_SECONDS = integer("heistCoreChannelSeconds", 5,
             v -> v >= 1 && v <= 30, "must be 1 to 30");
@@ -1655,6 +1667,22 @@ public final class PocketDungeonsConfig {
 
     public static int hauntSightingApproachBlocks() {
         return HAUNT_SIGHTING_APPROACH_BLOCKS.get();
+    }
+
+    public static int hauntHuntGraceSeconds() {
+        return HAUNT_HUNT_GRACE_SECONDS.get();
+    }
+
+    public static int hauntStunSeconds() {
+        return HAUNT_STUN_SECONDS.get();
+    }
+
+    public static int beaconChargeSeconds() {
+        return BEACON_CHARGE_SECONDS.get();
+    }
+
+    public static int beaconBanishSeconds() {
+        return BEACON_BANISH_SECONDS.get();
     }
 
     public static int heistCoreChannelSeconds() {
