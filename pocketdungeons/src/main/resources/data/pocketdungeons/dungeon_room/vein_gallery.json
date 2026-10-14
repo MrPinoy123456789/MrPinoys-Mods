@@ -1,0 +1,24 @@
+{
+  "template": "pocketdungeons:rooms/vein_gallery",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 3,
+  "minDepth": 1,
+  "maxPerDungeon": 2,
+  "theme": ["gilded_seam"],
+  "light": "dim",
+  "corridor": "wide",
+  "biome": "gilded_seam",
+  "dungeons": ["gilded_seam"],
+  "acts": [4],
+  "nodes": [
+    { "block": "minecraft:nether_gold_ore", "from": [5, 1, 1], "to": [6, 2, 1], "count": 2 },
+    { "block": "minecraft:nether_quartz_ore", "at": [10, 2, 13], "chance": 0.7 },
+    { "block": "minecraft:ancient_debris", "at": [7, 1, 14], "chance": 0.3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "bars"
+}

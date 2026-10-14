@@ -1,0 +1,189 @@
+{
+  "name": "The Gilded Seam",
+  "token": { "mat": "minecraft:raw_gold_block" },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:hoglin",
+        "count": 2
+      },
+      {
+        "type": "minecraft:piglin_brute",
+        "count": 3
+      }
+    ],
+    "perMemberPercent": 50,
+    "elite": {
+      "type": "minecraft:piglin_brute",
+      "name": "The Assayer Prime",
+      "health": 160,
+      "mainhand": "minecraft:golden_axe"
+    }
+  },
+  "mobUniform": {
+    "armour": [
+      "minecraft:golden_helmet",
+      "minecraft:golden_chestplate",
+      "minecraft:golden_leggings",
+      "minecraft:golden_boots"
+    ],
+    "armourPieces": 2,
+    "rangedArmourPieces": 0,
+    "weapon": "minecraft:golden_axe",
+    "chance": 1.0
+  },
+  "notes": "A seam of blackstone gold. The louder you dig, the louder it answers.",
+  "act": 4,
+  "baseLevel": 17,
+  "kind": "dungeon",
+  "mainTheme": "gilded_seam",
+  "lootBand": {
+    "min": 3,
+    "max": 4
+  },
+  "nodePalette": [
+    "nether_gold_ore",
+    "nether_gold_ore",
+    "gilded_blackstone",
+    "nether_quartz_ore",
+    "ancient_debris"
+  ],
+  "diary": "entry_30",
+  "deviation": {
+    "chance": 0.15,
+    "themes": [
+      "basalt_foundry"
+    ]
+  },
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 2,
+    "sizeMin": 1,
+    "sizeMax": 3,
+    "deepEvery": 3,
+    "blocks": [
+      "nether_gold_ore",
+      "nether_gold_ore",
+      "nether_quartz_ore"
+    ],
+    "deepBlocks": [
+      "ancient_debris"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "assay_gate",
+      "name": "Assay Gate",
+      "layer": 1,
+      "objective": "claim"
+    },
+    {
+      "id": "gilded_cut",
+      "name": "The Gilded Cut",
+      "notes": "The first cut of the seam. Stake veins before the tremor wakes.",
+      "layer": 2,
+      "objective": "claim",
+      "roomBias": [
+        "rising_lava",
+        "vein_gallery"
+      ]
+    },
+    {
+      "id": "brute_workings",
+      "name": "Brute Workings",
+      "notes": "Claimed workings. The brutes dug here first and dug loud.",
+      "layer": 2,
+      "objective": "claim",
+      "roomBias": [
+        "collapsing_bridge",
+        "debris_pit"
+      ]
+    },
+    {
+      "id": "the_deep_vein",
+      "name": "The Deep Vein",
+      "notes": "The seam thickens. More veins, more tremor.",
+      "layer": 3,
+      "objective": "claim",
+      "roomBias": [
+        "loot_vault",
+        "vein_gallery"
+      ]
+    },
+    {
+      "id": "smelters_cut",
+      "name": "The Smelter's Cut",
+      "notes": "A foundry cut into the seam, borrowed from the crucible.",
+      "layer": 3,
+      "objective": "claim",
+      "theme": "basalt_foundry",
+      "rewards": [
+        {
+          "item": "emerald",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "assay_chamber",
+      "name": "The Assay Chamber",
+      "notes": "Where the ore was weighed. The last veins hum loudest.",
+      "layer": 4,
+      "objective": "claim",
+      "roomBias": [
+        "barred_vault",
+        "debris_pit"
+      ]
+    },
+    {
+      "id": "the_mothers_lode",
+      "name": "The Mother's Lode",
+      "notes": "The last floor. The Assayer Prime guards the richest cut.",
+      "layer": 5,
+      "final": true,
+      "roomBias": [
+        "barred_vault",
+        "seam_heart"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "assay_gate",
+      "to": "gilded_cut"
+    },
+    {
+      "from": "assay_gate",
+      "to": "brute_workings"
+    },
+    {
+      "from": "gilded_cut",
+      "to": "the_deep_vein"
+    },
+    {
+      "from": "brute_workings",
+      "to": "the_deep_vein"
+    },
+    {
+      "from": "brute_workings",
+      "to": "smelters_cut"
+    },
+    {
+      "from": "gilded_cut",
+      "to": "smelters_cut",
+      "lives": 1
+    },
+    {
+      "from": "the_deep_vein",
+      "to": "assay_chamber"
+    },
+    {
+      "from": "smelters_cut",
+      "to": "assay_chamber"
+    },
+    {
+      "from": "assay_chamber",
+      "to": "the_mothers_lode"
+    }
+  ]
+}

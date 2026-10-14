@@ -1,0 +1,26 @@
+{
+  "template": "pocketdungeons:rooms/seam_heart",
+  "footprint": [1, 1],
+  "roles": ["encounter", "loot", "corridor"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": 1,
+  "theme": ["gilded_seam"],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "gilded_seam",
+  "dungeons": ["gilded_seam"],
+  "acts": [4],
+  "graphRole": ["final"],
+  "nodes": [
+    { "block": "minecraft:nether_gold_ore", "from": [14, 1, 9], "to": [14, 2, 10], "count": 2 },
+    { "block": "minecraft:gilded_blackstone", "from": [1, 1, 5], "to": [1, 2, 6], "count": 2 },
+    { "block": "minecraft:nether_quartz_ore", "from": [5, 1, 14], "to": [6, 2, 14], "count": 2 },
+    { "block": "minecraft:ancient_debris", "at": [9, 1, 1], "chance": 0.3 }
+  ],
+  "tier": 1,
+  "provides": [],
+  "requires": [],
+  "access": "open",
+  "window": "none"
+}
