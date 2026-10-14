@@ -719,6 +719,17 @@ public final class PocketDungeonsConfig {
     /** Strongboxes a heist floor places before party size adds more */
     private static final Knob<Integer> HEIST_STRONGBOX_BASE = integer("heistStrongboxBase", 2,
             v -> v >= 1 && v <= 8, "must be 1 to 8");
+    /** Gilded veins a claim floor asks the party to claim before the pad opens */
+    private static final Knob<Integer> CLAIM_QUOTA = integer("claimQuota", 3, v -> v >= 1 && v <= 6, "must be 1 to 6");
+    /** Extra gilded veins a claim floor sprinkles in beyond the quota, for digging past it */
+    private static final Knob<Integer> CLAIM_EXTRA_VEINS = integer("claimExtraVeins", 3,
+            v -> v >= 0 && v <= 8, "must be 0 to 8");
+    /** Tremor a claim floor's claims must reach before each further claim raises a hoglin pack */
+    private static final Knob<Integer> CLAIM_WAVE_TREMOR = integer("claimWaveTremor", 4,
+            v -> v >= 1 && v <= 20, "must be 1 to 20");
+    /** Tremor that wakes The Assayer on a claim floor, once a floor; expected above claimWaveTremor */
+    private static final Knob<Integer> CLAIM_HUNTER_TREMOR = integer("claimHunterTremor", 6,
+            v -> v >= 1 && v <= 20, "must be 1 to 20");
     /**
      * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
      * to pick an act and open any of its dungeons. Off restores the old three random doors.
@@ -1656,6 +1667,22 @@ public final class PocketDungeonsConfig {
 
     public static int heistStrongboxBase() {
         return HEIST_STRONGBOX_BASE.get();
+    }
+
+    public static int claimQuota() {
+        return CLAIM_QUOTA.get();
+    }
+
+    public static int claimExtraVeins() {
+        return CLAIM_EXTRA_VEINS.get();
+    }
+
+    public static int claimWaveTremor() {
+        return CLAIM_WAVE_TREMOR.get();
+    }
+
+    public static int claimHunterTremor() {
+        return CLAIM_HUNTER_TREMOR.get();
     }
 
     public static boolean mobUniformEnabled() {
