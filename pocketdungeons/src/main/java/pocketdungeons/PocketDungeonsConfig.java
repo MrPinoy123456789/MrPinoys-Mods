@@ -710,6 +710,15 @@ public final class PocketDungeonsConfig {
             v -> v >= 1 && v <= 8, "must be 1 to 8");
     private static final Knob<Integer> HAUNT_SIGHTING_APPROACH_BLOCKS = integer("hauntSightingApproachBlocks", 7,
             v -> v >= 3 && v <= 16, "must be 3 to 16");
+    /** Seconds a member channels on the vault core before it cracks */
+    private static final Knob<Integer> HEIST_CORE_CHANNEL_SECONDS = integer("heistCoreChannelSeconds", 5,
+            v -> v >= 1 && v <= 30, "must be 1 to 30");
+    /** Drowned a cracked vault raises before one more per member */
+    private static final Knob<Integer> HEIST_CREW_BASE = integer("heistCrewBase", 2,
+            v -> v >= 0 && v <= 8, "must be 0 to 8");
+    /** Strongboxes a heist floor places before party size adds more */
+    private static final Knob<Integer> HEIST_STRONGBOX_BASE = integer("heistStrongboxBase", 2,
+            v -> v >= 1 && v <= 8, "must be 1 to 8");
     /**
      * The Astrolabe Room (design pass 2026-10-09, Q1): the first staging room lets the owner turn an astrolabe
      * to pick an act and open any of its dungeons. Off restores the old three random doors.
@@ -1635,6 +1644,18 @@ public final class PocketDungeonsConfig {
 
     public static int hauntSightingApproachBlocks() {
         return HAUNT_SIGHTING_APPROACH_BLOCKS.get();
+    }
+
+    public static int heistCoreChannelSeconds() {
+        return HEIST_CORE_CHANNEL_SECONDS.get();
+    }
+
+    public static int heistCrewBase() {
+        return HEIST_CREW_BASE.get();
+    }
+
+    public static int heistStrongboxBase() {
+        return HEIST_STRONGBOX_BASE.get();
     }
 
     public static boolean mobUniformEnabled() {
