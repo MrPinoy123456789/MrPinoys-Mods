@@ -1,0 +1,7 @@
+{
+  "name": "The Gilded Seam",
+  "processors": "pocketdungeons:theme_gilded_seam",
+  "spawner_prefix": "gilded_seam",
+  "loot_suffix": "_gilded_seam",
+  "room_theme": "gilded_seam"
+}

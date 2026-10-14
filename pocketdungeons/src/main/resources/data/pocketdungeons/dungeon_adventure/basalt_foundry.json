@@ -10,6 +10,10 @@
       "weight": 2
     },
     {
+      "theme": "gilded_seam",
+      "weight": 2
+    },
+    {
       "theme": "deepslate",
       "weight": 2
     }

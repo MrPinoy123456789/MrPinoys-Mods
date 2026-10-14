@@ -1,0 +1,7 @@
+{
+  "name": "Sunken Treasury",
+  "processors": "pocketdungeons:theme_sunken_treasury",
+  "spawner_prefix": "sunken_treasury",
+  "loot_suffix": "_sunken_treasury",
+  "room_theme": "sunken_treasury"
+}

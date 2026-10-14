@@ -21,7 +21,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:netherite_scrap",
+          "name": "minecraft:netherite_ingot",
           "weight": 5,
           "functions": [
             {

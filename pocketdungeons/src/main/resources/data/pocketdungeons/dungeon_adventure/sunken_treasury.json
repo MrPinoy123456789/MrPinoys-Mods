@@ -1,0 +1,8 @@
+{
+  "kind": "descent",
+  "next": [
+    { "theme": "prismarine", "weight": 2 },
+    { "theme": "lighthouse_below", "weight": 1 },
+    { "theme": "drowned_vault", "weight": 1 }
+  ]
+}

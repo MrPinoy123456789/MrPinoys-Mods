@@ -6,6 +6,14 @@
       "weight": 3
     },
     {
+      "theme": "sunken_treasury",
+      "weight": 1
+    },
+    {
+      "theme": "lighthouse_below",
+      "weight": 1
+    },
+    {
       "theme": "blackstone",
       "weight": 2
     },

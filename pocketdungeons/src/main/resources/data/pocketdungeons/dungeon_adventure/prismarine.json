@@ -4,6 +4,8 @@
     { "theme": "deepslate", "weight": 3 },
     { "theme": "blackstone", "weight": 2 },
     { "theme": "infestation", "weight": 2 },
+    { "theme": "sunken_treasury", "weight": 2 },
+    { "theme": "lighthouse_below", "weight": 2 },
     { "theme": "rootworks", "weight": 1 },
     { "theme": "frostworks", "weight": 1 },
     { "theme": "copper_works", "weight": 1 },

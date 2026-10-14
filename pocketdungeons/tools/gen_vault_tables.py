@@ -15,9 +15,10 @@ the vault recipe is authored here directly instead. A vault pays:
   * rarely, the rare foods: cake and golden apples live in vaults and the
     finish chests only (K).
 
-The _drowned vaults are single-entry references to the base table of the same
-tier and flag: the drowned theme's chest tables are themselves references, so
-a vault with the same contents is the honest description.
+The themed vaults (_drowned and the floor-objective trio) are single-entry
+references to the base table of the same tier and flag: a vault is the
+universal key-gated gear reward, so it falls back to its base table, and the
+theme's identity lives in the completion chests.
 
 Run from the mod root:
 
@@ -80,7 +81,7 @@ def vault_table(tier, ominous):
 
 
 def ref_table(target):
-    """A vault that is another vault's table outright, for the drowned suffix."""
+    """A vault that is another vault's table outright, for the themed suffixes."""
     return {'type': 'minecraft:chest',
             'pools': [{'rolls': 1, 'entries': [
                 {'type': 'minecraft:loot_table', 'value': target}]}]}
@@ -94,8 +95,8 @@ def main():
             suffix = '_ominous' if ominous else ''
             name = 'tier_%d%s.json' % (tier, suffix)
             g.write_json(os.path.join(VAULTS, name), vault_table(tier, ominous))
-            for drowned in ('_drowned',):
-                g.write_json(os.path.join(VAULTS, 'tier_%d%s%s.json' % (tier, suffix, drowned)),
+            for themed in ('_drowned', '_sunken_treasury', '_lighthouse_below', '_gilded_seam'):
+                g.write_json(os.path.join(VAULTS, 'tier_%d%s%s.json' % (tier, suffix, themed)),
                              ref_table('pocketdungeons:vaults/tier_%d%s' % (tier, suffix)))
     print('done')
 

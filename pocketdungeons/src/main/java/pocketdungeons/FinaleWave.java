@@ -397,6 +397,15 @@ final class FinaleWave {
         if (!(entity instanceof Mob mob)) {
             return null;
         }
+        // A finale can field Nether mobs (the Gilded Seam's hoglins and brutes), and the dungeon
+        // dimension is not piglin safe: an untagged one zombifies mid fight and the elite's name
+        // and boss bar die with it. Spawn them immune, the way the bazaar's piglins are.
+        if (mob instanceof net.minecraft.world.entity.monster.piglin.AbstractPiglin piglin) {
+            piglin.setImmuneToZombification(true);
+        }
+        if (mob instanceof net.minecraft.world.entity.monster.hoglin.Hoglin hoglin) {
+            hoglin.setImmuneToZombification(true);
+        }
         mob.setPersistenceRequired();
         mob.addTag(TAG);
         return mob;

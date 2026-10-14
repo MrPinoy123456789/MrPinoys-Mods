@@ -1,0 +1,7 @@
+{
+  "name": "The Lighthouse Below",
+  "processors": "pocketdungeons:theme_lighthouse_below",
+  "spawner_prefix": "lighthouse_below",
+  "loot_suffix": "_lighthouse_below",
+  "room_theme": "lighthouse_below"
+}

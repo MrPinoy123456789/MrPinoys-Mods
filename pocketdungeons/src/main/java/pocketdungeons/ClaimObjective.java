@@ -252,6 +252,10 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
                 PocketDungeonsMod.LOG.warn("Claim wave hoglin failed to spawn at {}", at.toShortString());
                 continue;
             }
+            // The dungeon dimension is not piglin safe: an untagged hoglin turns zoglin in seconds.
+            if (mob instanceof net.minecraft.world.entity.monster.hoglin.Hoglin hoglin) {
+                hoglin.setImmuneToZombification(true);
+            }
             mob.addTag(WAVE_TAG);
             mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
             mob.setPersistenceRequired();
@@ -278,6 +282,10 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
         if (brute == null) {
             PocketDungeonsMod.LOG.warn("The Assayer failed to spawn at {}", at.toShortString());
             return;
+        }
+        // The Assayer is a hunter, not a convert: the dungeon dimension is not piglin safe.
+        if (brute instanceof net.minecraft.world.entity.monster.piglin.AbstractPiglin piglin) {
+            piglin.setImmuneToZombification(true);
         }
         brute.addTag(WAVE_TAG);
         brute.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);

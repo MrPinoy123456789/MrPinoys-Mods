@@ -57,9 +57,15 @@ EQUIP = {
 }
 
 
-def mob_entry(entity_id, weight, equip_kind=None, tier=1):
-    """One spawn_potentials entry. equip_kind is None, 'melee' or 'ranged'."""
-    data = {'entity': {'id': 'minecraft:' + entity_id}}
+def mob_entry(entity_id, weight, equip_kind=None, tier=1, nbt=None):
+    """One spawn_potentials entry. equip_kind is None, 'melee' or 'ranged';
+    nbt is an optional dict merged into the entity's spawn data (the Nether
+    mobs need IsImmuneToZombification out of the Nether, or they turn in the
+    void and the seam's crew arrives as zombified piglins)."""
+    entity = {'id': 'minecraft:' + entity_id}
+    if nbt:
+        entity.update(nbt)
+    data = {'entity': entity}
     if equip_kind is not None:
         data['equipment'] = {
             'loot_table': EQUIP[tier][equip_kind],
@@ -69,10 +75,15 @@ def mob_entry(entity_id, weight, equip_kind=None, tier=1):
 
 
 def spawner_config(prefix, tier, ominous, roster):
-    """roster: list of (entity_id, weight, equip_kind) for this tier."""
+    """roster: list of (entity_id, weight, equip_kind) or
+    (entity_id, weight, equip_kind, nbt) for this tier."""
     scale = OMINOUS[tier] if ominous else NORMAL[tier]
     total, sim, tot_add, sim_add, ticks = scale
-    spawns = [mob_entry(eid, w, ek, tier) for eid, w, ek in roster]
+    spawns = []
+    for entry in roster:
+        eid, w, ek = entry[0], entry[1], entry[2]
+        nbt = entry[3] if len(entry) > 3 else None
+        spawns.append(mob_entry(eid, w, ek, tier, nbt))
     eject_key = ('pocketdungeons:spawners/ominous_trial_key' if ominous
                  else 'pocketdungeons:spawners/trial_key')
     return {
@@ -254,6 +265,55 @@ THEMES = {
             item_entry('experience_bottle', 4, (1, 2)),
             item_entry('book', 3, (1, 2)),
             item_entry('emerald', 2),
+        ],
+    },
+    # Act 3 and 4 pair from the floor-objective branch: the treasury is a
+    # heist (drowned crew under the guardian's eye), the lighthouse is a haunt
+    # (the Keeper's drowned, nothing else), the seam is a claim (hoglins and
+    # brutes, immune to zombification because the dungeon dimension is not the
+    # Nether and an untagged nether mob turns in the void).
+    'sunken_treasury': {
+        'roster': {
+            1: [('drowned', 5, 'melee'), ('guardian', 2, None)],
+            2: [('drowned', 5, 'melee'), ('guardian', 2, None)],
+            3: [('drowned', 5, 'melee'), ('guardian', 3, None)],
+        },
+        'pool_items': [
+            item_entry('gold_nugget', 5, (3, 8)),
+            item_entry('prismarine_shard', 4, (2, 5)),
+            item_entry('emerald', 3, (1, 2)),
+            item_entry('spyglass', 1),
+            item_entry('gold_block', 1),
+        ],
+    },
+    'lighthouse_below': {
+        'roster': {
+            1: [('drowned', 5, None)],
+            2: [('drowned', 5, 'melee')],
+            3: [('drowned', 5, 'melee'), ('guardian', 1, None)],
+        },
+        'pool_items': [
+            item_entry('cooked_beef', 5, (1, 2)),
+            item_entry('cobblestone', 4, (1, 3)),
+            item_entry('iron_ingot', 2, (1, 2)),
+            item_entry('prismarine_shard', 1, (1, 2)),
+        ],
+    },
+    'gilded_seam': {
+        'roster': {
+            1: [('hoglin', 3, None, {'IsImmuneToZombification': True}),
+                ('piglin_brute', 2, None, {'IsImmuneToZombification': True})],
+            2: [('hoglin', 3, None, {'IsImmuneToZombification': True}),
+                ('piglin_brute', 3, None, {'IsImmuneToZombification': True})],
+            3: [('hoglin', 3, None, {'IsImmuneToZombification': True}),
+                ('piglin_brute', 3, None, {'IsImmuneToZombification': True}),
+                ('zoglin', 2, None)],
+        },
+        'pool_items': [
+            item_entry('gold_nugget', 5, (2, 6)),
+            item_entry('raw_gold', 4, (1, 3)),
+            item_entry('obsidian', 3, (1, 2)),
+            item_entry('netherite_ingot', 1),
         ],
     },
 }
