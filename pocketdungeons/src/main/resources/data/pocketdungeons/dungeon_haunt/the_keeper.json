@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "label": "The Keeper",
+  "dungeons": ["lighthouse_below"],
+  "min_compass": 0,
+  "behaviour": "HUNT",
+  "body": "minecraft:drowned",
+  "tell_particle": "minecraft:sculk_soul",
+  "tell_sound": "minecraft:entity.drowned.ambient",
+  "rule_line": "It only stops while the lamps burn.",
+  "diary": "entry_29"
+}

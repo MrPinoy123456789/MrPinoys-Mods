@@ -100,6 +100,10 @@ final class FloorObjectives {
             record.floor.objective = ClaimObjective.arm(level, record, plan);
             return;
         }
+        if (kind == FloorObjective.HAUNT) {
+            record.floor.objective = HauntObjective.arm(level, record, plan);
+            return;
+        }
         record.floor.objective = new ObjectiveState(kind, true);
     }
 
