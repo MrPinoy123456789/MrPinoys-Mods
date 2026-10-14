@@ -196,9 +196,15 @@ authoring advice is in the `dungeon-content` skill.
 - `nodes[]`: `id`, `name` (shown as the floor name), `layer`, and optionally
   `theme`, `signatureAffix`, `roomBias[]` (rooms drawn at three times weight),
   `roomCount`, `minNodeRooms`, `level`, `light` (`lit`, `dim`, `dark`), `final`,
-  `notes` and `rewards[]` (`{item, count}`). A reward item of the form
-  `gear:<slot>:<tier>` (slots `weapon`, `tool`, `armour`) promises a rolled
-  piece of gear: the door board names it and the copper chest pays it.
+  `notes`, `objective` and `rewards[]` (`{item, count}`). A reward item of the
+  form `gear:<slot>:<tier>` (slots `weapon`, `tool`, `armour`) promises a
+  rolled piece of gear: the door board names it and the copper chest pays it.
+  `objective` is what the floor's pad gate asks for: `spawners` (the default)
+  or `heist`, `claim` or `haunt` (`docs/decision-2026-10-13-act34-floor-types.md`).
+  A `final` node must keep `spawners`; the finale gates on spawners. Objective
+  blocks (a vault core, gilded veins, beacons) are code-placed at commit, not
+  authored into rooms: `FloorObjectives` arms them on the stamped floor, and a
+  floor with no free spot falls back to the spawner clear.
 - `edges[]`: `from`, `to` and `lives` (0 to 2, the price of a side door in
   party lives). The old `cost` key is rejected.
 

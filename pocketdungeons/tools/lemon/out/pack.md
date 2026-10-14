@@ -49,8 +49,12 @@ haul, lives and charts. Do not say keystone, omen, interval or node to a player.
   says Play again), dark behind an iron door is locked (the sign says the compass
   it needs, or Finish the act). Open a door to look inside through the wide
   glass wall; the DESCEND lever glints beside the door you picked. Pull it to go.
-- **Floors and spawners:** clear the floor's spawner gate (the bar shows
-  `Spawners 2/3`) to open the way on.
+- **Floors and spawners:** most floors clear on the spawner gate (the bar
+  shows `Spawners 2/3`) to open the way on. Some floors ask for something else
+  instead, and the pad's refusal line says what is left: a heist floor (Sunken
+  Treasury) wants the vault core channelled open, a claim floor (Gilded Seam)
+  wants gilded veins claimed by hand, a haunt floor (Lighthouse Below) wants
+  its beacon plates stood on until the lamps light.
 - **Doors between floors:** later floors offer three doors. The way forward is
   free. A side door costs 1 or 2 lives, shared by the party, and is never sold if
   it would take the last life. The door board says the price and what the floor
@@ -563,8 +567,30 @@ tool on the MCP server (`mcp.mjs --admin`).
 - **Fail signs:** the tell is invisible in a dim room; it moves while you watch it; it stays frozen when only a wall is between you; it hits on floor 1 or 2; a hit takes more than the knob; it follows you into the pad room; it is still standing on the next floor; it drops bones or xp.
 - **Tune:** `hauntLookConeDegrees` (60 is the half angle of the view that freezes it; raise it if it creeps while visible at the screen edge), `hauntWakePressure` (90 seconds), `hauntRetreatSeconds` (40), `hauntStrikeDamage` (3), `hauntTellSeconds` (2).
 
+### L97: Heist floor: the vault cracks and wakes (2026-10-13)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** Sunken Treasury floors (act 3) hide their spawners behind reinforced deepslate and open quiet. A heavy core on a gold plinth in the last room is the vault: hold a use on it for 5 seconds (`heistCoreChannelSeconds`) and the floor wakes, the stand-ins restore every spawner with its config intact, and a drowned crew rises around the core. Waxed oxidized copper strongboxes (2, plus one per two members past the first) open as barrels paying the floor's tier chest table. The pad refuses "The vault is sealed." until the crack.
+- **Do:** with consent, enter the Sunken Treasury (act 3, compass 13). Walk a floor before touching the core. Channel it once cleanly, then take a hit mid-channel and start again. Open every strongbox after the crack and count the crew.
+- **Pass:** no spawner runs while the vault sleeps; a hit or stepping more than about 4 blocks off the core resets the channel ("Interrupted."); on the crack the stand-ins restore the spawners with their stamped configs (the right mobs and keys), each strongbox pays once, the crew arrives in a ring (`heistCrewBase` 2 plus one per member; an ominous floor raises the same wave twice) and the pad opens with "The vault is open."
+- **Fail signs:** a live spawner before the crack; a strongbox that pays twice or never; a crew of the wrong size; a pad still sealed after the crack; a floor that never placed a core and still hid its spawners (that should have fallen back to an ordinary spawner floor).
+
+### L98: Claim floor: the seam fights back (2026-10-13)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** Gilded Seam floors (act 4) hide gilded blackstone veins: `claimQuota` (3) demanded plus `claimExtraVeins` (3) more for digging past it. A right-click claims a vein: it spends to plain blackstone, the bar's "Veins n/3" rises, Tremor rises by one and the floor growls. From Tremor `claimWaveTremor` (4) every further claim raises a hoglin pack around the vein; at `claimHunterTremor` (6) the floor sends The Assayer once, a named piglin brute at double scaled health near the last room. Veins claimed past the quota each add one barrel roll at the bank.
+- **Do:** enter the Gilded Seam (compass 17). Claim veins one at a time and read the bar. Keep claiming past the quota to cross Tremor 4 and 6, then bank and count the rolls.
+- **Pass:** claimed veins turn to blackstone and never un-claim; from the fourth claim on, each claim rings hoglins around the vein (1 plus one per two members); The Assayer arrives once at Tremor 6 and never twice; the pad opens at the quota; a floor cleared with two extra veins pays two extra rolls.
+- **Fail signs:** a vein that will not claim or that claims twice; a pack or The Assayer ahead of their Tremor counts; The Assayer twice on one floor; the pad opening under quota or staying shut at it; extra claims paying nothing; a hoglin or brute that zombifies (the dungeon dimension is not piglin safe; they arrive immune).
+
+### L99: Haunt floor: the Keeper walks (2026-10-13)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** Lighthouse Below floors (act 3) carry the Keeper (haunt `the_keeper`, HUNT behaviour). About `hauntHuntGraceSeconds` (20) seconds after the floor opens it wakes and walks toward the party whether watched or not. It cannot be killed: a hit never lands, it staggers for `hauntStunSeconds` (3) and is immune for 5 more. Two beacons stand in the side rooms, a heavy plate beside an unlit copper bulb: standing on a plate for `beaconChargeSeconds` (3) lights it and drives the Keeper off for `beaconBanishSeconds` (15). The pad refuses ("The lamp is dark. Light N more beacons.") until both are lit.
+- **Do:** enter the Lighthouse Below (compass 14). Stand in the open until the grace runs out. Let the Keeper approach; watch it, hit it once, hit it again inside the immunity window. Stand a beacon plate through the charge. Try to draw it into the entrance room or the pad room.
+- **Pass:** it wakes after the grace, not on the pressure clock; looking at it never holds it; the first hit staggers it and a fast second does not; a lit beacon banishes it and the bulb stays lit; the stage ladder still holds (sightings early, strikes from the strike floor); it never enters the entrance or the terminal room; the pad opens when the second beacon lights.
+- **Fail signs:** the Keeper frozen by a stare or hurt by a hit; a stunlock with no immunity gap; a beacon that will not charge or does not banish; the Keeper inside the entrance or the pad room; a Keeper that vanishes and never returns.
+
 # Rooms (id: roles, tier, depth, requirements)
 
+- admirals_vault: encounter/loot/corridor, tier 1, depth 0+
 - alphas_den: encounter, tier 2, depth 0+
 - archive_catalog: encounter/loot/corridor, tier 1, depth 1+
 - archive_reading_nook: encounter/loot/corridor, tier 1, depth 1+
@@ -594,6 +620,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - creeper_kennel: encounter, tier 2, depth 1+
 - crimson_forest: encounter/loot/corridor, tier 2, depth 0+
 - crypt_corner: encounter, depth 1+
+- debris_pit: encounter/loot/corridor, tier 1, depth 1+
 - deep_dark_landing: corridor, tier 3, depth 2+, pressure omen
 - deep_fossil_gallery: encounter/loot/corridor, tier 1, depth 1+
 - deep_geode: encounter/loot/corridor, tier 1, depth 1+
@@ -616,6 +643,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - frost_snowdrift: encounter/loot/corridor, tier 1, depth 1+
 - frostworks_glaze: corridor, depth 1+
 - fungal_hollow: encounter/loot/corridor, tier 1, depth 0+
+- galleon_hold: encounter/loot/corridor, tier 1, depth 1+
 - gallery: corridor, tier 2, depth 0+
 - gnawed_vein: encounter/loot/corridor, tier 1, depth 0+
 - great_crucible: encounter/loot/corridor, tier 1, depth 0+
@@ -639,8 +667,11 @@ tool on the MCP server (`mcp.mjs --admin`).
 - ice_run: corridor, tier 2, depth 0+, pressure local
 - infested_wall: corridor, tier 2, depth 1+, access gated
 - item_plate: corridor, tier 1, depth 0+, access gated
+- keepers_quarters: encounter/loot/corridor, tier 1, depth 1+
 - kennel_crossing: encounter, tier 2, depth 1+
 - kennel_run: corridor, tier 1, depth 0+
+- lamp_stair: encounter/loot/corridor, tier 1, depth 1+
+- lantern_room: encounter/loot/corridor, tier 1, depth 0+
 - last_index: encounter/loot/corridor, tier 1, depth 0+
 - last_rest: encounter/loot/corridor, tier 1, depth 0+
 - ledge_archers: encounter, tier 1, depth 0+
@@ -676,6 +707,7 @@ tool on the MCP server (`mcp.mjs --admin`).
 - rotation_lock: corridor, tier 2, depth 0+, access gated
 - sculk_causeway: corridor, tier 2, depth 0+
 - sculk_nave: corridor, tier 2, depth 0+
+- seam_heart: encounter/loot/corridor, tier 1, depth 0+
 - silent_deep: encounter/loot/corridor, tier 1, depth 0+
 - slime_pit: encounter, tier 1, depth 0+
 - sorting_floor: corridor, tier 2, depth 0+, access gated
@@ -690,7 +722,9 @@ tool on the MCP server (`mcp.mjs --admin`).
 - the_store: loot, tier 1, depth 1+, pressure omen
 - thicket: corridor, tier 1, depth 0+, pressure local
 - treasure_alcove: loot, depth 1+
+- treasury_strongroom: encounter/loot/corridor, tier 1, depth 1+
 - tripwire_hall: corridor, tier 1, depth 0+, pressure local
+- vein_gallery: encounter/loot/corridor, tier 1, depth 1+
 - warden_hall: exit, tier 1, depth 0+
 - wardens_deep: encounter/loot/corridor, tier 1, depth 0+
 - warped_forest: encounter/loot/corridor, tier 2, depth 0+

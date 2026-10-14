@@ -1080,3 +1080,16 @@ High
 The Switchback is the cleanest way to make the same authored rooms produce a different experience. It requires no new mob behavior, no dynamic terrain, and almost no new runtime state. Most of its complexity belongs in procedural graph validation.
 The Toll is the strongest choice if you want to make durability and inventory management matter more.
 One final filter: I'd keep The Restless Floor and The Bounty as modifiers or encounter variants, not standalone floor types. They still lean heavily on the existing spawner-clearing loop. The Switchback and The Toll change what players are thinking about while they move through the dungeon, which is the more valuable kind of variety for Pocket Dungeons.
+
+---
+
+## Outcome (2026-10-13)
+
+Three variants were built from this brainstorm, under names of their own: the
+Heist (`sunken_treasury`, act 3), the Haunt (`lighthouse_below`, act 3, the
+Keeper's HUNT behaviour) and the Claim (`gilded_seam`, act 4). The shared
+framework of section 3 landed as `FloorObjectives` plus `ObjectiveState`, and
+the generic recovery path became the fallback-to-spawners rule. The rules,
+numbers and knobs are recorded in
+`docs/decision-2026-10-13-act34-floor-types.md`; this document stays as
+provenance.

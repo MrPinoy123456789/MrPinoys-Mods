@@ -26,8 +26,12 @@ haul, lives and charts. Do not say keystone, omen, interval or node to a player.
   says Play again), dark behind an iron door is locked (the sign says the compass
   it needs, or Finish the act). Open a door to look inside through the wide
   glass wall; the DESCEND lever glints beside the door you picked. Pull it to go.
-- **Floors and spawners:** clear the floor's spawner gate (the bar shows
-  `Spawners 2/3`) to open the way on.
+- **Floors and spawners:** most floors clear on the spawner gate (the bar
+  shows `Spawners 2/3`) to open the way on. Some floors ask for something else
+  instead, and the pad's refusal line says what is left: a heist floor (Sunken
+  Treasury) wants the vault core channelled open, a claim floor (Gilded Seam)
+  wants gilded veins claimed by hand, a haunt floor (Lighthouse Below) wants
+  its beacon plates stood on until the lamps light.
 - **Doors between floors:** later floors offer three doors. The way forward is
   free. A side door costs 1 or 2 lives, shared by the party, and is never sold if
   it would take the last life. The door board says the price and what the floor
