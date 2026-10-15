@@ -1,6 +1,6 @@
 # Pocket Dungeons: Bug and Design Ledger
 
-Active and awaiting-live-check entries are in full below; closed entries are indexed in the table at the bottom. Continue `PD-n` numbering when filing new entries (highest used: `PD-208`).
+Active and awaiting-live-check entries are in full below; closed entries are indexed in the table at the bottom. Continue `PD-n` numbering when filing new entries (highest used: `PD-210`).
 
 ## Open, partial and awaiting live check
 
@@ -474,3 +474,5 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 | PD-205 | rising_lava enters the player into lava; its warning lamp sits apart from the lever (High) | Fixed 2026-10-10 (code, awaiting live check). Owner clarification: the intended design is a straight corrid... |
 | PD-206 | Shell token claim flow is not intuitive (Medium, UX) | Fixed 2026-10-10 (code, awaiting live check). Took the simplest option: right-clicking a shell token now un... |
 | PD-207 | Door board shows two different "loot" wordings that read as the same thing (Low, UX) | Fixed in code 2026-10-13, live verification owed. The owner merged the two into one system (docs/DECISIONS.... |
+| PD-209 | Gilded Seam veins gave no sign they were the objective or how to claim them (High, UX) | Fixed in code 2026-10-15, live check owed. Veins were click-to-claim fixtures: a silent verb on an unmarked block, and the tool protection hid even that. Now any tool or fist breaks the gilded blackstone and the break is the claim, unclaimed veins sparkle, and the pad says "Break N more gilded veins." The same pass lit the sealed vault core and unlit beacon bulbs the same way (`ClaimObjective`, `HeistObjective`, `HauntObjective`, `FloorObjectives`). |
+| PD-210 | The Keeper never damages the party on early floors (High) | Fixed in code 2026-10-15, live check owed. `HauntRules.decideHunt` reused the stalker's stage ladder, so a keeper on a sighting or near-miss floor could only ever advance or fake a hit; on Lighthouse Below's early landings it was toothless. It now strikes at reach on every floor once the tell has run, still can never kill, and a keeper that wakes in reach arms its tell when the freeze starts.
