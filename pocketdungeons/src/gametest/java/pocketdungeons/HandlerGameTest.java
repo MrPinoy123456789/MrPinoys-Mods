@@ -948,6 +948,35 @@ public final class HandlerGameTest {
     }
 
     /**
+     * PD-113 (playtest 2026-10-02-2): a mob that leaves the floor no longer
+     * holds its spawner open. A tracked mob outside the floor bounds is
+     * released and discarded (the escaped enderman stood 400 blocks out);
+     * a tracked mob still inside keeps the spawner waiting.
+     */
+    @GameTest(maxTicks = 40)
+    public void strayMobIsReleasedFromItsSpawner(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 1, 1));
+        level.setBlockAndUpdate(pos, Blocks.TRIAL_SPAWNER.defaultBlockState());
+        var inside = helper.spawn(net.minecraft.world.entity.EntityTypes.ZOMBIE, new BlockPos(3, 1, 3));
+        var outside = helper.spawn(net.minecraft.world.entity.EntityTypes.ZOMBIE, new BlockPos(30, 1, 30));
+        var spawner = (net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity) level.getBlockEntity(pos);
+        java.util.Set<java.util.UUID> waiting = ((pocketdungeons.mixin.TrialSpawnerStateDataAccessor)
+                (Object) spawner.getTrialSpawner().getStateData()).pocketdungeons$currentMobs();
+        waiting.add(inside.getUUID());
+        waiting.add(outside.getUUID());
+        BlockPos lo = helper.absolutePos(BlockPos.ZERO);
+        net.minecraft.world.phys.AABB bounds = new net.minecraft.world.phys.AABB(
+                lo.getX(), lo.getY(), lo.getZ(), lo.getX() + 8, lo.getY() + 8, lo.getZ() + 8);
+        TrialContent.releaseStrays(level, java.util.Set.of(pos), bounds);
+        helper.assertFalse(waiting.contains(outside.getUUID()), "the stray no longer holds the spawner");
+        helper.assertTrue(outside.isRemoved(), "the stray is discarded");
+        helper.assertTrue(waiting.contains(inside.getUUID()), "the inside mob still does");
+        helper.assertTrue(inside.isAlive(), "the inside mob is left alone");
+        helper.succeed();
+    }
+
+    /**
      * PD-136 (playtest 2026-10-03-2, second sighting of PD-109): the tripwire
      * hall keeps its six wall dispensers once the corridor role has run. The
      * role's chest removal took every randomizable container, dispensers

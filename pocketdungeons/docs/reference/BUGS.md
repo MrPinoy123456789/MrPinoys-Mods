@@ -1,4 +1,4 @@
-# Pocket Dungeons: Bug and Design Ledger
+﻿# Pocket Dungeons: Bug and Design Ledger
 
 Active and awaiting-live-check entries are in full below; closed entries are indexed in the table at the bottom. Continue `PD-n` numbering when filing new entries (highest used: `PD-210`).
 
@@ -163,7 +163,7 @@ still holds exactly one keystone.
 
 **Found:** 2026-09-27, while verifying PD-66 on the test server (`dungeon admin build 39 8`).
 **Severity:** Medium (the build is refused and cleared, so nobody is stranded; a player would see the dungeon fail to open).
-**Status:** Open. Not caused by the playtest fixes.
+**Status:** Already fixed (2026-10-16 review). This is the same defect PD-97 fixed on 2026-10-03 (commit e433efb1): sump's return path was a solid pillar, now a ladder column at (14, z 1) plus a water source that alone satisfies the check, and the template was regenerated. `sumpTemplateHasAReturnPath` verifies all four rotations and `everyMultiStoryRoomHasAReturnPath` sweeps every spanY > 1 room in the manifest; both are green. The intermittent once-in-60 failure was the pillar, not rotation.
 **Actual:** `LayoutStamper.stamp` (LayoutStamper.java:246) throws `room pocketdungeons:sump has spanY 2 but no climbable return path from its lower story to the upper floor (spec 13.4)` and the plan is cleared. Seen once in 60 builds at keystone 8.
 **Next step:** check the Sump spec and template for its ladder or stair column, and whether a rotation drops it.
 
@@ -173,7 +173,7 @@ Source: `docs/playtests/2026-09-27-3.md`.
 ### PD-104: other rooms wire comparators and repeaters backwards (Medium)
 
 **Reported:** 2026-10-01, found while fixing PD-99.
-**Status:** Open, unverified in play.
+**Status:** Closed, stale (2026-10-16 review). Every room named has been reworked since the report. `sorting_floor` no longer ships a comparator at all; `Locks` (ITEM_KEY stick) reads the return chest and opens the door under PD-133, covered by `sortingFloorIsAClosedGateWithConfinedWater`. `barred_vault` was redesigned 2026-10-09 into an open room with a vault block on a dais: no door, hopper or comparator. `ominous_bargain` lost its gold toll the same day: the chest stands open. `the_altar` still has its comparator and repeater, but they are scenery: PD-143 moved the payout to `AltarOffering`, which reads the offering hopper and pays the key out of the dropper (`theAltarPaysOneKeyForAFoodOfferingOnly`). No door anywhere is driven by these parts.
 **Likely cause:** vanilla `FACING` on a comparator or repeater is the input side. `SituationSpecs.sortingFloor` (comparator at 14,1,9 facing NORTH, chest at 14,1,10 to its south), `SpurSpecs.barredVault` and `ominousBargain` (comparator at 9,1,10 facing NORTH, chest to its west) and `theAltar` pass an "output direction" like `rotation_lock` did. If these doors are meant to open from the redstone rather than from `Locks`, they never will.
 **Fix idea:** check which of these rooms `Locks` already drives; for the rest, flip the facing, recapture, and add a solve gametest like `rotationLockSolvesAtEveryRotation`.
 
@@ -181,7 +181,7 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "I think at least one enderman teleported out of bound and now I can't complete the floor."
 **Severity:** High (the floor cannot be completed; a manual console cleanup was needed).
-**Status:** Open. Worked around live by killing the endermen in `pocketdungeons:void`.
+**Status:** Fixed in code 2026-10-16, live check owed. `TrialContent.releaseStrays` runs beside `releaseTamed` on the watch tick: any mob a trial spawner tracks that the level no longer holds, or that stands outside the floor's bounds, is dropped from the tracked set (and discarded when found), so the spawner can reach cooldown. Test `strayMobIsReleasedFromItsSpawner` covers it. Unverified live: a real enderman escaping mid-floor then the gate clearing on its own.
 **Repro:** ender_archive floor 3, spawners 2 of 3, the open one the hall_tee at cell 3,1. Two endermen were alive: one at (-11.6, 39, 14.5), one at (128.2, 72, 414.2), over 400 blocks away. After killing both, the gate read 3 of 3 and the player finished the floor.
 **Expected:** a trial spawner reaches cooldown once its mobs are dead, or the mob cannot leave the instance.
 **Actual:** the gate counts only spawners in `COOLDOWN` (`TrialContent.countCleared`), and vanilla holds a spawner out of cooldown while a tracked mob is alive, so an enderman that teleports far away stalls it.
@@ -191,7 +191,7 @@ Source: `docs/playtests/2026-09-27-3.md`.
 
 **Reported:** 2026-10-02, live session `docs/playtests/2026-10-02-2.md`. Player: "It correctly opens the door after being rotated 8 times, but on the other side of the door is netherbricks blocking my path." He said a second room had the same problem ("both ordeal rooms had this problem").
 **Severity:** High (a gated route that opens onto solid wall).
-**Status:** Open, not reproduced. The floor was `basalt_foundry`, whose processor turns every stone brick into nether brick, so the wall is the room shell; rubble is cobblestone, tuff and deepslate, so this is not the L11 rubble feature. The plan was cell -1,2 `frame_lock` between `hall_tee` cells at -1,1 and -1,3.
+**Status:** Not reproduced (2026-10-16). On current code the doorway planes are provably sound: a new sweep (`everyDoorEdgeLeavesAWalkablePlane`) stamps ten seeded floors and fails on any plan edge whose either side's doorway plane is walled at walking height; zero violations. Door jigsaws resolve to air at the canonical slot on every face the mask declares, connectors cannot fill both columns (RUBBLE is planner-only and is cobble/tuff/deepslate), window bands skip the door columns, and no seal path runs mid-floor. Two plausible historical causes: before the PD-144 fix landed (2026-10-05) an IRON_DOOR connector could stack a second door set on a gated room's edge, and a DOOR_SINGLE connector walls one of the two columns (a half-blocked doorway is still passable). If it recurs live, stand at the wall and read the actual block: shell material means the plane never opened, a door means a stacked connector, bars or gravel mean a deliberate gate.
 **Expected:** the unlocked door leads into the next room.
 **Actual:** a solid wall stands behind it.
 **Fix idea:** `dungeon admin bias frame_lock 20` and stand at the exit with the player; compare the room's door slots with the plan's connectors at every rotation (a gametest like the multi-story one).

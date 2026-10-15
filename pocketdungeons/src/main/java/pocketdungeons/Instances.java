@@ -2865,6 +2865,7 @@ final class Instances {
         // the pad on. Progress lives on the bar, not in chat.
         Set<BlockPos> gatedSpawners = TrialContent.activeSpawners(record.layout, level);
         TrialContent.releaseTamed(level, gatedSpawners);
+        TrialContent.releaseStrays(level, gatedSpawners, record.layout.bounds());
         record.floor.spawnersTotal = gatedSpawners.size();
         record.floor.spawnersCleared = TrialContent.countCleared(level, gatedSpawners);
         for (Map.Entry<PlanCell, List<BlockPos>> e : record.floor.spawnerCellsByCell.entrySet()) {

@@ -138,6 +138,86 @@ public final class PlaytestFixGameTest {
         helper.succeed();
     }
 
+    /**
+     * PD-114 (playtest 2026-10-02-2, needs repro): on a basalt_foundry floor a
+     * gated room's opened exit showed a nether brick wall, so the far cell's
+     * doorway plane never opened. Sweeps stamped floors and fails on any plan
+     * edge where either side's doorway plane is solid at both columns and both
+     * walking heights. A closed iron door is a gate, not a wall; rubble edges
+     * are a deliberate plug and are skipped.
+     */
+    @GameTest(maxTicks = 2000)
+    public void everyDoorEdgeLeavesAWalkablePlane(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        List<String> failures = new ArrayList<>();
+        int stamped = 0;
+        for (long seed = 1; seed <= 200 && stamped < 10; seed++) {
+            LayoutPlanner.Outcome outcome = LayoutPlanner.plan(seed, RoomManifest.current(),
+                    LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                    LayoutPlanner.DEFAULT_MIN_PATH, LayoutPlanner.DEFAULT_MAX_PATH,
+                    LayoutPlanner.DEFAULT_BRANCH_PROBABILITY, LayoutPlanner.DEFAULT_LOOP_PROBABILITY,
+                    LayoutPlanner.DEFAULT_MAX_GRID_SPAN, "deepslate", null);
+            DungeonPlan plan = outcome.plan();
+            if (plan == null) {
+                continue;
+            }
+            int minX = plan.cells().stream().mapToInt(PlanCell::x).min().orElse(0);
+            int minZ = plan.cells().stream().mapToInt(PlanCell::z).min().orElse(0);
+            BlockPos origin = new BlockPos(
+                    8192 + stamped * 24 * CELL - minX * CELL, 120, 8192 - minZ * CELL);
+            PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
+            List<net.minecraft.world.level.ChunkPos> chunks = geometry.chunks();
+            Instances.forceLoad(level, chunks, true);
+            try {
+                LayoutStamper.stamp(level, origin, plan, 6, Set.of());
+                for (PlanEdge edge : plan.doors()) {
+                    if (plan.rubbleEdges().contains(edge)) {
+                        continue;
+                    }
+                    for (PlanCell cell : new PlanCell[]{edge.a(), edge.b()}) {
+                        PlanCell other = edge.other(cell);
+                        DoorMask.Direction wall = cell.directionTo(other);
+                        if (wall == null) {
+                            continue;
+                        }
+                        BlockPos cellOrigin = geometry.cellOrigin(cell);
+                        int blocked = 0;
+                        StringBuilder blocks = new StringBuilder();
+                        for (int i = RoomGeometry.DOOR_MIN; i <= RoomGeometry.DOOR_MAX; i++) {
+                            for (int y = 1; y <= 2; y++) {
+                                BlockPos pos = ConnectorGeometry.wallPos(cellOrigin, wall, i, y);
+                                BlockState state = level.getBlockState(pos);
+                                if (!(state.getBlock() instanceof DoorBlock)
+                                        && !state.getCollisionShape(level, pos).isEmpty()) {
+                                    blocked++;
+                                    String name = state.getBlock().toString();
+                                    if (blocks.indexOf(name) < 0) {
+                                        blocks.append(name).append(' ');
+                                    }
+                                }
+                            }
+                        }
+                        if (blocked >= 4) {
+                            String room = plan.rooms().get(cell) == null ? "?"
+                                    : plan.rooms().get(cell).name();
+                            String next = plan.rooms().get(other) == null ? "?"
+                                    : plan.rooms().get(other).name();
+                            failures.add("seed " + seed + ": " + room + " " + cell
+                                    + " facing " + wall + " into " + next + " " + other
+                                    + " walled by " + blocks);
+                        }
+                    }
+                }
+                stamped++;
+            } finally {
+                Instances.forceLoad(level, chunks, false);
+            }
+        }
+        helper.assertTrue(stamped >= 5, "stamped " + stamped + " floors");
+        helper.assertTrue(failures.isEmpty(), "walled doorways: " + failures);
+        helper.succeed();
+    }
+
     // ---- PD-143: the Altar -------------------------------------------------
 
     private static net.minecraft.world.phys.AABB cellBox(BlockPos origin) {

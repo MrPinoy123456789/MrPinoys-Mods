@@ -12,6 +12,7 @@ import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerConfig;
 import net.minecraft.world.level.block.Block;
@@ -34,6 +35,7 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -431,6 +433,39 @@ final class TrialContent {
                     (Object) spawner.getTrialSpawner().getStateData()).pocketdungeons$currentMobs();
             if (waiting.removeIf(id -> level.getEntity(id)
                     instanceof net.minecraft.world.entity.TamableAnimal animal && animal.isTame())) {
+                spawner.setChanged();
+            }
+        }
+    }
+
+    /**
+     * PD-113 (playtest 2026-10-02-2): lets each spawner forget a mob that has
+     * left the floor. Vanilla holds a spawner out of cooldown while a tracked
+     * mob is alive, so an enderman that teleports out of bounds stalls the
+     * clear gate forever even though nobody can reach it. A mob the level no
+     * longer holds, or holds outside {@code bounds}, is out of the fight: to
+     * the spawner it counts as defeated, and a found stray is discarded so it
+     * cannot wander back in.
+     */
+    static void releaseStrays(ServerLevel level, Set<BlockPos> spawners, AABB bounds) {
+        for (BlockPos pos : spawners) {
+            if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner)) {
+                continue;
+            }
+            java.util.Set<java.util.UUID> waiting = ((pocketdungeons.mixin.TrialSpawnerStateDataAccessor)
+                    (Object) spawner.getTrialSpawner().getStateData()).pocketdungeons$currentMobs();
+            List<java.util.UUID> strays = new ArrayList<>();
+            for (java.util.UUID id : waiting) {
+                Entity entity = level.getEntity(id);
+                if (entity == null || !bounds.contains(entity.position())) {
+                    strays.add(id);
+                    if (entity != null) {
+                        entity.discard();
+                    }
+                }
+            }
+            if (!strays.isEmpty()) {
+                strays.forEach(waiting::remove);
                 spawner.setChanged();
             }
         }
