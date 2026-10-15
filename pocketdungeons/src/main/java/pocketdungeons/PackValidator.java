@@ -200,7 +200,26 @@ final class PackValidator {
      */
     private static void addAdventureReachabilityFindings(ContentSnapshot snapshot,
                                                           List<Finding> findings) {
-        AdventureGraph graph = snapshot.adventure().graph();
+        // A special hall's dungeon (the per-act Endless Mines) is offered on the astrolabe's
+        // special slot, never by a door: its theme is unreachable in the graph by design.
+        Set<String> special = new HashSet<>();
+        for (DungeonDef def : snapshot.dungeons().all()) {
+            if (HallLayout.HALL_SPECIAL.equals(def.hall()) && def.mainTheme() != null) {
+                special.add(def.mainTheme());
+            }
+        }
+        findings.addAll(adventureReachabilityFindings(snapshot.adventure().graph(),
+                snapshot.themes().themes(), special));
+    }
+
+    /**
+     * The pure check behind {@link #addAdventureReachabilityFindings}: every node theme must be
+     * reachable from an entry theme unless it heads a special hall, and every declared theme must
+     * have a node.
+     */
+    static List<Finding> adventureReachabilityFindings(AdventureGraph graph,
+            List<ThemeManifest.Entry> themes, Set<String> specialThemes) {
+        List<Finding> findings = new ArrayList<>();
         Set<String> reachable = new HashSet<>();
         ArrayDeque<String> queue = new ArrayDeque<>(graph.entryThemes());
         reachable.addAll(graph.entryThemes());
@@ -216,18 +235,19 @@ final class PackValidator {
             }
         }
         for (String theme : graph.nodeThemes()) {
-            if (!reachable.contains(theme)) {
+            if (!reachable.contains(theme) && !specialThemes.contains(theme)) {
                 findings.add(new Finding(theme, "adventure",
                         "node is not reachable from any entry theme; no door ever offers it"));
             }
         }
         Set<String> nodeThemes = new HashSet<>(graph.nodeThemes());
-        for (ThemeManifest.Entry theme : snapshot.themes().themes()) {
+        for (ThemeManifest.Entry theme : themes) {
             if (!nodeThemes.contains(theme.id())) {
                 findings.add(new Finding(theme.id(), "adventure",
                         "theme has no adventure node; never offered as a door choice"));
             }
         }
+        return findings;
     }
 
     /**

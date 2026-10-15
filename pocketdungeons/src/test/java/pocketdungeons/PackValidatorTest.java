@@ -52,6 +52,7 @@ public class PackValidatorTest {
         testStarterResourcesBundled();
         testZoneRuleFindings();
         testKitBaselineFindings();
+        testAdventureReachabilityFindings();
 
         System.out.println("PackValidatorTest passed");
     }
@@ -126,6 +127,38 @@ public class PackValidatorTest {
                 "a baseline above the kit is reported");
         check(findings.stream().allMatch(x -> x.file().equals("t:bad") && x.field().equals("kit_baseline")),
                 "every finding names the bag and the field");
+    }
+
+    /**
+     * An adventure node no entry theme reaches is reported, unless it heads a special hall
+     * (the per-act mines are shown on the astrolabe, never offered by a door); a theme with
+     * no node at all is still reported either way.
+     */
+    private static void testAdventureReachabilityFindings() {
+        AdventureGraph graph = AdventureGraph.of(java.util.Map.of(
+                "a:entry", new AdventureGraph.Node("a:entry", AdventureGraph.Kind.ENTRY,
+                        List.of(new AdventureGraph.Transition("a:mid", 1))),
+                "a:mid", new AdventureGraph.Node("a:mid", AdventureGraph.Kind.DESCENT,
+                        List.of(new AdventureGraph.Transition("a:entry", 1))),
+                "a:mine", new AdventureGraph.Node("a:mine", AdventureGraph.Kind.DESCENT,
+                        List.of(new AdventureGraph.Transition("a:entry", 1)))));
+        List<ThemeManifest.Entry> themes = List.of(theme("a:entry", "{}"), theme("a:mid", "{}"),
+                theme("a:mine", "{}"), theme("a:nodeless", "{}"));
+
+        List<PackValidator.Finding> plain = PackValidator.adventureReachabilityFindings(graph, themes,
+                java.util.Set.of());
+        check(plain.stream().anyMatch(x -> x.file().equals("a:mine")
+                        && x.cause().contains("no door ever offers")),
+                "an unreachable node is reported");
+        check(plain.stream().anyMatch(x -> x.file().equals("a:nodeless")),
+                "a theme with no node is reported");
+
+        List<PackValidator.Finding> special = PackValidator.adventureReachabilityFindings(graph, themes,
+                java.util.Set.of("a:mine"));
+        check(special.stream().noneMatch(x -> x.file().equals("a:mine")),
+                "a special hall theme is exempt from the reachability check");
+        check(special.stream().anyMatch(x -> x.file().equals("a:nodeless")),
+                "a special hall theme still needs its node file");
     }
 
     private static ThemeManifest.Entry theme(String id, String rules) {
