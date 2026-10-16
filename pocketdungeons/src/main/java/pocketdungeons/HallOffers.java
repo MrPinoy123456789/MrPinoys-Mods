@@ -92,9 +92,9 @@ final class HallOffers {
         return new Hall(act, acts, inAct, statuses, specials, compass);
     }
 
-    /** A dungeon that stands in an act's row: not endless, not special, with an entry floor. */
+    /** A dungeon that stands in an act's row: not a descent, not special, with an entry floor. */
     private static boolean isHallDoor(DungeonDef def) {
-        return def.kind() != DungeonDef.Kind.ENDLESS && HallLayout.HALL_ACT.equals(def.hall()) && def.entry() != null;
+        return !def.kind().descends() && HallLayout.HALL_ACT.equals(def.hall()) && def.entry() != null;
     }
 
     private static List<HallLayout.Entry> entriesOf(DungeonDefs dungeons, int act, Set<String> finished,

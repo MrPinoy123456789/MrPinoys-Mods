@@ -1285,6 +1285,12 @@ final class RunLifecycle {
             player.sendSystemMessage(Component.literal(guardianRefusal).withStyle(ChatFormatting.YELLOW));
             return true;
         }
+        // The Proving: every floor's pad stays shut while its wave stands.
+        String waveRefusal = ProvingWaves.padRefusal(player.level(), record);
+        if (waveRefusal != null) {
+            player.sendSystemMessage(Component.literal(waveRefusal).withStyle(ChatFormatting.YELLOW));
+            return true;
+        }
         return false;
     }
 
@@ -1295,7 +1301,12 @@ final class RunLifecycle {
         // J3: the verdict is lives, not a band; omen is danger only.
         String verdict = OmenBarText.completionVerdict(record.interval.omen,
                 record.floor.rewardChests >= 0 ? record.floor.rewardChests : Omen.baseRewardChests());
-        if (EndlessMineRules.isMine(record)) {
+        if (ProvingWaves.isProving(record)) {
+            // The Proving's checkpoint, same commitment surface as the Mine's.
+            player.sendSystemMessage(Component.literal(
+                    ProvingWaves.checkpointMessage(floorsCleared) + " " + verdict)
+                    .withStyle(ChatFormatting.AQUA));
+        } else if (EndlessMineRules.isMine(record)) {
             // M78: the Mine checkpoint is the commitment surface. The player
             // sees the depth reached and the escalating loot tier before
             // choosing a door deeper or going home. The spatial movement
@@ -1482,8 +1493,9 @@ final class RunLifecycle {
                 new TrialContent.RewardLoot(record.floor.affixes.contains(AffixIds.OMINOUS),
                         record.layout.seed(),
                         completionTheme == null ? null : completionTheme.meta().lootSuffix,
-                        MineGuardians.payingTable(record, floorsCleared,
-                                completionTheme == null ? null : completionTheme.meta().lootTable)),
+                        ProvingWaves.payingTable(record, floorsCleared,
+                                MineGuardians.payingTable(record, floorsCleared,
+                                        completionTheme == null ? null : completionTheme.meta().lootTable))),
                 promisedItems(level, tripDef, record));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
@@ -2083,7 +2095,8 @@ final class RunLifecycle {
             return false;
         }
         if (mine) {
-            player.sendSystemMessage(Component.literal(EndlessMineRules.cashOutMessage(depth))
+            player.sendSystemMessage(Component.literal(ProvingWaves.isProving(record)
+                    ? ProvingWaves.cashOutMessage(depth) : EndlessMineRules.cashOutMessage(depth))
                     .withStyle(ChatFormatting.GOLD));
         }
         return true;

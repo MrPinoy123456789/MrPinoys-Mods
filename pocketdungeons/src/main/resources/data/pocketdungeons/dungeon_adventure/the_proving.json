@@ -1,0 +1,9 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "the_proving",
+      "weight": 1
+    }
+  ]
+}

@@ -49,6 +49,10 @@ final class LootBands {
      * floor's own A, B, C table is chosen in {@link MineGuardians#payingTable}.
      */
     static int floorTier(InstanceRecord record, ZoneRules rules, int floorsCleared) {
+        if (ProvingWaves.isProving(record)) {
+            // Every Proving floor is a fight, so the tier climbs with depth the way a guardian floor's does.
+            return ProvingWaves.floorTier(EndlessMineRules.bandOf(EndlessMineRules.mineOf(record)), floorsCleared);
+        }
         if (EndlessMineRules.isMine(record)) {
             return EndlessMineRules.floorTier(EndlessMineRules.bandOf(EndlessMineRules.mineOf(record)), floorsCleared);
         }

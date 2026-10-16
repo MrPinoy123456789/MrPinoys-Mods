@@ -108,6 +108,7 @@ public final class CopperFinaleGameTest {
                     "the sweep is the fixed serpentine order");
             run.member.teleportTo(run.level, one.getX() + 0.5, one.getY() + 1.0, one.getZ() + 0.5,
                     Set.of(), 0.0F, 0.0F, false);
+            vents.armed = true;
             vents.tellAt = run.server.getTickCount();
             helper.assertTrue(run.member.getRemainingFireTicks() <= 0, "nobody burns before the pulse");
             run.step(false);
@@ -144,6 +145,91 @@ public final class CopperFinaleGameTest {
             helper.assertTrue(foreman.hasEffect(MobEffects.WEAKNESS), "a vat weakens the Foreman");
             helper.assertTrue(foreman.hasEffect(MobEffects.SLOWNESS), "and slows him");
             helper.assertTrue(foreman.getHealth() < foreman.getMaxHealth(), "and the water hurts him");
+        } finally {
+            run.close();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void theVentsWaitForTheForemansSecondPhase(GameTestHelper helper) {
+        Run run = new Run(helper, 9940);
+        try {
+            run.vent(4, 1, 4);
+            run.step(true);
+            run.skipCountdown();
+            run.step(false);
+            helper.assertTrue(run.state().spawned, "the wave stands");
+            CopperFinale.Vents vents = run.vents();
+            helper.assertTrue(!vents.armed && !vents.told, "the floor stays quiet while he is fresh");
+            run.step(false);
+            helper.assertTrue(!vents.told, "still quiet a tick later");
+            Mob foreman = (Mob) run.level.getEntity(run.state().elite);
+            foreman.setHealth(foreman.getMaxHealth() * 0.5f);
+            run.step(false);
+            helper.assertTrue(foreman.isInvulnerable() && foreman.isNoAi(),
+                    "crossing two thirds staggers him");
+            run.fight().staggerEnd = 0;
+            run.step(false);
+            helper.assertTrue(!foreman.isInvulnerable() && !foreman.isNoAi(),
+                    "the stagger lifts when it ends");
+            helper.assertTrue(vents.armed && vents.tellAt > run.server.getTickCount(),
+                    "and the vents wake");
+        } finally {
+            run.close();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void burstDamageCannotSkipAPhase(GameTestHelper helper) {
+        Run run = new Run(helper, 9941);
+        try {
+            run.vent(4, 1, 4);
+            run.step(true);
+            run.skipCountdown();
+            run.step(false);
+            helper.assertTrue(run.state().spawned, "the wave stands");
+            CopperFinale.Vents vents = run.vents();
+            Mob foreman = (Mob) run.level.getEntity(run.state().elite);
+            // A hit that carries under both bounds at once still runs both phases.
+            foreman.setHealth(foreman.getMaxHealth() * 0.2f);
+            run.step(false);
+            helper.assertTrue(run.fight().phase() == 1 && foreman.isNoAi(),
+                    "only the second phase begins");
+            run.fight().staggerEnd = 0;
+            run.step(false);
+            helper.assertTrue(vents.armed && !vents.cornered, "the vents wake, not the cornered bite");
+            run.step(false);
+            helper.assertTrue(run.fight().phase() == 2 && foreman.isNoAi(),
+                    "the last phase staggers straight after");
+            run.fight().staggerEnd = 0;
+            run.step(false);
+            helper.assertTrue(vents.cornered, "cornered arms on its own stagger");
+        } finally {
+            run.close();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void theCorneredPhaseBitesHarderInAVat(GameTestHelper helper) {
+        Run run = new Run(helper, 9942);
+        try {
+            BlockPos vat = run.vat(6, 1, 10);
+            run.step(true);
+            run.skipCountdown();
+            run.step(false);
+            Mob foreman = (Mob) run.level.getEntity(run.state().elite);
+            CopperFinale.Vents vents = run.vents();
+            vents.cornered = true;
+            foreman.setPos(vat.getX() + 0.5, vat.getY(), vat.getZ() + 0.5);
+            float before = foreman.getHealth();
+            vents.nextVatCheckAt = run.server.getTickCount();
+            run.step(false);
+            double took = before - foreman.getHealth();
+            helper.assertTrue(took > PocketDungeonsConfig.copperForemanVatDamage(),
+                    "a cornered Foreman takes the multiplied bite, took " + took);
         } finally {
             run.close();
         }
@@ -225,6 +311,10 @@ public final class CopperFinaleGameTest {
                     (CopperFinale.Vents) state().scriptState.get(CopperFinale.Vents.class);
             helper.assertTrue(vents != null && vents.scanned, "the vent floor was scanned");
             return vents;
+        }
+
+        BossFight fight() {
+            return (BossFight) state().scriptState.get(BossFight.class);
         }
 
         void skipCountdown() {

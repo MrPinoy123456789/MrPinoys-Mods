@@ -801,6 +801,27 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Pass:** it wakes after the grace, not on the pressure clock; looking at it never holds it; the first hit staggers it and a fast second does not; a lit beacon banishes it and the bulb stays lit; the stage ladder still holds (sightings early, strikes from the strike floor); it never enters the entrance or the terminal room; the pad opens when the second beacon lights.
 - **Fail signs:** the Keeper frozen by a stare or hurt by a hit; a stunlock with no immunity gap; a beacon that will not charge or does not banish; the Keeper inside the entrance or the pad room; a Keeper that vanishes and never returns.
 
+## L100: Stray trial mobs release their spawner (2026-10-15)
+- **Status:** partial 2026-10-16 (`2026-10-16-1.md`): the gate job verified live. A stray enderman from an earlier floor was heard on a room roof mid-run and every floor still cleared, so the release works. Residue filed as PD-213: the stray entity survives and stays audible, so release is not yet cleanup.
+- **Changed:** `TrialContent.releaseStrays` sweeps each gated spawner's tracked mobs on the watch tick; a mob gone from the level or outside the floor bounds is dropped from the waiting set (counts as defeated) and a found stray is discarded.
+- **Do:** run an `ender_archive` or other enderman floor, let one teleport out of the room, and check the floor still clears and the stray is gone (not just ungated).
+- **Pass:** the spawner reaches cooldown with the stray outside the floor, and no enderman noise persists on roofs after the floor ends.
+- **Fail signs:** the floor stalls on an escaped mob (the original PD-113), or the stray remains audible/visible after release (PD-213, seen once already).
+
+## L101: The Proving, a wave-arena descent (decision 2026-10-16)
+- **Status:** owed (built 2026-10-16; not yet played live; arena look and feel unverified)
+- **Changed:** `the_proving` is a new dungeon of kind `proving`, offered beside the Endless Mine on the astrolabe's special row (act 1, compass gate as the Mine's). Each floor is two rooms, gate plus arena, with one wave spawned in the arena when the floor commits. Wave size is `provingWaveBaseSize` (5) + `provingWaveSizePerFloor` (2) per floor + `provingWaveSizePerMember` (2) per extra member, capped at `provingWaveMaxSize` (20); every `provingChampionEvery` (3) floors the last spawn is a named Champion scaled half again. The pad refuses while the wave stands ("The wave still stands. Finish it first."), the checkpoint offers a door deeper or the HOME lever, and pay climbs the act's loot tiers (floor 1 pays tier A, floor 2 B, floor 3+ C).
+- **Do:** enter the Proving from the astrolabe. Fight floor 1, use the door deeper, reach floor 3 (a champion floor), and bank with the HOME lever. Try it at low and high compass and with a second member.
+- **Pass:** the offer appears on the special row; each floor is a gate and an arena with one wave; the pad refuses while any wave mob lives and opens when it falls; floor 3 sends a named Champion; the checkpoint prints the Proving line and banking pays the climb ("You leave the Proving with N floors banked.").
+- **Fail signs:** no offer on the special row; a floor that stalls after the wave falls (pad stuck shut); a wave mob that cannot reach the players; waves or pay that do not deepen; a Proving floor that counts toward act completion or shows as a normal door.
+
+## L102: Phased boss floors, Copper Works pilot (decision 2026-10-16)
+- **Status:** owed (built 2026-10-16; not yet fought live)
+- **Changed:** `BossFight` is the shared phased spine: an elite's health is cut into phases by fraction bounds; crossing a bound staggers the boss (`bossPhaseStaggerSeconds`, 3s invulnerable and mindless, title lines plus the ravager-stunned sound) and arms the next phase when the stagger ends. Phases advance one at a time, so burst compresses transitions but cannot skip a phase. Copper Works pilot: phase 1 baseline, phase 2 wakes the vents (`copperVentPulseSeconds`, `copperVentBlownPercent`, `copperVentBurnSeconds`), phase 3 quickens them and sharpens the vat (`copperForemanVatDamage` x `copperForemanVatCorneredMultiplier` when cornered, `copperForemanVatWeakSeconds`, `copperVentCorneredPercent`).
+- **Do:** clear Copper Works and fight the Foreman at ordinary gear, then again overleveled. Watch the phase tells, when the vents first fire, and whether the vat weakness reads.
+- **Pass:** all three phases play in order even under burst; each transition shows its title and the stagger is readable; vents stay silent in phase 1 and fire from phase 2; the pad still opens only on the kill. PD-208's failure mode (an elite dying before its mechanic registers) cannot recur: a staggered boss is invulnerable while the next phase arms.
+- **Fail signs:** a phase skipped by burst; the stagger reading as "the game ate my crit"; vents firing in phase 1 or with no readable rhythm; the boss dying before phase 3's tell.
+
 ## Done
 
 - **PD-92** max-omen ejection keeps each stack once: passed 2026-10-01 (`2026-10-01-1.md`).

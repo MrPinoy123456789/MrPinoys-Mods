@@ -88,7 +88,13 @@ public class NodePaletteTest {
                 JsonObject obj = JsonParser.parseString(text).getAsJsonObject();
                 String name = path.getFileName().toString();
                 int act = obj.get("act").getAsInt();
+                String kind = obj.get("kind").getAsString();
                 JsonArray palette = obj.getAsJsonArray("nodePalette");
+                if ("proving".equals(kind)) {
+                    // The Proving's arena holds no resource nodes; the wave ladder is the payout.
+                    check(palette == null || palette.size() == 0, name + " is a fight, not a dig");
+                    continue;
+                }
                 check(palette != null && palette.size() > 0, name + " has a palette");
                 for (JsonElement element : palette) {
                     String block = element.getAsString();
@@ -105,7 +111,7 @@ public class NodePaletteTest {
                 }
             }
         }
-        check(files == 24, "all twenty-four shipped dungeon files were read, got " + files);
+        check(files == 25, "all twenty-five shipped dungeon files were read, got " + files);
     }
 
     private static void check(boolean ok, String message) {

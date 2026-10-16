@@ -1257,8 +1257,10 @@ final class Instances {
                                          Set<String> bagTags, RoomEligibility.Floor roomFloor) {
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         // M66: apply the recipe's path length bonus to the planning bounds.
-        int minPath = PocketDungeonsConfig.pathLengthMin() + recipePlan.pathLengthBonus();
-        int maxPath = PocketDungeonsConfig.pathLengthMax() + recipePlan.pathLengthBonus();
+        // The Proving's floor is one fight: a gate cell and the arena, nothing between.
+        boolean proving = ProvingWaves.isProvingFor(record, offer);
+        final int minPath = proving ? 2 : PocketDungeonsConfig.pathLengthMin() + recipePlan.pathLengthBonus();
+        final int maxPath = proving ? 2 : PocketDungeonsConfig.pathLengthMax() + recipePlan.pathLengthBonus();
 
         DungeonPlan plan = null;
         long lastSeed = 0;
@@ -1602,7 +1604,8 @@ final class Instances {
         if (openingMine) {
             ServerPlayer owner = server.getPlayerList().getPlayer(record.owner);
             if (owner != null) {
-                owner.sendSystemMessage(Component.literal(EndlessMineRules.mineStartMessage())
+                owner.sendSystemMessage(Component.literal(ProvingWaves.isProvingOffer(offer)
+                        ? ProvingWaves.startMessage() : EndlessMineRules.mineStartMessage())
                         .withStyle(ChatFormatting.AQUA));
             }
         }
@@ -1775,9 +1778,15 @@ final class Instances {
 
         // Endless Mine: a guardian waits on every third floor of a mine, in the terminal cell. The
         // floor being committed is number floorIndex + 1 (floorIndex counts the floors cleared).
+        // A Proving floor holds a wave in the same place instead, every floor.
         if (EndlessMineRules.isMine(record)) {
-            MineGuardians.spawnIfGuardianFloor(level, record, layout.terminal(),
-                    record.interval.floorIndex + 1, offer.level());
+            if (ProvingWaves.isProving(record)) {
+                ProvingWaves.spawn(level, record, layout.terminal(),
+                        record.interval.floorIndex + 1, offer.level(), record.members.size());
+            } else {
+                MineGuardians.spawnIfGuardianFloor(level, record, layout.terminal(),
+                        record.interval.floorIndex + 1, offer.level());
+            }
         }
 
         // The node's floor objective arms last, once the floor stands and the

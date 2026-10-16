@@ -71,13 +71,17 @@ final class EndlessMineRules {
 
     // ---- which mine ------------------------------------------------------------------
 
-    /** Whether {@code dungeonId} names an Endless Mine: a loaded dungeon of kind endless, else the Act 1 mine's id. */
+    /**
+     * Whether {@code dungeonId} names a descent: a loaded dungeon of a kind that descends
+     * (an Endless Mine, or the Proving, which shares the descent machinery), else the Act 1
+     * mine's id.
+     */
     static boolean isMineId(String dungeonId) {
         if (dungeonId == null || dungeonId.isEmpty()) {
             return false;
         }
         DungeonDef def = DungeonDefs.current().byId(dungeonId);
-        return def != null ? def.kind() == DungeonDef.Kind.ENDLESS : MINE_DUNGEON_ID.equals(dungeonId);
+        return def != null ? def.kind().descends() : MINE_DUNGEON_ID.equals(dungeonId);
     }
 
     /** Whether {@code offer} opens a Mine from the first staging room. */
@@ -163,15 +167,16 @@ final class EndlessMineRules {
     }
 
     /**
-     * The mines open to a player, lowest act first: every loaded dungeon of kind
-     * endless with an entry floor whose act is unlocked and whose compass gate is met.
-     * A later act's mine is a data file; nothing here names it.
+     * The descents open to a player, lowest act first: every loaded dungeon of a kind that
+     * descends (each act's mine, and the Proving) with an entry floor whose act is unlocked
+     * and whose compass gate is met. A later act's descent is a data file; nothing here
+     * names it.
      */
     static java.util.List<DungeonDef> openMines(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                                 int compass) {
         java.util.List<DungeonDef> out = new java.util.ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.kind() == DungeonDef.Kind.ENDLESS && def.entry() != null
+            if (def.kind().descends() && def.entry() != null
                     && opensFor(def, unlockedActs, compass)) {
                 out.add(def);
             }

@@ -260,7 +260,8 @@ public class BossRulesTest {
         try (Stream<Path> files = Files.list(DATA.resolve("dungeon"))) {
             for (Path file : (Iterable<Path>) files.filter(p -> p.toString().endsWith(".json"))::iterator) {
                 JsonObject dungeon = read("dungeon/" + file.getFileName());
-                if ("endless".equals(dungeon.get("kind").getAsString())) {
+                String kind = dungeon.get("kind").getAsString();
+                if ("endless".equals(kind) || "proving".equals(kind)) {
                     continue;
                 }
                 String diary = dungeon.has("diary") ? dungeon.get("diary").getAsString() : "";

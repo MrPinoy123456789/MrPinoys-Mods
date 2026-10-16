@@ -1,0 +1,26 @@
+{
+  "name": "The Proving",
+  "hall": "special",
+  "token": {
+    "mat": "minecraft:target"
+  },
+  "act": 1,
+  "baseLevel": 1,
+  "kind": "proving",
+  "mainTheme": "the_proving",
+  "lootBand": {
+    "min": 1,
+    "max": 2
+  },
+  "nodePalette": [],
+  "minNodeRooms": 0,
+  "nodes": [
+    {
+      "id": "the_ring",
+      "name": "The Ring",
+      "layer": 1,
+      "roomBias": ["proving_arena"]
+    }
+  ],
+  "edges": []
+}

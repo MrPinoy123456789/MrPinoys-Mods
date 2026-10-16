@@ -411,6 +411,22 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> MINE_GUARDIAN_MOB_CAP = integer("mineGuardianMobCap", 16,
             v -> v >= 1, "must be >= 1");
     /**
+     * The Proving's wave ladder (decision 2026-10-16): floor n sends
+     * {@code provingWaveBaseSize + provingWaveSizePerFloor * (n - 1) + provingWaveSizePerMember * (members - 1)}
+     * mobs, capped at {@code provingWaveMaxSize}, and every {@code provingChampionEvery}-th
+     * floor sends a champion scaled half again above the wave.
+     */
+    private static final Knob<Integer> PROVING_WAVE_BASE_SIZE = integer("provingWaveBaseSize", 5,
+            v -> v >= 1 && v <= 32, "must be 1 to 32");
+    private static final Knob<Integer> PROVING_WAVE_SIZE_PER_FLOOR = integer("provingWaveSizePerFloor", 2,
+            v -> v >= 0 && v <= 8, "must be 0 to 8");
+    private static final Knob<Integer> PROVING_WAVE_SIZE_PER_MEMBER = integer("provingWaveSizePerMember", 2,
+            v -> v >= 0 && v <= 8, "must be 0 to 8");
+    private static final Knob<Integer> PROVING_WAVE_MAX_SIZE = integer("provingWaveMaxSize", 20,
+            v -> v >= 1 && v <= 40, "must be 1 to 40");
+    private static final Knob<Integer> PROVING_CHAMPION_EVERY = integer("provingChampionEvery", 3,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
+    /**
      * At most this many Brood Chamber mobs stand at once: the wave, the mother's retinue, coffin
      * sleepers, silverfish and dark spiders all count. New arrivals wait for room.
      */
@@ -522,6 +538,15 @@ public final class PocketDungeonsConfig {
     /** Damage a second the Foreman takes while he stands in a water vat */
     private static final Knob<Double> COPPER_FOREMAN_VAT_DAMAGE = decimal("copperForemanVatDamage", 1.0,
             v -> v >= 0 && v <= 20, "must be 0 to 20");
+    /** Multiplier on the vat damage once the Foreman is cornered in his last phase */
+    private static final Knob<Double> COPPER_FOREMAN_VAT_CORNERED = decimal("copperForemanVatCorneredMultiplier",
+            2.0, v -> v >= 1 && v <= 10, "must be 1 to 10");
+    /** Percent of the normal vent cycle once the Foreman is cornered; lower means faster pulses */
+    private static final Knob<Integer> COPPER_VENT_CORNERED_PERCENT = integer("copperVentCorneredPercent", 60,
+            v -> v >= 10 && v <= 100, "must be 10 to 100");
+    /** Seconds a phased boss staggers (invulnerable, mindless) while a phase changes over */
+    private static final Knob<Integer> BOSS_PHASE_STAGGER_SECONDS = integer("bossPhaseStaggerSeconds", 3,
+            v -> v >= 1 && v <= 10, "must be 1 to 10");
     /** Seconds of Weakness and Slowness the Foreman carries while in a water vat */
     private static final Knob<Integer> COPPER_FOREMAN_VAT_WEAK_SECONDS = integer("copperForemanVatWeakSeconds", 4,
             v -> v >= 0 && v <= 30, "must be 0 to 30");
@@ -1336,6 +1361,26 @@ public final class PocketDungeonsConfig {
         return MINE_GUARDIAN_MOB_CAP.get();
     }
 
+    public static int provingWaveBaseSize() {
+        return PROVING_WAVE_BASE_SIZE.get();
+    }
+
+    public static int provingWaveSizePerFloor() {
+        return PROVING_WAVE_SIZE_PER_FLOOR.get();
+    }
+
+    public static int provingWaveSizePerMember() {
+        return PROVING_WAVE_SIZE_PER_MEMBER.get();
+    }
+
+    public static int provingWaveMaxSize() {
+        return PROVING_WAVE_MAX_SIZE.get();
+    }
+
+    public static int provingChampionEvery() {
+        return PROVING_CHAMPION_EVERY.get();
+    }
+
     public static int broodMobCap() {
         return BROOD_MOB_CAP.get();
     }
@@ -1462,6 +1507,18 @@ public final class PocketDungeonsConfig {
 
     public static int copperForemanVatWeakSeconds() {
         return COPPER_FOREMAN_VAT_WEAK_SECONDS.get();
+    }
+
+    public static double copperForemanVatCorneredMultiplier() {
+        return COPPER_FOREMAN_VAT_CORNERED.get();
+    }
+
+    public static int copperVentCorneredPercent() {
+        return COPPER_VENT_CORNERED_PERCENT.get();
+    }
+
+    public static int bossPhaseStaggerSeconds() {
+        return BOSS_PHASE_STAGGER_SECONDS.get();
     }
 
     public static int frostColdTicksPerSecond() {

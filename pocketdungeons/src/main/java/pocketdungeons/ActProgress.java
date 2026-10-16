@@ -176,7 +176,7 @@ final class ActProgress {
     static List<DungeonDef> actDungeons(int act, Collection<DungeonDef> all) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.act() == act && def.kind() != DungeonDef.Kind.ENDLESS) {
+            if (def.act() == act && !def.kind().descends()) {
                 out.add(def);
             }
         }

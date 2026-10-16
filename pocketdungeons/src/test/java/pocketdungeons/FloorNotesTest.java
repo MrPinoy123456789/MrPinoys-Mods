@@ -60,7 +60,8 @@ public class FloorNotesTest {
             JsonObject d = read(file);
             String id = file.getFileName().toString().replace(".json", "");
             int act = d.get("act").getAsInt();
-            if (act > 2 || "endless".equals(d.get("kind").getAsString())) {
+            String kind = d.get("kind").getAsString();
+            if (act > 2 || "endless".equals(kind) || "proving".equals(kind)) {
                 continue;
             }
             dungeons++;

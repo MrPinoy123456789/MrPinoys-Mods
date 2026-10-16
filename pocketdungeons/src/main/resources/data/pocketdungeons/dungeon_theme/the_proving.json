@@ -1,0 +1,6 @@
+{
+  "name": "The Proving",
+  "processors": "pocketdungeons:theme_the_proving",
+  "spawner_prefix": "arena",
+  "room_theme": "the_proving"
+}

@@ -147,18 +147,24 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 hiddenOre, 0, 1, "");
     }
 
-    /** What a dungeon is for (design D12, revised 2026-10-06). */
+    /** What a dungeon is for (design D12, revised 2026-10-06; PROVING added 2026-10-16). */
     enum Kind {
-        DUNGEON, CAPSTONE, ENDLESS;
+        DUNGEON, CAPSTONE, ENDLESS, PROVING;
 
         static Kind parse(String word) {
             return switch (word) {
                 case "dungeon" -> DUNGEON;
                 case "capstone" -> CAPSTONE;
                 case "endless" -> ENDLESS;
+                case "proving" -> PROVING;
                 default -> throw new IllegalArgumentException(
-                        "kind must be dungeon, capstone or endless: " + word);
+                        "kind must be dungeon, capstone, endless or proving: " + word);
             };
+        }
+
+        /** Whether floors of this kind descend without a final floor (the Mine and the Proving share the machinery). */
+        boolean descends() {
+            return this == ENDLESS || this == PROVING;
         }
     }
 
@@ -593,19 +599,19 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      */
     List<String> problems(ToIntFunction<String> actOfTheme) {
         List<String> out = new ArrayList<>();
-        boolean endless = kind == Kind.ENDLESS;
+        boolean descent = kind.descends();
 
-        layerProblems(out, endless);
+        layerProblems(out, descent);
         edgeProblems(out);
         List<Node> finals = finals();
-        exitProblems(out, endless, finals);
+        exitProblems(out, descent, finals);
         themeProblems(out, actOfTheme);
 
         if (hiddenOre != null) {
             out.addAll(hiddenOre.problems(nodePalette));
         }
 
-        reachabilityProblems(out, endless, finals);
+        reachabilityProblems(out, descent, finals);
         return out;
     }
 

@@ -89,7 +89,7 @@ final class TripDoors {
                                           int compass, Set<String> finished, ActProgress.MineDepth deepestMineFloor) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
+            if (!def.kind().descends() && unlockedActs.contains(def.act())
                     && def.entry() != null && def.unlockLevel() <= compass
                     && (finished == null || def.kind() != DungeonDef.Kind.CAPSTONE
                         || ActProgress.capstoneReady(def.act(), finished, deepestMineFloor, all))) {
@@ -109,7 +109,7 @@ final class TripDoors {
                                         int compass) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.kind() != DungeonDef.Kind.ENDLESS && unlockedActs.contains(def.act())
+            if (!def.kind().descends() && unlockedActs.contains(def.act())
                     && def.entry() != null && def.unlockLevel() > compass) {
                 out.add(def);
             }

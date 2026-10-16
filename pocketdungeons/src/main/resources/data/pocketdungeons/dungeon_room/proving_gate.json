@@ -1,0 +1,14 @@
+{
+  "template": "pocketdungeons:rooms/proving_gate",
+  "footprint": [1, 1],
+  "roles": ["entrance"],
+  "weight": 4,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "theme": ["the_proving"],
+  "dungeons": ["the_proving"],
+  "light": "lit",
+  "tier": 1,
+  "access": "open",
+  "window": "none"
+}

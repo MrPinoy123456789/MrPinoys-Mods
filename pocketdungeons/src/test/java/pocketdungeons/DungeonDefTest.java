@@ -778,7 +778,8 @@ public class DungeonDefTest {
                 Map.entry("ender_archive", 5), Map.entry("endless_mine", 1), Map.entry("endless_mine_deep", 2),
                 Map.entry("mineshaft", 1), Map.entry("cow_pits", 2),
                 Map.entry("spawner_dungeon", 1), Map.entry("ancient_city", 2),
-                Map.entry("wither_keep", 4), Map.entry("the_end", 5), Map.entry("herobrine", 5));
+                Map.entry("wither_keep", 4), Map.entry("the_end", 5), Map.entry("herobrine", 5),
+                Map.entry("the_proving", 1));
         for (Map.Entry<String, Integer> entry : expectedAct.entrySet()) {
             DungeonDef d = loaded.byId(entry.getKey());
             check(d != null, "dungeon shipped for " + entry.getKey());
@@ -794,8 +795,8 @@ public class DungeonDefTest {
         check(deepMine.lootBand().min() == 2 && deepMine.lootBand().max() == 3, "endless_mine_deep is in the act 2 band");
         check(deepMine.unlockLevel() == 6, "the Deep Mine opens at the compass the Act 2 dungeons do");
         check(EndlessMineRules.openMines(loaded.all(), java.util.Set.of(1, 2), 6).stream().map(DungeonDef::id)
-                        .toList().equals(List.of(T + "endless_mine", T + "endless_mine_deep")),
-                "the shipped data opens the Act 1 mine, then the Deep Mine with act 2");
+                        .toList().equals(List.of(T + "endless_mine", T + "the_proving", T + "endless_mine_deep")),
+                "the shipped data opens the Act 1 mine and the Proving, then the Deep Mine with act 2");
         check(ActProgress.mineTarget(2, loaded.all()) == 3 && ActProgress.mineTarget(3, loaded.all()) == 0,
                 "the shipped data gates act 2 on its mine and act 3 on none (not built yet)");
         // W7a: the Act 1 and Act 2 capstones.
@@ -861,7 +862,7 @@ public class DungeonDefTest {
                     || n.roomBias().contains("crimson_forest")), id + " has a node biased to a forest room");
         }
         for (DungeonDef d : loaded.all()) {
-            if (d.kind() != DungeonDef.Kind.ENDLESS) {
+            if (!d.kind().descends()) {
                 check(!d.diary().isEmpty(), d.id() + " names a diary page");
             }
         }

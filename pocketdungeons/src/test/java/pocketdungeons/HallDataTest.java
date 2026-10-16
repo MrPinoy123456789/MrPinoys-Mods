@@ -31,6 +31,7 @@ public class HallDataTest {
         }
         Map<Integer, Integer> perAct = new HashMap<>();
         Map<Integer, Integer> specialsPerAct = new HashMap<>();
+        Map<Integer, Integer> minesPerAct = new HashMap<>();
         Set<String> mats = new HashSet<>();
         int specials = 0;
         for (Path file : files) {
@@ -44,13 +45,17 @@ public class HallDataTest {
             check(mat.startsWith("minecraft:"), id + ": token.mat must be a block id: " + mat);
             check(mats.add(mat), id + ": the doormat " + mat + " is already another dungeon's");
             String hall = d.has("hall") ? d.get("hall").getAsString() : HallLayout.HALL_ACT;
-            boolean endless = "endless".equals(d.get("kind").getAsString());
+            String kind = d.get("kind").getAsString();
+            boolean descends = "endless".equals(kind) || "proving".equals(kind);
             check(hall.equals(HallLayout.HALL_ACT) || hall.equals(HallLayout.HALL_SPECIAL), id + ": bad hall " + hall);
-            check(endless == hall.equals(HallLayout.HALL_SPECIAL),
-                    id + ": exactly the Endless Mine stands outside the acts");
+            check(descends == hall.equals(HallLayout.HALL_SPECIAL),
+                    id + ": exactly the descents stand outside the acts");
             if (hall.equals(HallLayout.HALL_SPECIAL)) {
                 specials++;
                 specialsPerAct.merge(d.get("act").getAsInt(), 1, Integer::sum);
+                if ("endless".equals(kind)) {
+                    minesPerAct.merge(d.get("act").getAsInt(), 1, Integer::sum);
+                }
             } else {
                 perAct.merge(d.get("act").getAsInt(), 1, Integer::sum);
             }
@@ -64,6 +69,8 @@ public class HallDataTest {
         for (Map.Entry<Integer, Integer> e : specialsPerAct.entrySet()) {
             check(e.getValue() <= HallLayout.MAX_SPECIALS,
                     "act " + e.getKey() + " has " + e.getValue() + " special doors; the row holds " + HallLayout.MAX_SPECIALS);
+        }
+        for (Map.Entry<Integer, Integer> e : minesPerAct.entrySet()) {
             check(e.getValue() <= 1, "act " + e.getKey() + " has more than one Endless Mine");
         }
         check(files.size() >= 19, "found only " + files.size() + " dungeons");

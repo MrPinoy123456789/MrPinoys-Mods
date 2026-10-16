@@ -719,3 +719,140 @@ leaving a claim floor while Tremor stays low is too safe (stake the 3 and walk
 before the seam answers), whether the Keeper's advance speed and stagger
 window read as horror or nuisance, and whether the extra claim rolls and
 strongbox payouts inflate the reward economy.
+
+## 2026-10-15: The Proving, a wave-arena dungeon
+
+Owner request 2026-10-16-1: "a gamemode where the player is given a big 4x4
+chunk room and have to survive waves". Warframe's endless modes (Survival,
+Defense, Excavation) all share one beat: clear a rotation, then choose stay or
+extract. The Proving is that beat as a dungeon: an arena room, a wave ladder,
+and a repeated stay-or-bank choice mid-run.
+
+| Number | What | Where it lives |
+|---|---|---|
+| 1 arena room | the floor | room spec, `proving_arena` family |
+| `provingWavesPerFloor` 3 | waves gating each floor | config |
+| `provingGuardianEvery` 3 | every third floor is a guardian wave | config |
+| `provingWaveDelayTicks` 60 | the beat between waves | config |
+| wave size = base + members | party scaling | `FloorObjectiveRules` |
+| lives 5 shared | what is wagered | the existing trip rule |
+| half haul | what a fail keeps | the existing fail rule |
+
+1. **Where it lives.** Each act offers The Proving beside its Endless Mine on
+   the astrolabe's special offers: a `hall: "special"` dungeon per act whose
+   waves are themed from that act's mob pool. Entering spends nothing; a
+   finished Proving does not gate acts (the capstone and mine floor 3 do).
+2. **The floor.** One arena room per floor, built for a fight: open middle,
+   spawn points at the edges, the descent pad inside. No spawner gate and no
+   chests to sweep; the objective is the wave ladder (`Waves n/m` on the bar,
+   like `Spawners n/m`).
+3. **The ladder.** A floor runs `provingWavesPerFloor` waves. A cleared wave
+   gives a short beat (`provingWaveDelayTicks`) and the next rings in. Waves
+   are mob groups themed to the act, sized by party, and they never include a
+   mob a floor cannot satisfy (the PD-194 spawn-rule rule applies).
+4. **The choice.** The last wave down opens the pad: DESCEND rolls the next
+   floor (bigger waves, deeper pay), and the leaving-between-floors rule banks
+   the haul in full as usual. There is no door board in the Proving; the
+   choice is descend or bank, each wave.
+5. **Guardian floors.** Every `provingGuardianEvery` floor runs a guardian
+   wave instead (the existing `MineGuardians` per-act sets and their tier
+   A/B/C pay), so the Proving reuses the mine's guardian content.
+6. **Scaling.** Wave size = base + one per extra member; an ominous Proving
+   (if offered) echoes waves as the heist crew echoes. Mobs drop normal
+   mob loot only; the pay is the floor pay and guardian tiers.
+7. **Fallback.** A Proving floor that cannot arm its waves falls back to an
+   ordinary spawner floor under the shared objective fallback rule.
+
+### Migration
+
+None. New dungeon content only.
+
+### Supersedes
+
+- Nothing retired. The per-act-mine decision (2026-10-11) is amended in one
+  place: the astrolabe's special offers grow from one (the mine) to two (the
+  mine and the Proving) per act.
+
+### Knobs
+
+In `config/pocketdungeons.json`: `provingWavesPerFloor` (3),
+`provingGuardianEvery` (3), `provingWaveDelayTicks` (60). Fixed in code:
+wave size base and per-member step, guardian tier mapping.
+
+### Open until played
+
+Whether three waves per floor is the right chew versus one long wave;
+whether the arena reads as a different place floor to floor (one room spec
+may go stale fast); whether descend-or-bank is legible on the pad or needs a
+two-lever choice; whether wave pacing at compass 20+ pressure-fits a
+well-geared player; and whether the Proving cannibalises the mines or sits
+beside them cleanly.
+
+## 2026-10-15: Arena floors and phased bosses
+
+Owner direction 2026-10-16: "boss floors should really just be an arena with
+an engaging boss fight (current boss fights are not detailed/ long enough to
+hold as a good bossfight)". Live evidence PD-208: both deep-mine guardians
+died before their mechanics registered. The fix is not more health: at
+compass 20+ any pool either pops or sponges. A boss lasts by gating its
+phases on what the player does, not only on damage dealt.
+
+| Number | What | Where it lives |
+|---|---|---|
+| 3 phases | every boss | `FinaleScript` phases per dungeon |
+| bounds at 2/3 and 1/3 health | phase edges | `BossFight` |
+| soft cap at the edge | no skipped phase | `BossFight` |
+| `bossPhaseStaggerSeconds` 3 | transition tell | config |
+| health x members | party scaling | `BossFight` |
+
+1. **The room.** Every finale floor fights in a purpose-built arena room:
+   an open fight space with the room's hazard anchors (vents, vats, beacons,
+   coffins) placed by the spec. The existing final-floor room specs become
+   the arenas; new finale rooms are built to this rule from the start.
+2. **The framework.** `BossFight` owns the boss entity and an ordered phase
+   list. Phase boundaries sit at health fractions (two bounds for a
+   three-phase fight). Damage that would carry the boss past a bound clamps
+   at the bound instead and the next phase begins, so burst play
+   fast-forwards within a phase but can never skip one.
+3. **The transition.** At each bound the boss staggers for
+   `bossPhaseStaggerSeconds` (invulnerable, a tell the player can read:
+   title plus particles plus sound), then the phase's mechanic arms.
+4. **The phases.** A dungeon's `FinaleScript` declares its phases: phase one
+   is the baseline fight, each later phase adds one mechanic from the boss
+   workshop row for that dungeon. The workshop's per-dungeon mechanics are
+   unchanged; the framework wraps them in order.
+5. **Scaling.** Boss health scales per member; ominous floors echo the phase
+   adds as they echo other waves.
+6. **The gate.** The pad gate stays: the arena opens when the boss dies.
+   Leaving mid-fight keeps the ordinary leaving rules.
+7. **Pilot.** Copper Works first. The Foreman: phase 1 baseline vindicator;
+   phase 2 the furnace vents pulse on a readable rhythm (workshop row 10);
+   phase 3 the water vats bait a weakened Foreman while the vents quicken.
+   The machinery exists; the phases make it land before he dies.
+
+### Migration
+
+None. `FinaleWave` stays for the wave lead-in; `BossFight` takes over at the
+boss spawn. A save mid-finale just fights under the old code until that
+finale is re-run.
+
+### Supersedes
+
+- Boss workshop (2026-10-11) structure: every "agreed (details open)" row
+  keeps its mechanic but now lives inside the three-phase spine instead of a
+  flat wave-plus-elite.
+- PD-208 (mine guardians die before mechanics register) is the live
+  verification driver for the pilot.
+
+### Knobs
+
+In `config/pocketdungeons.json`: `bossPhaseStaggerSeconds` (3). Fixed in
+code: phase bounds (2/3, 1/3), the boundary clamp, health per member, the
+per-phase tell text.
+
+### Open until played
+
+Whether the boundary clamp reads as a fair wind-up or as "the game ate my
+crit"; whether three phases is the right count for capstones versus ordinary
+finales; whether each dungeon's arena is big enough for its mechanics to
+matter; and whether the Foreman's vat weakness reads without an explanation.

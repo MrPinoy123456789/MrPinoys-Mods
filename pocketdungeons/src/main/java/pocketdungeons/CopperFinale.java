@@ -18,12 +18,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Master Furnace's finale (roadmap T32). The fight is the data wave (husks, skeletons,
- * the Foreman) plus the room itself: copper grates in the floor are vents that pulse on a
- * readable rhythm in a fixed serpentine sweep, a hiss and rising smoke two seconds before
- * each pulse, then fire for a second that ignites whoever stands on the tile. Water
- * cauldrons are the vats: a Foreman lured into one takes damage every second and carries
- * Weakness and Slowness while he is in it.
+ * The Master Furnace's finale (roadmap T32, phased per the 2026-10-16 boss workshop). The
+ * fight is the data wave (husks, skeletons, the Foreman) run through a {@link BossFight}
+ * in three phases: the Foreman and his crew alone, then the floor wakes up (copper grates
+ * pulse on a readable rhythm in a fixed serpentine sweep, a hiss and rising smoke two
+ * seconds before each pulse, then fire that ignites whoever stands on the tile), then the
+ * cornered endgame where the pulses quicken and the water vats bite twice as hard. A
+ * Foreman lured into a vat takes damage every second and carries Weakness and Slowness
+ * while he is in it, in every phase.
  *
  * <p>If {@link CopperClock} ran out, the wave arrives the moment the party reaches the floor
  * (no cleared spawners, no countdown) and the pulses run at {@code copperVentBlownPercent}
@@ -36,6 +38,30 @@ import java.util.List;
  * fade on their own, so {@link #onFloorEnded} has nothing to undo.
  */
 final class CopperFinale implements FinaleScript {
+
+    /**
+     * The Foreman's three phases. Phase one is the vindicator and his escorts on a quiet
+     * floor; two wakes the vents; three corners him: quicker pulses, water that bites
+     * harder. Bounds are elite health fractions.
+     */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0,
+                    List.of("The Foreman staggers.", "The furnace vents wake."),
+                    (ctx, boss) -> {
+                        Vents vents = ctx.scriptState(Vents.class, Vents::new);
+                        vents.armed = true;
+                        vents.tellAt = ctx.tickCount() + CopperClockRules.TELL_TICKS;
+                    }),
+            new BossFight.Step(1.0 / 3.0,
+                    List.of("The Foreman is cornered.", "The water bites harder. The furnace does not wait."),
+                    (ctx, boss) -> ctx.scriptState(Vents.class, Vents::new).cornered = true));
+
+    /** The run's BossFight, kept with the vents in the finale's script state. */
+    private static BossFight fight(FinaleContext ctx) {
+        return ctx.scriptState(BossFight.class, () -> new BossFight(PHASES));
+    }
 
     /** The grate the furnace vents through; the theme processors never produce one. */
     private static Block vent() {
@@ -65,6 +91,10 @@ final class CopperFinale implements FinaleScript {
         boolean told;
         long nextVatCheckAt;
         boolean vatTaught;
+        /** The Foreman's second phase turns the vents on; they stay quiet before it. */
+        boolean armed;
+        /** His last phase: quicker pulses and a harder vat bite. */
+        boolean cornered;
     }
 
     /** A blown clock wakes the fight without cleared spawners. */
@@ -93,8 +123,6 @@ final class CopperFinale implements FinaleScript {
         Vents vents = ctx.scriptState(Vents.class, Vents::new);
         if (!vents.scanned) {
             scan(ctx, vents);
-            // One quiet cycle before the first pulse, so the party reads the floor first.
-            vents.tellAt = ctx.tickCount() + period(ctx);
         }
     }
 
@@ -103,10 +131,10 @@ final class CopperFinale implements FinaleScript {
         Vents vents = ctx.scriptState(Vents.class, Vents::new);
         if (!vents.scanned) {
             scan(ctx, vents);
-            vents.tellAt = ctx.tickCount() + period(ctx);
         }
+        fight(ctx).tick(ctx);
         long now = ctx.tickCount();
-        if (!vents.tiles.isEmpty()) {
+        if (vents.armed && !vents.tiles.isEmpty()) {
             BlockPos tile = vents.tiles.get(vents.next);
             if (vents.told && now < vents.fireAt) {
                 smoke(ctx.level(), tile);
@@ -121,7 +149,7 @@ final class CopperFinale implements FinaleScript {
                 vents.next = (vents.next + 1) % vents.tiles.size();
                 vents.told = false;
                 vents.fireAt = -1;
-                vents.tellAt = now + period(ctx) - CopperClockRules.TELL_TICKS;
+                vents.tellAt = now + period(ctx, vents) - CopperClockRules.TELL_TICKS;
             }
         }
         if (now >= vents.nextVatCheckAt) {
@@ -150,10 +178,14 @@ final class CopperFinale implements FinaleScript {
         vents.vats = List.copyOf(vats);
     }
 
-    /** The vent cycle: {@code copperVentPulseSeconds}, faster once the clock blew. */
-    private static int period(FinaleContext ctx) {
-        return CopperClockRules.ventPeriodTicks(PocketDungeonsConfig.copperVentPulseSeconds(),
+    /** The vent cycle: {@code copperVentPulseSeconds}, faster once the clock blew or he is cornered. */
+    private static int period(FinaleContext ctx, Vents vents) {
+        int ticks = CopperClockRules.ventPeriodTicks(PocketDungeonsConfig.copperVentPulseSeconds(),
                 CopperClock.expired(ctx.record()), PocketDungeonsConfig.copperVentBlownPercent());
+        if (vents.cornered) {
+            ticks = Math.max(20, ticks * PocketDungeonsConfig.copperVentCorneredPercent() / 100);
+        }
+        return ticks;
     }
 
     /** The vent's tell: the hiss that says this tile fires in two seconds. Package for the Deep Mine's Foreman. */
@@ -183,7 +215,8 @@ final class CopperFinale implements FinaleScript {
 
     /**
      * The vats: once a second a Foreman standing in or on a water cauldron takes
-     * {@code copperForemanVatDamage} and carries Weakness and Slowness for
+     * {@code copperForemanVatDamage} ({@code copperForemanVatCorneredMultiplier} times that
+     * in his last phase) and carries Weakness and Slowness for
      * {@code copperForemanVatWeakSeconds}. The party learns the trick once, in chat.
      */
     private static void weakenForeman(FinaleContext ctx, Vents vents) {
@@ -205,6 +238,9 @@ final class CopperFinale implements FinaleScript {
         }
         ServerLevel level = ctx.level();
         float damage = (float) PocketDungeonsConfig.copperForemanVatDamage();
+        if (vents.cornered) {
+            damage *= (float) PocketDungeonsConfig.copperForemanVatCorneredMultiplier();
+        }
         if (damage > 0.0f) {
             foreman.hurtServer(level, level.damageSources().drown(), damage);
         }

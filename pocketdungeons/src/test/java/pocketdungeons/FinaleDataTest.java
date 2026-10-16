@@ -36,7 +36,7 @@ public class FinaleDataTest {
                 int act = d.get("act").getAsInt();
                 String kind = d.get("kind").getAsString();
                 boolean has = d.has("finale");
-                if (kind.equals("capstone") || kind.equals("endless")) {
+                if (kind.equals("capstone") || kind.equals("endless") || kind.equals("proving")) {
                     check(!has, id + ": a " + kind + " takes no finale");
                     continue;
                 }

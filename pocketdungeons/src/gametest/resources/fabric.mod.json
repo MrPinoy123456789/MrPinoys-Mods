@@ -80,7 +80,8 @@
       "pocketdungeons.TrappedCacheGameTest",
       "pocketdungeons.ClaimFloorGameTest",
       "pocketdungeons.CowPitsFinaleGameTest",
-      "pocketdungeons.CopperFinaleGameTest"
+      "pocketdungeons.CopperFinaleGameTest",
+      "pocketdungeons.ProvingGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",
