@@ -1001,6 +1001,13 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Pass:** it wakes after the grace, not on the pressure clock; looking at it never holds it; the first hit staggers it and a fast second does not; a lit beacon banishes it and the bulb stays lit; the stage ladder still holds (sightings early, strikes from the strike floor); it never enters the entrance or the terminal room; the pad opens when the second beacon lights.
 - **Fail signs:** the Keeper frozen by a stare or hurt by a hit; a stunlock with no immunity gap; a beacon that will not charge or does not banish; the Keeper inside the entrance or the pad room; a Keeper that vanishes and never returns.
 
+### L100: Stray trial mobs release their spawner (2026-10-15)
+- **Status:** partial 2026-10-16 (`2026-10-16-1.md`): the gate job verified live. A stray enderman from an earlier floor was heard on a room roof mid-run and every floor still cleared, so the release works. Residue filed as PD-213: the stray entity survives and stays audible, so release is not yet cleanup.
+- **Changed:** `TrialContent.releaseStrays` sweeps each gated spawner's tracked mobs on the watch tick; a mob gone from the level or outside the floor bounds is dropped from the waiting set (counts as defeated) and a found stray is discarded.
+- **Do:** run an `ender_archive` or other enderman floor, let one teleport out of the room, and check the floor still clears and the stray is gone (not just ungated).
+- **Pass:** the spawner reaches cooldown with the stray outside the floor, and no enderman noise persists on roofs after the floor ends.
+- **Fail signs:** the floor stalls on an escaped mob (the original PD-113), or the stray remains audible/visible after release (PD-213, seen once already).
+
 # Rooms (id: roles, tier, depth, requirements)
 
 - admirals_vault: encounter/loot/corridor, tier 1, depth 0+

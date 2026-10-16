@@ -287,6 +287,23 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 **Reported:** 2026-10-13-1, deep mine floors 3 and 6, player at compass 15 in full diamond. Deep Sentry slain at 05:40:19 with no "the deep heard you" whelp answer during its own fight ("I fought the whelp a couple times but didnt get caught during the deep sentry fight"). Foreman slain at 05:56:13; asked about the vents and the water vat: "I didnt see any of that" and then "The foreman was just a very fast pillager". Both guardians are alive long enough to be killed but not long enough to be themselves.
 **Status:** Owed. Two unverified roots: (a) tuning, the guardians' HP/damage budgets let a geared player burst them under the mechanic's windup; (b) the Foreman's vent/vat decor may not have placed or pulsed at all on that floor, which would be a bug not a tuning miss. Check a floor 12 repeat (or a biased Foreman rerun on a less-geared account) before tuning, and confirm the vent decor actually spawns live.
 
+### PD-211: The door board's reward line dumps the whole node palette (Medium, UX)
+**Reported:** 2026-10-16-1, blackstone door previews at level 21-23. "Two of these doors have way too much text"; the rewards part read verbatim "2 scrap, gilded blackstone, nether gold, ancient debris, warped stem, crimson stem, warped wart block, nether wart block, enchanted diamond pickaxe" and "most of those are useless too".
+**Likely cause:** `DungeonScreen.previewGets` stacks scrap, every `BoardText.paletteWords` entry for the node's ore palette, the node rewards, and the wagered copper-chest piece onto one line. A deep palette alone is six to eight words.
+**Fix idea:** cap the palette words shown (or collapse to a category like "nether ores"), keep the promised piece and the scrap and rolls.
+
+### PD-212: Crimson roots pop loose on their own in crimson_forest (Medium)
+**Reported:** 2026-10-16-1, `crimson_forest` on a blackstone floor 3: "crimson roots not properly on the ground and loose able to be picked up", confirmed "on their own" (no blast). Verified the baked template is correct: every `crimson_roots` sits on `crimson_nylium`, and `theme_blackstone` only remaps stone_bricks, polished_andesite and sea_lantern, so neither the bake nor the theme explains the pop. A post-stamp pass or placement order is dropping or replacing the support.
+**Status:** Open, repro live once. Check what writes the cell floor or decor after `TemplateStamper` on a loot-role cell (window band, pressure sources, room content) and whether the stamp's block-update flags pop the roots at placement.
+
+### PD-213: A released stray mob lingers and stays audible after PD-113 (Medium)
+**Reported:** 2026-10-16-1, first live run on the releaseStrays jar: "I can hear enderman even though they were from another floor, they're probably on the roof of the room or something." The release did its gate job (the run kept clearing floors), but the escaped enderman itself survived: `TrialContent.releaseStrays` only discards a stray it can find, and a stray on the shell roof may still sit inside `layout.bounds()`. Either way the entity persists where the player can hear it.
+**Status:** Open. Decide whether release should also mean cleanup: widen the stray check to a margin around the bounds, or sweep lost-from-tracking mobs outside their room's cell bounds so an on-roof stray is caught too.
+
+### PD-214: sorting_floor's water channel bleeds into the next room (Medium, UX)
+**Reported:** 2026-10-16-1: "the room with water along the entire floor bleeds into the adjacent room, there should be a perimeter wall containing that water to that room without blocking players from entering". `SituationSpecs.sortingFloor` runs a water channel along the floor; through an open doorway it keeps flowing into the neighbour cell.
+**Status:** Open. Put a raised lip (slab or wall-piece at floor height) in the door lane inside the room decor, or level the channel end short of the doorway, so the water stays in without blocking entry.
+
 ## Closed ledger
 
 | ID | Summary | Resolution |
