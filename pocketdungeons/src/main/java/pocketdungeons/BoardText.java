@@ -111,11 +111,14 @@ final class BoardText {
     }
 
     /**
-     * A resource dungeon's mineable palette as the words a player knows: the
-     * namespace dropped, a leading {@code deepslate_} and a trailing {@code _ore}
-     * stripped, {@code _} read as a space, repeats removed, authored order kept.
-     * Structural blocks ({@link DungeonDef#isStructuralBlock}) are scenery and are
-     * skipped. Mineshaft's eight ores become coal, copper, iron and gold.
+     * A resource dungeon's mineable palette as the words a player knows. The
+     * namespace is dropped, repeats removed, authored order kept, and blocks of
+     * the same purpose are collapsed so the door board does not dump the whole
+     * palette. Structural blocks ({@link DungeonDef#isStructuralBlock}) are
+     * scenery and are skipped; low-purpose blocks (gilded blackstone, amethyst,
+     * clay, fungi, wart) are also skipped. Mineshaft's eight ores become
+     * coal, copper, iron and gold; logs and stems become wood; sand variants
+     * become sand.
      */
     static List<String> paletteWords(List<String> palette) {
         Set<String> words = new LinkedHashSet<>();
@@ -125,17 +128,39 @@ final class BoardText {
                     continue;
                 }
                 String name = block.substring(block.indexOf(':') + 1);
-                if (name.startsWith("deepslate_")) {
-                    name = name.substring("deepslate_".length());
-                }
-                if (name.endsWith("_ore")) {
-                    name = name.substring(0, name.length() - "_ore".length());
-                }
-                if (!name.isEmpty()) {
-                    words.add(name.replace('_', ' '));
+                String word = resourceWord(name);
+                if (word != null) {
+                    words.add(word);
                 }
             }
         }
         return new ArrayList<>(words);
+    }
+
+    /**
+     * The board word for a palette block, or {@code null} when the block is not
+     * worth naming (scenery, decor, or a low-value material).
+     */
+    private static String resourceWord(String name) {
+        if (name.endsWith("_ore")) {
+            String ore = name.substring(0, name.length() - "_ore".length());
+            if (ore.startsWith("deepslate_")) {
+                ore = ore.substring("deepslate_".length());
+            }
+            if (ore.equals("nether_gold")) {
+                return "gold";
+            }
+            return ore.replace('_', ' ');
+        }
+        if (name.endsWith("_log") || name.endsWith("_stem") || name.endsWith("_hyphae") || name.endsWith("_wood")) {
+            return "wood";
+        }
+        if (name.equals("sand") || name.equals("red_sand")) {
+            return "sand";
+        }
+        if (name.equals("ancient_debris")) {
+            return "ancient debris";
+        }
+        return null;
     }
 }

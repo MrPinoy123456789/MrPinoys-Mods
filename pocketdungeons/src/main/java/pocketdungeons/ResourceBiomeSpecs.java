@@ -487,6 +487,17 @@ final class ResourceBiomeSpecs {
                 .decor((level, o) -> {
                     BlockState clay = Blocks.CLAY.defaultBlockState();
                     BlockState water = Blocks.WATER.defaultBlockState();
+                    // The pond is banked in brick: a step-over lip wall at x 3
+                    // on the door side and banks along the far edges, so the
+                    // sheet stays inside the room (same fix as elders_chamber).
+                    BlockState brick = Blocks.STONE_BRICKS.defaultBlockState();
+                    for (int z = 1; z <= 14; z++) {
+                        put(level, o, 3, 1, z, brick);
+                    }
+                    for (int x = 3; x <= 14; x++) {
+                        put(level, o, x, 1, 1, brick);
+                        put(level, o, x, 1, 14, brick);
+                    }
                     for (int x = 4; x <= 14; x++) {
                         for (int z = 2; z <= 13; z++) {
                             put(level, o, x, 0, z, clay);
@@ -496,14 +507,17 @@ final class ResourceBiomeSpecs {
                     // The clay bar rises out of the pond and carries the chest.
                     fill(level, o, 10, 0, 6, 12, 1, 8, clay);
                     put(level, o, 12, 2, 8, Blocks.LANTERN.defaultBlockState());
-                    // Pads and leaves on the water, kept off the bar and the lane.
+                    // Pads and leaves on the water.
                     put(level, o, 5, 2, 10, Blocks.LILY_PAD.defaultBlockState());
                     put(level, o, 7, 2, 4, Blocks.LILY_PAD.defaultBlockState());
                     put(level, o, 13, 2, 11, Blocks.LILY_PAD.defaultBlockState());
                     put(level, o, 6, 2, 12, Blocks.LILY_PAD.defaultBlockState());
-                    put(level, o, 4, 1, 4, Blocks.BIG_DRIPLEAF.defaultBlockState());
-                    put(level, o, 2, 1, 4, Blocks.BIG_DRIPLEAF.defaultBlockState());
-                    put(level, o, 2, 1, 11, Blocks.BIG_DRIPLEAF.defaultBlockState());
+                    put(level, o, 5, 2, 3, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 11, 2, 3, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 9, 2, 10, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 13, 2, 4, Blocks.LILY_PAD.defaultBlockState());
+                    put(level, o, 5, 1, 7, Blocks.BIG_DRIPLEAF.defaultBlockState());
+                    put(level, o, 8, 1, 7, Blocks.BIG_DRIPLEAF.defaultBlockState());
                     vines(level, o, 13, 3);
                     vines(level, o, 14, 12);
                 });

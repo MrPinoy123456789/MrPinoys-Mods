@@ -67,11 +67,16 @@ public class BoardTextTest {
         eq(String.join(" \u00b7 ", BoardText.paletteWords(List.of("coal_ore", "copper_ore", "iron_ore", "gold_ore",
                 "deepslate_coal_ore", "deepslate_copper_ore", "deepslate_iron_ore", "deepslate_gold_ore"))),
                 "coal \u00b7 copper \u00b7 iron \u00b7 gold");
-        // Namespaces drop; a block that is not an ore keeps its name; order is authored order.
+        // Logs, stems and hyphae collapse to "wood"; nether gold ore reads as gold; sand variants collapse.
         eq(String.join(",", BoardText.paletteWords(List.of("minecraft:oak_log", "pocketdungeons:warped_stem",
-                "minecraft:iron_ore"))), "oak log,warped stem,iron");
-        // Structural blocks are scenery, not resources.
-        eq(String.join(",", BoardText.paletteWords(List.of("stone", "coal_ore", "oak_planks", "deepslate"))), "coal");
+                "minecraft:crimson_hyphae", "minecraft:iron_ore", "minecraft:nether_gold_ore",
+                "minecraft:sand", "minecraft:red_sand"))), "wood,iron,gold,sand");
+        // Structural blocks and low-value materials are scenery, not resources.
+        eq(String.join(",", BoardText.paletteWords(List.of("stone", "coal_ore", "oak_planks", "deepslate",
+                "minecraft:gilded_blackstone", "minecraft:amethyst_cluster", "minecraft:clay"))), "coal");
+        // Ancient debris and repeated groups stay deduplicated.
+        eq(String.join(" \u00b7 ", BoardText.paletteWords(List.of("minecraft:ancient_debris", "minecraft:oak_log",
+                "minecraft:spruce_log", "minecraft:gold_ore"))), "ancient debris \u00b7 wood \u00b7 gold");
         check(BoardText.paletteWords(List.of()).isEmpty() && BoardText.paletteWords(null).isEmpty(), "empty in, empty out");
     }
 

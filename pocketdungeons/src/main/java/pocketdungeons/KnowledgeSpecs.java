@@ -8,6 +8,7 @@ import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.DecoratedPotBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -329,12 +330,37 @@ final class KnowledgeSpecs {
         return new RoomSpec("elders_chamber", EnumSet.of(ENTRANCE, EXIT))
                 .spawns(new BlockPos(8, 1, 8))
                 .decor((level, o) -> {
-                    for (int x = 2; x < CELL - 2; x++) {
-                        for (int z = 2; z < CELL - 2; z++) {
-                            RoomBuilder.set(level, o.offset(x, 1, z),
-                                    Blocks.WATER.defaultBlockState());
+                    BlockState water = Blocks.WATER.defaultBlockState();
+                    BlockState brick = Blocks.STONE_BRICKS.defaultBlockState();
+                    // PD-214: the water sheet fills the floor inside a knee-high
+                    // inner wall at x 1 and x 14. Each door lane gets a stair
+                    // lip at x 2 / x 13: flowing water cannot waterlog a stair,
+                    // so the lip holds the sheet in while still being a step up
+                    // for the player. The wall runs one block deeper beside
+                    // each lane so the sheet cannot wrap the lip's ends.
+                    for (int x = 2; x <= CELL - 3; x++) {
+                        for (int z = 1; z <= CELL - 2; z++) {
+                            RoomBuilder.set(level, o.offset(x, 1, z), water);
                         }
                     }
+                    for (int z = 1; z <= CELL - 2; z++) {
+                        if (z == RoomGeometry.DOOR_MIN || z == RoomGeometry.DOOR_MAX) {
+                            continue;
+                        }
+                        RoomBuilder.set(level, o.offset(1, 1, z), brick);
+                        RoomBuilder.set(level, o.offset(CELL - 2, 1, z), brick);
+                    }
+                    for (int x : new int[]{2, CELL - 3}) {
+                        Direction facing = x == 2 ? Direction.EAST : Direction.WEST;
+                        for (int z = RoomGeometry.DOOR_MIN - 1; z <= RoomGeometry.DOOR_MAX + 1; z++) {
+                            boolean lane = z == RoomGeometry.DOOR_MIN || z == RoomGeometry.DOOR_MAX;
+                            RoomBuilder.set(level, o.offset(x, 1, z), lane
+                                    ? Blocks.STONE_BRICK_STAIRS.defaultBlockState()
+                                            .setValue(StairBlock.FACING, facing)
+                                    : brick);
+                        }
+                    }
+                    RoomBuilder.set(level, o.offset(10, 3, 6), brick);
                 });
     }
 

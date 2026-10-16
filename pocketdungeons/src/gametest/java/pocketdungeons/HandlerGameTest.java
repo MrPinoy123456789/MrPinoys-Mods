@@ -801,7 +801,11 @@ public final class HandlerGameTest {
                         // The entry lane, authored at rotation 0 along the west wall:
                         // at least one of the two doorway columns walkable from the
                         // doorway plane three blocks in (sorting_floor's channel
-                        // fences one of them on purpose).
+                        // fences one of them on purpose). A partial-height block at
+                        // floor level (a stair or slab lip, as in elders_chamber's
+                        // pool) is a step-over, not a blocker, when the two cells
+                        // above it are open; full blocks and taller obstacles still
+                        // block the lane.
                         java.util.List<String> blocked = new java.util.ArrayList<>();
                         for (int z = RoomGeometry.DOOR_MIN; z <= RoomGeometry.DOOR_MAX; z++) {
                             String block = null;
@@ -810,7 +814,8 @@ public final class HandlerGameTest {
                                     BlockPos pos = origin.offset(rotateLocal(x, z, q, cell)).above(y);
                                     BlockState state = level.getBlockState(pos);
                                     if (state.is(Blocks.IRON_DOOR)
-                                            || !state.getCollisionShape(level, pos).isEmpty()) {
+                                            || laneBlocksEntry(level, pos,
+                                                    state.getCollisionShape(level, pos), y)) {
                                         block = "local " + x + "," + y + "," + z + " " + state.getBlock();
                                     }
                                 }
@@ -845,6 +850,25 @@ public final class HandlerGameTest {
         helper.assertTrue(rooms >= 10, "the manifest has its gated rooms (found " + rooms + ")");
         helper.assertTrue(failures.isEmpty(), "gated rooms that cannot be entered: " + failures);
         helper.succeed();
+    }
+
+    /**
+     * Whether a lane cell stops a player walking in. A full cube or anything
+     * taller than a block (fence, wall, closed gate) blocks; so does any
+     * collision at head height. A partial block at floor level whose two cells
+     * above are open is a step-over the player can walk onto.
+     */
+    private static boolean laneBlocksEntry(ServerLevel level, BlockPos pos,
+            net.minecraft.world.phys.shapes.VoxelShape shape, int y) {
+        if (shape.isEmpty()) {
+            return false;
+        }
+        if (y > 1 || net.minecraft.world.level.block.Block.isShapeFullBlock(shape)
+                || shape.max(Direction.Axis.Y) > 1.0) {
+            return true;
+        }
+        return !level.getBlockState(pos.above()).getCollisionShape(level, pos.above()).isEmpty()
+                || !level.getBlockState(pos.above(2)).getCollisionShape(level, pos.above(2)).isEmpty();
     }
 
     /**
@@ -950,7 +974,7 @@ public final class HandlerGameTest {
     /**
      * PD-113 (playtest 2026-10-02-2): a mob that leaves the floor no longer
      * holds its spawner open. A tracked mob outside the floor bounds is
-     * released and discarded (the escaped enderman stood 400 blocks out);
+     * released and discarded (the escaped mob stood 400 blocks out);
      * a tracked mob still inside keeps the spawner waiting.
      */
     @GameTest(maxTicks = 40)

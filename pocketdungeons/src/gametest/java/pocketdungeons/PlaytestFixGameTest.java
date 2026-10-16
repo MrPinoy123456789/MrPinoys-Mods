@@ -139,6 +139,71 @@ public final class PlaytestFixGameTest {
     }
 
     /**
+     * PD-214 (playtest 2026-10-16-1): elders_chamber's floor-wide water sheet
+     * bled out through the door lanes into the neighbouring cell; still_pond's
+     * pond did the same. Both rooms now bank their water inside a brick lip,
+     * with stair lips on elders_chamber's lanes (flowing water cannot waterlog
+     * a stair, so the lip is a step-over, not a pass). Stamps each room at
+     * every rotation, gives the water time to settle, then fails on any water
+     * open to air or past the shell.
+     */
+    @GameTest(maxTicks = 300)
+    public void eldersChamberKeepsItsWaterInside(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        List<BlockPos> origins = new ArrayList<>();
+        for (int q = 0; q < 4; q++) {
+            origins.add(stampRoom(level, "elders_chamber", q, 10, 1L));
+            origins.add(stampRoom(level, "still_pond", q, 11, 1L));
+        }
+        helper.runAfterDelay(40, () -> eldersChamberWaterBody(helper, level, origins));
+    }
+
+    private void eldersChamberWaterBody(GameTestHelper helper, ServerLevel level, List<BlockPos> origins) {
+        List<String> failures = new ArrayList<>();
+        for (int i = 0; i < origins.size(); i++) {
+            BlockPos origin = origins.get(i);
+            try {
+                int water = 0;
+                for (int x = -4; x < CELL + 4; x++) {
+                    for (int z = -4; z < CELL + 4; z++) {
+                        for (int y = 1; y <= 3; y++) {
+                            BlockPos pos = origin.offset(x, y, z);
+                            BlockState state = level.getBlockState(pos);
+                            if (!state.is(Blocks.WATER)) {
+                                continue;
+                            }
+                            boolean outside = x < 0 || x >= CELL || z < 0 || z >= CELL;
+                            if (outside) {
+                                failures.add("stamp " + i + " water escaped to " + x + "," + y + "," + z);
+                                continue;
+                            }
+                            if (y != 1) {
+                                failures.add("stamp " + i + " water climbed to y=" + y + " at " + x + "," + z);
+                                continue;
+                            }
+                            water++;
+                            for (BlockPos side : new BlockPos[]{pos.north(), pos.south(), pos.east(), pos.west()}) {
+                                if (level.getBlockState(side).isAir()) {
+                                    failures.add("stamp " + i + " water at " + x + "," + z
+                                            + " is open to air at " + (side.getX() - origin.getX()) + ","
+                                            + (side.getZ() - origin.getZ()));
+                                }
+                            }
+                        }
+                    }
+                }
+                if (water == 0) {
+                    failures.add("stamp " + i + " has no water");
+                }
+            } finally {
+                release(level, origin);
+            }
+        }
+        helper.assertTrue(failures.isEmpty(), "water rooms: " + failures);
+        helper.succeed();
+    }
+
+    /**
      * PD-114 (playtest 2026-10-02-2, needs repro): on a basalt_foundry floor a
      * gated room's opened exit showed a nether brick wall, so the far cell's
      * doorway plane never opened. Sweeps stamped floors and fails on any plan

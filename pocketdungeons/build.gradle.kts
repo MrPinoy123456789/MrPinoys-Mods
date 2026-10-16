@@ -314,6 +314,8 @@ for ((taskName, testClass) in mapOf(
     "bookLootTest" to "BookLootTest",
     // Tuning knobs (2026-10-08): every trial spawner gives at least the key share in tools/loot_knobs.json.
     "spawnerEjectOddsTest" to "SpawnerEjectOddsTest",
+    // PD-213: no trial spawner pool offers enderman (the only mob that escapes its room).
+    "trialSpawnerPoolTest" to "TrialSpawnerPoolTest",
     // Floor and dungeon notes (2026-10-08): the reason to choose a door, present, distinct and honest about ore.
     "floorNotesTest" to "FloorNotesTest",
     // Roadmap T13: Deepslate is four floors on every path; Lush Caves and Copper Works bury what they promise.
@@ -511,6 +513,7 @@ tasks.test {
     dependsOn("infestationRulesTest")
     dependsOn("bookLootTest")
     dependsOn("spawnerEjectOddsTest")
+    dependsOn("trialSpawnerPoolTest")
     dependsOn("floorNotesTest")
     dependsOn("dungeonDataFixesTest")
     dependsOn("effectCapsTest")
