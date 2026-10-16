@@ -116,50 +116,74 @@ final class BoardText {
      * the same purpose are collapsed so the door board does not dump the whole
      * palette. Structural blocks ({@link DungeonDef#isStructuralBlock}) are
      * scenery and are skipped; low-purpose blocks (gilded blackstone, amethyst,
-     * clay, fungi, wart) are also skipped. Mineshaft's eight ores become
-     * coal, copper, iron and gold; logs and stems become wood; sand variants
-     * become sand.
+     * clay, fungi, wart) are also skipped. Ores are not named one by one; each
+     * palette earns a tier word instead. Coal, copper, iron and gold are
+     * "mining"; lapis, redstone and diamond lift a palette to "deep mining";
+     * nether quartz, nether gold and ancient debris are "nether mining". Logs
+     * and stems become wood; sand variants become sand.
      */
     static List<String> paletteWords(List<String> palette) {
         Set<String> words = new LinkedHashSet<>();
-        if (palette != null) {
-            for (String block : palette) {
-                if (block == null || block.isBlank() || DungeonDef.isStructuralBlock(block)) {
-                    continue;
-                }
+        if (palette == null) {
+            return new ArrayList<>(words);
+        }
+        boolean deep = false;
+        for (String block : palette) {
+            if (block != null && !block.isBlank() && !DungeonDef.isStructuralBlock(block)) {
                 String name = block.substring(block.indexOf(':') + 1);
-                String word = resourceWord(name);
-                if (word != null) {
-                    words.add(word);
+                if (name.endsWith("_ore") && DEEP_MINING.contains(oreBase(name))) {
+                    deep = true;
                 }
+            }
+        }
+        for (String block : palette) {
+            if (block == null || block.isBlank() || DungeonDef.isStructuralBlock(block)) {
+                continue;
+            }
+            String name = block.substring(block.indexOf(':') + 1);
+            String word = resourceWord(name, deep);
+            if (word != null) {
+                words.add(word);
             }
         }
         return new ArrayList<>(words);
     }
 
+    /** The nether mining set: quartz, gold and debris all mean the same trip to the player. */
+    private static final Set<String> NETHER_MINING = Set.of(
+            "nether_quartz_ore", "nether_gold_ore", "ancient_debris");
+
+    /** Ores that lift a palette to "deep mining"; lesser ores beside them belong to the same seam. */
+    private static final Set<String> DEEP_MINING = Set.of(
+            "lapis", "redstone", "diamond", "emerald");
+
+    /** Strip the {@code _ore} suffix and any {@code deepslate_} prefix to the bare metal name. */
+    private static String oreBase(String name) {
+        String ore = name.substring(0, name.length() - "_ore".length());
+        if (ore.startsWith("deepslate_")) {
+            ore = ore.substring("deepslate_".length());
+        }
+        return ore;
+    }
+
     /**
      * The board word for a palette block, or {@code null} when the block is not
-     * worth naming (scenery, decor, or a low-value material).
+     * worth naming (scenery, decor, or a low-value material). {@code deep} is
+     * set when the palette holds a deep-tier ore; every ore then folds into
+     * "deep mining" instead of a separate "mining" word.
      */
-    private static String resourceWord(String name) {
+    private static String resourceWord(String name, boolean deep) {
+        if (NETHER_MINING.contains(name)) {
+            return "nether mining";
+        }
         if (name.endsWith("_ore")) {
-            String ore = name.substring(0, name.length() - "_ore".length());
-            if (ore.startsWith("deepslate_")) {
-                ore = ore.substring("deepslate_".length());
-            }
-            if (ore.equals("nether_gold")) {
-                return "gold";
-            }
-            return ore.replace('_', ' ');
+            return deep ? "deep mining" : "mining";
         }
         if (name.endsWith("_log") || name.endsWith("_stem") || name.endsWith("_hyphae") || name.endsWith("_wood")) {
             return "wood";
         }
         if (name.equals("sand") || name.equals("red_sand")) {
             return "sand";
-        }
-        if (name.equals("ancient_debris")) {
-            return "ancient debris";
         }
         return null;
     }

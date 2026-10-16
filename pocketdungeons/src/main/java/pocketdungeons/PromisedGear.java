@@ -11,7 +11,7 @@ import net.minecraft.core.component.DataComponents;
 /**
  * A floor that promises a piece of gear (2026-10-10, PD-197). A node\u0027s {@code rewards} may carry an entry
  * {@code gear:<slot>:<tier>} (for example {@code gear:weapon:2}). The piece is rolled off that slot and tier\u0027s
- * gear table when the door is generated, so the board can name it ("enchanted iron sword"), and the same piece is
+ * gear table when the door is generated, so the board can name it ("ench iron sword"), and the same piece is
  * paid into the copper chest when the floor clears. Nothing is stored: the roll is seeded from the owner, the
  * trip ({@link IntervalState#rewardSalt}) and the floor\u0027s node, so the board and the chest agree.
  */
@@ -99,7 +99,7 @@ final class PromisedGear {
                 extraSeed(owner, interval, nodeId));
     }
 
-    /** "enchanted iron sword": how the door board names a promised piece. */
+    /** "ench iron sword": how the door board names a promised piece. */
     static String describe(ItemStack stack) {
         if (stack.isEmpty()) {
             return "gear";
@@ -107,6 +107,6 @@ final class PromisedGear {
         String name = stack.getItem().getName(stack).getString().toLowerCase(java.util.Locale.ROOT);
         boolean enchanted = !stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY).isEmpty();
         String counted = stack.getCount() > 1 ? stack.getCount() + " " + name : name;
-        return enchanted ? "enchanted " + counted : counted;
+        return enchanted ? "ench " + counted : counted;
     }
 }

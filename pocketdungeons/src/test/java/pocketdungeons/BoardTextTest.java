@@ -37,9 +37,9 @@ public class BoardTextTest {
         eq(BoardText.notesLine(false, false, "dark", true, List.of("coal"), true), "Pitch dark. Bring torches.");
         eq(BoardText.notesLine(false, false, "dim", false, List.of(), false), "Dim light. Torches help.");
         eq(BoardText.notesLine(false, false, "lit", true, List.of("coal"), true), "The last floor. Clear it to finish.");
-        eq(BoardText.notesLine(false, false, "lit", false, List.of("coal", "copper", "iron", "gold"), true),
-                "Mine the walls for coal, copper and iron.");
-        eq(BoardText.notesLine(false, false, "lit", false, List.of("coal"), true), "Mine the walls for coal.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of("mining", "wood", "sand", "nether mining"), true),
+                "Mine the walls for mining, wood and sand.");
+        eq(BoardText.notesLine(false, false, "lit", false, List.of("mining"), true), "Mine the walls for mining.");
         eq(BoardText.notesLine(false, false, "lit", false, List.of(), true), "Mine the walls for ore.");
         eq(BoardText.notesLine(false, false, "lit", false, List.of(), false), "Clear the spawners to open the way.");
         eq(BoardText.notesLine(true, true, "dark", true, List.of("coal"), true), "Ore hides in the walls. Deeper pays better.");
@@ -63,20 +63,29 @@ public class BoardTextTest {
     }
 
     private static void testPalette() {
-        // Mineshaft: the eight authored ores read as four words.
+        // Mineshaft's eight shallow ores read as one word: mining.
         eq(String.join(" \u00b7 ", BoardText.paletteWords(List.of("coal_ore", "copper_ore", "iron_ore", "gold_ore",
                 "deepslate_coal_ore", "deepslate_copper_ore", "deepslate_iron_ore", "deepslate_gold_ore"))),
-                "coal \u00b7 copper \u00b7 iron \u00b7 gold");
-        // Logs, stems and hyphae collapse to "wood"; nether gold ore reads as gold; sand variants collapse.
+                "mining");
+        // Lapis, redstone or diamond lift the whole palette to "deep mining".
+        eq(String.join(",", BoardText.paletteWords(List.of("deepslate_iron_ore", "deepslate_lapis_ore",
+                "deepslate_redstone_ore", "deepslate_diamond_ore"))), "deep mining");
+        // Logs, stems and hyphae collapse to "wood"; sand variants collapse.
         eq(String.join(",", BoardText.paletteWords(List.of("minecraft:oak_log", "pocketdungeons:warped_stem",
-                "minecraft:crimson_hyphae", "minecraft:iron_ore", "minecraft:nether_gold_ore",
-                "minecraft:sand", "minecraft:red_sand"))), "wood,iron,gold,sand");
+                "minecraft:crimson_hyphae", "minecraft:iron_ore",
+                "minecraft:sand", "minecraft:red_sand"))), "wood,mining,sand");
+        // The nether mining set (nether quartz, nether gold, ancient debris) reads as one word.
+        eq(String.join(",", BoardText.paletteWords(List.of("minecraft:nether_quartz_ore",
+                "minecraft:nether_gold_ore", "minecraft:ancient_debris"))), "nether mining");
+        // A mixed vault names both trips.
+        eq(String.join(" \u00b7 ", BoardText.paletteWords(List.of("minecraft:diamond_ore",
+                "minecraft:deepslate_diamond_ore", "minecraft:ancient_debris"))), "deep mining \u00b7 nether mining");
         // Structural blocks and low-value materials are scenery, not resources.
         eq(String.join(",", BoardText.paletteWords(List.of("stone", "coal_ore", "oak_planks", "deepslate",
-                "minecraft:gilded_blackstone", "minecraft:amethyst_cluster", "minecraft:clay"))), "coal");
-        // Ancient debris and repeated groups stay deduplicated.
+                "minecraft:gilded_blackstone", "minecraft:amethyst_cluster", "minecraft:clay"))), "mining");
+        // Repeated groups stay deduplicated.
         eq(String.join(" \u00b7 ", BoardText.paletteWords(List.of("minecraft:ancient_debris", "minecraft:oak_log",
-                "minecraft:spruce_log", "minecraft:gold_ore"))), "ancient debris \u00b7 wood \u00b7 gold");
+                "minecraft:spruce_log", "minecraft:gold_ore"))), "nether mining \u00b7 wood \u00b7 mining");
         check(BoardText.paletteWords(List.of()).isEmpty() && BoardText.paletteWords(null).isEmpty(), "empty in, empty out");
     }
 

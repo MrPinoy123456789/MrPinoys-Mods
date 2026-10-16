@@ -20,6 +20,9 @@ import java.util.Set;
  *   <li>Every cell is still reachable from the entrance.</li>
  *   <li>The M29 no-backwards-propagation rule still holds under the raised
  *       branch and loop probabilities.</li>
+ *   <li>A two-cell floor (the Proving's gate beside its arena) generates: the
+ *       sight-line rule is vacuous when the terminal must sit beside the
+ *       entrance.</li>
  * </ul>
  *
  * <p>Pure JDK, no Minecraft classpath. The 8-12 path profile with 0.55 branch
@@ -37,6 +40,7 @@ public class FloorShapeTest {
     public static void main(String[] args) {
         testTerminalIndexBand();
         testLineOfSightRejection();
+        testTwoCellFloorGenerates();
         testReachabilityAndNoBackwards();
         System.out.println("FloorShapeTest passed");
     }
@@ -169,6 +173,33 @@ public class FloorShapeTest {
                 "a terminal off both axes must not trigger line of sight");
 
         System.out.println("Line of sight: 2 rejected, 2 accepted");
+    }
+
+    // ---- two-cell floor (the Proving) ----
+
+    /**
+     * The Proving plans {@code minPath = maxPath = 2}: a gate cell beside the
+     * arena. The terminal is then necessarily adjacent to the entrance, so the
+     * sight-line rule must not reject it; before the exemption every seed came
+     * back {@code null} and the live door preview burned its whole budget
+     * (playtest 2026-10-16 server log).
+     */
+    private static void testTwoCellFloorGenerates() {
+        for (long seed = 0; seed < SWEEP_SEEDS; seed++) {
+            DungeonShape shape = LayoutGraphGenerator.generate(seed, 2, 2, BRANCH_PROB, LOOP_PROB);
+            if (shape == null) {
+                throw new AssertionError("seed " + seed + ": two-cell floor failed to generate");
+            }
+            if (shape.criticalPath().size() != 2) {
+                throw new AssertionError("seed " + seed + ": expected a two-cell path, got "
+                        + shape.criticalPath().size());
+            }
+            List<String> problems = LayoutGraphGenerator.validate(shape);
+            if (!problems.isEmpty()) {
+                throw new AssertionError("seed " + seed + ": two-cell shape failed validation: " + problems);
+            }
+        }
+        System.out.println("Two-cell floor: " + SWEEP_SEEDS + " seeds generated and validated");
     }
 
     // ---- reachability and no-backwards-propagation ----

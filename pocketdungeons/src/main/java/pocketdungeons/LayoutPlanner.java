@@ -202,7 +202,8 @@ final class LayoutPlanner {
                     attemptSeed, path.minPath(), path.maxPath(), path.branchProbability(),
                     path.loopProbability(), populationRoles);
             if (shape == null) {
-                lastReason = "shape generation exhausted its backtracking budget";
+                lastReason = "shape generation rejected the seed"
+                        + " (backtracking budget or entrance-to-exit sight line)";
                 continue;
             }
             if (request.requiredEntranceDirection() != null) {

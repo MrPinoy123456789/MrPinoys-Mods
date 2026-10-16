@@ -86,6 +86,34 @@ public final class ProvingGameTest {
         helper.succeed();
     }
 
+    /**
+     * The Proving plans a two-cell floor (gate beside the arena): the sight-line rule used to
+     * reject every seed, so the live door preview burned its whole budget and refused
+     * (server log, playtest 2026-10-16). Plans the floor the way {@code Instances#planFloor}
+     * does: min and max path 2, the node's room bias, the live manifest.
+     */
+    @GameTest(maxTicks = 100)
+    public void aProvingFloorPlans(GameTestHelper helper) {
+        DungeonDef def = DungeonDefs.current().byId(PROVING);
+        helper.assertTrue(def != null, "the_proving is loaded");
+        DungeonDef.Node node = def.node("the_ring");
+        helper.assertTrue(node != null, "the_ring node is loaded");
+        ThemeManifest.Entry theme = ThemeManifest.current().byId(def.mainTheme());
+        String roomTheme = theme == null ? null : theme.meta().roomTheme;
+        RoomEligibility.Floor floor = new RoomEligibility.Floor(def.id(), def.mainTheme(), roomTheme,
+                def.act(), false, def.mainTheme(), "", node.layer() == 1, node.isFinal(), false,
+                def.minNodeRooms(node));
+        DungeonPlan plan = PlaytestBias.withNodeBias(node.roomBias(), () -> LayoutPlanner.plan(
+                new LayoutPlanner.PlanRequest(7L, RoomManifest.current(),
+                        LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                        new LayoutPlanner.PathProfile(2, 2, LayoutPlanner.DEFAULT_BRANCH_PROBABILITY,
+                                LayoutPlanner.DEFAULT_LOOP_PROBABILITY, LayoutPlanner.DEFAULT_MAX_GRID_SPAN),
+                        roomTheme, DoorMask.Direction.NORTH, BagTags.pilgrim(1), null, 0, floor))).plan();
+        helper.assertTrue(plan != null, "a proving floor plans a gate and an arena");
+        helper.assertValueEqual(plan.cells().size(), 2, "a proving floor is two cells");
+        helper.succeed();
+    }
+
     @GameTest(maxTicks = 60)
     public void everyFloorHoldsAWaveThatHoldsThePad(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();

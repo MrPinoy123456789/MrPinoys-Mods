@@ -171,8 +171,10 @@ public final class LayoutGraphGenerator {
         // A shape where the terminal shares a row or column with the entrance
         // through an unbroken run of open doorways is rejected here so the caller
         // retries with the next seed, the same way it retries on a
-        // no-backwards-propagation shape.
-        if (hasLineOfSight(cells, openEdges, entrance, terminal)) {
+        // no-backwards-propagation shape. A path with no interior cells puts the
+        // terminal adjacent to the entrance on purpose (the Proving's gate opens
+        // straight onto its arena), so the rule is vacuous there.
+        if (storedPath.size() > 2 && hasLineOfSight(cells, openEdges, entrance, terminal)) {
             return null;
         }
 
@@ -312,8 +314,11 @@ public final class LayoutGraphGenerator {
         // The terminal must not share a row or column with the entrance through
         // an unbroken run of open doorways. generate() filters these out before
         // returning, so a shape that reaches this check with a violation was
-        // hand-built (or constructed by a path the generator rejected).
-        if (hasLineOfSight(cells, edges, shape.entrance(), shape.terminal())) {
+        // hand-built (or constructed by a path the generator rejected). As in
+        // generate(), a two-cell path is exempt: its terminal sits beside the
+        // entrance by design.
+        if (shape.criticalPath().size() > 2
+                && hasLineOfSight(cells, edges, shape.entrance(), shape.terminal())) {
             problems.add("terminal " + shape.terminal() + " " + LINE_OF_SIGHT_MARKER
                     + " " + shape.entrance());
         }
