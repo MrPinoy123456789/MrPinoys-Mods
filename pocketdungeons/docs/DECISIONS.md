@@ -883,7 +883,7 @@ A new player starts in a prologue act of one dungeon, The First Night, guided by
 5. **Floor 1.** Gathering only, no fight. The bar and sidebar show the gather count in place of "spawners" ("Oak Log 3/8"). Floors 2 to 4 each introduce another common mechanic (open: which, see below). Floor 5 is a single trial spawner.
 6. **Gather quota.** The quota is the floor's count, plus half of it per extra member. Spare blocks stand on the floor but pay nothing extra; the reward for gathering more is simply having more.
 7. **Crafting.** The player must craft a stone pickaxe from floor 2's cobble and floor 1's logs to mine iron on floor 4. Crafting tables may be placed on a floor. Smelting is not required; Lemon only tells the player what a furnace does.
-8. **Failing.** Losing all lives in Act 0 resets everything and sends the player back to the start: Act 0 progress cleared, dungeon pack cleared, the starter bag available again.
+8. **Failing.** Act 0 fails like any other act (owner, 2026-10-17): losing all lives or leaving a floor keeps half the haul and sends the party back to the Home room with the pack as carried and the doors ready to choose again. There is no reset.
 9. **Lemon's lines.** All of Lemon's Act 0 lines prepare the player for the dungeons in general. None gives per-floor gathering instructions.
 10. **Diaries.** A diary anticipates the next dungeon or gives lore; it does not explain the dungeon just finished. The Act 0 diary (`entry_31`) is rewritten to look ahead. A lore pass over the existing diaries is a separate task.
 11. **Hoarding.** The dungeon pack is a separate inventory from survival and persists between trips (the Home room is inside the dungeon dimension), so the finished-once lock is what stops repeated farming of starter materials.
@@ -908,5 +908,5 @@ A player with any recorded progress (a compass above 1, a finished dungeon or an
 
 - Which common mechanic floors 2, 3 and 4 each teach (proposal: loot chest and Dungeon Storage; a life and a side door; the lever and pad).
 - Whether 2 scrap for Compass 2 should apply to everyone or only the first level.
-- Whether five lives is too forgiving for a tutorial that resets on failure.
+- Whether the usual failure rule (half the haul, back to Home) is gentle enough for a tutorial.
 - Whether gathering without a fight until the last floor holds attention.
