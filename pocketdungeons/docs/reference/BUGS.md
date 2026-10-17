@@ -312,6 +312,10 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 **Reported:** 2026-10-16, live: after `/dungeon resetkey` the player still had acts up to 4 unlocked, expected act 1 only. `DungeonLog.resetCampaign` rebuilt the entry but passed `previous.campaign()` through, so `actsUnlocked` and `campaignComplete` survived.
 **Status:** Fixed 2026-10-16. `Campaign.resetForCampaign` returns act 1 only and not complete; the trip counter, decide lists and mine floor records stay. `ActUnlockTest` and `EntryWitherTest` had pinned the old keep-acts behavior and now pin the reset. Covered by `CustodyGameTest.aCampaignResetReturnsThePlayerToActOne`. Unverified live; not yet deployed.
 
+### PD-217: /dungeon resetkey keeps the Dungeon Storage (Medium)
+**Reported:** 2026-10-17, live, right after the PD-216 fix: "the acts reset but the dungeon storage is still not reset". `resetCampaign` cleared the bag, orphan, stash and kit chest but never the per-player Dungeon Storage, which was designed to survive runs and logouts.
+**Status:** Fixed 2026-10-17, owner-ruled (a reset is back to a new player). `resetCampaign` now empties the storage and the Reset Compass dialog says so. Covered by `CustodyGameTest.aCampaignResetReturnsThePlayerToActOne`. Unverified live; not yet deployed.
+
 ## Closed ledger
 
 | ID | Summary | Resolution |

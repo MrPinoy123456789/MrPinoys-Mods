@@ -629,7 +629,9 @@ public final class CustodyGameTest {
         log.unlockAct(id, 2);
         log.unlockAct(id, 3);
         log.unlockAct(id, 4);
+        log.setStorage(id, java.util.List.of(new ItemStack(Items.DIAMOND, 5)));
         log.resetCampaign(id);
+        helper.assertTrue(log.storageOf(id).isEmpty(), "the Dungeon Storage is emptied by a reset");
         DungeonLog.Campaign campaign = log.get(id).campaign();
         helper.assertTrue(campaign.actsUnlocked().equals(java.util.Set.of(1)),
                 "only act 1 stays unlocked after a reset, got " + campaign.actsUnlocked());

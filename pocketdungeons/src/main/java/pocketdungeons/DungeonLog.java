@@ -1862,7 +1862,8 @@ final class DungeonLog extends SavedData {
      * <p>Preserved (unlockables and room settings, not keystone progress):
      * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
      * {@code publicListed}, {@code recentVisitors}. Acts unlocked and campaign completion
-     * reset to act 1 (PD-216); the mine floor records stay, they are history. The sidecar maps
+     * reset to act 1 (PD-216); the mine floor records stay, they are history. The Dungeon Storage
+     * is emptied too (PD-217): it is items, and a reset is back to a new player. The sidecar maps
      * ({@code taskProgress}, {@code recipeDiscoveries})
      * are untouched: a task's count, a weekly bounty, and a discovered
      * recipe are meta-progression, not keystone progress.
@@ -1883,6 +1884,7 @@ final class DungeonLog extends SavedData {
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);
         setKitChest(player, List.of());
+        setStorage(player, List.of());
         setDirty();
     }
 }

@@ -781,7 +781,7 @@ final class DialogScreens {
         return DialogKit.confirm("Reset your compass?",
                 List.of(DialogKit.text(Component.literal("Back to compass 1.")
                                 .withStyle(ChatFormatting.YELLOW)),
-                        DialogKit.text("Your compass, haul and any run in progress are gone."),
+                        DialogKit.text("Your compass, haul, Dungeon Storage and any run in progress are gone."),
                         DialogKit.text(Component.literal("Shells, diaries and room settings stay.")
                                 .withStyle(ChatFormatting.GRAY))),
                 DialogKit.command("Reset Compass", null, "/dungeon resetkey"),
