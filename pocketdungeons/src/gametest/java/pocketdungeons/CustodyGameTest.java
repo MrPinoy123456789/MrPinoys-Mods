@@ -619,6 +619,26 @@ public final class CustodyGameTest {
     }
 
     /**
+     * PD-216: {@code /dungeon resetkey} used to keep the unlocked acts, so a reset player still saw act 4.
+     * A campaign reset must leave act 1 only, no mine depth and the campaign not complete.
+     */
+    @GameTest
+    public void aCampaignResetReturnsThePlayerToActOne(GameTestHelper helper) {
+        DungeonLog log = DungeonLog.forServer(helper.getLevel().getServer());
+        java.util.UUID id = java.util.UUID.randomUUID();
+        log.unlockAct(id, 2);
+        log.unlockAct(id, 3);
+        log.unlockAct(id, 4);
+        log.resetCampaign(id);
+        DungeonLog.Campaign campaign = log.get(id).campaign();
+        helper.assertTrue(campaign.actsUnlocked().equals(java.util.Set.of(1)),
+                "only act 1 stays unlocked after a reset, got " + campaign.actsUnlocked());
+        helper.assertFalse(campaign.campaignComplete(), "a reset campaign is not complete");
+        helper.assertTrue(campaign.deepestMineFloorAny() == 0, "mine depth cleared");
+        helper.succeed();
+    }
+
+    /**
      * Leaves the server as the scenario found it. A stash or an orphan left
      * behind would be swept into the next scenario by its own reconcile pass.
      */

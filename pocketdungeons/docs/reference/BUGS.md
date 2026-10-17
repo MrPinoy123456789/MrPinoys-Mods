@@ -308,6 +308,10 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 **Reported:** 2026-10-16, live on the deployed jar: "proving grouns just says 'spawners done' I killed all the boss monsters and now there's nothing to do and I can't complete it." Verified in code: `proving_arena`'s spec never sets `exitPad`, so the template holds no lodestone and `Instances.isOnExitPad` can never fire `RunLifecycle.completeRun`. The wave gate opened correctly; there was simply no pad to stand on.
 **Status:** Fixed 2026-10-16, owner-ruled ("spawn the exitpad room generated but hidden behind a wall and when the arena is completed, reveal the room"). At commit, `ProvingWaves.stampPadRoom` stamps the `exit_hall` template one cell beyond the arena's far wall, rotated to face it and themed by the run theme's processors; the arena wall stays sealed. `ProvingWaves.tick` opens the wall once the wave is down ("The wave is beaten. The way on opens."). `isOnExitPad` accepts the pad cell outside the layout bounds, `liveCells` carries it for teardown, and completion lands the staging room on the same cell, so the reveal reads as the checkpoint opening. Covered by `ProvingGameTest.thePadRoomHidesBehindTheArenaUntilTheWaveDies`. Unverified live: the reveal's read in game and the first real descent loop.
 
+### PD-216: /dungeon resetkey keeps the unlocked acts (Medium)
+**Reported:** 2026-10-16, live: after `/dungeon resetkey` the player still had acts up to 4 unlocked, expected act 1 only. `DungeonLog.resetCampaign` rebuilt the entry but passed `previous.campaign()` through, so `actsUnlocked`, mine depth and `campaignComplete` survived.
+**Status:** Fixed 2026-10-16. `Campaign.resetForCampaign` returns act 1 only, no mine depth, not complete; the trip counter and decide lists stay as settings. Covered by `CustodyGameTest.aCampaignResetReturnsThePlayerToActOne`. Unverified live; not yet deployed.
+
 ## Closed ledger
 
 | ID | Summary | Resolution |

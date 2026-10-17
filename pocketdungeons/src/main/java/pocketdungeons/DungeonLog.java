@@ -571,6 +571,15 @@ final class DungeonLog extends SavedData {
             return new Campaign(acts, actsMigrated, campaignComplete, tripCounter, decideWhitelist, decideList, deepestMineFloor, otherMineFloors);
         }
 
+        /**
+         * A campaign reset: back to act 1 with no mine depth and the campaign not complete, so
+         * {@code /dungeon resetkey} leaves a player where a new one starts. The trip counter and the
+         * decide whitelist and list are settings, not progress, and stay.
+         */
+        Campaign resetForCampaign() {
+            return new Campaign(Set.of(), true, false, tripCounter, decideWhitelist, decideList, 0, Map.of());
+        }
+
         Campaign withCampaignComplete() {
             return new Campaign(actsUnlocked, actsMigrated, true, tripCounter, decideWhitelist, decideList, deepestMineFloor, otherMineFloors);
         }
@@ -1852,7 +1861,8 @@ final class DungeonLog extends SavedData {
      *
      * <p>Preserved (unlockables and room settings, not keystone progress):
      * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
-     * {@code publicListed}, {@code recentVisitors}. The sidecar maps
+     * {@code publicListed}, {@code recentVisitors}. Acts unlocked, mine depth and campaign
+     * completion are progress and reset to act 1 (PD-216). The sidecar maps
      * ({@code taskProgress}, {@code recipeDiscoveries})
      * are untouched: a task's count, a weekly bounty, and a discovered
      * recipe are meta-progression, not keystone progress.
@@ -1868,7 +1878,7 @@ final class DungeonLog extends SavedData {
                 previous.room().withRoomCompletions(0),
                 new Unlocks(Set.of(), previous.unlockedShells(), previous.diaryBandsSeen(),
                         previous.dungeonsFinished(), "", false, 0),
-                previous.campaign());
+                previous.campaign().resetForCampaign());
         entries.put(player, reset);
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);
