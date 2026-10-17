@@ -869,7 +869,8 @@ A new player starts in a prologue act of one dungeon, The First Night, guided by
 | Dungeon | The First Night, 5 floors, `act: 0` | `dungeon/first_night.json` |
 | Floors 1 to 4 | Treeline (8 oak logs), Stone Rise (12 stone), Black Seam (8 coal ore), Rust Ravine (6 iron ore). Gather objective, no spawners | node `objective: gather` |
 | Floor 5 | The Cave Mouth, exactly 1 trial spawner, no finale wave | node spawner cap |
-| Starter tools | One bag, wooden axe, pickaxe, shovel (and bread). Replaces the ten bags | `dungeon_bag/starter.json` |
+| Starter tools | One bag, wooden axe, pickaxe, shovel (and bread), each tool tagged so a duplicate is deleted. Replaces the ten bags | `dungeon_bag/starter.json` |
+| Lives | Infinite in Act 0, shown from Act 1 | `Lives`, run rules |
 | Compass | In the first chest; Lemon comes out of it when the chest is closed | first-join tour |
 | Scrap | Finishing Act 0 banks 2 scrap, which is the cost of Compass 2; Lemon explains scrap | `compassCostFirstLevel` |
 | Lock | Completed once, per player, forever; hidden from the astrolabe | `Campaign` flag |
@@ -879,11 +880,11 @@ A new player starts in a prologue act of one dungeon, The First Night, guided by
 1. **Entry.** Act 0 is on the astrolabe only while the player has not finished it. After the finish it is not shown at all (no locked door). A full `/dungeon resetkey` reopens it.
 2. **Unlock.** The First Night is Act 0's capstone: clearing it completes Act 0, unlocks Act 1 and grants Compass 2 (2 scrap). Act 0 has no Endless Mine and no act gate other than this.
 3. **First chest.** The player's first chest holds the Compass. Closing the chest after taking it is when Lemon appears and introduces herself.
-4. **Starter bag.** There is no bag choice. The bag chest reads "there seems to be equipment left behind" with a single "Take it" button that hands over the wooden axe, pickaxe and shovel. A replacement set costs 1 life (the party's shared lives).
+4. **Starter bag.** There is no bag choice. The bag chest reads "there seems to be equipment left behind" with a single "Take it" button that hands over the wooden axe, pickaxe and shovel, and it can be pressed again for a replacement set at no cost. Each tool carries a starter tag (`pocketdungeons.starter_tool` with its kind). If a player ever holds two tools with the same tag, across the dungeon pack and Dungeon Storage, the one with the lowest durability is deleted, so a spare set cannot be farmed.
 5. **Floor 1.** Gathering only, no fight. The bar and sidebar show the gather count in place of "spawners" ("Oak Log 3/8"). Floors 2 to 4 each introduce another common mechanic (open: which, see below). Floor 5 is a single trial spawner.
 6. **Gather quota.** The quota is the floor's count, plus half of it per extra member. Spare blocks stand on the floor but pay nothing extra; the reward for gathering more is simply having more.
 7. **Crafting.** The player must craft a stone pickaxe from floor 2's cobble and floor 1's logs to mine iron on floor 4. Crafting tables may be placed on a floor. Smelting is not required; Lemon only tells the player what a furnace does.
-8. **Failing.** Act 0 fails like any other act (owner, 2026-10-17): losing all lives or leaving a floor keeps half the haul and sends the party back to the Home room with the pack as carried and the doors ready to choose again. There is no reset.
+8. **Lives.** Act 0 has infinite lives (owner, 2026-10-17). A death costs nothing and never fails the dungeon, so there is no failure and no restart to exploit; failing sends a player to the start of the dungeon, which could be abused for loot. Lives are introduced in Act 1, where Lemon explains them on the first floor. Leaving a floor mid-run still follows the normal leave rule.
 9. **Lemon's lines.** All of Lemon's Act 0 lines prepare the player for the dungeons in general. None gives per-floor gathering instructions.
 10. **Diaries.** A diary anticipates the next dungeon or gives lore; it does not explain the dungeon just finished. The Act 0 diary (`entry_31`) is rewritten to look ahead. A lore pass over the existing diaries is a separate task.
 11. **Hoarding.** The dungeon pack is a separate inventory from survival and persists between trips (the Home room is inside the dungeon dimension), so the finished-once lock is what stops repeated farming of starter materials.
@@ -902,11 +903,11 @@ A player with any recorded progress (a compass above 1, a finished dungeon or an
 
 ### Knobs
 
-`compassCostFirstLevel` (2), the gather counts in `first_night.json`, `starterToolLifeCost` (1), `actZeroScrap` (2). The quota growth per member is fixed in code (`GatherObjective.quotaFor`).
+`compassCostFirstLevel` (2), the gather counts in `first_night.json`, `actZeroScrap` (2). The quota growth per member is fixed in code (`GatherObjective.quotaFor`).
 
 ### Open until played
 
-- Which common mechanic floors 2, 3 and 4 each teach (proposal: loot chest and Dungeon Storage; a life and a side door; the lever and pad).
+- Which common mechanic floors 2, 3 and 4 each teach (proposal now that Act 0 has no lives: loot chest and Dungeon Storage; the crafting table and a stone pickaxe; the lever and pad).
 - Whether 2 scrap for Compass 2 should apply to everyone or only the first level.
-- Whether the usual failure rule (half the haul, back to Home) is gentle enough for a tutorial.
+- Whether the duplicate-tool sweep is enough (it does not see tools dropped on a floor or handed to another player), and whether it should also run on a timer or only when the pack changes.
 - Whether gathering without a fight until the last floor holds attention.
