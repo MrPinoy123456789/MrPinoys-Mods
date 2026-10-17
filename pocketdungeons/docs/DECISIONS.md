@@ -880,7 +880,7 @@ A new player starts in a prologue act of one dungeon, The First Night, guided by
 1. **Entry.** Act 0 is on the astrolabe only while the player has not finished it. After the finish it is not shown at all (no locked door). A full `/dungeon resetkey` reopens it.
 2. **Unlock.** The First Night is Act 0's capstone: clearing it completes Act 0, unlocks Act 1 and grants Compass 2 (2 scrap). Act 0 has no Endless Mine and no act gate other than this.
 3. **First chest.** The player's first chest holds the Compass. Closing the chest after taking it is when Lemon appears and introduces herself.
-4. **Starter bag.** There is no bag choice. The bag chest reads "there seems to be equipment left behind" with a single "Take it" button that hands over the wooden axe, pickaxe and shovel, and it can be pressed again for a replacement set at no cost. Each tool carries a starter tag (`pocketdungeons.starter_tool` with its kind). If a player ever holds two tools with the same tag, across the dungeon pack and Dungeon Storage, the one with the lowest durability is deleted, so a spare set cannot be farmed.
+4. **Starter bag.** There is no bag choice. The bag chest reads "there seems to be equipment left behind" with a single "Take it" button that hands over the wooden axe, pickaxe and shovel, and it can be pressed again for a replacement set at no cost. Each tool carries a starter tag (`pocketdungeons.starter_tool` with its kind). If a player ever holds two tools with the same tag, across the dungeon pack, Dungeon Storage and any container they have open (a chest, a run storage), the one with the lowest durability is deleted, so a spare set cannot be farmed. The sweep runs only when something changed (the bag chest button, a container opening or closing, a stack moving), not on a timer; if a reliable change hook is missing for one of those, a once-a-second check scoped to players currently in an Act 0 run covers it.
 5. **Floor 1.** Gathering only, no fight. The bar and sidebar show the gather count in place of "spawners" ("Oak Log 3/8"). Floors 2 to 4 each introduce another common mechanic (open: which, see below). Floor 5 is a single trial spawner.
 6. **Gather quota.** The quota is the floor's count, plus half of it per extra member. Spare blocks stand on the floor but pay nothing extra; the reward for gathering more is simply having more.
 7. **Crafting.** The player must craft a stone pickaxe from floor 2's cobble and floor 1's logs to mine iron on floor 4. Crafting tables may be placed on a floor. Smelting is not required; Lemon only tells the player what a furnace does.
@@ -890,6 +890,9 @@ A new player starts in a prologue act of one dungeon, The First Night, guided by
 11. **Hoarding.** The dungeon pack is a separate inventory from survival and persists between trips (the Home room is inside the dungeon dimension), so the finished-once lock is what stops repeated farming of starter materials.
 12. **Presentation.** Act 0 gets thematic rooms for each floor (forest, rock outcrop, coal hillside, iron ravine, cave mouth), not the generic halls.
 13. **The Proving.** Its sidebar and bar have the same "spawners" problem and get the same fix.
+14. **Quit.** Quitting an Act 0 run (the Quit Door) wipes the player's dungeon pack and Dungeon Storage and makes the starting chest and bag chest available again. Nothing from an unfinished Act 0 run is kept.
+15. **No loot before the finish.** Floors 1 to 4 pay no scrap and no completion chest or barrel rolls; the only Act 0 payouts are on the finish (2 scrap, the diary, Act 1). Going home before the finish is not offered in Act 0: the Home lever is replaced by the quit rule above. This closes the loop where a player gathers, banks to Home, stores the materials in a Home room chest and repeats.
+16. **Act 0 materials are tagged.** Logs, stone, coal ore and iron ore taken from a gather floor carry an `act0` tag and are removed by quit; finishing Act 0 untags them, so the one legitimate set of starter materials goes with the player.
 
 ### Migration
 
@@ -909,5 +912,6 @@ A player with any recorded progress (a compass above 1, a finished dungeon or an
 
 - Which common mechanic floors 2, 3 and 4 each teach (proposal now that Act 0 has no lives: loot chest and Dungeon Storage; the crafting table and a stone pickaxe; the lever and pad).
 - Whether 2 scrap for Compass 2 should apply to everyone or only the first level.
-- Whether the duplicate-tool sweep is enough (it does not see tools dropped on a floor or handed to another player), and whether it should also run on a timer or only when the pack changes.
+- Whether the duplicate-tool sweep is enough: it does not see a tool handed to another player or kept in a closed Home room chest (the player can still only hold one set at a time, since two in hand are swept).
+- Whether untagged crafted products (planks, sticks, a crafted stone pickaxe) should leave with the player on a quit; they are not tagged, so as written they would stay unless the quit wipe takes the whole pack.
 - Whether gathering without a fight until the last floor holds attention.
