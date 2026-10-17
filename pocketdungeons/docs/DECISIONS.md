@@ -890,8 +890,8 @@ A new player starts in a prologue act of one dungeon, The First Night, guided by
 11. **Hoarding.** The dungeon pack is a separate inventory from survival and persists between trips (the Home room is inside the dungeon dimension), so the finished-once lock is what stops repeated farming of starter materials.
 12. **Presentation.** Act 0 gets thematic rooms for each floor (forest, rock outcrop, coal hillside, iron ravine, cave mouth), not the generic halls.
 13. **The Proving.** Its sidebar and bar have the same "spawners" problem and get the same fix.
-14. **Quit.** Quitting an Act 0 run (the Quit Door) wipes the player's dungeon pack and Dungeon Storage and makes the starting chest and bag chest available again. Nothing from an unfinished Act 0 run is kept.
-15. **No loot before the finish.** Floors 1 to 4 pay no scrap and no completion chest or barrel rolls; the only Act 0 payouts are on the finish (2 scrap, the diary, Act 1). Going home before the finish is not offered in Act 0: the Home lever is replaced by the quit rule above. This closes the loop where a player gathers, banks to Home, stores the materials in a Home room chest and repeats.
+14. **Quit.** Quitting an Act 0 run (the Quit Door) resets Act 0 (owner, 2026-10-17: it is short already): the run restarts at floor 1, the dungeon pack and Dungeon Storage are wiped, and the starting chest and bag chest are available again. Nothing from an unfinished Act 0 run is kept.
+15. **No loot before the finish.** Floors 1 to 4 pay no scrap and no completion chest or barrel rolls; the only Act 0 payouts are on the finish (2 scrap, the diary, Act 1). The Home lever does not work in Act 0 until the act is finished (owner, 2026-10-17); quitting is the only way out and it resets the act. This closes the loop where a player gathers, banks to Home, stores the materials in a Home room chest and repeats.
 16. **Act 0 materials are tagged.** Logs, stone, coal ore and iron ore taken from a gather floor carry an `act0` tag and are removed by quit; finishing Act 0 untags them, so the one legitimate set of starter materials goes with the player.
 
 ### Migration
