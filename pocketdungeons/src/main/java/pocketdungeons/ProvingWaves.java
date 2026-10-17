@@ -3,7 +3,10 @@ package pocketdungeons;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
@@ -11,6 +14,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
 
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * The Proving's wave engine (decision 2026-10-16): a descent dungeon of kind
@@ -165,6 +169,72 @@ final class ProvingWaves {
             return null;
         }
         return alive(level, record.layout.terminal()) ? "The wave still stands. Finish it first." : null;
+    }
+
+    // ---- the hidden pad room (PD-215) -----------------------------------------
+
+    /**
+     * Stamps the floor's exit pad as its own room, one cell beyond the arena's far wall,
+     * sealed behind the wall until the wave is down (PD-215, playtest 2026-10-16: the
+     * arena itself carries no lodestone, so a spent wave left the run unfinishable).
+     * The room is the generated {@code exit_hall} template turned so its door faces the
+     * arena, themed by the run theme's processors like every other stamped cell; the
+     * staging room lands on this same cell when the floor completes, so the reveal
+     * reads as the checkpoint opening.
+     */
+    static void stampPadRoom(ServerLevel level, InstanceRecord record, InstanceLayout layout,
+                             String themeId) {
+        BlockPos terminalOrigin = layout.terminal();
+        DoorMask.Direction farWall = CellGeometry.opposite(
+                CellGeometry.terminalEntranceDirection(layout.geometry(), terminalOrigin));
+        BlockPos padOrigin = CellGeometry.offsetInDirection(terminalOrigin, farWall, RoomGeometry.CELL);
+        InstanceTeardown.holdCell(level, padOrigin);
+        ThemeManifest.Entry theme = ThemeManifest.current().byId(themeId);
+        String processors = theme == null ? null : theme.meta().processors;
+        TemplateStamper.place(level, level.getStructureManager(), padOrigin, TemplateStamper.EXIT_HALL,
+                CellGeometry.rotationToFace(DoorMask.Direction.WEST, CellGeometry.opposite(farWall)),
+                layout.seed() ^ padOrigin.asLong(),
+                processors == null ? null : Identifier.parse(processors));
+        // The envelope skips every side a live cell stands against: the ring would
+        // land in the arena's wall column and seal the doorway the reveal opens.
+        BedrockEnvelope.applyToCell(level, padOrigin, InstanceTeardown.standingSides(record, padOrigin));
+        record.floor.provingPadOrigin = padOrigin;
+    }
+
+    /**
+     * The reveal: while a proving floor's pad room is still sealed and its wave is down,
+     * open the arena's far wall onto it. Runs on the watch tick like the spawner-clear
+     * cue, since the wave dying has no event to hook. A wave that failed to spawn opens
+     * the room straight away rather than holding the floor hostage.
+     */
+    static void tick(MinecraftServer server, InstanceRecord record) {
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level != null) {
+            tick(level, server, record);
+        }
+    }
+
+    /** The level-taking half of {@link #tick}, the seam the gametest drives. */
+    static void tick(ServerLevel level, MinecraftServer server, InstanceRecord record) {
+        if (record.floor.provingPadOrigin == null || record.floor.provingPadRevealed
+                || record.layout == null || record.layout.geometry() == null) {
+            return;
+        }
+        if (alive(level, record.layout.terminal())) {
+            return;
+        }
+        CellGeometry.openDoorOnWall(level, record.layout.terminal(), CellGeometry.opposite(
+                CellGeometry.terminalEntranceDirection(record.layout.geometry(),
+                        record.layout.terminal())));
+        record.floor.provingPadRevealed = true;
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null) {
+                player.sendSystemMessage(Component.literal(
+                        "The wave is beaten. The way on opens.").withStyle(ChatFormatting.AQUA));
+                Chime.spawnerCleared(player);
+            }
+        }
     }
 
     // ---- pay ---------------------------------------------------------------------------

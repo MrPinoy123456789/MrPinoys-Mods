@@ -1783,6 +1783,9 @@ final class Instances {
             if (ProvingWaves.isProving(record)) {
                 ProvingWaves.spawn(level, record, layout.terminal(),
                         record.interval.floorIndex + 1, offer.level(), record.members.size());
+                // PD-215: the exit pad is its own room, sealed behind the arena's
+                // far wall until the wave is down (ProvingWaves.tick reveals it).
+                ProvingWaves.stampPadRoom(level, record, layout, effectiveThemeId);
             } else {
                 MineGuardians.spawnIfGuardianFloor(level, record, layout.terminal(),
                         record.interval.floorIndex + 1, offer.level());
@@ -2735,6 +2738,8 @@ final class Instances {
             Haunts.tick(server, record);
             // Floor objectives: a heist's vault channel and its ominous echo wave.
             FloorObjectives.tick(server, record);
+            // The Proving: the pad room's reveal, once the wave is down.
+            ProvingWaves.tick(server, record);
         }
         // Roadmap T32: the Copper Works furnace countdown is the trip's, not
         // the floor's, so it ticks whether or not the current floor is still
@@ -2918,7 +2923,7 @@ final class Instances {
      * run. Testing the block itself is rotation-proof and template-agnostic: a
      * future room can put a lodestone anywhere and it just works.
      */
-    private static boolean isOnExitPad(ServerPlayer player, InstanceRecord record) {
+    static boolean isOnExitPad(ServerPlayer player, InstanceRecord record) {
         BlockPos below = player.blockPosition().below();
         if (!player.level().getBlockState(below).is(Blocks.LODESTONE)) {
             return false;
@@ -2932,6 +2937,12 @@ final class Instances {
         }
         if (record.stagingCellOrigin != null && CellGeometry.cellBounds(record.stagingCellOrigin).contains(at)) {
             return false;
+        }
+        // PD-215: the Proving's pad room stands one cell beyond the arena,
+        // outside the layout's bounds but still this run's pad.
+        if (record.floor.provingPadOrigin != null
+                && CellGeometry.cellBounds(record.floor.provingPadOrigin).contains(at)) {
+            return true;
         }
         return record.layout.bounds().contains(at);
     }

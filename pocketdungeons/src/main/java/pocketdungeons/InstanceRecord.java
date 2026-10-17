@@ -224,6 +224,7 @@ final class InstanceRecord {
         addIfPresent(cells, roomCellOrigin);
         addIfPresent(cells, stagingCellOrigin);
         addIfPresent(cells, floor.previewCellOrigin);
+        addIfPresent(cells, floor.provingPadOrigin);
         if (layout != null && layout.geometry() != null) {
             cells.addAll(layout.geometry().cellOrigins());
         }

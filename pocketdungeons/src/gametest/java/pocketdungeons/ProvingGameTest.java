@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
@@ -160,6 +161,76 @@ public final class ProvingGameTest {
             long champions = waveMobs(level, terminal).stream()
                     .filter(m -> "Champion".equals(m.getName().getString())).count();
             helper.assertValueEqual((int) champions, 1, "floor 3 sends one champion");
+        } finally {
+            clear(level, terminal);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * PD-215 (playtest 2026-10-16): the arena carries no lodestone of its own, so a
+     * cleared wave left nothing to complete on. The exit pad is a hidden room one cell
+     * beyond the arena's far wall, stamped at commit and revealed by
+     * {@link ProvingWaves#tick} once the wave is down. Two cells (gate, arena), a real
+     * shell so the far wall can open, and a mock player standing the pad.
+     */
+    @GameTest(maxTicks = 200)
+    public void thePadRoomHidesBehindTheArenaUntilTheWaveDies(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+        for (int x = 0; x <= 2; x++) {
+            loadCell(level, origin.east(RoomGeometry.CELL * x));
+        }
+        PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0), new PlanCell(1, 0)));
+        BlockPos terminal = geometry.cellOrigin(new PlanCell(1, 0));
+        InstanceLayout layout = new InstanceLayout(origin, geometry, origin.offset(3, 1, 3), 0.0f,
+                terminal.offset(8, 1, 8), geometry.bounds(), 1L, 4, 4, 1, true, Set.of(), 3,
+                terminal, 0, 0, Set.of(), null, Set.of());
+        InstanceRecord record = new InstanceRecord(9981, origin, level.getServer().getTickCount(),
+                layout, Set.of(), UUID.randomUUID(), false);
+        record.interval.endlessMine = true;
+        record.interval.mineDungeonId = PROVING;
+        try {
+            // A shell so the arena's far wall physically stands, as a stamped floor's does.
+            RoomBuilder.buildShell(level, terminal, RoomBuilder.FLOOR);
+            ProvingWaves.stampPadRoom(level, record, layout, "the_proving");
+            BlockPos pad = record.floor.provingPadOrigin;
+            helper.assertValueEqual(pad, terminal.east(RoomGeometry.CELL),
+                    "the pad room hides one cell past the arena's far wall");
+            for (BlockPos pos : CellGeometry.doorSlotPositions(terminal, DoorMask.Direction.EAST)) {
+                helper.assertTrue(!level.getBlockState(pos).isAir(),
+                        "the far wall is sealed while the wave stands");
+            }
+            for (int x = 7; x <= 8; x++) {
+                for (int z = 7; z <= 8; z++) {
+                    helper.assertTrue(level.getBlockState(pad.offset(x, 0, z)).is(Blocks.LODESTONE),
+                            "the hidden room holds the lodestone pad at " + x + "," + z);
+                }
+            }
+
+            ProvingWaves.spawn(level, record, terminal, 1, 5, 1);
+            ProvingWaves.tick(level, level.getServer(), record);
+            helper.assertTrue(!record.floor.provingPadRevealed,
+                    "the pad room stays sealed while the wave stands");
+            for (BlockPos pos : CellGeometry.doorSlotPositions(terminal, DoorMask.Direction.EAST)) {
+                helper.assertTrue(!level.getBlockState(pos).isAir(),
+                        "the far wall is still sealed with the wave up");
+            }
+
+            clear(level, terminal);
+            ProvingWaves.tick(level, level.getServer(), record);
+            helper.assertTrue(record.floor.provingPadRevealed,
+                    "the pad room opens once the wave is down");
+            for (BlockPos pos : CellGeometry.doorSlotPositions(terminal, DoorMask.Direction.EAST)) {
+                helper.assertTrue(level.getBlockState(pos).isAir(),
+                        "the far wall opens onto the pad room");
+            }
+
+            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            player.teleportTo(level, pad.getX() + 8.5, pad.getY() + 1, pad.getZ() + 8.5,
+                    Set.of(), 0.0f, 0.0f, false);
+            helper.assertTrue(Instances.isOnExitPad(player, record),
+                    "the hidden room's pad is the run's exit pad");
         } finally {
             clear(level, terminal);
         }

@@ -150,6 +150,18 @@ final class FloorState {
      */
     long expiresAtTick;
 
+    /**
+     * The Proving's hidden pad room (PD-215): a generated exit cell stamped one
+     * cell beyond the arena's far wall at commit, sealed off until the wave is
+     * down. {@code null} outside a proving floor. Tracked so the cell counts as
+     * standing ({@link InstanceRecord#liveCells}) and so the pad check can find
+     * it outside the layout bounds ({@link Instances} {@code isOnExitPad}).
+     */
+    BlockPos provingPadOrigin;
+
+    /** Whether the arena's far wall has opened onto {@link #provingPadOrigin}. */
+    boolean provingPadRevealed;
+
     // ---- the choice of the next floor ------------------------------------------
 
     /** Which selector door (1, 2 or 3) the owner last right-clicked, or {@code 0}. */

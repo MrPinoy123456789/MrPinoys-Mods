@@ -79,7 +79,8 @@ final class TemplateStamper {
     static final Identifier ENTRANCE_HALL = id("rooms/entrance_hall");
     private static final Identifier ENCOUNTER_ZOMBIE = id("rooms/encounter_zombie");
     private static final Identifier LOOT_VAULT = id("rooms/loot_vault");
-    private static final Identifier EXIT_HALL = id("rooms/exit_hall");
+    /** The generated pad room; also the Proving's hidden pad cell ({@link ProvingWaves}). */
+    static final Identifier EXIT_HALL = id("rooms/exit_hall");
 
     private TemplateStamper() {}
 
