@@ -37,6 +37,9 @@ final class FloorObjectives {
     /** The floor title's one line for a claim floor (the seam the party is working). */
     static final String CLAIM_TITLE = "The seam holds.";
 
+    /** The floor title's one line for a gather floor (the land the party is working). */
+    static final String GATHER_TITLE = "The land provides.";
+
     /** The floor title's one line for a haunt objective floor. */
     static final String HAUNT_TITLE = "The keeper watches.";
 
@@ -103,6 +106,10 @@ final class FloorObjectives {
         }
         if (kind == FloorObjective.HAUNT) {
             record.floor.objective = HauntObjective.arm(level, record, plan);
+            return;
+        }
+        if (kind == FloorObjective.GATHER) {
+            record.floor.objective = GatherObjective.arm(level, record, plan);
             return;
         }
         record.floor.objective = new ObjectiveState(kind, true);
@@ -211,6 +218,7 @@ final class FloorObjectives {
             case HEIST -> HEIST_TITLE;
             case CLAIM -> CLAIM_TITLE;
             case HAUNT -> HAUNT_TITLE;
+            case GATHER -> GATHER_TITLE;
             case SPAWNERS -> null;
         };
     }

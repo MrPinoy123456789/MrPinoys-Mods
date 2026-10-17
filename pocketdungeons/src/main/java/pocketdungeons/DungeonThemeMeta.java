@@ -34,6 +34,8 @@ final class DungeonThemeMeta {
     final String ominousSpawner;
     /** The zone rules from the file's {@code rules} block, or {@code null} for the default zone. */
     final ZoneRules rules;
+    /** {@code no_spawners}: this theme's encounter cells stamp no trial spawner (The First Night). */
+    final boolean noSpawners;
 
     DungeonThemeMeta(String name, String processors, String roomTheme,
                      String lootSuffix, String spawnerPrefix) {
@@ -51,6 +53,15 @@ final class DungeonThemeMeta {
                      String lootSuffix, String spawnerPrefix,
                      String lootTable, String normalSpawner, String ominousSpawner,
                      ZoneRules rules) {
+        this(name, processors, roomTheme, lootSuffix, spawnerPrefix, lootTable, normalSpawner,
+                ominousSpawner, rules, false);
+    }
+
+    DungeonThemeMeta(String name, String processors, String roomTheme,
+                     String lootSuffix, String spawnerPrefix,
+                     String lootTable, String normalSpawner, String ominousSpawner,
+                     ZoneRules rules, boolean noSpawners) {
+        this.noSpawners = noSpawners;
         this.name = name;
         this.processors = processors;
         this.roomTheme = roomTheme;
@@ -71,7 +82,8 @@ final class DungeonThemeMeta {
                 stringOrNull(obj.get("loot_table")),
                 stringOrNull(obj.get("normal_spawner")),
                 stringOrNull(obj.get("ominous_spawner")),
-                rulesOrNull(obj.get("rules")));
+                rulesOrNull(obj.get("rules")),
+                obj.has("no_spawners") && obj.get("no_spawners").getAsBoolean());
     }
 
     /** Legacy call site that has no file identity; reads as version 1. */

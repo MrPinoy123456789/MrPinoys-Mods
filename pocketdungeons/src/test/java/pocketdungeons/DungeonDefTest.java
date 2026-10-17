@@ -817,7 +817,7 @@ public class DungeonDefTest {
         check(!loaded.byId("prismarine").diary().isEmpty(), "prismarine names a diary page");
         // W6, D12 revised: the node dungeons are ordinary dungeons with minNodeRooms.
         DungeonDef mineshaft = loaded.byId("mineshaft");
-        check(mineshaft.kind() == DungeonDef.Kind.DUNGEON && mineshaft.layers() == 3, "mineshaft is a 3 layer dungeon");
+        check(mineshaft.kind() == DungeonDef.Kind.DUNGEON && mineshaft.layers() == 4, "mineshaft is a 4 layer dungeon");
         check(mineshaft.minNodeRooms() == 1, "mineshaft guarantees a node room per floor");
         check(mineshaft.lootBand().max() <= 2, "mineshaft stays in the act 1 band");
         check(mineshaft.nodePalette().stream().noneMatch(b -> b.contains("diamond")), "no diamond in the act 1 mineshaft");
@@ -870,8 +870,10 @@ public class DungeonDefTest {
             if (d.kind() == DungeonDef.Kind.DUNGEON || d.kind() == DungeonDef.Kind.CAPSTONE) {
                 check(d.layers() >= 2 && d.layers() <= 5, d.id() + " has 2 to 5 layers");
                 // Cow Pits (owner ruling 2026-10-08) promises no ore but borrows ore rooms through their
-                // borrowableBy lists, not through a node theme override.
-                if (d.minNodeRooms() == 0 && !d.id().equals("pocketdungeons:cow_pits")) {
+                // borrowableBy lists, not through a node theme override. The First Night (owner 2026-10-17)
+                // promises no ore room either: its materials are the gather objective's own placed blocks.
+                if (d.minNodeRooms() == 0 && !d.id().equals("pocketdungeons:cow_pits")
+                        && !d.id().equals("pocketdungeons:first_night")) {
                     boolean borrows = false;
                     for (DungeonDef.Node node : d.nodes()) {
                         borrows |= node.overridesTheme();

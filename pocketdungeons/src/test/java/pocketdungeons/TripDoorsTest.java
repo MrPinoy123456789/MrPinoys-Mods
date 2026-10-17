@@ -404,7 +404,7 @@ public class TripDoorsTest {
     /** D23: a fresh compass still has somewhere to go. */
     private static void testActOneOffersAtCompassOne() throws Exception {
         List<DungeonDef> shipped = new ArrayList<>();
-        String[] names = {"mineshaft", "rootworks", "infestation", "ossuary", "spawner_dungeon"};
+        String[] names = {"mineshaft", "rootworks", "infestation", "ossuary", "spawner_dungeon", "first_night"};
         for (String name : names) {
             try (InputStream in = TripDoorsTest.class.getClassLoader()
                     .getResourceAsStream("data/pocketdungeons/dungeon/" + name + ".json")) {

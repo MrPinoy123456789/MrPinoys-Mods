@@ -210,8 +210,8 @@ final class RoomContent {
             switch (op) {
                 case TRIAL_ENCOUNTER -> {
                     removeChests(level, cellOrigin);
-                    BlockPos anchor = TrialContent.applyEncounter(level, cellOrigin, spawns,
-                            profile.lootTier(), affixes, theme);
+                    BlockPos anchor = noSpawners(theme) ? null : TrialContent.applyEncounter(level,
+                            cellOrigin, spawns, profile.lootTier(), affixes, theme);
                     if (anchor != null) {
                         spawnerAnchors.add(anchor);
                     }
@@ -223,6 +223,15 @@ final class RoomContent {
             }
         }
         return spawnerAnchors;
+    }
+
+    /** Whether the theme stamps no trial spawners (its {@code no_spawners} flag). */
+    static boolean noSpawners(String theme) {
+        if (theme == null) {
+            return false;
+        }
+        ThemeManifest.Entry entry = ThemeManifest.current().byId(theme);
+        return entry != null && entry.meta().noSpawners;
     }
 
     /** The run's affix hazards: Molten, Explosive, Voided, Feral and Loaded, in that order. */

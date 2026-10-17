@@ -2,6 +2,7 @@
   "kind": "descent",
   "next": [
     { "theme": "deepslate", "weight": 2 },
-    { "theme": "infestation", "weight": 1 }
+    { "theme": "infestation", "weight": 1 },
+    { "theme": "first_night", "weight": 1 }
   ]
 }

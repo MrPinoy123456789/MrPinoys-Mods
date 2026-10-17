@@ -81,7 +81,8 @@
       "pocketdungeons.ClaimFloorGameTest",
       "pocketdungeons.CowPitsFinaleGameTest",
       "pocketdungeons.CopperFinaleGameTest",
-      "pocketdungeons.ProvingGameTest"
+      "pocketdungeons.ProvingGameTest",
+      "pocketdungeons.GatherFloorGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

@@ -337,7 +337,24 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
      */
     record Node(String id, String name, int layer, String theme, String signatureAffix,
                 List<String> roomBias, int roomCount, boolean isFinal, String light,
-                List<Reward> rewards, int minNodeRooms, int level, String notes, String objective) {
+                List<Reward> rewards, int minNodeRooms, int level, String notes, String objective,
+                Gather gather) {
+
+        /**
+         * What a {@code gather} floor asks the party to break: {@code count} blocks of {@code block}
+         * (a namespaced block id). Present exactly when the node's objective is {@code gather}.
+         */
+        record Gather(String block, int count) {
+            Gather {
+                if (block == null || block.isBlank()) {
+                    throw new IllegalArgumentException("gather block must not be blank");
+                }
+                if (count < 1) {
+                    throw new IllegalArgumentException("gather count must be >= 1: " + block);
+                }
+                block = block.trim();
+            }
+        }
 
         /**
          * The longest floor or dungeon note, in characters. The note is the one line of the door board that
@@ -353,12 +370,21 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         static final String OBJECTIVE_HEIST = "heist";
         static final String OBJECTIVE_CLAIM = "claim";
         static final String OBJECTIVE_HAUNT = "haunt";
+        static final String OBJECTIVE_GATHER = "gather";
 
         /** {@link #minNodeRooms} value meaning "use the dungeon's own {@code minNodeRooms}". */
         static final int INHERIT_NODE_ROOMS = -1;
 
         /** {@link #level} value meaning "derive the floor level from the layer". */
         static final int UNSET_LEVEL = -1;
+
+        /** A node with no gather spec: the shape this record had before the gather objective. */
+        Node(String id, String name, int layer, String theme, String signatureAffix,
+             List<String> roomBias, int roomCount, boolean isFinal, String light,
+             List<Reward> rewards, int minNodeRooms, int level, String notes, String objective) {
+            this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
+                    minNodeRooms, level, notes, objective, null);
+        }
 
         /** A node with the default light ({@code lit}) and no promised rewards. */
         Node(String id, String name, int layer, String theme, String signatureAffix,
@@ -416,9 +442,13 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             }
             objective = objective == null || objective.isEmpty() ? OBJECTIVE_SPAWNERS : objective;
             if (!OBJECTIVE_SPAWNERS.equals(objective) && !OBJECTIVE_HEIST.equals(objective)
-                    && !OBJECTIVE_CLAIM.equals(objective) && !OBJECTIVE_HAUNT.equals(objective)) {
-                throw new IllegalArgumentException("node objective must be spawners, heist, claim or haunt: "
-                        + id + " has " + objective);
+                    && !OBJECTIVE_CLAIM.equals(objective) && !OBJECTIVE_HAUNT.equals(objective)
+                    && !OBJECTIVE_GATHER.equals(objective)) {
+                throw new IllegalArgumentException(
+                        "node objective must be spawners, heist, claim, haunt or gather: " + id + " has " + objective);
+            }
+            if (OBJECTIVE_GATHER.equals(objective) != (gather != null)) {
+                throw new IllegalArgumentException("node " + id + ": a gather spec goes with the gather objective, and only with it");
             }
             if (id == null || id.isBlank()) {
                 throw new IllegalArgumentException("node id must not be blank");
@@ -933,7 +963,10 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                     node.has("level") ? requiredInt(node, "level") : Node.UNSET_LEVEL,
                     optionalString(node, "notes"),
                     node.has("objective") && !node.get("objective").isJsonNull()
-                            ? node.get("objective").getAsString().trim() : Node.OBJECTIVE_SPAWNERS));
+                            ? node.get("objective").getAsString().trim() : Node.OBJECTIVE_SPAWNERS,
+                    node.has("gather") && node.get("gather").isJsonObject()
+                            ? new Node.Gather(requiredString(node.getAsJsonObject("gather"), "block"),
+                                    requiredInt(node.getAsJsonObject("gather"), "count")) : null));
         }
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {

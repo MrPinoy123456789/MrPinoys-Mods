@@ -111,7 +111,7 @@ public class NodePaletteTest {
                 }
             }
         }
-        check(files == 25, "all twenty-five shipped dungeon files were read, got " + files);
+        check(files == 26, "all twenty-six shipped dungeon files were read, got " + files);
     }
 
     private static void check(boolean ok, String message) {

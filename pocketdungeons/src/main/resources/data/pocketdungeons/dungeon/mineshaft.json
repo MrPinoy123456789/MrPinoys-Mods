@@ -1,10 +1,24 @@
 {
   "name": "Mineshaft",
-  "token": { "mat": "minecraft:oak_planks" },
-  "finale": {"mobs": [{"type": "minecraft:zombie", "count": 4}, {"type": "minecraft:cave_spider", "count": 3}], "perMemberPercent": 50},
+  "token": {
+    "mat": "minecraft:oak_planks"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:zombie",
+        "count": 4
+      },
+      {
+        "type": "minecraft:cave_spider",
+        "count": 3
+      }
+    ],
+    "perMemberPercent": 50
+  },
   "notes": "Coal, iron, gold and sand. Dig the rails and seams for ore.",
   "act": 1,
-  "baseLevel": 1,
+  "baseLevel": 2,
   "kind": "dungeon",
   "minNodeRooms": 1,
   "mainTheme": "mineshaft",
@@ -39,47 +53,67 @@
   },
   "nodes": [
     {
+      "id": "timber_adit",
+      "name": "The Timber Adit",
+      "notes": "Lamplit timber and coal. Stock up before the dark.",
+      "layer": 1,
+      "light": "lit",
+      "level": 1,
+      "roomBias": [
+        "mineshaft_timber_vein"
+      ]
+    },
+    {
       "id": "mine_mouth",
       "name": "Mine Mouth",
-      "layer": 1,
-      "light": "dim"
+      "notes": "The mouth of the shaft. Rails lead down into the dim.",
+      "layer": 2,
+      "light": "dim",
+      "level": 1
     },
     {
       "id": "main_drift",
       "name": "The Main Drift",
       "notes": "Long rail tunnels with ore seams along the walls.",
-      "layer": 2,
+      "layer": 3,
       "light": "dim",
       "roomBias": [
         "mineshaft_tunnel",
         "mineshaft_seam"
-      ]
+      ],
+      "level": 2
     },
     {
       "id": "side_gallery",
       "name": "Side Gallery",
       "notes": "Crossroads and ore seams. More ways to dig.",
-      "layer": 2,
+      "layer": 3,
       "light": "dim",
       "roomBias": [
         "mineshaft_crossing",
         "mineshaft_seam"
-      ]
+      ],
+      "level": 2
     },
     {
       "id": "deep_face",
       "name": "The Deep Face",
       "notes": "The last floor. Cave-ins and ore seams.",
-      "layer": 3,
+      "layer": 4,
       "final": true,
       "light": "dim",
       "roomBias": [
         "mineshaft_collapse",
         "mineshaft_seam"
-      ]
+      ],
+      "level": 3
     }
   ],
   "edges": [
+    {
+      "from": "timber_adit",
+      "to": "mine_mouth"
+    },
     {
       "from": "mine_mouth",
       "to": "main_drift"

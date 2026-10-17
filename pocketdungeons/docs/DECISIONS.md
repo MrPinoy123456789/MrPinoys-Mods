@@ -856,3 +856,57 @@ Whether the boundary clamp reads as a fair wind-up or as "the game ate my
 crit"; whether three phases is the right count for capstones versus ordinary
 finales; whether each dungeon's arena is big enough for its mechanics to
 matter; and whether the Foreman's vat weakness reads without an explanation.
+
+## 2026-10-17: Act 0, The First Night (prologue and tutorial)
+
+A new player starts in a prologue act of one dungeon, The First Night, guided by Lemon (Alex's Allay, who lost Alex somewhere in the pocket dungeons). They gather wood, stone, coal and iron by hand, learn the basic parts of the loop one floor at a time, and finish at a single trial spawner. Finishing it unlocks Act 1 and the act never appears again.
+
+### The model
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| Act | Act 0, a prologue before Act 1. Its one dungeon is the act's capstone | `ActProgress`, `DungeonDef.MIN_ACT` |
+| Dungeon | The First Night, 5 floors, `act: 0` | `dungeon/first_night.json` |
+| Floors 1 to 4 | Treeline (8 oak logs), Stone Rise (12 stone), Black Seam (8 coal ore), Rust Ravine (6 iron ore). Gather objective, no spawners | node `objective: gather` |
+| Floor 5 | The Cave Mouth, exactly 1 trial spawner, no finale wave | node spawner cap |
+| Starter tools | One bag, wooden axe, pickaxe, shovel (and bread). Replaces the ten bags | `dungeon_bag/starter.json` |
+| Compass | In the first chest; Lemon comes out of it when the chest is closed | first-join tour |
+| Scrap | Finishing Act 0 banks 2 scrap, which is the cost of Compass 2; Lemon explains scrap | `compassCostFirstLevel` |
+| Lock | Completed once, per player, forever; hidden from the astrolabe | `Campaign` flag |
+
+### Rules
+
+1. **Entry.** Act 0 is on the astrolabe only while the player has not finished it. After the finish it is not shown at all (no locked door). A full `/dungeon resetkey` reopens it.
+2. **Unlock.** The First Night is Act 0's capstone: clearing it completes Act 0, unlocks Act 1 and grants Compass 2 (2 scrap). Act 0 has no Endless Mine and no act gate other than this.
+3. **First chest.** The player's first chest holds the Compass. Closing the chest after taking it is when Lemon appears and introduces herself.
+4. **Starter bag.** There is no bag choice. The bag chest reads "there seems to be equipment left behind" with a single "Take it" button that hands over the wooden axe, pickaxe and shovel. A replacement set costs 1 life (the party's shared lives).
+5. **Floor 1.** Gathering only, no fight. The bar and sidebar show the gather count in place of "spawners" ("Oak Log 3/8"). Floors 2 to 4 each introduce another common mechanic (open: which, see below). Floor 5 is a single trial spawner.
+6. **Gather quota.** The quota is the floor's count, plus half of it per extra member. Spare blocks stand on the floor but pay nothing extra; the reward for gathering more is simply having more.
+7. **Crafting.** The player must craft a stone pickaxe from floor 2's cobble and floor 1's logs to mine iron on floor 4. Crafting tables may be placed on a floor. Smelting is not required; Lemon only tells the player what a furnace does.
+8. **Failing.** Losing all lives in Act 0 resets everything and sends the player back to the start: Act 0 progress cleared, dungeon pack cleared, the starter bag available again.
+9. **Lemon's lines.** All of Lemon's Act 0 lines prepare the player for the dungeons in general. None gives per-floor gathering instructions.
+10. **Diaries.** A diary anticipates the next dungeon or gives lore; it does not explain the dungeon just finished. The Act 0 diary (`entry_31`) is rewritten to look ahead. A lore pass over the existing diaries is a separate task.
+11. **Hoarding.** The dungeon pack is a separate inventory from survival and persists between trips (the Home room is inside the dungeon dimension), so the finished-once lock is what stops repeated farming of starter materials.
+12. **Presentation.** Act 0 gets thematic rooms for each floor (forest, rock outcrop, coal hillside, iron ravine, cave mouth), not the generic halls.
+13. **The Proving.** Its sidebar and bar have the same "spawners" problem and get the same fix.
+
+### Migration
+
+A player with any recorded progress (a compass above 1, a finished dungeon or an unlocked act) is marked Act 0 done with Act 1 unlocked, and is never shown Act 0. A player holding one of the old bags keeps working; the ten bags stay as `hidden` data. The old tour steps that mention choosing a bag or a refilling kit are reworded.
+
+### Supersedes
+
+- The ten bags as the player's class (2026-10-04 and earlier); `BagTableTest` rules (food, no armour, stone cap, Pilgrim) lapse for the starter bag.
+- The Act 1 Astrolabe row now holds 6 dungeons again (The First Night left it).
+- Mineshaft and Lush Caves at compass 2 (2026-10-17, same day) stand: Compass 2 is what Act 0 pays.
+
+### Knobs
+
+`compassCostFirstLevel` (2), the gather counts in `first_night.json`, `starterToolLifeCost` (1), `actZeroScrap` (2). The quota growth per member is fixed in code (`GatherObjective.quotaFor`).
+
+### Open until played
+
+- Which common mechanic floors 2, 3 and 4 each teach (proposal: loot chest and Dungeon Storage; a life and a side door; the lever and pad).
+- Whether 2 scrap for Compass 2 should apply to everyone or only the first level.
+- Whether five lives is too forgiving for a tutorial that resets on failure.
+- Whether gathering without a fight until the last floor holds attention.

@@ -23,12 +23,14 @@ public final class StampDeterminismGameTest {
      * stamper before its parameter record refactor (and matched after it). Zero would
      * mean "not pinned": the test then only checks that two stamps agree.
      */
-    private static final int STAMP_FINGERPRINT = -1161058281;
+    private static final int STAMP_FINGERPRINT = -182528007;
     // T10: re-pinned once (was 935166682) when Voided stopped voiding puzzle and ordeal cells; the
     // second variant carries Voided, so seed 7 now keeps a puzzle or ordeal cell whole.
     // Act 3/4: re-pinned again (was -1975741233) when the nine new signature rooms joined the
     // manifest, so seed 7 draws a different set.
     // The Proving: re-pinned again (was 1659377431) when the gate and arena rooms joined the
+    // manifest, so seed 7 draws a different set again.
+    // Timber vein: re-pinned again (was -1161058281) when mineshaft_timber_vein joined the
     // manifest, so seed 7 draws a different set again.
 
     /**

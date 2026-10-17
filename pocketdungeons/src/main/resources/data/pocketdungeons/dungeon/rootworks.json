@@ -18,7 +18,7 @@
   },
   "notes": "Sand, clay, wood and iron under glowing roots.",
   "act": 1,
-  "baseLevel": 1,
+  "baseLevel": 2,
   "kind": "dungeon",
   "mainTheme": "rootworks",
   "lootBand": {

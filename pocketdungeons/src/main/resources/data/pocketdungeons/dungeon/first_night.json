@@ -1,0 +1,111 @@
+{
+  "name": "The First Night",
+  "token": {
+    "mat": "minecraft:grass_block"
+  },
+  "finale": {
+    "mobs": [
+      {
+        "type": "minecraft:zombie",
+        "count": 1
+      }
+    ],
+    "perMemberPercent": 0
+  },
+  "notes": "The starting biome. Gather wood, stone, coal and iron, then face the night.",
+  "act": 1,
+  "baseLevel": 1,
+  "kind": "dungeon",
+  "minNodeRooms": 0,
+  "mainTheme": "first_night",
+  "lootBand": {
+    "min": 1,
+    "max": 1
+  },
+  "nodePalette": [
+    "coal_ore",
+    "iron_ore"
+  ],
+  "nodes": [
+    {
+      "id": "treeline",
+      "name": "The Treeline",
+      "notes": "Fell oak trunks for the first fire.",
+      "layer": 1,
+      "objective": "gather",
+      "gather": {
+        "block": "minecraft:oak_log",
+        "count": 8
+      },
+      "light": "lit",
+      "level": 1
+    },
+    {
+      "id": "stone_rise",
+      "name": "The Stone Rise",
+      "notes": "Bare grey rock. Break out the stone.",
+      "layer": 2,
+      "objective": "gather",
+      "gather": {
+        "block": "minecraft:stone",
+        "count": 12
+      },
+      "light": "lit",
+      "level": 1
+    },
+    {
+      "id": "black_seam",
+      "name": "The Black Seam",
+      "notes": "Dark seams in the hillside. Break them out.",
+      "layer": 3,
+      "objective": "gather",
+      "gather": {
+        "block": "minecraft:coal_ore",
+        "count": 8
+      },
+      "light": "lit",
+      "level": 2
+    },
+    {
+      "id": "rust_ravine",
+      "name": "The Rust Ravine",
+      "notes": "Red streaked rock. The last of the ore.",
+      "layer": 4,
+      "objective": "gather",
+      "gather": {
+        "block": "minecraft:iron_ore",
+        "count": 6
+      },
+      "light": "lit",
+      "level": 2
+    },
+    {
+      "id": "cave_mouth",
+      "name": "The Cave Mouth",
+      "notes": "The last floor. One zombie waits in the dark.",
+      "layer": 5,
+      "final": true,
+      "light": "dim",
+      "level": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "treeline",
+      "to": "stone_rise"
+    },
+    {
+      "from": "stone_rise",
+      "to": "black_seam"
+    },
+    {
+      "from": "black_seam",
+      "to": "rust_ravine"
+    },
+    {
+      "from": "rust_ravine",
+      "to": "cave_mouth"
+    }
+  ],
+  "diary": "entry_31"
+}

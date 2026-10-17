@@ -48,6 +48,7 @@ final class ResourceBiomeSpecs {
         specs.add(mineshaftCrossing());
         specs.add(mineshaftJunction());
         specs.add(mineshaftSeam());
+        specs.add(mineshaftTimberVein());
         specs.add(mineshaftDeadEnd());
         specs.add(mineshaftCollapse());
         specs.add(lushHollow());
@@ -208,6 +209,33 @@ final class ResourceBiomeSpecs {
                     put(level, o, 8, 3, 7, PLANKS);
                     put(level, o, 6, 4, 6, WEB);
                     put(level, o, 9, 4, 8, WEB);
+                });
+    }
+
+    /**
+     * Timber vein: a lamplit gallery on the Mineshaft's first floor. Coal pockets in the north rock and
+     * timber pockets in the south rock are left as air for the metadata nodes (coal ore and oak logs), so
+     * the room is about gathering fuel and wood before the dark floors. Lanterns sit in niches in the
+     * rock and stay lit because the room's light is lit. One spawn point, so one spawner.
+     */
+    private static RoomSpec mineshaftTimberVein() {
+        return new RoomSpec("mineshaft_timber_vein", EnumSet.of(Direction.WEST, Direction.EAST))
+                .chests(new BlockPos(13, 1, 6))
+                .spawns(new BlockPos(8, 1, 6))
+                .decor((level, o) -> {
+                    tunnelRock(level, o, STONE);
+                    fill(level, o, 3, 1, 5, 5, 3, 5, AIR);
+                    fill(level, o, 9, 1, 5, 11, 3, 5, AIR);
+                    fill(level, o, 3, 1, 9, 5, 3, 9, AIR);
+                    fill(level, o, 9, 1, 9, 11, 3, 9, AIR);
+                    railLine(level, o, 1, 14, 7);
+                    supportFrame(level, o, 4);
+                    supportFrame(level, o, 11);
+                    BlockState lantern = Blocks.LANTERN.defaultBlockState();
+                    for (int x : new int[]{2, 7, 13}) {
+                        put(level, o, x, 2, 5, lantern);
+                        put(level, o, x, 2, 9, lantern);
+                    }
                 });
     }
 

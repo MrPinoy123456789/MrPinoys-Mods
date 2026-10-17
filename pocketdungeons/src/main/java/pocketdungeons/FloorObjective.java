@@ -10,7 +10,7 @@ package pocketdungeons;
  */
 enum FloorObjective {
 
-    SPAWNERS, HEIST, CLAIM, HAUNT;
+    SPAWNERS, HEIST, CLAIM, HAUNT, GATHER;
 
     /** The kind a node's {@code objective} word names; {@code null} and strangers read as spawners. */
     static FloorObjective of(String word) {
@@ -18,6 +18,7 @@ enum FloorObjective {
             case DungeonDef.Node.OBJECTIVE_HEIST -> HEIST;
             case DungeonDef.Node.OBJECTIVE_CLAIM -> CLAIM;
             case DungeonDef.Node.OBJECTIVE_HAUNT -> HAUNT;
+            case DungeonDef.Node.OBJECTIVE_GATHER -> GATHER;
             default -> SPAWNERS;
         };
     }

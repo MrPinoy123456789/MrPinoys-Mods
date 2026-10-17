@@ -1,0 +1,9 @@
+{
+  "kind": "descent",
+  "next": [
+    {
+      "theme": "mineshaft",
+      "weight": 1
+    }
+  ]
+}
