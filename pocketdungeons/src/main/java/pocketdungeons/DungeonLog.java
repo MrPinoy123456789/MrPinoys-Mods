@@ -1848,7 +1848,8 @@ final class DungeonLog extends SavedData {
      * (M48) A full campaign reset: clears every keystone-progress field on this
      * player's entry while preserving the unlockables, then drops any stashed
      * survival inventory and any orphaned void inventory. The bag is cleared
-     * too, so the player gets the bag chest back on their next dungeon entry.
+     * too, so the player gets the bag chest back on their next dungeon entry, and
+     * the Dungeon Storage is emptied.
      *
      * <p>Preserved (unlockables and room settings, not keystone progress):
      * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
@@ -1874,6 +1875,7 @@ final class DungeonLog extends SavedData {
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);
         setKitChest(player, List.of());
+        setStorage(player, List.of());
         setDirty();
     }
 

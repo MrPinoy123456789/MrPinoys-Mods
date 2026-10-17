@@ -116,6 +116,11 @@ final class RunStorage {
         return fresh;
     }
 
+    /** Drops the open container of {@code owner}, if any, so the next open reads the log again. */
+    static void forget(UUID owner) {
+        live.remove(owner);
+    }
+
     /** A copy of every slot, empty ones included. */
     private static List<ItemStack> copyOf(SimpleContainer container) {
         List<ItemStack> copy = new ArrayList<>(container.getContainerSize());
