@@ -572,12 +572,12 @@ final class DungeonLog extends SavedData {
         }
 
         /**
-         * A campaign reset: back to act 1 with no mine depth and the campaign not complete, so
+         * A campaign reset: back to act 1 and the campaign not complete, so
          * {@code /dungeon resetkey} leaves a player where a new one starts. The trip counter and the
-         * decide whitelist and list are settings, not progress, and stay.
+         * decide whitelist and list are settings, and the mine floor records are history, so they stay.
          */
         Campaign resetForCampaign() {
-            return new Campaign(Set.of(), true, false, tripCounter, decideWhitelist, decideList, 0, Map.of());
+            return new Campaign(Set.of(), true, false, tripCounter, decideWhitelist, decideList, deepestMineFloor, otherMineFloors);
         }
 
         Campaign withCampaignComplete() {
@@ -1861,8 +1861,8 @@ final class DungeonLog extends SavedData {
      *
      * <p>Preserved (unlockables and room settings, not keystone progress):
      * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
-     * {@code publicListed}, {@code recentVisitors}. Acts unlocked, mine depth and campaign
-     * completion are progress and reset to act 1 (PD-216). The sidecar maps
+     * {@code publicListed}, {@code recentVisitors}. Acts unlocked and campaign completion
+     * reset to act 1 (PD-216); the mine floor records stay, they are history. The sidecar maps
      * ({@code taskProgress}, {@code recipeDiscoveries})
      * are untouched: a task's count, a weekly bounty, and a discovered
      * recipe are meta-progression, not keystone progress.

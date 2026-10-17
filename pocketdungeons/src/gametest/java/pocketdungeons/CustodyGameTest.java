@@ -620,7 +620,7 @@ public final class CustodyGameTest {
 
     /**
      * PD-216: {@code /dungeon resetkey} used to keep the unlocked acts, so a reset player still saw act 4.
-     * A campaign reset must leave act 1 only, no mine depth and the campaign not complete.
+     * A campaign reset must leave act 1 only and the campaign not complete.
      */
     @GameTest
     public void aCampaignResetReturnsThePlayerToActOne(GameTestHelper helper) {
@@ -634,7 +634,6 @@ public final class CustodyGameTest {
         helper.assertTrue(campaign.actsUnlocked().equals(java.util.Set.of(1)),
                 "only act 1 stays unlocked after a reset, got " + campaign.actsUnlocked());
         helper.assertFalse(campaign.campaignComplete(), "a reset campaign is not complete");
-        helper.assertTrue(campaign.deepestMineFloorAny() == 0, "mine depth cleared");
         helper.succeed();
     }
 
