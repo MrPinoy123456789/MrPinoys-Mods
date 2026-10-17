@@ -271,8 +271,8 @@ public class EndlessMineRulesTest {
         check(log.get(OWNER).campaign().deepestMineFloor() == 9 && log.get(OWNER).campaign().deepestMineFloor(2) == 3,
                 "other campaign changes keep them");
         log.resetCampaign(OWNER);
-        check(log.get(OWNER).campaign().deepestMineFloor() == 9 && log.get(OWNER).campaign().deepestMineFloor(2) == 3,
-                "a keystone reset keeps them");
+        check(log.get(OWNER).campaign().deepestMineFloor() == 0 && log.get(OWNER).campaign().deepestMineFloor(2) == 0,
+                "a campaign reset clears them");
         check(FloorHistory.deepestLine(9).equals("Deepest Mine floor: 9"), FloorHistory.deepestLine(9));
         Keystone.Offer plain = new Keystone.Offer(1, Set.of(), 1, null, Keystone.Tier.FREE,
                 new TripDoors.Door("pocketdungeons:frostworks", "frozen_gate", 1, 0));

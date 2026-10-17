@@ -1852,7 +1852,8 @@ final class DungeonLog extends SavedData {
      *
      * <p>Preserved (unlockables and room settings, not keystone progress):
      * {@code unlockedShells}, {@code diaryBandsSeen}, {@code roomName},
-     * {@code publicListed}, {@code recentVisitors}. The sidecar maps
+     * {@code publicListed}, {@code recentVisitors}. Acts, finished dungeons and
+     * mine floors are keystone progress and are cleared. The sidecar maps
      * ({@code taskProgress}, {@code recipeDiscoveries})
      * are untouched: a task's count, a weekly bounty, and a discovered
      * recipe are meta-progression, not keystone progress.
@@ -1867,12 +1868,22 @@ final class DungeonLog extends SavedData {
         Entry reset = new Entry(Ladder.EMPTY, ThemeTrail.EMPTY, Compass.EMPTY,
                 previous.room().withRoomCompletions(0),
                 new Unlocks(Set.of(), previous.unlockedShells(), previous.diaryBandsSeen(),
-                        previous.dungeonsFinished(), "", false, 0),
-                previous.campaign());
+                        Set.of(), "", false, 0),
+                resetCampaignProgress(previous.campaign()));
         entries.put(player, reset);
         setOrphan(player, InventorySwap.OrphanRecord.NONE);
         setStash(player, InventorySwap.StashRecord.NONE);
         setKitChest(player, List.of());
         setDirty();
+    }
+
+    /**
+     * The campaign after a reset: acts back to act 1, no capstone cleared, mine
+     * floors zeroed. The trip counter and the leader's decide settings stay, since
+     * they are a room setting and a deal salt rather than progress.
+     */
+    private static Campaign resetCampaignProgress(Campaign previous) {
+        return new Campaign(Set.of(), true, false, previous.tripCounter(),
+                previous.decideWhitelist(), previous.decideList(), 0, Map.of());
     }
 }

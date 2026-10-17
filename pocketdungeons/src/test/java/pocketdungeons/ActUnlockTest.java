@@ -150,12 +150,12 @@ public class ActUnlockTest {
         check(log.actUnlocked(MEMBER, 2), false, "another player is unaffected");
         check(log.markCampaignComplete(LEADER), true, "campaign complete is set once");
         check(log.markCampaignComplete(LEADER), false, "and not again");
-        // Acts survive other mutations and a campaign reset (the campaign is kept).
+        // Acts survive other mutations; a campaign reset puts them back to act 1.
         log.setKeystone(LEADER, 5, Set.of());
         check(log.get(LEADER).campaign().actsUnlocked(), Set.of(1, 2), "setKeystone keeps acts");
         log.resetCampaign(LEADER);
-        check(log.get(LEADER).campaign().actsUnlocked(), Set.of(1, 2), "a keystone reset keeps acts");
-        check(log.get(LEADER).campaign().campaignComplete(), true, "and the complete flag");
+        check(log.get(LEADER).campaign().actsUnlocked(), Set.of(1), "a campaign reset clears acts");
+        check(log.get(LEADER).campaign().campaignComplete(), false, "and the complete flag");
     }
 
     /** A save written before acts: none of the new fields. */

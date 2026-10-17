@@ -61,14 +61,15 @@ public class EntryWitherTest {
         check(DungeonLogGoldenTest.snapshot(base), DungeonLogGoldenTest.snapshot(log.get(PLAYER)),
                 "the base entry is unchanged by the withers above");
 
-        // resetCampaign keeps the room settings, unlocks and campaign, and zeroes the rest.
+        // resetCampaign keeps the room settings, shells and decide settings, and zeroes the rest.
         DungeonLog resetLog = DungeonLogGoldenTest.decode(DungeonLogGoldenTest.read("full_current.json"));
         resetLog.resetCampaign(PLAYER);
         diff("resetCampaign", base, resetLog.get(PLAYER),
                 "runs=0", "bestPath=0", "bestKeystone=0", "keystone=0", "affix=", "pending=0",
                 "recentThemes=[]", "completed={}", "currentTheme=", "depth=0", "powers=[]", "fuel=0",
                 "roomCompletions=0", "bag=", "keyProgress=0", "kitGranted=false", "highestCharts=0",
-                "chartProgress=0", "haul=0", "haulIntroSeen=false");
+                "chartProgress=0", "haul=0", "haulIntroSeen=false", "finished=[]", "acts=[1]",
+                "campaignComplete=false", "deepestMine=0");
 
         // The empty entry every unknown player reads as.
         check(DungeonLogGoldenTest.snapshot(new DungeonLog().get(PLAYER)),
