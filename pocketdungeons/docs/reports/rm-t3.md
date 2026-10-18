@@ -41,3 +41,7 @@ Extended: `OmenMathTest` (solo 5, two 6, four 8, a fifth still 8, the knob, colo
 ## Live only
 
 Fragment `docs/playtests/live-checks/rm-t3.md`: two accounts, bar shows 6, later joiner adds nothing, colour bands, run ends after the last life.
+
+## Full suite
+
+`--quick --no-dist` ran twice, not green either time, each with one gametest that passes alone (the flake pattern rm-t0.md records): run 1 `haunt_floor_game_test_the_keeper_stalks...` (passes alone, 3 of 3), run 2 `heist_floor_game_test_the_vault_cracks_open` (passes alone, 2 of 2). Neither touches lives.
