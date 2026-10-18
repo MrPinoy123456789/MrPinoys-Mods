@@ -137,6 +137,14 @@ public final class FloorSoakGameTest {
                         continue;
                     }
                     check(plan, floor, def, node, where, hard, soft, placed);
+                    // Plan 2026-10-17 part 5: the spawners reachable with no tool must meet the clear threshold.
+                    SpawnerQuota.Result quota = SpawnerQuota.of(plan, RoomManifest.current(), BagTags.pilgrim(1),
+                            PocketDungeonsConfig.spawnerClearThreshold());
+                    if (!quota.met()) {
+                        soft.add(where + ": only " + quota.reached() + " of " + quota.total()
+                                + " spawners are reachable with no tool (the threshold needs " + quota.needed()
+                                + "); not reached: " + quota.blocked());
+                    }
                     if (countNodeRooms(plan) > 0) {
                         oreFloors++;
                     }

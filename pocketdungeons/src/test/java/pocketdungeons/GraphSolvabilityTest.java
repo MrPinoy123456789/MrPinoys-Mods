@@ -108,6 +108,7 @@ public class GraphSolvabilityTest {
         int backtrackedFloors = 0;
         int maxSteps = 0;
         int taggedPlacements = 0;
+        int[] quotaTally = new int[2];
         long nanos = 0;
 
         for (long seed = 0; seed < SWEEP_SEEDS; seed++) {
@@ -132,6 +133,7 @@ public class GraphSolvabilityTest {
             }
             taggedPlacements += assertInvariant(seed, shape, result.plan(), manifest, bag,
                     result.fallbackCells());
+            tallySpawnerQuota(seed, result.plan(), manifest, bag, quotaTally);
 
             // E (D25): unreachable_* may land on a spur (a bonus room nobody
             // can open), but never on the spine where it would block the way.
@@ -159,6 +161,27 @@ public class GraphSolvabilityTest {
                 + "%.3f ms per floor%n",
                 floors, cells, taggedPlacements, fallbackCells, backtrackedFloors, maxSteps,
                 nanos / 1_000_000.0, nanos / 1_000_000.0 / floors);
+        System.out.printf("Spawner quota (fixture): %d of %d floors with spawners fall below the clear threshold with no tool%n",
+                quotaTally[1], quotaTally[0]);
+    }
+
+    /**
+     * Plan 2026-10-17 part 5, fixture half: counts the floors of the sweep whose tool-free spawner share falls
+     * below the clear threshold, and prints the tally. It does not assert: this fixture carries adversarial rooms
+     * (an {@code unreachable_dock} encounter that nothing can open, weight 20) on purpose, so a shortfall here
+     * proves nothing about shipped data. The assertion lives where the shipped rooms do, in
+     * {@code FloorSoakGameTest}, as a logged finding with the seed, the cells and the blocking room.
+     */
+    private static void tallySpawnerQuota(long seed, DungeonPlan plan, RoomManifest manifest, Set<String> bag,
+                                          int[] tally) {
+        SpawnerQuota.Result result = SpawnerQuota.of(plan, manifest, bag, PocketDungeonsConfig.spawnerClearThreshold());
+        if (result.total() == 0) {
+            return;
+        }
+        tally[0]++;
+        if (!result.met()) {
+            tally[1]++;
+        }
     }
 
     /**
