@@ -57,7 +57,7 @@ final class HallOffers {
 
         int act = acts.contains(requestedAct) ? requestedAct : HallLayout.openingAct(acts, a -> {
             List<HallLayout.Entry> entries = entriesOf(dungeons, a, finished, deepest, compass);
-            for (HallLayout.Status status : HallLayout.statuses(HallLayout.ordered(entries), compass)) {
+            for (HallLayout.Status status : HallLayout.statuses(HallLayout.ordered(entries))) {
                 if (status.startHere()) {
                     return true;
                 }
@@ -79,7 +79,7 @@ final class HallOffers {
         for (DungeonDef def : inAct) {
             entries.add(entryOf(def, dungeons, finished, deepest));
         }
-        List<HallLayout.Status> statuses = HallLayout.statuses(entries, compass);
+        List<HallLayout.Status> statuses = HallLayout.statuses(entries);
 
         List<DungeonDef> specials = new ArrayList<>();
         // Each act has its own Endless Mine (decision 2026-10-11): the astrolabe shows the one of the act
@@ -171,8 +171,11 @@ final class HallOffers {
         if (def == null || !status.locked()) {
             return null;
         }
-        return status.state() == HallLayout.State.CAPSTONE_LOCKED
-                ? "Finish this act's other dungeons first"
-                : "Needs compass " + def.unlockLevel() + ". You have " + hall.compass();
+        if (status.state() == HallLayout.State.CAPSTONE_LOCKED) {
+            int n = Campaign.needed(ActProgress.ordinaryDungeons(def.act(), DungeonDefs.current().all()).size(),
+                    Campaign.capstoneDungeonsNeeded());
+            return "Finish " + n + " dungeon" + (n == 1 ? "" : "s") + " first";
+        }
+        return "Not open yet";
     }
 }

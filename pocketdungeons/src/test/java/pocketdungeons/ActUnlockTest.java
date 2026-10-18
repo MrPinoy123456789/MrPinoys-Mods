@@ -78,66 +78,149 @@ public class ActUnlockTest {
     }
 
     /**
-     * D29, amended 2026-10-11: an act completes when its dungeons are finished and its own Endless Mine has
-     * reached its first guardian floor (3); an act with no mine asks nothing of one.
+     * Decision 2026-10-18 (supersedes D29 and the 2026-10-11 gate): an act's capstone opens after
+     * {@code capstoneDungeonsNeeded} of its ordinary dungeons, capped at the act's count; finishing the
+     * capstone completes the act; the act's Endless Mine is an optional dive and gates nothing.
      */
     private static void testActCompletion() {
         List<DungeonDef> act1 = List.of(
                 actDungeon("mineshaft", 1, "dungeon"), actDungeon("rootworks", 1, "dungeon"),
                 actDungeon("spawner", 1, "capstone"), actDungeon("endless_mine", 1, "endless"));
         check(ActProgress.mineTarget(1, act1) == 3 && ActProgress.mineTarget(2, act1) == 0
-                && ActProgress.mineTarget(5, act1) == 0, true, "the first guardian floor, for an act with a mine");
+                && ActProgress.mineTarget(5, act1) == 0, true, "the Mine keeps its own record target");
         check(ActProgress.actDungeons(1, act1).size(), 3, "the Endless Mine is not an act dungeon");
+        check(ActProgress.ordinaryDungeons(1, act1).size(), 2, "and the capstone is not an ordinary dungeon");
 
         check(ActProgress.complete(1, Set.of(), depth(99, 0), act1), false, "no dungeons finished: not complete");
-        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), depth(2, 0), act1), false,
-                "the Mine to floor 2 is not enough");
-        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), depth(3, 0), act1), true,
-                "all dungeons and floor 3 completes act 1");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks"), depth(99, 0), act1), false,
+                "the capstone unfinished holds the act open, whatever the Mine says");
+        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks", "spawner"), depth(0, 0), act1), true,
+                "the capstone finished completes act 1 with no Mine floor at all");
         check(ActProgress.complete(1, Set.of("pocketdungeons:mineshaft", "pocketdungeons:rootworks",
                 "pocketdungeons:spawner"), depth(9, 0), act1), true, "namespaced ids count too");
-        check(ActProgress.complete(1, Set.of("mineshaft", "rootworks"), depth(9, 0), act1), false,
-                "a missing capstone holds the act open");
-        // Act 5 has no Mine: dungeons alone complete it.
+        check(ActProgress.complete(1, Set.of("spawner"), depth(0, 0), act1), true,
+                "the capstone is what completes the act, not the count");
+        // Act 5 has no Mine: the capstone alone completes it.
         List<DungeonDef> act5 = List.of(actDungeon("the_end", 5, "dungeon"),
                 actDungeon("ender_archive", 5, "dungeon"), actDungeon("herobrine", 5, "capstone"));
         check(ActProgress.complete(5, Set.of("the_end", "ender_archive", "herobrine"), ActProgress.MineDepth.NONE, act5),
-                true, "act 5 completes on dungeons alone");
+                true, "act 5 completes on its capstone");
 
-        // Each act has its own mine (data only): act 2 reads the Act 2 mine's record, not Act 1's.
+        // The Mine depth is no longer read: floor 0, 3 and an old layer bottom answer the same.
         List<DungeonDef> act2 = List.of(actDungeon("deepslate", 2, "dungeon"), actDungeon("ancient_city", 2, "capstone"),
                 actDungeon("endless_mine_deep", 2, "endless"));
         Set<String> act2Done = Set.of("deepslate", "ancient_city");
-        check(ActProgress.mineTarget(2, act2), 3, "act 2 asks the first guardian of its own mine");
-        check(ActProgress.complete(2, act2Done, depth(2, 0), act2), false, "a shallow record does not open act 3");
-        check(ActProgress.complete(2, act2Done, depth(3, 0), act2), false,
-                "floor 3 of the Act 1 mine does not count for act 2");
-        check(ActProgress.complete(2, act2Done, depth(0, 3), act2), true, "floor 3 of the Act 2 mine does");
-        // Migration: a record that already passed the old layer bottom (act 2: floor 11 of the one old mine)
-        // keeps the act, so nobody loses progress to the new gate.
-        check(ActProgress.complete(2, act2Done, depth(11, 0), act2), true,
-                "old progress: floor 11 of the single old mine still satisfies act 2");
-        check(ActProgress.complete(2, act2Done, depth(10, 0), act2), false,
-                "old progress short of the old layer bottom does not");
-        // Acts 3 to 5 are added by data alone: declare a mine for act 3 and the gate follows.
+        check(ActProgress.mineTarget(2, act2), 3, "act 2 still names the first guardian of its own mine");
+        for (ActProgress.MineDepth any : List.of(depth(0, 0), depth(2, 0), depth(3, 0), depth(0, 3), depth(11, 0))) {
+            check(ActProgress.complete(2, act2Done, any, act2), true, "the Mine record is not read: " + any);
+            check(ActProgress.capstoneReady(2, Set.of("deepslate"), any, act2), true, "nor for the capstone: " + any);
+        }
+        // An act declared without a capstone asks for every one of its dungeons; an act with nothing asks nothing.
         List<DungeonDef> act3 = List.of(actDungeon("prismarine", 3, "dungeon"), actDungeon("mine3", 3, "endless"));
-        check(ActProgress.mineTarget(3, act3), 3, "a declared act 3 mine is gated at once");
-        check(ActProgress.complete(3, Set.of("prismarine"), depth(0, 0), act3), false, "and unmet until cleared");
+        check(ActProgress.mineTarget(3, act3), 3, "a declared act 3 mine still names its target");
+        check(ActProgress.complete(3, Set.of("prismarine"), depth(0, 0), act3), true, "no capstone: the dungeon completes it");
+        check(ActProgress.complete(3, Set.of(), depth(0, 0), act3), false, "and unmet until finished");
+        check(ActProgress.complete(4, Set.of(), depth(0, 0), act3), true, "an act with nothing declared asks nothing");
+
+        testThreeOfFive();
+        testReleaseCap();
 
         check(ActProgress.progressLine(1, Set.of("mineshaft"), depth(2, 0), act1),
-                "1 of 3 dungeons, Mine floor 2 of 3", "the milestone title's progress line");
+                "1 of 2 dungeons", "the milestone title's progress line counts toward the capstone");
         check(ActProgress.progressLine(5, Set.of("the_end"), depth(9, 0), act5),
-                "1 of 3 dungeons", "an act without a Mine leg names dungeons only");
+                "1 of 2 dungeons", "an act without a Mine leg reads the same");
+        check(ActProgress.progressLine(1, Set.of("mineshaft", "rootworks"), depth(0, 0), act1),
+                "2 of 2 dungeons", "the count is capped at what the capstone asks");
+        check(ActProgress.progressLine(1, Set.of("spawner"), depth(0, 0), act1), "Act complete",
+                "a finished capstone closes the act");
         check(ActProgress.remainingLine(1, Set.of(), ActProgress.MineDepth.NONE, act1),
-                "Act 1: 3 dungeons and the Mine to floor 3 left.", "the full remaining line");
+                "Act 1: 2 more dungeons.", "the full remaining line");
         check(ActProgress.remainingLine(1, Set.of("mineshaft"), ActProgress.MineDepth.NONE, act1),
-                "Act 1: 2 dungeons and the Mine to floor 3 left.", "the example from the plan");
-        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), depth(2, 0), act1),
-                "Act 1: the Mine to floor 3 left.", "only the Mine left");
+                "Act 1: 1 more dungeon.", "one left");
+        check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks"), depth(2, 0), act1),
+                "Act 1: spawner is open.", "the capstone is next, whatever the Mine says");
         check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), depth(5, 0), act1),
                 "", "a complete act says nothing");
         check(ActProgress.remainingLine(1, Set.of("mineshaft", "rootworks", "spawner"), depth(5, 0), act5),
                 "", "an empty act says nothing too");
+    }
+
+    /** An act of five ordinary dungeons, its capstone and its Mine: three of five open the capstone. */
+    private static void testThreeOfFive() {
+        List<DungeonDef> five = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            five.add(actDungeon("d" + i, 1, "dungeon"));
+        }
+        five.add(actDungeon("cap", 1, "capstone"));
+        five.add(actDungeon("mine", 1, "endless"));
+        ActProgress.MineDepth noMine = ActProgress.MineDepth.NONE;
+        check(PocketDungeonsConfig.capstoneDungeonsNeeded(), 3, "the default is three dungeons");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d2", "d3"), noMine, five), true, "3 of 5 opens the capstone");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d5", "d3", "d4"), noMine, five), true, "and 4 of 5");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d2"), noMine, five), false, "2 of 5 does not");
+        check(ActProgress.capstoneReady(1, Set.of(), noMine, five), false, "0 of 5 does not");
+        check(ActProgress.capstoneReady(1, Set.of("pocketdungeons:d1", "pocketdungeons:d2", "d3"), noMine, five), true,
+                "namespaced ids count");
+        check(ActProgress.capstoneReady(1, Set.of("cap", "mine"), noMine, five), false,
+                "the capstone and the Mine are not ordinary dungeons");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d2", "d3"), ActProgress.MineDepth.NONE, five), true,
+                "the Mine is not needed: no floor at all");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d2"), new ActProgress.MineDepth(99, java.util.Map.of()), five),
+                false, "and a deep Mine does not stand in for a dungeon");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d2"), five, 2), true, "the count follows the knob");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d2", "d3", "d4"), five, 5), false, "5 of 5 when asked for 5");
+        check(ActProgress.capstoneReady(1, Set.of("d1"), five, 99), false, "a huge ask is capped at the act's five");
+        check(ActProgress.capstoneReady(1, Set.of("d1", "d2", "d3", "d4", "d5"), five, 99), true, "and met by all five");
+        check(ActProgress.progressLine(1, Set.of("d1"), noMine, five), "1 of 3 dungeons", "the line counts toward three");
+        check(ActProgress.progressLine(1, Set.of("d1", "d2", "d3", "d4"), noMine, five), "3 of 3 dungeons", "and stops at three");
+        check(ActProgress.remainingLine(1, Set.of("d1"), noMine, five), "Act 1: 2 more dungeons.", "two more for the capstone");
+        // An act with fewer ordinary dungeons than the knob asks for only needs the ones it has.
+        List<DungeonDef> two = List.of(actDungeon("a", 2, "dungeon"), actDungeon("b", 2, "dungeon"),
+                actDungeon("c", 2, "capstone"));
+        check(ActProgress.capstoneReady(2, Set.of("a"), noMine, two), false, "1 of 2 does not");
+        check(ActProgress.capstoneReady(2, Set.of("a", "b"), noMine, two), true, "2 of 2 does, though the knob says 3");
+        List<DungeonDef> capstoneOnly = List.of(actDungeon("c", 2, "capstone"));
+        check(ActProgress.capstoneReady(2, Set.of(), noMine, capstoneOnly), true, "an act of only a capstone is ready");
+        check(Campaign.needed(5, 3), 3, "needed: the knob");
+        check(Campaign.needed(2, 3), 2, "needed: capped at the act's count");
+        check(Campaign.needed(0, 3), 0, "needed: nothing for an act without ordinary dungeons");
+        check(Campaign.needed(5, 0), 1, "needed: never fewer than one when there are dungeons");
+    }
+
+    /** {@code releaseMaxAct}: the last act, what stays stored, and when the campaign is done. */
+    private static void testReleaseCap() {
+        check(PocketDungeonsConfig.releaseMaxAct(), 2, "the default last act is 2");
+        check(Campaign.cap(Set.of(1, 2, 3), 2), Set.of(1, 2), "releaseMaxAct 2 hides act 3 even when stored");
+        check(Campaign.cap(Set.of(1, 2, 3, 4, 5), 2), Set.of(1, 2), "and every later act");
+        check(Campaign.cap(Set.of(0), 2), Set.of(0), "the prologue stays");
+        check(Campaign.cap(Set.of(1, 2, 3), 3), Set.of(1, 2, 3), "raising the knob brings the stored act back");
+        check(Campaign.cap(Set.of(), 2), Set.of(), "nothing in, nothing out");
+        check(Campaign.released(2, 2) && !Campaign.released(3, 2) && Campaign.released(0, 1), true, "released");
+
+        List<DungeonDef> all = List.of(
+                actDungeon("mineshaft", 1, "dungeon"), actDungeon("spawner", 1, "capstone"),
+                actDungeon("deepslate", 2, "dungeon"), actDungeon("ancient_city", 2, "capstone"),
+                actDungeon("prismarine", 3, "dungeon"), actDungeon("drowned_vault", 3, "capstone"));
+        Set<String> act1Only = Set.of("mineshaft", "spawner", "deepslate");
+        check(Campaign.done(act1Only, all, 2), false, "act 2's capstone unfinished: the campaign is not done");
+        check(Campaign.done(Set.of("mineshaft", "spawner", "deepslate", "ancient_city"), all, 2), true,
+                "the capstone of the last act finishes the campaign");
+        check(Campaign.done(Set.of("pocketdungeons:ancient_city"), all, 2), true,
+                "and that is the only thing read, with a namespaced id");
+        check(Campaign.done(act1Only, all, 1), true, "a server whose last act is 1 is done at act 1's capstone");
+        check(Campaign.done(Set.of("mineshaft", "spawner", "deepslate", "ancient_city"), all, 3), false,
+                "act 3's capstone is not finished");
+        check(Campaign.done(Set.of("drowned_vault"), all, 2), false,
+                "a later act's capstone finished early does not finish the campaign");
+        check(Campaign.done(Set.of("ancient_city"), List.of(), 2), false, "an act with nothing declared is never done");
+        check(Campaign.done(Set.of(), all, 2), false, "a fresh player is not done");
+
+        check(Campaign.isCampaignTrip((DungeonDef) null), true, "before the first door a trip is a campaign trip");
+        check(Campaign.isCampaignTrip(actDungeon("x", 1, "dungeon")), true, "an ordinary dungeon is");
+        check(Campaign.isCampaignTrip(actDungeon("x", 2, "capstone")), true, "and a capstone");
+        check(Campaign.isCampaignTrip(actDungeon("x", 1, "endless")), false, "the Mine is the endgame dive");
+        check(Campaign.isCampaignTrip(actDungeon("x", 1, "proving")), false, "and so is the Proving");
+        check(Campaign.isCampaignTrip((InstanceRecord) null), false, "no record is no trip");
     }
 
     private static void testLogUnlocks() {

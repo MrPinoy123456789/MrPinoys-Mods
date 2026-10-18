@@ -150,6 +150,20 @@ public final class PocketDungeonsConfig {
     // act 1 now, but a new player's first doors stay dungeons until this.
     private static final Knob<Integer> ENDLESS_MINE_UNLOCK_LEVEL = integer("endlessMineUnlockLevel", 3,
             v -> v >= 1, "must be >= 1");
+    /**
+     * The last act on this server. Acts above it never open, never show on the astrolabe and never
+     * deal a door; a save that already has them keeps them stored but unreachable. Finishing the
+     * capstone of this act is the end of the campaign (Campaign.done), which opens the Chart Room.
+     */
+    private static final Knob<Integer> RELEASE_MAX_ACT = integer("releaseMaxAct", 2,
+            v -> v >= 1 && v <= 5, "must be 1 to 5");
+    /**
+     * How many of an act's ordinary dungeons (not the capstone, not an Endless Mine) a player must
+     * finish before the act's capstone opens, capped at the number the act has. The act's Endless Mine
+     * is an optional dive and never gates.
+     */
+    private static final Knob<Integer> CAPSTONE_DUNGEONS_NEEDED = integer("capstoneDungeonsNeeded", 3,
+            v -> v >= 1 && v <= 6, "must be 1 to 6");
     private static final Knob<Boolean> RITUAL_ENABLED = flag("ritualEnabled", true);
     // U8 Stage 0: chests replace the item grant outright. payoutCommand survives
     // as the one remaining hook an operator has for routing a reward through an
@@ -1159,6 +1173,14 @@ public final class PocketDungeonsConfig {
     /** The compass level the Endless Mine's door needs. See the field. */
     public static int endlessMineUnlockLevel() {
         return ENDLESS_MINE_UNLOCK_LEVEL.get();
+    }
+
+    public static int releaseMaxAct() {
+        return RELEASE_MAX_ACT.get();
+    }
+
+    public static int capstoneDungeonsNeeded() {
+        return CAPSTONE_DUNGEONS_NEEDED.get();
     }
 
     public static int maxGridSpan() {

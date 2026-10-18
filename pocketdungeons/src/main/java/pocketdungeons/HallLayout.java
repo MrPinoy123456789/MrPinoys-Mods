@@ -99,7 +99,11 @@ final class HallLayout {
         FINISHED,
         /** An act capstone whose act is not finished: an iron door and an unlit bulb. */
         CAPSTONE_LOCKED,
-        /** A dungeon the compass has not reached: an iron door and an unlit bulb. */
+        /**
+         * A dungeon the compass has not reached: an iron door and an unlit bulb. No longer produced: the
+         * compass stopped gating campaign doors (decision 2026-10-18). Kept only so the room's switch
+         * compiles until it drops the case.
+         */
         COMPASS_LOCKED
     }
 
@@ -151,11 +155,12 @@ final class HallLayout {
 
     /**
      * The state of every door in {@code act} (already {@link #ordered}), in order. A capstone is locked until
-     * its act says it is open ({@link Entry#capstoneOpen}); any other dungeon is locked until the compass
-     * reaches its unlock level; a finished one wears patina. {@code startHere} marks the door to take next.
+     * its act says it is open ({@link Entry#capstoneOpen}); every other door of an open act is open, whatever
+     * the compass (decision 2026-10-18); a finished one wears patina. {@code startHere} marks the door to
+     * take next.
      */
-    static List<Status> statuses(List<Entry> act, int compass) {
-        int start = startHere(act, compass);
+    static List<Status> statuses(List<Entry> act) {
+        int start = startHere(act);
         List<Status> out = new ArrayList<>();
         for (int i = 0; i < act.size(); i++) {
             Entry e = act.get(i);
@@ -163,8 +168,6 @@ final class HallLayout {
             boolean ready = false;
             if (e.capstone() && !e.capstoneOpen()) {
                 state = State.CAPSTONE_LOCKED;
-            } else if (e.unlockLevel() > compass) {
-                state = State.COMPASS_LOCKED;
             } else {
                 state = e.finished() ? State.FINISHED : State.OPEN;
                 ready = e.capstone() && !e.finished();
@@ -175,19 +178,20 @@ final class HallLayout {
     }
 
     /**
-     * The index of the door to take next: a ready capstone first, otherwise the lowest-compass unfinished
-     * dungeon the compass has reached; -1 when everything in the act is finished or locked.
+     * The index of the door to take next: a ready capstone first, otherwise the first unfinished dungeon in
+     * row order (the lowest compass level first, which is the order the campaign reads); -1 when everything
+     * in the act is finished or locked.
      */
-    private static int startHere(List<Entry> act, int compass) {
+    private static int startHere(List<Entry> act) {
         for (int i = 0; i < act.size(); i++) {
             Entry e = act.get(i);
-            if (e.capstone() && e.capstoneOpen() && !e.finished() && e.unlockLevel() <= compass) {
+            if (e.capstone() && e.capstoneOpen() && !e.finished()) {
                 return i;
             }
         }
         for (int i = 0; i < act.size(); i++) {
             Entry e = act.get(i);
-            if (!e.capstone() && !e.finished() && e.unlockLevel() <= compass) {
+            if (!e.capstone() && !e.finished()) {
                 return i;
             }
         }
@@ -196,10 +200,16 @@ final class HallLayout {
 
     /**
      * The act the astrolabe shows after {@code current} among the open acts, wrapping; {@code backwards}
-     * turns the other way. Returns {@code current} when it is the only open act.
+     * turns the other way. Returns {@code current} when it is the only open act. Acts above
+     * {@code releaseMaxAct} never show, even when stored.
      */
     static int nextAct(Set<Integer> unlocked, int current, boolean backwards) {
-        List<Integer> acts = new ArrayList<>(unlocked);
+        return nextAct(unlocked, current, backwards, Campaign.releaseMaxAct());
+    }
+
+    /** As {@link #nextAct(Set, int, boolean)} for a server whose last act is {@code maxAct}. */
+    static int nextAct(Set<Integer> unlocked, int current, boolean backwards, int maxAct) {
+        List<Integer> acts = new ArrayList<>(Campaign.cap(unlocked, maxAct));
         acts.sort(Comparator.naturalOrder());
         if (acts.isEmpty()) {
             return current;
@@ -217,6 +227,12 @@ final class HallLayout {
      * something unfinished; the highest open act when everything is finished.
      */
     static int openingAct(Set<Integer> unlocked, java.util.function.IntPredicate hasUnfinished) {
+        return openingAct(unlocked, hasUnfinished, Campaign.releaseMaxAct());
+    }
+
+    /** As {@link #openingAct(Set, java.util.function.IntPredicate)} for a server whose last act is {@code maxAct}. */
+    static int openingAct(Set<Integer> uncapped, java.util.function.IntPredicate hasUnfinished, int maxAct) {
+        Set<Integer> unlocked = Campaign.cap(uncapped, maxAct);
         int best = -1;
         int highest = -1;
         for (int act : unlocked) {

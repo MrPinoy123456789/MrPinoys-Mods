@@ -71,9 +71,9 @@ final class TripDoors {
     /**
      * The dungeons a trip may start in: ordinary and capstone kinds (never
      * endless, which is its own mode, D13) of an unlocked act, with one entry
-     * node, and an {@link DungeonDef#unlockLevel() unlock level} the leader's
-     * compass has reached (D23). Sorted by id so the deal is independent of
-     * load order.
+     * node. The leader's compass no longer gates them (decision 2026-10-18, which
+     * supersedes D23 for the campaign); {@code compass} is kept for callers. Sorted
+     * by id so the deal is independent of load order.
      */
     static List<DungeonDef> eligibleFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                           int compass) {
@@ -90,7 +90,7 @@ final class TripDoors {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
             if (!def.kind().descends() && unlockedActs.contains(def.act())
-                    && def.entry() != null && def.unlockLevel() <= compass
+                    && def.entry() != null
                     && (finished == null || def.kind() != DungeonDef.Kind.CAPSTONE
                         || ActProgress.capstoneReady(def.act(), finished, deepestMineFloor, all))) {
                 out.add(def);
@@ -101,21 +101,13 @@ final class TripDoors {
     }
 
     /**
-     * The act's dungeons the leader's compass has not reached (D23): open act,
-     * entry node, unlock level above {@code compass}. Sorted by id, for the
-     * staging map's locked lines.
+     * The dungeons of an open act the compass keeps out of the deal, for the staging map's locked
+     * lines. Always empty now: the compass does not gate the campaign (decision 2026-10-18). Kept so the
+     * map's callers compile; the compass task removes them.
      */
     static List<DungeonDef> lockedFirst(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                         int compass) {
-        List<DungeonDef> out = new ArrayList<>();
-        for (DungeonDef def : all) {
-            if (!def.kind().descends() && unlockedActs.contains(def.act())
-                    && def.entry() != null && def.unlockLevel() > compass) {
-                out.add(def);
-            }
-        }
-        out.sort(Comparator.comparing(DungeonDef::id));
-        return out;
+        return new ArrayList<>();
     }
 
     // ---- the deals --------------------------------------------------------------------
@@ -182,8 +174,7 @@ final class TripDoors {
      * offered once act N is open, because {@link #eligibleFirst} already filters by act; this
      * adds the guarantee on top, so a player who has opened an act but not cleared its capstone
      * is shown the capstone at the first door every trip until they do.
-     * A capstone whose {@link DungeonDef#unlockLevel() unlock level} the
-     * leader's compass has not reached is not yet guaranteed (D23).
+     * The compass no longer holds a capstone back (decision 2026-10-18).
      *
      * @param finishedDungeons the ids (bare or namespaced) of the dungeons the player has finished
      */
@@ -207,7 +198,7 @@ final class TripDoors {
         DungeonDef best = null;
         for (DungeonDef def : all) {
             if (def.kind() != DungeonDef.Kind.CAPSTONE || def.entry() == null
-                    || !unlockedActs.contains(def.act()) || def.unlockLevel() > compass
+                    || !unlockedActs.contains(def.act())
                     || finished.contains(DungeonDef.qualify(def.id()))
                     || (gated && !ActProgress.capstoneReady(def.act(), finished, deepestMineFloor, all))) {
                 continue;

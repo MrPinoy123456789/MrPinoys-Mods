@@ -46,43 +46,63 @@ public class HallLayoutTest {
         eq(act.get(1).id(), "pocketdungeons:cow_pits");
         eq(act.get(4).id(), "pocketdungeons:ancient_city");
 
-        List<HallLayout.Status> at3 = HallLayout.statuses(act, 3);
-        eq(at3.get(0).state(), HallLayout.State.OPEN);
-        eq(at3.get(1).state(), HallLayout.State.FINISHED);
-        eq(at3.get(2).state(), HallLayout.State.OPEN);
-        eq(at3.get(3).state(), HallLayout.State.COMPASS_LOCKED);
-        eq(at3.get(4).state(), HallLayout.State.CAPSTONE_LOCKED);
-        eq(at3.get(0).startHere(), true);
-        eq(at3.get(2).startHere(), false);
-        check(at3.get(3).locked() && at3.get(4).locked() && !at3.get(0).locked(), "locked flags");
+        // The compass no longer gates a campaign door (decision 2026-10-18): Frostworks (4) is open with the rest.
+        List<HallLayout.Status> statuses = HallLayout.statuses(act);
+        eq(statuses.get(0).state(), HallLayout.State.OPEN);
+        eq(statuses.get(1).state(), HallLayout.State.FINISHED);
+        eq(statuses.get(2).state(), HallLayout.State.OPEN);
+        eq(statuses.get(3).state(), HallLayout.State.OPEN);
+        eq(statuses.get(4).state(), HallLayout.State.CAPSTONE_LOCKED);
+        eq(statuses.get(0).startHere(), true);
+        eq(statuses.get(2).startHere(), false);
+        check(statuses.get(4).locked() && !statuses.get(3).locked() && !statuses.get(0).locked(), "locked flags");
+        for (HallLayout.Status status : statuses) {
+            check(status.state() != HallLayout.State.COMPASS_LOCKED, "no door is locked by the compass");
+        }
 
         // Everything but the capstone finished: the capstone is ready and is where to start.
         List<HallLayout.Entry> done = List.of(
                 new HallLayout.Entry("a", 2, false, true, false),
                 new HallLayout.Entry("b", 3, false, true, false),
                 new HallLayout.Entry("cap", 5, true, false, true));
-        List<HallLayout.Status> ready = HallLayout.statuses(done, 6);
+        List<HallLayout.Status> ready = HallLayout.statuses(done);
         eq(ready.get(2).state(), HallLayout.State.OPEN);
         check(ready.get(2).capstoneReady() && ready.get(2).startHere(), "the ready capstone is the place to start");
         eq(ready.get(0).state(), HallLayout.State.FINISHED);
         check(!ready.get(0).startHere(), "a finished dungeon is not the start");
-        // The same act with the compass short of the capstone: locked by compass, no start.
-        List<HallLayout.Status> short5 = HallLayout.statuses(done, 4);
-        eq(short5.get(2).state(), HallLayout.State.COMPASS_LOCKED);
-        eq(HallLayout.statuses(List.of(), 3).size(), 0);
+        // The same act with the capstone not yet open (too few dungeons finished): iron door, and no start.
+        List<HallLayout.Entry> shut = List.of(
+                new HallLayout.Entry("a", 2, false, true, false),
+                new HallLayout.Entry("b", 3, false, true, false),
+                new HallLayout.Entry("cap", 5, true, false, false));
+        List<HallLayout.Status> notYet = HallLayout.statuses(shut);
+        eq(notYet.get(2).state(), HallLayout.State.CAPSTONE_LOCKED);
+        check(!notYet.get(2).startHere() && !notYet.get(0).startHere(), "nothing to start in this act");
+        // A dungeon above the compass is still the place to start: only the act order gates it.
+        eq(HallLayout.statuses(List.of(new HallLayout.Entry("far", 25, false, false, false))).get(0).startHere(), true);
+        eq(HallLayout.statuses(List.of()).size(), 0);
 
-        // Act cycling over the open acts, wrapping both ways.
-        eq(HallLayout.nextAct(Set.of(1, 2, 3), 1, false), 2);
+        // Act cycling over the open acts, wrapping both ways (a server whose last act is 5).
+        eq(HallLayout.nextAct(Set.of(1, 2, 3), 1, false, 5), 2);
+        eq(HallLayout.nextAct(Set.of(1, 2, 3), 3, false, 5), 1);
+        eq(HallLayout.nextAct(Set.of(1, 2, 3), 1, true, 5), 3);
+        eq(HallLayout.nextAct(Set.of(1), 1, false, 5), 1);
+        eq(HallLayout.nextAct(Set.of(2, 4), 1, false, 5), 2);
+        eq(HallLayout.nextAct(Set.of(), 1, false, 5), 1);
+        // releaseMaxAct hides a later act even when it is stored: the cycle stops at it, both ways.
+        eq(PocketDungeonsConfig.releaseMaxAct(), 2);
+        eq(HallLayout.nextAct(Set.of(1, 2, 3), 2, false), 1);
+        eq(HallLayout.nextAct(Set.of(1, 2, 3), 1, true), 2);
         eq(HallLayout.nextAct(Set.of(1, 2, 3), 3, false), 1);
-        eq(HallLayout.nextAct(Set.of(1, 2, 3), 1, true), 3);
-        eq(HallLayout.nextAct(Set.of(1), 1, false), 1);
-        eq(HallLayout.nextAct(Set.of(2, 4), 1, false), 2);
-        eq(HallLayout.nextAct(Set.of(), 1, false), 1);
+        eq(HallLayout.nextAct(Set.of(1, 2, 3), 1, true, 1), 1);
 
         // The room opens on the highest open act with something left to do.
-        eq(HallLayout.openingAct(Set.of(1, 2, 3), a -> a <= 2), 2);
-        eq(HallLayout.openingAct(Set.of(1, 2), a -> false), 2);
-        eq(HallLayout.openingAct(Set.of(), a -> true), 1);
+        eq(HallLayout.openingAct(Set.of(1, 2, 3), a -> a <= 2, 5), 2);
+        eq(HallLayout.openingAct(Set.of(1, 2), a -> false, 5), 2);
+        eq(HallLayout.openingAct(Set.of(), a -> true, 5), 1);
+        eq(HallLayout.openingAct(Set.of(1, 2, 3), a -> true, 5), 3);
+        eq(HallLayout.openingAct(Set.of(1, 2, 3), a -> true), 2);
+        eq(HallLayout.openingAct(Set.of(1, 2, 3), a -> false), 2);
         // The lever stands beside the selected door, never in a door's place.
         for (int rel : HallLayout.DOOR_SPACES) {
             check(!HallLayout.isLeverAlong(rel), "a lever place is not a door space: " + rel);

@@ -29,6 +29,8 @@
   "clearBlocksPerTick": 1024,
   "floorsPerSafeVisit": 1,
   "endlessMineUnlockLevel": 1,
+  "releaseMaxAct": 1,
+  "capstoneDungeonsNeeded": 1,
   "ritualEnabled": false,
   "payoutCommand": "minecraft:stone",
   "vaultKeyItem": "minecraft:stone",

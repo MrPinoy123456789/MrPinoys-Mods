@@ -29,6 +29,8 @@
   "clearBlocksPerTick": 8192,
   "floorsPerSafeVisit": 3,
   "endlessMineUnlockLevel": 3,
+  "releaseMaxAct": 2,
+  "capstoneDungeonsNeeded": 3,
   "ritualEnabled": true,
   "payoutCommand": "",
   "vaultKeyItem": "minecraft:trial_key",

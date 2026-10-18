@@ -79,7 +79,7 @@ public class TripDoorsTest {
         testVariantsNumberTheCopies();
         testFinalNodeHasNoDoors();
         testFirstDoorsOfferUnlockedDungeons();
-        testCompassGatesDungeons();
+        testCompassDoesNotGateDungeons();
         testActOneOffersAtCompassOne();
         testFirstDoorsRepeatWhenFewDungeons();
         testReachability();
@@ -255,25 +255,24 @@ public class TripDoorsTest {
         check(TripDoors.dealFirst(OWNER, List.of(), 0).length == 0, "nothing eligible deals nothing");
     }
 
-    private static void testCompassGatesDungeons() {
+    private static void testCompassDoesNotGateDungeons() {
         DungeonDef late = DungeonDef.fromJson(T + "late",
                 JsonParser.parseString(FROST.replace("Frostworks", "Late")
                         .replace("\"baseLevel\": 1", "\"baseLevel\": 8")).getAsJsonObject());
         check(late.unlockLevel() == 8, "unlockLevel reads baseLevel");
         List<DungeonDef> all = List.of(frost, mine, late);
         // frost is act 2 baseLevel 1, mine act 1 baseLevel 1, late act 2 baseLevel 8.
+        // Decision 2026-10-18: the compass does not gate campaign doors; the act does.
         check(TripDoors.eligibleFirst(all, Set.of(1, 2), 7).contains(mine)
-                && !TripDoors.eligibleFirst(all, Set.of(1, 2), 7).contains(late),
-                "compass 7 does not see the level 8 dungeon");
-        check(TripDoors.eligibleFirst(all, Set.of(1, 2), 8).contains(late),
-                "compass 8 unlocks it");
-        check(TripDoors.eligibleFirst(List.of(late), Set.of(2), 1).isEmpty(),
-                "a locked dungeon is never eligible");
-        check(TripDoors.lockedFirst(all, Set.of(1, 2), 7).equals(List.of(late)),
-                "the locked list holds what the compass has not reached");
-        check(TripDoors.lockedFirst(all, Set.of(1, 2), 25).isEmpty(), "nothing locked at compass 25");
-        check(TripDoors.lockedFirst(all, Set.of(1), 0).equals(List.of(mine)),
-                "locked hides closed acts but lists open ones the compass has not reached");
+                && TripDoors.eligibleFirst(all, Set.of(1, 2), 7).contains(late),
+                "compass 7 still sees the level 8 dungeon of an open act");
+        check(TripDoors.eligibleFirst(all, Set.of(1, 2), 1).contains(late), "even at compass 1");
+        check(!TripDoors.eligibleFirst(all, Set.of(1), 99).contains(late),
+                "but a dungeon of a closed act is never eligible");
+        check(TripDoors.eligibleFirst(List.of(late), Set.of(2), 1).size() == 1,
+                "an open act's dungeon is eligible at compass 1");
+        check(TripDoors.lockedFirst(all, Set.of(1, 2), 7).isEmpty(), "nothing is locked by the compass");
+        check(TripDoors.lockedFirst(all, Set.of(1), 0).isEmpty(), "not even at compass 0");
     }
 
     private static void testFirstDoorsRepeatWhenFewDungeons() {
@@ -415,10 +414,9 @@ public class TripDoorsTest {
             }
         }
         check(!TripDoors.eligibleFirst(shipped, Set.of(1), 2).isEmpty(),
-                "act 1 at compass 2 (what Act 0 pays) offers at least one dungeon");
-        check(TripDoors.eligibleFirst(shipped, Set.of(1), 1).stream()
-                        .allMatch(d -> d.unlockLevel() <= 1),
-                "everything offered at compass 1 is unlocked");
+                "act 1 at compass 2 offers at least one dungeon");
+        check(TripDoors.eligibleFirst(shipped, Set.of(1), 1).size() == TripDoors.eligibleFirst(shipped, Set.of(1), 99).size(),
+                "the compass does not change what act 1 offers (decision 2026-10-18)");
     }
 
     // ---- helpers ------------------------------------------------------------------
