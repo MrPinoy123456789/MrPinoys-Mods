@@ -324,3 +324,6 @@ skill; regenerate the templates.
 | Task | Branch | Merged | Tests | Notes |
 |---|---|---|---|---|
 | T0 | feature/rm-t0-campaign-seam | yes | SUITE GREEN, 357 | pure 124 green; agent runs were flaky under load, integration run green |
+| T1 | feature/rm-t1-mob-curve | yes | with T2, T3 | pure tests green |
+| T2 | feature/rm-t2-quest-compass | yes | with T1, T3 | gametests +5 |
+| T3 | feature/rm-t3-party-lives | yes | SUITE GREEN, 363 (third run) | first two runs each failed one rotating flaky gametest (haunt keeper, trapped cache) that passes alone |

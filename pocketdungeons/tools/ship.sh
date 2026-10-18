@@ -32,8 +32,8 @@ cd "$(dirname "$0")/.." || exit 2
 # writes on A: when it exists; the cache was copied there once. Harmless where A:/gradle-home is absent.
 if [ -d "A:/gradle-home" ]; then
   export GRADLE_USER_HOME="A:/gradle-home"
-  mkdir -p "A:/tmp"
-  export TMP="A:/tmp" TEMP="A:/tmp" TMPDIR="A:/tmp"
+  mkdir -p "${PD_TMP:-A:/tmp}"
+  export TMP="${PD_TMP:-A:/tmp}" TEMP="${PD_TMP:-A:/tmp}" TMPDIR="${PD_TMP:-A:/tmp}"
 fi
 START=$(date +%s)
 SLOTS="${PD_SHIP_SLOTS:-3}"
