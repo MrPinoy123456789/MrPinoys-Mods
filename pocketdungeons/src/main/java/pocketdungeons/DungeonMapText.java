@@ -147,7 +147,9 @@ final class DungeonMapText {
         if (!locked.isEmpty()) {
             out.add(new Line("Locked", Tone.HEADING));
             for (DungeonDef def : locked) {
-                out.add(new Line("    " + def.name() + " · compass " + def.unlockLevel(), Tone.NOTE));
+                out.add(new Line("    " + def.name() + " · "
+                        + QuestLine.lockedSign(def, DungeonDefs.current().all(),
+                                Campaign.capstoneDungeonsNeeded()), Tone.NOTE));
             }
         }
         return out;
@@ -177,9 +179,8 @@ final class DungeonMapText {
                 out.add(new Line("    " + def.name() + " (done)", Tone.VISITED));
             } else if (def.kind() == DungeonDef.Kind.CAPSTONE
                     && !ActProgress.capstoneReady(act, finished, deepestMineFloor, all)) {
-                out.add(new Line("    " + def.name() + " · after the rest of the act", Tone.NOTE));
-            } else if (def.unlockLevel() > compass) {
-                out.add(new Line("    " + def.name() + " · compass " + def.unlockLevel(), Tone.NOTE));
+                out.add(new Line("    " + def.name() + " · " + QuestLine.lockedSign(def, all,
+                        Campaign.capstoneDungeonsNeeded()), Tone.NOTE));
             } else {
                 out.add(new Line("    " + def.name(), Tone.NORMAL));
             }
@@ -187,7 +188,7 @@ final class DungeonMapText {
         int target = ActProgress.mineTarget(act, all);
         if (target > 0) {
             boolean met = ActProgress.mineLegDone(act, deepestMineFloor, all);
-            out.add(new Line("    Endless Mine · floor " + (met ? target : Math.min(deepestMineFloor.floor(act), target))
+            out.add(new Line("    Endless Mine (optional) · floor " + (met ? target : Math.min(deepestMineFloor.floor(act), target))
                     + " of " + target + (met ? " (done)" : ""), Tone.NOTE));
         }
         return out;

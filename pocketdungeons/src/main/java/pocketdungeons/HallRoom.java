@@ -237,19 +237,18 @@ final class HallRoom {
                 first = Component.literal(name).withStyle(ChatFormatting.WHITE);
                 second = Component.literal("Play again").withStyle(ChatFormatting.AQUA);
             }
-            case CAPSTONE_LOCKED -> {
+            case CAPSTONE_LOCKED, COMPASS_LOCKED -> {
+                // Decision 2026-10-18: the campaign is gated by act order and the capstone rule, never by the
+                // compass, so a locked door says what to finish, not a level.
                 first = Component.literal(name).withStyle(ChatFormatting.GRAY);
-                second = Component.literal("Finish the act").withStyle(ChatFormatting.DARK_GRAY);
-            }
-            case COMPASS_LOCKED -> {
-                first = Component.literal(name).withStyle(ChatFormatting.GRAY);
-                second = Component.literal("Compass " + def.unlockLevel()).withStyle(ChatFormatting.DARK_GRAY);
+                second = Component.literal(QuestLine.lockedSign(def, DungeonDefs.current().all(),
+                        Campaign.capstoneDungeonsNeeded())).withStyle(ChatFormatting.DARK_GRAY);
             }
             default -> {
                 first = Component.literal(name).withStyle(status.startHere() || status.capstoneReady()
                         ? ChatFormatting.GOLD : ChatFormatting.WHITE);
                 second = Component.literal(status.startHere() ? "Start here"
-                        : def.kind() == DungeonDef.Kind.CAPSTONE ? "Capstone" : "Compass " + def.unlockLevel())
+                        : def.kind() == DungeonDef.Kind.CAPSTONE ? "Capstone" : "")
                         .withStyle(ChatFormatting.GRAY);
             }
         }

@@ -187,8 +187,8 @@ final class Keystone {
                     entry.campaign().tripCounter() + 7919 * (record == null ? 0 : record.interval.doorReroll),
                     TripDoors.pendingCapstone(dungeons.all(), acts, entry.dungeonsFinished(), compass,
                             true, entry.campaign().mineDepth()));
-            // D13, D29: the Endless Mine is in act 1, but its door 3 waits for the leader's
-            // compass to reach endlessMineUnlockLevel. It never appears later in a trip.
+            // D13, D29, decision 2026-10-18: the Endless Mine is in act 1 and opens with it; the compass
+            // no longer gates it. It never appears later in a trip.
             java.util.List<DungeonDef> openMines = EndlessMineRules.openMines(dungeons.all(), acts, compass);
             DungeonDef mineDef = openMines.isEmpty() ? null : openMines.get(0);
             if (doors.length == TripDoors.DOOR_COUNT && mineDef != null) {
@@ -295,11 +295,7 @@ final class Keystone {
         }
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.put(ROOT, mine));
 
-        ChatFormatting colour = colourOf(ordered.isEmpty() ? null : ordered.get(0).id);
-        stack.set(DataComponents.CUSTOM_NAME,
-                Component.literal(AffixMath.name(clamped, affixes,
-                        AffixManifest.current().definitions()))
-                        .withStyle(colour).withStyle(s -> s.withItalic(false)));
+        stack.set(DataComponents.CUSTOM_NAME, nameOf(clamped, affixes, false));
 
         // One line per affix, in the same order the name renders them. Each one is
         // the curse and the kiss in a single sentence: the design rule (section
@@ -319,36 +315,93 @@ final class Keystone {
     }
 
     /**
-     * Shows the member's standing on every compass they carry, as lore lines: the compass level
+     * The item's name: {@code <intensifier> <affix> Compass [<level>]} in the endgame, plain
+     * {@link QuestLine#ITEM_NAME} in the campaign (decision 2026-10-18), coloured by the first affix.
+     */
+    private static Component nameOf(int level, Set<String> affixes, boolean campaign) {
+        List<AffixDefinition> definitions = AffixManifest.current().definitions();
+        List<AffixDefinition> ordered = AffixMath.ordered(affixes, definitions);
+        ChatFormatting colour = colourOf(ordered.isEmpty() ? null : ordered.get(0).id);
+        String text = campaign ? QuestLine.ITEM_NAME : AffixMath.name(level, affixes, definitions);
+        return Component.literal(text).withStyle(colour).withStyle(s -> s.withItalic(false));
+    }
+
+    /**
+     * The campaign quest line for {@code player} (decision 2026-10-18): lines of lore that name the dungeons
+     * to do next, or {@code null} once the campaign is done and the compass counts scrap again.
+     */
+    static List<String> questLines(ServerPlayer player, DungeonLog.Entry entry) {
+        if (Campaign.done(entry)) {
+            return null;
+        }
+        return QuestLine.lines(DungeonProgress.unlockedActs(player.level().getServer(), player.getUUID()),
+                entry.dungeonsFinished(), DungeonDefs.current().all(), Campaign.capstoneDungeonsNeeded());
+    }
+
+    /**
+     * Writes the campaign look onto a freshly minted {@code stack} (the name and the quest line), or does
+     * nothing in the endgame. For a stack made outside {@link #showCompass}, such as the hotbar copy a trip
+     * mints or a reconcile that replaced a stale one.
+     */
+    static void paintCampaign(ServerPlayer player, ItemStack stack) {
+        List<String> quest = questLines(player, DungeonLog.forServer(player.level().getServer()).get(player.getUUID()));
+        if (quest != null && isKeystone(stack)) {
+            paint(stack, quest, null, null);
+        }
+    }
+
+    /**
+     * Rewrites the status lines of one remote: the quest line and the plain name in the campaign
+     * ({@code quest} not null), otherwise the compass bar and, during a trip, the haul. Leaves the rest of the
+     * lore alone, so the affix blurbs stay; the campaign drops the old "Clear floors for scrap" hint.
+     */
+    private static void paint(ItemStack stack, List<String> quest, String compass, String haul) {
+        ItemLore existing = stack.get(DataComponents.LORE);
+        List<Component> lines = new ArrayList<>();
+        if (existing != null) {
+            for (Component component : existing.lines()) {
+                String text = component.getString();
+                if (text.startsWith("Compass ") || text.startsWith("Haul ") || text.startsWith("Scrap ")
+                        || QuestLine.isQuestLine(text)
+                        || quest != null && text.startsWith("Clear floors for scrap")) {
+                    continue;
+                }
+                lines.add(component);
+            }
+        }
+        if (quest != null) {
+            for (String line : quest) {
+                lines.add(grey(line));
+            }
+        } else {
+            lines.add(grey(compass));
+            if (haul != null) {
+                lines.add(grey(haul));
+            }
+        }
+        stack.set(DataComponents.LORE, new ItemLore(lines));
+        stack.set(DataComponents.CUSTOM_NAME, nameOf(levelOf(stack).orElse(1), affixOf(stack), quest != null));
+    }
+
+    /**
+     * Shows the member's standing on every compass they carry, as lore lines. In the campaign (decision
+     * 2026-10-18) the item is a quest line: {@code Next: Mineshaft, Lush Caves or Infestation}, then
+     * {@code 2 more for the Spawner Dungeon}, no number and no gate. In the endgame it is the compass level
      * with the bar to the next ({@code Compass 12: 3/5 scrap to 13}) and, during a trip, the haul
-     * ({@code Haul 5 scrap. Home banks it; a failed dungeon keeps half.}). Replaces those two lines
-     * and leaves the rest of the lore alone. Call after the haul or the bar changes.
+     * ({@code Haul 5 scrap. Home banks it; a failed dungeon keeps half.}). Replaces those lines
+     * and leaves the rest of the lore alone. Call after the haul, the bar or the dungeons finished change.
      */
     static void showCompass(ServerPlayer player, DungeonLog.Entry entry, boolean duringTrip) {
+        List<String> quest = questLines(player, entry);
         String compass = "Compass " + entry.highestCharts() + ": " + entry.chartProgress() + "/"
                 + ScrapMath.levelCost(entry.highestCharts()) + " scrap to " + (entry.highestCharts() + 1);
-        String haul = "Haul " + entry.haul() + " scrap. Home banks it; a failed dungeon keeps half.";
+        String haul = duringTrip ? "Haul " + entry.haul() + " scrap. Home banks it; a failed dungeon keeps half." : null;
         net.minecraft.world.entity.player.Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
-            if (!isKeystone(stack)) {
-                continue;
+            if (isKeystone(stack)) {
+                paint(stack, quest, compass, haul);
             }
-            ItemLore existing = stack.get(DataComponents.LORE);
-            List<Component> lines = new ArrayList<>();
-            if (existing != null) {
-                for (Component component : existing.lines()) {
-                    String text = component.getString();
-                    if (!text.startsWith("Compass ") && !text.startsWith("Haul ") && !text.startsWith("Scrap ")) {
-                        lines.add(component);
-                    }
-                }
-            }
-            lines.add(grey(compass));
-            if (duringTrip) {
-                lines.add(grey(haul));
-            }
-            stack.set(DataComponents.LORE, new ItemLore(lines));
         }
     }
 
@@ -428,11 +481,11 @@ final class Keystone {
         if (level <= 0) {
             return;
         }
-        reconcileContainer(player.getInventory(), level, affixes);
-        reconcileContainer(player.getEnderChestInventory(), level, affixes);
+        reconcileContainer(player, player.getInventory(), level, affixes);
+        reconcileContainer(player, player.getEnderChestInventory(), level, affixes);
     }
 
-    private static void reconcileContainer(net.minecraft.world.Container container,
+    private static void reconcileContainer(ServerPlayer player, net.minecraft.world.Container container,
                                            int level, Set<String> affixes) {
         for (int i = 0; i < container.getContainerSize(); i++) {
             ItemStack stack = container.getItem(i);
@@ -456,6 +509,8 @@ final class Keystone {
             // transaction state. The level and affix are the authority the
             // reconciliation is correcting; the transaction state is not.
             carryTransactionState(stack, replacement);
+            // A replacement is a fresh label; in the campaign it wears the quest line, not the endgame text.
+            paintCampaign(player, replacement);
             container.setItem(i, replacement);
         }
     }
