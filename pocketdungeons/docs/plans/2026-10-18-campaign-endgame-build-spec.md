@@ -316,3 +316,11 @@ skill; regenerate the templates.
 - No save format changed without a reader for the old shape and a golden fixture.
 - The report in `docs/reports/campaign-endgame-build.md` lists deviations and live-only checks.
 - Nothing pushed, nothing deployed, `master` untouched.
+
+---
+
+## Build status
+
+| Task | Branch | Merged | Tests | Notes |
+|---|---|---|---|---|
+| T0 | feature/rm-t0-campaign-seam | yes | SUITE GREEN, 357 | pure 124 green; agent runs were flaky under load, integration run green |
