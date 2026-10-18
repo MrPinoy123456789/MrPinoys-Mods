@@ -855,6 +855,15 @@ final class RoomSelector {
     private static final int MAX_BACKTRACK_STEPS = 50000;
 
     /**
+     * Payoff rooms (plan 2026-10-17): a cell off the spine draws a room whose {@code requires} are all
+     * provided upstream this many times as often as its declared weight says. Seed tags (a bag's, or the
+     * party's {@code mob}) do not count: they would make the draw differ by bag. Three is a nudge, the same
+     * size as a recipe's {@code weightedRooms} boost, never a guarantee: a room whose requirements are not
+     * met keeps its weight and may still appear as a shut bonus.
+     */
+    static final int PAYOFF_WEIGHT_FACTOR = 3;
+
+    /**
      * One run of the 6.6 pass over one shape.
      *
      * <p>State lives in an object rather than in locals because backtracking
@@ -1130,16 +1139,29 @@ final class RoomSelector {
         private Set<String> availableFor(int index) {
             Set<String> available = new LinkedHashSet<>(
                     onSpine.contains(order.get(index)) ? spineSeed : bagTags);
+            available.addAll(providedBefore(index));
+            return available;
+        }
+
+        /**
+         * The tags the rooms strictly closer to the entrance than cell {@code index} provide, with no seed
+         * tags. Bag independent by construction, which is why the payoff bias reads this and not
+         * {@link #availableFor}: a bias that depended on the bag's tags would make spur draws differ by bag,
+         * and a spur's provides feed the spine, so the spine would stop being the same for every bag
+         * (GraphSolvabilityTest.testSpineSameForEveryBag).
+         */
+        private Set<String> providedBefore(int index) {
+            Set<String> provided = new LinkedHashSet<>();
             int depth = depths.getOrDefault(order.get(index), 0);
             for (int i = 0; i < index; i++) {
                 if (depths.getOrDefault(order.get(i), 0) >= depth) {
                     break;
                 }
                 if (assignments[i] != null) {
-                    available.addAll(assignments[i].entry().meta.provides);
+                    provided.addAll(assignments[i].entry().meta.provides);
                 }
             }
-            return available;
+            return provided;
         }
 
         Map<PlanCell, DungeonPlan.PlacedRoom> placed() {
@@ -1180,15 +1202,27 @@ final class RoomSelector {
              */
             private final boolean startedEmpty;
 
+            /** The tags provided by rooms closer to the entrance than this cell (no seed); see {@link #providedBefore}. */
+            private final Set<String> upstream;
+
+            /** The seed plus {@link #upstream}: what the solvability filter allows this cell to ask for. */
+            private final Set<String> available;
+
+            /** Whether this cell is off the spine (a branch), where payoff rooms live. */
+            private final boolean offSpine;
+
             CellState(int index) {
                 PlanCell cell = order.get(index);
+                this.upstream = providedBefore(index);
+                this.available = availableFor(index);
+                this.offSpine = !onSpine.contains(cell);
                 List<RoomManifest.Match> all = matches.get(index);
                 List<RoomManifest.Match> pool;
                 if (forced.contains(cell)) {
                     pool = roleOnly(all);
                 } else {
                     int branch = branches.getOrDefault(cell, SPINE_BRANCH);
-                    pool = solvable(all, availableFor(index), onSpine.contains(cell),
+                    pool = solvable(all, available, onSpine.contains(cell),
                             gatedBefore(index).contains(branch), cell.equals(gateCell), maxTier);
                 }
                 this.startedEmpty = pool.isEmpty();
@@ -1240,7 +1274,11 @@ final class RoomSelector {
                         * RoomEligibility.weightFactor(RoomEligibility.RoomTags.of(match.entry().meta), floor);
                 if (!weightedRooms.isEmpty()
                         && weightedRooms.contains(match.entry().name)) {
-                    return base * 3;
+                    base *= 3;
+                }
+                List<String> requires = match.entry().meta.requires;
+                if (offSpine && !requires.isEmpty() && upstream.containsAll(requires)) {
+                    base *= PAYOFF_WEIGHT_FACTOR;
                 }
                 return base;
             }

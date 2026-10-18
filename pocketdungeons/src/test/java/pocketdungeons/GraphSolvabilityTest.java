@@ -61,6 +61,7 @@ public class GraphSolvabilityTest {
         testSpineSameForEveryBag();
         testConsumableNeverGatesTheSpine();
         testAccessPlacement();
+        testPayoffRoomsAreFavoured();
         testGuaranteePreservesSolvability();
         testGatedRoomsFaceTheApproach();
         System.out.println("GraphSolvabilityTest passed");
@@ -888,6 +889,72 @@ public class GraphSolvabilityTest {
         }
         assertInvariant(23, shape, result.plan(), manifest, BagTags.pilgrim(),
                 result.fallbackCells());
+    }
+
+    /**
+     * Payoff rooms (plan 2026-10-17): a dead end off the spine draws a room whose {@code requires} are met
+     * upstream three times as often as its declared weight says, and only when the provider is strictly
+     * closer to the entrance. The fixture is a three cell spine (entrance, a loot cell, an encounter cell)
+     * and one spur cell that can take either a {@code gold} consumer or a plain passage at equal weight.
+     */
+    private static void testPayoffRoomsAreFavoured() {
+        double upstream = payoffShare("upstream");
+        if (upstream <= 0.65) {
+            throw new AssertionError("a payoff room should be favoured when its provider is upstream; the gold room's "
+                    + "share was " + upstream + " (expected about 0.75)");
+        }
+        double none = payoffShare("none");
+        if (none < 0.35 || none > 0.65) {
+            throw new AssertionError("a payoff room is not favoured without a provider; the gold room's share was "
+                    + none + " (expected about 0.5)");
+        }
+        double sameDepth = payoffShare("sameDepth");
+        if (sameDepth < 0.35 || sameDepth > 0.65) {
+            throw new AssertionError("a provider at the spur's own depth does not count; the gold room's share was "
+                    + sameDepth + " (expected about 0.5)");
+        }
+    }
+
+    /**
+     * The share of 400 seeded draws in which the spur cell took the {@code gold} consumer. {@code provider} is
+     * {@code upstream} (the loot cell provides gold, one step shallower than the spur), {@code none} (it does
+     * not) or {@code sameDepth} (the spur hangs off the entrance, level with the provider).
+     */
+    private static double payoffShare(String provider) {
+        PlanCell entrance = new PlanCell(0, 0);
+        PlanCell loot = new PlanCell(1, 0);
+        PlanCell end = new PlanCell(2, 0);
+        PlanCell spur = provider.equals("sameDepth") ? new PlanCell(0, 1) : new PlanCell(1, 1);
+        PlanCell spurParent = provider.equals("sameDepth") ? entrance : loot;
+        int taken = 0;
+        int seeds = 400;
+        for (long seed = 0; seed < seeds; seed++) {
+            Set<PlanCell> cells = new LinkedHashSet<>(List.of(entrance, loot, end, spur));
+            Set<PlanEdge> edges = new LinkedHashSet<>(List.of(
+                    new PlanEdge(entrance, loot), new PlanEdge(loot, end), new PlanEdge(spurParent, spur)));
+            Map<PlanCell, String> roles = new LinkedHashMap<>();
+            roles.put(entrance, RoleIds.ENTRANCE);
+            roles.put(loot, RoleIds.LOOT);
+            roles.put(end, RoleIds.ENCOUNTER);
+            roles.put(spur, RoleIds.CORRIDOR);
+            DungeonShape shape = new DungeonShape(seed, cells, edges, entrance, end,
+                    List.of(entrance, loot, end), roles);
+
+            List<RoomManifest.Entry> entries = new ArrayList<>();
+            entries.addAll(everyMask("hall", List.of("entrance"), List.of(), List.of()));
+            entries.addAll(everyMask("loot_room", List.of("loot"),
+                    provider.equals("none") ? List.of() : List.of(SituationTags.GOLD), List.of()));
+            entries.addAll(everyMask("plain_fight", List.of("encounter"), List.of(), List.of()));
+            entries.addAll(everyMask("payoff", List.of("corridor"), List.of(), List.of(SituationTags.GOLD)));
+            entries.addAll(everyMask("plain_pass", List.of("corridor"), List.of(), List.of()));
+            RoomManifest manifest = RoomManifest.create(entries, List.of());
+
+            RoomSelector.Result result = RoomSelector.resolveDetailed(shape, manifest, null, BagTags.pilgrim());
+            if (result.plan().rooms().get(spur).name().startsWith("payoff")) {
+                taken++;
+            }
+        }
+        return taken / (double) seeds;
     }
 
     /**
