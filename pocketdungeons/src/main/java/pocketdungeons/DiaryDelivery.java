@@ -54,8 +54,12 @@ final class DiaryDelivery {
             return;
         }
 
+        boolean first = entry.diaryBandsSeen().isEmpty();
         Payout.deliver(player, book(diary));
         log.addDiaryBand(player.getUUID(), band);
+        if (first) {
+            FirstVisitTutorial.diaryFound(player.level().getServer(), player);
+        }
         player.sendSystemMessage(Component.literal("A worn book slid free of the rubble: \""
                 + diary.title() + ".\"").withStyle(ChatFormatting.LIGHT_PURPLE));
         DiaryReading.start(player, diary);
@@ -82,8 +86,12 @@ final class DiaryDelivery {
         if (diary == null || entry.diaryBandsSeen().contains(diary.band())) {
             return false;
         }
+        boolean first = entry.diaryBandsSeen().isEmpty();
         Payout.deliver(player, book(diary));
         log.addDiaryBand(player.getUUID(), diary.band());
+        if (first) {
+            FirstVisitTutorial.diaryFound(player.level().getServer(), player);
+        }
         player.sendSystemMessage(Component.literal("A page of Alex's diary waits in the vault: \""
                 + diary.title() + ".\"").withStyle(ChatFormatting.LIGHT_PURPLE));
         DiaryReading.start(player, diary);

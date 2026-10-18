@@ -9,8 +9,20 @@ node to a player.
 
 - **Starting:** type `/dungeon`, or use the wall lodestone in your room (Home
   menu: Start Dungeon, Manage Room, Inspect Compass, Manage Party, View
-  Lobbies). Choose a bag at the bag chest; that is when the kit is given, once.
-  Entering and leaving never grant items, and nothing refills a kit.
+  Lobbies). The bag chest says there is equipment left behind; press Take it for
+  the starter tools (wooden axe, pickaxe and shovel). There is one bag, not a
+  choice. Entering and leaving never grant items, and nothing refills it.
+- **Act 0, The First Night:** a new player's first dungeon, before Act 1. Five
+  floors, no lives to lose (deaths cost nothing here), and nothing is paid until
+  the last floor. The Home lever is locked until the finish; the Quit Door
+  restarts the night and clears the pack. The last floor is one trial spawner.
+  Finishing it banks 2 scrap, which is exactly what Compass 2 costs, and opens
+  Act 1. Lives start in Act 1. Teach the dungeons in general (the door board,
+  the lever, the pad at the end of a floor, scrap, compass, a furnace smelts
+  ore with fuel). Do not tell a player what to gather on a given floor.
+- **Alex and the diaries:** Lemon is Alex's Allay. She lost Alex somewhere in the
+  pocket dungeons and came out of the compass to look. She needs Alex's diaries
+  to find her, so she asks the player to keep every page.
 - **Compass:** your level, shown as `Compass 10: 4/7` (scrap banked toward the
   next level, and what that level costs). It only ever goes up. The first one is
   free (`/dungeon key`); a lost one is replaced at the level you earned. A level
@@ -56,7 +68,7 @@ node to a player.
   dungeon banks the whole haul into your compass and rolls the deepest floor's
   reward count into your reward barrel. A finish also pays emeralds and vault
   chests; finishing the same dungeon again pays half the emeralds.
-- **Lives:** the party shares 5 lives per trip. A death costs one; Blood or a
+- **Lives (from Act 1; Act 0 has none to lose):** the party shares 5 lives per trip. A death costs one; Blood or a
   side door costs one (or two). The fifth death fails the dungeon.
 - **Failing:** a failed dungeon keeps half of everyone's haul, and the party is
   sent back to the Home room (not out of the dungeon dimension), still together,

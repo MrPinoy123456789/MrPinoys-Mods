@@ -1623,6 +1623,7 @@ final class Instances {
             announceOminousRoll(server, record);
         }
         armCommittedFloor(level, record, offer, plan, layout, effectiveThemeId, openingMine);
+        FirstVisitTutorial.floorStarted(server, record);
         refreshStagingAfterCommit(server, level, record);
 
         // M78: publish the Mine rules at the commitment surface the first time

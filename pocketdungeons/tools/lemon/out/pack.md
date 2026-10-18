@@ -30,8 +30,20 @@ node to a player.
 
 - **Starting:** type `/dungeon`, or use the wall lodestone in your room (Home
   menu: Start Dungeon, Manage Room, Inspect Compass, Manage Party, View
-  Lobbies). Choose a bag at the bag chest; that is when the kit is given, once.
-  Entering and leaving never grant items, and nothing refills a kit.
+  Lobbies). The bag chest says there is equipment left behind; press Take it for
+  the starter tools (wooden axe, pickaxe and shovel). There is one bag, not a
+  choice. Entering and leaving never grant items, and nothing refills it.
+- **Act 0, The First Night:** a new player's first dungeon, before Act 1. Five
+  floors, no lives to lose (deaths cost nothing here), and nothing is paid until
+  the last floor. The Home lever is locked until the finish; the Quit Door
+  restarts the night and clears the pack. The last floor is one trial spawner.
+  Finishing it banks 2 scrap, which is exactly what Compass 2 costs, and opens
+  Act 1. Lives start in Act 1. Teach the dungeons in general (the door board,
+  the lever, the pad at the end of a floor, scrap, compass, a furnace smelts
+  ore with fuel). Do not tell a player what to gather on a given floor.
+- **Alex and the diaries:** Lemon is Alex's Allay. She lost Alex somewhere in the
+  pocket dungeons and came out of the compass to look. She needs Alex's diaries
+  to find her, so she asks the player to keep every page.
 - **Compass:** your level, shown as `Compass 10: 4/7` (scrap banked toward the
   next level, and what that level costs). It only ever goes up. The first one is
   free (`/dungeon key`); a lost one is replaced at the level you earned. A level
@@ -77,7 +89,7 @@ node to a player.
   dungeon banks the whole haul into your compass and rolls the deepest floor's
   reward count into your reward barrel. A finish also pays emeralds and vault
   chests; finishing the same dungeon again pays half the emeralds.
-- **Lives:** the party shares 5 lives per trip. A death costs one; Blood or a
+- **Lives (from Act 1; Act 0 has none to lose):** the party shares 5 lives per trip. A death costs one; Blood or a
   side door costs one (or two). The fifth death fails the dungeon.
 - **Failing:** a failed dungeon keeps half of everyone's haul, and the party is
   sent back to the Home room (not out of the dungeon dimension), still together,
@@ -1008,6 +1020,20 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Pass:** the spawner reaches cooldown with the stray outside the floor, and no enderman noise persists on roofs after the floor ends.
 - **Fail signs:** the floor stalls on an escaped mob (the original PD-113), or the stray remains audible/visible after release (PD-213, seen once already).
 
+### L101: The Proving, a wave-arena descent (decision 2026-10-16)
+- **Status:** owed (built 2026-10-16; not yet played live; arena look and feel unverified)
+- **Changed:** `the_proving` is a new dungeon of kind `proving`, offered beside the Endless Mine on the astrolabe's special row (act 1, compass gate as the Mine's). Each floor is two rooms, gate plus arena, with one wave spawned in the arena when the floor commits. Wave size is `provingWaveBaseSize` (5) + `provingWaveSizePerFloor` (2) per floor + `provingWaveSizePerMember` (2) per extra member, capped at `provingWaveMaxSize` (20); every `provingChampionEvery` (3) floors the last spawn is a named Champion scaled half again. The pad refuses while the wave stands ("The wave still stands. Finish it first."), the checkpoint offers a door deeper or the HOME lever, and pay climbs the act's loot tiers (floor 1 pays tier A, floor 2 B, floor 3+ C).
+- **Do:** enter the Proving from the astrolabe. Fight floor 1, use the door deeper, reach floor 3 (a champion floor), and bank with the HOME lever. Try it at low and high compass and with a second member.
+- **Pass:** the offer appears on the special row; each floor is a gate and an arena with one wave; the pad refuses while any wave mob lives and opens when it falls; floor 3 sends a named Champion; the checkpoint prints the Proving line and banking pays the climb ("You leave the Proving with N floors banked.").
+- **Fail signs:** no offer on the special row; a floor that stalls after the wave falls (pad stuck shut); a wave mob that cannot reach the players; waves or pay that do not deepen; a Proving floor that counts toward act completion or shows as a normal door.
+
+### L102: Phased boss floors, Copper Works pilot (decision 2026-10-16)
+- **Status:** owed (built 2026-10-16; not yet fought live)
+- **Changed:** `BossFight` is the shared phased spine: an elite's health is cut into phases by fraction bounds; crossing a bound staggers the boss (`bossPhaseStaggerSeconds`, 3s invulnerable and mindless, title lines plus the ravager-stunned sound) and arms the next phase when the stagger ends. Phases advance one at a time, so burst compresses transitions but cannot skip a phase. Copper Works pilot: phase 1 baseline, phase 2 wakes the vents (`copperVentPulseSeconds`, `copperVentBlownPercent`, `copperVentBurnSeconds`), phase 3 quickens them and sharpens the vat (`copperForemanVatDamage` x `copperForemanVatCorneredMultiplier` when cornered, `copperForemanVatWeakSeconds`, `copperVentCorneredPercent`).
+- **Do:** clear Copper Works and fight the Foreman at ordinary gear, then again overleveled. Watch the phase tells, when the vents first fire, and whether the vat weakness reads.
+- **Pass:** all three phases play in order even under burst; each transition shows its title and the stagger is readable; vents stay silent in phase 1 and fire from phase 2; the pad still opens only on the kill. PD-208's failure mode (an elite dying before its mechanic registers) cannot recur: a staggered boss is invulnerable while the next phase arms.
+- **Fail signs:** a phase skipped by burst; the stagger reading as "the game ate my crit"; vents firing in phase 1 or with no readable rhythm; the boss dying before phase 3's tell.
+
 # Rooms (id: roles, tier, depth, requirements)
 
 - admirals_vault: encounter/loot/corridor, tier 1, depth 0+
@@ -1107,6 +1133,7 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - mineshaft_dead_end: encounter/loot/corridor, tier 1, depth 1+
 - mineshaft_junction: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_seam: encounter/loot/corridor, tier 1, depth 0+
+- mineshaft_timber_vein: encounter/loot/corridor, tier 1, depth 0+
 - mineshaft_tunnel: encounter/loot/corridor, tier 1, depth 0+
 - monument_heart: encounter/loot/corridor, tier 1, depth 0+
 - mossy_tee: encounter/corridor, depth 2+
@@ -1117,6 +1144,8 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - plate_pair: corridor, tier 1, depth 0+, needs mob, access gated
 - pot_room: corridor, tier 1, depth 0+, pressure omen
 - powder_snow_field: corridor, tier 2, depth 0+, pressure local
+- proving_arena: exit, tier 1, depth 0+
+- proving_gate: entrance, tier 1, depth 0+
 - queens_nest: encounter/loot/corridor, tier 1, depth 0+
 - rising_lava: corridor, tier 2, depth 2+, pressure local
 - root_sandbar: encounter/loot/corridor, tier 1, depth 0+
