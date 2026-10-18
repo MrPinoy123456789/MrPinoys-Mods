@@ -107,6 +107,7 @@ lemonIdleSeconds = 20
 lemonLingerSeconds = 4
 lemonLlmLapseSeconds = 300
 lemonThinkSeconds = 90
+livesPerExtraMember = 1
 loopProbability = 0.3
 lootDurabilityPercent = 110
 lootPercentPerWager = 50

@@ -138,6 +138,7 @@
   "creepingInfestedSeconds": 1,
   "creepingRoomCap": 1,
   "creepingFloorCap": 1,
+  "livesPerExtraMember": 0,
   "creepingRoomSeeds": 0,
   "infestationBossScale": 1.0,
   "infestationSurfaceSeconds": 5,
