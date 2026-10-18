@@ -176,7 +176,7 @@ public final class FloorLoopGameTest {
                 return;
             }
         }
-        if (!Omen.nextDeathFails(4) || Omen.nextDeathFails(3)) {
+        if (!Omen.nextDeathFails(4, Omen.LIVES) || Omen.nextDeathFails(3, Omen.LIVES)) {
             helper.fail("the fifth death ends the run, the fourth does not");
             return;
         }
@@ -184,6 +184,24 @@ public final class FloorLoopGameTest {
             helper.fail("a floor pays three chests whatever the omen");
             return;
         }
+        helper.succeed();
+    }
+
+    /**
+     * The trip's lives follow the party until the first door is stamped, then freeze: a member who
+     * joins later adds nothing (solo 5, four 8, a fifth member nothing more).
+     */
+    @GameTest(maxTicks = 20)
+    public void livesFreezeAtTheFirstDoor(GameTestHelper helper) {
+        IntervalState trip = new IntervalState();
+        helper.assertValueEqual(trip.maxLives, 5, "a fresh trip is the solo base");
+        trip.settleMaxLives(4);
+        helper.assertValueEqual(trip.maxLives, 8, "four members make eight lives");
+        trip.settleMaxLives(6);
+        helper.assertValueEqual(trip.maxLives, 8, "a fifth member adds nothing");
+        trip.dungeonId = "pocketdungeons:test";
+        trip.settleMaxLives(1);
+        helper.assertValueEqual(trip.maxLives, 8, "after the first door the max is fixed");
         helper.succeed();
     }
 }
