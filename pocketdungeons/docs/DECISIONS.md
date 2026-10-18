@@ -1016,3 +1016,138 @@ The gold half of 2026-10-09 item 6. `ominous_bargain` stays toll free.
 ### Open until played
 
 Whether one ingot is the right price once players can find gold (supply chests, and `the_herd` gold blocks, which need an iron pickaxe).
+
+---
+
+## 2026-10-18: Campaign and endgame
+
+Approved by the owner on 2026-10-18 with every recommendation of `docs/plans/2026-10-18-campaign-and-endgame-brief.md`
+and option a for Dungeon Storage. The brief holds the research, the stories and the options not taken; this record is
+the rule. Nothing is built.
+
+The player's sentence: *In the campaign my compass tells me which dungeons to do next, and what's in my pack is at
+risk; when I finish the campaign my compass wakes up, the Chart Room opens, and from then on it levels on scrap.*
+
+### The frame: three layers
+
+| Layer | Plays like | Owns |
+|---|---|---|
+| The floor | Lethal Company, REPO | fear from rules (light, sound, water, sight), not only health bars |
+| The trip | Darkest Dungeon | push or go home: the haul at risk, shared lives, the lever |
+| Home and the compass | Diablo, Path of Exile | the long climb: the campaign, the compass, gear, the room |
+
+Gear lets you fight; it never makes you safe. A feature passes its layer's test: the floor (a veteran in netherite can
+still fear it), the trip (it changes push or go home), home (it makes the next trip possible without making the floor
+safe).
+
+### The model
+
+| Thing | Rule | Lives in | At risk |
+|---|---|---|---|
+| Campaign | Acts 0 to 5; each dungeon keeps its own level (D27); never scales to the player | `FloorLevels`, `DifficultyProfile` | |
+| Campaign mob curve | `0.85 + 0.02 x level` (level 8 about vanilla, level 20 at 1.25), starting values | `mobScaleBase`, `mobScalePerLevel` | |
+| Deaths harden the floor | 0 in Act 1, 0.1 from Act 2 | `omenDangerScalePerOmen`, per act | |
+| Capstone | opens after 3 of the act's dungeons; the act's Endless Mine is an optional dive, not a gate | `capstoneDungeonsNeeded` (3), `ActProgress` | |
+| Compass in the campaign | a quest line on the item: `Next: Mineshaft, Lush Caves or Infestation`, `2 more for the Spawner Dungeon`; no number, no gate | `Keystone` lore and name | never |
+| Campaign scrap | none; the board's pay line names items | `DungeonScreen.previewGets` | |
+| Compass after the campaign | the last capstone on the server shows `Your compass wakes up.`; Compass 1, 0 scrap; then scrap as the 2026-10-07 and 2026-10-09 records say | `DungeonLog` compass record | half the scrap haul on a fail |
+| The pack | the 27 inventory slots are the haul, whatever the items' origin | the rescue | moves to a pot on a rescue |
+| Safe | armour slots, offhand, the 9 hotbar slots, Dungeon Storage, home room chests | | never |
+| Dungeon Storage | during a trip opens only at the Doors and at home; mid-run ender chests stop opening it | `RunStorage` | never |
+| The pot | a decorated pot fixture, `<player>'s pack`, a 27 slot virtual menu, opened by its owner and the party | new | |
+| An unemptied pot when the floor ends | keeps half | `potKeepPercent` (50) | half |
+| A failed dungeon | every pot plus every member's pack keeps half | `failHaulKeepPercent` (50) | half |
+| Endgame | the Chart Room opens after the capstone of the last act on the server (Act 2 for release) | `releaseMaxAct` (2) | |
+| Uncharted door | a generated 3 floor dungeon from the finished acts' themes; at least half its affixes are rules; a guardian finale on the phased spine; level = compass + step 0 to 3; three doors, reroll per trip | new generator | the pack, and half the scrap haul on a fail |
+| Endgame dive | the Endless Mine and the Proving merged: mining floors, every third floor an arena with waves and then the guardian; scales with the compass, no depth cap | `MineGuardians`, `proving_arena`, `BossFight` | |
+| Lives | `4 + members` at the first door commit (solo 5, four 8) | `Omen.LIVES` becomes a function | |
+| Loot band | the highest act finished (D10); the endgame chase is the score, the Loot percent and room materials, not power | `LootBands` | |
+
+### Rules
+
+1. **Our death.** Nobody dies in a dungeon: a killing blow becomes a rescue (`Instances.rescue`). Every pack rule
+   happens inside the rescue, after the life is spent and before the teleport. Vanilla drops and keepInventory are
+   never involved.
+2. **The pot.** On a rescue every stack in the pack moves into a new pot on the block where the player fell. If that
+   is lava, the void, deep water, a voided cell or a sealed ordeal room the player cannot re-enter, the pot stands at
+   the nearest door of that cell. Never on the pad or in a door lane. Each rescue makes its own pot. The pot is a
+   fixture and cannot be broken.
+3. **Legibility.** The sidebar shows `Pots N` while any stand on the floor. The first pot of a trip says once: `Your
+   pack stayed where you fell.`
+4. **Floor end.** When a floor ends (descend, go home, a finish), an unemptied pot keeps half, into its owner's pack,
+   or Dungeon Storage if the pack is full.
+5. **Failing.** The fifth rescue makes its pot, then the dungeon fails: every pot of the dungeon and every member's
+   pack keeps half, and the party goes home with it (`failReturnsHome`). This replaces "You keep what you carry".
+6. **Half, exactly.** Each stack keeps half rounded down; the single items left over keep every other one, best tier
+   first, seeded by the trip.
+7. **Leaving and disconnecting.** Leaving a floor in progress fails the dungeon for the leaver (PD-192), so rule 5
+   applies to them. A disconnect is not a rescue; the reconnect grace still holds the run.
+8. **Exempt.** Act 0 makes no pots. A rescue with no room to return to (admin, untimed, visit) makes none.
+9. **Campaign gates.** Campaign doors are gated by act order and the capstone rule. `unlockLevel` stops gating them;
+   locked doors read `Finish Act 1` or `Finish 3 dungeons`, never `Compass N`.
+10. **Endgame gates.** The Chart Room is reached from the Astrolabe Room. A finished act adds its themes to the
+    uncharted doors' pool. The compass never drops.
+11. **Never soft-lock.** An uncharted door's spine passes the same solvability check; a pot never blocks a path.
+
+### Migration
+
+- A player mid campaign keeps their compass level and bar in the save, unread, as their starting endgame compass.
+  The item switches to the quest line on the next join, with one message: `Your compass now shows the way. It will
+  count again when the campaign is done. What's in your pack is at risk. Your hotbar, armour and Dungeon Storage are
+  safe.`
+- A player who has finished the last shipped act's capstone gets the Chart Room at once and keeps their level.
+- Pots are floor state and never persist. A "campaign done" flag only if the stored act set cannot answer it.
+- Act 0 ends on the first quest line, `Next: the Mineshaft`, not on Compass 2.
+
+### Supersedes
+
+- D23 (the compass gates dungeons): campaign only; replaced by act order and the capstone rule.
+- D29 and the 2026-10-11 Endless Mine act gate rows (every dungeon plus the mine's floor 3): replaced by three
+  dungeons and an optional mine.
+- 2026-10-07 Haul and Blood Doors, "Failing", and `Instances.java:2233`: a fail settles packs and pots at half (and,
+  in the endgame, the scrap haul as before). Its "Earning" applies to the endgame only.
+- 2026-10-09 scrap curve (Q2): endgame only.
+- U8 Stage 1, "dying inside costs nothing" (`Instances.java:2168`): a rescue now moves the pack into a pot.
+- J6, Dungeon Storage from any ender chest mid-run: during a trip only at the Doors and at home.
+- J3, five lives per trip: `4 + members`.
+- 2026-10-15 The Proving: retired as its own door; kept as the endgame dive's arena floors.
+- 2026-10-17 Act 0: the 2 scrap finish (`actZeroScrap`, `compassCostFirstLevel`) and Compass 2; Act 0 ends on the
+  quest line.
+- VISION section 2, "progress is a key level": endgame only.
+- Plan `2026-10-17-design-review.md`: item 2 narrowed to the endgame; items 4, 5 (amended: the release ships the Chart
+  Room), 6 and 8 (moved into the Chart Room) are carried in by this record. Items 1, 3, 7 and 9 are still proposals
+  for the owner, except that Act 0's last lever banks the pack and the campaign board names items.
+
+### Names (owner approved 2026-10-18)
+
+New player-facing words: **Chart Room**, **uncharted door**, **pack**, **pot**. Settled words keep their meaning:
+compass, scrap, haul, lives, charts.
+
+### Knobs
+
+`mobScaleBase` (0.85), `mobScalePerLevel` (0.02), `omenDangerScalePerOmen` (per act: 0 in Act 1, 0.1 from Act 2),
+`capstoneDungeonsNeeded` (3), `releaseMaxAct` (2), `potKeepPercent` (50), `failHaulKeepPercent` (50),
+`livesPerExtraMember` (1), the uncharted door's floor count (3) and step range (0 to 3), the rule affix share (half),
+the Chart Room door count (3), the endgame level cost (`scrapCostBase`, `scrapCostEvery`).
+
+### Held
+
+A timed trial (Greater Rift style) until the uncharted doors have been played. One heavy thing (a relic carried to the
+pad) as a later uncharted floor type.
+
+### Build order
+
+| Phase | Scope | Owed before the next |
+|---|---|---|
+| 1 | curve retune, capstone after three, quest-line compass, no campaign scrap, migration | one Act 1 trip: the compass names the next dungeons |
+| 2 | the pack and the pot, Dungeon Storage at the Doors only | a pot retrieved under pressure, and one left for half |
+| 3 | the Chart Room and uncharted doors, the compass wakes up | one uncharted door cleared live |
+| 4 | the endgame dive (mine plus arena) | a guardian that lives long enough for its rule |
+| 5 | one heavy thing | a relic carried to the pad by a party |
+
+### Open until played
+
+Whether the quest line reads as guidance or a chore list; whether `Your compass wakes up.` lands as a reward;
+whether walking back for a pot is a story or a chore, and whether `Pots N` is read; whether hotbar stuffing becomes
+the default; whether a walk back to the Doors for Dungeon Storage feels like a price or a nuisance; whether three
+uncharted floors suit a single session trip; whether rule affixes keep a veteran afraid.

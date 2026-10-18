@@ -829,6 +829,27 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Pass:** the Gilded Vault takes exactly one ingot, pays once per player and reads as a vanilla vault; the Mason's gap cannot be jumped; a wind charge from the chiseled tuff reaches the Windlift ledge; each room shows its cache through the window from the corridor; a room whose tag was missing is shut but never blocks the floor.
 - **Fail signs:** a payoff room on the main path; the vault taking more than one ingot or paying twice; the Mason's gap jumpable at a sprint; the Windlift ledge reachable without a charge or blocks; the cache invisible from the corridor.
 
+## L104: The quest-line compass (decision 2026-10-18)
+- **Status:** owed (approved 2026-10-18; not built)
+- **Changed:** in the campaign the compass names the dungeons to do next and pays no scrap; a capstone opens after three of the act's dungeons and the Endless Mine is optional; campaign doors read `Finish Act N` or `Finish 3 dungeons`, never `Compass N`; the last capstone on the server shows `Your compass wakes up.`
+- **Do:** with a fresh player, finish Act 0 and two Act 1 dungeons, reading the compass after each; then finish a third and open the capstone.
+- **Pass:** the player can say what to do next from the compass alone; the capstone opens on the third finish without the mine; no scrap line appears on a campaign floor.
+- **Fail signs:** the quest line read as a chore list; a locked door showing a compass number; the player asking where scrap went.
+
+## L105: The pack and the pot (decision 2026-10-18)
+- **Status:** owed (approved 2026-10-18; not built)
+- **Changed:** a rescue moves the 27 pack slots into a pot where the player fell; armour, offhand, hotbar and Dungeon Storage are safe; an unemptied pot keeps half when the floor ends; a failed dungeon keeps half of every pot and pack; Dungeon Storage opens only at the Doors and at home during a trip.
+- **Do:** die once with loot in the pack and walk back for the pot; die again and leave the pot when the floor ends; in a party, carry a teammate's pot home; fail one dungeon with pots on the floor.
+- **Pass:** the pot stands where the player fell (or at the cell's door when that spot is unsafe), opens for the party, shows on the sidebar as `Pots N`; the halves match the rule; hotbar and armour never move.
+- **Fail signs:** a pot in lava, the void or a sealed room; a pot blocking a door or the pad; items lost outright instead of halved; an ender chest mid-run still opening Dungeon Storage.
+
+## L106: The Chart Room and uncharted doors (decision 2026-10-18)
+- **Status:** owed (approved 2026-10-18; not built)
+- **Changed:** after the last capstone on the server the Chart Room opens with three generated 3 floor doors (themes from the finished acts, half the affixes rules, a phased guardian finale, level = compass + step) and the endgame dive (mine floors with an arena every third floor).
+- **Do:** clear one uncharted door at step 0 and one at step 3; take the dive to its first arena.
+- **Pass:** a veteran at compass 15+ loses at least one life on a step 3 door; the guardian's rule shows before it dies; the doors reroll after the trip.
+- **Fail signs:** a door that is only stat affixes; a guardian dying before its first phase tell; the same three doors twice.
+
 ## Done
 
 - **PD-92** max-omen ejection keeps each stack once: passed 2026-10-01 (`2026-10-01-1.md`).
