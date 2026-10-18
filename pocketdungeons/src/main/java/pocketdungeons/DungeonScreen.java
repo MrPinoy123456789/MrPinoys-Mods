@@ -451,7 +451,10 @@ final class DungeonScreen {
                                                 Keystone.Offer offer, DungeonDef def, DungeonDef.Node node,
                                                 boolean oreHonest, Set<String> effective) {
         MutableComponent gets = Component.empty();
-        if (offer.step() > 0) {
+        // Decision 2026-10-18: a campaign door pays items, never scrap, so the board names no scrap part.
+        boolean campaignDoor = !(record.interval.endlessMine || EndlessMineRules.isMineOffer(offer))
+                && Campaign.isCampaignTrip(def);
+        if (offer.step() > 0 && !campaignDoor) {
             int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts(),
                     FloorPay.bonus(def, offer.nodeId(), record.interval.endlessMine || EndlessMineRules.isMineOffer(offer),
                             record.interval.floorIndex + 1));

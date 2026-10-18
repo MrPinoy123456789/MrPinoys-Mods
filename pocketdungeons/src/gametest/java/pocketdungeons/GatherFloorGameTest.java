@@ -141,7 +141,7 @@ public final class GatherFloorGameTest {
         helper.assertTrue(HallOffers.build(server, id, 0).act() >= 1, "the astrolabe no longer shows Act 0");
         log.resetCampaign(id);
         helper.assertTrue(!DungeonProgress.prologueDone(log, id), "a key reset reopens Act 0");
-        helper.assertValueEqual(ScrapMath.levelCost(1), 2, "leaving compass 1 costs 2");
+        helper.assertValueEqual(ScrapMath.levelCost(1), 4, "leaving compass 1 costs the curve price, 4 (Act 0 no longer discounts it)");
         helper.succeed();
     }
 

@@ -262,30 +262,6 @@ firstFloorMaxEncounters [int, default 2]
   odd empty array -> 2 | ERROR pocketdungeons.json field 'firstFloorMaxEncounters' is not a valid integer; using default 2
   odd null -> 2 | ERROR pocketdungeons.json field 'firstFloorMaxEncounters' is not a valid integer; using default 2
   odd empty object -> 2 | ERROR pocketdungeons.json field 'firstFloorMaxEncounters' is not a valid integer; using default 2
-firstLevelScrapCost [int, default 2]
-  probes nnYYYYYYYYYYYYYYYYYYYYYYYYY
-  values 2,2,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
-  rejected ERROR pocketdungeons.json field 'firstLevelScrapCost' has invalid value -1; must be >= 1; using default 2
-  disturbs (nothing else)
-  odd string abc -> 2 | ERROR pocketdungeons.json field 'firstLevelScrapCost' is not a valid integer; using default 2
-  odd string 7 -> 7 | (no warning)
-  odd boolean true -> 2 | ERROR pocketdungeons.json field 'firstLevelScrapCost' is not a valid integer; using default 2
-  odd number 1.5 -> 1 | (no warning)
-  odd empty array -> 2 | ERROR pocketdungeons.json field 'firstLevelScrapCost' is not a valid integer; using default 2
-  odd null -> 2 | ERROR pocketdungeons.json field 'firstLevelScrapCost' is not a valid integer; using default 2
-  odd empty object -> 2 | ERROR pocketdungeons.json field 'firstLevelScrapCost' is not a valid integer; using default 2
-actZeroScrap [int, default 2]
-  probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
-  values 2,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
-  rejected ERROR pocketdungeons.json field 'actZeroScrap' has invalid value -1; must be >= 0; using default 2
-  disturbs (nothing else)
-  odd string abc -> 2 | ERROR pocketdungeons.json field 'actZeroScrap' is not a valid integer; using default 2
-  odd string 7 -> 7 | (no warning)
-  odd boolean true -> 2 | ERROR pocketdungeons.json field 'actZeroScrap' is not a valid integer; using default 2
-  odd number 1.5 -> 1 | (no warning)
-  odd empty array -> 2 | ERROR pocketdungeons.json field 'actZeroScrap' is not a valid integer; using default 2
-  odd null -> 2 | ERROR pocketdungeons.json field 'actZeroScrap' is not a valid integer; using default 2
-  odd empty object -> 2 | ERROR pocketdungeons.json field 'actZeroScrap' is not a valid integer; using default 2
 branchProbability [double, default 0.55]
   probes nYYYYYYYYYYnnnnnnnnn
   values 0.55,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55
@@ -358,18 +334,6 @@ floorsPerSafeVisit [int, default 3]
   odd empty array -> 3 | ERROR pocketdungeons.json field 'floorsPerSafeVisit' is not a valid integer; using default 3
   odd null -> 3 | ERROR pocketdungeons.json field 'floorsPerSafeVisit' is not a valid integer; using default 3
   odd empty object -> 3 | ERROR pocketdungeons.json field 'floorsPerSafeVisit' is not a valid integer; using default 3
-endlessMineUnlockLevel [int, default 3]
-  probes nnYYYYYYYYYYYYYYYYYYYYYYYYY
-  values 3,3,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
-  rejected ERROR pocketdungeons.json field 'endlessMineUnlockLevel' has invalid value -1; must be >= 1; using default 3
-  disturbs (nothing else)
-  odd string abc -> 3 | ERROR pocketdungeons.json field 'endlessMineUnlockLevel' is not a valid integer; using default 3
-  odd string 7 -> 7 | (no warning)
-  odd boolean true -> 3 | ERROR pocketdungeons.json field 'endlessMineUnlockLevel' is not a valid integer; using default 3
-  odd number 1.5 -> 1 | (no warning)
-  odd empty array -> 3 | ERROR pocketdungeons.json field 'endlessMineUnlockLevel' is not a valid integer; using default 3
-  odd null -> 3 | ERROR pocketdungeons.json field 'endlessMineUnlockLevel' is not a valid integer; using default 3
-  odd empty object -> 3 | ERROR pocketdungeons.json field 'endlessMineUnlockLevel' is not a valid integer; using default 3
 releaseMaxAct [int, default 2]
   probes nnYYYYYnnnnnnnnnnnnnnnnnnnn
   values 2,2,1,2,3,4,5,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2

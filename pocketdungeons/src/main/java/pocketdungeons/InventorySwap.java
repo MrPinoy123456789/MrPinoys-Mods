@@ -1015,10 +1015,12 @@ public final class InventorySwap {
         if (level <= 0) {
             return ItemStack.EMPTY;
         }
-        return Keystone.mint(level,
+        ItemStack minted = Keystone.mint(level,
                 AffixMath.effective(player.getUUID(), level,
                         AffixMath.parse(entry.keystoneAffix()),
                         AffixManifest.current().definitions()));
+        Keystone.paintCampaign(player, minted);
+        return minted;
     }
 
     // ---- the player adapter -------------------------------------------------

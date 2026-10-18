@@ -207,7 +207,7 @@ public class EndlessMineRulesTest {
         DungeonDef act3 = mineDef("act3_mine", 3, "[]");
         java.util.List<DungeonDef> all = java.util.List.of(act3, act2, act1);
         Set<Integer> bothActs = Set.of(1, 2);
-        int gate = PocketDungeonsConfig.endlessMineUnlockLevel();
+        int gate = 3;   // the compass reading is ignored; any value opens the same mines
         check(EndlessMineRules.openMines(all, Set.of(1), gate).equals(java.util.List.of(act1)),
                 "only the Act 1 mine is open with act 1");
         // Decision 2026-10-18: a mine opens with its act and the compass does not gate it.

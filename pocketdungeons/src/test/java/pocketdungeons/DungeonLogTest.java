@@ -244,10 +244,10 @@ public class DungeonLogTest {
         DungeonLog.BankResult failBank = haulLog.bankHaul(player, ScrapMath.FAIL_KEEP_PERCENT);
         check(failBank.banked(), 3, "a failed dungeon keeps half of 7, rounded down");
         check(failBank.lost(), 4, "and loses the rest");
-        // Act 0 (2026-10-17): leaving compass 1 costs 2, so 3 is one level with 1 over.
-        check(haulLog.get(player).highestCharts(), 2, "3 is a level at compass 1 (2 to go)");
-        check(haulLog.get(player).chartProgress(), 1, "it leaves 1 in the bar");
-        check(failBank.raisedCompass(), true, "so the fail bank raised the compass");
+        // Campaign and endgame (2026-10-18): the Act 0 discount is retired, leaving compass 1 costs the curve's 4.
+        check(haulLog.get(player).highestCharts(), 1, "3 is not a level at compass 1 (4 to go)");
+        check(haulLog.get(player).chartProgress(), 3, "it fills the bar to 3");
+        check(failBank.raisedCompass(), false, "so the fail bank did not raise the compass");
         check(haulLog.bankHaul(player, 100).banked(), 0, "banking an empty haul banks nothing");
         haulLog.setCompass(player, 0, 0);
         check(haulLog.get(player).highestCharts(), 0, "an operator may lower the compass");

@@ -117,7 +117,7 @@ final class SidebarDisplay {
                 record.interval.finished, log.haulOf(member),
                 record.interval.finishBanked.getOrDefault(member, 0), entry.keystoneLevel(),
                 entry.chartProgress(), ScrapMath.levelCost(entry.highestCharts()),
-                heard == null ? 0 : heard[0], heard == null ? 0 : heard[1]);
+                heard == null ? 0 : heard[0], heard == null ? 0 : heard[1], Campaign.isCampaignTrip(record));
     }
 
     private static void paint(MinecraftServer server, InstanceRecord record, ServerPlayer player) {

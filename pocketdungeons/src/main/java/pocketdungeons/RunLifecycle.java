@@ -1690,7 +1690,7 @@ final class RunLifecycle {
         return def != null && def.act() == DungeonDef.PROLOGUE_ACT;
     }
 
-    private static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
+    static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
         DungeonLog log = DungeonLog.forServer(server);
         int step = record.floor.chosenStep;
         int floorLevel = record.floor.chosenLevel;
@@ -1705,9 +1705,10 @@ final class RunLifecycle {
             // advanceFloor has already counted this floor, so floorIndex is how many floors deep it was.
             int pay = ScrapMath.floorPay(step, floorLevel, compass, speedBonus + FloorPay.bonus(TripView.def(record),
                     record.interval.nodeId, EndlessMineRules.isMine(record), record.interval.floorIndex));
-            if (isPrologue(record)) {
-                // Act 0 pays nothing until its last floor, then exactly the scrap that buys Compass 2.
-                pay = TripView.onFinal(record) ? PocketDungeonsConfig.actZeroScrap() : 0;
+            if (Campaign.isCampaignTrip(record)) {
+                // Campaign and endgame (2026-10-18): the campaign, Act 0 included, pays items and keys,
+                // never scrap. The endgame (the Chart Room's doors, the dive) keeps the scrap curve.
+                pay = 0;
             }
             log.addHaul(member, pay);
             if (pay > 0) {
@@ -1786,12 +1787,27 @@ final class RunLifecycle {
             bankHaul(server, null, id, BankContext.ORPHAN);
         }
         DungeonLog.Entry entry = log.get(id);
-        if (log.markHaulIntroSeen(id) && entry.highestCharts() > 0) {
+        // The scrap haul belongs to the endgame now (decision 2026-10-18); a player still in the campaign
+        // is told about the quest line instead and meets the haul when the campaign is done.
+        if (log.markHaulIntroSeen(id) && entry.highestCharts() > 0 && Campaign.done(entry)) {
             player.sendSystemMessage(Component.literal("Your compass keeps its level " + entry.highestCharts()
                     + ". Scrap now rides in your haul and fills your compass when you bring it home."
                     + " Side doors cost a life.").withStyle(ChatFormatting.GOLD));
         }
+        // Migration (decision 2026-10-18): one block on the first join after the update. A player who has
+        // not finished Act 0 is new, not migrated, so the flag is set and nothing is said. T4 adds the second
+        // line, "What's in your pack is at risk. ...", to this same block.
+        if (log.markQuestLineSeen(id) && DungeonProgress.prologueDone(log, id) && !Campaign.done(entry)) {
+            for (String text : questLineJoinMessage()) {
+                player.sendSystemMessage(Component.literal(text).withStyle(ChatFormatting.GOLD));
+            }
+        }
         Keystone.showCompass(player, log.get(id), inTrip);
+    }
+
+    /** The lines of the one time message a migrated player gets on the first join after the quest line shipped. */
+    static List<String> questLineJoinMessage() {
+        return List.of("Your compass now shows the way. It will count again when the campaign is done.");
     }
 
     /** Which exit is banking a haul; picks the member's message. */

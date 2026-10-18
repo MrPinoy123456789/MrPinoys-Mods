@@ -324,6 +324,8 @@ for ((taskName, testClass) in mapOf(
     "effectCapsTest" to "EffectCapsTest",
     // Design pass 2026-10-09 (Q7): the trip sidebar lines.
     "sidebarLinesTest" to "SidebarLinesTest",
+    // Campaign and endgame T2: the quest line on the compass and the locked door signs.
+    "questLineTest" to "QuestLineTest",
     // Design pass 2026-10-09 (Q1): the Astrolabe Room door row and door states.
     "hallLayoutTest" to "HallLayoutTest",
     "hallDataTest" to "HallDataTest",
@@ -518,6 +520,7 @@ tasks.test {
     dependsOn("dungeonDataFixesTest")
     dependsOn("effectCapsTest")
     dependsOn("sidebarLinesTest")
+    dependsOn("questLineTest")
     dependsOn("hallLayoutTest")
     dependsOn("hallDataTest")
     dependsOn("finaleRulesTest")

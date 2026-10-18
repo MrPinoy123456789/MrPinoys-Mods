@@ -1,0 +1,19 @@
+{
+  "players": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "entry": {
+        "runs": 6,
+        "best_path": 8,
+        "keystone": 3,
+        "highest_charts": 3,
+        "chart_progress": 1,
+        "haul_intro_seen": true,
+        "quest_line_seen": true,
+        "acts_unlocked": [1],
+        "acts_migrated": true,
+        "dungeons_finished": ["pocketdungeons:mineshaft"]
+      }
+    }
+  ]
+}

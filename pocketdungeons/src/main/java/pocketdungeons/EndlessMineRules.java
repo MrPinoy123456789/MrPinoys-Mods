@@ -50,7 +50,7 @@ final class EndlessMineRules {
     /** The Act 1 mine dungeon's id, and the mine a Cube recipe opens. */
     static final String MINE_DUNGEON_ID = "pocketdungeons:endless_mine";
 
-    /** The act the Endless Mine first opened in (D29): its door waits on the compass, not on a later act. */
+    /** The act the Endless Mine first opened in (D29): its door opens with that act and the compass does not gate it. */
     static final int OPENING_ACT = 1;
 
     /** How many guardians make a lap: the three per act repeat after the third, each lap harder. */
