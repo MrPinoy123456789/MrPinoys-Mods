@@ -150,34 +150,42 @@ final class EndlessMineRules {
     }
 
     /**
-     * Whether {@code def} (a mine) is open to a player with these acts unlocked
-     * and this compass level: the mine's own act open, and the compass at
-     * {@code endlessMineUnlockLevel} (or the mine's own unlock level when that
-     * is higher) so a new player's first doors are dungeons (D29).
+     * Whether {@code def} (a mine) is open to a player with these acts unlocked: the mine's own act open
+     * and released ({@code releaseMaxAct}). The Act 1 mine opens with Act 1; the compass no longer gates it
+     * (decision 2026-10-18), so {@code compass} is kept only for callers.
      */
     static boolean opensFor(DungeonDef def, Set<Integer> unlockedActs, int compass) {
-        return def != null && unlockedActs != null && unlockedActs.contains(def.act())
-                && compass >= Math.max(PocketDungeonsConfig.endlessMineUnlockLevel(), def.unlockLevel());
+        return opensFor(def, unlockedActs, compass, Campaign.releaseMaxAct());
     }
 
-    /** Whether the Act 1 mine is open for these acts and this compass. */
+    /** As {@link #opensFor(DungeonDef, Set, int)} for a server whose last act is {@code maxAct}. */
+    static boolean opensFor(DungeonDef def, Set<Integer> unlockedActs, int compass, int maxAct) {
+        return def != null && unlockedActs != null && unlockedActs.contains(def.act())
+                && Campaign.released(def.act(), maxAct);
+    }
+
+    /** Whether the Act 1 mine is open for these acts. */
     static boolean opensFor(Set<Integer> unlockedActs, int compass) {
-        return unlockedActs != null && unlockedActs.contains(OPENING_ACT)
-                && compass >= PocketDungeonsConfig.endlessMineUnlockLevel();
+        return unlockedActs != null && unlockedActs.contains(OPENING_ACT);
     }
 
     /**
      * The descents open to a player, lowest act first: every loaded dungeon of a kind that
      * descends (each act's mine, and the Proving) with an entry floor whose act is unlocked
-     * and whose compass gate is met. A later act's descent is a data file; nothing here
-     * names it.
+     * and released. A later act's descent is a data file; nothing here names it.
      */
     static java.util.List<DungeonDef> openMines(Collection<DungeonDef> all, Set<Integer> unlockedActs,
                                                 int compass) {
+        return openMines(all, unlockedActs, compass, Campaign.releaseMaxAct());
+    }
+
+    /** As {@link #openMines(Collection, Set, int)} for a server whose last act is {@code maxAct}. */
+    static java.util.List<DungeonDef> openMines(Collection<DungeonDef> all, Set<Integer> unlockedActs,
+                                                int compass, int maxAct) {
         java.util.List<DungeonDef> out = new java.util.ArrayList<>();
         for (DungeonDef def : all) {
             if (def.kind().descends() && def.entry() != null
-                    && opensFor(def, unlockedActs, compass)) {
+                    && opensFor(def, unlockedActs, compass, maxAct)) {
                 out.add(def);
             }
         }

@@ -22,13 +22,15 @@ final class DungeonProgress {
     /**
      * The acts the party leader has open. The leader's progress sets the choices
      * (D15), so offers always read this for the record owner. Act 1 is always in it.
+     * Acts above {@code releaseMaxAct} are left out even when the save stores them (decision
+     * 2026-10-18): they stay stored and come back if the knob is raised.
      */
     static Set<Integer> unlockedActs(MinecraftServer server, UUID leader) {
         DungeonLog log = DungeonLog.forServer(server);
         if (!prologueDone(log, leader)) {
             return new TreeSet<>(Set.of(DungeonDef.PROLOGUE_ACT));
         }
-        return new TreeSet<>(log.get(leader).campaign().actsUnlocked());
+        return Campaign.cap(log.get(leader).campaign().actsUnlocked(), Campaign.releaseMaxAct());
     }
 
     /** The {@link DungeonLog#taskProgress} key that holds a player's Act 0 state: 1 done, 2 reset to pending, 0 unset. */
@@ -98,7 +100,7 @@ final class DungeonProgress {
         String dungeonId = record == null ? "" : record.interval.dungeonId;
 
         int opened = 0;
-        for (int act = DungeonDef.MIN_ACT; act < DungeonDef.MAX_ACT; act++) {
+        for (int act = DungeonDef.MIN_ACT; act < Campaign.releaseMaxAct(); act++) {
             int next = act + 1;
             if (open.contains(next) || !ActProgress.complete(act, finished, depth, all)) {
                 continue;
@@ -136,7 +138,7 @@ final class DungeonProgress {
         if (opened == 0 && announceRemaining) {
             // Name what is left on the lowest incomplete act, so a finish that
             // opens nothing still says why.
-            for (int act = DungeonDef.MIN_ACT; act <= DungeonDef.MAX_ACT; act++) {
+            for (int act = DungeonDef.MIN_ACT; act <= Campaign.releaseMaxAct(); act++) {
                 String left = ActProgress.remainingLine(act, finished, depth, all);
                 if (!left.isEmpty()) {
                     member.sendSystemMessage(Component.literal(left).withStyle(ChatFormatting.GRAY));
@@ -214,7 +216,7 @@ final class DungeonProgress {
             before.remove(record.interval.dungeonId.replaceFirst("^[^:]*:", ""));
         }
         ActProgress.MineDepth depthBefore = finishCall ? depth : depth.oneShallower();
-        for (int act = DungeonDef.MIN_ACT; act <= DungeonDef.MAX_ACT; act++) {
+        for (int act = DungeonDef.MIN_ACT; act <= Campaign.releaseMaxAct(); act++) {
             DungeonDef capstone = null;
             for (DungeonDef def : ActProgress.actDungeons(act, all)) {
                 if (def.kind() == DungeonDef.Kind.CAPSTONE) {
@@ -233,7 +235,8 @@ final class DungeonProgress {
                         java.util.List.of(capstone.name() + " is unlocked"), ChatFormatting.GRAY,
                         DungeonProgress::celebrate);
                 member.sendSystemMessage(Component.literal("The trials of Act " + act + " are done. "
-                        + capstone.name() + " now appears at the first door; clear it to open the next act.")
+                        + capstone.name() + " now appears at the first door"
+                        + (act < Campaign.releaseMaxAct() ? "; clear it to open the next act." : "."))
                         .withStyle(ChatFormatting.GOLD));
                 return true;
             }

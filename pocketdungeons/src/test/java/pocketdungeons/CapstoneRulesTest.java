@@ -136,40 +136,46 @@ public class CapstoneRulesTest {
     // ---- the capstone offer rule -------------------------------------------------------
 
     /**
-     * The capstone is the act's last trial: it is only offered once every other
-     * dungeon of the act is finished and the Mine has reached the act's target.
+     * The capstone is the act's last trial: it is only offered once three of the act's ordinary dungeons
+     * are finished (decision 2026-10-18), capped at the act's count. The Mine is an optional dive.
      */
     private static void testCapstoneWaitsForTheRestOfTheAct() {
         DungeonDef spawner = def("spawner_dungeon", 1, "capstone");
         DungeonDef mineshaft = def("mineshaft", 1, "dungeon");
         DungeonDef ossuary = def("ossuary", 1, "dungeon");
+        DungeonDef kennels = def("kennels", 1, "dungeon");
+        DungeonDef infestation = def("infestation", 1, "dungeon");
         DungeonDef mine = def("endless_mine", 1, "endless");
-        List<DungeonDef> all = List.of(spawner, mineshaft, ossuary, mine);
+        List<DungeonDef> all = List.of(spawner, mineshaft, ossuary, kennels, infestation, mine);
         Set<Integer> act1 = Set.of(1);
         ActProgress.MineDepth none = ActProgress.MineDepth.NONE;
-        ActProgress.MineDepth short2 = ActProgress.MineDepth.legacy(2);
         ActProgress.MineDepth guardian = ActProgress.MineDepth.legacy(3);
 
         check(!TripDoors.eligibleFirst(all, act1, 25, Set.of(), none).contains(spawner),
                 "nothing done: the capstone is not dealt");
-        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), short2).contains(spawner),
-                "the Mine short of its first guardian: still locked");
-        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft"), guardian).contains(spawner),
-                "a dungeon unfinished: still locked");
-        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), guardian).contains(spawner),
-                "the rest of the act done and the first guardian floor cleared: the capstone is dealt");
-        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), guardian).contains(mineshaft),
+        check(!TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary"), guardian).contains(spawner),
+                "two of four, even with the Mine at its first guardian: still locked");
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary", "kennels"), none).contains(spawner),
+                "three of four and no Mine floor at all: the capstone is dealt");
+        check(TripDoors.eligibleFirst(all, act1, 25, Set.of("mineshaft", "ossuary", "kennels"), none).contains(mineshaft),
                 "ordinary dungeons stay dealt");
         check(TripDoors.pendingCapstone(all, act1, Set.of(), 25, true, none) == null,
                 "locked, so not pending either");
-        check(TripDoors.pendingCapstone(all, act1, Set.of("mineshaft", "ossuary"), 25, true, guardian) == spawner,
+        check(TripDoors.pendingCapstone(all, act1, Set.of("mineshaft", "ossuary"), 25, true, guardian) == null,
+                "two of four: still not pending");
+        check(TripDoors.pendingCapstone(all, act1, Set.of("mineshaft", "ossuary", "infestation"), 25, true, none) == spawner,
                 "unlocked and pending");
-        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), guardian, all), "ready");
-        check(!ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), short2, all), "Mine short, not ready");
-        // An act whose mine is not built asks nothing of one.
-        List<DungeonDef> noMine = List.of(spawner, mineshaft, ossuary);
-        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), none, noMine),
-                "no mine declared for the act: the rest of the act is enough");
+        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary", "kennels"), none, all), "ready");
+        check(!ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), guardian, all), "two, not ready");
+        // An act whose mine is not built is the same.
+        List<DungeonDef> noMine = List.of(spawner, mineshaft, ossuary, kennels);
+        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary", "kennels"), none, noMine),
+                "no mine declared for the act: three dungeons are enough");
+        // An act with only two ordinary dungeons asks for two.
+        List<DungeonDef> small = List.of(spawner, mineshaft, ossuary);
+        check(ActProgress.capstoneReady(1, Set.of("mineshaft", "ossuary"), none, small),
+                "an act with two dungeons opens its capstone after two");
+        check(!ActProgress.capstoneReady(1, Set.of("mineshaft"), none, small), "and not after one");
     }
 
     private static void testPendingCapstone() {
@@ -198,16 +204,16 @@ public class CapstoneRulesTest {
         check(TripDoors.pendingCapstone(List.of(), Set.of(1), Set.of(), 25) == null,
                 "no dungeons, nothing pending");
         check(TripDoors.pendingCapstone(all, Set.of(), Set.of(), 25) == null, "no open act, nothing pending");
-        // D23: a capstone whose unlock level the compass has not reached is not yet guaranteed.
+        // The compass no longer holds a capstone back (decision 2026-10-18); the unlock level is only its place in the row.
         DungeonDef high = DungeonDef.fromJson(T + "high_capstone", JsonParser.parseString(
                 SHAPE.replace("NAME", "high_capstone").replace("ACT", "1").replace("KIND", "capstone")
                         .replace("\"baseLevel\": 1", "\"baseLevel\": 12")).getAsJsonObject());
-        check(TripDoors.pendingCapstone(List.of(spawner, high), Set.of(1), Set.of(), 4) == spawner,
-                "a locked capstone is not pending");
-        check(TripDoors.pendingCapstone(List.of(high), Set.of(1), Set.of(), 4) == null,
-                "a locked capstone alone means nothing pending");
+        check(TripDoors.pendingCapstone(List.of(spawner, high), Set.of(1), Set.of(), 4) == high,
+                "two capstones of one act: the lower id wins, whatever the compass");
+        check(TripDoors.pendingCapstone(List.of(high), Set.of(1), Set.of(), 4) == high,
+                "a capstone above the compass is pending all the same");
         check(TripDoors.pendingCapstone(List.of(high), Set.of(1), Set.of(), 12) == high,
-                "it becomes pending when the compass reaches it");
+                "and at its own level");
     }
 
     private static void testCapstoneGuaranteeStaysOffDoorThree() {

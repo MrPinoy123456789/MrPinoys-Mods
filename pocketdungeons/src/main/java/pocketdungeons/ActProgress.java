@@ -68,7 +68,7 @@ final class ActProgress {
         return dungeonAct >= DungeonDef.MAX_ACT;
     }
 
-    // ---- act completion (D29, amended by the 2026-10-11 Endless Mine decision) ---------
+    // ---- act completion (D29, the 2026-10-11 Endless Mine decision, the 2026-10-18 campaign decision) ----
 
     /**
      * The old gate (D13, D29): the bottom of a depth layer of the single Endless
@@ -191,101 +191,123 @@ final class ActProgress {
         return depth.reaches(act, mineTarget(act, all));
     }
 
-    /**
-     * Whether an act's capstone is unlocked for a member: every other dungeon
-     * of the act finished once and the act's Endless Mine at its first guardian.
-     * (The capstone's own compass level is a separate gate, D23.) The capstone
-     * is the act's last trial; clearing it is what opens the next act.
-     */
-    static boolean capstoneReady(int act, Set<String> finished, MineDepth depth,
-                                 Collection<DungeonDef> all) {
-        Set<String> done = new LinkedHashSet<>();
-        for (String id : finished) {
-            done.add(DungeonDef.qualify(id));
-        }
+    /** The act's ordinary dungeons: the ones that count toward its capstone (not the capstone, not a descent). */
+    static List<DungeonDef> ordinaryDungeons(int act, Collection<DungeonDef> all) {
+        List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : actDungeons(act, all)) {
-            if (def.kind() != DungeonDef.Kind.CAPSTONE && !done.contains(DungeonDef.qualify(def.id()))) {
-                return false;
+            if (def.kind() != DungeonDef.Kind.CAPSTONE) {
+                out.add(def);
             }
         }
-        return mineLegDone(act, depth, all);
+        return out;
     }
 
-    /**
-     * Whether {@code act} is complete for a member (D29): every dungeon of the
-     * act finished and, for acts that have an Endless Mine, that mine's first
-     * guardian floor reached. {@code finished} takes bare or namespaced ids.
-     */
-    static boolean complete(int act, Set<String> finished, MineDepth depth,
-                            Collection<DungeonDef> all) {
+    private static Set<String> qualified(Set<String> finished) {
         Set<String> done = new LinkedHashSet<>();
         for (String id : finished) {
             done.add(DungeonDef.qualify(id));
         }
-        for (DungeonDef def : actDungeons(act, all)) {
-            if (!done.contains(DungeonDef.qualify(def.id()))) {
-                return false;
-            }
-        }
-        return mineLegDone(act, depth, all);
+        return done;
     }
 
-    /**
-     * Where a member stands in {@code act}, for a milestone title:
-     * {@code "3 of 5 dungeons"} and, for an act with a Mine leg,
-     * {@code "Mine floor 2 of 3"}, joined by {@code ", "}.
-     */
-    static String progressLine(int act, Set<String> finished, MineDepth depth,
-                               Collection<DungeonDef> all) {
-        Set<String> done = new LinkedHashSet<>();
-        for (String id : finished) {
-            done.add(DungeonDef.qualify(id));
-        }
-        List<DungeonDef> dungeons = actDungeons(act, all);
+    private static int countDone(List<DungeonDef> defs, Set<String> done) {
         int have = 0;
-        for (DungeonDef def : dungeons) {
+        for (DungeonDef def : defs) {
             if (done.contains(DungeonDef.qualify(def.id()))) {
                 have++;
             }
         }
-        List<String> parts = new ArrayList<>();
-        parts.add(have + " of " + dungeons.size() + " dungeons");
-        int target = mineTarget(act, all);
-        if (target > 0) {
-            int shown = mineLegDone(act, depth, all) ? target : Math.min(depth.floor(act), target);
-            parts.add("Mine floor " + shown + " of " + target);
+        return have;
+    }
+
+    /**
+     * Whether an act's capstone is unlocked for a member (decision 2026-10-18): at least
+     * {@code capstoneDungeonsNeeded} of the act's ordinary dungeons finished, capped at the number the act
+     * has. The act's Endless Mine is an optional dive and never gates; {@code depth} is kept only so
+     * callers keep working. The capstone is the act's last trial; clearing it completes the act.
+     */
+    static boolean capstoneReady(int act, Set<String> finished, MineDepth depth,
+                                 Collection<DungeonDef> all) {
+        return capstoneReady(act, finished, all, Campaign.capstoneDungeonsNeeded());
+    }
+
+    /** As {@link #capstoneReady(int, Set, MineDepth, Collection)} with the dungeon count given. */
+    static boolean capstoneReady(int act, Set<String> finished, Collection<DungeonDef> all, int configured) {
+        List<DungeonDef> ordinary = ordinaryDungeons(act, all);
+        return countDone(ordinary, qualified(finished)) >= Campaign.needed(ordinary.size(), configured);
+    }
+
+    /**
+     * Whether the act's capstone is finished: the act has dungeons and its capstone is among
+     * {@code finished} (an act declared without a capstone asks for every one of its dungeons instead).
+     */
+    static boolean capstoneFinished(int act, Set<String> finished, Collection<DungeonDef> all) {
+        List<DungeonDef> dungeons = actDungeons(act, all);
+        if (dungeons.isEmpty()) {
+            return false;
         }
-        return String.join(", ", parts);
+        Set<String> done = qualified(finished);
+        boolean capstone = false;
+        for (DungeonDef def : dungeons) {
+            if (def.kind() == DungeonDef.Kind.CAPSTONE) {
+                capstone = true;
+                if (done.contains(DungeonDef.qualify(def.id()))) {
+                    return true;
+                }
+            }
+        }
+        return !capstone && countDone(dungeons, done) == dungeons.size();
+    }
+
+    /**
+     * Whether {@code act} is complete for a member, which opens the next act (decision 2026-10-18): its
+     * capstone is finished. An act with nothing declared asks nothing. {@code finished} takes bare or
+     * namespaced ids; {@code depth} is kept only so callers keep working.
+     */
+    static boolean complete(int act, Set<String> finished, MineDepth depth,
+                            Collection<DungeonDef> all) {
+        return actDungeons(act, all).isEmpty() || capstoneFinished(act, finished, all);
+    }
+
+    /**
+     * Where a member stands in {@code act}, for a milestone title: {@code "2 of 3 dungeons"}, counted
+     * against the dungeons the capstone asks for, or {@code "Act complete"} once the capstone is finished.
+     * Empty for an act with no ordinary dungeon to count.
+     */
+    static String progressLine(int act, Set<String> finished, MineDepth depth,
+                               Collection<DungeonDef> all) {
+        if (capstoneFinished(act, finished, all)) {
+            return "Act complete";
+        }
+        List<DungeonDef> ordinary = ordinaryDungeons(act, all);
+        int needed = Campaign.needed(ordinary.size(), Campaign.capstoneDungeonsNeeded());
+        if (needed == 0) {
+            return "";
+        }
+        return Math.min(needed, countDone(ordinary, qualified(finished))) + " of " + needed + " dungeons";
     }
 
     /**
      * What {@code act} still asks of a member, for the "what is left" line:
-     * {@code "Act 1: 2 dungeons and the Mine to floor 3 left."} Returns an
-     * empty string when the act is complete (or nothing is left to say).
+     * {@code "Act 1: 2 more dungeons."}, then {@code "Act 1: Spawner Dungeon is open."} once the capstone
+     * is. Returns an empty string when the act is complete (or nothing is left to say).
      */
     static String remainingLine(int act, Set<String> finished, MineDepth depth,
                                 Collection<DungeonDef> all) {
-        Set<String> done = new LinkedHashSet<>();
-        for (String id : finished) {
-            done.add(DungeonDef.qualify(id));
-        }
-        int missing = 0;
-        for (DungeonDef def : actDungeons(act, all)) {
-            if (!done.contains(DungeonDef.qualify(def.id()))) {
-                missing++;
-            }
-        }
-        int target = mineTarget(act, all);
-        List<String> parts = new ArrayList<>();
-        if (missing > 0) {
-            parts.add(missing + " dungeon" + (missing == 1 ? "" : "s"));
-        }
-        if (target > 0 && !mineLegDone(act, depth, all)) {
-            parts.add("the Mine to floor " + target);
-        }
-        if (parts.isEmpty()) {
+        if (complete(act, finished, depth, all)) {
             return "";
         }
-        return "Act " + act + ": " + String.join(" and ", parts) + " left.";
+        List<DungeonDef> ordinary = ordinaryDungeons(act, all);
+        int needed = Campaign.needed(ordinary.size(), Campaign.capstoneDungeonsNeeded());
+        int missing = needed - Math.min(needed, countDone(ordinary, qualified(finished)));
+        if (missing > 0) {
+            return "Act " + act + ": " + missing + " more dungeon" + (missing == 1 ? "" : "s") + ".";
+        }
+        for (DungeonDef def : actDungeons(act, all)) {
+            if (def.kind() == DungeonDef.Kind.CAPSTONE) {
+                return "Act " + act + ": " + def.name() + " is open.";
+            }
+        }
+        return "";
     }
 }

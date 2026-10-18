@@ -210,22 +210,29 @@ public class EndlessMineRulesTest {
         int gate = PocketDungeonsConfig.endlessMineUnlockLevel();
         check(EndlessMineRules.openMines(all, Set.of(1), gate).equals(java.util.List.of(act1)),
                 "only the Act 1 mine is open with act 1");
-        // A mine opens at the compass its dungeons open at: the Deep Mine's base level is 6, like Act 2's dungeons.
-        check(EndlessMineRules.openMines(all, bothActs, gate).equals(java.util.List.of(act1)),
-                "act 2 open but the compass below the Deep Mine's level: only the Act 1 mine");
-        check(EndlessMineRules.openMines(all, bothActs, act2.unlockLevel()).equals(java.util.List.of(act1, act2)),
-                "act 2 opens its own mine, lowest act first");
-        check(EndlessMineRules.openMines(all, bothActs, gate - 1).isEmpty(), "below the compass gate no mine opens");
-        check(EndlessMineRules.openMines(all, Set.of(1, 2, 3), act3.unlockLevel()).size() == 3,
-                "a mine added for act 3 by data alone opens with act 3");
+        // Decision 2026-10-18: a mine opens with its act and the compass does not gate it.
+        check(EndlessMineRules.openMines(all, bothActs, gate).equals(java.util.List.of(act1, act2)),
+                "act 2 open: its own mine opens with it, lowest act first, whatever the compass");
+        check(EndlessMineRules.openMines(all, Set.of(1), 1).equals(java.util.List.of(act1)),
+                "the Act 1 mine opens with Act 1 at compass 1");
+        check(EndlessMineRules.openMines(all, bothActs, 1).equals(java.util.List.of(act1, act2)),
+                "and so does the Act 2 mine");
+        check(EndlessMineRules.openMines(all, Set.of(), 99).isEmpty(), "no open act, no mine");
+        // releaseMaxAct caps the mines too: act 3 is stored but unreachable at the default, reachable when raised.
+        check(PocketDungeonsConfig.releaseMaxAct() == 2, "the default last act is 2");
+        check(EndlessMineRules.openMines(all, Set.of(1, 2, 3), 99).equals(java.util.List.of(act1, act2)),
+                "a stored act 3 does not open its mine while the last act is 2");
+        check(EndlessMineRules.openMines(all, Set.of(1, 2, 3), 99, 3).size() == 3,
+                "a mine added for act 3 by data alone opens with act 3 once act 3 is released");
         check(ActProgress.mineOf(2, all) == act2 && ActProgress.mineOf(4, all) == null, "mineOf reads the data");
         check(EndlessMineRules.floorLevel(act1, 1, 0) == 1 && EndlessMineRules.floorLevel(act1, 7, 2) == 9,
                 "act 1 mine floor levels start at the base level");
         check(EndlessMineRules.floorLevel(act2, 1, 0) == 6 && EndlessMineRules.floorLevel(act2, 4, 1) == 10,
                 "act 2 mine floor levels start at its own base level");
-        check(EndlessMineRules.opensFor(Set.of(1), gate), "the Act 1 form still opens at the gate");
-        check(!EndlessMineRules.opensFor(act2, Set.of(1), 99) && EndlessMineRules.opensFor(act2, bothActs, 6),
-                "a later mine needs its own act");
+        check(EndlessMineRules.opensFor(Set.of(1), 1), "the Act 1 form opens with Act 1 at any compass");
+        check(!EndlessMineRules.opensFor(Set.of(), 99), "and not without it");
+        check(!EndlessMineRules.opensFor(act2, Set.of(1), 99) && EndlessMineRules.opensFor(act2, bothActs, 1),
+                "a later mine needs its own act, and only that");
     }
 
     private static DungeonDef mineDef(String id, int act, String edges) {
