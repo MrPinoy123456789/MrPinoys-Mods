@@ -203,7 +203,7 @@ public class QuestLineTest {
         everything.add(DungeonProgress.WAKE_TITLE);
         everything.add(DungeonProgress.WAKE_SUBTITLE);
         for (String text : everything) {
-            if (text.contains("--") || text.contains("—") || text.length() > 60) {
+            if (text.contains("--") || text.indexOf(0x2014) >= 0 || text.length() > 60) {
                 throw new AssertionError("bad player text: " + text);
             }
         }

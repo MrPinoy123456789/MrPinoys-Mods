@@ -203,7 +203,10 @@ final class DungeonProgress {
                 // act's progress on a first finish, and the fanfare either way.
                 int banked = record.interval.finishBanked.getOrDefault(id, 0);
                 java.util.List<String> lines = new java.util.ArrayList<>();
-                lines.add(IntervalBanking.finishLine(banked));
+                if (!Campaign.isCampaignTrip(record)) {
+                    // The campaign pays items, not scrap (decision 2026-10-18): no "Banked 0 scrap" line.
+                    lines.add(IntervalBanking.finishLine(banked));
+                }
                 if (newFinish) {
                     lines.add("Act " + def.act() + ": "
                             + ActProgress.progressLine(def.act(), finished, depth, all));

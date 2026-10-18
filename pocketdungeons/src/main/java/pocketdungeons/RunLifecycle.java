@@ -1690,7 +1690,7 @@ final class RunLifecycle {
         return def != null && def.act() == DungeonDef.PROLOGUE_ACT;
     }
 
-    private static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
+    static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
         DungeonLog log = DungeonLog.forServer(server);
         int step = record.floor.chosenStep;
         int floorLevel = record.floor.chosenLevel;
