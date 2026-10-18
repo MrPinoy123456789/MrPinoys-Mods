@@ -1,0 +1,20 @@
+{
+  "template": "pocketdungeons:rooms/gilded_vault",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "loot"
+  ],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "gilded_vault",
+  "tier": 2,
+  "requires": [
+    "gold"
+  ],
+  "access": "open",
+  "window": "bars"
+}

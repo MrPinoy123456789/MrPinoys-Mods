@@ -150,6 +150,7 @@ final class TrialContent {
         MechanismSpecs.registerHandlers();
         PressureSpecs.registerHandlers();
         SpurSpecs.registerHandlers();
+        PayoffSpecs.registerHandlers();
         TraversalSpecs.registerHandlers();
         Ordeals.register();
         SituationSpecs.registerHandlers();

@@ -61,6 +61,25 @@ public final class VaultRoomGameTest {
         helper.succeed();
     }
 
+    /** The Gilded Vault (plan 2026-10-17): the same vanilla vault, a gold ingot for a key, its own table, never ominous. */
+    @GameTest(maxTicks = 40)
+    public void gildedVaultTakesGold(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos o = helper.absolutePos(new BlockPos(0, 1, 0));
+        stamp(level, o);
+        SpurVault.apply(level, o, false, SpurVault.GILDED_KEY, SpurVault.GILDED_LOOT_TABLE);
+        BlockState state = level.getBlockState(vaultAt(o));
+        helper.assertTrue(!state.getValue(VaultBlock.OMINOUS), "the Gilded Vault is never ominous");
+        VaultBlockEntity vault = (VaultBlockEntity) level.getBlockEntity(vaultAt(o));
+        helper.assertTrue(vault != null, "the vault has its block entity");
+        helper.assertTrue(vault.getConfig().keyItem().is(Items.GOLD_INGOT), "it takes a gold ingot");
+        helper.assertValueEqual(vault.getConfig().keyItem().getCount(), 1, "and exactly one");
+        helper.assertTrue(vault.getConfig().lootTable().identifier().getPath().equals("vaults/gilded_vault"),
+                "and pays its own table");
+        level.setBlock(vaultAt(o), Blocks.AIR.defaultBlockState(), 3);
+        helper.succeed();
+    }
+
     @GameTest(maxTicks = 40)
     public void aVaultThatOpenedHasPaid(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();

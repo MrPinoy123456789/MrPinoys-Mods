@@ -990,3 +990,29 @@ Stories per floor (a dungeon node field, Phase 2), the drop chance per eligible 
 - How mobs path down stair rooms, and whether they chase a player through a drop.
 - Whether an overlook grate leaks light or sound that the sculk rooms care about (`PressureSources`).
 - Whether a live room under a drop is a fair wager or a trap that feels unfair.
+
+## 2026-10-17: Gold may open a vault
+
+The owner said the hopper interface, not the gold, made the toll room the worst room of a session (PD-186). Gold returns as the key of a vanilla vault: walk up, use one ingot, each player once. Hoppers stay out.
+
+### The model
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| Gilded Vault | Dead-end loot room, `requires: ["gold"]`, one per dungeon, depth 2 and down. A vanilla vault behind iron bars takes one gold ingot and pays 2 to 3 rolls of iron, emeralds, arrows and an enchanted iron sword or pickaxe | `PayoffSpecs`, `dungeon_room/gilded_vault.json`, `loot_table/vaults/gilded_vault.json` |
+| Payoff bias | A cell off the spine draws a room whose `requires` are all provided upstream 3 times as often as its weight says. Rooms whose requires are not met keep their weight and can still appear as a shut bonus | `RoomSelector.PAYOFF_WEIGHT_FACTOR` |
+| Main path | Unchanged: the spine never requires a payoff room | `RoomSelector` |
+
+### Rules
+
+1. The bias reads only the tags rooms closer to the entrance provide, not the bag or party seed. A bias that depended on the bag made spur draws differ by bag, a spur's provides feed the spine, and the spine stopped being the same for every bag (`GraphSolvabilityTest.testSpineSameForEveryBag`). A consequence: a party's `mob` tag does not favour `plate_pair`.
+2. A vanilla vault consumes exactly the key stack's count and pays each player once (read from `VaultBlockEntity$Server.tryInsertKey` in 26.2).
+3. The Gilded Vault is never ominous and has no omen relief life; that stays the Barred Vault's.
+
+### Supersedes
+
+The gold half of 2026-10-09 item 6. `ominous_bargain` stays toll free.
+
+### Open until played
+
+Whether one ingot is the right price once players can find gold (supply chests, and `the_herd` gold blocks, which need an iron pickaxe).

@@ -23,7 +23,7 @@ public final class StampDeterminismGameTest {
      * stamper before its parameter record refactor (and matched after it). Zero would
      * mean "not pinned": the test then only checks that two stamps agree.
      */
-    private static final int STAMP_FINGERPRINT = -1458388674;
+    private static final int STAMP_FINGERPRINT = 1502869324;
     // The First Night rooms: re-pinned again (was -182528007) when the eighteen Act 0 rooms joined the
     // manifest, so seed 7 draws a different set again.
     // T10: re-pinned once (was 935166682) when Voided stopped voiding puzzle and ordeal cells; the
@@ -34,6 +34,8 @@ public final class StampDeterminismGameTest {
     // manifest, so seed 7 draws a different set again.
     // Timber vein: re-pinned again (was -1161058281) when mineshaft_timber_vein joined the
     // manifest, so seed 7 draws a different set again.
+    // Payoff rooms: re-pinned again (was -1458388674) when gilded_vault joined the manifest and the selector
+    // began favouring spur rooms whose requires are met upstream, so seed 7 draws a different set again.
 
     /**
      * One plan stamped twice at one origin builds the same blocks, with and without

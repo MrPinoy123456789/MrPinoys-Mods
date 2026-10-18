@@ -237,6 +237,7 @@ final class RoomTemplateGenerator {
         specs.addAll(KnowledgeSpecs.list());
         specs.addAll(PressureSpecs.list());
         specs.addAll(SpurSpecs.list());
+        specs.addAll(PayoffSpecs.list());
         specs.addAll(SituationSpecs.list());
         specs.addAll(ResourceBiomeSpecs.list());
         specs.addAll(ActOneRoomSpecs.list());

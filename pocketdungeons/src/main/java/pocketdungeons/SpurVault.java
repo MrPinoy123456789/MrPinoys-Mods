@@ -32,6 +32,12 @@ final class SpurVault {
     /** The reward the Barred Vault pays, a vault table in the mod's own namespace. */
     static final String LOOT_TABLE = "vaults/barred_vault";
 
+    /** The reward the Gilded Vault pays (plan 2026-10-17): less than the Barred Vault, more than the ingot it costs. */
+    static final String GILDED_LOOT_TABLE = "vaults/gilded_vault";
+
+    /** The key the Gilded Vault takes: one gold ingot, the vanilla vault verb with a different key. */
+    static final net.minecraft.world.item.Item GILDED_KEY = Items.GOLD_INGOT;
+
     private SpurVault() {}
 
     /** The key a vault of this floor takes. */
@@ -41,6 +47,15 @@ final class SpurVault {
 
     /** Configures every vault block in the cell at {@code origin} for a floor that is, or is not, ominous. */
     static void apply(ServerLevel level, BlockPos origin, boolean ominousFloor) {
+        apply(level, origin, ominousFloor, keyFor(ominousFloor), LOOT_TABLE);
+    }
+
+    /**
+     * As above with the key and the reward named by the caller: the Gilded Vault passes a gold ingot and its own
+     * table. A vanilla vault takes exactly the key stack's count (one) and pays each player once.
+     */
+    static void apply(ServerLevel level, BlockPos origin, boolean ominousFloor,
+                      net.minecraft.world.item.Item key, String lootTable) {
         for (int x = 0; x < RoomGeometry.CELL; x++) {
             for (int z = 0; z < RoomGeometry.CELL; z++) {
                 for (int y = 1; y <= RoomGeometry.CEILING_Y; y++) {
@@ -52,9 +67,9 @@ final class SpurVault {
                     level.setBlock(pos, state.setValue(VaultBlock.OMINOUS, ominousFloor), 3);
                     if (level.getBlockEntity(pos) instanceof VaultBlockEntity vault) {
                         ResourceKey<LootTable> table = ResourceKey.create(Registries.LOOT_TABLE,
-                                Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, LOOT_TABLE));
+                                Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, lootTable));
                         vault.setConfig(new VaultConfig(table, VaultConfig.DEFAULT.activationRange(),
-                                VaultConfig.DEFAULT.deactivationRange(), new ItemStack(keyFor(ominousFloor)),
+                                VaultConfig.DEFAULT.deactivationRange(), new ItemStack(key),
                                 Optional.empty()));
                         vault.setChanged();
                     }
