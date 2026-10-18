@@ -80,6 +80,16 @@ final class DungeonProgress {
      */
     static int onProgress(MinecraftServer server, InstanceRecord record, ServerPlayer member,
                           boolean announceRemaining, boolean newFinish) {
+        int opened = evaluate(server, record, member, announceRemaining, newFinish);
+        // Decision 2026-10-18: the compass in the campaign is a quest line, so any progress rewrites it
+        // (the Act 0 finish brings the first line, a finished dungeon crosses one off).
+        UUID id = member.getUUID();
+        Keystone.showCompass(member, DungeonLog.forServer(server).get(id), InstanceRegistry.byMember.containsKey(id));
+        return opened;
+    }
+
+    private static int evaluate(MinecraftServer server, InstanceRecord record, ServerPlayer member,
+                                boolean announceRemaining, boolean newFinish) {
         DungeonLog log = DungeonLog.forServer(server);
         UUID id = member.getUUID();
         if (record != null && RunLifecycle.isPrologue(record)) {
@@ -127,6 +137,13 @@ final class DungeonProgress {
             PlaytestJournal.actUnlocked(member, record, dungeonId, 0, true);
         }
 
+        if (newFinish && record != null && compassWoke(finished, record, all)) {
+            // The campaign is done: the last capstone on the server was just finished for the first time.
+            // The stored compass is left exactly as it is; from here it counts scrap (decision 2026-10-18).
+            StaggeredTitle.showMilestone(server, id, Component.literal(WAKE_TITLE).withStyle(ChatFormatting.GOLD),
+                    java.util.List.of(WAKE_SUBTITLE), ChatFormatting.GRAY, DungeonProgress::celebrate);
+            return opened;
+        }
         if (opened == 0 && capstoneJustUnlocked(server, member, record, open, finished, depth, all,
                 announceRemaining, newFinish)) {
             return opened;
@@ -147,6 +164,27 @@ final class DungeonProgress {
             }
         }
         return opened;
+    }
+
+    /** The title when the last capstone on the server is finished (decision 2026-10-18). */
+    static final String WAKE_TITLE = "Your compass wakes up.";
+
+    /** Its subtitle. */
+    static final String WAKE_SUBTITLE = "The Chart Room is open.";
+
+    /**
+     * Whether the dungeon in {@code record}, just finished for the first time, is what ends the campaign:
+     * the campaign is done with it in {@code finished} and was not without it. True once per player.
+     */
+    static boolean compassWoke(Set<String> finished, InstanceRecord record, Collection<DungeonDef> all) {
+        if (!Campaign.done(finished, all)) {
+            return false;
+        }
+        Set<String> before = new java.util.LinkedHashSet<>(finished);
+        before.remove(record.interval.dungeonId);
+        before.remove(DungeonDef.qualify(record.interval.dungeonId));
+        before.remove(record.interval.dungeonId.replaceFirst("^[^:]*:", ""));
+        return !Campaign.done(before, all);
     }
 
     /**

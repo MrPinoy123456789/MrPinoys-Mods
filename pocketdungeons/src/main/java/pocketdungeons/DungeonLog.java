@@ -66,6 +66,7 @@ final class DungeonLog extends SavedData {
         int chartProgress() { return compass.chartProgress(); }
         int haul() { return compass.haul(); }
         boolean haulIntroSeen() { return compass.haulIntroSeen(); }
+        boolean questLineSeen() { return compass.questLineSeen(); }
         boolean publicListed() { return room.publicListed(); }
         String roomName() { return room.roomName(); }
         int roomCompletions() { return room.roomCompletions(); }
@@ -162,6 +163,10 @@ final class DungeonLog extends SavedData {
 
         Entry withHaulIntroSeen(boolean haulIntroSeen) {
             return new Entry(ladder, themes, compass.withHaulIntroSeen(haulIntroSeen), room, unlocks, campaign);
+        }
+
+        Entry withQuestLineSeen(boolean questLineSeen) {
+            return new Entry(ladder, themes, compass.withQuestLineSeen(questLineSeen), room, unlocks, campaign);
         }
     }
 
@@ -298,9 +303,12 @@ final class DungeonLog extends SavedData {
      *                          dungeon. Optional in the codec with a default of 0.
      * @param haulIntroSeen     whether the one time "scrap rides in your haul now"
      *                          message was shown. Optional in the codec.
+     * @param questLineSeen     whether the one time "your compass now shows the way" message (decision
+     *                          2026-10-18) was handled for this member. Optional in the codec with a
+     *                          default of false, so every save from before it reads as not yet shown.
      */
-    record Compass(int highestCharts, int chartProgress, int haul, boolean haulIntroSeen) {
-        static final Compass EMPTY = new Compass(0, 0, 0, false);
+    record Compass(int highestCharts, int chartProgress, int haul, boolean haulIntroSeen, boolean questLineSeen) {
+        static final Compass EMPTY = new Compass(0, 0, 0, false, false);
 
         Compass {
             highestCharts = Math.max(0, highestCharts);
@@ -313,15 +321,19 @@ final class DungeonLog extends SavedData {
         }
 
         Compass withCompass(int highestCharts, int chartProgress) {
-            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen);
+            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen, questLineSeen);
         }
 
         Compass withHaul(int haul) {
-            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen);
+            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen, questLineSeen);
         }
 
         Compass withHaulIntroSeen(boolean haulIntroSeen) {
-            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen);
+            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen, questLineSeen);
+        }
+
+        Compass withQuestLineSeen(boolean questLineSeen) {
+            return new Compass(highestCharts, chartProgress, haul, haulIntroSeen, questLineSeen);
         }
     }
 
@@ -727,7 +739,8 @@ final class DungeonLog extends SavedData {
     private record PartC(Set<Integer> actsUnlocked, boolean actsMigrated, boolean campaignComplete,
                          int tripCounter, boolean decideWhitelist, Set<String> decideList,
                          int deepestMineFloor, java.util.Optional<Integer> chartProgress, int haul,
-                         boolean haulIntroSeen, java.util.Optional<Map<String, Integer>> mineFloors) {}
+                         boolean haulIntroSeen, java.util.Optional<Map<String, Integer>> mineFloors,
+                         boolean questLineSeen) {}
 
     private static final com.mojang.serialization.MapCodec<PartA> PART_A_CODEC =
             RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -823,7 +836,10 @@ final class DungeonLog extends SavedData {
             // act number. Optional and left out while empty, so an older save loads with none and a save
             // that never entered a later mine is written exactly as before.
             Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("mine_floors")
-                    .forGetter(PartC::mineFloors)
+                    .forGetter(PartC::mineFloors),
+            // Campaign and endgame (decision 2026-10-18): the one time "your compass now shows the way"
+            // message. Optional with a default of false, so an older save reads as not yet shown.
+            Codec.BOOL.optionalFieldOf("quest_line_seen", false).forGetter(PartC::questLineSeen)
     ).apply(instance, PartC::new));
 
     private static Map<Integer, Integer> mineFloorsOf(java.util.Optional<Map<String, Integer>> raw) {
@@ -881,7 +897,7 @@ final class DungeonLog extends SavedData {
                         // A pre-scrap save keeps its keystone as the permanent compass. The bar
                         // is the stored one, else what the old pool held past the compass.
                         new Compass(compass, c.chartProgress().orElse(ScrapMath.migratedProgress(b.legacyScrap(), compass)),
-                                c.haul(), c.haulIntroSeen()),
+                                c.haul(), c.haulIntroSeen(), c.questLineSeen()),
                         new RoomSettings(b.publicListed(), b.roomName(), b.roomCompletions(), b.recentVisitors()),
                         new Unlocks(b.extractedPowers(), b.unlockedShells(), b.diaryBandsSeen(),
                                 b.dungeonsFinished(), b.bag(), b.kitGranted(), b.fuel()),
@@ -904,7 +920,7 @@ final class DungeonLog extends SavedData {
                             entry.campaign().decideWhitelist(), uuidStrings(entry.campaign().decideList()),
                             entry.campaign().deepestMineFloor(), java.util.Optional.of(entry.chartProgress()),
                             entry.haul(), entry.haulIntroSeen(),
-                            mineFloorsText(entry.campaign().otherMineFloors())))
+                            mineFloorsText(entry.campaign().otherMineFloors()), entry.questLineSeen()))
     ).codec();
 
     private static final Codec<PlayerEntry> PLAYER_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -1327,6 +1343,20 @@ final class DungeonLog extends SavedData {
         Entry previous = get(player);
         entries.put(player, previous.withHaul(Math.max(0, amount)));
         setDirty();
+    }
+
+    /**
+     * Whether the one time "your compass now shows the way" message was handled for this member, and marks it
+     * handled. Returns true the first time.
+     */
+    boolean markQuestLineSeen(UUID player) {
+        Entry previous = get(player);
+        if (previous.questLineSeen()) {
+            return false;
+        }
+        entries.put(player, previous.withQuestLineSeen(true));
+        setDirty();
+        return true;
     }
 
     /** Whether the one time haul message was shown to this member, and marks it shown. Returns true the first time. */

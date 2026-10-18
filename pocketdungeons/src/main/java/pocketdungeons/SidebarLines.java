@@ -22,14 +22,29 @@ final class SidebarLines {
     record Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives,
                  int party, boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded,
                  boolean finished, int haul, int banked, int compass, int progress, int levelCost,
-                 int heard, int heardMax) {
+                 int heard, int heardMax, boolean campaign) {
+
+        /** An endgame trip (the shape before the campaign split, 2026-10-18): the haul and compass lines show. */
+        Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives, int party,
+              boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded, boolean finished,
+              int haul, int banked, int compass, int progress, int levelCost, int heard, int heardMax) {
+            this(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared, spawnersTotal,
+                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, heard, heardMax, false);
+        }
 
         /** A floor with no sculk room under the player: the shape before the Heard meter. */
         Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives, int party,
               boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded, boolean finished,
               int haul, int banked, int compass, int progress, int levelCost) {
             this(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared, spawnersTotal,
-                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, 0, 0);
+                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, 0, 0, false);
+        }
+
+        /** The same facts for a campaign trip: no haul line and no compass line (the campaign pays no scrap). */
+        Facts asCampaign() {
+            return new Facts(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared,
+                    spawnersTotal, spawnersNeeded, finished, haul, banked, compass, progress, levelCost, heard,
+                    heardMax, true);
         }
     }
 
@@ -67,6 +82,11 @@ final class SidebarLines {
         }
         if (f.heardMax() > 0 && f.onFloor() && !f.finished()) {
             out.add(new Line("Heard " + f.heard() + "/" + f.heardMax(), "dark_aqua"));
+        }
+        if (f.campaign()) {
+            // Campaign and endgame (2026-10-18): the campaign pays items, not scrap, and the compass is a quest
+            // line on the item, so the sidebar keeps the floor, lives and spawners only.
+            return out;
         }
         out.add(new Line(" ", "white"));
         // PD-179: once the dungeon is finished the haul is already paid, so the line says what it banked.

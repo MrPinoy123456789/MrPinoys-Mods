@@ -51,6 +51,7 @@ public class DungeonLogGoldenTest {
         clampsShape();
         bountiesShape();
         mineFloorsShape();
+        questLineSeenShape();
         System.out.println("DungeonLogGoldenTest: all assertions passed");
     }
 
@@ -143,6 +144,31 @@ public class DungeonLogGoldenTest {
                 "a save from before per act mines has no later mine record");
     }
 
+    private static void questLineSeenShape() throws IOException {
+        // Campaign and endgame (decision 2026-10-18): the one time "your compass now shows the way" flag.
+        // Optional with a default of false, so every older fixture reads as not yet shown (the snapshot
+        // only names it when true, so they did not change), and the flag is written only when set.
+        DungeonLog log = golden("quest_line_seen", String.join("\n",
+                "runs=6", "bestPath=8", "bestKeystone=0", "keystone=3", "affix=", "pending=0",
+                "recentThemes=[]", "completed={}", "currentTheme=", "depth=0", "powers=[]",
+                "publicListed=false", "roomName=", "fuel=0", "shells=[]", "roomCompletions=0",
+                "visitors=[]", "diary=[]", "bag=", "keyProgress=0", "kitGranted=false",
+                "finished=[pocketdungeons:mineshaft]", "highestCharts=3", "chartProgress=1", "haul=0",
+                "haulIntroSeen=true", "acts=[1]", "actsMigrated=true", "campaignComplete=false", "trips=0",
+                "whitelist=false", "decideList=[]", "deepestMine=0", "questLineSeen=true"));
+        check(log.get(PLAYER).questLineSeen(), true, "the flag reads back");
+        for (String old : List.of("oldest", "legacy_fields", "clamps", "mine_floors", "with_bounties", "full_current")) {
+            check(decode(read(old + ".json")).get(PLAYER).questLineSeen(), false,
+                    old + ": a save from before the flag reads as not yet shown");
+        }
+        DungeonLog fresh = decode(read("oldest.json"));
+        check(fresh.markQuestLineSeen(PLAYER), true, "the first join after the update handles the message");
+        check(fresh.markQuestLineSeen(PLAYER), false, "and only once");
+        check(encode(fresh).getAsJsonObject().getAsJsonArray("players").get(0).getAsJsonObject()
+                .getAsJsonObject("entry").get("quest_line_seen").getAsBoolean(), true, "and the flag is saved");
+        check(fresh.get(PLAYER).withHaul(5).questLineSeen(), true, "other withers keep it");
+    }
+
     private static void bountiesShape() throws IOException {
         DungeonLog log = golden("with_bounties", String.join("\n",
                 "runs=2", "bestPath=3", "bestKeystone=0", "keystone=5", "affix=", "pending=0",
@@ -228,8 +254,10 @@ public class DungeonLogGoldenTest {
                 "campaignComplete=" + e.campaign().campaignComplete(),
                 "trips=" + e.campaign().tripCounter(), "whitelist=" + e.campaign().decideWhitelist(),
                 "decideList=" + decide, "deepestMine=" + e.campaign().deepestMineFloor());
-        return e.campaign().otherMineFloors().isEmpty() ? base
+        String withMines = e.campaign().otherMineFloors().isEmpty() ? base
                 : base + "\nmineFloors=" + new TreeMap<>(e.campaign().otherMineFloors());
+        // Named only when set, so the fixtures from before the flag keep their expected text.
+        return e.questLineSeen() ? withMines + "\nquestLineSeen=true" : withMines;
     }
 
     // ---- codec plumbing, shared with the sub record test ----------------------------------

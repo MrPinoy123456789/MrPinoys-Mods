@@ -43,7 +43,26 @@ public class SidebarLinesTest {
                 "Haul 2 scrap", "Compass 8: 1/6"));
         eq(SidebarLines.lines(heard).get(3).colour(), "dark_aqua");
 
-        for (SidebarLines.Facts f : List.of(mid, low, done, dark, mine, heard)) {
+        // Campaign and endgame (2026-10-18): a campaign trip pays items, so no haul line, no compass line and
+        // no spacer; the floor, lives, party, spawners and Heard lines stay. The endgame keeps both.
+        SidebarLines.Facts campaign = mid.asCampaign();
+        eq(texts(SidebarLines.lines(campaign)), List.of("Floor 3: Gear Loft", "Lives 3", "Spawners 2/3"));
+        eq(texts(SidebarLines.lines(done.asCampaign())), List.of("Floor 4: The Queen's Nest", "Lives 4", "Party 2"));
+        SidebarLines.Facts campaignHeard = heard.asCampaign();
+        eq(texts(SidebarLines.lines(campaignHeard)), List.of("Floor 2: Sculk Shallows", "Lives 4", "Spawners 0/1",
+                "Heard 2/4"));
+        eq(SidebarLines.title(campaign), "Copper Works");
+        eq(texts(SidebarLines.lines(mid)).contains("Compass 10: 4/5"), true);   // the endgame still shows it
+        for (SidebarLines.Facts f : List.of(campaign, campaignHeard)) {
+            for (SidebarLines.Line line : SidebarLines.lines(f)) {
+                if (line.text().startsWith("Haul") || line.text().startsWith("Compass")
+                        || line.text().startsWith("Banked") || line.text().contains("scrap")) {
+                    throw new AssertionError("scrap on a campaign sidebar: " + line.text());
+                }
+            }
+        }
+
+        for (SidebarLines.Facts f : List.of(mid, low, done, dark, mine, heard, campaign, campaignHeard)) {
             for (SidebarLines.Line line : SidebarLines.lines(f)) {
                 if (line.text().contains("--") || line.text().contains("\u2014")) {
                     throw new AssertionError("dash punctuation: " + line.text());

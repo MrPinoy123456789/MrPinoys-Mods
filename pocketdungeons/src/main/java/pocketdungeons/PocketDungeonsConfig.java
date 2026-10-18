@@ -125,12 +125,6 @@ public final class PocketDungeonsConfig {
      */
     private static final Knob<Integer> FIRST_FLOOR_MAX_ENCOUNTERS = integer("firstFloorMaxEncounters", 2,
             v -> v >= 0, "must be >= 0 (0 means no cap)");
-    /** Act 0 (decision 2026-10-17): what the first level costs, so the prologue's scrap buys Compass 2. */
-    private static final Knob<Integer> FIRST_LEVEL_SCRAP_COST = integer("firstLevelScrapCost", 2,
-            v -> v >= 1, "must be >= 1");
-    /** Act 0: the scrap the prologue's last floor pays; the other floors pay none. */
-    private static final Knob<Integer> ACT_ZERO_SCRAP = integer("actZeroScrap", 2,
-            v -> v >= 0, "must be >= 0");
     private static final Knob<Double> BRANCH_PROBABILITY = decimal("branchProbability", 0.55,
             v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
     private static final Knob<Double> LOOP_PROBABILITY = decimal("loopProbability", 0.30,
@@ -145,10 +139,6 @@ public final class PocketDungeonsConfig {
     // lights up, and it is how many door steps bank one keystone level
     // (IntervalBanking). Nothing forces the party home.
     private static final Knob<Integer> FLOORS_PER_SAFE_VISIT = integer("floorsPerSafeVisit", 3,
-            v -> v >= 1, "must be >= 1");
-    // The compass level the Endless Mine's door 3 needs (D29): the Mine is in
-    // act 1 now, but a new player's first doors stay dungeons until this.
-    private static final Knob<Integer> ENDLESS_MINE_UNLOCK_LEVEL = integer("endlessMineUnlockLevel", 3,
             v -> v >= 1, "must be >= 1");
     /**
      * The last act on this server. Acts above it never open, never show on the astrolabe and never
@@ -1141,14 +1131,6 @@ public final class PocketDungeonsConfig {
         return PATH_LENGTH_MAX.get();
     }
 
-    public static int firstLevelScrapCost() {
-        return FIRST_LEVEL_SCRAP_COST.get();
-    }
-
-    public static int actZeroScrap() {
-        return ACT_ZERO_SCRAP.get();
-    }
-
     public static int firstFloorMaxEncounters() {
         return FIRST_FLOOR_MAX_ENCOUNTERS.get();
     }
@@ -1168,11 +1150,6 @@ public final class PocketDungeonsConfig {
     /** The interval's usual length, and the door steps a keystone level costs. See the field. */
     public static int floorsPerSafeVisit() {
         return FLOORS_PER_SAFE_VISIT.get();
-    }
-
-    /** The compass level the Endless Mine's door needs. See the field. */
-    public static int endlessMineUnlockLevel() {
-        return ENDLESS_MINE_UNLOCK_LEVEL.get();
     }
 
     public static int releaseMaxAct() {
@@ -1914,7 +1891,12 @@ public final class PocketDungeonsConfig {
             "rerollUnlockLevel", "salvageUnlockLevel", "cubeBlock", "cubeUnlockLevel",
             "imbueMaterial", "imbueCost", "extractionReversible",
             // Haul and Blood Doors: side doors cost a life, and floors below your level pay scrap.
-            "overlevelEmeraldsPerScrap");
+            "overlevelEmeraldsPerScrap",
+            // Campaign and endgame (2026-10-18): the campaign pays no scrap and Compass 1 costs the curve's price.
+            // The first-level cost is also known by its decision-record name, compassCostFirstLevel.
+            "actZeroScrap", "firstLevelScrapCost", "compassCostFirstLevel",
+            // The Act 1 mine opens with Act 1; the compass no longer gates any campaign door.
+            "endlessMineUnlockLevel");
 
     private static void apply(JsonObject root) {
         List<String> retired = RETIRED_KEYS.stream().filter(root::has).toList();
