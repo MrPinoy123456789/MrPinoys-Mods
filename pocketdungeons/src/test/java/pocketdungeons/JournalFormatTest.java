@@ -111,7 +111,7 @@ public class JournalFormatTest {
                 List.of(new PlayerContext.RoomView("0,0", "pocketdungeons:entry_hall", "entrance", true, 0, 0, false),
                         new PlayerContext.RoomView("1,0", "pocketdungeons:hold_the_plate", "puzzle", true, 1, 2, true),
                         new PlayerContext.RoomView("2,0", "pocketdungeons:hold_the_plate", "puzzle", false, 0, 0, false)),
-                2, 5, PlayerContext.livesLeft(5), 2, 3, 5, 6,
+                2, 5, PlayerContext.livesLeft(5, Omen.LIVES), 2, 3, 5, 6,
                 List.of(new PlayerContext.ToolView("minecraft:stone_pickaxe", 40, 131)), 64, 5, 2, true,
                 new Lemon.View(true, true, "llm", false, false, 1, false, "How was that floor?"),
                 List.of(JournalFormat.parse("{\"ev\":\"door_commit\",\"step\":2}")),
@@ -135,7 +135,7 @@ public class JournalFormatTest {
                 "the same room id in another cell is not");
         check(here.get("locked").getAsBoolean() && here.get("spawners").getAsJsonObject().get("total").getAsInt() == 2,
                 "spawner and lock state");
-        check(o.get("omen").getAsJsonObject().get("lives").getAsInt() == Omen.lives(5), "lives left");
+        check(o.get("omen").getAsJsonObject().get("lives").getAsInt() == Omen.lives(5, Omen.LIVES), "lives left");
         check(o.get("spawners").getAsJsonObject().get("needed").getAsInt() == 5, "the gate");
         check(o.get("inventory").getAsJsonObject().get("near_full").getAsBoolean(), "pack near full");
         checkEquals(o.get("lemon").getAsJsonObject().get("mode").getAsString(), "llm");

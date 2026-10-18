@@ -22,14 +22,15 @@ final class SidebarLines {
     record Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives,
                  int party, boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded,
                  boolean finished, int haul, int banked, int compass, int progress, int levelCost,
-                 int heard, int heardMax, boolean campaign) {
+                 int heard, int heardMax, boolean campaign, int maxLives) {
 
         /** An endgame trip (the shape before the campaign split, 2026-10-18): the haul and compass lines show. */
         Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives, int party,
               boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded, boolean finished,
               int haul, int banked, int compass, int progress, int levelCost, int heard, int heardMax) {
             this(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared, spawnersTotal,
-                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, heard, heardMax, false);
+                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, heard, heardMax, false,
+                    Omen.LIVES);
         }
 
         /** A floor with no sculk room under the player: the shape before the Heard meter. */
@@ -37,14 +38,14 @@ final class SidebarLines {
               boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded, boolean finished,
               int haul, int banked, int compass, int progress, int levelCost) {
             this(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared, spawnersTotal,
-                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, 0, 0, false);
+                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, 0, 0, false, Omen.LIVES);
         }
 
         /** The same facts for a campaign trip: no haul line and no compass line (the campaign pays no scrap). */
         Facts asCampaign() {
             return new Facts(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared,
                     spawnersTotal, spawnersNeeded, finished, haul, banked, compass, progress, levelCost, heard,
-                    heardMax, true);
+                    heardMax, true, maxLives);
         }
     }
 
@@ -56,9 +57,13 @@ final class SidebarLines {
         return f.dungeon() == null || f.dungeon().isBlank() ? "Pocket Dungeons" : f.dungeon();
     }
 
-    /** The colour of the lives line: green at four or five, yellow at two or three, red at one. */
-    static String livesColour(int lives) {
-        return lives >= 4 ? "green" : lives >= 2 ? "yellow" : "red";
+    /** The colour of the lives line by the share of the trip's {@code max} lives left: green above 3/5, yellow above 1/5, red below. */
+    static String livesColour(int lives, int max) {
+        return switch (Omen.livesColourIndex(lives, max)) {
+            case 0 -> "green";
+            case 1 -> "yellow";
+            default -> "red";
+        };
     }
 
     /** {@code "Floor 3: Gear Loft"}, or {@code "Floor 3"} with no name, {@code " (ominous)"} on an ominous floor. */
@@ -72,7 +77,7 @@ final class SidebarLines {
     static List<Line> lines(Facts f) {
         List<Line> out = new ArrayList<>();
         out.add(new Line(floorText(f.floor(), f.floorName(), f.ominous()), f.ominous() ? "dark_purple" : "white"));
-        out.add(new Line("Lives " + f.lives(), livesColour(f.lives())));
+        out.add(new Line("Lives " + f.lives(), livesColour(f.lives(), f.maxLives())));
         if (f.party() > 1) {
             out.add(new Line("Party " + f.party(), "gray"));
         }

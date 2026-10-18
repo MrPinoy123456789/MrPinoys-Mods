@@ -604,6 +604,12 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> CREEPING_FLOOR_CAP = integer("creepingFloorCap", 10,
             v -> v >= 1 && v <= 64, "must be 1 to 64");
     /**
+     * Extra lives a trip gains for each party member beyond the first, counted at the first door
+     * commit and capped at four members (solo 5, two 6, four 8). Unit: lives.
+     */
+    private static final Knob<Integer> LIVES_PER_EXTRA_MEMBER = integer("livesPerExtraMember", 1,
+            v -> v >= 0 && v <= 5, "must be 0 to 5");
+    /**
      * Creeping bricks: how many seed spots a Chewed Corridors or Silverfish Nests room marks at stamp
      * time; each starts a brick when a member enters.
      */
@@ -1570,6 +1576,10 @@ public final class PocketDungeonsConfig {
 
     public static int creepingFloorCap() {
         return CREEPING_FLOOR_CAP.get();
+    }
+
+    public static int livesPerExtraMember() {
+        return LIVES_PER_EXTRA_MEMBER.get();
     }
 
     public static int creepingRoomSeeds() {

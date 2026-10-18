@@ -668,7 +668,7 @@ final class DungeonScreen {
                     ? record.interval.finishBanked.getOrDefault(member, 0) : haulLog.haulOf(member);
             hauls.put(present == null ? "?" : present.getName().getString(), shown);
         }
-        IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(record.interval.omen,
+        IntervalBanking.HomeScreen screen = IntervalBanking.homeScreen(record.interval.omen, record.interval.maxLives,
                 record.interval.finished, unfinished, hauls);
         Component title = Component.literal(screen.title())
                 .withStyle(screen.finished() ? ChatFormatting.GREEN : ChatFormatting.GOLD);

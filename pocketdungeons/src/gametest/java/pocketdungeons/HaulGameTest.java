@@ -107,7 +107,7 @@ public final class HaulGameTest {
     @GameTest
     public void aSideDoorCannotTakeTheLastLife(GameTestHelper helper) {
         for (int omen = 0; omen <= Omen.MAX_OMEN; omen++) {
-            int livesLeft = Omen.lives(omen);
+            int livesLeft = Omen.lives(omen, Omen.LIVES);
             helper.assertTrue(DoorLives.affordable(livesLeft, 1) == (livesLeft > 1),
                     "one life door at " + livesLeft + " lives left");
             helper.assertTrue(DoorLives.affordable(livesLeft, 2) == (livesLeft > 2),

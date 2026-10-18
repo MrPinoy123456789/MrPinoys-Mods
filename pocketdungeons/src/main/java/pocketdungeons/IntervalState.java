@@ -47,6 +47,23 @@ final class IntervalState {
     int omen;
 
     /**
+     * The lives this trip started with, fixed at the first door commit from the party size
+     * ({@link Omen#maxLives}); members who join later add nothing. In memory like the omen.
+     * Before the first commit it is the solo base.
+     */
+    int maxLives = Omen.LIVES;
+
+    /**
+     * Sets {@link #maxLives} from the party size while no door has been committed ({@link #dungeonId}
+     * is still empty); once the first door is stamped the number is fixed and this does nothing.
+     */
+    void settleMaxLives(int members) {
+        if (dungeonId.isEmpty() && !endlessMine) {
+            maxLives = Omen.maxLives(members, PocketDungeonsConfig.livesPerExtraMember());
+        }
+    }
+
+    /**
      * The trip's omen at each floor clear, in order, for the journal's
      * {@code floor_complete} event. Record-keeping only: {@link #omen}
      * itself carries across floors.
@@ -146,11 +163,11 @@ final class IntervalState {
 
     /** The interval's omen: the trip's deaths, clamped. Alias kept for the journal and context. */
     int omenSum() {
-        return Omen.clamp(omen);
+        return Omen.clampTo(omen, maxLives);
     }
 
     /** The same reading under the old name, for the callers that predate J3. */
     int bankedOmenSum() {
-        return Omen.clamp(omen);
+        return Omen.clampTo(omen, maxLives);
     }
 }

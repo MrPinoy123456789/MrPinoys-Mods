@@ -67,25 +67,25 @@ public class IntervalBankingTest {
         for (String name : new String[]{"A", "B", "C", "D", "E", "F"}) {
             crowd.put(name, 1);
         }
-        checkEquals(IntervalBanking.homeScreen(0, false, List.of(), crowd).haulLine(), "Haul: A 1, B 1, C 1, D 1, +2");
-        IntervalBanking.HomeScreen cleared = IntervalBanking.homeScreen(0, true, List.of(), solo(6));
+        checkEquals(IntervalBanking.homeScreen(0, 5, false, List.of(), crowd).haulLine(), "Haul: A 1, B 1, C 1, D 1, +2");
+        IntervalBanking.HomeScreen cleared = IntervalBanking.homeScreen(0, 5, true, List.of(), solo(6));
         checkEquals(cleared.title(), "LEAVE");
-        checkEquals(IntervalBanking.homeScreen(0, false, List.of(), solo(1)).title(), "GO HOME");
+        checkEquals(IntervalBanking.homeScreen(0, 5, false, List.of(), solo(1)).title(), "GO HOME");
         check(cleared.finished(), "finished flag");
         check(cleared.footer().isEmpty(), "a finished dungeon has nothing at risk, so no footer");
         // PD-179: a finished dungeon already paid the haul, so the board says what was banked.
         checkEquals(cleared.haulLine(), "Banked 6 scrap");
-        checkEquals(IntervalBanking.homeScreen(0, true, List.of(), party).haulLine(), "Banked: Kris 7, Bob 4");
-        checkEquals(IntervalBanking.homeScreen(0, false, List.of(), solo(6)).haulLine(), "Haul 6 scrap");
+        checkEquals(IntervalBanking.homeScreen(0, 5, true, List.of(), party).haulLine(), "Banked: Kris 7, Bob 4");
+        checkEquals(IntervalBanking.homeScreen(0, 5, false, List.of(), solo(6)).haulLine(), "Haul 6 scrap");
         // PD-180: the HOME title's small line has verbs.
         checkEquals(IntervalBanking.homeSubtitle(7, 4), "Banked 7 scrap. 4 chests in your reward barrel.");
         checkEquals(IntervalBanking.homeSubtitle(0, 1), "Banked 0 scrap. 1 chest in your reward barrel.");
         check(!IntervalBanking.homeSubtitle(7, 4).contains("--"), "no dash punctuation");
         checkEquals(IntervalBanking.finishLine(9), "Banked 9 scrap");
-        check(!IntervalBanking.homeScreen(0, false, List.of(), solo(0)).finished(), "not finished flag");
-        checkEquals(IntervalBanking.homeScreen(4, false, List.of("page"), solo(0)).unfinishedLine(),
+        check(!IntervalBanking.homeScreen(0, 5, false, List.of(), solo(0)).finished(), "not finished flag");
+        checkEquals(IntervalBanking.homeScreen(4, 5, false, List.of("page"), solo(0)).unfinishedLine(),
                 "Unfinished: page");
-        check(IntervalBanking.homeScreen(0, true, List.of(), solo(0)).unfinishedLine().isEmpty(),
+        check(IntervalBanking.homeScreen(0, 5, true, List.of(), solo(0)).unfinishedLine().isEmpty(),
                 "a cleared dungeon forfeits nothing");
         for (String line : List.of(IntervalBanking.scrapText(1), home(0, List.of(), solo(1)),
                 home(1, List.of("vault", "page"), party))) {
@@ -95,7 +95,7 @@ public class IntervalBankingTest {
 
     /** The go-home board's body with the trip at {@code omen} deaths and {@code unfinished} left. */
     private static String home(int omen, List<String> unfinished, java.util.Map<String, Integer> hauls) {
-        return IntervalBanking.homeScreen(omen, false, unfinished, hauls).body();
+        return IntervalBanking.homeScreen(omen, 5, false, unfinished, hauls).body();
     }
 
     private static java.util.Map<String, Integer> solo(int haul) {
