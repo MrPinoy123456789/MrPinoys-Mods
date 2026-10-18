@@ -579,6 +579,25 @@ built-ins are exactly their tables' guaranteed entries). A table may be
 random; the baseline may not, which is why it is declared here rather than
 read off the table.
 
+### Act 0 and the one bag
+
+Since Act 0 (decision 2026-10-17, `docs/DECISIONS.md`) a new player no longer
+picks from the bags. The bag chest shows one "Take it" button that hands over
+the `starter` bag (`dungeon_bag/starter.json`: wooden axe, pickaxe and shovel,
+and bread), and the other ten bags stay in the data as `hidden`, so a pack
+that adds a bag still loads but it is not offered. Each starter tool carries a
+starter tag, and a duplicate held anywhere is swept away, so a spare set
+cannot be farmed.
+
+Act 0 is `act: 0` in a dungeon file (`DungeonDef.PROLOGUE_ACT`). While a
+player has not finished it, the astrolabe shows only Act 0. Its one dungeon,
+`first_night.json`, pays nothing before the last floor and then exactly
+`actZeroScrap` (2) scrap, the price of Compass 2. The Home lever does not work
+in Act 0 until the finish; the Quit Door resets the act and wipes the pack.
+Lives are infinite in Act 0. A pack must not give an Act 0 dungeon a lever
+exit or a payout of its own. Lemon's lines for all of this live in
+`FirstVisitTutorial` and are not data; a pack cannot change them.
+
 ### Extension limits
 
 The capability tag vocabulary is closed (`SituationTags`). A bag that

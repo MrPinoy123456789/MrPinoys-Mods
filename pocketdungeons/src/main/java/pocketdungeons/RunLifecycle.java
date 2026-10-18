@@ -1213,7 +1213,7 @@ final class RunLifecycle {
             // visit, not here.
             advanceFloor(server, record);
             // Playtest 2026-10-03 (A5): the first floor cleared is when Lemon explains run storage and the set of three.
-            FirstVisitTutorial.floorCleared(server, record);
+            FirstVisitTutorial.floorCleared(server, record, record.interval.floorIndex);
         }
 
         // M65: per-floor observations only. The completion count and theme
@@ -1835,6 +1835,9 @@ final class RunLifecycle {
             };
             player.sendSystemMessage(Component.literal(text)
                     .withStyle(context == BankContext.FAIL ? ChatFormatting.RED : ChatFormatting.GOLD));
+            if (context == BankContext.FINISH && record != null && isPrologue(record) && result.banked() > 0) {
+                FirstVisitTutorial.scrapBanked(server, player);
+            }
             // PD-190: the player never reads chat live. A failed dungeon says what it cost on a title, and a
             // bank says what it paid on the action bar (chat stays the log).
             if (context == BankContext.FAIL) {

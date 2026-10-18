@@ -48,6 +48,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         PlaytestJournal.register();
         PlaytestBias.register();
         Lemon.register();
+        FirstVisitTutorial.register();
         Instances.register();
         RitualListener.register();
         SilenceListener.register();
