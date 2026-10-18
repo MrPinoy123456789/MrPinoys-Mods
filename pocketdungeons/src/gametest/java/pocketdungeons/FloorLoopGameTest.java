@@ -170,9 +170,9 @@ public final class FloorLoopGameTest {
     public void livesAtDeathCounts(GameTestHelper helper) {
         int[] expectedLives = {5, 4, 3, 2, 1};
         for (int omen = 0; omen <= 4; omen++) {
-            if (Omen.lives(omen) != expectedLives[omen]) {
+            if (Omen.lives(omen, Omen.LIVES) != expectedLives[omen]) {
                 helper.fail("omen " + omen + " should read " + expectedLives[omen]
-                        + " lives, got " + Omen.lives(omen));
+                        + " lives, got " + Omen.lives(omen, Omen.LIVES));
                 return;
             }
         }

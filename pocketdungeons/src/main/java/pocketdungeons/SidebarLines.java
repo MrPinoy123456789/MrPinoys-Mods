@@ -22,7 +22,16 @@ final class SidebarLines {
     record Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives,
                  int party, boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded,
                  boolean finished, int haul, int banked, int compass, int progress, int levelCost,
-                 int heard, int heardMax) {
+                 int heard, int heardMax, int maxLives) {
+
+        /** The shape before the trip's lives grew with the party: a solo trip's five. */
+        Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives, int party,
+              boolean onFloor, int spawnersCleared, int spawnersTotal, int spawnersNeeded, boolean finished,
+              int haul, int banked, int compass, int progress, int levelCost, int heard, int heardMax) {
+            this(dungeon, mine, floor, floorName, ominous, lives, party, onFloor, spawnersCleared, spawnersTotal,
+                    spawnersNeeded, finished, haul, banked, compass, progress, levelCost, heard, heardMax,
+                    Omen.LIVES);
+        }
 
         /** A floor with no sculk room under the player: the shape before the Heard meter. */
         Facts(String dungeon, boolean mine, int floor, String floorName, boolean ominous, int lives, int party,
@@ -41,9 +50,13 @@ final class SidebarLines {
         return f.dungeon() == null || f.dungeon().isBlank() ? "Pocket Dungeons" : f.dungeon();
     }
 
-    /** The colour of the lives line: green at four or five, yellow at two or three, red at one. */
-    static String livesColour(int lives) {
-        return lives >= 4 ? "green" : lives >= 2 ? "yellow" : "red";
+    /** The colour of the lives line by the share of the trip's {@code max} lives left: green above 3/5, yellow above 1/5, red below. */
+    static String livesColour(int lives, int max) {
+        return switch (Omen.livesColourIndex(lives, max)) {
+            case 0 -> "green";
+            case 1 -> "yellow";
+            default -> "red";
+        };
     }
 
     /** {@code "Floor 3: Gear Loft"}, or {@code "Floor 3"} with no name, {@code " (ominous)"} on an ominous floor. */
@@ -57,7 +70,7 @@ final class SidebarLines {
     static List<Line> lines(Facts f) {
         List<Line> out = new ArrayList<>();
         out.add(new Line(floorText(f.floor(), f.floorName(), f.ominous()), f.ominous() ? "dark_purple" : "white"));
-        out.add(new Line("Lives " + f.lives(), livesColour(f.lives())));
+        out.add(new Line("Lives " + f.lives(), livesColour(f.lives(), f.maxLives())));
         if (f.party() > 1) {
             out.add(new Line("Party " + f.party(), "gray"));
         }

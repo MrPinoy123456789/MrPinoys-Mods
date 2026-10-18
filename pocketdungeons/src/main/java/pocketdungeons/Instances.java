@@ -188,13 +188,13 @@ final class Instances {
                 rescue(player, record);
                 return false;
             }
-            if (Omen.nextDeathFails(record.interval.omen)) {
+            if (Omen.nextDeathFails(record.interval.omen, record.interval.maxLives)) {
                 PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
-                        Omen.MAX_OMEN + 1, player.blockPosition());
+                        record.interval.maxLives, player.blockPosition());
                 failRunOmen(server, record, player, source);
                 return false;
             }
-            record.interval.omen = Omen.add(record.interval.omen, 1);
+            record.interval.omen = Omen.add(record.interval.omen, 1, record.interval.maxLives);
             PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
                     record.interval.omen, player.blockPosition());
             OmenBar.deathCue(server, record, record.interval.omen);

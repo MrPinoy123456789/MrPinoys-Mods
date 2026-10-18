@@ -111,13 +111,13 @@ final class SidebarDisplay {
         return new SidebarLines.Facts(TripView.dungeonName(record), EndlessMineRules.isMine(record),
                 active ? record.interval.floorIndex + 1 : Math.max(1, record.interval.floorIndex),
                 node == null ? "" : node.name(), record.floor.affixes.contains(AffixIds.OMINOUS),
-                Omen.lives(record.interval.omen), record.members.size(), active,
+                RunLifecycle.livesLeft(record), record.members.size(), active,
                 record.floor.spawnersCleared, total,
                 DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()),
                 record.interval.finished, log.haulOf(member),
                 record.interval.finishBanked.getOrDefault(member, 0), entry.keystoneLevel(),
                 entry.chartProgress(), ScrapMath.levelCost(entry.highestCharts()),
-                heard == null ? 0 : heard[0], heard == null ? 0 : heard[1]);
+                heard == null ? 0 : heard[0], heard == null ? 0 : heard[1], record.interval.maxLives);
     }
 
     private static void paint(MinecraftServer server, InstanceRecord record, ServerPlayer player) {

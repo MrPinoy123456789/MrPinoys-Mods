@@ -117,12 +117,12 @@ final class IntervalBanking {
     static final int MAX_BOARD_NAMES = 4;
 
     /**
-     * The go-home board for pulling the lever right now. {@code omen} is the trip's deaths (the
-     * board reads lives); {@code hauls} is each member's name and haul in party order;
+     * The go-home board for pulling the lever right now. {@code omen} is the trip's deaths and {@code max}
+     * its starting lives (the board reads lives); {@code hauls} is each member's name and haul in party order;
      * {@code unfinished} is what going home forfeits, which the caller reads off the live record.
      * Once {@code finished}, {@code hauls} is what the finish banked.
      */
-    static HomeScreen homeScreen(int omen, boolean finished, List<String> unfinished,
+    static HomeScreen homeScreen(int omen, int max, boolean finished, List<String> unfinished,
                                  java.util.Map<String, Integer> hauls) {
         String haulLine;
         boolean atRisk = false;
@@ -145,7 +145,7 @@ final class IntervalBanking {
             }
             haulLine = names.toString();
         }
-        return new HomeScreen(finished ? "LEAVE" : "GO HOME", finished, haulLine, OmenBarText.livesText(omen),
+        return new HomeScreen(finished ? "LEAVE" : "GO HOME", finished, haulLine, OmenBarText.livesText(omen, max),
                 List.copyOf(unfinished), !finished && atRisk ? "A failed dungeon keeps half." : "");
     }
 }

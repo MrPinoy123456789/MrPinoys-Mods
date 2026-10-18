@@ -153,9 +153,9 @@ final class PlayerContext {
         return o;
     }
 
-    /** The lives the trip's omen leaves: {@code 5 - omen} (J3). */
-    static int livesLeft(int intervalOmen) {
-        return Omen.lives(intervalOmen);
+    /** The lives the trip's omen leaves of its {@code max}: {@code max - omen} (J3). */
+    static int livesLeft(int intervalOmen, int max) {
+        return Omen.lives(intervalOmen, max);
     }
 
     // ---- reading the live server ---------------------------------------------------
@@ -177,6 +177,7 @@ final class PlayerContext {
         String roomCell = "";
         int floorOmen = 0;
         int intervalOmen = 0;
+        int maxLives = Omen.LIVES;
         int floorsCounted = 0;
         int cleared = 0;
         int total = 0;
@@ -192,6 +193,7 @@ final class PlayerContext {
             roomCell = placed == null ? "" : placed.cellKey();
             floorOmen = Omen.clamp(record.interval.omen);
             intervalOmen = record.interval.omenSum();
+            maxLives = record.interval.maxLives;
             floorsCounted = record.interval.floorOmens.size()
                     + (record.phase == RunSession.Phase.ACTIVE ? 1 : 0);
             if (dungeon != null && record.layout != null && record.layout.geometry() != null) {
@@ -227,7 +229,7 @@ final class PlayerContext {
 
         return new Snapshot(t, player.getUUID().toString(), player.getName().getString(), phase, slot, floor,
                 zone, keystone, runLevel, party, player.level().dimension().identifier().toString(), room,
-                roomCell, rooms, floorOmen, intervalOmen, livesLeft(intervalOmen), floorsCounted,
+                roomCell, rooms, floorOmen, intervalOmen, livesLeft(intervalOmen, maxLives), floorsCounted,
                 cleared, DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()), total,
                 tools, blocks, food, free, free <= NEAR_FULL_SLOTS, Lemon.view(player),
                 PlaytestJournal.recent(player.getUUID(), RECENT_EVENTS),

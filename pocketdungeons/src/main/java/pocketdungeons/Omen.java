@@ -36,17 +36,49 @@ final class Omen {
 
     // ---- lives (J3) ------------------------------------------------------
 
-    /** The lives {@code omen} deaths leave: {@value LIVES} at a clean trip, 1 at four. */
-    static int lives(int omen) {
-        return LIVES - clamp(omen);
+    /** The most party members that add lives to a trip. */
+    static final int MAX_LIFE_MEMBERS = 4;
+
+    /**
+     * The lives a trip starts with, fixed at its first door commit: {@value LIVES} solo, plus
+     * {@code perExtraMember} for each further member up to {@value MAX_LIFE_MEMBERS} members
+     * (solo 5, two 6, four 8 at the default of 1; a fifth member adds nothing).
+     */
+    static int maxLives(int members, int perExtraMember) {
+        int counted = Math.max(1, Math.min(members, MAX_LIFE_MEMBERS));
+        return LIVES + (counted - 1) * Math.max(0, perExtraMember);
+    }
+
+    /** The lives {@code omen} deaths leave of a trip that started with {@code max}: {@code max - omen}, never below 1. */
+    static int lives(int omen, int max) {
+        return Math.max(1, max) - clampTo(omen, max);
     }
 
     /**
-     * Whether the next death ends the run: the omen is already at
-     * {@link #MAX_OMEN} (one life left), so the fifth death is the last.
+     * Whether the next death ends the run: the omen is already at {@code max - 1}
+     * (one life left), so the next death is the last.
      */
-    static boolean nextDeathFails(int omen) {
-        return clamp(omen) >= MAX_OMEN;
+    static boolean nextDeathFails(int omen, int max) {
+        return clampTo(omen, max) >= Math.max(1, max) - 1;
+    }
+
+    /**
+     * The colour band of a lives meter: 0 green (more than three fifths of the trip's lives left),
+     * 1 yellow (more than a fifth), 2 red. Solo five reads green at 5 and 4, yellow at 3 and 2, red at 1.
+     */
+    static int livesColourIndex(int lives, int max) {
+        int m = Math.max(1, max);
+        return lives * 5 > m * 3 ? 0 : lives * 5 > m ? 1 : 2;
+    }
+
+    /** Clamps the omen to what a trip of {@code max} lives can hold: 0 to {@code max - 1}. */
+    static int clampTo(int omen, int max) {
+        return Math.max(MIN_OMEN, Math.min(Math.max(1, max) - 1, omen));
+    }
+
+    /** {@link #add} for a trip of {@code max} lives: the omen can climb past {@value MAX_OMEN} when the party is bigger. */
+    static int add(int current, int contribution, int max) {
+        return clampTo(current + contribution, max);
     }
 
     // ---- wave trigger timing (spec 5.2, reworked J3) ---------------------

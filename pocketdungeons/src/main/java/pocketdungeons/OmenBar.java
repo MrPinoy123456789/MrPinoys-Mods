@@ -79,6 +79,7 @@ final class OmenBar {
             }
             return;
         }
+        record.interval.settleMaxLives(record.members.size());
         OmenBar bar = of(record);
         boolean active = record.phase == RunSession.Phase.ACTIVE;
         int floorCount = active ? record.interval.floorIndex + 1 : Math.max(1, record.interval.floorIndex);
@@ -96,9 +97,9 @@ final class OmenBar {
             boolean prologue = RunLifecycle.isPrologue(record);
             if (objectiveLine == null && total <= 0 && (prologue || ProvingWaves.isProving(record))) {
                 // No spawners here (an Act 0 floor, or the Proving's arena): say nothing about them.
-                title = prologue ? "" : OmenBarText.livesText(record.interval.omen);
+                title = prologue ? "" : OmenBarText.livesText(record.interval.omen, record.interval.maxLives);
             } else {
-                title = OmenBarText.activeTitle(record.interval.omen, chests, record.floor.spawnersCleared, total,
+                title = OmenBarText.activeTitle(record.interval.omen, record.interval.maxLives, chests, record.floor.spawnersCleared, total,
                         DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()),
                         objectiveLine);
                 if (prologue) {
@@ -108,14 +109,14 @@ final class OmenBar {
         } else {
             title = OmenBarText.clearedTitle(record.interval.floorIndex, TripView.dungeonName(record),
                     record.interval.endlessMine, record.interval.finished, TripView.finalAhead(record),
-                    record.interval.omen, chests);
+                    record.interval.omen, record.interval.maxLives, chests);
         }
         repaintHeldLine(server, record, bar);
         bar.event.setName(Component.literal(title));
         // J3: the bar is lives either way: full and green at five, red at one.
-        bar.event.setColor(colour(OmenBarText.omenColourIndex(record.interval.omen)));
+        bar.event.setColor(colour(OmenBarText.omenColourIndex(record.interval.omen, record.interval.maxLives)));
         bar.event.setProgress(RunLifecycle.isPrologue(record) ? 1.0f
-                : Omen.lives(record.interval.omen) / (float) Omen.LIVES);
+                : Omen.lives(record.interval.omen, record.interval.maxLives) / (float) record.interval.maxLives);
 
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
@@ -195,7 +196,7 @@ final class OmenBar {
         if (!record.inFloorLoop()) {
             return;
         }
-        showLine(server, record, Omen.Source.DEATH, OmenBarText.deathCue(omen));
+        showLine(server, record, Omen.Source.DEATH, OmenBarText.deathCue(omen, record.interval.maxLives));
         sync(server, record);
     }
 

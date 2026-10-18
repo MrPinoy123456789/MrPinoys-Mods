@@ -29,12 +29,12 @@ final class OmenBarText {
     }
 
     /**
-     * The bar's colour by the trip's omen: 0 and 1 green (0), 2 and 3 yellow
-     * (1), 4 red (2). Four lives or more read green; one life reads red.
+     * The bar's colour by the share of the trip's lives left ({@link Omen#livesColourIndex}):
+     * green above three fifths, yellow above a fifth, red below. Solo five: 5 and 4 green, 3 and 2
+     * yellow, 1 red.
      */
-    static int omenColourIndex(int omen) {
-        int clamped = Omen.clamp(omen);
-        return clamped <= 1 ? 0 : clamped < Omen.MAX_OMEN ? 1 : 2;
+    static int omenColourIndex(int omen, int max) {
+        return Omen.livesColourIndex(Omen.lives(omen, max), max);
     }
 
     /** {@code "Lives 3"}: the risk meter's half of any bar title. */
@@ -44,8 +44,8 @@ final class OmenBarText {
         return at < 0 ? title : title.substring(0, at);
     }
 
-    static String livesText(int omen) {
-        return "Lives " + Omen.lives(omen);
+    static String livesText(int omen, int max) {
+        return "Lives " + Omen.lives(omen, max);
     }
 
     /**
@@ -53,18 +53,18 @@ final class OmenBarText {
      * {@code "Spawners 2/3 | Lives 3"}. A trip down to one life warns that
      * the next death ends the run.
      */
-    static String activeTitle(int omen, int chests, int spawnersCleared, int spawnersTotal,
+    static String activeTitle(int omen, int max, int chests, int spawnersCleared, int spawnersTotal,
                               int spawnersNeeded) {
-        return activeTitle(omen, chests, spawnersCleared, spawnersTotal, spawnersNeeded, null);
+        return activeTitle(omen, max, chests, spawnersCleared, spawnersTotal, spawnersNeeded, null);
     }
 
     /**
-     * {@link #activeTitle(int, int, int, int, int)} on a floor whose gate is
+     * {@link #activeTitle(int, int, int, int, int, int)} on a floor whose gate is
      * an objective rather than the spawner fraction: {@code objectiveLine}
      * leads instead ({@code "Veins 2/3 | Lives 3"}). A null or blank line
      * falls back to the spawner form.
      */
-    static String activeTitle(int omen, int chests, int spawnersCleared, int spawnersTotal,
+    static String activeTitle(int omen, int max, int chests, int spawnersCleared, int spawnersTotal,
                               int spawnersNeeded, String objectiveLine) {
         // Playtest 2026-09-26 (A1): the title was too long to read, and the one
         // thing the player tracks is the spawner gate. It leads; lives follow
@@ -81,8 +81,8 @@ final class OmenBarText {
         } else {
             title.append("Spawners done");
         }
-        title.append(" | ").append(livesText(omen));
-        if (Omen.nextDeathFails(omen)) {
+        title.append(" | ").append(livesText(omen, max));
+        if (Omen.nextDeathFails(omen, max)) {
             title.append(" | one more fall ends the run");
         }
         return title.toString();
@@ -95,12 +95,12 @@ final class OmenBarText {
      * length and counts floors alone.
      */
     static String clearedTitle(int floorsCleared, String dungeon, boolean mine, boolean finished,
-                               boolean finalAhead, int omen, int chests) {
+                               boolean finalAhead, int omen, int max, int chests) {
         // PD-174: the loot outcome used to ride on this line and the whole thing ran off the
         // player's screen. The outcome is in the completion chat line; the bar keeps the floor
         // and the lives.
         return clearedHeadline(floorsCleared, dungeon, mine, finished, finalAhead)
-                + " | " + livesText(omen);
+                + " | " + livesText(omen, max);
     }
 
     /**
@@ -163,8 +163,9 @@ final class OmenBarText {
      * rolls, chart scrap so far."} Nothing banks until the party goes home,
      * and any checkpoint can go on, so the verdict is always "so far".
      */
-    static String completionVerdict(int omen, int chests) {
-        return Omen.lives(omen) + (Omen.lives(omen) == 1 ? " life" : " lives") + " left: "
+    static String completionVerdict(int omen, int max, int chests) {
+        int lives = Omen.lives(omen, max);
+        return lives + (lives == 1 ? " life" : " lives") + " left: "
                 + outcome(chests) + " so far.";
     }
 
@@ -186,8 +187,8 @@ final class OmenBarText {
     }
 
     /** The action bar line when a death takes a life: {@code "A bad omen. 2 lives left."} */
-    static String deathCue(int omen) {
-        int lives = Omen.lives(omen);
+    static String deathCue(int omen, int max) {
+        int lives = Omen.lives(omen, max);
         return "A bad omen. " + lives + (lives == 1 ? " life" : " lives") + " left.";
     }
 

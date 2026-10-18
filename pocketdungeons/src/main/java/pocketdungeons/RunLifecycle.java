@@ -499,7 +499,7 @@ final class RunLifecycle {
         // A side branch costs lives (Haul and Blood Doors): the party's, never the last one.
         // The door screen names it (RitualListener.doorRefusal); re-check here for safety.
         int previewCost = Keystone.livesCost(record.owner, offer);
-        if (previewCost > 0 && !DoorLives.affordable(Omen.lives(record.interval.omen), previewCost)) {
+        if (previewCost > 0 && !DoorLives.affordable(livesLeft(record), previewCost)) {
             return false;
         }
 
@@ -573,6 +573,15 @@ final class RunLifecycle {
     }
 
     /** What the commit gates settled on: the door's offer and step, its life cost, and the journal's edge facts. */
+    /**
+     * The party's lives left on this trip: the trip's maximum (fixed at the first door commit from
+     * the party size, see {@link IntervalState#settleMaxLives}) less the deaths so far.
+     */
+    static int livesLeft(InstanceRecord record) {
+        record.interval.settleMaxLives(record.members.size());
+        return Omen.lives(record.interval.omen, record.interval.maxLives);
+    }
+
     private record DoorCommit(Keystone.Offer offer, int step, int doorCost, boolean firstDoorOfTrip,
                               String fromNode, DungeonLog log) {}
 
@@ -648,7 +657,7 @@ final class RunLifecycle {
         // pulls the lever spends everyone's life, and the last life is never for sale.
         int doorCost = Keystone.livesCost(record.owner, offer);
         if (doorCost > 0) {
-            int livesLeft = Omen.lives(record.interval.omen);
+            int livesLeft = livesLeft(record);
             if (!DoorLives.affordable(livesLeft, doorCost)) {
                 player.sendSystemMessage(Component.literal(DoorLives.refusal(livesLeft, doorCost))
                         .withStyle(ChatFormatting.RED));
@@ -780,8 +789,8 @@ final class RunLifecycle {
         // its lives from the trip (omen, the same lives a death spends), the gate above
         // checked there is one to spare.
         if (doorCost > 0) {
-            record.interval.omen = Omen.add(record.interval.omen, doorCost);
-            int livesLeft = Omen.lives(record.interval.omen);
+            record.interval.omen = Omen.add(record.interval.omen, doorCost, record.interval.maxLives);
+            int livesLeft = livesLeft(record);
             PlaytestJournal.omenRise(server, record, Omen.Source.DOOR, doorCost, record.interval.omen,
                     player.blockPosition());
             OmenBar.cue(server, record, Omen.Source.DOOR);
@@ -1299,7 +1308,7 @@ final class RunLifecycle {
         int floorsCleared = record.interval.floorIndex;
         ZoneRules rules = ZoneRules.of(record);
         // J3: the verdict is lives, not a band; omen is danger only.
-        String verdict = OmenBarText.completionVerdict(record.interval.omen,
+        String verdict = OmenBarText.completionVerdict(record.interval.omen, record.interval.maxLives,
                 record.floor.rewardChests >= 0 ? record.floor.rewardChests : Omen.baseRewardChests());
         if (ProvingWaves.isProving(record)) {
             // The Proving's checkpoint, same commitment surface as the Mine's.
