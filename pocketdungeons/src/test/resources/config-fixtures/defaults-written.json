@@ -20,6 +20,8 @@
   "pathLengthMin": 8,
   "pathLengthMax": 12,
   "firstFloorMaxEncounters": 2,
+  "firstLevelScrapCost": 2,
+  "actZeroScrap": 2,
   "branchProbability": 0.55,
   "loopProbability": 0.3,
   "planAttemptBudget": 32,

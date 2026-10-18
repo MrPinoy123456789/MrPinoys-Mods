@@ -109,12 +109,15 @@ public final class GatherFloorGameTest {
         helper.succeed();
     }
 
-    /** The First Night stamps no trial spawner; a dungeon theme without the flag still does. */
+    /** Gather floors plan with no encounter cells; the last floor of Act 0 plans exactly one. */
     @GameTest
-    public void theFirstNightStampsNoSpawners(GameTestHelper helper) {
-        helper.assertTrue(RoomContent.noSpawners("pocketdungeons:first_night"), "the First Night is spawner free");
-        helper.assertTrue(!RoomContent.noSpawners("pocketdungeons:mineshaft"), "the Mineshaft keeps its spawners");
-        helper.assertTrue(!RoomContent.noSpawners(null), "no theme keeps spawners");
+    public void theFirstNightCapsItsSpawners(GameTestHelper helper) {
+        helper.assertValueEqual(Instances.encounterCap(Keystone.fromDoor(DungeonDefs.current(),
+                new TripDoors.Door("pocketdungeons:first_night", "treeline", 1, 0, 0, 0), 1, 100), 2), -1,
+                "a gather floor has no spawners");
+        helper.assertValueEqual(Instances.encounterCap(Keystone.fromDoor(DungeonDefs.current(),
+                new TripDoors.Door("pocketdungeons:first_night", "cave_mouth", 1, 0, 0, 0), 1, 100), 2), 1,
+                "the cave mouth has one");
         helper.succeed();
     }
 }

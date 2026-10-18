@@ -605,9 +605,9 @@ final class DungeonRoomMeta {
         List<Integer> acts = new ArrayList<>();
         for (JsonElement e : el.getAsJsonArray()) {
             int act = e.getAsInt();
-            if (act < DungeonDef.MIN_ACT || act > DungeonDef.MAX_ACT) {
+            if (act < DungeonDef.PROLOGUE_ACT || act > DungeonDef.MAX_ACT) {
                 throw new IllegalArgumentException("room " + roomName + ": acts must be "
-                        + DungeonDef.MIN_ACT + " to " + DungeonDef.MAX_ACT + ", not " + act);
+                        + DungeonDef.PROLOGUE_ACT + " to " + DungeonDef.MAX_ACT + ", not " + act);
             }
             acts.add(act);
         }

@@ -404,7 +404,7 @@ public class TripDoorsTest {
     /** D23: a fresh compass still has somewhere to go. */
     private static void testActOneOffersAtCompassOne() throws Exception {
         List<DungeonDef> shipped = new ArrayList<>();
-        String[] names = {"mineshaft", "rootworks", "infestation", "ossuary", "spawner_dungeon", "first_night"};
+        String[] names = {"mineshaft", "rootworks", "infestation", "ossuary", "spawner_dungeon"};
         for (String name : names) {
             try (InputStream in = TripDoorsTest.class.getClassLoader()
                     .getResourceAsStream("data/pocketdungeons/dungeon/" + name + ".json")) {
@@ -414,8 +414,8 @@ public class TripDoorsTest {
                                 .getAsJsonObject()));
             }
         }
-        check(!TripDoors.eligibleFirst(shipped, Set.of(1), 1).isEmpty(),
-                "act 1 at compass 1 offers at least one dungeon");
+        check(!TripDoors.eligibleFirst(shipped, Set.of(1), 2).isEmpty(),
+                "act 1 at compass 2 (what Act 0 pays) offers at least one dungeon");
         check(TripDoors.eligibleFirst(shipped, Set.of(1), 1).stream()
                         .allMatch(d -> d.unlockLevel() <= 1),
                 "everything offered at compass 1 is unlocked");

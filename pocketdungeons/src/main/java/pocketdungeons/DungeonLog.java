@@ -1885,6 +1885,8 @@ final class DungeonLog extends SavedData {
         setStash(player, InventorySwap.StashRecord.NONE);
         setKitChest(player, List.of());
         setStorage(player, List.of());
+        // A key reset reopens Act 0 (The First Night); see DungeonProgress.prologueDone.
+        setTaskProgress(player, DungeonProgress.PROLOGUE_KEY, 2);
         setDirty();
     }
 }

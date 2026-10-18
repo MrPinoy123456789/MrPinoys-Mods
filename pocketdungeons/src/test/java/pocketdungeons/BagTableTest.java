@@ -44,7 +44,10 @@ import java.util.Set;
 public class BagTableTest {
 
     /** L1's five offered bags, in picker order. */
-    private static final List<String> OFFERED = List.of(
+    private static final List<String> OFFERED = List.of("starter");
+
+    /** The older bags, hidden since the starter bag replaced them (decision 2026-10-17). */
+    private static final List<String> RETIRED = List.of(
             "lumberjack", "sapper", "ranger", "innkeeper", "guard");
 
     /** The five module-gated bags; their tables ship for when extra_bags is on. */
@@ -52,10 +55,11 @@ public class BagTableTest {
             "mason", "plumber", "magician", "shepherd", "pilgrim");
 
     private static final List<String> BAG_IDS = new ArrayList<>(
-            OFFERED.size() + MODULE_BAGS.size());
+            OFFERED.size() + RETIRED.size() + MODULE_BAGS.size());
 
     static {
         BAG_IDS.addAll(OFFERED);
+        BAG_IDS.addAll(RETIRED);
         BAG_IDS.addAll(MODULE_BAGS);
     }
 
@@ -267,7 +271,8 @@ public class BagTableTest {
             "minecraft:bow", "minecraft:flint_and_steel", "minecraft:lava_bucket",
             "minecraft:milk_bucket", "minecraft:shield", "minecraft:spyglass",
             "minecraft:stone_axe", "minecraft:stone_pickaxe", "minecraft:stone_sword",
-            "minecraft:water_bucket", "minecraft:wooden_sword");
+            "minecraft:water_bucket", "minecraft:wooden_sword",
+            "minecraft:wooden_axe", "minecraft:wooden_pickaxe", "minecraft:wooden_shovel");
 
     private static void checkTagged(String bag, JsonObject table) {
         for (JsonObject entry : entriesOf(table)) {
@@ -368,16 +373,20 @@ public class BagTableTest {
             boolean moduleClaimed = moduleBags.contains(bag);
             if (OFFERED.contains(bag)) {
                 if (hidden) {
-                    throw new AssertionError("bag " + bag + " is offered under L1 but still "
+                    throw new AssertionError("bag " + bag + " is the offered bag but still "
                             + "carries hidden: true");
                 }
                 if (moduleClaimed) {
-                    throw new AssertionError("bag " + bag + " is offered under L1 but extra_bags "
+                    throw new AssertionError("bag " + bag + " is the offered bag but extra_bags "
                             + "claims it");
                 }
-            } else if (!moduleClaimed) {
-                throw new AssertionError("bag " + bag + " is not one of the five offered bags "
-                        + "but extra_bags does not claim it");
+            } else {
+                if (!hidden) {
+                    throw new AssertionError("bag " + bag + " is not the starter bag, so it must carry hidden: true");
+                }
+                if (!RETIRED.contains(bag) && !moduleClaimed) {
+                    throw new AssertionError("bag " + bag + " is a cut bag but extra_bags does not claim it");
+                }
             }
         }
     }

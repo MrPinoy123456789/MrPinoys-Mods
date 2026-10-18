@@ -3,17 +3,8 @@
   "token": {
     "mat": "minecraft:grass_block"
   },
-  "finale": {
-    "mobs": [
-      {
-        "type": "minecraft:zombie",
-        "count": 1
-      }
-    ],
-    "perMemberPercent": 0
-  },
   "notes": "The starting biome. Gather wood, stone, coal and iron, then face the night.",
-  "act": 1,
+  "act": 0,
   "baseLevel": 1,
   "kind": "dungeon",
   "minNodeRooms": 0,

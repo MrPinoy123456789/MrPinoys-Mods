@@ -26,8 +26,11 @@ final class ActProgress {
 
     private ActProgress() {}
 
-    /** The act's display name, or {@code "Act n"} for a number outside 1 to 5. */
+    /** The act's display name, or {@code "Act n"} for a number outside 1 to 5 ({@code Prologue} for act 0). */
     static String name(int act) {
+        if (act == DungeonDef.PROLOGUE_ACT) {
+            return "The First Night";
+        }
         return act >= DungeonDef.MIN_ACT && act <= DungeonDef.MAX_ACT ? NAMES[act - 1] : "Act " + act;
     }
 

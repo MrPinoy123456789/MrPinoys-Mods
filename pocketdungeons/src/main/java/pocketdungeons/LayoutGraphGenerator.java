@@ -717,10 +717,21 @@ public final class LayoutGraphGenerator {
      * the same way to keep {@code loot <= encounter}, the key budget
      * {@link #balanceKeyBudget} enforces, keeping one loot cell on the path.
      *
-     * @param max the most encounter cells to keep; 0 or less returns the shape unchanged
+     * @param max the most encounter cells to keep; 0 returns the shape unchanged, and a negative value
+     *            strips every encounter and loot cell (a spawner free floor, The First Night's gather floors)
      */
     static DungeonShape capEncounters(DungeonShape shape, int max) {
-        if (max <= 0 || countRole(shape.roles(), ROLE_ENCOUNTER) <= max) {
+        if (max < 0) {
+            Map<PlanCell, String> stripped = new HashMap<>(shape.roles());
+            for (Map.Entry<PlanCell, String> e : stripped.entrySet()) {
+                if (ROLE_ENCOUNTER.equals(e.getValue()) || ROLE_LOOT.equals(e.getValue())) {
+                    e.setValue(ROLE_CORRIDOR);
+                }
+            }
+            return new DungeonShape(shape.seed(), shape.cells(), shape.openEdges(), shape.entrance(),
+                    shape.terminal(), shape.criticalPath(), stripped);
+        }
+        if (max == 0 || countRole(shape.roles(), ROLE_ENCOUNTER) <= max) {
             return shape;
         }
         Map<PlanCell, String> roles = new HashMap<>(shape.roles());

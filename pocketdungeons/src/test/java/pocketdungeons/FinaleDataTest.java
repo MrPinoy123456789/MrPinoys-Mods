@@ -40,7 +40,7 @@ public class FinaleDataTest {
                     check(!has, id + ": a " + kind + " takes no finale");
                     continue;
                 }
-                if (act <= 2 && !NO_FINALE.contains(id)) {
+                if (act >= 1 && act <= 2 && !NO_FINALE.contains(id)) {
                     check(has, id + ": an Act " + act + " dungeon ends in a finale");
                 }
                 if (!has) {

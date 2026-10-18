@@ -1,3 +1,4 @@
+actZeroScrap = 0
 afkSeconds = 0
 ancientWardenAnswers = 1
 anomalyRoomChance = 0.0
@@ -50,6 +51,7 @@ finaleRewardChests = 0
 finishEmeralds = 0
 finishVaultChests = 0
 firstFloorMaxEncounters = 0
+firstLevelScrapCost = 1
 floorsPerSafeVisit = 1
 fountainChance = 0.0
 frostBrazierRadius = 2

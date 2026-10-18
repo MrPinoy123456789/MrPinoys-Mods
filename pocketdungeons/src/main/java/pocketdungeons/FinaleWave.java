@@ -107,32 +107,10 @@ final class FinaleWave {
     private static boolean due(ServerLevel level, InstanceRecord record) {
         Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, level);
         if (spawners.isEmpty()) {
-            return RoomContent.noSpawners(record.floor.theme) && memberInTerminalCell(level, record);
+            return false;
         }
         return DifficultyProfile.spawnersCleared(TrialContent.countCleared(level, spawners), spawners.size(),
                 PocketDungeonsConfig.spawnerClearThreshold());
-    }
-
-    /**
-     * A dungeon whose theme stamps no spawners has nothing to clear, so its finale comes on when a member
-     * steps into the terminal cell (The First Night's cave mouth).
-     */
-    private static boolean memberInTerminalCell(ServerLevel level, InstanceRecord record) {
-        BlockPos origin = record.layout.terminal();
-        if (origin == null) {
-            return false;
-        }
-        for (ServerPlayer player : level.players()) {
-            if (!record.members.containsKey(player.getUUID())) {
-                continue;
-            }
-            BlockPos at = player.blockPosition();
-            if (at.getX() >= origin.getX() && at.getX() < origin.getX() + RoomGeometry.CELL
-                    && at.getZ() >= origin.getZ() && at.getZ() < origin.getZ() + RoomGeometry.CELL) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

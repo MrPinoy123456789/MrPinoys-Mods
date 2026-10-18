@@ -319,6 +319,9 @@ final class HallRoom {
     private static Component actText(HallOffers.Hall hall) {
         MutableComponent text = Component.literal(ActProgress.label(hall.act())).withStyle(ChatFormatting.GOLD)
                 .append(Component.literal("\n"));
+        if (hall.act() == DungeonDef.PROLOGUE_ACT) {
+            return text.append(Component.literal("[0]").withStyle(ChatFormatting.GOLD));
+        }
         for (int act = DungeonDef.MIN_ACT; act <= DungeonDef.MAX_ACT; act++) {
             boolean open = hall.openActs().contains(act);
             String digit = act == hall.act() ? "[" + act + "]" : String.valueOf(act);

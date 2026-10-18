@@ -3,6 +3,5 @@
   "processors": "pocketdungeons:theme_first_night",
   "spawner_prefix": "mineshaft",
   "loot_suffix": "mineshaft",
-  "room_theme": "first_night",
-  "no_spawners": true
+  "room_theme": "first_night"
 }

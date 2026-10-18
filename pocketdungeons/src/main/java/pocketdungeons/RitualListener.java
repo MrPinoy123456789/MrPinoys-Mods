@@ -228,7 +228,9 @@ final class RitualListener {
                 && Instances.isBagChest(level.getBlockState(pos))) {
             Bags.clearGatedChoice(DungeonLog.forServer(level.getServer()), serverPlayer.getUUID());
             String carried = DungeonLog.forServer(level.getServer()).bagOf(serverPlayer.getUUID());
-            if (carried.isEmpty()) {
+            if (carried.isEmpty() || !DungeonProgress.prologueDone(DungeonLog.forServer(level.getServer()),
+                    serverPlayer.getUUID())) {
+                // Act 0: the chest always offers the gear, so a lost set can be taken again.
                 DialogKit.show(serverPlayer, DialogScreens.bagPicker(serverPlayer));
             } else if (KitChest.holdsLeftovers(serverPlayer)) {
                 KitChest.open(serverPlayer);

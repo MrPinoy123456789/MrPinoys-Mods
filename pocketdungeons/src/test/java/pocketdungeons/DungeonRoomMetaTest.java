@@ -412,7 +412,7 @@ public class DungeonRoomMetaTest {
     }
 
     private static void testW4ChoiceRejections() {
-        for (String body : new String[]{"\"light\": \"pitch\"", "\"corridor\": \"tight\"", "\"acts\": [0]",
+        for (String body : new String[]{"\"light\": \"pitch\"", "\"corridor\": \"tight\"", "\"acts\": [-1]",
                 "\"acts\": [6]"}) {
             boolean threw = false;
             try {

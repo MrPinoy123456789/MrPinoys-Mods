@@ -125,6 +125,12 @@ public final class PocketDungeonsConfig {
      */
     private static final Knob<Integer> FIRST_FLOOR_MAX_ENCOUNTERS = integer("firstFloorMaxEncounters", 2,
             v -> v >= 0, "must be >= 0 (0 means no cap)");
+    /** Act 0 (decision 2026-10-17): what the first level costs, so the prologue's scrap buys Compass 2. */
+    private static final Knob<Integer> FIRST_LEVEL_SCRAP_COST = integer("firstLevelScrapCost", 2,
+            v -> v >= 1, "must be >= 1");
+    /** Act 0: the scrap the prologue's last floor pays; the other floors pay none. */
+    private static final Knob<Integer> ACT_ZERO_SCRAP = integer("actZeroScrap", 2,
+            v -> v >= 0, "must be >= 0");
     private static final Knob<Double> BRANCH_PROBABILITY = decimal("branchProbability", 0.55,
             v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
     private static final Knob<Double> LOOP_PROBABILITY = decimal("loopProbability", 0.30,
@@ -1119,6 +1125,14 @@ public final class PocketDungeonsConfig {
 
     public static int pathLengthMax() {
         return PATH_LENGTH_MAX.get();
+    }
+
+    public static int firstLevelScrapCost() {
+        return FIRST_LEVEL_SCRAP_COST.get();
+    }
+
+    public static int actZeroScrap() {
+        return ACT_ZERO_SCRAP.get();
     }
 
     public static int firstFloorMaxEncounters() {

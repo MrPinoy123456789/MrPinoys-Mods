@@ -1319,7 +1319,26 @@ final class DialogScreens {
      * safe room.
      */
     static Dialog bagPicker(ServerPlayer player) {
-        return bagPickerDialog(bagOptions(), player.getUUID());
+        List<BagOption> options = bagOptions();
+        if (options.size() == 1) {
+            return takeEquipmentDialog(options.get(0), player.getUUID());
+        }
+        return bagPickerDialog(options, player.getUUID());
+    }
+
+    /**
+     * The bag chest when there is one bag to take (decision 2026-10-17): no choice, no confirm; the chest says
+     * equipment was left behind and the button takes it. {@link DialogRouter#confirmBag} does the rest.
+     */
+    static Dialog takeEquipmentDialog(BagOption option, UUID owner) {
+        List<DialogBody> body = new ArrayList<>();
+        body.add(DialogKit.text("There seems to be equipment left behind."));
+        CompoundTag context = new CompoundTag();
+        context.putString(KEY_OWNER, owner.toString());
+        context.putString(KEY_BAG_ID, option.bagId());
+        List<ActionButton> buttons = List.of(DialogKit.button("Take it", option.tooltip(),
+                DialogKit.submit(ACTION_CONFIRM_BAG, context)));
+        return DialogKit.list("Left behind", body, buttons, "Leave it");
     }
 
     /**

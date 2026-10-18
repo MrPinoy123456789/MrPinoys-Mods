@@ -1073,6 +1073,28 @@ final class Instances {
      * The room names the node behind {@code offer} leans toward (the node's
      * {@code roomBias}), or an empty list outside a dungeon graph.
      */
+    /**
+     * The encounter cap a floor plans with: a gather floor has no spawners (-1 strips them), the last floor of
+     * Act 0 has exactly one, and every other floor keeps {@code ordinary} (the first floor rule, or 0 for none).
+     */
+    static int encounterCap(Keystone.Offer offer, int ordinary) {
+        if (offer == null || offer.door() == null) {
+            return ordinary;
+        }
+        DungeonDef def = DungeonDefs.current().byId(offer.dungeonId());
+        DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        if (node == null) {
+            return ordinary;
+        }
+        if (DungeonDef.Node.OBJECTIVE_GATHER.equals(node.objective())) {
+            return -1;
+        }
+        if (def.act() == DungeonDef.PROLOGUE_ACT && node.isFinal()) {
+            return 1;
+        }
+        return ordinary;
+    }
+
     static List<String> nodeRoomBias(Keystone.Offer offer) {
         if (offer == null || offer.door() == null) {
             return List.of();
@@ -1280,7 +1302,8 @@ final class Instances {
                                     PocketDungeonsConfig.loopProbability(),
                                     PocketDungeonsConfig.maxGridSpan()),
                             roomTheme, dungeonDoor, bagTags, recipePlan,
-                            record.interval.floorIndex == 0 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0,
+                            encounterCap(offer, record.interval.floorIndex == 0
+                                    ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0),
                             roomFloor)));
             plan = outcome.plan();
             lastSeed = outcome.finalSeed();
@@ -2745,6 +2768,8 @@ final class Instances {
         // the floor's, so it ticks whether or not the current floor is still
         // in progress. The method itself decides which runs carry a clock.
         CopperClock.tick(server, record);
+        // Act 0: a second starter tool of a kind is swept away (decision 2026-10-17).
+        StarterTools.tick(server, record);
         // Repainted every watch tick, and every member who is in the
         // dungeon dimension is put back on it: whichever way they came in
         // (invited mid-run, re-entered, walked back into the dimension),

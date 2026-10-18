@@ -26,7 +26,9 @@ public class KitHiddenBagTest {
     private static final Path BAGS = Path.of("src/main/resources/data/pocketdungeons/dungeon_bag");
     private static final Path EXTRA_BAGS = Path.of(
             "src/main/resources/data/pocketdungeons/content_module/extra_bags.json");
-    private static final Set<String> OFFERED = Set.of(
+    // Act 0 (decision 2026-10-17): one bag is offered, the ten older bags are hidden data.
+    private static final Set<String> OFFERED = Set.of("starter");
+    private static final Set<String> RETIRED = Set.of(
             "guard", "ranger", "sapper", "lumberjack", "innkeeper");
     private static final Set<String> MODULE_BAGS = Set.of(
             "mason", "plumber", "magician", "shepherd", "pilgrim");
@@ -65,8 +67,11 @@ public class KitHiddenBagTest {
         for (String name : OFFERED) {
             check(!hiddenIn(name), name + " is offered");
         }
+        for (String name : RETIRED) {
+            check(hiddenIn(name), name + " is hidden since the starter bag replaced it");
+        }
         for (String name : MODULE_BAGS) {
-            check(!hiddenIn(name), name + " is not hidden; extra_bags restores the whole kit");
+            check(hiddenIn(name), name + " is hidden since the starter bag replaced it");
         }
         Set<String> claimed = moduleClaimed();
         for (String name : MODULE_BAGS) {
@@ -75,7 +80,7 @@ public class KitHiddenBagTest {
         for (String name : OFFERED) {
             check(!claimed.contains(name), "extra_bags must not claim the offered bag " + name);
         }
-        check(OFFERED.size() == 5 && MODULE_BAGS.size() == 5, "five kits are offered, five gated");
+        check(OFFERED.size() == 1, "one kit is offered");
     }
 
     private static Set<String> moduleClaimed() throws IOException {
@@ -109,10 +114,10 @@ public class KitHiddenBagTest {
         BagManifest.publish(BagManifest.create(entries, List.of()));
 
         List<DialogScreens.BagOption> options = DialogScreens.bagOptions();
-        check(options.size() == 5, "the picker offers five bags, got " + options.size());
+        check(options.size() == 1, "the picker offers one bag, got " + options.size());
         for (DialogScreens.BagOption option : options) {
             String name = option.bagId().substring(option.bagId().indexOf(':') + 1);
-            check(OFFERED.contains(name), "the picker offers only the five kits: " + name);
+            check(OFFERED.contains(name), "the picker offers only the starter bag: " + name);
         }
         // A player who already holds a cut bag keeps it working: it still resolves.
         for (String name : MODULE_BAGS) {

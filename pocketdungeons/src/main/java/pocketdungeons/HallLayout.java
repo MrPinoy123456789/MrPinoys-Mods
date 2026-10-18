@@ -225,6 +225,9 @@ final class HallLayout {
                 best = Math.max(best, act);
             }
         }
+        if (unlocked.size() == 1 && unlocked.contains(DungeonDef.PROLOGUE_ACT)) {
+            return DungeonDef.PROLOGUE_ACT;
+        }
         return best > 0 ? best : Math.max(1, highest);
     }
 }

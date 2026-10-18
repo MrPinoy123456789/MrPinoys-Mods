@@ -633,9 +633,12 @@ public final class DialogRouter {
             return;
         }
         DungeonLog log = DungeonLog.forServer(server);
-        if (!log.bagOf(player.getUUID()).isEmpty()) {
+        boolean replacement = !log.bagOf(player.getUUID()).isEmpty()
+                && !DungeonProgress.prologueDone(log, player.getUUID());
+        if (!log.bagOf(player.getUUID()).isEmpty() && !replacement) {
             // Already chosen, possibly on another screen that sat open. Do not
-            // overwrite a chosen bag from a stale click.
+            // overwrite a chosen bag from a stale click. In Act 0 the chest hands a replacement set
+            // out for free; the starter tool sweep keeps it to one set.
             Chime.refused(player);
             player.sendSystemMessage(Component.literal("You have already chosen a bag.")
                     .withStyle(ChatFormatting.YELLOW));
@@ -656,9 +659,14 @@ public final class DialogRouter {
         // that moment came back to no chest. It stays until the door is chosen
         // or the room is saved, which clear it already, and a click from
         // someone who has a bag says so (RitualListener).
+        if (replacement) {
+            StarterTools.sweep(server, player);
+            player.sendSystemMessage(Component.literal("You pick the gear up again.")
+                    .withStyle(ChatFormatting.GOLD));
+            return;
+        }
         player.sendSystemMessage(Component.literal(
-                "You chose " + bag.label
-                        + ". It is yours until you reset your compass.")
+                "You took " + bag.label + ".")
                 .withStyle(ChatFormatting.GOLD));
     }
 

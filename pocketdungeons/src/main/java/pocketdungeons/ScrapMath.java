@@ -32,6 +32,9 @@ final class ScrapMath {
 
     /** {@link #levelCost(int, int, int)} with the configured knobs. */
     static int levelCost(int compass) {
+        if (compass == 1) {
+            return PocketDungeonsConfig.firstLevelScrapCost();
+        }
         return levelCost(compass, PocketDungeonsConfig.scrapCostBase(), PocketDungeonsConfig.scrapCostEvery());
     }
 
@@ -98,15 +101,25 @@ final class ScrapMath {
      * Each level costs {@link #levelCost} at the level it leaves, so a big haul crosses several rising prices.
      */
     static Banked bank(int compass, int progress, int haul) {
-        return bank(compass, progress, haul, PocketDungeonsConfig.scrapCostBase(), PocketDungeonsConfig.scrapCostEvery());
+        return bank(compass, progress, haul, PocketDungeonsConfig.scrapCostBase(), PocketDungeonsConfig.scrapCostEvery(),
+                PocketDungeonsConfig.firstLevelScrapCost());
     }
 
     static Banked bank(int compass, int progress, int haul, int base, int every) {
+        return bank(compass, progress, haul, base, every, 0);
+    }
+
+    /** As above; a {@code firstLevel} above 0 is what leaving compass 1 costs, as in {@link #levelCost(int)}. */
+    static Banked bank(int compass, int progress, int haul, int base, int every, int firstLevel) {
         int level = Math.max(0, compass);
         int left = Math.max(0, progress) + Math.max(0, haul);
         int gained = 0;
-        while (left >= levelCost(level, base, every)) {
-            left -= levelCost(level, base, every);
+        while (true) {
+            int cost = firstLevel > 0 && level == 1 ? firstLevel : levelCost(level, base, every);
+            if (left < cost) {
+                break;
+            }
+            left -= cost;
             level++;
             gained++;
         }

@@ -64,9 +64,9 @@ public class ScrapMathTest {
         check(ScrapMath.levelCost(50, 4, 3), 20, "compass 50 pays 20");
         check(ScrapMath.levelCost(50, 5, 1), 55, "the knobs move it");
         check(ScrapMath.levelCost(-3, 4, 3), 4, "a negative compass is a new player");
-        // From compass 1 to 25 the table totals 188 (the reply's worked check).
-        check(ScrapMath.totalScrap(25, 0) - ScrapMath.totalScrap(1, 0), 188, "compass 1 to 25 costs 188 in all");
-        check(ScrapMath.totalScrap(3, 2), 4 + 4 + 4 + 2, "the bar counts toward the total");
+        // From compass 1 to 25 the table totals 186: 188 before Act 0 made the first level cost 2.
+        check(ScrapMath.totalScrap(25, 0) - ScrapMath.totalScrap(1, 0), 186, "compass 1 to 25 costs 186 in all");
+        check(ScrapMath.totalScrap(3, 2), 4 + 2 + 4 + 2, "the bar counts toward the total");
     }
 
     private static void testBank() {
@@ -92,18 +92,18 @@ public class ScrapMathTest {
         check(carry.progress(), 2, "with 2 carried into the bar");
         check(carry.gained(), 2, "two levels");
 
-        // From nothing the first levels cost 4 each: 17 = 4 + 4 + 4 + 5 = 17, four levels, nothing over.
+        // From nothing: 4 to leave 0, 2 to leave 1 (Act 0), 4, then 5: 15 for four levels, 2 over from 17.
         ScrapMath.Banked big = ScrapMath.bank(0, 0, 17);
         check(big.compass(), 4, "17 from nothing crosses rising prices to level 4");
-        check(big.progress(), 0, "with nothing over");
+        check(big.progress(), 2, "with 2 over");
         check(big.gained(), 4, "four levels");
-        check(ScrapMath.bank(0, 0, 16).compass(), 3, "16 is three levels at 4 and 4 and 4, then 4 short of the fourth");
-        check(ScrapMath.bank(0, 0, 16).progress(), 4, "with 4 in the bar");
+        check(ScrapMath.bank(0, 0, 16).compass(), 4, "16 is four levels at 4, 2, 4 and 5");
+        check(ScrapMath.bank(0, 0, 16).progress(), 1, "with 1 in the bar");
         check(ScrapMath.bank(7, 0, -4).compass(), 7, "a negative haul banks nothing");
         // A bar that already meets the price (saved under the old flat 5) settles into a level.
         ScrapMath.Banked old = ScrapMath.bank(1, 4, 0);
-        check(old.compass(), 2, "a saved bar of 4 at compass 1 meets the price of 4");
-        check(old.progress(), 0, "and settles");
+        check(old.compass(), 2, "a saved bar of 4 at compass 1 meets the price of 2");
+        check(old.progress(), 2, "and settles with 2 over");
         // Banking is the same whether done at once or in two goes.
         ScrapMath.Banked split = ScrapMath.bank(8, 0, 13);
         ScrapMath.Banked first = ScrapMath.bank(8, 0, 6);

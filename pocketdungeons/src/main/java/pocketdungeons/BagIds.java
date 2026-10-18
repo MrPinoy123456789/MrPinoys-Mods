@@ -33,6 +33,8 @@ final class BagIds {
     static final String PILGRIM = "pocketdungeons:pilgrim";
     static final String GUARD = "pocketdungeons:guard";
     static final String LUMBERJACK = "pocketdungeons:lumberjack";
+    /** The one bag offered since the Act 0 decision (2026-10-17): a wooden axe, pickaxe and shovel. */
+    static final String STARTER = "pocketdungeons:starter";
 
     /**
      * The built-in ids in the order the enum declared them, which is the
@@ -47,7 +49,7 @@ final class BagIds {
      * excuses the ids its parse was told to skip.
      */
     static final List<String> BUILT_IN_ORDER = List.of(
-            MASON, PLUMBER, LUMBERJACK, SAPPER, MAGICIAN, RANGER, SHEPHERD, INNKEEPER, PILGRIM, GUARD);
+            STARTER, MASON, PLUMBER, LUMBERJACK, SAPPER, MAGICIAN, RANGER, SHEPHERD, INNKEEPER, PILGRIM, GUARD);
 
     /**
      * Legacy bare enum name to namespaced id. {@code "mason"} (a pre-M70
@@ -69,6 +71,7 @@ final class BagIds {
         map.put("pilgrim", PILGRIM);
         map.put("guard", GUARD);
         map.put("lumberjack", LUMBERJACK);
+        map.put("starter", STARTER);
         return map;
     }
 

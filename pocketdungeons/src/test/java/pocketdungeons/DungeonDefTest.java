@@ -347,7 +347,7 @@ public class DungeonDefTest {
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
                 JSON.replace("\"act\": 2", "\"act\": 6")).getAsJsonObject()), "act above 5");
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
-                JSON.replace("\"act\": 2", "\"act\": 0")).getAsJsonObject()), "act below 1");
+                JSON.replace("\"act\": 2", "\"act\": -1")).getAsJsonObject()), "act below 0");
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(
                 JSON.replace("\"dungeon\"", "\"saga\"")).getAsJsonObject()), "unknown kind");
         expectThrows(() -> DungeonDef.fromJson(T + "x", JsonParser.parseString(

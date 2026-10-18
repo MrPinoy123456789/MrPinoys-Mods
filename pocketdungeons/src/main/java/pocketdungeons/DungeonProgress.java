@@ -24,7 +24,32 @@ final class DungeonProgress {
      * (D15), so offers always read this for the record owner. Act 1 is always in it.
      */
     static Set<Integer> unlockedActs(MinecraftServer server, UUID leader) {
-        return new TreeSet<>(DungeonLog.forServer(server).get(leader).campaign().actsUnlocked());
+        DungeonLog log = DungeonLog.forServer(server);
+        if (!prologueDone(log, leader)) {
+            return new TreeSet<>(Set.of(DungeonDef.PROLOGUE_ACT));
+        }
+        return new TreeSet<>(log.get(leader).campaign().actsUnlocked());
+    }
+
+    /** The {@link DungeonLog#taskProgress} key that holds a player's Act 0 state: 1 done, 2 reset to pending, 0 unset. */
+    static final String PROLOGUE_KEY = "act0";
+
+    /**
+     * Whether {@code player} has finished Act 0 (The First Night). A stored 1 means done and 2 means a key reset
+     * reopened it. With nothing stored, a player who already has progress (a compass above 1, a finished dungeon
+     * or a later act open) counts as done, so players from before the prologue are never sent back to it.
+     */
+    static boolean prologueDone(DungeonLog log, UUID player) {
+        int stored = log.taskProgress(player, PROLOGUE_KEY);
+        if (stored == 1) {
+            return true;
+        }
+        if (stored == 2) {
+            return false;
+        }
+        DungeonLog.Entry entry = log.get(player);
+        return entry.keystoneLevel() > 1 || !entry.dungeonsFinished().isEmpty()
+                || entry.campaign().actsUnlocked().size() > 1 || entry.campaign().campaignComplete();
     }
 
     /**
@@ -55,6 +80,16 @@ final class DungeonProgress {
                           boolean announceRemaining, boolean newFinish) {
         DungeonLog log = DungeonLog.forServer(server);
         UUID id = member.getUUID();
+        if (record != null && RunLifecycle.isPrologue(record)) {
+            // Finishing The First Night completes Act 0: it is never offered again (until a key reset)
+            // and Act 1 opens at the first door.
+            if (log.taskProgress(id, PROLOGUE_KEY) != 1) {
+                log.setTaskProgress(id, PROLOGUE_KEY, 1);
+                member.sendSystemMessage(Component.literal("The First Night is behind you. Act 1 is open.")
+                        .withStyle(ChatFormatting.GOLD));
+            }
+            return DungeonDef.MIN_ACT;
+        }
         DungeonLog.Entry entry = log.get(id);
         Set<Integer> open = entry.campaign().actsUnlocked();
         Set<String> finished = entry.dungeonsFinished();

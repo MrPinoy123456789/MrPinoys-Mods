@@ -1680,6 +1680,12 @@ final class RunLifecycle {
      * is banked at home or a finish and half lost to a failed dungeon. Unused trial keys settle
      * for emeralds on the same line (J7). The journal gets a {@code floor_pay} event per member.
      */
+    /** Whether {@code record} is a floor of Act 0, The First Night. */
+    static boolean isPrologue(InstanceRecord record) {
+        DungeonDef def = TripView.def(record);
+        return def != null && def.act() == DungeonDef.PROLOGUE_ACT;
+    }
+
     private static void payFloorMembers(MinecraftServer server, InstanceRecord record) {
         DungeonLog log = DungeonLog.forServer(server);
         int step = record.floor.chosenStep;
@@ -1695,6 +1701,10 @@ final class RunLifecycle {
             // advanceFloor has already counted this floor, so floorIndex is how many floors deep it was.
             int pay = ScrapMath.floorPay(step, floorLevel, compass, speedBonus + FloorPay.bonus(TripView.def(record),
                     record.interval.nodeId, EndlessMineRules.isMine(record), record.interval.floorIndex));
+            if (isPrologue(record)) {
+                // Act 0 pays nothing until its last floor, then exactly the scrap that buys Compass 2.
+                pay = TripView.onFinal(record) ? PocketDungeonsConfig.actZeroScrap() : 0;
+            }
             log.addHaul(member, pay);
             if (pay > 0) {
                 Chime.scrapEarned(memberPlayer);

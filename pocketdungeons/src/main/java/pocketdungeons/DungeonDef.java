@@ -171,6 +171,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
     static final int MIN_LAYERS = 2;
     static final int MAX_LAYERS = 6;
     static final int MAX_EDGES_OUT = 3;
+    /** Act 0, the prologue (The First Night): outside the 1 to 5 campaign, finished once per player. */
+    static final int PROLOGUE_ACT = 0;
     static final int MIN_ACT = 1;
     static final int MAX_ACT = 5;
     static final int MIN_TIER = 1;
@@ -507,8 +509,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("dungeon name must not be blank: " + id);
         }
-        if (act < MIN_ACT || act > MAX_ACT) {
-            throw new IllegalArgumentException("act must be " + MIN_ACT + " to " + MAX_ACT + ": " + act);
+        if (act < PROLOGUE_ACT || act > MAX_ACT) {
+            throw new IllegalArgumentException("act must be " + PROLOGUE_ACT + " to " + MAX_ACT + ": " + act);
         }
         if (kind == null) {
             throw new IllegalArgumentException("kind is required: " + id);

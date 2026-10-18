@@ -97,8 +97,8 @@ public final class HallRoomGameTest {
             helper.assertTrue(hall.doors().get(i - 1).unlockLevel() <= hall.doors().get(i).unlockLevel(),
                     "ordered by compass");
         }
-        // A new player starts in Act 1, and the Endless Mine waits for its compass.
-        helper.assertValueEqual(hall.act(), 1, "a new player opens on Act 1");
+        // A new player starts in Act 0 (The First Night), and the Endless Mine waits for its compass.
+        helper.assertValueEqual(hall.act(), 0, "a new player opens on Act 0");
         helper.assertTrue(hall.specials().isEmpty(), "the Endless Mine is not open to a new player");
         helper.succeed();
     }
