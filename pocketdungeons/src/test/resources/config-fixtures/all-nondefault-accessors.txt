@@ -127,6 +127,7 @@ mobScaleBase = 0.01
 mobScalePerLevel = 0.0
 mobUniformEnabled = false
 moltenHazardsPerCell = 0
+omenDangerScaleActOne = 0.01
 omenDangerScalePerOmen = 0.0
 ominousVaultKeyItem = minecraft:stone
 ordealEmeraldChance = 0.0

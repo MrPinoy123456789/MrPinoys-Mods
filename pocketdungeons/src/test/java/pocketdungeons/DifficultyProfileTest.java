@@ -6,6 +6,8 @@ public class DifficultyProfileTest {
         testTierBoundaries();
         testKeystoneRekey();
         testMobScale();
+        testCampaignMobCurve();
+        testOmenBonusByAct();
         testSpawnersCleared();
         System.out.println("DifficultyProfileTest passed");
     }
@@ -43,6 +45,26 @@ public class DifficultyProfileTest {
             }
             previous = scale;
         }
+    }
+
+    /** T1: the campaign defaults, 0.85 + 0.02 per level: level 8 is about vanilla, level 20 is 1.25. */
+    private static void testCampaignMobCurve() {
+        checkDouble(DifficultyProfile.mobScale(3, 0.02, 0.85), 0.91);
+        checkDouble(DifficultyProfile.mobScale(8, 0.02, 0.85), 1.01);
+        checkDouble(DifficultyProfile.mobScale(12, 0.02, 0.85), 1.09);
+        checkDouble(DifficultyProfile.mobScale(20, 0.02, 0.85), 1.25);
+    }
+
+    /** T1: deaths harden the floor from Act 2 only; Acts 0 and 1 use the Act One rate (default 0). */
+    private static void testOmenBonusByAct() {
+        checkDouble(DifficultyProfile.omenBonus(5, 0, 0.0, 0.1), 0.0);
+        checkDouble(DifficultyProfile.omenBonus(5, 1, 0.0, 0.1), 0.0);
+        checkDouble(DifficultyProfile.omenBonus(5, 2, 0.0, 0.1), 0.5);
+        checkDouble(DifficultyProfile.omenBonus(5, 5, 0.0, 0.1), 0.5);
+        // The Act One knob is honoured when an operator raises it, and only for acts 0 and 1.
+        checkDouble(DifficultyProfile.omenBonus(4, 1, 0.05, 0.1), 0.2);
+        checkDouble(DifficultyProfile.omenBonus(4, 2, 0.05, 0.1), 0.4);
+        checkDouble(DifficultyProfile.omenBonus(-3, 2, 0.05, 0.1), 0.0);
     }
 
     private static void checkDouble(double actual, double expected) {

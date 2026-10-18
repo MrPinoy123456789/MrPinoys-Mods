@@ -53,9 +53,9 @@ record DifficultyProfile(int pathLength, int keystoneLevel, int lootMin, int loo
 
     /**
      * M10: mob strength scaling for the run's keystone level, as a multiplier
-     * over a mob's base attribute value. {@code base + 0.8% per level} by default
-     * (a level-0 run's mobs land at {@code 0.65x}, a level-25 run at {@code 0.85x},
-     * a level-100 run at {@code 1.45x}), config-driven via
+     * over a mob's base attribute value. {@code base + 2% per level} by default
+     * (a level-0 run's mobs land at {@code 0.85x}, level 8 at {@code 1.01x},
+     * level 20 at {@code 1.25x}, level 100 at {@code 2.85x}), config-driven via
      * {@link PocketDungeonsConfig#mobScaleBase()} and
      * {@link PocketDungeonsConfig#mobScalePerLevel()}.
      *
@@ -65,6 +65,15 @@ record DifficultyProfile(int pathLength, int keystoneLevel, int lootMin, int loo
      */
     static double mobScale(int level, double perLevel, double base) {
         return Math.max(0, base) + Math.max(0, level) * Math.max(0, perLevel);
+    }
+
+    /**
+     * The per-omen mob bonus for a trip in {@code act}: Acts 0 and 1 use {@code actOne} (default 0, deaths
+     * do not harden the early floors), Act 2 onward use {@code fromActTwo}. An unknown dungeon (Uncharted
+     * doors, the endgame dive) is passed as act 2 and so uses the harder value. Negative omen counts as 0.
+     */
+    static double omenBonus(int omen, int act, double actOne, double fromActTwo) {
+        return Math.max(0, omen) * (act <= 1 ? actOne : fromActTwo);
     }
 
     /**

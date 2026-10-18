@@ -282,7 +282,7 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
             mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
             mob.setPersistenceRequired();
             MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus,
-                    Omen.clamp(record.interval.omen));
+                    Omen.clamp(record.interval.omen), MobScaling.actOf(record));
         }
     }
 
@@ -315,7 +315,7 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
         brute.setCustomName(Component.literal(ASSAYER_NAME).withStyle(ChatFormatting.GOLD));
         brute.setCustomNameVisible(true);
         MobScaling.applyMobScale(brute, record.layout.keystoneLevel() + record.floor.levelBonus,
-                Omen.clamp(record.interval.omen));
+                Omen.clamp(record.interval.omen), MobScaling.actOf(record));
         AttributeInstance health = brute.getAttribute(Attributes.MAX_HEALTH);
         if (health != null) {
             health.setBaseValue(health.getBaseValue() * ASSAYER_HEALTH_MULT);

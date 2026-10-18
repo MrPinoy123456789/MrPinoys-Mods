@@ -17,6 +17,7 @@
   "lemonLingerSeconds": 1,
   "lemonThinkSeconds": 10,
   "omenDangerScalePerOmen": 0.0,
+  "omenDangerScaleActOne": 0.01,
   "pathLengthMin": 2,
   "pathLengthMax": 2,
   "firstFloorMaxEncounters": 0,

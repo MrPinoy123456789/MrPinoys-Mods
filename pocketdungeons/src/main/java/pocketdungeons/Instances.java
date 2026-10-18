@@ -232,7 +232,8 @@ final class Instances {
             }
             InstanceRecord record = instanceAt(mob.blockPosition());
             if (record != null) {
-                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
+                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen),
+                        MobScaling.actOf(record));
                 // The dungeon's uniform (design pass 2026-10-09, Q5): the Copper Works crew wears copper.
                 DungeonDef uniformOf = TripView.def(record);
                 if (uniformOf != null && uniformOf.mobUniform() != null) {
@@ -2292,7 +2293,8 @@ final class Instances {
                 mob.setPos(pos.x, pos.y, pos.z);
                 mob.setTarget(player);
                 mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
-                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen));
+                MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus, Omen.clamp(record.interval.omen),
+                        MobScaling.actOf(record));
                 level.addFreshEntity(mob);
             }
         }
