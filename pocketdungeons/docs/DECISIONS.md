@@ -914,3 +914,79 @@ A player with any recorded progress (a compass above 1, a finished dungeon or an
 - Whether 2 scrap for Compass 2 should apply to everyone or only the first level.
 - Whether the duplicate-tool sweep is enough: it does not see a tool handed to another player or kept in a closed Home room chest (the player can still only hold one set at a time, since two in hand are swept).
 - Whether gathering without a fight until the last floor holds attention.
+
+---
+
+## 2026-10-17: Vertical floors (stair rooms and drops)
+
+A floor can now go down: you take a stair room to the story below, and some loops let you drop through
+a hole instead, if you dare.
+
+Approved by the owner on 2026-10-17 as option A of the vertical layout brief, with every recommended
+answer to its open questions. Research behind it: DunGen makes height from stair tiles whose doorways sit
+at different heights; Unexplored puts one-way valves only on loops; Dead Cells found random structure
+"illogical, chaotic" and kept its structure authored; Minecraft's own Trial Chambers climb between levels
+with staircase pieces.
+
+| What | Value | Where it lives | What is at risk |
+|---|---|---|---|
+| Stories per floor | at most 3 (entrance story plus 2 down) | dungeon node knob, default 1 (flat) | nothing; stairs are always there |
+| Story pitch | 8 blocks (`CEILING_Y + 2`) | `RoomGeometry.STORY_HEIGHT` | |
+| Direction | down only | engine rule | |
+| A drop | one-way, optional, only on a loop | new directed edge kind | position: you land in a room you have not cleared, with no quick way back |
+| A drop's landing | powder snow | drop rooms | |
+| First dungeon to opt in | Mineshaft (Act 1) | `dungeon/mineshaft.json` | |
+
+### The rules
+
+1. **Down only.** Stories sit below the entrance story, never above. Bounds, protection, the bedrock
+   envelope and return paths already reach down (M61).
+2. **The way down is a stair room:** a two-story room entered on its top story and left through a door on
+   its lower story. Real stairs, two wide; no ladders on the way on, so mobs follow and a fight on them is
+   fair. Stair rooms sit on the spine and require nothing.
+3. **Every edge is still a door in a wall.** Height changes only inside stair rooms, so a door mask stays
+   4 bits per story and rotation is unchanged.
+4. **A drop is a loop edge, never the spine.** It runs downward only, from a room with a hole in its floor
+   into the room beneath, onto powder snow so the fall does no harm. The solvability pass counts the lower
+   end as reached only from above; the spine stays provable with the Pilgrim seed as today.
+5. **A drop may land in a room whose spawner is still live.** That is the wager.
+6. **Stories may overlap in plan.** A lower story's cells can sit under the story above (same chunk
+   column, no extra chunks); a grate in a floor shows the room below before you choose to drop.
+7. **Opt-in per dungeon.** A dungeon that sets nothing stays flat and generates exactly as before.
+
+### Naming
+
+Internally a level of a floor is a **story** (the code already says so); "level" is the compass and
+"layer" is a dungeon node, so neither is used. Players see **"1 down"**, **"2 down"** on the bar and the map.
+
+### Build order
+
+| Phase | Scope | Owed before the next |
+|---|---|---|
+| 1 | `PlanCell` gains a story index; story-aware geometry; zero behaviour change, pinned by a layout fingerprint over a seed sweep | the fingerprint matches before and after |
+| 2 | per-story door masks, 3 or 4 generic stair rooms (theme placeholders), the generator's step down, Mineshaft opts in | one Mineshaft trip that goes down |
+| 3 | overlapping stories, drops (directed edges in the solvability pass), powder snow landings, overlook grates | a drop taken live |
+| 4 | the map board, `DungeonMapText`, the Lemon context and the "1 down" bar line | |
+
+### Migration
+
+None. No saved data holds a plan cell, and every existing dungeon stays flat until it opts in.
+
+### Supersedes
+
+- The M74 note "private lower stories, not a new layout engine" (`SituationSpecs`) for stair rooms only;
+  existing private lower stories stay private.
+- The rubble rule's "a two-story cell's lower story is always a bonus" applies to private lower stories,
+  not to stair rooms, whose lower story is the way on.
+
+### Knobs
+
+Stories per floor (a dungeon node field, Phase 2), the drop chance per eligible loop (Phase 3), and
+`RoomGeometry.STORY_HEIGHT` and `MAX_SPAN_Y` (fixed by the cell contract; change only with the templates).
+
+### Open until played
+
+- Whether players read a drop as a choice, and whether "1 down" is understood without explanation.
+- How mobs path down stair rooms, and whether they chase a player through a drop.
+- Whether an overlook grate leaks light or sound that the sculk rooms care about (`PressureSources`).
+- Whether a live room under a drop is a fair wager or a trap that feels unfair.
