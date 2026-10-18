@@ -202,18 +202,30 @@ lemonThinkSeconds [int, default 90]
   odd empty array -> 90 | ERROR pocketdungeons.json field 'lemonThinkSeconds' is not a valid integer; using default 90
   odd null -> 90 | ERROR pocketdungeons.json field 'lemonThinkSeconds' is not a valid integer; using default 90
   odd empty object -> 90 | ERROR pocketdungeons.json field 'lemonThinkSeconds' is not a valid integer; using default 90
-omenDangerScalePerOmen [double, default 0.15]
+omenDangerScalePerOmen [double, default 0.1]
   probes nYYYYYYYYYYnnnnnnnnn
-  values 0.15,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15
-  rejected ERROR pocketdungeons.json field 'omenDangerScalePerOmen' has invalid value -1.0; must be between 0.0 and 1.0; using default 0.15
+  values 0.1,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1
+  rejected ERROR pocketdungeons.json field 'omenDangerScalePerOmen' has invalid value -1.0; must be between 0.0 and 1.0; using default 0.1
   disturbs (nothing else)
-  odd string abc -> 0.15 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.15
-  odd string 7 -> 0.15 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' has invalid value 7.0; must be between 0.0 and 1.0; using default 0.15
-  odd boolean true -> 0.15 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.15
-  odd number 1.5 -> 0.15 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' has invalid value 1.5; must be between 0.0 and 1.0; using default 0.15
-  odd empty array -> 0.15 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.15
-  odd null -> 0.15 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.15
-  odd empty object -> 0.15 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.15
+  odd string abc -> 0.1 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.1
+  odd string 7 -> 0.1 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' has invalid value 7.0; must be between 0.0 and 1.0; using default 0.1
+  odd boolean true -> 0.1 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.1
+  odd number 1.5 -> 0.1 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' has invalid value 1.5; must be between 0.0 and 1.0; using default 0.1
+  odd empty array -> 0.1 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.1
+  odd null -> 0.1 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.1
+  odd empty object -> 0.1 | ERROR pocketdungeons.json field 'omenDangerScalePerOmen' is not a valid number; using default 0.1
+omenDangerScaleActOne [double, default 0.0]
+  probes nYYYYYYYYYYnnnnnnnnn
+  values 0.0,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+  rejected ERROR pocketdungeons.json field 'omenDangerScaleActOne' has invalid value -1.0; must be 0.0 to 1.0; using default 0.0
+  disturbs (nothing else)
+  odd string abc -> 0.0 | ERROR pocketdungeons.json field 'omenDangerScaleActOne' is not a valid number; using default 0.0
+  odd string 7 -> 0.0 | ERROR pocketdungeons.json field 'omenDangerScaleActOne' has invalid value 7.0; must be 0.0 to 1.0; using default 0.0
+  odd boolean true -> 0.0 | ERROR pocketdungeons.json field 'omenDangerScaleActOne' is not a valid number; using default 0.0
+  odd number 1.5 -> 0.0 | ERROR pocketdungeons.json field 'omenDangerScaleActOne' has invalid value 1.5; must be 0.0 to 1.0; using default 0.0
+  odd empty array -> 0.0 | ERROR pocketdungeons.json field 'omenDangerScaleActOne' is not a valid number; using default 0.0
+  odd null -> 0.0 | ERROR pocketdungeons.json field 'omenDangerScaleActOne' is not a valid number; using default 0.0
+  odd empty object -> 0.0 | ERROR pocketdungeons.json field 'omenDangerScaleActOne' is not a valid number; using default 0.0
 pathLengthMin [int, default 8]
   probes nnnYYYYYYYYYYYYYYYYYYYYYYYY
   values 8,8,8,2,3,4,5,6,8,10,11,16,20,50,100,101,144,144,144,144,144,144,144,144,144,144,144
@@ -718,30 +730,30 @@ voidedCellChance [double, default 0.3]
   odd empty array -> 0.3 | ERROR pocketdungeons.json field 'voidedCellChance' is not a valid number; using default 0.3
   odd null -> 0.3 | ERROR pocketdungeons.json field 'voidedCellChance' is not a valid number; using default 0.3
   odd empty object -> 0.3 | ERROR pocketdungeons.json field 'voidedCellChance' is not a valid number; using default 0.3
-mobScalePerLevel [double, default 0.008]
+mobScalePerLevel [double, default 0.02]
   probes nYYYYYYYYYYYYYYYYYYY
-  values 0.008,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,2.5,4.0,30.0,31.0,200.0,201.0,1000.0
-  rejected ERROR pocketdungeons.json field 'mobScalePerLevel' has invalid value -1.0; must be >= 0; using default 0.008
+  values 0.02,0.0,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,2.5,4.0,30.0,31.0,200.0,201.0,1000.0
+  rejected ERROR pocketdungeons.json field 'mobScalePerLevel' has invalid value -1.0; must be >= 0; using default 0.02
   disturbs (nothing else)
-  odd string abc -> 0.008 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.008
+  odd string abc -> 0.02 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.02
   odd string 7 -> 7.0 | (no warning)
-  odd boolean true -> 0.008 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.008
+  odd boolean true -> 0.02 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.02
   odd number 1.5 -> 1.5 | (no warning)
-  odd empty array -> 0.008 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.008
-  odd null -> 0.008 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.008
-  odd empty object -> 0.008 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.008
-mobScaleBase [double, default 0.65]
+  odd empty array -> 0.02 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.02
+  odd null -> 0.02 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.02
+  odd empty object -> 0.02 | ERROR pocketdungeons.json field 'mobScalePerLevel' is not a valid number; using default 0.02
+mobScaleBase [double, default 0.85]
   probes nnYYYYYYYYYYYnnnnnnn
-  values 0.65,0.65,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,0.65,0.65,0.65,0.65,0.65,0.65,0.65
-  rejected ERROR pocketdungeons.json field 'mobScaleBase' has invalid value -1.0; must be between 0.0 and 2.0; using default 0.65
+  values 0.85,0.85,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,0.85,0.85,0.85,0.85,0.85,0.85,0.85
+  rejected ERROR pocketdungeons.json field 'mobScaleBase' has invalid value -1.0; must be between 0.0 and 2.0; using default 0.85
   disturbs (nothing else)
-  odd string abc -> 0.65 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.65
-  odd string 7 -> 0.65 | ERROR pocketdungeons.json field 'mobScaleBase' has invalid value 7.0; must be between 0.0 and 2.0; using default 0.65
-  odd boolean true -> 0.65 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.65
+  odd string abc -> 0.85 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.85
+  odd string 7 -> 0.85 | ERROR pocketdungeons.json field 'mobScaleBase' has invalid value 7.0; must be between 0.0 and 2.0; using default 0.85
+  odd boolean true -> 0.85 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.85
   odd number 1.5 -> 1.5 | (no warning)
-  odd empty array -> 0.65 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.65
-  odd null -> 0.65 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.65
-  odd empty object -> 0.65 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.65
+  odd empty array -> 0.85 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.85
+  odd null -> 0.85 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.85
+  odd empty object -> 0.85 | ERROR pocketdungeons.json field 'mobScaleBase' is not a valid number; using default 0.85
 breezeHpMultiplier [double, default 0.5]
   probes nnYYYYYYYYYYYnnnnnnn
   values 0.5,0.5,0.01,0.05,0.1,0.3,0.5,0.6,0.61,0.75,1.0,1.5,2.0,0.5,0.5,0.5,0.5,0.5,0.5,0.5

@@ -107,9 +107,15 @@ public final class PocketDungeonsConfig {
     /** Seconds a {@code dungeon lemon think} holds the guide's fallback answer. */
     private static final Knob<Integer> LEMON_THINK_SECONDS = integer("lemonThinkSeconds", 90,
             v -> v >= 10 && v <= 600, "must be between 10 and 600");
-    /** Mob health/damage/speed bonus per point of omen on the current floor. */
-    private static final Knob<Double> OMEN_DANGER_SCALE_PER_OMEN = decimal("omenDangerScalePerOmen", 0.15,
+    /** Mob health/damage/speed bonus per point of omen on the current floor, from Act 2 (Act 0 and 1 use omenDangerScaleActOne). */
+    private static final Knob<Double> OMEN_DANGER_SCALE_PER_OMEN = decimal("omenDangerScalePerOmen", 0.1,
             v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
+    /**
+     * Mob health, damage and speed bonus per point of omen on a trip in Act 0 or Act 1 (deaths harden
+     * the floor from Act 2; see omenDangerScalePerOmen).
+     */
+    private static final Knob<Double> OMEN_DANGER_SCALE_ACT_ONE = decimal("omenDangerScaleActOne", 0.0,
+            v -> v >= 0.0 && v <= 1.0, "must be 0.0 to 1.0");
     // M54 (spec 6.5): the critical path goes up to 8-12 cells at tier 1, with
     // branch and loop rates high enough that a floor reads as a small maze
     // rather than a spine with stubs. The terminal is placed partway along
@@ -255,11 +261,11 @@ public final class PocketDungeonsConfig {
     /** Fraction of eligible cells that get voided floor when VOIDED affix active. */
     private static final Knob<Double> VOIDED_CELL_CHANCE = decimal("voidedCellChance", 0.3,
             v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
-    /** +0.8% mob strength (max health, attack damage, movement speed) per keystone level. */
-    private static final Knob<Double> MOB_SCALE_PER_LEVEL = decimal("mobScalePerLevel", 0.008,
+    /** +2% mob strength (max health, attack damage, movement speed) per keystone level. */
+    private static final Knob<Double> MOB_SCALE_PER_LEVEL = decimal("mobScalePerLevel", 0.02,
             v -> v >= 0, "must be >= 0");
     /** Base mob strength multiplier at level 0. Below 1.0 makes low-level mobs weaker than vanilla. */
-    private static final Knob<Double> MOB_SCALE_BASE = decimal("mobScaleBase", 0.65,
+    private static final Knob<Double> MOB_SCALE_BASE = decimal("mobScaleBase", 0.85,
             v -> v > 0.0 && v <= 2.0, "must be between 0.0 and 2.0");
     /**
      * Additional HP-only multiplier applied to Breezes after the level scaling,
@@ -1131,6 +1137,10 @@ public final class PocketDungeonsConfig {
 
     public static double omenDangerScalePerOmen() {
         return OMEN_DANGER_SCALE_PER_OMEN.get();
+    }
+
+    public static double omenDangerScaleActOne() {
+        return OMEN_DANGER_SCALE_ACT_ONE.get();
     }
 
     public static int pathLengthMin() {
