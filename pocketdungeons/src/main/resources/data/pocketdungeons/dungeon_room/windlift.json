@@ -1,0 +1,20 @@
+{
+  "template": "pocketdungeons:rooms/windlift",
+  "footprint": [
+    1,
+    1
+  ],
+  "roles": [
+    "loot"
+  ],
+  "weight": 1,
+  "minDepth": 2,
+  "maxPerDungeon": 1,
+  "content": "windlift",
+  "tier": 1,
+  "requires": [
+    "wind_charge"
+  ],
+  "access": "open",
+  "window": "bars"
+}

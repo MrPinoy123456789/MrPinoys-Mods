@@ -822,6 +822,13 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Pass:** all three phases play in order even under burst; each transition shows its title and the stagger is readable; vents stay silent in phase 1 and fire from phase 2; the pad still opens only on the kill. PD-208's failure mode (an elite dying before its mechanic registers) cannot recur: a staggered boss is invulnerable while the next phase arms.
 - **Fail signs:** a phase skipped by burst; the stagger reading as "the game ate my crit"; vents firing in phase 1 or with no readable rhythm; the boss dying before phase 3's tell.
 
+## L103: Payoff rooms: Gilded Vault, Mason's Shortcut, Windlift (plan 2026-10-17)
+- **Status:** owed (built 2026-10-17; not yet visited live)
+- **Changed:** three dead-end side rooms cash in a tag found earlier on the same floor, and a spur cell draws them three times as often when the tag is provided upstream. Gilded Vault (`gold`): a vanilla vault that takes one gold ingot. Mason's Shortcut (`blocks`): a chest across a five block gap, reached by placing blocks. Windlift (`wind_charge`): a chest on a three block ledge, reached by a wind charge jump. Main path unchanged.
+- **Do:** find each room on a floor where its tag was provided earlier (gold from `the_herd`, blocks from a gallery, wind charges from the breeze arena), and once where it was not.
+- **Pass:** the Gilded Vault takes exactly one ingot, pays once per player and reads as a vanilla vault; the Mason's gap cannot be jumped; a wind charge from the chiseled tuff reaches the Windlift ledge; each room shows its cache through the window from the corridor; a room whose tag was missing is shut but never blocks the floor.
+- **Fail signs:** a payoff room on the main path; the vault taking more than one ingot or paying twice; the Mason's gap jumpable at a sprint; the Windlift ledge reachable without a charge or blocks; the cache invisible from the corridor.
+
 ## Done
 
 - **PD-92** max-omen ejection keeps each stack once: passed 2026-10-01 (`2026-10-01-1.md`).
