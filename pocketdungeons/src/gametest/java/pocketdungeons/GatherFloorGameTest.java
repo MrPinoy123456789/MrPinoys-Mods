@@ -92,7 +92,7 @@ public final class GatherFloorGameTest {
             helper.assertTrue(FloorObjectives.padRefusal(record) == null, "the pad opens at the quota");
             level.destroyBlock(state.placed.get(8), false);
             FloorObjectives.onBreak(record, member, state.placed.get(8));
-            helper.assertValueEqual(FloorObjectives.bonusRolls(record), 1, "a log past the quota pays a roll");
+            helper.assertValueEqual(FloorObjectives.bonusRolls(record), 0, "a log past the quota pays no bonus");
             helper.assertTrue(!FloorObjectives.onBreak(record, member, state.placed.get(0)),
                     "a felled log credits nothing twice");
             helper.succeed();
@@ -106,6 +106,61 @@ public final class GatherFloorGameTest {
     public void thePartyGrowsTheQuota(GameTestHelper helper) {
         helper.assertValueEqual(GatherObjective.quotaFor(8, 1), 8, "one member");
         helper.assertValueEqual(GatherObjective.quotaFor(8, 3), 16, "three members");
+        helper.succeed();
+    }
+
+    /** A second starter tool of a kind goes; the one with the most durability left stays. */
+    @GameTest
+    public void theSweepKeepsTheBestOfEachKind(GameTestHelper helper) {
+        List<String> removed = new java.util.ArrayList<>();
+        int gone = StarterTools.dedupe(List.of(
+                new StarterTools.Held("axe", 10, () -> removed.add("axe10")),
+                new StarterTools.Held("axe", 50, () -> removed.add("axe50")),
+                new StarterTools.Held("pickaxe", 30, () -> removed.add("pickaxe30")),
+                new StarterTools.Held("axe", 30, () -> removed.add("axe30"))));
+        helper.assertValueEqual(gone, 2, "two spare axes go");
+        helper.assertTrue(removed.contains("axe10") && removed.contains("axe30") && !removed.contains("axe50"),
+                "the axe with the most left stays: " + removed);
+        helper.assertTrue(!removed.contains("pickaxe30"), "a lone kind is never swept");
+        helper.succeed();
+    }
+
+    /** Act 0 is pending for a new player, done once finished, pending again after a key reset, and the astrolabe follows. */
+    @GameTest
+    public void actZeroIsFinishedOnceAndReopenedByAReset(GameTestHelper helper) {
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        UUID id = UUID.randomUUID();
+        helper.assertTrue(!DungeonProgress.prologueDone(log, id), "a new player has not finished Act 0");
+        helper.assertTrue(DungeonProgress.unlockedActs(server, id).equals(Set.of(0)), "only Act 0 is open");
+        helper.assertValueEqual(HallOffers.build(server, id, 0).act(), 0, "the astrolabe shows Act 0");
+        log.setTaskProgress(id, DungeonProgress.PROLOGUE_KEY, 1);
+        helper.assertTrue(DungeonProgress.prologueDone(log, id), "finishing marks it done");
+        helper.assertTrue(DungeonProgress.unlockedActs(server, id).contains(1)
+                && !DungeonProgress.unlockedActs(server, id).contains(0), "Act 1 opens and Act 0 is gone");
+        helper.assertTrue(HallOffers.build(server, id, 0).act() >= 1, "the astrolabe no longer shows Act 0");
+        log.resetCampaign(id);
+        helper.assertTrue(!DungeonProgress.prologueDone(log, id), "a key reset reopens Act 0");
+        helper.assertValueEqual(ScrapMath.levelCost(1), 2, "leaving compass 1 costs 2");
+        helper.succeed();
+    }
+
+    /** Quitting Act 0 wipes the carried pack, the storage and the bag choice. */
+    @GameTest
+    @SuppressWarnings("removal")
+    public void quittingActZeroWipesEverything(GameTestHelper helper) {
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        UUID id = UUID.randomUUID();
+        log.setBag(id, "pocketdungeons:starter");
+        log.setKitGranted(id, true);
+        log.setStorage(id, List.of(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.OAK_LOG, 8)));
+        log.setHaul(id, 3);
+        ActZero.wipeMember(server, id);
+        helper.assertTrue(log.bagOf(id).isEmpty(), "the bag choice is cleared");
+        helper.assertTrue(!log.get(id).kitGranted(), "the chest may hand the gear out again");
+        helper.assertTrue(log.storageOf(id).isEmpty(), "the storage is empty");
+        helper.assertValueEqual(log.haulOf(id), 0, "no haul is kept");
         helper.succeed();
     }
 

@@ -1475,6 +1475,10 @@ final class RunLifecycle {
                 Wager.sum(record.floor.affixes, AffixManifest.current().definitions()),
                 PocketDungeonsConfig.lootPercentPerWager()) + FinaleWave.rewardChests(record)
                 + FloorObjectives.bonusRolls(record);
+        if (isPrologue(record)) {
+            // Act 0 pays no loot: no chests on any floor and no finish vault (decision 2026-10-17).
+            chests = 0;
+        }
         record.floor.rewardChests = chests;
         record.interval.floorChests.add(chests);
 
@@ -1483,7 +1487,7 @@ final class RunLifecycle {
         // one copper chest holding the floor's promised rewards.
         ThemeManifest.Entry completionTheme = record.floor.theme == null ? null
                 : ThemeManifest.current().byId(record.floor.theme);
-        int vaultRolls = finishedNow && tripDef != null
+        int vaultRolls = finishedNow && tripDef != null && !isPrologue(record)
                 ? PocketDungeonsConfig.finishVaultChests() : 0;
         int vaultTier = tripDef == null ? LootBands.floorTier(record, rules, floorsCleared)
                 : tripDef.lootBand().max();
@@ -1590,7 +1594,7 @@ final class RunLifecycle {
             // finish that opens nothing names what is left.
             DungeonProgress.onProgress(server, record, memberPlayer, true, first);
             // J1: the finish pays emeralds now; the echo shard is retired.
-            int emeralds = PocketDungeonsConfig.finishEmeralds();
+            int emeralds = isPrologue(record) ? 0 : PocketDungeonsConfig.finishEmeralds();
             if (!first) {
                 // Design pass 2026-10-09 (Q1): the picker lets a player replay a favourite, so a repeat finish
                 // pays a share of the emeralds. The vault and the diary page are first finish only.
@@ -2089,6 +2093,12 @@ final class RunLifecycle {
                     .withStyle(ChatFormatting.YELLOW));
             return false;
         }
+        if (isPrologue(record) && !record.interval.finished) {
+            player.sendSystemMessage(Component.literal(
+                    "The way home opens when the night is done. Quit the door to start over.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return false;
+        }
         // D15: any member may pull HOME unless the leader's decide whitelist is on.
         if (!PartyDecide.mayOrRefuse(server, record, player)) {
             return false;
@@ -2576,6 +2586,9 @@ final class RunLifecycle {
         // Nothing to quit: the floor is already cleared. Fall through to a
         // plain exit so the player leaves normally.
         if (!record.floor.completed.isEmpty()) {
+            if (isPrologue(record) && !record.interval.finished) {
+                ActZero.wipe(server, record);
+            }
             return exit(player, ExitReason.COMMAND);
         }
         // The reset re-stamps the safe room from its saved blob, so a standing
@@ -2596,6 +2609,9 @@ final class RunLifecycle {
         applyQuitPenalty(server, record, player);
         PlaytestJournal.quitFloor(player, 0);
         Instances.resetToLobby(server, record, true);
+        if (isPrologue(record) && !record.interval.finished) {
+            ActZero.wipe(server, record);
+        }
         return true;
     }
 }

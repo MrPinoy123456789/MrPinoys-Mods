@@ -182,6 +182,12 @@ final class Instances {
         if (record.inFloorLoop()) {
             // J3: death is the only thing that raises omen. A trip starts
             // at five lives; the fifth death ends the run.
+            if (RunLifecycle.isPrologue(record)) {
+                // Act 0 has infinite lives (decision 2026-10-17): a death costs nothing and never fails the run.
+                PlaytestJournal.rescue(player, record, source);
+                rescue(player, record);
+                return false;
+            }
             if (Omen.nextDeathFails(record.interval.omen)) {
                 PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
                         Omen.MAX_OMEN + 1, player.blockPosition());

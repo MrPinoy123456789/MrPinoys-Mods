@@ -24,8 +24,8 @@ import java.util.Set;
  * The {@link FloorObjective#GATHER} floor (The First Night): the floor scatters a few spare blocks more
  * than its quota of one material (logs, stone, coal, iron) in columns through its cells, and the pad holds
  * until the party has broken the quota by hand. A break is the whole verb: the block is unprotected, any
- * tool or fist mines it, the count rises and the block drops what it drops. Blocks past the quota pay one
- * bonus reward roll each. Unbroken blocks wink a sparkle once a second.
+ * tool or fist mines it, the count rises and the block drops what it drops. Blocks past the quota pay no
+ * bonus; the spare ones are just more material. Unbroken blocks wink a sparkle once a second.
  *
  * <p>The material and the quota are the node's {@code gather} spec. The quota grows by half of it for each
  * member past the first. Placement runs under the generic fallback rule: no free spot for a single block
@@ -189,9 +189,9 @@ final class GatherObjective extends FloorObjectives.ObjectiveState {
         return fallback ? null : label + " " + Math.min(gathered, quota) + "/" + quota;
     }
 
-    /** Each block past the quota pays one extra roll of the floor's reward table. */
+    /** Blocks past the quota pay nothing extra (owner, 2026-10-17): the reward is simply having more of them. */
     @Override
     int bonusRolls() {
-        return FloorObjectiveRules.bonusRolls(gathered, quota);
+        return 0;
     }
 }

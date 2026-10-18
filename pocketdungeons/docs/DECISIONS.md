@@ -892,7 +892,7 @@ A new player starts in a prologue act of one dungeon, The First Night, guided by
 13. **The Proving.** Its sidebar and bar have the same "spawners" problem and get the same fix.
 14. **Quit.** Quitting an Act 0 run (the Quit Door) resets Act 0 (owner, 2026-10-17: it is short already): the run restarts at floor 1, the dungeon pack and Dungeon Storage are wiped, and the starting chest and bag chest are available again. Nothing from an unfinished Act 0 run is kept.
 15. **No loot before the finish.** Floors 1 to 4 pay no scrap and no completion chest or barrel rolls; the only Act 0 payouts are on the finish (2 scrap, the diary, Act 1). The Home lever does not work in Act 0 until the act is finished (owner, 2026-10-17); quitting is the only way out and it resets the act. This closes the loop where a player gathers, banks to Home, stores the materials in a Home room chest and repeats.
-16. **Act 0 materials are tagged.** Logs, stone, coal ore and iron ore taken from a gather floor carry an `act0` tag and are removed by quit; finishing Act 0 untags them, so the one legitimate set of starter materials goes with the player.
+16. **Quit wipes the whole pack.** There is no per-item tag on gathered materials: a quit wipes everything carried, stored or taken from the bag chest (decision 2026-10-17, as built), so crafted planks, sticks and the stone pickaxe go too and the bag chest hands the gear out again. Finishing keeps whatever the player is carrying.
 
 ### Migration
 
@@ -913,5 +913,4 @@ A player with any recorded progress (a compass above 1, a finished dungeon or an
 - Which common mechanic floors 2, 3 and 4 each teach (proposal now that Act 0 has no lives: loot chest and Dungeon Storage; the crafting table and a stone pickaxe; the lever and pad).
 - Whether 2 scrap for Compass 2 should apply to everyone or only the first level.
 - Whether the duplicate-tool sweep is enough: it does not see a tool handed to another player or kept in a closed Home room chest (the player can still only hold one set at a time, since two in hand are swept).
-- Whether untagged crafted products (planks, sticks, a crafted stone pickaxe) should leave with the player on a quit; they are not tagged, so as written they would stay unless the quit wipe takes the whole pack.
 - Whether gathering without a fight until the last floor holds attention.

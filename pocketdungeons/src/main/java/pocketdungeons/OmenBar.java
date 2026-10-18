@@ -93,9 +93,18 @@ final class OmenBar {
             // spawner fraction; a fallback floor reads like a spawner floor.
             String objectiveLine = FloorObjectives.of(record) != FloorObjective.SPAWNERS
                     && !FloorObjectives.isFallback(record) ? FloorObjectives.objectiveLine(record) : null;
-            title = OmenBarText.activeTitle(record.interval.omen, chests, record.floor.spawnersCleared, total,
-                    DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()),
-                    objectiveLine);
+            boolean prologue = RunLifecycle.isPrologue(record);
+            if (objectiveLine == null && total <= 0 && (prologue || ProvingWaves.isProving(record))) {
+                // No spawners here (an Act 0 floor, or the Proving's arena): say nothing about them.
+                title = prologue ? "" : OmenBarText.livesText(record.interval.omen);
+            } else {
+                title = OmenBarText.activeTitle(record.interval.omen, chests, record.floor.spawnersCleared, total,
+                        DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()),
+                        objectiveLine);
+                if (prologue) {
+                    title = OmenBarText.withoutLives(title);
+                }
+            }
         } else {
             title = OmenBarText.clearedTitle(record.interval.floorIndex, TripView.dungeonName(record),
                     record.interval.endlessMine, record.interval.finished, TripView.finalAhead(record),
@@ -105,7 +114,8 @@ final class OmenBar {
         bar.event.setName(Component.literal(title));
         // J3: the bar is lives either way: full and green at five, red at one.
         bar.event.setColor(colour(OmenBarText.omenColourIndex(record.interval.omen)));
-        bar.event.setProgress(Omen.lives(record.interval.omen) / (float) Omen.LIVES);
+        bar.event.setProgress(RunLifecycle.isPrologue(record) ? 1.0f
+                : Omen.lives(record.interval.omen) / (float) Omen.LIVES);
 
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);

@@ -38,6 +38,12 @@ final class OmenBarText {
     }
 
     /** {@code "Lives 3"}: the risk meter's half of any bar title. */
+    /** {@code title} without its lives part (Act 0 has infinite lives, so the bar does not show them). */
+    static String withoutLives(String title) {
+        int at = title.indexOf(" | Lives");
+        return at < 0 ? title : title.substring(0, at);
+    }
+
     static String livesText(int omen) {
         return "Lives " + Omen.lives(omen);
     }
