@@ -60,7 +60,7 @@ final class TrappedCache {
     static final int MIN_SIZE = 3;
     static final int MAX_SIZE = 8;
 
-    private record Pending(long dueTick, ServerLevel level, List<BlockPos> spots, int slot, int mobLevel, int omen,
+    private record Pending(long dueTick, ServerLevel level, List<BlockPos> spots, int slot, int mobLevel, int omen, int act,
                            java.util.UUID target) {}
 
     private static final List<Pending> PENDING = SessionState.clearedAtStop(new ArrayList<>());
@@ -196,7 +196,7 @@ final class TrappedCache {
                 : record.layout.keystoneLevel() + record.floor.levelBonus;
         int omen = record == null ? 0 : Omen.clamp(record.interval.omen);
         PENDING.add(new Pending(nowTick + DELAY_TICKS, level, spots, record == null ? -1 : record.slot,
-                record == null ? -1 : mobLevel, omen, opener == null ? null : opener.getUUID()));
+                record == null ? -1 : mobLevel, omen, MobScaling.actOf(record), opener == null ? null : opener.getUUID()));
         return spots.size();
     }
 
@@ -228,7 +228,7 @@ final class TrappedCache {
             mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
             mob.setPersistenceRequired();
             if (p.mobLevel() >= 0) {
-                MobScaling.applyMobScale(mob, p.mobLevel(), p.omen());
+                MobScaling.applyMobScale(mob, p.mobLevel(), p.omen(), p.act());
             }
             if (target != null) {
                 mob.setTarget(target);

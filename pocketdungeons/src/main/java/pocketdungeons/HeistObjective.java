@@ -342,7 +342,7 @@ final class HeistObjective extends FloorObjectives.ObjectiveState {
             mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
             mob.setPersistenceRequired();
             MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus,
-                    Omen.clamp(record.interval.omen));
+                    Omen.clamp(record.interval.omen), MobScaling.actOf(record));
         }
     }
 

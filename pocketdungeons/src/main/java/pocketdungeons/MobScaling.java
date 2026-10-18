@@ -29,9 +29,9 @@ final class MobScaling {
             PocketDungeonsMod.MOD_ID, "breeze_hp_override");
 
     /**
-     * +0.8% (config: {@link PocketDungeonsConfig#mobScalePerLevel()}) per keystone
-     * level, on max health, attack damage and movement speed: a level-100 run's
-     * mobs land at roughly 1.45x strength. {@code ADD_MULTIPLIED_TOTAL} so the
+     * +2% (config: {@link PocketDungeonsConfig#mobScalePerLevel()}) per keystone
+     * level over a 0.85 base, on max health, attack damage and movement speed:
+     * level 8 lands near vanilla, level 20 at 1.25x. {@code ADD_MULTIPLIED_TOTAL} so the
      * bonus scales whatever base value the mob already has rather than adding a
      * flat number that means nothing on a skeleton and everything on a bee.
      *
@@ -52,11 +52,18 @@ final class MobScaling {
      * whatever damage it already has.
      */
     static void applyMobScale(Mob mob, int keystoneLevel) {
-        applyMobScale(mob, keystoneLevel, 0);
+        applyMobScale(mob, keystoneLevel, 0, 2);
     }
 
-    static void applyMobScale(Mob mob, int keystoneLevel, int omen) {
-        double omenBonus = Omen.clamp(omen) * PocketDungeonsConfig.omenDangerScalePerOmen();
+    /** The act whose omen rate applies to a trip: its dungeon's act, or 2 with no dungeon (Uncharted, the dive). */
+    static int actOf(InstanceRecord record) {
+        DungeonDef def = TripView.def(record);
+        return def == null ? 2 : def.act();
+    }
+
+    static void applyMobScale(Mob mob, int keystoneLevel, int omen, int act) {
+        double omenBonus = DifficultyProfile.omenBonus(Omen.clamp(omen), act,
+                PocketDungeonsConfig.omenDangerScaleActOne(), PocketDungeonsConfig.omenDangerScalePerOmen());
         applyMobScaleBonus(mob, DifficultyProfile.mobScale(keystoneLevel,
                 PocketDungeonsConfig.mobScalePerLevel(),
                 PocketDungeonsConfig.mobScaleBase()) - 1.0 + omenBonus);
