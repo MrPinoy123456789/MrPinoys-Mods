@@ -1,0 +1,16 @@
+{
+  "template": "pocketdungeons:rooms/treeline_bend",
+  "footprint": [1, 1],
+  "roles": ["corridor"],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "dungeons": ["first_night"],
+  "acts": [0],
+  "light": "lit",
+  "corridor": "wide",
+  "biome": "first_night",
+  "tier": 1,
+  "access": "open",
+  "window": "none"
+}

@@ -20,6 +20,7 @@
   "nodes": [
     {
       "id": "treeline",
+      "roomBias": ["treeline_run", "treeline_bend", "treeline_fork", "treeline_nook"],
       "name": "The Treeline",
       "notes": "Fell oak trunks for the first fire.",
       "layer": 1,
@@ -33,6 +34,7 @@
     },
     {
       "id": "stone_rise",
+      "roomBias": ["stone_rise_run", "stone_rise_bend", "stone_rise_fork", "stone_rise_nook"],
       "name": "The Stone Rise",
       "notes": "Bare grey rock. Break out the stone.",
       "layer": 2,
@@ -46,6 +48,7 @@
     },
     {
       "id": "black_seam",
+      "roomBias": ["black_seam_run", "black_seam_bend", "black_seam_fork", "black_seam_nook"],
       "name": "The Black Seam",
       "notes": "Dark seams in the hillside. Break them out.",
       "layer": 3,
@@ -59,6 +62,7 @@
     },
     {
       "id": "rust_ravine",
+      "roomBias": ["rust_ravine_run", "rust_ravine_bend", "rust_ravine_fork", "rust_ravine_nook"],
       "name": "The Rust Ravine",
       "notes": "Red streaked rock. The last of the ore.",
       "layer": 4,
@@ -72,6 +76,7 @@
     },
     {
       "id": "cave_mouth",
+      "roomBias": ["cave_mouth_nook", "cave_mouth_run"],
       "name": "The Cave Mouth",
       "notes": "The last floor. One zombie waits in the dark.",
       "layer": 5,

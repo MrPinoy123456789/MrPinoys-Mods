@@ -1,0 +1,16 @@
+{
+  "template": "pocketdungeons:rooms/cave_mouth_run",
+  "footprint": [1, 1],
+  "roles": ["encounter"],
+  "graphRole": ["final"],
+  "weight": 3,
+  "minDepth": 0,
+  "maxPerDungeon": -1,
+  "dungeons": ["first_night"],
+  "acts": [0],
+  "light": "dim",
+  "biome": "first_night",
+  "tier": 1,
+  "access": "open",
+  "window": "none"
+}

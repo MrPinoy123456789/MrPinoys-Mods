@@ -257,6 +257,7 @@ final class RoomTemplateGenerator {
         specs.addAll(KennelSpecs.list());
         specs.addAll(SunkenTreasurySpecs.list());
         specs.addAll(LighthouseBelowSpecs.list());
+        specs.addAll(FirstNightSpecs.list());
         specs.addAll(GildedSeamSpecs.list());
         specs.addAll(ProvingSpecs.list());
         return specs;
