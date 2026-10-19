@@ -39,7 +39,8 @@ public final class RoomLibraryGameTest {
             "GroveAndResourceSpecs", "CowWardSpecs", "CowParlourSpecs",
             "CopperWorksRoomSpecs", "FrostworksRoomSpecs", "DeepslateRoomSpecs", "EnderArchiveRoomSpecs",
             "GenericHallVariantSpecs", "SculkRoomSpecs", "KennelSpecs",
-            "SunkenTreasurySpecs", "LighthouseBelowSpecs", "GildedSeamSpecs", "ProvingSpecs", "FirstNightSpecs", "PayoffSpecs"};
+            "SunkenTreasurySpecs", "LighthouseBelowSpecs", "GildedSeamSpecs", "ProvingSpecs", "FirstNightSpecs", "PayoffSpecs",
+            "StairSpecs"};
 
     /** The rooms that must pass: {@link #NAMED} plus every room of {@link #CHECKED_SPEC_CLASSES}. */
     private static List<String> checked() {
