@@ -1,6 +1,6 @@
 ﻿# Pocket Dungeons: Bug and Design Ledger
 
-Active and awaiting-live-check entries are in full below; closed entries are indexed in the table at the bottom. Continue `PD-n` numbering when filing new entries (highest used: `PD-210`).
+Active and awaiting-live-check entries are in full below; closed entries are indexed in the table at the bottom. Continue `PD-n` numbering when filing new entries (highest used: `PD-219`).
 
 ## Open, partial and awaiting live check
 
@@ -315,6 +315,14 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 ### PD-217: /dungeon resetkey keeps the Dungeon Storage (Medium)
 **Reported:** 2026-10-17, live, right after the PD-216 fix: "the acts reset but the dungeon storage is still not reset". `resetCampaign` cleared the bag, orphan, stash and kit chest but never the per-player Dungeon Storage, which was designed to survive runs and logouts.
 **Status:** Fixed 2026-10-17, owner-ruled (a reset is back to a new player). `resetCampaign` now empties the storage and the Reset Compass dialog says so. Covered by `CustodyGameTest.aCampaignResetReturnsThePlayerToActOne`. Unverified live; not yet deployed.
+
+### PD-218: Window bands dropped on room edges where rooms disagree on window `none` (Medium)
+**Reported:** 2026-10-19, playtest 2026-10-19-1 server log (06:15 and 06:22): six edges dropped their band because the two rooms disagree on window `none`: `black_seam_fork`/`hall_cross_rotunda`, `stone_rise_fork`/`exit_hall`, `black_seam_nook`/`hall_cross_rotunda`, `rust_ravine_run`/`exit_hall`, `rotation_lock`/`black_seam_bend`, `rust_ravine_bend`/`rotation_lock`. Five of the six involve the Act 0 rooms.
+**Status:** Open (wave 0 task W0a, backlog plan 2026-10-19).
+
+### PD-219: A block-attached entity at an invalid position (Medium)
+**Reported:** 2026-10-19, playtest 2026-10-19-1 server log (06:22): `BlockPos{x=9, y=65, z=1000710}`. A z of a million suggests a slot origin or an offset applied twice. Act 0 rooms are the first suspect.
+**Status:** Open (wave 0 task W0b, backlog plan 2026-10-19).
 
 ## Closed ledger
 
