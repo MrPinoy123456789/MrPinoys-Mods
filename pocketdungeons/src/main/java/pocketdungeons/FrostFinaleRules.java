@@ -88,6 +88,20 @@ final class FrostFinaleRules {
         return roomId != null && (roomId.equals("big_freeze") || roomId.endsWith(":big_freeze"));
     }
 
+    /** In the last phase the warm spots shrink to this percent of the radius knob. */
+    static final int SHRUNK_RADIUS_PERCENT = 50;
+
+    /** The smallest a shrunk warm spot gets (never wider than the knob itself): a body length from the fire. */
+    static final double MIN_SHRUNK_RADIUS = 2.0;
+
+    /** The radius a brazier warms: the knob, or its shrunk share in the last phase (never below the minimum, never above the knob). */
+    static double warmRadius(double base, boolean shrunk) {
+        if (!shrunk) {
+            return base;
+        }
+        return Math.min(base, Math.max(MIN_SHRUNK_RADIUS, base * SHRUNK_RADIUS_PERCENT / 100.0));
+    }
+
     /** Whether a point {@code (dx, dy, dz)} from a brazier is within {@code radius} blocks of it. */
     static boolean withinRadius(double dx, double dy, double dz, double radius) {
         return dx * dx + dy * dy + dz * dz <= radius * radius;
