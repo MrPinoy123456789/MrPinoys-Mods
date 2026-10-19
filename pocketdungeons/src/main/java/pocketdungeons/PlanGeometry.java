@@ -59,7 +59,7 @@ record PlanGeometry(BlockPos origin, int minCellX, int minCellZ,
         // Deterministic order so stamping, clearing and any admin dump all walk
         // the same cells in the same sequence.
         List<PlanCell> ordered = new ArrayList<>(cells);
-        ordered.sort(Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z));
+        ordered.sort(PlanCell.ORDER);
 
         return new PlanGeometry(origin, minX, minZ,
                 maxX - minX + 1, maxZ - minZ + 1, List.copyOf(ordered), storyFloorOffset);
