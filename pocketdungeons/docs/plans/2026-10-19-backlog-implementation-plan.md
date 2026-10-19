@@ -202,3 +202,17 @@ Never push, deploy, or use a server or Lemon tool. Commits authored `MrPinoy1234
 `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. If the plan and a decision disagree, follow the decision
 and record it. Stop at the gate after wave 2: report to the owner once, under 300 words (merged and green, not built,
 deviations, live-only checks, machine problems), and ask to deploy.
+
+---
+
+## Status (orchestrator, kept current)
+
+| Task | Branch | State | Notes |
+|---|---|---|---|
+| W0a PD-218 | feature/rm-t01-window-bands | running | |
+| W0b PD-219 | feature/rm-t02-invalid-entity-pos | running | |
+| W0c Ledger | feature/backlog-2026-10-19 | merged | done by the orchestrator, commit 9b118e2f |
+| F1 | | waiting on wave 0 | |
+| F2 | | waiting on wave 0 | |
+| V1 | | waiting on wave 0 | |
+| V2 | | waiting on V1 | |
