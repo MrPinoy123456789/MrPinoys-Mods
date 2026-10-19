@@ -385,6 +385,8 @@ for ((taskName, testClass) in mapOf(
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
     "roomEligibilityTest" to "RoomEligibilityTest",
+    // PD-218: no pair of rooms that can share an edge disagrees on window "none".
+    "windowBandAgreementTest" to "WindowBandAgreementTest",
     // Dungeon structure W7a: brood wave sizing and phases, the sculk omen rule, the Warden summon rule, the capstone offer rule.
     "capstoneRulesTest" to "CapstoneRulesTest",
     // Roadmap T43: the Brood Chamber's cage to mechanic order, headcounts, drip pace, mother stats, mob cap.
@@ -552,6 +554,7 @@ tasks.test {
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
+    dependsOn("windowBandAgreementTest")
     dependsOn("bossRulesTest")
     dependsOn("dungeonLogTest")
     dependsOn("dungeonLogGoldenTest")
