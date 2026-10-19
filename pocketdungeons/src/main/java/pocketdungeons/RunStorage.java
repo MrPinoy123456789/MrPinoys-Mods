@@ -161,6 +161,15 @@ final class RunStorage {
         }
         List<ItemStack> overflow = new ArrayList<>();
         for (ItemStack stack : stacks) {
+            if (RelicObjective.isRelic(stack)) {
+                // The relic never goes into Dungeon Storage (T7): it comes back as overflow, refused.
+                overflow.add(stack.copy());
+                ServerPlayer who = server == null ? null : PackPots.playerOf(server, owner);
+                if (who != null) {
+                    who.sendOverlayMessage(Component.literal(RelicObjective.WONT_FIT).withStyle(ChatFormatting.YELLOW));
+                }
+                continue;
+            }
             ItemStack left = box.addItem(stack.copy());
             if (!left.isEmpty()) {
                 overflow.add(left);
@@ -270,6 +279,12 @@ final class RunStorage {
         public void setChanged() {
             super.setChanged();
             log.setStorage(owner, copyOf(this));
+        }
+
+        /** The relic will not fit (T7): not by hopper, not by click. */
+        @Override
+        public boolean canPlaceItem(int slot, ItemStack stack) {
+            return !RelicObjective.isRelic(stack) && super.canPlaceItem(slot, stack);
         }
 
         @Override

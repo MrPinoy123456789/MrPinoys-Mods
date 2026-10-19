@@ -86,7 +86,7 @@ final class PackPots {
     private PackPots() {}
 
     /** The online player with this id, or {@code null}. */
-    private static ServerPlayer playerOf(MinecraftServer server, UUID id) {
+    static ServerPlayer playerOf(MinecraftServer server, UUID id) {
         ServerPlayer listed = server.getPlayerList().getPlayer(id);
         return listed != null ? listed : TEST_PLAYERS.get(id);
     }
@@ -118,6 +118,21 @@ final class PackPots {
     /** Whether {@code pos} is the block of a standing pack pot (a fixture: it cannot be broken). */
     static boolean isPot(BlockPos pos) {
         return INDEX.containsKey(pos);
+    }
+
+    /** Whether a standing pot of {@code record}'s run holds the relic of floor {@code relicId} (the relic watch). */
+    static boolean holdsRelic(MinecraftServer server, InstanceRecord record, String relicId) {
+        for (PackPot pot : DungeonLog.forServer(server).packPots()) {
+            if (pot.owed() || !pot.ranIn(record)) {
+                continue;
+            }
+            for (ItemStack stack : pot.stacks()) {
+                if (relicId.equals(RelicObjective.idOf(stack))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** How many pots made in {@code record}'s run still hold something: the sidebar's {@code Pots N}. */
@@ -164,6 +179,25 @@ final class PackPots {
             pack.add(stack.copy());
             any |= !stack.isEmpty();
         }
+        // The relic (campaign and endgame, T7): the one exception to the spared slots. A relic held in the
+        // hotbar or offhand rides into the pot too; if the pack has no free slot it takes the last one and
+        // that stack goes to the hand slot the relic left, so nothing is ever dropped.
+        int relicAt = RelicObjective.slotOutsidePack(inventory);
+        ItemStack displaced = ItemStack.EMPTY;
+        if (relicAt >= 0) {
+            int into = -1;
+            for (int i = 0; i < PACK_SLOTS && into < 0; i++) {
+                if (pack.get(i).isEmpty()) {
+                    into = i;
+                }
+            }
+            if (into < 0) {
+                into = PACK_SLOTS - 1;
+                displaced = pack.get(into);
+            }
+            pack.set(into, inventory.getItem(relicAt).copy());
+            any = true;
+        }
         if (!any) {
             return false;
         }
@@ -189,6 +223,9 @@ final class PackPots {
         INDEX.put(spot.immutable(), pot.id());
         for (int i = 0; i < PACK_SLOTS; i++) {
             inventory.setItem(PACK_START + i, ItemStack.EMPTY);
+        }
+        if (relicAt >= 0) {
+            inventory.setItem(relicAt, displaced);
         }
         inventory.setChanged();
         player.inventoryMenu.broadcastChanges();
@@ -800,7 +837,8 @@ final class PackPots {
     private static List<ItemStack> nonEmpty(List<ItemStack> stacks) {
         List<ItemStack> out = new ArrayList<>();
         for (ItemStack stack : stacks) {
-            if (!stack.isEmpty()) {
+            // A relic is not a player item of value: when a pot settles or returns, it is simply gone.
+            if (!stack.isEmpty() && !RelicObjective.isRelic(stack)) {
                 out.add(stack.copy());
             }
         }

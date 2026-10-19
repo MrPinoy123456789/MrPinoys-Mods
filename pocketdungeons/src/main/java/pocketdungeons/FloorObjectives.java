@@ -112,7 +112,23 @@ final class FloorObjectives {
             record.floor.objective = GatherObjective.arm(level, record, plan);
             return;
         }
+        if (kind == FloorObjective.RELIC) {
+            record.floor.objective = RelicObjective.arm(level, record, plan);
+            return;
+        }
         record.floor.objective = new ObjectiveState(kind, true);
+    }
+
+    /**
+     * Whether the floor's own objective replaces the spawner gate at the pad: false for a spawner floor, a
+     * fallback, and for the relic, which is greed and never the gate (the spawner gate stays as it is).
+     */
+    static boolean gatesPad(InstanceRecord record) {
+        if (of(record) == FloorObjective.SPAWNERS || isFallback(record)) {
+            return false;
+        }
+        ObjectiveState state = record.floor.objective;
+        return state == null || state.gatesPad();
     }
 
     /**
@@ -139,6 +155,15 @@ final class FloorObjectives {
     static int bonusRolls(InstanceRecord record) {
         ObjectiveState state = record.floor.objective;
         return state == null ? 0 : state.bonusRolls();
+    }
+
+    /**
+     * The extra rolls a cleared floor earned, given what the floor pays before objectives: a relic carried
+     * to the pad raises the Loot percent, which only the base chests and that percent can price.
+     */
+    static int bonusRolls(InstanceRecord record, int baseChests, int lootPercent) {
+        ObjectiveState state = record.floor.objective;
+        return state == null ? 0 : state.bonusRolls(record, baseChests, lootPercent);
     }
 
     /**
@@ -219,6 +244,7 @@ final class FloorObjectives {
             case CLAIM -> CLAIM_TITLE;
             case HAUNT -> HAUNT_TITLE;
             case GATHER -> GATHER_TITLE;
+            case RELIC -> RelicObjective.TITLE;
             case SPAWNERS -> null;
         };
     }
@@ -240,6 +266,12 @@ final class FloorObjectives {
      * breaks the channel, which the heist's state keeps and resets.
      */
     static void register() {
+        // The relic's stale-copy sweep: once a second, offset from the other watchers.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (server.getTickCount() % 20 == 13) {
+                RelicObjective.sweep(server);
+            }
+        });
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (!(entity instanceof ServerPlayer player) || blocked) {
                 return;
@@ -314,6 +346,19 @@ final class FloorObjectives {
         /** Extra reward rolls the cleared floor earned; the base earns none. */
         int bonusRolls() {
             return 0;
+        }
+
+        /**
+         * Extra rolls that depend on what the floor pays before objectives ({@code baseChests} at {@code lootPercent}),
+         * asked once as the floor's rewards are placed; the base earns none.
+         */
+        int bonusRolls(InstanceRecord record, int baseChests, int lootPercent) {
+            return 0;
+        }
+
+        /** Whether this objective's {@link #padRefusal} replaces the spawner gate; the relic alone says no. */
+        boolean gatesPad() {
+            return true;
         }
 
         /** A right-click on one of this objective's blocks; the base claims nothing. */
