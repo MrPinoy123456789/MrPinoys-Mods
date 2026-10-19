@@ -1,13 +1,20 @@
 package pocketdungeons;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.BiConsumer;
 
 /**
@@ -43,6 +50,43 @@ final class BossFight {
     private boolean started;
     /** The server tick the current stagger ends, or -1 while the boss fights. Tests may pin it to zero. */
     long staggerEnd = -1;
+    /** The boss's health at the last poll; a clamped death never heals it above this. */
+    private float lastHealth = Float.MAX_VALUE;
+
+    /** Live fights by boss entity, for the death clamp. Weak, so a discarded boss frees its fight. */
+    private static final Map<Entity, BossFight> FIGHTS = Collections.synchronizedMap(new WeakHashMap<>());
+    private static boolean hooked;
+
+    /**
+     * Lazily hooks the death clamp, once. A killing blow on a boss with a phase still to come does not kill: the
+     * death is cancelled and the boss is left at the next bound (never above the health it had at the last
+     * poll), so the poll sees the bound and runs the phase. Burst damage can fast-forward a phase, never skip one.
+     */
+    private static void hook() {
+        if (hooked) {
+            return;
+        }
+        hooked = true;
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            BossFight fight = FIGHTS.get(entity);
+            return fight == null || !fight.clamp(entity);
+        });
+    }
+
+    /** Cancels the death by pinning health at the next bound; true when it did (a phase is still to come). */
+    private boolean clamp(LivingEntity boss) {
+        if (phase + 1 >= phases.size()) {
+            return false;
+        }
+        float bound = boss.getMaxHealth() * (float) phases.get(phase + 1).bound();
+        boss.setHealth(Math.max(1.0f, Math.min(bound, lastHealth)));
+        return true;
+    }
+
+    /** Whether a stagger is running (the boss is invulnerable and mindless). */
+    boolean staggering() {
+        return staggerEnd >= 0;
+    }
 
     BossFight(List<? extends Phase> phases) {
         if (phases.isEmpty()) {
@@ -66,6 +110,9 @@ final class BossFight {
         if (!(ctx.elite() instanceof Mob boss) || !boss.isAlive()) {
             return;
         }
+        hook();
+        FIGHTS.put(boss, this);
+        lastHealth = boss.getHealth();
         if (!started) {
             started = true;
             phases.get(0).enter(ctx, boss);
@@ -96,6 +143,8 @@ final class BossFight {
                         lines.subList(1, lines.size()), ChatFormatting.GRAY);
             }
         }
+        ctx.level().sendParticles(ParticleTypes.CRIT, boss.getX(), boss.getY() + boss.getBbHeight() * 0.5,
+                boss.getZ(), 40, 0.6, 0.6, 0.6, 0.3);
         ctx.level().playSound(null, boss.blockPosition(), SoundEvents.RAVAGER_STUNNED,
                 SoundSource.HOSTILE, 1.0f, 1.0f);
     }

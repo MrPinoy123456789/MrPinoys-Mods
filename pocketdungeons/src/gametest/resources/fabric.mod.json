@@ -36,6 +36,7 @@
       "pocketdungeons.WhelpGameTest",
       "pocketdungeons.PromisedGearGameTest",
       "pocketdungeons.DungeonWorldRulesGameTest",
+      "pocketdungeons.BossFightClampGameTest",
       "pocketdungeons.HaulGameTest",
       "pocketdungeons.RescueGameTest",
       "pocketdungeons.HerdGameTest",
