@@ -15,6 +15,7 @@
       "pocketdungeons.EconomyGameTest",
       "pocketdungeons.ScratchEntityGameTest",
       "pocketdungeons.HeistFloorGameTest",
+      "pocketdungeons.StoryEnvelopeGameTest",
       "pocketdungeons.DeepslateFinaleGameTest",
       "pocketdungeons.SalvageGameTest",
       "pocketdungeons.TeardownGameTest",
