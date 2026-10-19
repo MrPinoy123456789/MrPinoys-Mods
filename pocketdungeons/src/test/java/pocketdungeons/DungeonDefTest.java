@@ -792,6 +792,13 @@ public class DungeonDefTest {
         DungeonDef deepMine = loaded.byId("endless_mine_deep");
         check(deepMine.kind() == DungeonDef.Kind.ENDLESS && "special".equals(deepMine.hall()),
                 "endless_mine_deep is an endless special door");
+        // The uncharted seam (2026-10-18): the kind parses, the Chart Room hall is a name, and no shipped door is uncharted.
+        check(DungeonDef.Kind.parse("uncharted") == DungeonDef.Kind.UNCHARTED
+                        && !DungeonDef.Kind.UNCHARTED.descends(), "uncharted parses and floors like a dungeon");
+        check("chart".equals(HallLayout.HALL_CHART) && "pocketdungeons:endless_mine_chart".equals(HallOffers.CHART_DIVE_ID),
+                "the Chart Room hall and dive id are named");
+        check(!Campaign.isUncharted(deepMine) && !Campaign.isUncharted(null), "a shipped dungeon is not uncharted");
+        check(loaded.all().stream().noneMatch(Campaign::isUncharted), "no shipped dungeon is uncharted");
         check(deepMine.lootBand().min() == 2 && deepMine.lootBand().max() == 3, "endless_mine_deep is in the act 2 band");
         check(deepMine.unlockLevel() == 6, "the Deep Mine opens at the compass the Act 2 dungeons do");
         check(EndlessMineRules.openMines(loaded.all(), java.util.Set.of(1, 2), 6).stream().map(DungeonDef::id)

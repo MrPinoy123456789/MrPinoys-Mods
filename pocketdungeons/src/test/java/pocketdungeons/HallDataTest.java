@@ -47,7 +47,12 @@ public class HallDataTest {
             String hall = d.has("hall") ? d.get("hall").getAsString() : HallLayout.HALL_ACT;
             String kind = d.get("kind").getAsString();
             boolean descends = "endless".equals(kind) || "proving".equals(kind);
-            check(hall.equals(HallLayout.HALL_ACT) || hall.equals(HallLayout.HALL_SPECIAL), id + ": bad hall " + hall);
+            check(hall.equals(HallLayout.HALL_ACT) || hall.equals(HallLayout.HALL_SPECIAL)
+                    || hall.equals(HallLayout.HALL_CHART), id + ": bad hall " + hall);
+            if (hall.equals(HallLayout.HALL_CHART)) {
+                check(descends, id + ": a chart hall dungeon must be a descent");
+                continue;
+            }
             check(descends == hall.equals(HallLayout.HALL_SPECIAL),
                     id + ": exactly the descents stand outside the acts");
             if (hall.equals(HallLayout.HALL_SPECIAL)) {
