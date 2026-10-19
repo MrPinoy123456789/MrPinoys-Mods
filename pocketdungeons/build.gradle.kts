@@ -424,6 +424,7 @@ for ((taskName, testClass) in mapOf(
     "resetCampaignTest" to "ResetCampaignTest",
     "graphSolvabilityTest" to "GraphSolvabilityTest",
     "layoutFingerprintTest" to "LayoutFingerprintTest",
+    "storyGeometryTest" to "StoryGeometryTest",
     "omenMathTest" to "OmenMathTest",
     // Audit wave 2a: the omen bar's titles, fill and completion verdict.
     "omenBarTextTest" to "OmenBarTextTest",
@@ -601,6 +602,7 @@ tasks.test {
     dependsOn("resetCampaignTest")
     dependsOn("graphSolvabilityTest")
     dependsOn("layoutFingerprintTest")
+    dependsOn("storyGeometryTest")
     dependsOn("omenMathTest")
     dependsOn("omenBarTextTest")
     dependsOn("floorShapeTest")
