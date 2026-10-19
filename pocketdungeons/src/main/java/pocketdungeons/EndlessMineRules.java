@@ -115,7 +115,74 @@ final class EndlessMineRules {
     /** The act of the mine {@code record} is in (1 when it cannot be told). */
     static int actOf(InstanceRecord record) {
         DungeonDef def = mineOf(record);
+        if (isDive(def)) {
+            return diveAct(def);
+        }
         return def == null ? OPENING_ACT : def.act();
+    }
+
+    // ---- the endgame dive (decision 2026-10-18) ------------------------------------------
+
+    /**
+     * Whether {@code def} is the endgame dive: the Chart Room's Endless Mine, an {@code endless} dungeon declared
+     * with hall {@code chart}. The Proving's retired file also sits in hall {@code chart} (so no astrolabe lists
+     * it) but keeps its own kind and is not a dive.
+     */
+    static boolean isDive(DungeonDef def) {
+        return def != null && def.kind() == DungeonDef.Kind.ENDLESS && HallLayout.HALL_CHART.equals(def.hall());
+    }
+
+    /** Whether the record is an active run of the endgame dive. */
+    static boolean isDive(InstanceRecord record) {
+        return isMine(record) && isDive(mineOf(record));
+    }
+
+    /**
+     * The act the dive pays and fights from: the highest act finished. The Chart Room only opens once the
+     * last released act is done ({@link Campaign#done}), so that is {@code releaseMaxAct}, and never below
+     * the act the dive file declares for validation.
+     */
+    static int diveAct(DungeonDef def) {
+        return Math.max(def == null ? OPENING_ACT : def.act(), Campaign.releaseMaxAct());
+    }
+
+    /**
+     * The level dive floor number {@code floor} (from 1) runs at: the compass plus the floor, with no cap
+     * (decision 2026-10-18: the dive scales with the compass and has no depth limit). A compass below 1 reads as 1.
+     */
+    static int diveLevel(int compass, int floor) {
+        return Math.max(1, compass) + Math.max(1, floor);
+    }
+
+    /**
+     * The compass a dive party levels on: the lowest among the party, so the floor never outruns a member.
+     * An empty party reads as compass 1.
+     */
+    static int diveCompass(java.util.Collection<Integer> compasses) {
+        int lowest = Integer.MAX_VALUE;
+        for (int compass : compasses) {
+            lowest = Math.min(lowest, compass);
+        }
+        return lowest == Integer.MAX_VALUE ? 1 : Math.max(1, lowest);
+    }
+
+    /** The party's dive compass read from the dungeon log: the lowest {@code highestCharts} among the owner and the members. */
+    static int diveCompass(net.minecraft.server.MinecraftServer server, InstanceRecord record, java.util.UUID owner) {
+        DungeonLog log = DungeonLog.forServer(server);
+        java.util.List<Integer> compasses = new java.util.ArrayList<>();
+        compasses.add(log.get(owner).highestCharts());
+        if (record != null) {
+            for (java.util.UUID member : record.members.keySet()) {
+                compasses.add(log.get(member).highestCharts());
+            }
+        }
+        return diveCompass(compasses);
+    }
+
+    /** The dive's level for a floor given the party, as the door offers read it. */
+    static int diveFloorLevel(net.minecraft.server.MinecraftServer server, InstanceRecord record,
+                              java.util.UUID owner, int floor) {
+        return diveLevel(diveCompass(server, record, owner), floor);
     }
 
     /** The theme id every floor of the mine {@code def} is stamped in; the Act 1 theme for none. */
@@ -184,7 +251,8 @@ final class EndlessMineRules {
                                                 int compass, int maxAct) {
         java.util.List<DungeonDef> out = new java.util.ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.kind().descends() && def.entry() != null
+            // A chart hall descent (the dive, the retired Proving) is reached from the Chart Room, never as an act's mine.
+            if (def.kind().descends() && def.entry() != null && !HallLayout.HALL_CHART.equals(def.hall())
                     && opensFor(def, unlockedActs, compass, maxAct)) {
                 out.add(def);
             }

@@ -81,9 +81,150 @@ public final class ProvingGameTest {
         helper.assertTrue(def != null, "the_proving is loaded");
         helper.assertValueEqual(def.kind(), DungeonDef.Kind.PROVING, "the_proving parses its kind");
         helper.assertTrue(EndlessMineRules.isMineId(PROVING), "a proving id opens a descent");
-        helper.assertTrue(EndlessMineRules.openMines(DungeonDefs.current().all(), Set.of(1), 99)
-                        .stream().anyMatch(d -> PROVING.equals(d.id())),
-                "the astrolabe's special slot offers it to an open act");
+        // T6 (decision 2026-10-18): the Proving's own door is retired; its rooms and waves are the dive's arena.
+        helper.assertTrue(EndlessMineRules.openMines(DungeonDefs.current().all(), Set.of(1, 2), 99)
+                        .stream().noneMatch(d -> PROVING.equals(d.id()) || DIVE.equals(d.id())),
+                "neither the Proving nor the dive is an act's door in the astrolabe");
+        helper.assertValueEqual(def.hall(), HallLayout.HALL_CHART, "the Proving file is parked outside the astrolabe");
+        helper.assertTrue(!EndlessMineRules.isDive(def), "the retired Proving is not the dive");
+        helper.succeed();
+    }
+
+    private static final String DIVE = HallOffers.CHART_DIVE_ID;
+
+    /** A record in the endgame dive, about to play floor {@code floor} (the floors cleared so far is one less). */
+    private static InstanceRecord diveRecord(GameTestHelper helper, InstanceLayout layout, int floor) {
+        InstanceRecord record = new InstanceRecord(9982, layout.origin(), helper.getLevel().getServer().getTickCount(),
+                layout, Set.of(), UUID.randomUUID(), false);
+        record.interval.endlessMine = true;
+        record.interval.mineDungeonId = DIVE;
+        record.interval.floorIndex = floor - 1;
+        return record;
+    }
+
+    private static void clearGuardians(ServerLevel level, BlockPos terminalOrigin) {
+        AABB bounds = CellGeometry.cellBounds(terminalOrigin).inflate(RoomGeometry.CELL * 2.0);
+        for (Mob mob : level.getEntitiesOfClass(Mob.class, bounds)) {
+            if (mob.entityTags().contains(MineGuardians.GUARDIAN_TAG)) {
+                mob.discard();
+            }
+        }
+    }
+
+    /** The dive is loaded as an endless chart descent, and only every third floor is an arena. */
+    @GameTest(maxTicks = 60)
+    public void theDiveLoadsAndOnlyEveryThirdFloorIsAnArena(GameTestHelper helper) {
+        DungeonDef def = DungeonDefs.current().byId(DIVE);
+        helper.assertTrue(def != null, "endless_mine_chart is loaded");
+        helper.assertTrue(EndlessMineRules.isDive(def) && EndlessMineRules.isMineId(DIVE), "it is the dive, a descent");
+        helper.assertTrue(HallOffers.chartDive(DungeonDefs.current()) == def, "the Chart Room finds it");
+        helper.assertTrue(def.hiddenOre() != null, "its floors hide ore like the Deep Mine's");
+        BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+        PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
+        InstanceLayout layout = new InstanceLayout(origin, geometry,
+                origin.offset(3, 1, 3), 0.0f, origin.offset(8, 1, 8), geometry.bounds(),
+                1L, 4, 4, 1, true, Set.of(), 3, origin, 0, 0, Set.of(), null, Set.of());
+        InstanceRecord record = diveRecord(helper, layout, 1);
+        for (int floor = 1; floor <= 12; floor++) {
+            boolean arena = floor % 3 == 0;
+            helper.assertValueEqual(ProvingWaves.isDiveGuardianFloor(record, null, floor), arena,
+                    "dive floor " + floor + (arena ? " is an arena" : " is a mining floor"));
+            helper.assertValueEqual(ProvingWaves.isArenaFloor(record, null, floor), arena,
+                    "dive floor " + floor + " arena planning");
+        }
+        helper.assertValueEqual(EndlessMineRules.actOf(record), Campaign.releaseMaxAct(),
+                "the dive fights and pays from the highest finished act");
+        helper.assertValueEqual(ProvingWaves.payingTable(record, 3, "fallback"), "fallback",
+                "the Proving's own pay table never answers for the dive");
+        helper.assertValueEqual(MineGuardians.payingTable(record, 3, "fallback"),
+                EndlessMineRules.lootTableId(Campaign.releaseMaxAct(), 1), "floor 3 pays guardian 1's tier A table");
+        helper.assertValueEqual(MineGuardians.payingTable(record, 4, "fallback"), "fallback",
+                "a mining floor pays the plain floor haul");
+        helper.succeed();
+    }
+
+    /**
+     * The dive's arena floor plans the way the live door preview does: a gate beside the ring, the
+     * {@code proving_arena} room in the terminal cell, on the dive's own theme.
+     */
+    @GameTest(maxTicks = 100)
+    public void aDiveArenaFloorPlansTheRing(GameTestHelper helper) {
+        ThemeManifest.Entry theme = ThemeManifest.current().byId(DungeonDefs.current().byId(DIVE).mainTheme());
+        helper.assertTrue(theme != null, "the dive has a theme");
+        DungeonPlan plan = PlaytestBias.withNodeBias(List.of(ProvingWaves.ARENA_ROOM), () -> LayoutPlanner.plan(
+                new LayoutPlanner.PlanRequest(11L, RoomManifest.current(), LayoutPlanner.DEFAULT_ATTEMPT_BUDGET,
+                        new LayoutPlanner.PathProfile(2, 2, LayoutPlanner.DEFAULT_BRANCH_PROBABILITY,
+                                LayoutPlanner.DEFAULT_LOOP_PROBABILITY, LayoutPlanner.DEFAULT_MAX_GRID_SPAN),
+                        ProvingWaves.ARENA_ROOM_THEME, DoorMask.Direction.NORTH, BagTags.pilgrim(1), null, 0,
+                        null))).plan();
+        helper.assertTrue(plan != null, "a dive guardian floor plans a gate and a ring");
+        helper.assertValueEqual(plan.cells().size(), 2, "a dive arena floor is two cells");
+        helper.succeed();
+    }
+
+    /**
+     * The guardian floor's beats: wave one at commit, the next wave when it falls, the guardian when the
+     * last wave falls, and the pad room opens only once the guardian is down. The pad stays shut throughout.
+     */
+    @GameTest(maxTicks = 300)
+    public void theDiveArenaSendsWavesThenTheGuardianThenOpens(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+        for (int x = 0; x <= 2; x++) {
+            loadCell(level, origin.east(RoomGeometry.CELL * x));
+        }
+        PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0), new PlanCell(1, 0)));
+        BlockPos terminal = geometry.cellOrigin(new PlanCell(1, 0));
+        InstanceLayout layout = new InstanceLayout(origin, geometry, origin.offset(3, 1, 3), 0.0f,
+                terminal.offset(8, 1, 8), geometry.bounds(), 1L, 4, 4, 1, true, Set.of(), 3,
+                terminal, 0, 0, Set.of(), null, Set.of());
+        InstanceRecord record = diveRecord(helper, layout, 3);
+        int waves = Math.max(1, PocketDungeonsConfig.provingWavesPerFloor());
+        try {
+            RoomBuilder.buildShell(level, terminal, RoomBuilder.FLOOR);
+            ProvingWaves.armDiveFloor(level, record, layout, 3, 20, "pocketdungeons:endless_mine_chart");
+            helper.assertTrue(record.floor.provingPadOrigin != null, "the pad room is stamped at commit");
+            helper.assertValueEqual(record.floor.arenaWavesLeft, waves - 1, "the first wave is out, the rest wait");
+            helper.assertValueEqual(waveMobs(level, terminal).size(), ProvingWaves.waveCount(1, 1),
+                    "the first guardian floor sends the first rung of the ladder");
+            for (Mob mob : waveMobs(level, terminal)) {
+                helper.assertTrue(!"Champion".equals(mob.getName().getString()),
+                        "the guardian is the climax; the arena waves send no champion");
+            }
+            helper.assertTrue(ProvingWaves.padRefusal(level, record) != null, "the pad is shut while the wave stands");
+
+            // Each wave falls; the next comes. The guardian is not called until the last wave is down.
+            for (int wave = 2; wave <= waves; wave++) {
+                clear(level, terminal);
+                ProvingWaves.tick(level, level.getServer(), record);
+                helper.assertTrue(!waveMobs(level, terminal).isEmpty(), "wave " + wave + " arrives");
+                helper.assertTrue(!record.floor.arenaGuardianCalled, "no guardian while waves remain");
+                helper.assertTrue(!record.floor.provingPadRevealed, "the pad room stays sealed");
+            }
+            helper.assertValueEqual(record.floor.arenaWavesLeft, 0, "every wave has been sent");
+
+            clear(level, terminal);
+            ProvingWaves.tick(level, level.getServer(), record);
+            helper.assertTrue(record.floor.arenaGuardianCalled, "the last wave down calls the guardian");
+            helper.assertTrue(MineGuardians.alive(level, terminal), "the guardian stands in the ring");
+            helper.assertTrue(!record.floor.provingPadRevealed, "the pad room stays sealed with the guardian up");
+            ProvingWaves.tick(level, level.getServer(), record);
+            helper.assertTrue(!record.floor.provingPadRevealed, "and stays sealed while it lives");
+            helper.assertTrue(ProvingWaves.padRefusal(level, record) != null
+                            || MineGuardians.padRefusal(level, record) != null,
+                    "the pad refuses while the guardian lives");
+
+            clearGuardians(level, terminal);
+            clear(level, terminal);
+            ProvingWaves.tick(level, level.getServer(), record);
+            helper.assertTrue(record.floor.provingPadRevealed, "the guardian down opens the way on");
+            helper.assertTrue(ProvingWaves.padRefusal(level, record) == null
+                            && MineGuardians.padRefusal(level, record) == null,
+                    "and the pad opens: the floor can never be left shut");
+        } finally {
+            clear(level, terminal);
+            clearGuardians(level, terminal);
+        }
         helper.succeed();
     }
 

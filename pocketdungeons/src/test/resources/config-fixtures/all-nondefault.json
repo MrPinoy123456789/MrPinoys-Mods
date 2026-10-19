@@ -95,6 +95,7 @@
   "provingWaveSizePerMember": 0,
   "provingWaveMaxSize": 1,
   "provingChampionEvery": 1,
+  "provingWavesPerFloor": 1,
   "broodMobCap": 1,
   "sculkHeardMax": 1,
   "sculkHeardMaxAncient": 1,

@@ -162,6 +162,18 @@ final class FloorState {
     /** Whether the arena's far wall has opened onto {@link #provingPadOrigin}. */
     boolean provingPadRevealed;
 
+    /**
+     * The endgame dive's guardian floor (decision 2026-10-18): waves still to send into the arena
+     * after the one spawned at commit. {@code 0} on every other floor.
+     */
+    int arenaWavesLeft;
+
+    /** Whether the dive's guardian has been called into the arena (after the last wave fell). */
+    boolean arenaGuardianCalled;
+
+    /** The level the dive's arena floor runs at, kept for the waves and the guardian sent after commit. */
+    int arenaFloorLevel;
+
     // ---- the choice of the next floor ------------------------------------------
 
     /** Which selector door (1, 2 or 3) the owner last right-clicked, or {@code 0}. */

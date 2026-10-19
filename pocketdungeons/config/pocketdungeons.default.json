@@ -163,6 +163,7 @@
   "provingWaveSizePerMember": 2,
   "provingWaveMaxSize": 20,
   "provingChampionEvery": 3,
+  "provingWavesPerFloor": 2,
   "broodMobCap": 24,
   "sculkHeardMax": 4,
   "sculkHeardMaxAncient": 2,

@@ -39,6 +39,7 @@ public class EndlessMineRulesTest {
         testTierRule();
         testHardness();
         testMinePerAct();
+        testEndgameDive();
         testCheckpointLines();
         testDeepestFloorRecord();
 
@@ -233,6 +234,58 @@ public class EndlessMineRulesTest {
         check(!EndlessMineRules.opensFor(Set.of(), 99), "and not without it");
         check(!EndlessMineRules.opensFor(act2, Set.of(1), 99) && EndlessMineRules.opensFor(act2, bothActs, 1),
                 "a later mine needs its own act, and only that");
+    }
+
+    /** The endgame dive (decision 2026-10-18): hall chart, level = compass + floor with no cap, never an act's mine. */
+    private static void testEndgameDive() {
+        DungeonDef act1 = mineDef("endless_mine", 1, "[]");
+        DungeonDef act2 = mineDef("endless_mine_deep", 2, "[]");
+        DungeonDef dive = chartDef("endless_mine_chart", DungeonDef.Kind.ENDLESS);
+        DungeonDef proving = chartDef("the_proving", DungeonDef.Kind.PROVING);
+        check(EndlessMineRules.isDive(dive) && !EndlessMineRules.isDive(act2) && !EndlessMineRules.isDive(proving)
+                        && !EndlessMineRules.isDive((DungeonDef) null),
+                "only an endless dungeon in hall chart is the dive; the retired Proving is not");
+
+        check(EndlessMineRules.diveLevel(1, 1) == 2 && EndlessMineRules.diveLevel(10, 3) == 13,
+                "a dive floor runs at compass + floor");
+        check(EndlessMineRules.diveLevel(40, 100) == 140 && EndlessMineRules.diveLevel(250, 30) == 280,
+                "no cap: the level climbs past the keystone maximum");
+        check(EndlessMineRules.diveLevel(0, 0) == 2 && EndlessMineRules.diveLevel(-5, 1) == 2,
+                "a compass or floor below 1 reads as 1");
+        for (int floor = 1; floor < 40; floor++) {
+            check(EndlessMineRules.diveLevel(12, floor + 1) == EndlessMineRules.diveLevel(12, floor) + 1,
+                    "each floor down is one level harder");
+        }
+
+        check(EndlessMineRules.diveCompass(java.util.List.of(30, 12, 20)) == 12,
+                "the party levels on its lowest compass");
+        check(EndlessMineRules.diveCompass(java.util.List.of(7)) == 7 && EndlessMineRules.diveCompass(java.util.List.of()) == 1
+                        && EndlessMineRules.diveCompass(java.util.List.of(0)) == 1,
+                "a solo party, an empty one and a zero compass all read sanely");
+
+        // The dive is not an act's mine: it never lists with the open mines, and never replaces the act's own.
+        java.util.List<DungeonDef> all = java.util.List.of(dive, proving, act2, act1);
+        check(EndlessMineRules.openMines(all, Set.of(1, 2), 99).equals(java.util.List.of(act1, act2)),
+                "the chart hall descents do not appear among an act's mines");
+        check(ActProgress.mineOf(2, all) == act2, "the act's own mine stays Act 2's mine, not the dive");
+
+        // Guardian floors keep the endless cadence on the dive: every third floor.
+        check(EndlessMineRules.isGuardianFloor(3) && EndlessMineRules.isGuardianFloor(6)
+                        && !EndlessMineRules.isGuardianFloor(4),
+                "a guardian floor every third floor, as the dive uses it");
+        check(EndlessMineRules.lootTableId(EndlessMineRules.diveAct(dive), 1).equals("pocketdungeons:endless_mine/act2_a")
+                        && EndlessMineRules.lootTableId(EndlessMineRules.diveAct(dive), 5).endsWith("act2_c"),
+                "the dive pays the highest finished act's tier tables");
+        check(EndlessMineRules.diveAct(dive) >= dive.act() && EndlessMineRules.diveAct(null) >= 1,
+                "the dive's act is never below the act its file declares");
+    }
+
+    private static DungeonDef chartDef(String id, DungeonDef.Kind kind) {
+        String json = "{\"name\": \"" + id + "\", \"act\": 2, \"baseLevel\": 6, \"kind\": \""
+                + kind.name().toLowerCase(java.util.Locale.ROOT) + "\", \"mainTheme\": \"endless_mine_deep\","
+                + " \"hall\": \"chart\", \"lootBand\": {\"min\": 2, \"max\": 3},"
+                + " \"nodes\": [{\"id\": \"the_dive\", \"name\": \"Dive\", \"layer\": 1}], \"edges\": []}";
+        return DungeonDef.fromJson("pocketdungeons:" + id, com.google.gson.JsonParser.parseString(json).getAsJsonObject());
     }
 
     private static DungeonDef mineDef(String id, int act, String edges) {
