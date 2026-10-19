@@ -8,19 +8,23 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * The Mineshaft finale (roadmap T20, boss workshop 2026-10-11 row 1): the dark phase. The data wave (zombies
- * and cave spiders) is untouched. When half of it is dead the shaft creaks; a few seconds later the lights on
- * the final floor go out and a second batch of cave spiders joins the fight. The spiders glow, so a party
- * with no torch can still see what is biting it; a torch placed by a player lights as usual.
+ * The Mineshaft finale (roadmap T20, boss workshop 2026-10-11 row 1): the dark phase, on the phased spine
+ * (roadmap T03, 2026-10-15). The data wave (zombies and cave spiders) is untouched except that its first zombie
+ * is the boss, The Pit Boss, run through a {@link BossFight}. At the boss's two thirds bound the shaft creaks;
+ * a few seconds later the lights on the final floor go out. At one third the rest of the shaft wakes: a
+ * second batch of cave spiders joins the fight. The spiders glow, so a party with no torch can still see what
+ * is biting it; a torch placed by a player lights as usual.
  *
  * <p>The darkness is reversible. Each torch and lantern removed is remembered with its block state and put
  * back in {@link #onWon} and {@link #onFloorEnded}, unless a player has built something there meanwhile.
@@ -36,15 +40,54 @@ final class MineshaftFinale implements FinaleScript {
     /** The next action, shown as the lights go out. */
     static final String HINT = "Light a torch.";
 
+    /** The boss: the wave's strongest mob (a zombie), named and given an elite's health. */
+    static final String BOSS_NAME = "The Pit Boss";
+    static final int BOSS_HEALTH = 40;
+    private static final DungeonDef.Elite BOSS = new DungeonDef.Elite("minecraft:zombie", BOSS_NAME, BOSS_HEALTH,
+            "minecraft:iron_pickaxe");
+
+    /**
+     * The three phases (2026-10-15 arena floors). One: the Pit Boss and his crew, lights on. Two: the beams
+     * creak and the lights fail. Three: the rest of the shaft wakes as cave spiders.
+     */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0, List.of("The Pit Boss reels.", "The lights fail."),
+                    (ctx, boss) -> startDark(ctx)),
+            new BossFight.Step(1.0 / 3.0, List.of("The Pit Boss is cornered.", "The shaft wakes."),
+                    (ctx, boss) -> releaseSpiders(ctx)));
+
     /** Per run state: when the lights go out and what was removed. */
     private static final class Dark {
         long darkAt = -1;
         boolean dark;
+        boolean spiders;
         final Map<BlockPos, BlockState> removed = new LinkedHashMap<>();
     }
 
+    /** The wave's first zombie becomes the boss; the wave keeps its size. */
     @Override
-    public void onHalfDead(FinaleContext ctx) {
+    public void onWaveSpawned(FinaleContext ctx) {
+        Mob pick = null;
+        for (Mob mob : ctx.liveMobs()) {
+            if (mob.getType() == EntityTypes.ZOMBIE) {
+                pick = mob;
+                break;
+            }
+            if (pick == null) {
+                pick = mob;
+            }
+        }
+        ctx.adoptElite(pick, BOSS);
+    }
+
+    private static BossFight fight(FinaleContext ctx) {
+        return ctx.scriptState(BossFight.class, () -> new BossFight(PHASES));
+    }
+
+    /** Phase two: the warning now, the dark after the tell. */
+    private static void startDark(FinaleContext ctx) {
         Dark dark = ctx.scriptState(Dark.class, Dark::new);
         if (dark.darkAt >= 0) {
             return;
@@ -59,6 +102,7 @@ final class MineshaftFinale implements FinaleScript {
 
     @Override
     public void onTick(FinaleContext ctx) {
+        fight(ctx).tick(ctx);
         Dark dark = ctx.scriptState(Dark.class, Dark::new);
         if (dark.darkAt < 0 || dark.dark || ctx.tickCount() < dark.darkAt || ctx.members().isEmpty()) {
             return;
@@ -70,6 +114,15 @@ final class MineshaftFinale implements FinaleScript {
                     1.0f, 0.6f);
             member.sendOverlayMessage(Component.literal(HINT).withStyle(ChatFormatting.YELLOW));
         }
+    }
+
+    /** Phase three: the rest of the wave comes as glowing cave spiders (a second batch, held to the wave cap). */
+    private static void releaseSpiders(FinaleContext ctx) {
+        Dark dark = ctx.scriptState(Dark.class, Dark::new);
+        if (dark.spiders) {
+            return;
+        }
+        dark.spiders = true;
         int count = FinaleRules.darkSpiders(PocketDungeonsConfig.mineshaftDarkSpiders(), ctx.party(),
                 ctx.finale().perMemberPercent(), ctx.total());
         for (int i = 0; i < count; i++) {
