@@ -27,9 +27,37 @@ final class FloorRooms {
 
     /** One placed room: its manifest name, its plan role, and the cell it stands in. */
     record Room(String id, String role, PlanCell cell) {
-        /** The cell as the journal writes it: {@code "x,z"}. */
+        /** The cell as the journal writes it: {@code "x,z"} on the entrance story, {@code "x,z,y"} below it. */
         String cellKey() {
-            return cell.x() + "," + cell.z();
+            return FloorRooms.cellKey(cell);
+        }
+    }
+
+    /**
+     * The journal shape of a cell. The entrance story keeps the shape the journal has always held
+     * ({@code "x,z"}), so every saved line and every reader of one is untouched; a cell on a lower story
+     * (vertical floors) adds its story as a third number.
+     */
+    static String cellKey(PlanCell cell) {
+        return cell.y() == 0 ? cell.x() + "," + cell.z() : cell.x() + "," + cell.z() + "," + cell.y();
+    }
+
+    /** Reads either shape of {@link #cellKey}; {@code null} for text that is neither. */
+    static PlanCell parseCellKey(String key) {
+        if (key == null) {
+            return null;
+        }
+        String[] parts = key.trim().split(",", -1);
+        if (parts.length != 2 && parts.length != 3) {
+            return null;
+        }
+        try {
+            int x = Integer.parseInt(parts[0].trim());
+            int z = Integer.parseInt(parts[1].trim());
+            int y = parts.length == 3 ? Integer.parseInt(parts[2].trim()) : 0;
+            return new PlanCell(x, y, z);
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

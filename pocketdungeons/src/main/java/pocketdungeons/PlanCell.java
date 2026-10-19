@@ -57,6 +57,23 @@ record PlanCell(int x, int y, int z) {
     }
 
     /**
+     * The compass direction of the wall a door between this cell and {@code other} sits on, for two
+     * cells in adjacent plan columns whose stories differ by at most one (a stair room and the cell
+     * its lower story opens onto). Equal to {@link #directionTo} for cells on the same story. Edge
+     * code uses this; {@link #directionTo} stays the same-story test.
+     */
+    DoorMask.Direction wallTo(PlanCell other) {
+        if (Math.abs(other.y - y) > 1) return null;
+        int dx = other.x - x;
+        int dz = other.z - z;
+        if (dx == 1 && dz == 0) return DoorMask.Direction.EAST;
+        if (dx == -1 && dz == 0) return DoorMask.Direction.WEST;
+        if (dx == 0 && dz == 1) return DoorMask.Direction.SOUTH;
+        if (dx == 0 && dz == -1) return DoorMask.Direction.NORTH;
+        return null;
+    }
+
+    /**
      * The compass direction from this cell to an adjacent cell on the same story, or null if
      * not adjacent or on a different story.
      */
