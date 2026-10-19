@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Roadmap T24: the Infestation finale, driven through {@link FinaleWave#step} as {@code FinaleScriptGameTest}
+ * Roadmap T24 and T03: the Infestation finale on the phased spine, driven through {@link FinaleWave#step} as {@code FinaleScriptGameTest}
  * does (the gametest world has no dungeon dimension). The giant silverfish stands in for the data wave, burrows
  * after its tell (invulnerable, out of reach), the adds phase plants bricks that burst into silverfish counted
  * toward the wave, she emerges again, and killing her ends the fight with the bricks and brood cleared. A floor
@@ -39,7 +39,7 @@ public final class InfestationFinaleGameTest {
 
     @GameTest(maxTicks = 100)
     public void theQueenBurrowsPlantsBricksAndEmerges(GameTestHelper helper) {
-        Arena arena = new Arena(helper, 9981);
+        Arena arena = new Arena(helper, 10030);
         try {
             arena.step(true);
             arena.state().spawnTick = 0;
@@ -53,9 +53,21 @@ public final class InfestationFinaleGameTest {
             helper.assertTrue(!boss.isInvulnerable() && !boss.isInvisible(), "she starts up and hittable");
             double surfaceY = boss.getY();
 
-            // Surface, then the first tell: still hittable.
+            // Phase one never digs, however long it runs.
             arena.step(false);
             helper.assertTrue(arena.run().phase == InfestationRules.Phase.SURFACE, "fighting on the surface");
+            arena.skip(PocketDungeonsConfig.infestationSurfaceSeconds() * 20L * 4);
+            arena.step(false);
+            helper.assertTrue(arena.run().phase == InfestationRules.Phase.SURFACE && !boss.isInvulnerable(),
+                    "phase one: no rear up, no burrow");
+            // Phase two starts the cycle: burst damage holds her at two thirds, she staggers, then digs on schedule.
+            arena.burst(boss);
+            helper.assertTrue(boss.isAlive(), "a killing blow does not skip phase two");
+            arena.step(false);
+            helper.assertTrue(arena.fight().phase() == 1 && boss.isInvulnerable(), "the Queen staggers into phase two");
+            arena.fight().staggerEnd = 0;
+            arena.step(false);
+            helper.assertTrue(arena.run().cycling && !boss.isInvulnerable(), "the stagger ends and the cycle arms");
             arena.skip(PocketDungeonsConfig.infestationSurfaceSeconds() * 20L);
             arena.step(false);
             helper.assertTrue(arena.run().phase == InfestationRules.Phase.BURROW_TELL, "she rears up first");
@@ -107,8 +119,27 @@ public final class InfestationFinaleGameTest {
             helper.assertTrue(!boss.isInvulnerable() && !boss.isInvisible() && boss.getY() > surfaceY - 2,
                     "she is up, visible and killable again");
 
+            // Phase three: another killing blow holds her at one third and the bricks ripen faster.
+            arena.burst(boss);
+            helper.assertTrue(boss.isAlive(), "a killing blow does not skip phase three");
+            arena.step(false);
+            helper.assertTrue(arena.fight().phase() == 2 && boss.isInvulnerable(), "the Queen staggers into phase three, phase " + arena.fight().phase() + " inv " + boss.isInvulnerable() + " hp " + boss.getHealth() + "/" + boss.getMaxHealth() + " alive " + boss.isAlive());
+            helper.assertValueEqual(arena.run().field.speedPercent, 100, "the bricks wait for the stagger to end");
+            arena.fight().staggerEnd = 0;
+            arena.step(false);
+            helper.assertValueEqual(arena.run().field.speedPercent, InfestationFinale.FAST_BRICK_PERCENT,
+                    "phase three ripens the bricks faster");
+            BlockPos spot = arena.origin.offset(5, 1, 5);
+            long planted = arena.server.getTickCount();
+            helper.assertTrue(arena.run().field.plant(spot, planted), "a brick is planted");
+            long life = CreepingRules.lifeTicks(PocketDungeonsConfig.creepingMossySeconds() * 20L,
+                    PocketDungeonsConfig.creepingStoneSeconds() * 20L, PocketDungeonsConfig.creepingInfestedSeconds() * 20L);
+            arena.run().field.tick(planted + life / 2 + 5);
+            helper.assertTrue(!arena.run().field.bricks.containsKey(spot), "at twice the speed it burst in half the life");
+
             // Killing her ends the fight and clears the brood.
-            boss.discard();
+            arena.burst(boss);
+            helper.assertTrue(!boss.isAlive(), "the last phase dies to a killing blow");
             arena.step(false);
             helper.assertTrue(arena.state().done && arena.record.floor.finaleWon, "her death wins the finale");
             helper.assertValueEqual(FinaleWave.alive(arena.level, arena.state()), 0, "the brood goes with her");
@@ -120,11 +151,15 @@ public final class InfestationFinaleGameTest {
 
     @GameTest(maxTicks = 100)
     public void aFloorThatEndsMidBurrowGivesTheBlocksBack(GameTestHelper helper) {
-        Arena arena = new Arena(helper, 9982);
+        Arena arena = new Arena(helper, 10031);
         try {
             arena.step(true);
             arena.state().spawnTick = 0;
             arena.step(false);
+            arena.step(false);
+            arena.burst(arena.boss());
+            arena.step(false);
+            arena.fight().staggerEnd = 0;
             arena.step(false);
             arena.skip(100000L);
             arena.step(false); // burrow tell
@@ -195,6 +230,16 @@ public final class InfestationFinaleGameTest {
 
         FinaleWave.State state() {
             return FinaleWave.stateOf(record);
+        }
+
+        BossFight fight() {
+            return (BossFight) state().scriptState.get(BossFight.class);
+        }
+
+        /** A killing blow: the spine's clamp holds the boss at its next bound, or lets the last phase die. */
+        void burst(Mob boss) {
+            boss.invulnerableTime = 0;
+            boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
         }
 
         InfestationFinale.Run run() {
