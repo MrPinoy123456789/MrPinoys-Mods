@@ -163,7 +163,8 @@ final class ActProgress {
     static DungeonDef mineOf(int act, Collection<DungeonDef> all) {
         DungeonDef found = null;
         for (DungeonDef def : all) {
-            if (def.act() == act && def.kind() == DungeonDef.Kind.ENDLESS
+            // The endgame dive (hall chart) shares an act number with that act's mine but is not it.
+            if (def.act() == act && def.kind() == DungeonDef.Kind.ENDLESS && !EndlessMineRules.isDive(def)
                     && (found == null || def.id().compareTo(found.id()) < 0)) {
                 found = def;
             }

@@ -71,6 +71,49 @@ final class ProvingWaves {
         return def != null && def.kind() == DungeonDef.Kind.PROVING;
     }
 
+    // ---- the endgame dive's arena floor -----------------------------------------------
+
+    /** The room theme the arena floor plans in: the Proving's two rooms, the gate and the ring. */
+    static final String ARENA_ROOM_THEME = "the_proving";
+
+    /** The room the dive's guardian floor asks for in its terminal cell. */
+    static final String ARENA_ROOM = "proving_arena";
+
+    /**
+     * Whether floor number {@code floor} (from 1) of the descent {@code offer} would open (or {@code record}
+     * is in) is a guardian floor of the endgame dive: the terminal cell is the Proving's arena, the waves
+     * come first and the act's guardian after them.
+     */
+    static boolean isDiveGuardianFloor(InstanceRecord record, Keystone.Offer offer, int floor) {
+        DungeonDef def = DungeonDefs.current().byId(EndlessMineRules.mineIdFor(record, offer));
+        return EndlessMineRules.isDive(def) && EndlessMineRules.isGuardianFloor(floor);
+    }
+
+    /** Whether the floor being planned is a one-fight arena floor: a Proving floor, or a dive guardian floor. */
+    static boolean isArenaFloor(InstanceRecord record, Keystone.Offer offer, int floor) {
+        return isProvingFor(record, offer) || isDiveGuardianFloor(record, offer, floor);
+    }
+
+    /** Whether the record's current floor is a dive guardian floor whose arena is stamped (its pad room exists). */
+    static boolean isDiveArena(InstanceRecord record) {
+        return record != null && record.floor.provingPadOrigin != null && EndlessMineRules.isDive(record);
+    }
+
+    /**
+     * Arms a dive guardian floor when it commits: the first wave now, the rest and the guardian from
+     * {@link #tick}, and the pad room sealed behind the ring until the guardian is down. The waves climb
+     * with the guardian's number, so the first arena sends the Proving's first wave.
+     */
+    static void armDiveFloor(ServerLevel level, InstanceRecord record, InstanceLayout layout, int floor,
+                             int floorLevel, String themeId) {
+        int number = EndlessMineRules.guardianNumber(floor);
+        record.floor.arenaWavesLeft = Math.max(1, PocketDungeonsConfig.provingWavesPerFloor()) - 1;
+        record.floor.arenaGuardianCalled = false;
+        record.floor.arenaFloorLevel = floorLevel;
+        spawnWave(level, record, layout.terminal(), number, floorLevel, record.members.size(), false);
+        stampPadRoom(level, record, layout, themeId);
+    }
+
     // ---- the wave --------------------------------------------------------------------
 
     /** How many mobs floor {@code floor} (from 1) sends at a party of {@code members}: the knobs, clamped. */
@@ -100,12 +143,16 @@ final class ProvingWaves {
      */
     static void spawn(ServerLevel level, InstanceRecord record, BlockPos terminalOrigin, int floor,
                       int floorLevel, int members) {
-        DungeonDef def = EndlessMineRules.mineOf(record);
-        int act = def == null ? 1 : def.act();
+        spawnWave(level, record, terminalOrigin, floor, floorLevel, members, isChampionFloor(floor));
+    }
+
+    /** One wave of rung {@code floor} of the ladder, with or without a champion in its last slot. */
+    static void spawnWave(ServerLevel level, InstanceRecord record, BlockPos terminalOrigin, int floor,
+                          int floorLevel, int members, boolean champion) {
+        int act = EndlessMineRules.actOf(record);
         double hardness = EndlessMineRules.hardness(floor);
         int count = waveCount(floor, members);
         EntityType<? extends Mob>[] pool = pool(act);
-        boolean champion = isChampionFloor(floor);
         Set<BlockPos> taken = new java.util.HashSet<>();
         taken.add(terminalOrigin.offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2));
         for (int i = 0; i < count; i++) {
@@ -165,7 +212,17 @@ final class ProvingWaves {
 
     /** The pad refusal line while the floor's wave stands, or null (not a Proving, or the wave is down). */
     static String padRefusal(ServerLevel level, InstanceRecord record) {
-        if (!isProving(record) || record.layout == null) {
+        if (record.layout == null) {
+            return null;
+        }
+        if (isDiveArena(record)) {
+            // The dive's arena: the pad room is sealed until the waves and the guardian are down.
+            if (alive(level, record.layout.terminal())) {
+                return "The wave still stands. Finish it first.";
+            }
+            return record.floor.provingPadRevealed ? null : "The guardian is still to come. Hold the ring.";
+        }
+        if (!isProving(record)) {
             return null;
         }
         return alive(level, record.layout.terminal()) ? "The wave still stands. Finish it first." : null;
@@ -223,6 +280,10 @@ final class ProvingWaves {
         if (alive(level, record.layout.terminal())) {
             return;
         }
+        boolean dive = EndlessMineRules.isDive(record);
+        if (dive && callNextOfArena(level, server, record)) {
+            return;
+        }
         CellGeometry.openDoorOnWall(level, record.layout.terminal(), CellGeometry.opposite(
                 CellGeometry.terminalEntranceDirection(record.layout.geometry(),
                         record.layout.terminal())));
@@ -230,9 +291,45 @@ final class ProvingWaves {
         for (UUID member : record.members.keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {
-                player.sendSystemMessage(Component.literal(
-                        "The wave is beaten. The way on opens.").withStyle(ChatFormatting.AQUA));
+                player.sendSystemMessage(Component.literal(dive
+                        ? "The guardian is down. The way on opens." : "The wave is beaten. The way on opens.")
+                        .withStyle(ChatFormatting.AQUA));
                 Chime.spawnerCleared(player);
+            }
+        }
+    }
+
+    /**
+     * The dive's arena beats: when the standing wave is down, send the next wave, else call the guardian
+     * (the act's guardian for this lap slot, {@link MineGuardians#spawnIfGuardianFloor}), else wait while it
+     * lives. Returns whether the arena is still in play, so the caller keeps the far wall shut. A guardian
+     * that leaves nothing alive after it is called (a spawn that failed) does not hold the floor hostage.
+     */
+    private static boolean callNextOfArena(ServerLevel level, MinecraftServer server, InstanceRecord record) {
+        FloorState floor = record.floor;
+        BlockPos terminal = record.layout.terminal();
+        int number = EndlessMineRules.guardianNumber(record.interval.floorIndex + 1);
+        if (floor.arenaWavesLeft > 0) {
+            floor.arenaWavesLeft--;
+            spawnWave(level, record, terminal, number, floor.arenaFloorLevel, record.members.size(), false);
+            tellMembers(server, record, "Another wave is coming.");
+            return true;
+        }
+        if (!floor.arenaGuardianCalled) {
+            floor.arenaGuardianCalled = true;
+            MineGuardians.spawnIfGuardianFloor(level, record, terminal, record.interval.floorIndex + 1,
+                    floor.arenaFloorLevel);
+            tellMembers(server, record, "The guardian is coming.");
+            return true;
+        }
+        return MineGuardians.alive(level, terminal);
+    }
+
+    private static void tellMembers(MinecraftServer server, InstanceRecord record, String line) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null) {
+                player.sendSystemMessage(Component.literal(line).withStyle(ChatFormatting.YELLOW));
             }
         }
     }

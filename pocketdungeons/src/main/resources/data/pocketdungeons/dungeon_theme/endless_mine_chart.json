@@ -1,0 +1,9 @@
+{
+  "name": "The Dive",
+  "processors": "pocketdungeons:theme_deep_mine",
+  "spawner_prefix": "crypt",
+  "room_theme": "deepslate",
+  "rules": {
+    "loot_role": "materials"
+  }
+}

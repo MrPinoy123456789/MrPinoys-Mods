@@ -203,8 +203,12 @@ final class Keystone {
             DungeonDef mineDef = mine ? EndlessMineRules.mineOf(record) : null;
             String theme = mine ? EndlessMineRules.themeOf(mineDef) : null;
             offers = new Offer[TripDoors.DOOR_COUNT];
+            // The endgame dive levels on the party's compass plus the floor, with no cap (decision 2026-10-18).
+            boolean dive = mine && EndlessMineRules.isDive(mineDef);
+            int diveLevel = dive
+                    ? EndlessMineRules.diveFloorLevel(server, record, owner, record.interval.floorIndex + 1) : 0;
             for (int i = 0; i < offers.length; i++) {
-                int floorLevel = mine
+                int floorLevel = dive ? diveLevel : mine
                         ? KeystoneMath.clampLevel(
                                 EndlessMineRules.floorLevel(mineDef, record.interval.floorIndex + 1, steps[i]), max)
                         : KeystoneMath.upgrade(level, steps[i], max);

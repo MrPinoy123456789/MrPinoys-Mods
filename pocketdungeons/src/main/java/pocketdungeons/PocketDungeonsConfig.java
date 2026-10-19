@@ -450,6 +450,12 @@ public final class PocketDungeonsConfig {
     private static final Knob<Integer> PROVING_CHAMPION_EVERY = integer("provingChampionEvery", 3,
             v -> v >= 1 && v <= 10, "must be 1 to 10");
     /**
+     * How many waves the endgame dive's arena sends on a guardian floor before the guardian appears.
+     * Whole waves, at least 1.
+     */
+    private static final Knob<Integer> PROVING_WAVES_PER_FLOOR = integer("provingWavesPerFloor", 2,
+            v -> v >= 1 && v <= 6, "must be 1 to 6");
+    /**
      * At most this many Brood Chamber mobs stand at once: the wave, the mother's retinue, coffin
      * sleepers, silverfish and dark spiders all count. New arrivals wait for room.
      */
@@ -1419,6 +1425,10 @@ public final class PocketDungeonsConfig {
 
     public static int provingChampionEvery() {
         return PROVING_CHAMPION_EVERY.get();
+    }
+
+    public static int provingWavesPerFloor() {
+        return PROVING_WAVES_PER_FLOOR.get();
     }
 
     public static int broodMobCap() {

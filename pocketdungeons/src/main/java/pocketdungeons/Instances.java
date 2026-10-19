@@ -1291,7 +1291,8 @@ final class Instances {
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
         // M66: apply the recipe's path length bonus to the planning bounds.
         // The Proving's floor is one fight: a gate cell and the arena, nothing between.
-        boolean proving = ProvingWaves.isProvingFor(record, offer);
+        // The endgame dive's guardian floor is the same fight: a gate cell and the ring.
+        boolean proving = ProvingWaves.isArenaFloor(record, offer, record.interval.floorIndex + 1);
         final int minPath = proving ? 2 : PocketDungeonsConfig.pathLengthMin() + recipePlan.pathLengthBonus();
         final int maxPath = proving ? 2 : PocketDungeonsConfig.pathLengthMax() + recipePlan.pathLengthBonus();
 
@@ -1302,10 +1303,15 @@ final class Instances {
         // Dungeon structure W2: the node's room bias nudges the same weighted pick
         // Lemon's playtest bias does (PlaytestBias), for this plan only.
         List<String> nodeBias = nodeRoomBias(offer);
+        if (proving && nodeBias.isEmpty()) {
+            nodeBias = List.of(ProvingWaves.ARENA_ROOM);
+        }
+        final List<String> planBias = nodeBias;
         for (int round = 0; round < 4 && plan == null; round++) {
             long seed = level.getRandom().nextLong();
-            final String roomTheme = theme == null ? null : theme.meta().roomTheme;
-            LayoutPlanner.Outcome outcome = PlaytestBias.withNodeBias(nodeBias, () -> LayoutPlanner.plan(
+            final String roomTheme = ProvingWaves.isDiveGuardianFloor(record, offer, record.interval.floorIndex + 1)
+                    ? ProvingWaves.ARENA_ROOM_THEME : theme == null ? null : theme.meta().roomTheme;
+            LayoutPlanner.Outcome outcome = PlaytestBias.withNodeBias(planBias, () -> LayoutPlanner.plan(
                     new LayoutPlanner.PlanRequest(
                             seed, RoomManifest.current(), PocketDungeonsConfig.planAttemptBudget(),
                             new LayoutPlanner.PathProfile(minPath, maxPath,
@@ -1823,6 +1829,10 @@ final class Instances {
                 // PD-215: the exit pad is its own room, sealed behind the arena's
                 // far wall until the wave is down (ProvingWaves.tick reveals it).
                 ProvingWaves.stampPadRoom(level, record, layout, effectiveThemeId);
+            } else if (ProvingWaves.isDiveGuardianFloor(record, offer, record.interval.floorIndex + 1)) {
+                // The endgame dive: waves in the ring first, then the act's guardian (ProvingWaves.tick).
+                ProvingWaves.armDiveFloor(level, record, layout, record.interval.floorIndex + 1,
+                        offer.level(), effectiveThemeId);
             } else {
                 MineGuardians.spawnIfGuardianFloor(level, record, layout.terminal(),
                         record.interval.floorIndex + 1, offer.level());

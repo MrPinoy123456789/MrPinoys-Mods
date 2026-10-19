@@ -802,8 +802,19 @@ public class DungeonDefTest {
         check(deepMine.lootBand().min() == 2 && deepMine.lootBand().max() == 3, "endless_mine_deep is in the act 2 band");
         check(deepMine.unlockLevel() == 6, "the Deep Mine opens at the compass the Act 2 dungeons do");
         check(EndlessMineRules.openMines(loaded.all(), java.util.Set.of(1, 2), 6).stream().map(DungeonDef::id)
-                        .toList().equals(List.of(T + "endless_mine", T + "the_proving", T + "endless_mine_deep")),
-                "the shipped data opens the Act 1 mine and the Proving, then the Deep Mine with act 2");
+                        .toList().equals(List.of(T + "endless_mine", T + "endless_mine_deep")),
+                "the shipped data opens the Act 1 mine, then the Deep Mine with act 2");
+        // T6 (2026-10-18): the Proving left the astrolabe (hall chart, file kept); the dive is the Chart Room's mine.
+        DungeonDef proving = loaded.byId("the_proving");
+        DungeonDef dive = loaded.byId("endless_mine_chart");
+        check(proving != null && proving.kind() == DungeonDef.Kind.PROVING && "chart".equals(proving.hall())
+                        && !EndlessMineRules.isDive(proving),
+                "the Proving keeps its file but leaves the astrolabe, and is not the dive");
+        check(dive != null && EndlessMineRules.isDive(dive) && dive.hiddenOre() != null
+                        && dive.act() == Campaign.releaseMaxAct() && dive.entry() != null,
+                "the dive is an endless chart dungeon in the last released act, with hidden ore and an entry");
+        check(dive.id().equals(HallOffers.CHART_DIVE_ID) && HallOffers.chartDive(loaded) == dive,
+                "the Chart Room's dive slot finds it");
         check(ActProgress.mineTarget(2, loaded.all()) == 3 && ActProgress.mineTarget(3, loaded.all()) == 0,
                 "the shipped data gates act 2 on its mine and act 3 on none (not built yet)");
         // W7a: the Act 1 and Act 2 capstones.
