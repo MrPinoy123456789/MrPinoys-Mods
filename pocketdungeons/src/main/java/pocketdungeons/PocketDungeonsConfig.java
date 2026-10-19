@@ -229,6 +229,13 @@ public final class PocketDungeonsConfig {
     /** The share of a haul a failed dungeon still banks, in percent (Haul and Blood Doors). */
     private static final Knob<Integer> FAIL_HAUL_KEEP_PERCENT = integer("failHaulKeepPercent",
             ScrapMath.FAIL_KEEP_PERCENT, v -> v >= 0 && v <= 100, "must be between 0 and 100");
+    /**
+     * The share of a pack pot's items the pack keeps when its floor ends with the pot unemptied, in
+     * percent (campaign and endgame, 2026-10-18). Each stack keeps this share rounded down; the single
+     * items left over keep every other one, best tier first.
+     */
+    private static final Knob<Integer> POT_KEEP_PERCENT = integer("potKeepPercent", 50,
+            v -> v >= 0 && v <= 100, "must be 0 to 100");
     /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
     /** Chance, per player in the room, of 2 emeralds when an Ordeal resolves (J1). */
     private static final Knob<Double> ORDEAL_EMERALD_CHANCE = decimal("ordealEmeraldChance", 0.25,
@@ -1230,6 +1237,10 @@ public final class PocketDungeonsConfig {
 
     public static int failHaulKeepPercent() {
         return FAIL_HAUL_KEEP_PERCENT.get();
+    }
+
+    public static int potKeepPercent() {
+        return POT_KEEP_PERCENT.get();
     }
 
 
