@@ -77,3 +77,14 @@ outside your worktree to free space; if a write fails with ENOSPC, stop and say 
   thing a stop can lose.
 - If you are told to wrap up, commit, stop at a clean break that compiles, and add a "Handoff" section to your report
   (done, unfinished, exact next commands, latest test counts).
+
+## Added 2026-10-19
+
+- Do not run a baseline full suite at the start; the orchestrator takes counts. Start with `--only` and `--pure-fast`.
+- Heap errors in Gradle usually mean a huge temp directory. `ship.sh` keeps temp in `A:/tmp-ci`; for a direct call
+  export `TMP=TEMP=A:/tmp-ci`, and for a lone pure test add `--no-daemon -Dorg.gradle.jvmargs=-Xmx3g`. Never run
+  `gradlew --stop`. After one retry, stop and report.
+- A shared class that another agent depends on (a spine such as `BossFight`) is changed in your first commit, alone,
+  and you stop and report so the orchestrator can merge it.
+- A fingerprint test (`LayoutFingerprintTest`, its stairs sibling) guards layout. Never loosen it; regenerate only on
+  unchanged code or with `PD_FINGERPRINT_WRITE=1` and say why.

@@ -13,7 +13,7 @@ House rule for everything you write: no em dashes and no spaced double hyphens a
 
 1. **Target:** the Kinetic test server `714a0605` on kineticpanel.net. **Never touch `365f9682`.** It is not a
    test target.
-2. **Check `tools/server/kinetic.env` before any start, stop or deploy.** It redirects every command to the
+2. **Check `tools/server/kinetic.env` before any start, stop or deploy.** (`kinetic.mjs` falls back to the main checkout's copy from a `.claude/worktrees/` checkout.) It redirects every command to the
    panel server named there (`KINETIC_SERVER_ID`). Every start/stop/upload prints which server it is about to
    act on; read that line. If the id is not `714a0605`, stop and tell the owner.
 3. **Always deploy with `--restart`.** A jar uploaded without a restart leaves the running server on the old jar,

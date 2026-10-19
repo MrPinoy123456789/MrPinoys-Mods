@@ -15,7 +15,12 @@ const here = dirname(fileURLToPath(import.meta.url))
 
 /** KEY=VALUE lines from kinetic.env, quotes optional; the environment wins over the file. */
 function fileConfig() {
-  const path = join(here, 'kinetic.env')
+  let path = join(here, 'kinetic.env')
+  if (!existsSync(path)) {
+    // A task worktree (.claude/worktrees/<name>/...) has no copy of the gitignored file: use the main checkout's.
+    const m = here.replace(/\\/g, '/').match(/^(.*)\/\.claude\/worktrees\//)
+    if (m) path = join(m[1], 'pocketdungeons', 'tools', 'server', 'kinetic.env')
+  }
   if (!existsSync(path)) return {}
   const out = {}
   for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {

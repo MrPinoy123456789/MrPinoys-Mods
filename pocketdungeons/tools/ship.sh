@@ -30,10 +30,12 @@ set -u
 cd "$(dirname "$0")/.." || exit 2
 # Drive C: filled up during the 2026-10-12 build (many parallel gradle runs). Keep Gradle's cache and all temp
 # writes on A: when it exists; the cache was copied there once. Harmless where A:/gradle-home is absent.
+# Temp defaults to A:/tmp-ci, not A:/tmp: A:/tmp grew past 700,000 entries and the Jansi cleanup in Gradle lists the
+# whole directory, which ran out of heap and killed full runs (2026-10-19). Logs and lock slots stay in A:/tmp.
 if [ -d "A:/gradle-home" ]; then
   export GRADLE_USER_HOME="A:/gradle-home"
-  mkdir -p "${PD_TMP:-A:/tmp}"
-  export TMP="${PD_TMP:-A:/tmp}" TEMP="${PD_TMP:-A:/tmp}" TMPDIR="${PD_TMP:-A:/tmp}"
+  mkdir -p "${PD_TMP:-A:/tmp-ci}"
+  export TMP="${PD_TMP:-A:/tmp-ci}" TEMP="${PD_TMP:-A:/tmp-ci}" TMPDIR="${PD_TMP:-A:/tmp-ci}"
 fi
 START=$(date +%s)
 SLOTS="${PD_SHIP_SLOTS:-3}"

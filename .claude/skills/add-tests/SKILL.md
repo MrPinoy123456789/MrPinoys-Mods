@@ -129,3 +129,15 @@ the two or three classes around it with `--only` using a substring both ids shar
 A test the repo does not run by default can rot unseen: `sessionStateTest` failed on the base branch for a long time
 because it is not part of the `test` task. New static state holders must go through `SessionState.clearedAtStop`
 or be allowlisted there.
+
+## Fingerprint tests (added 2026-10-19)
+
+`LayoutFingerprintTest` pins every layout over a seed sweep (`src/test/resources/layout_fingerprint.txt`) and the stairs
+sibling pins the opted-in layouts. They guard any change to planning code. Take the fingerprint on untouched code first
+and commit it, then make the change; it must match after every commit. Print unordered sets sorted (`Map.copyOf` and
+`Set.copyOf` iterate in a per-JVM random order). Regenerate only with `PD_FINGERPRINT_WRITE=1` (or
+`-Dfingerprint.write=true`) and explain why in the commit.
+
+If a gametest passes alone and fails only in the full run, rerun the full suite once; if it repeats, put the entities
+and positions in the failure message (a boss or mob that vanished early looks like a logic bug). Hold test mobs still
+and invulnerable between the test's own blows.
