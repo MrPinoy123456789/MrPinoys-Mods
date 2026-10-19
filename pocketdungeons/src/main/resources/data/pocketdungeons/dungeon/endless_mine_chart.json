@@ -1,0 +1,45 @@
+{
+  "name": "The Dive",
+  "hall": "chart",
+  "token": {
+    "mat": "minecraft:crying_obsidian"
+  },
+  "act": 2,
+  "baseLevel": 6,
+  "kind": "endless",
+  "mainTheme": "endless_mine_chart",
+  "lootBand": {
+    "min": 2,
+    "max": 3
+  },
+  "nodePalette": [
+    "deepslate_iron_ore",
+    "deepslate_gold_ore",
+    "deepslate_lapis_ore",
+    "deepslate_redstone_ore"
+  ],
+  "hiddenOre": {
+    "pocketsMin": 1,
+    "pocketsMax": 2,
+    "sizeMin": 1,
+    "sizeMax": 3,
+    "blocks": [
+      "deepslate_iron_ore",
+      "deepslate_lapis_ore",
+      "deepslate_redstone_ore"
+    ],
+    "deepBlocks": [
+      "deepslate_diamond_ore",
+      "deepslate_gold_ore"
+    ],
+    "deepEvery": 3
+  },
+  "nodes": [
+    {
+      "id": "the_dive",
+      "name": "The Dive",
+      "layer": 1
+    }
+  ],
+  "edges": []
+}
