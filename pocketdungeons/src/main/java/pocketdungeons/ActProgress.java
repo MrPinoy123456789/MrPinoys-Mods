@@ -179,7 +179,8 @@ final class ActProgress {
     static List<DungeonDef> actDungeons(int act, Collection<DungeonDef> all) {
         List<DungeonDef> out = new ArrayList<>();
         for (DungeonDef def : all) {
-            if (def.act() == act && !def.kind().descends()) {
+            // A generated Chart Room door never counts toward an act or its checklist (decision 2026-10-18).
+            if (def.act() == act && !def.kind().descends() && !Campaign.isUncharted(def)) {
                 out.add(def);
             }
         }

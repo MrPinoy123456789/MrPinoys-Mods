@@ -96,6 +96,17 @@ final class HallLayout {
      */
     static final String HALL_CHART = "chart";
 
+    /**
+     * The astrolabe position of the Chart Room, kept in {@link IntervalState#hallAct} where an act number
+     * would be. Past every act (the acts stop at 5), so it is always the last position of the cycle.
+     */
+    static final int CHART_ACT = 100;
+
+    /** Whether {@code hallAct} is the Chart Room's position. */
+    static boolean isChart(int hallAct) {
+        return hallAct == CHART_ACT;
+    }
+
     /** What a door looks like and does. */
     enum State {
         /** Not entered yet, or entered before: a lit copper bulb, the dungeon's own door. */
@@ -225,6 +236,28 @@ final class HallLayout {
         }
         int step = backwards ? acts.size() - 1 : 1;
         return acts.get((at + step) % acts.size());
+    }
+
+    /**
+     * The astrolabe position after {@code current}, wrapping: the open acts in order, then the Chart Room when
+     * {@code chartOpen} (the campaign is done). {@code backwards} turns the other way. Returns {@code current}
+     * when there is only one position.
+     */
+    static int nextPosition(Set<Integer> unlocked, int current, boolean backwards, int maxAct, boolean chartOpen) {
+        List<Integer> positions = new ArrayList<>(Campaign.cap(unlocked, maxAct));
+        positions.sort(Comparator.naturalOrder());
+        if (chartOpen) {
+            positions.add(CHART_ACT);
+        }
+        if (positions.isEmpty()) {
+            return current;
+        }
+        int at = positions.indexOf(current);
+        if (at < 0) {
+            return positions.get(0);
+        }
+        int step = backwards ? positions.size() - 1 : 1;
+        return positions.get((at + step) % positions.size());
     }
 
     /**

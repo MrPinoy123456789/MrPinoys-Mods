@@ -478,6 +478,8 @@ for ((taskName, testClass) in mapOf(
     "scrapMathTest" to "ScrapMathTest",
     // Campaign and endgame (2026-10-18, T4): the half rule of the pack and the pot.
     "packHalfTest" to "PackHalfTest",
+    // Campaign endgame T5: the uncharted door generator and the affix kind field.
+    "unchartedGenTest" to "UnchartedGenTest",
     "packSpotsTest" to "PackSpotsTest",
     // Affix workshop 2026-10-11 (T11): Overclocked pays for speed; Loaded's cache springs an ambush.
     "overclockedPayTest" to "OverclockedPayTest",
@@ -625,6 +627,7 @@ tasks.test {
     dependsOn("hiddenOrePlannerTest")
     dependsOn("scrapMathTest")
     dependsOn("packHalfTest")
+    dependsOn("unchartedGenTest")
     dependsOn("packSpotsTest")
     dependsOn("overclockedPayTest")
     dependsOn("trappedCacheTest")

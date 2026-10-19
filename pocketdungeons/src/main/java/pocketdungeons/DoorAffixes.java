@@ -35,6 +35,15 @@ final class DoorAffixes {
     static Set<String> deal(UUID owner, int level, Set<String> offered, List<AffixDefinition> definitions,
                             String dungeonId, String nodeId, int variant, int pathLength,
                             UnaryOperator<Set<String>> finish) {
+        if (UnchartedGen.isUnchartedId(dungeonId)) {
+            // The Chart Room's doors draw at least half their affixes from the rule kind (2026-10-18); a repeat
+            // of the same floor rerolls inside UnchartedGen the way the ordinary doors do below.
+            Set<String> drawn = UnchartedGen.deal(owner, level, definitions, dungeonId, nodeId, variant, pathLength);
+            if (offered != null) {
+                drawn.addAll(offered);
+            }
+            return finished(drawn, finish);
+        }
         Set<String> first = finished(AffixMath.effective(owner, level, offered, definitions), finish);
         if (variant <= 0) {
             return first;

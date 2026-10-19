@@ -52,6 +52,11 @@ final class HallRoom {
     private static final int CORE_X = 7;
     private static final int CORE_Z = 7;
 
+    /** The astrolabe's last position, once the campaign is done (decision 2026-10-18). */
+    static final String CHART_ROOM = "Chart Room";
+    /** Under the title at the Chart Room: what the doors are. */
+    static final String CHART_ROOM_LINE = "Uncharted doors";
+
     private HallRoom() {}
 
     static void register() {
@@ -103,7 +108,7 @@ final class HallRoom {
     /** Clears the default doors and draws the act's row, the signs, mats, bulbs and the astrolabe. */
     static void arm(MinecraftServer server, ServerLevel level, BlockPos o, DoorMask.Direction wall,
                     UUID owner, InstanceRecord record) {
-        HallOffers.Hall hall = HallOffers.build(server, owner, record == null ? 0 : record.interval.hallAct);
+        HallOffers.Hall hall = HallOffers.build(server, owner, record == null ? 0 : record.interval.hallAct, record);
         if (record != null) {
             record.interval.hallAct = hall.act();
         }
@@ -227,6 +232,11 @@ final class HallRoom {
             return new Component[]{Component.literal("Special").withStyle(ChatFormatting.GOLD),
                     Component.literal("Offer").withStyle(ChatFormatting.WHITE)};
         }
+        if (Campaign.isUncharted(def)) {
+            // The Chart Room's doors (decision 2026-10-18): the board carries the level and the Loot percent.
+            return new Component[]{Component.literal("Uncharted").withStyle(ChatFormatting.GOLD),
+                    Component.literal(UnchartedGen.prettyTheme(def.mainTheme())).withStyle(ChatFormatting.WHITE)};
+        }
         String name = def.name();
         Component first;
         Component second;
@@ -316,6 +326,10 @@ final class HallRoom {
 
     /** {@code Act 2: The Deep} over a line of the five acts, the shown one in gold and the locked ones dark. */
     private static Component actText(HallOffers.Hall hall) {
+        if (hall.isChart()) {
+            return Component.literal(CHART_ROOM).withStyle(ChatFormatting.GOLD).append(Component.literal("\n"))
+                    .append(Component.literal(CHART_ROOM_LINE).withStyle(ChatFormatting.GRAY));
+        }
         MutableComponent text = Component.literal(ActProgress.label(hall.act())).withStyle(ChatFormatting.GOLD)
                 .append(Component.literal("\n"));
         if (hall.act() == DungeonDef.PROLOGUE_ACT) {
@@ -387,7 +401,8 @@ final class HallRoom {
             return;
         }
         HallOffers.Hall hall = HallOffers.of(server, record);
-        int next = HallLayout.nextAct(hall.openActs(), hall.act(), back);
+        int next = HallLayout.nextPosition(hall.openActs(), hall.act(), back, Campaign.releaseMaxAct(),
+                hall.chartOpen());
         if (next == hall.act()) {
             Chime.refused(player);
             player.sendOverlayMessage(Component.literal("Only one act is open.").withStyle(ChatFormatting.YELLOW));
@@ -407,9 +422,11 @@ final class HallRoom {
         level.sendParticles(ParticleTypes.END_ROD, record.stagingCellOrigin.getX() + CORE_X + 0.5,
                 record.stagingCellOrigin.getY() + 2.6, record.stagingCellOrigin.getZ() + CORE_Z + 0.5,
                 30, 0.4, 0.4, 0.4, 0.05);
-        String label = ActProgress.label(next);
+        boolean chart = HallLayout.isChart(next);
+        String label = chart ? CHART_ROOM_LINE : ActProgress.label(next);
         for (UUID member : record.members.keySet()) {
-            StaggeredTitle.show(server, member, Component.literal("Act " + next).withStyle(ChatFormatting.GOLD),
+            StaggeredTitle.show(server, member,
+                    Component.literal(chart ? CHART_ROOM : "Act " + next).withStyle(ChatFormatting.GOLD),
                     List.of(label.contains(": ") ? label.substring(label.indexOf(": ") + 2) : label),
                     ChatFormatting.GRAY);
         }

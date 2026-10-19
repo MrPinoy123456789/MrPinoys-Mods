@@ -9,10 +9,17 @@ final class TripView {
 
     private TripView() {}
 
-    /** The dungeon this trip is playing, or {@code null} before the first door and in a Mine. */
+    /**
+     * The dungeon this trip is playing, or {@code null} before the first door and in a Mine. An uncharted door's
+     * generated dungeon is found here too ({@link IntervalState#generatedDef}).
+     */
     static DungeonDef def(InstanceRecord record) {
         if (record == null || record.interval.dungeonId.isEmpty()) {
             return null;
+        }
+        DungeonDef generated = record.interval.generatedDef;
+        if (generated != null && generated.id().equals(record.interval.dungeonId)) {
+            return generated;
         }
         return DungeonDefs.current().byId(record.interval.dungeonId);
     }

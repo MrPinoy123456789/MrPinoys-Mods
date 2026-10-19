@@ -39,9 +39,24 @@ final class HallOffers {
         return def;
     }
 
-    /** What the first staging room shows: the act, its doors in order, and the doors that belong to no act. */
+    /**
+     * What the first staging room shows: the act, its doors in order, and the doors that belong to no act. In the
+     * Chart Room ({@link HallLayout#CHART_ACT}) the doors are the three uncharted dungeons and the special is the
+     * endgame dive. {@code chartOpen} says the astrolabe may turn to the Chart Room (the campaign is done).
+     */
     record Hall(int act, Set<Integer> openActs, List<DungeonDef> doors, List<HallLayout.Status> statuses,
-                List<DungeonDef> specials, int compass) {
+                List<DungeonDef> specials, int compass, boolean chartOpen) {
+
+        /** A hall that has no Chart Room position: every hall before the campaign is done. */
+        Hall(int act, Set<Integer> openActs, List<DungeonDef> doors, List<HallLayout.Status> statuses,
+             List<DungeonDef> specials, int compass) {
+            this(act, openActs, doors, statuses, specials, compass, false);
+        }
+
+        /** Whether the astrolabe is showing the Chart Room. */
+        boolean isChart() {
+            return HallLayout.isChart(act);
+        }
 
         int size() {
             return doors.size() + specials.size();
@@ -69,6 +84,15 @@ final class HallOffers {
      * or one that is no longer open): the room then opens on the act that holds the next door to take.
      */
     static Hall build(MinecraftServer server, UUID owner, int requestedAct) {
+        return build(server, owner, requestedAct, null);
+    }
+
+    /**
+     * As {@link #build(MinecraftServer, UUID, int)}; {@code record} (null for none) lets the Chart Room cut its
+     * doors to the lowest compass of the party. The Chart Room is the last position of the astrolabe and exists
+     * only once {@link Campaign#done} (decision 2026-10-18).
+     */
+    static Hall build(MinecraftServer server, UUID owner, int requestedAct, InstanceRecord record) {
         DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
         DungeonDefs dungeons = DungeonDefs.current();
         Set<Integer> acts = DungeonProgress.unlockedActs(server, owner);
@@ -76,7 +100,8 @@ final class HallOffers {
         Set<String> finished = entry.dungeonsFinished();
         ActProgress.MineDepth deepest = entry.campaign().mineDepth();
 
-        int act = acts.contains(requestedAct) ? requestedAct : HallLayout.openingAct(acts, a -> {
+        boolean chartOpen = Campaign.done(entry);
+        java.util.function.IntPredicate unfinished = a -> {
             List<HallLayout.Entry> entries = entriesOf(dungeons, a, finished, deepest, compass);
             for (HallLayout.Status status : HallLayout.statuses(HallLayout.ordered(entries))) {
                 if (status.startHere()) {
@@ -84,7 +109,22 @@ final class HallOffers {
                 }
             }
             return false;
-        });
+        };
+        int act;
+        if (chartOpen && HallLayout.isChart(requestedAct)) {
+            act = HallLayout.CHART_ACT;
+        } else if (acts.contains(requestedAct)) {
+            act = requestedAct;
+        } else {
+            act = HallLayout.openingAct(acts, unfinished);
+            // A finished campaign with nothing left to do in any open act opens on the Chart Room.
+            if (chartOpen && Campaign.cap(acts, Campaign.releaseMaxAct()).stream().noneMatch(unfinished::test)) {
+                act = HallLayout.CHART_ACT;
+            }
+        }
+        if (act == HallLayout.CHART_ACT) {
+            return chartHall(server, owner, record, acts, compass);
+        }
 
         List<DungeonDef> inAct = new ArrayList<>();
         for (DungeonDef def : dungeons.all()) {
@@ -110,7 +150,27 @@ final class HallOffers {
                 specials.add(mine);
             }
         }
-        return new Hall(act, acts, inAct, statuses, specials, compass);
+        return new Hall(act, acts, inAct, statuses, specials, compass, chartOpen);
+    }
+
+    /**
+     * The Chart Room: the three uncharted doors on the main row, every one open, and the endgame dive at an
+     * end of the same row when its dungeon is loaded (the spec's side wall is the nearest feasible: the
+     * astrolabe room has one selector wall).
+     */
+    private static Hall chartHall(MinecraftServer server, UUID owner, InstanceRecord record, Set<Integer> acts,
+                                  int compass) {
+        List<DungeonDef> doors = UnchartedDoors.doors(server, owner, record);
+        List<HallLayout.Status> statuses = new ArrayList<>();
+        for (int i = 0; i < doors.size(); i++) {
+            statuses.add(new HallLayout.Status(HallLayout.State.OPEN, false, false));
+        }
+        List<DungeonDef> specials = new ArrayList<>();
+        DungeonDef dive = chartDive(DungeonDefs.current());
+        if (dive != null) {
+            specials.add(dive);
+        }
+        return new Hall(HallLayout.CHART_ACT, acts, doors, statuses, specials, compass, true);
     }
 
     /** A dungeon that stands in an act's row: not a descent, not special, with an entry floor. */
@@ -143,12 +203,12 @@ final class HallOffers {
 
     /** The hall a record's first staging room is showing. */
     static Hall of(MinecraftServer server, InstanceRecord record) {
-        return build(server, record.owner, record.interval.hallAct);
+        return build(server, record.owner, record.interval.hallAct, record);
     }
 
     /** The first staging room's offers: door slot {@code i + 1} is element {@code i}. */
     static Keystone.Offer[] offers(MinecraftServer server, InstanceRecord record, UUID owner, int level) {
-        Hall hall = build(server, owner, record == null ? 0 : record.interval.hallAct);
+        Hall hall = build(server, owner, record == null ? 0 : record.interval.hallAct, record);
         DungeonDefs dungeons = DungeonDefs.current();
         int max = PocketDungeonsConfig.keystoneMaxLevel();
         long salt = DungeonLog.forServer(server).get(owner).campaign().tripCounter();

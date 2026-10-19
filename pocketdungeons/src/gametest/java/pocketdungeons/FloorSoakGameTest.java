@@ -78,7 +78,16 @@ public final class FloorSoakGameTest {
     private static void soak(GameTestHelper helper, String id) {
         DungeonDef def = DungeonDefs.current().byId("pocketdungeons:" + id);
         helper.assertTrue(def != null, "dungeon " + id + " is loaded");
-        int seedsPerFloor = seeds();
+        List<String> hard = soakDef(def, id, seeds());
+        if (!hard.isEmpty()) {
+            helper.fail(hard.size() + " hard finding(s) in " + id + "; first: " + hard.get(0));
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** The soak for a dungeon already in hand (a generated Chart Room dungeon is not loaded by id). */
+    static List<String> soakDef(DungeonDef def, String id, int seedsPerFloor) {
         List<String> hard = new ArrayList<>();
         List<String> soft = new ArrayList<>();
         Map<String, Integer> placed = new TreeMap<>();
@@ -199,11 +208,7 @@ public final class FloorSoakGameTest {
         write(report.toString());
         PocketDungeonsMod.LOG.info("Floor soak {}: {} plans, {} hard, {} with ore rooms, {} short of nodes, {} without a spawner, {} never rolled",
                 id, plans, hard.size(), oreFloors, resourceShortPlans, noSpawnerPlans, neverRolled.size());
-        if (!hard.isEmpty()) {
-            helper.fail(hard.size() + " hard finding(s) in " + id + "; first: " + hard.get(0));
-            return;
-        }
-        helper.succeed();
+        return hard;
     }
 
     // ---- checks on one plan ----------------------------------------------------------------
