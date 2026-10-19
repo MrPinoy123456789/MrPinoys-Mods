@@ -53,6 +53,12 @@ public class SidebarLinesTest {
                 "Heard 2/4"));
         eq(SidebarLines.title(campaign), "Copper Works");
         eq(texts(SidebarLines.lines(mid)).contains("Compass 10: 4/5"), true);   // the endgame still shows it
+        // Campaign and endgame (2026-10-18, T4): Pots N, white, only while pots stand; none shows no line.
+        eq(texts(SidebarLines.lines(campaign, 2)), List.of("Floor 3: Gear Loft", "Lives 3", "Pots 2", "Spawners 2/3"));
+        eq(texts(SidebarLines.lines(done.asCampaign(), 1)), List.of("Floor 4: The Queen's Nest", "Lives 4", "Party 2", "Pots 1"));
+        eq(texts(SidebarLines.lines(campaign, 0)), texts(SidebarLines.lines(campaign)));
+        eq(texts(SidebarLines.lines(mid, 3)).contains("Pots 3"), true);   // the endgame shows it too
+        eq(SidebarLines.lines(campaign, 2).get(2).colour(), "white");
         for (SidebarLines.Facts f : List.of(campaign, campaignHeard)) {
             for (SidebarLines.Line line : SidebarLines.lines(f)) {
                 if (line.text().startsWith("Haul") || line.text().startsWith("Compass")

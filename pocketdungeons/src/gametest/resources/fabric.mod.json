@@ -58,6 +58,7 @@
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",
       "pocketdungeons.PayoffRoomGameTest",
+      "pocketdungeons.PackPotGameTest",
       "pocketdungeons.MineGuardianGameTest",
       "pocketdungeons.BroodChamberGameTest",
       "pocketdungeons.BlackoutGameTest",
