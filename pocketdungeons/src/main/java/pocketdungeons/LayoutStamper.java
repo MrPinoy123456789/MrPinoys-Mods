@@ -846,28 +846,28 @@ final class LayoutStamper {
                 // a lever-less Ordeal that a blast resolves.
                 PlanCell nearCell = nearerToEntrance(plan, edge.a(), edge.b());
                 applyConnectorToSide(level, geometry, nearCell, edge, type, fillNearColumn);
-                DoorMask.Direction nearWall = nearCell.directionTo(edge.other(nearCell));
+                DoorMask.Direction nearWall = nearCell.wallTo(edge.other(nearCell));
                 if (nearWall != null) {
-                    BlockPos nearOrigin = geometry.cellOrigin(nearCell);
+                    BlockPos nearOrigin = geometry.wallOrigin(nearCell, edge.other(nearCell));
                     Ordeals.armAt(RubbleOrdeal.KIND, level, nearOrigin,
                             ConnectorGeometry.wallPos(nearOrigin, nearWall, RoomGeometry.DOOR_MIN, 1));
                 }
             } else if (type == ConnectorType.IRON_DOOR) {
                 PlanCell nearCell = nearerToEntrance(plan, edge.a(), edge.b());
                 PlanCell farCell = edge.other(nearCell);
-                DoorMask.Direction nearWall = nearCell.directionTo(farCell);
-                DoorMask.Direction farWall = farCell.directionTo(nearCell);
+                DoorMask.Direction nearWall = nearCell.wallTo(farCell);
+                DoorMask.Direction farWall = farCell.wallTo(nearCell);
                 if (nearWall != null) {
                     // PD-160: the lever is on another wall of the near room and a
                     // stone button stands in the far room; neither is adjacent to
                     // the door, so IronDoorLatch opens it on use.
                     ConnectorStamper.IronDoor placedDoor = ConnectorStamper.applyIronDoor(
-                            level, geometry.cellOrigin(nearCell), nearWall);
+                            level, geometry.wallOrigin(nearCell, farCell), nearWall);
                     Set<BlockPos> lowers = Set.copyOf(placedDoor.lowers());
                     doorOpeners.put(placedDoor.lever(), lowers);
                     if (farWall != null) {
                         BlockPos button = ConnectorStamper.applyFarSideButton(
-                                level, geometry.cellOrigin(farCell), farWall);
+                                level, geometry.wallOrigin(farCell, nearCell), farWall);
                         if (button != null) {
                             doorOpeners.put(button, lowers);
                         }
@@ -875,7 +875,7 @@ final class LayoutStamper {
                 }
                 if (farWall != null) {
                     ironDoorFarSideSlots.addAll(ConnectorGeometry.rect(
-                            geometry.cellOrigin(farCell), farWall,
+                            geometry.wallOrigin(farCell, nearCell), farWall,
                             RoomGeometry.DOOR_MIN, RoomGeometry.DOOR_MAX, 1, RoomGeometry.DOOR_HEIGHT));
                 }
             } else {
@@ -940,8 +940,8 @@ final class LayoutStamper {
         }
         PlanCell a = edge.a();
         PlanCell b = edge.b();
-        DoorMask.Direction wallA = a.directionTo(b);
-        DoorMask.Direction wallB = b.directionTo(a);
+        DoorMask.Direction wallA = a.wallTo(b);
+        DoorMask.Direction wallB = b.wallTo(a);
         if (wallA == null || wallB == null) {
             return;
         }
@@ -960,8 +960,8 @@ final class LayoutStamper {
             }
             return;
         }
-        RoomBuilder.windowBand(level, geometry.cellOrigin(a), Instances.mcDirection(wallA), materialA);
-        RoomBuilder.windowBand(level, geometry.cellOrigin(b), Instances.mcDirection(wallB), materialB);
+        RoomBuilder.windowBand(level, geometry.wallOrigin(a, b), Instances.mcDirection(wallA), materialA);
+        RoomBuilder.windowBand(level, geometry.wallOrigin(b, a), Instances.mcDirection(wallB), materialB);
     }
 
     /** The plan's room name for {@code cell}, or {@code null} if it has none. */
@@ -1005,11 +1005,11 @@ final class LayoutStamper {
 
     private static void applyConnectorToSide(ServerLevel level, PlanGeometry geometry, PlanCell cell,
                                              PlanEdge edge, ConnectorType type, boolean fillNearColumn) {
-        DoorMask.Direction wall = cell.directionTo(edge.other(cell));
+        DoorMask.Direction wall = cell.wallTo(edge.other(cell));
         if (wall == null) {
             return;
         }
-        ConnectorStamper.apply(level, geometry.cellOrigin(cell), wall, type, fillNearColumn);
+        ConnectorStamper.apply(level, geometry.wallOrigin(cell, edge.other(cell)), wall, type, fillNearColumn);
     }
 
     /**
