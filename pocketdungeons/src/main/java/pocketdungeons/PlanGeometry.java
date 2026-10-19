@@ -88,6 +88,17 @@ record PlanGeometry(BlockPos origin, int minCellX, int minCellZ,
                 (cell.z() - minCellZ) * RoomGeometry.CELL);
     }
 
+    /**
+     * The floor corner of the story of {@code cell} that the door toward {@code other} sits on. For every
+     * door but a stair room's way on this is {@link #cellOrigin}; a stair room reaches the cell one story
+     * below it through the story below its own floor, one {@link RoomGeometry#STORY_HEIGHT} lower per story.
+     */
+    BlockPos wallOrigin(PlanCell cell, PlanCell other) {
+        BlockPos origin = cellOrigin(cell);
+        int drop = cell.y() - other.y();
+        return drop > 0 ? origin.below(drop * RoomGeometry.STORY_HEIGHT) : origin;
+    }
+
     /** Standing position at the centre of a cell (floor + 1). */
     BlockPos cellCentre(PlanCell cell) {
         return cellOrigin(cell).offset(RoomGeometry.CELL / 2, 1, RoomGeometry.CELL / 2);

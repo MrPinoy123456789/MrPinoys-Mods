@@ -65,13 +65,14 @@ final class BedrockEnvelope {
         Set<PlanCell> occupied = Set.copyOf(geometry.cells());
         for (PlanCell cell : geometry.cells()) {
             int spanY = cellSpanY.getOrDefault(cell, 1);
-            applyToCell(level, geometry.cellOrigin(cell), occupied, standingCells, cell, voidedCells, spanY);
+            applyToCell(level, geometry.cellOrigin(cell), occupied, standingCells, cell, voidedCells, spanY,
+                    cellSpanY);
         }
     }
 
     private static void applyToCell(ServerLevel level, BlockPos o, Set<PlanCell> occupied,
                                      Set<BlockPos> standingCells, PlanCell cell,
-                                     Set<PlanCell> voidedCells, int spanY) {
+                                     Set<PlanCell> voidedCells, int spanY, Map<PlanCell, Integer> cellSpanY) {
         boolean voided = voidedCells.contains(cell);
         // M61: the sub-floor sits under the lowest story, so a spanY > 1 room's
         // sub-floor drops by (spanY-1)*STORY_HEIGHT. The over-ceiling stays at
@@ -93,12 +94,24 @@ final class BedrockEnvelope {
         // to collide with (the class note says why an unconditional ring is
         // wrong). The ring covers every story, from under the lowest floor to
         // over the cell's ceiling.
+        //
+        // Vertical floors phase 2: a stair room's lower story shares its height with the cell one story
+        // down, so a face can be open on one story and a wall of a neighbour on the other. The face is
+        // skipped when a cell stands on its own story, or when the cell above and across is a stair room
+        // whose lower story is this cell's story; and the ring drops its lower stories when the cell one
+        // story down and across stands. For a layout with no stair room neither extra test can fire.
         for (DoorMask.Direction face : DoorMask.Direction.values()) {
             PlanCell neighbour = CellGeometry.neighbourCell(cell, face);
-            if (!occupied.contains(neighbour)
-                    && !standingCells.contains(CellGeometry.offsetInDirection(o, face, CELL))) {
-                ring(level, o, face, storyOffset);
+            if (occupied.contains(neighbour)
+                    || standingCells.contains(CellGeometry.offsetInDirection(o, face, CELL))) {
+                continue;
             }
+            PlanCell above = new PlanCell(neighbour.x(), neighbour.y() + 1, neighbour.z());
+            if (occupied.contains(above) && cellSpanY.getOrDefault(above, 1) > 1) {
+                continue;
+            }
+            PlanCell below = new PlanCell(neighbour.x(), neighbour.y() - 1, neighbour.z());
+            ring(level, o, face, occupied.contains(below) ? 0 : storyOffset);
         }
     }
 

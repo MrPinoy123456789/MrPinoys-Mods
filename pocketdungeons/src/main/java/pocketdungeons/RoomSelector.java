@@ -152,7 +152,9 @@ final class RoomSelector {
         Set<PlanCell> multiStory = new HashSet<>();
         for (Map.Entry<PlanCell, DungeonPlan.PlacedRoom> e : placed.entrySet()) {
             RoomManifest.Entry entry = manifest.byName(e.getValue().name());
-            if (entry != null && entry.meta.spanY > 1 && !e.getKey().equals(anomalyCell)) {
+            // A stair room is two stories too, but its lower story is the way on, never a sealed bonus.
+            if (entry != null && entry.meta.spanY > 1 && !DoorMask.hasLowerStory(entry.maskAtRotation0)
+                    && !e.getKey().equals(anomalyCell)) {
                 multiStory.add(e.getKey());
             }
         }
@@ -232,7 +234,7 @@ final class RoomSelector {
                 continue;
             }
             PlanCell from = approach(shape, cell, depths);
-            DoorMask.Direction dir = from == null ? null : cell.directionTo(from);
+            DoorMask.Direction dir = from == null ? null : cell.wallTo(from);
             if (dir == null) {
                 continue;
             }
@@ -413,7 +415,9 @@ final class RoomSelector {
 
         List<PlanCell> eligible = new ArrayList<>();
         for (PlanCell cell : shape.criticalPath()) {
-            if (!cell.equals(shape.entrance()) && !cell.equals(shape.terminal())) {
+            // A stair room is one fixed shape on the spine; no anomaly stands in for it.
+            if (!cell.equals(shape.entrance()) && !cell.equals(shape.terminal())
+                    && !DoorMask.hasLowerStory(requiredMask(shape, cell))) {
                 eligible.add(cell);
             }
         }
@@ -1575,19 +1579,24 @@ final class RoomSelector {
         return depths;
     }
 
+    /**
+     * The door mask a cell's room must have: one bit per open edge, on the door story the edge leaves
+     * from. A door to a cell on the same story or above sits on the room's top story (slot 0); a door to a
+     * cell one story down, which only a stair room has, sits on the story below (slot 1).
+     */
     private static int requiredMask(DungeonShape shape, PlanCell cell) {
-        Set<DoorMask.Direction> dirs = new LinkedHashSet<>();
+        int mask = 0;
         for (PlanEdge edge : shape.openEdges()) {
             if (!edge.touches(cell)) {
                 continue;
             }
             PlanCell other = edge.other(cell);
-            DoorMask.Direction dir = cell.directionTo(other);
+            DoorMask.Direction dir = cell.wallTo(other);
             if (dir != null) {
-                dirs.add(dir);
+                mask |= DoorMask.edge(dir, Math.max(0, cell.y() - other.y()));
             }
         }
-        return DoorMask.fromEdges(dirs);
+        return mask;
     }
 
     /**
