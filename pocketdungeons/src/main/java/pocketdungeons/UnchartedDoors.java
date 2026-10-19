@@ -43,6 +43,13 @@ final class UnchartedDoors {
         REGISTRY.clear();
     }
 
+    /** Puts {@code def} back if the registry has dropped it; a cheap read when it is there. */
+    static void ensure(DungeonDef def) {
+        if (def != null && !REGISTRY.containsKey(def.id())) {
+            remember(def);
+        }
+    }
+
     /** Remembers {@code def}, newest last. */
     static void remember(DungeonDef def) {
         if (def != null) {

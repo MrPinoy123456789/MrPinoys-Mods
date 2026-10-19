@@ -19,6 +19,8 @@ final class TripView {
         }
         DungeonDef generated = record.interval.generatedDef;
         if (generated != null && generated.id().equals(record.interval.dungeonId)) {
+            // Keep it findable by id for every caller that asks DungeonDefs, whatever the registry has dropped.
+            UnchartedDoors.ensure(generated);
             return generated;
         }
         return DungeonDefs.current().byId(record.interval.dungeonId);

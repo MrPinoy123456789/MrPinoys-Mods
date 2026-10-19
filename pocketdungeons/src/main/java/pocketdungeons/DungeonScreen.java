@@ -378,6 +378,11 @@ final class DungeonScreen {
         int floorNumber = record.interval.floorIndex + 1;
 
         String header = previewHeader(mine, def, node, dungeonName, floorNumber);
+        if (Campaign.isUncharted(def)) {
+            // The Chart Room's doors name the level they run at (compass plus the door step); the Loot percent
+            // already rides on the name line below.
+            header = header + BoardText.SEP + "Level " + offer.level();
+        }
         Component title = Component.literal(header).withStyle(ChatFormatting.YELLOW);
 
         List<Component> lines = new ArrayList<>();
