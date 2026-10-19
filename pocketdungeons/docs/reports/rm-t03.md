@@ -38,7 +38,7 @@ opening on the kill. Pure: `KennelsFinaleRulesTest` and `OssuaryRulesTest` exten
 
 ## Counts
 
-See the final line of the reply; baseline not taken (shared machine OOM), the coordinator takes counts.
+Final full `--quick` run: SUITE GREEN, 406 gametests passed, pure tests green (129 tasks). No baseline was taken (shared machine OOM); the new gametests are 24 methods over 6 classes (BossFightClamp 1 is included).
 
 ## Environment note
 
