@@ -47,6 +47,16 @@ public class OssuaryRulesTest {
         check(!OssuaryRules.shouldWake(r * r + 1.0, 0), "just outside, nothing yet");
         check(!OssuaryRules.shouldWake(Double.MAX_VALUE, OssuaryRules.SKIP_DELAY_TICKS - 1), "far and early: still shut");
         check(OssuaryRules.shouldWake(Double.MAX_VALUE, OssuaryRules.SKIP_DELAY_TICKS), "far but the delay passed: opens");
+        // The boss's second phase wakes by approach only; the third adds the skip rule (roadmap T03).
+        check(OssuaryRules.shouldWake(r * r, 0, false), "phase two: a near member wakes it");
+        check(!OssuaryRules.shouldWake(Double.MAX_VALUE, OssuaryRules.SKIP_DELAY_TICKS, false),
+                "phase two: time alone opens nothing");
+        check(OssuaryRules.shouldWake(Double.MAX_VALUE, OssuaryRules.SKIP_DELAY_TICKS, true),
+                "phase three: the skipped coffin opens");
+        check(OssuaryRules.choose(new double[]{900.0}, new boolean[]{true}, 9999, false) == -1,
+                "phase two: a far coffin stays shut however long");
+        check(OssuaryRules.choose(new double[]{900.0}, new boolean[]{true}, 9999, true) == 0,
+                "phase three: the same coffin opens");
 
         double[] dist = {100.0, 4.0, 50.0};
         check(OssuaryRules.choose(dist, new boolean[]{true, true, true}, 0) == 1, "the nearest near coffin wakes");

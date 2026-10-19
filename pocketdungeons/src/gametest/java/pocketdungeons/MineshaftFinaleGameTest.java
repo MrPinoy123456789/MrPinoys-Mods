@@ -6,7 +6,9 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
@@ -18,20 +20,22 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Roadmap T20: the Mineshaft dark phase, driven through {@link FinaleWave#step} as the finale-script skill
- * describes. Half the wave dead starts a tell; only after the tell do the torches and lanterns go out and the
- * glowing cave spiders join; the pad stays shut for them; lights near the pad and a redstone lamp are spared;
- * everything comes back on a win or when the floor ends, without clobbering a block a player placed.
+ * Roadmap T20 and T03: the Mineshaft dark phase on the phased spine, driven through {@link FinaleWave#step}
+ * as the finale-script skill describes. The boss crossing two thirds starts a tell and only after the tell do the
+ * torches and lanterns go out; crossing one third brings the glowing cave spiders; the pad stays shut until all
+ * are dead; lights near the pad and a redstone lamp are spared; everything comes back on a win or when the floor
+ * ends, without clobbering a block a player placed. Burst damage cannot skip a phase.
  */
 public final class MineshaftFinaleGameTest {
 
-        private static final DungeonDef.Finale FINALE = new DungeonDef.Finale(
-            List.of(new DungeonDef.FinaleMob("minecraft:cow", 4)), 50, null);
+    private static final DungeonDef.Finale FINALE = new DungeonDef.Finale(
+            List.of(new DungeonDef.FinaleMob("minecraft:zombie", 3), new DungeonDef.FinaleMob("minecraft:cave_spider", 1)),
+            50, null);
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS;
 
     @GameTest(maxTicks = 600)
-    public void tellThenDarkThenSpidersThenLightsReturn(GameTestHelper helper) {
-        Run run = new Run(helper, 9941);
+    public void threePhasesLightsFailThenSpidersThenLightsReturn(GameTestHelper helper) {
+        Run run = new Run(helper, 10000);
         BlockPos far = run.origin.offset(1, 2, 1);
         BlockPos lantern = run.origin.offset(13, 3, 3);
         BlockPos nearPad = run.origin.offset(10, 2, 9);
@@ -42,16 +46,20 @@ public final class MineshaftFinaleGameTest {
         run.level.setBlock(lamp, Blocks.REDSTONE_LAMP.defaultBlockState(), FLAGS);
         long tell = FinaleRules.darkTellTicks(PocketDungeonsConfig.mineshaftDarkTellSeconds());
         try {
-            run.step(true);
-            run.state().spawnTick = 0;
-            run.step(false);
+            run.start();
             helper.assertValueEqual(run.state().mobs.size(), 4, "the data wave stands");
-            run.kill(0);
-            run.kill(1);
+            Mob boss = run.boss();
+            helper.assertTrue(boss.getType() == EntityTypes.ZOMBIE
+                    && MineshaftFinale.BOSS_NAME.equals(boss.getName().getString()), "a zombie leads, named");
+            helper.assertTrue(run.level.getBlockState(far).is(Blocks.TORCH), "phase one keeps the lights on");
+            run.burst(boss);
+            helper.assertTrue(boss.isAlive(), "a killing blow does not skip phase two");
             run.step(false);
-            helper.assertTrue(run.state().halfFired, "half the wave is dead");
+            helper.assertTrue(run.fight().phase() == 1 && boss.isInvulnerable(), "the boss staggers into phase two");
+            run.fight().staggerEnd = 0;
+            run.step(false);
             helper.assertTrue(run.level.getBlockState(far).is(Blocks.TORCH), "the tell comes before the dark");
-            helper.assertValueEqual(run.state().mobs.size(), 4, "no spiders yet");
+            helper.assertValueEqual(run.state().mobs.size(), 4, "no spiders in phase two");
             helper.runAfterDelay(tell / 2, () -> {
                 run.step(false);
                 helper.assertTrue(run.level.getBlockState(far).is(Blocks.TORCH), "still lit halfway through the tell");
@@ -62,22 +70,31 @@ public final class MineshaftFinaleGameTest {
                 helper.assertTrue(run.level.getBlockState(lantern).isAir(), "the lantern is out");
                 helper.assertTrue(run.level.getBlockState(nearPad).is(Blocks.TORCH), "the light by the pad stays");
                 helper.assertTrue(run.level.getBlockState(lamp).is(Blocks.REDSTONE_LAMP), "a lamp is not a torch");
+                helper.assertValueEqual(run.state().mobs.size(), 4, "still no spiders before phase three");
+                run.burst(boss);
+                run.step(false);
+                helper.assertTrue(run.fight().phase() == 2 && boss.isInvulnerable(), "phase three staggers");
+                run.fight().staggerEnd = 0;
+                run.step(false);
                 int expected = FinaleRules.darkSpiders(PocketDungeonsConfig.mineshaftDarkSpiders(), 1,
                         FINALE.perMemberPercent(), 4);
-                helper.assertValueEqual(run.state().mobs.size(), 4 + expected, "the spiders joined the wave");
+                helper.assertValueEqual(run.state().mobs.size(), 4 + expected, "the rest of the wave came");
                 for (int i = 4; i < run.state().mobs.size(); i++) {
                     Entity spider = run.level.getEntity(run.state().mobs.get(i));
-                    helper.assertTrue(spider != null && net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(spider.getType()).getPath().equals("cave_spider")
-                            && spider.isCurrentlyGlowing(), "a glowing cave spider");
+                    helper.assertTrue(spider != null && BuiltInRegistries.ENTITY_TYPE.getKey(spider.getType())
+                            .getPath().equals("cave_spider") && spider.isCurrentlyGlowing(), "a glowing cave spider");
                 }
-                // A torch a player places in the dark stays lit through the restore.
+                // A torch a player places in the dark stays lit through the restore; a built block is not overwritten.
                 BlockPos mine = run.origin.offset(5, 2, 5);
                 run.level.setBlock(mine, Blocks.TORCH.defaultBlockState(), FLAGS);
-                // And a block a player builds where a light was is not overwritten.
                 run.level.setBlock(far, Blocks.COBBLESTONE.defaultBlockState(), FLAGS);
                 run.step(false);
                 helper.assertTrue(run.level.getBlockState(mine).is(Blocks.TORCH), "a player torch is left alone");
-                helper.assertTrue(!run.state().done, "the spiders keep the pad shut");
+                helper.assertTrue(!run.state().done, "the spiders and the boss keep the pad shut");
+                run.burst(boss);
+                helper.assertTrue(!boss.isAlive(), "the last phase dies to the killing blow");
+                run.step(false);
+                helper.assertTrue(!run.state().done, "the pad stays shut while the rest of the wave lives");
                 for (int i = 0; i < run.state().mobs.size(); i++) {
                     Entity e = run.level.getEntity(run.state().mobs.get(i));
                     if (e != null) {
@@ -85,7 +102,7 @@ public final class MineshaftFinaleGameTest {
                     }
                 }
                 run.step(false);
-                helper.assertTrue(run.state().done && run.record.floor.finaleWon, "the last death wins");
+                helper.assertTrue(run.state().done && run.record.floor.finaleWon, "the last death opens the pad");
                 helper.assertTrue(run.level.getBlockState(lantern).is(Blocks.LANTERN), "the lantern returns");
                 helper.assertTrue(run.level.getBlockState(far).is(Blocks.COBBLESTONE), "a player block is not overwritten");
                 helper.assertTrue(run.level.getBlockState(mine).is(Blocks.TORCH), "the player torch is still there");
@@ -100,16 +117,15 @@ public final class MineshaftFinaleGameTest {
 
     @GameTest(maxTicks = 600)
     public void aFloorThatEndsMidDarkGetsItsLightsBack(GameTestHelper helper) {
-        Run run = new Run(helper, 9942);
+        Run run = new Run(helper, 10001);
         BlockPos torch = run.origin.offset(2, 2, 2);
         run.level.setBlock(torch, Blocks.SOUL_TORCH.defaultBlockState(), FLAGS);
         long tell = FinaleRules.darkTellTicks(PocketDungeonsConfig.mineshaftDarkTellSeconds());
         try {
-            run.step(true);
-            run.state().spawnTick = 0;
+            run.start();
+            run.burst(run.boss());
             run.step(false);
-            run.kill(0);
-            run.kill(1);
+            run.fight().staggerEnd = 0;
             run.step(false);
             helper.runAfterDelay(tell + 5, () -> {
                 run.step(false);
@@ -168,10 +184,28 @@ public final class MineshaftFinaleGameTest {
             return FinaleWave.stateOf(record);
         }
 
-        void kill(int n) {
-            Entity entity = level.getEntity(state().mobs.get(n));
-            helper.assertTrue(entity != null, "mob " + n + " is in the world");
-            entity.discard();
+        /** Triggers the finale, skips the countdown and lets the wave stand. */
+        void start() {
+            step(true);
+            state().spawnTick = 0;
+            step(false);
+            step(false);
+        }
+
+        Mob boss() {
+            Mob mob = state().elite == null ? null : (Mob) level.getEntity(state().elite);
+            helper.assertTrue(mob != null, "the boss stands");
+            return mob;
+        }
+
+        BossFight fight() {
+            return (BossFight) state().scriptState.get(BossFight.class);
+        }
+
+        /** A killing blow: the clamp holds the boss at its next bound. */
+        void burst(Mob boss) {
+            boss.invulnerableTime = 0;
+            boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
         }
 
         void close() {

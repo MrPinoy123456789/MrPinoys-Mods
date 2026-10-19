@@ -91,6 +91,35 @@ final class KennelsFinaleRules {
         }
     }
 
+    /**
+     * The same beats driven by the Alpha's phases instead of its health line (roadmap T03). {@code windupRequested}
+     * is the Alpha's phase two, {@code empowerRequested} its phase three. The pack never grows before the windup
+     * has run its length ({@code windupEnd}), so the tell is never shorter than {@link #WINDUP_TICKS} even when a
+     * burst carries the Alpha through both bounds. A handler already dead when the windup would start spends the
+     * rule; one that dies before the pack grows cancels it; one that dies after shrinks the pack back.
+     * ({@link #step} stays for the Brood Chamber, which is health driven.)
+     */
+    static Step phasedStep(Phase phase, long now, long windupEnd, boolean handlerAlive, boolean windupRequested,
+                           boolean empowerRequested) {
+        switch (phase) {
+            case WAITING:
+                if (!windupRequested) {
+                    return new Step(Phase.WAITING, Action.NONE);
+                }
+                return handlerAlive ? new Step(Phase.WINDUP, Action.START_WINDUP) : new Step(Phase.SPENT, Action.NONE);
+            case WINDUP:
+                if (!handlerAlive) {
+                    return new Step(Phase.SPENT, Action.CANCEL);
+                }
+                return empowerRequested && now >= windupEnd ? new Step(Phase.EMPOWERED, Action.EMPOWER)
+                        : new Step(Phase.WINDUP, Action.NONE);
+            case EMPOWERED:
+                return handlerAlive ? new Step(Phase.EMPOWERED, Action.NONE) : new Step(Phase.SPENT, Action.SHRINK);
+            default:
+                return new Step(Phase.SPENT, Action.NONE);
+        }
+    }
+
     /** A wolf's scale while empowered, from the scale it had. */
     static double empoweredScale(double base) {
         return base * PACK_SCALE;

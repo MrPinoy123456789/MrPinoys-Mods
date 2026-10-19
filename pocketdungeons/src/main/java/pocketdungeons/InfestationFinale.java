@@ -17,6 +17,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,6 +28,10 @@ import java.util.UUID;
  * the arena and ripen into silverfish through {@link CreepingBricks}. When every brick is gone, or the phase
  * runs out, the ground heaves (a third tell) and she rises again; the cycle repeats. The fight ends when she is
  * killed, which cannot happen while she is burrowed. The schedule is {@link InfestationRules}.
+ *
+ * <p>The Queen runs under a {@link BossFight} (roadmap T03): in phase one she fights on the surface and never
+ * digs; the burrow cycle above starts with phase two; phase three runs the brick clock at
+ * {@link #FAST_BRICK_PERCENT}. A stagger holds the cycle's timer, so a burrow never overlaps one.
  *
  * <p>Her silverfish count toward the wave, so the pad stays shut until all are dead; the alive cap is
  * {@code infestationSilverfishCap}. Everything placed is given back in {@link #onFloorEnded}, and when she dies
@@ -46,8 +51,36 @@ final class InfestationFinale implements FinaleScript {
     /** A brick is never planted this close to a member or the exit pad. */
     private static final double KEEP_CLEAR = 2.5;
 
+    /** The brick clock's speed in the Queen's last phase, in percent: bricks mature twice as fast. */
+    static final int FAST_BRICK_PERCENT = 200;
+
+    /**
+     * The Queen's three phases (2026-10-15 arena floors). One: she fights on the surface, no digging. Two: she
+     * burrows on her cycle and the bricks ripen into silverfish. Three: the bricks mature faster.
+     */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0, List.of("The Queen shrieks.", "She digs in."), (ctx, boss) -> {
+                Run run = ctx.scriptState(Run.class, Run::new);
+                run.cycling = true;
+                run.phaseStart = ctx.tickCount();
+            }),
+            new BossFight.Step(1.0 / 3.0, List.of("The Queen is cornered.", "The bricks ripen faster."),
+                    (ctx, boss) -> {
+                        Run run = ctx.scriptState(Run.class, Run::new);
+                        run.fast = true;
+                        if (run.field != null) {
+                            run.field.speedPercent = FAST_BRICK_PERCENT;
+                        }
+                    }));
+
     /** One run's state, kept in {@link FinaleContext#scriptState}. */
     static final class Run {
+        /** Phase two began: the burrow cycle runs. Phase one never digs. */
+        boolean cycling;
+        /** Phase three began: the bricks ripen faster. */
+        boolean fast;
         InfestationRules.Phase phase = InfestationRules.Phase.SURFACE;
         long phaseStart;
         CreepingBricks.Field field;
@@ -100,6 +133,8 @@ final class InfestationFinale implements FinaleScript {
             endFight(ctx, run);
             return;
         }
+        BossFight fight = ctx.scriptState(BossFight.class, () -> new BossFight(PHASES));
+        fight.tick(ctx);
         Mob boss = bossOf(ctx, run);
         int aliveAdds = 0;
         for (Mob mob : ctx.liveMobs()) {
@@ -117,6 +152,10 @@ final class InfestationFinale implements FinaleScript {
         run.field.releaseBudget =InfestationRules.releaseBudget(aliveAdds,
                 PocketDungeonsConfig.infestationSilverfishCap());
         long now = ctx.tickCount();
+        if (!run.cycling || fight.staggering()) {
+            run.phaseStart = now; // phase one never digs; a stagger holds the cycle where it is
+            return;
+        }
         InfestationRules.Timing timing = timing();
         boolean addsDone = run.phase == InfestationRules.Phase.ADDS
                 && InfestationRules.addsDone(run.planted, run.total, run.field.active());

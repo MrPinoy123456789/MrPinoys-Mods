@@ -107,7 +107,16 @@ final class OssuaryRules {
 
     /** Whether a member at {@code distSq} (squared blocks) or the passing of time wakes a sealed coffin. */
     static boolean shouldWake(double distSq, long sinceLastCrack) {
-        return distSq <= WAKE_RADIUS * WAKE_RADIUS || sinceLastCrack >= SKIP_DELAY_TICKS;
+        return shouldWake(distSq, sinceLastCrack, true);
+    }
+
+    /**
+     * {@link #shouldWake(double, long)} with the skip rule switchable (roadmap T03): the boss's second phase wakes a
+     * coffin only by a member's approach; its third phase adds the passing of time, the skipped coffin that opens
+     * behind a turned back.
+     */
+    static boolean shouldWake(double distSq, long sinceLastCrack, boolean skipRule) {
+        return distSq <= WAKE_RADIUS * WAKE_RADIUS || (skipRule && sinceLastCrack >= SKIP_DELAY_TICKS);
     }
 
     /**
@@ -128,13 +137,18 @@ final class OssuaryRules {
      * is still shut.
      */
     static int choose(double[] distSq, boolean[] sealed, long sinceLastCrack) {
+        return choose(distSq, sealed, sinceLastCrack, true);
+    }
+
+    /** {@link #choose(double[], boolean[], long)} with the skip rule switchable; see {@link #shouldWake(double, long, boolean)}. */
+    static int choose(double[] distSq, boolean[] sealed, long sinceLastCrack, boolean skipRule) {
         int best = -1;
         for (int i = 0; i < distSq.length; i++) {
             if (sealed[i] && (best < 0 || distSq[i] < distSq[best])) {
                 best = i;
             }
         }
-        return best >= 0 && shouldWake(distSq[best], sinceLastCrack) ? best : -1;
+        return best >= 0 && shouldWake(distSq[best], sinceLastCrack, skipRule) ? best : -1;
     }
 
     /** The mobs of coffin {@code coffin}: its slice of the dealt sequence, as group indices. */
