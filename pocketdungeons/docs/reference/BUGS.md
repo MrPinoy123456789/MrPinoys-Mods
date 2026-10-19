@@ -322,7 +322,7 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 
 ### PD-219: A block-attached entity at an invalid position (Medium)
 **Reported:** 2026-10-19, playtest 2026-10-19-1 server log (06:22): `BlockPos{x=9, y=65, z=1000710}`. A z of a million suggests a slot origin or an offset applied twice. Act 0 rooms are the first suspect.
-**Status:** Open (wave 0 task W0b, backlog plan 2026-10-19).
+**Status:** Fixed 2026-10-19 (task W0b), not yet confirmed live. Traced: the same position (9, 65, 1000710) was logged on 2026-10-03, 2026-10-04 and 2026-10-19, so it is not a per-run offset. z=1000000 is the template generator's scratch region (`RoomTemplateGenerator.SCRATCH_Z`), 1000710 is the 23rd room row, and `rotation_lock` is the only room whose decor spawns an item frame (at local 9,1,6). `/dungeon admin generate` captured the room with `fillFromWorld` and then cleared only the blocks, so the original frame stayed behind with no support block, far outside the world border, and logged the error whenever that chunk loaded. No stamp path applies an offset twice (live rooms place template entities relative to the cell). Fix: `RoomTemplateGenerator.clear` now discards the box's non-player entities, and a build discards stale ones first. Gametest `ScratchEntityGameTest` stamps `rotation_lock`, asserts every block-attached entity is inside the cell, and asserts cleanup leaves none (verified red without the fix). A frame already saved in an old test world stays until `/dungeon admin generate rotation_lock` is run once, or the chunk at z=1000710 is wiped. Live: the error should no longer appear in the log.
 
 ## Closed ledger
 
