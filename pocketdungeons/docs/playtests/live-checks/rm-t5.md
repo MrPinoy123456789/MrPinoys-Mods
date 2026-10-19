@@ -1,6 +1,0 @@
-## Chart Room and uncharted doors (2026-10-18)
-- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
-- **Changed:** after the last capstone the astrolabe's last position is the Chart Room: three Uncharted doors (a generated three floor dungeon each, themes from the acts you finished, level = compass + step, half the affixes are rules) and, when loaded, the dive at the end of the row. The last floor ends in a guardian with phases. T5.
-- **Do:** one account with the campaign done. Turn the astrolabe past the last act, preview each door, take one, clear all three floors in a party of two (second member with a lower compass), then check the haul and a failed run once.
-- **Pass:** the signs say Uncharted with the theme; the board shows Level and Loot percent; doors differ and reroll after a trip; the floors run at the lowest compass plus step; the guardian wakes after the spawners clear, staggers at two thirds (guard arrives) and one third (enraged), and the pad opens only when all its mobs are down; scrap pays and banks; the act checklist never mentions the door.
-- **Fail signs:** a door that previews but will not commit, a wrong level, a guardian that never spawns or ends the floor early, an uncharted finish listed in the act checklist, a soft-lock on any floor.

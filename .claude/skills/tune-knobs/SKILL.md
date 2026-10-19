@@ -50,7 +50,7 @@ All are in `PocketDungeonsConfig.java` with their default; the knob declaration'
 - **Economy and rewards:** `finishEmeralds` 8, `finishVaultChests` 2, `failHaulKeepPercent` 50 (share of the haul a failed
   dungeon keeps), `salvageKeyEmeralds` 1, `salvageOminousKeyEmeralds` 3, `salvageMaterialBonus` 1, `ordealEmeraldChance` 0.25,
   `rerollLapisPerTier` 4, `equipCap` 3, `keystoneMaxLevel` 100.
-- **Difficulty:** `mobScaleBase` 0.65, `mobScalePerLevel` 0.008, `omenDangerScalePerOmen` 0.15, `spawnerClearThreshold` 0.75
+- **Difficulty:** `mobScaleBase` 0.85, `mobScalePerLevel` 0.02, `omenDangerScalePerOmen` 0.1 (Act 2 on), `omenDangerScaleActOne` 0, `spawnerClearThreshold` 0.75
   (share of spawners that must clear to pass), `trialSpawnerCooldownTicks` 36000, `breezeHpMultiplier` 0.5,
   `firstFloorMaxEncounters` 2.
 - **Affix strength:** `swarmingMobFactor` 1.5, `overclockedCooldownFactor` 0.4, `silencedConsumablesPerOmen` 3,

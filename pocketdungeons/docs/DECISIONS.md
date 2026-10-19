@@ -1096,7 +1096,7 @@ safe).
   count again when the campaign is done. What's in your pack is at risk. Your hotbar, armour and Dungeon Storage are
   safe.`
 - A player who has finished the last shipped act's capstone gets the Chart Room at once and keeps their level.
-- Pots are floor state and never persist. A "campaign done" flag only if the stored act set cannot answer it.
+- Pots are floor state: they end with their floor and never outlive the run. (Built amendment, 2026-10-18: the contents are journalled and stored in `DungeonLog` while the pot stands, so a crash or restart returns them in full to the owner's Dungeon Storage; see the T4 report.) A "campaign done" flag only if the stored act set cannot answer it.
 - Act 0 ends on the first quest line, `Next: the Mineshaft`, not on Compass 2.
 
 ### Supersedes
@@ -1151,3 +1151,5 @@ Whether the quest line reads as guidance or a chore list; whether `Your compass 
 whether walking back for a pot is a story or a chore, and whether `Pots N` is read; whether hotbar stuffing becomes
 the default; whether a walk back to the Doors for Dungeon Storage feels like a price or a nuisance; whether three
 uncharted floors suit a single session trip; whether rule affixes keep a veteran afraid.
+
+**Status: Built (2026-10-18)** on branch `feature/campaign-endgame` (T0 to T7, merged from `feature/rm-*`). Deviations are listed in `docs/reports/campaign-endgame-build.md`. The timed trial stays held; live checks are L104 to L114.

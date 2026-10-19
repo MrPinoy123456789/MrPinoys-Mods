@@ -208,6 +208,14 @@ authoring advice is in the `dungeon-content` skill.
 - `edges[]`: `from`, `to` and `lives` (0 to 2, the price of a side door in
   party lives). The old `cost` key is rejected.
 
+- 2026-10-18 additions: `kind` may be `uncharted` (generated in memory by `UnchartedGen`, never written to data),
+  `hall` may be `chart` (the Chart Room: the endgame dive only, `dungeon/endless_mine_chart.json`; the Proving also moved
+  there and no longer shows in the astrolabe), and a node `objective` may be `relic` (uncharted doors only). An affix
+  JSON takes `kind: "rule" | "stat"` (default `stat`; the uncharted doors draw at least half their affixes from the
+  rule set). New knobs: `releaseMaxAct`, `capstoneDungeonsNeeded`, `omenDangerScaleActOne`, `livesPerExtraMember`,
+  `potKeepPercent`, `provingWavesPerFloor`, `relicFloorChance`, `relicLootPercent`. Retired: `actZeroScrap`,
+  `firstLevelScrapCost`, `endlessMineUnlockLevel`.
+
 A theme needs a matching `dungeon_adventure` node and some other node's `next`
 must lead to it, or the validator reports it as unreachable.
 

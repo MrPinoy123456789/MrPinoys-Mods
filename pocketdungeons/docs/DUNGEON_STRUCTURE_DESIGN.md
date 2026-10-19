@@ -15,7 +15,7 @@ The campaign is five acts following Steve's playthrough (`ActProgress`):
 | 5 | The End | Ender Archive, The End | Herobrine | (data hook ready) | 4 |
 
 - **Unlocking the next act:** Act `N` opens for a member when they have finished every dungeon and capstone in Act `N - 1` and cleared floor 3 (the first guardian) of Act `N - 1`'s Endless Mine (`ActProgress`, `MineDepth`). Progress is evaluated per member present at each finish.
-- **Approved, not built (2026-10-18, `docs/DECISIONS.md` "Campaign and endgame"):** the capstone opens after three of the act's dungeons, the mine stops being a gate, the compass becomes a quest line in the campaign, and the Chart Room opens after the last act on the server. Until it is built, the unlock rule above is what the code does.
+- **Built (2026-10-18, `docs/DECISIONS.md` "Campaign and endgame"):** the capstone opens after three of the act's dungeons, the mine stops being a gate, the compass becomes a quest line in the campaign, and the Chart Room opens after the last act on the server. The unlock rule above is the older rule; the code now follows this one.
 - **Loot band cap:** The act caps the loot and node tiers a dungeon can pay (`LootBands`); compass + step scales mob difficulty and moves weights within the band, never above it.
 
 ## 2. Choosing a dungeon: the Astrolabe Room
