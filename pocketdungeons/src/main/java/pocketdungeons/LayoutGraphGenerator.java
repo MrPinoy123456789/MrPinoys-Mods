@@ -377,6 +377,7 @@ public final class LayoutGraphGenerator {
             int step = Integer.signum(tz - ez);
             PlanCell prev = entrance;
             for (int z = ez + step; z != tz; z += step) {
+                // Story 0 only: the generator is flat until vertical floors phase 2.
                 PlanCell cur = new PlanCell(ex, z);
                 if (!cells.contains(cur) || !edges.contains(new PlanEdge(prev, cur))) {
                     return false;
@@ -390,6 +391,7 @@ public final class LayoutGraphGenerator {
             int step = Integer.signum(tx - ex);
             PlanCell prev = entrance;
             for (int x = ex + step; x != tx; x += step) {
+                // Story 0 only: the generator is flat until vertical floors phase 2.
                 PlanCell cur = new PlanCell(x, ez);
                 if (!cells.contains(cur) || !edges.contains(new PlanEdge(prev, cur))) {
                     return false;
@@ -405,6 +407,7 @@ public final class LayoutGraphGenerator {
     private static List<PlanCell> generateCriticalPath(Random rng, int targetLength) {
         List<PlanCell> path = new ArrayList<>(targetLength);
         Set<PlanCell> visited = new HashSet<>(targetLength * 2);
+        // Story 0 only: the generator is flat until vertical floors phase 2.
         path.add(new PlanCell(0, 0));
         visited.add(path.get(0));
 
