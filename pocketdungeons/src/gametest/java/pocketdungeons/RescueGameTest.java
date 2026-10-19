@@ -73,6 +73,38 @@ public final class RescueGameTest {
         helper.succeed();
     }
 
+    /**
+     * Campaign and endgame (2026-10-18, rule 8): a rescue where nothing is at risk (the player fell in the
+     * Doors, which is the one cell of this record) moves no pack and makes no pot.
+     */
+    @GameTest
+    public void aRescueAtTheDoorsLeavesThePackAlone(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer owner = player(helper);
+        ServerPlayer rider = player(helper);
+        InstanceRecord record = record(helper, server, owner, rider);
+        owner.getInventory().clearContent();
+        owner.getInventory().setItem(9, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COBBLESTONE, 12));
+        owner.setPos(Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 1, 3))));
+        InstanceRegistry.bySlot.put(SLOT, record);
+        InstanceRegistry.usedSlots.add(SLOT);
+        InstanceRegistry.byMember.put(owner.getUUID(), record);
+        InstanceRegistry.byMember.put(rider.getUUID(), record);
+        try {
+            Instances.rescue(owner, record);
+            helper.assertTrue(owner.getInventory().getItem(9).getCount() == 12,
+                    "the pack stays with the player when nothing was at risk");
+            helper.assertTrue(DungeonLog.forServer(server).packPotsOf(owner.getUUID()).isEmpty(), "and no pot is made");
+        } finally {
+            InstanceRegistry.bySlot.remove(SLOT);
+            InstanceRegistry.usedSlots.remove(SLOT);
+            InstanceRegistry.byMember.remove(owner.getUUID());
+            InstanceRegistry.byMember.remove(rider.getUUID());
+            PackPots.clearForTesting(server);
+        }
+        helper.succeed();
+    }
+
     private static InstanceRecord record(GameTestHelper helper, MinecraftServer server,
                                          ServerPlayer owner, ServerPlayer rider) {
         BlockPos origin = helper.absolutePos(BlockPos.ZERO);

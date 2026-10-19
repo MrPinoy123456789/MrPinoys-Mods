@@ -123,7 +123,7 @@ final class SidebarDisplay {
     private static void paint(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
         SidebarLines.Facts facts = factsFor(server, record, player.getUUID());
         String title = SidebarLines.title(facts);
-        List<SidebarLines.Line> lines = SidebarLines.lines(facts);
+        List<SidebarLines.Line> lines = SidebarLines.lines(facts, PackPots.countFor(server, record));
         List<String> keys = new ArrayList<>();
         for (SidebarLines.Line line : lines) {
             keys.add(line.colour() + "|" + line.text());

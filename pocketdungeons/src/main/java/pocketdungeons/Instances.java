@@ -127,6 +127,7 @@ final class Instances {
         registerMobScaling();
         registerConnectionHandlers();
         registerServerLifecycle();
+        PackPots.register();
     }
 
     /** The per tick work: queued clears, the instance watcher, join recoveries and inventory swaps. */
@@ -189,6 +190,9 @@ final class Instances {
                 return false;
             }
             if (Omen.nextDeathFails(record.interval.omen, record.interval.maxLives)) {
+                // The fifth rescue makes its pot first (decision 2026-10-18, rule 5): the failing settlement
+                // then halves it with every other pot and every pack.
+                PackPots.moveToPot(player, record);
                 PlaytestJournal.omenRise(server, record, Omen.Source.DEATH, 1,
                         record.interval.maxLives, player.blockPosition());
                 failRunOmen(server, record, player, source);
@@ -2090,6 +2094,10 @@ final class Instances {
             return;
         }
 
+        // Campaign and endgame (2026-10-18, rule 1): the pack moves into a pot where they fell, after the life
+        // is spent and before anything else moves them; the hotbar, armour and offhand stay.
+        PackPots.moveToPot(player, record);
+
         revive(player);
 
         // PD-74: a mob that was chasing the player (endermen especially) must
@@ -2206,6 +2214,8 @@ final class Instances {
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             RunLifecycle.bankHaul(server, record, member, RunLifecycle.BankContext.FAIL);
         }
+        // Every pot of the dungeon, whoever owns it and whether or not they are still in the party.
+        PackPots.settleRun(server, record, PocketDungeonsConfig.failHaulKeepPercent(), false);
         if (failReturnsHome(record)) {
             // Back to the Home room with the pack as carried, the party intact, and the doors re-armed. If
             // the owner later leaves the lobby the leader-left rule closes it for everyone.
@@ -2217,7 +2227,7 @@ final class Instances {
                 RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
             }
             PlaytestJournal.runFailed(server, record, deadPlayer, source);
-            announce(server, record, "The dungeon claims you. You are back home with what you carry.", null);
+            announce(server, record, "The dungeon claims you. You keep half of your pack.", null);
             resetToLobby(server, record);
             return;
         }
@@ -2231,7 +2241,7 @@ final class Instances {
             RunLifecycle.returnKeystone(server, record, member, player, Keystones.Outcome.NO_CHANGE);
         }
         PlaytestJournal.runFailed(server, record, deadPlayer, source);
-        announce(server, record, "The dungeon claims you. You keep what you carry.", null);
+        announce(server, record, "The dungeon claims you. You keep half of your pack.", null);
         InstanceTeardown.purge(server, record, "omen fail", deadPlayer.getUUID());
     }
 
@@ -2248,8 +2258,9 @@ final class Instances {
     static void failRunLeft(MinecraftServer server, InstanceRecord record, ServerPlayer leaver, String why) {
         clearMobTargets(server, record);
         RunLifecycle.settleLeaderLeft(server, record, leaver.getUUID());
+        PackPots.settleRun(server, record, PocketDungeonsConfig.failHaulKeepPercent(), false);
         announce(server, record, leaver.getName().getString()
-                + " " + why + " The dungeon fails; you keep what you carry.", leaver.getUUID());
+                + " " + why + " The dungeon fails; you keep half of your pack.", leaver.getUUID());
         for (UUID member : new ArrayList<>(record.members.keySet())) {
             ServerPlayer player = server.getPlayerList().getPlayer(member);
             if (player != null) {

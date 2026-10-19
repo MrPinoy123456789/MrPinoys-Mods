@@ -75,11 +75,22 @@ final class SidebarLines {
 
     /** The lines, top to bottom. */
     static List<Line> lines(Facts f) {
+        return lines(f, 0);
+    }
+
+    /**
+     * The lines with {@code pots} standing pack pots on the floor (campaign and endgame, 2026-10-18, rule 3):
+     * a white {@code Pots N} line under the party while any stand, none when there are none.
+     */
+    static List<Line> lines(Facts f, int pots) {
         List<Line> out = new ArrayList<>();
         out.add(new Line(floorText(f.floor(), f.floorName(), f.ominous()), f.ominous() ? "dark_purple" : "white"));
         out.add(new Line("Lives " + f.lives(), livesColour(f.lives(), f.maxLives())));
         if (f.party() > 1) {
             out.add(new Line("Party " + f.party(), "gray"));
+        }
+        if (pots > 0) {
+            out.add(new Line("Pots " + pots, "white"));
         }
         if (f.onFloor() && f.spawnersTotal() > 0 && !f.finished()) {
             boolean done = f.spawnersCleared() >= f.spawnersNeeded();

@@ -1,6 +1,7 @@
 package pocketdungeons;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -99,12 +100,76 @@ final class RunStorage {
         if (!inDungeon || !matchesStation(state)) {
             return false;
         }
+        return open(player);
+    }
+
+    /**
+     * {@link #onUse(ServerPlayer, BlockState, boolean)} for a click at {@code pos}. Campaign and endgame
+     * (2026-10-18, rule 9): during a trip the storage opens only at the Doors (the staging room) and at the
+     * player's Home room; an ender chest anywhere else in the run does nothing but say where it does open.
+     * Outside a trip nothing changes.
+     */
+    static boolean onUse(ServerPlayer player, BlockState state, BlockPos pos, boolean inDungeon) {
+        if (!inDungeon || !matchesStation(state)) {
+            return false;
+        }
+        if (!opensHere(InstanceRegistry.byMember.get(player.getUUID()), pos)) {
+            player.sendOverlayMessage(Component.literal("Dungeon Storage opens at the Doors.")
+                    .withStyle(ChatFormatting.YELLOW));
+            return true;
+        }
+        return open(player);
+    }
+
+    /**
+     * Whether the storage opens at {@code pos} for a player in {@code record}: always when they are not on a
+     * trip (no run, an admin build, an untimed run, a visit); on a trip only inside the run's staging room
+     * cell or Home room cell.
+     */
+    static boolean opensHere(InstanceRecord record, BlockPos pos) {
+        if (record == null || !record.inFloorLoop() || record.visitInstance || record.layout == null
+                || !record.isKeystoneRun()) {
+            return true;
+        }
+        return Instances.roomRecordAt(pos) == record;
+    }
+
+    private static boolean open(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
         StorageContainer storage = openFor(server, player.getUUID());
         player.openMenu(new SimpleMenuProvider(
                 (id, inventory, p) -> ChestMenu.sixRows(id, inventory, storage),
                 Component.literal(TITLE)));
         return true;
+    }
+
+    /**
+     * Puts {@code stacks} into {@code owner}'s Dungeon Storage and returns what did not fit (the caller keeps
+     * it; nothing is dropped). Goes through the open container when the owner has the storage open, so the
+     * container's next write cannot undo the deposit.
+     */
+    static List<ItemStack> deposit(MinecraftServer server, UUID owner, List<ItemStack> stacks) {
+        StorageContainer open = live.get(owner);
+        DungeonLog log = DungeonLog.forServer(server);
+        SimpleContainer box = open;
+        if (box == null) {
+            box = new SimpleContainer(SLOTS);
+            List<ItemStack> held = log.storageOf(owner);
+            for (int i = 0; i < held.size() && i < SLOTS; i++) {
+                box.setItem(i, held.get(i).copy());
+            }
+        }
+        List<ItemStack> overflow = new ArrayList<>();
+        for (ItemStack stack : stacks) {
+            ItemStack left = box.addItem(stack.copy());
+            if (!left.isEmpty()) {
+                overflow.add(left);
+            }
+        }
+        if (open == null) {
+            log.setStorage(owner, copyOf(box));
+        }
+        return overflow;
     }
 
     /** The player's live container, built from the log unless someone already has it open. */

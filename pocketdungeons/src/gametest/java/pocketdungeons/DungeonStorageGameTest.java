@@ -239,6 +239,45 @@ public final class DungeonStorageGameTest {
     }
 
     /**
+     * Campaign and endgame (2026-10-18, T4): a pot's settlement deposits into the storage, through the open
+     * container when the owner has it open, so the container's next write cannot undo the deposit; what does
+     * not fit comes back to the caller and nothing is dropped.
+     */
+    @GameTest(maxTicks = 20)
+    public void aDepositGoesThroughTheOpenContainerAndReturnsWhatDoesNotFit(GameTestHelper helper) {
+        ServerPlayer visitor = player(helper);
+        MinecraftServer server = visitor.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+        UUID id = visitor.getUUID();
+        try {
+            helper.assertTrue(RunStorage.onUse(visitor, RunStorage.stationState(Direction.NORTH), true), "opens");
+            List<ItemStack> left = RunStorage.deposit(server, id, List.of(new ItemStack(Items.IRON_INGOT, 9)));
+            helper.assertTrue(left.isEmpty(), "it fit");
+            visitor.containerMenu.getSlot(5).set(new ItemStack(Items.TORCH, 2));
+            visitor.closeContainer();
+            int iron = 0;
+            int torches = 0;
+            for (ItemStack stack : log.storageOf(id)) {
+                iron += stack.is(Items.IRON_INGOT) ? stack.getCount() : 0;
+                torches += stack.is(Items.TORCH) ? stack.getCount() : 0;
+            }
+            helper.assertTrue(iron == 9 && torches == 2, "the open container kept the deposit and the edit: "
+                    + iron + ", " + torches);
+            List<ItemStack> full = new ArrayList<>();
+            for (int i = 0; i < RunStorage.SLOTS; i++) {
+                full.add(new ItemStack(Items.DIRT, 64));
+            }
+            log.setStorage(id, full);
+            List<ItemStack> back = RunStorage.deposit(server, id, List.of(new ItemStack(Items.GOLD_INGOT, 3)));
+            helper.assertTrue(back.size() == 1 && back.get(0).getCount() == 3, "a full storage hands the stack back");
+        } finally {
+            visitor.closeContainer();
+            log.setStorage(id, List.of());
+        }
+        helper.succeed();
+    }
+
+    /**
      * Playtest 2026-10-02-1: the run storage drains once. {@link RunStorage#drain}
      * returns the containers while a caller empties the station; the storage
      * keeps coming back empty rather than re-paying.

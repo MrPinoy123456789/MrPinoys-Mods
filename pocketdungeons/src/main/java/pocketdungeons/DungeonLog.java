@@ -676,6 +676,13 @@ final class DungeonLog extends SavedData {
     private final Map<UUID, InventorySwap.OrphanRecord> dungeonStorage = new HashMap<>();
 
     /**
+     * Every standing pack pot (campaign and endgame, 2026-10-18, T4), by pot id: the stacks a rescue moved
+     * out of a player's pack. They live here, not in the run, so a crash or a restart cannot lose them; a
+     * pot whose run is gone is handed back in full on the owner's next join ({@link PackPots}).
+     */
+    private final Map<UUID, PackPot> packPots = new java.util.LinkedHashMap<>();
+
+    /**
      * (M71) Per-player Cube recipe discovery state. A sidecar map for the
      * same reason {@link #taskProgress} is one: the
      * discovery state is read and written on the Cube interaction path, has
@@ -1078,7 +1085,11 @@ final class DungeonLog extends SavedData {
             // every storage empty.
             PLAYER_DUNGEON_STORAGE_CODEC.listOf().optionalFieldOf("dungeon_storage", List.of())
                     .forGetter(log -> log.dungeonStorage.entrySet().stream()
-                            .map(e -> new PlayerDungeonStorage(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerDungeonStorage(e.getKey(), e.getValue())).toList()),
+            // Campaign and endgame 2026-10-18 (T4): optional so a save written before pack pots loads
+            // with none standing, which is the correct reading of "no rescue has made a pot yet".
+            PackPot.CODEC.listOf().optionalFieldOf("pack_pots", List.of())
+                    .forGetter(log -> List.copyOf(log.packPots.values()))
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
@@ -1090,7 +1101,8 @@ final class DungeonLog extends SavedData {
                                           List<PlayerFloorHistory> floorHistory,
                                           List<PlayerKitChest> kitChests,
                                           List<PlayerStorageReturn> retiredStorageReturns,
-                                          List<PlayerDungeonStorage> dungeonStorage) {
+                                          List<PlayerDungeonStorage> dungeonStorage,
+                                          List<PackPot> packPots) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -1118,6 +1130,9 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerDungeonStorage s : dungeonStorage) {
             log.dungeonStorage.put(s.player(), s.items());
+        }
+        for (PackPot pot : packPots) {
+            log.packPots.put(pot.id(), pot);
         }
         return log;
     }
@@ -1767,6 +1782,40 @@ final class DungeonLog extends SavedData {
             dungeonStorage.put(player, record);
         }
         setDirty();
+    }
+
+    /** Every pack pot on record, in the order they were made. A copy. */
+    List<PackPot> packPots() {
+        return List.copyOf(packPots.values());
+    }
+
+    /** The pack pot with this id, or {@code null}. */
+    PackPot packPot(UUID id) {
+        return packPots.get(id);
+    }
+
+    /** Every pack pot {@code owner} has on record. */
+    List<PackPot> packPotsOf(UUID owner) {
+        List<PackPot> out = new ArrayList<>();
+        for (PackPot pot : packPots.values()) {
+            if (pot.owner().equals(owner)) {
+                out.add(pot);
+            }
+        }
+        return out;
+    }
+
+    /** Records {@code pot}, replacing any pot with the same id. Saved with the log. */
+    void putPackPot(PackPot pot) {
+        packPots.put(pot.id(), pot);
+        setDirty();
+    }
+
+    /** Forgets the pot with this id; whoever calls this has already delivered or deliberately dropped its stacks. */
+    void removePackPot(UUID id) {
+        if (packPots.remove(id) != null) {
+            setDirty();
+        }
     }
 
     /**

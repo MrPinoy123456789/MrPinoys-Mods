@@ -141,6 +141,7 @@ playtestJournal = true
 pocket2DoorChance = 0.2
 pocket2TimerSeconds = 60
 poisonMaxSeconds = 10
+potKeepPercent = 50
 potionDripBossPercent = 200
 potionDripEffectSeconds = 8
 potionDripEnabled = true

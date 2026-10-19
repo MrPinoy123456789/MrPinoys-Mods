@@ -50,6 +50,7 @@
   "finishEmeralds": 8,
   "finishVaultChests": 2,
   "failHaulKeepPercent": 50,
+  "potKeepPercent": 50,
   "ordealEmeraldChance": 0.25,
   "cowSpecimenZeroScale": 3.0,
   "cowSpecimenZeroHealth": 60,
