@@ -20,9 +20,10 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Roadmap T22: the Kennels finale script driven through {@link FinaleWave#step} as the finale-script skill
- * describes. Covers the handler's name and finale tag, the windup, the empower (scale, anger, red glow team),
- * the cancel, the shrink back, and that the team is gone when the floor ends.
+ * Roadmap T22 and T03: the Kennels finale script on the phased spine, driven through {@link FinaleWave#step} as
+ * the finale-script skill describes. Covers the handler's name and finale tag, the windup at phase two, the
+ * empower (scale, anger, red glow team) at phase three, the cancel, the shrink back, burst damage not skipping a
+ * phase, and that the team is gone when the floor ends.
  */
 public final class KennelsFinaleGameTest {
 
@@ -68,7 +69,7 @@ public final class KennelsFinaleGameTest {
     @GameTest(maxTicks = 60)
     public void theHandlerIsNamedAndTheKennelsHasAScript(GameTestHelper helper) {
         helper.assertTrue(registeredForKennels(), "the Kennels dungeon has a finale script");
-        Run run = new Run(helper, 9921);
+        Run run = new Run(helper, 10020);
         try {
             run.start();
             Pillager handler = run.handler();
@@ -83,19 +84,30 @@ public final class KennelsFinaleGameTest {
     }
 
     @GameTest(maxTicks = 80)
-    public void halfHealthStartsTheWindupThenThePackGrows(GameTestHelper helper) {
-        Run run = new Run(helper, 9922);
+    public void phaseTwoStartsTheWindupAndPhaseThreeGrowsThePack(GameTestHelper helper) {
+        Run run = new Run(helper, 10021);
         try {
             run.start();
             run.step();
-            helper.assertTrue(!run.handler().isCelebrating(), "above half the handler waits");
-            run.alphaHealth(0.5);
+            helper.assertTrue(!run.handler().isCelebrating(), "in phase one the handler waits");
+            run.burst();
+            helper.assertTrue(run.alpha().isAlive(), "a killing blow does not skip phase two");
             run.step();
-            helper.assertTrue(run.handler().isCelebrating(), "at half the handler raises its arm");
+            helper.assertTrue(run.alpha().isInvulnerable() && !run.handler().isCelebrating(),
+                    "the Alpha staggers before the handler moves");
+            run.fight().staggerEnd = 0;
+            run.step();
+            helper.assertTrue(run.handler().isCelebrating(), "phase two: the handler raises his arm");
             helper.assertValueEqual(run.wolf(0).getAttribute(Attributes.SCALE).getBaseValue(), 1.0,
                     "no growth during the windup");
             helper.assertTrue(!teamExists(run), "no team during the windup");
+            run.burst();
+            helper.assertTrue(run.alpha().isAlive(), "a killing blow does not skip phase three");
             run.step();
+            run.fight().staggerEnd = 0;
+            run.step();
+            helper.assertValueEqual(run.wolf(0).getAttribute(Attributes.SCALE).getBaseValue(), 1.0,
+                    "phase three still waits out the five second tell");
             run.state2().windupEnd = 0;
             run.step();
             for (int n = 0; n < 3; n++) {
@@ -109,6 +121,8 @@ public final class KennelsFinaleGameTest {
             }
             helper.assertTrue(!run.handler().isCelebrating(), "the arm comes down");
             helper.assertTrue(teamExists(run), "the team exists while the pack is large");
+            run.burst();
+            helper.assertTrue(!run.alpha().isAlive(), "the Alpha dies in the last phase");
             FinaleWave.floorEnded(run.level, run.record);
             helper.assertTrue(!teamExists(run), "the floor ending removes the team");
         } finally {
@@ -118,13 +132,14 @@ public final class KennelsFinaleGameTest {
     }
 
     @GameTest(maxTicks = 80)
-    public void killingTheHandlerInTheWindupCancelsIt(GameTestHelper helper) {
-        Run run = new Run(helper, 9923);
+    public void killingTheHandlerBeforePhaseThreeCancelsIt(GameTestHelper helper) {
+        Run run = new Run(helper, 10022);
         try {
             run.start();
-            run.alphaHealth(0.5);
-            run.step();
+            run.phase();
+            helper.assertTrue(run.handler().isCelebrating(), "the windup is on");
             run.handler().discard();
+            run.phase();
             run.state2().windupEnd = 0;
             run.step();
             run.step();
@@ -141,13 +156,12 @@ public final class KennelsFinaleGameTest {
 
     @GameTest(maxTicks = 80)
     public void killingTheHandlerAfterwardsShrinksThePack(GameTestHelper helper) {
-        Run run = new Run(helper, 9924);
+        Run run = new Run(helper, 10023);
         try {
             run.start();
-            run.alphaHealth(0.5);
-            run.step();
+            run.phase();
             run.state2().windupEnd = 0;
-            run.step();
+            run.phase();
             helper.assertTrue(run.wolf(0).getAttribute(Attributes.SCALE).getBaseValue() > 1.3, "the pack grew");
             run.handler().discard();
             run.step();
@@ -165,13 +179,13 @@ public final class KennelsFinaleGameTest {
     }
 
     @GameTest(maxTicks = 80)
-    public void aDeadHandlerAtHalfHealthDoesNothing(GameTestHelper helper) {
-        Run run = new Run(helper, 9925);
+    public void aDeadHandlerAtPhaseTwoDoesNothing(GameTestHelper helper) {
+        Run run = new Run(helper, 10024);
         try {
             run.start();
             run.handler().discard();
-            run.alphaHealth(0.5);
-            run.step();
+            run.phase();
+            run.phase();
             run.state2().windupEnd = 0;
             run.step();
             helper.assertValueEqual(run.wolf(0).getAttribute(Attributes.SCALE).getBaseValue(), 1.0,
@@ -236,6 +250,30 @@ public final class KennelsFinaleGameTest {
             state().spawnTick = 0;
             step();
             helper.assertValueEqual(state().mobs.size(), 4, "two wolves, the handler and the Alpha");
+            step();
+        }
+
+        BossFight fight() {
+            return (BossFight) state().scriptState.get(BossFight.class);
+        }
+
+        Mob alpha() {
+            return (Mob) level.getEntity(state().elite);
+        }
+
+        /** A killing blow on the Alpha: the spine's clamp holds it at its next bound. */
+        void burst() {
+            Mob alpha = alpha();
+            alpha.invulnerableTime = 0;
+            alpha.hurtServer(level, level.damageSources().generic(), 1000.0f);
+        }
+
+        /** One whole phase change: the blow, the stagger, and the arm. */
+        void phase() {
+            burst();
+            step();
+            fight().staggerEnd = 0;
+            step();
         }
 
         FinaleWave.State state() {
@@ -256,12 +294,6 @@ public final class KennelsFinaleGameTest {
             Entity entity = level.getEntity(id);
             helper.assertTrue(entity instanceof Wolf, "wolf " + n + " stands");
             return (Wolf) entity;
-        }
-
-        void alphaHealth(double fraction) {
-            Mob alpha = level.getEntity(state().elite) instanceof Mob mob ? mob : null;
-            helper.assertTrue(alpha != null, "the Alpha stands");
-            alpha.setHealth((float) (alpha.getMaxHealth() * fraction));
         }
 
         void close() {

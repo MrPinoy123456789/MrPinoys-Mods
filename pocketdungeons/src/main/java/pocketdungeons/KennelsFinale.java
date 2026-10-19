@@ -27,10 +27,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The Kennels finale (roadmap T22, boss workshop 2026-10-11 row 4, decision 4b). The wave's pillager is the
- * handler. When the Alpha is at half health the handler raises its arm and a horn sounds; five seconds later
- * the wolves of the pack grow and turn angry, glowing red. Killing the handler during the windup cancels it;
- * killing it afterwards shrinks the pack back. If the handler is already dead at half health, nothing happens.
+ * The Kennels finale (roadmap T22, boss workshop 2026-10-11 row 4, decision 4b), on the phased spine (roadmap
+ * T03). The Alpha is the boss of a {@link BossFight}; the wave's pillager is the handler. Phase two (the Alpha
+ * at two thirds): the handler raises its arm and a horn sounds. Phase three (one third): once the windup has
+ * run its five seconds the wolves of the pack grow and turn angry, glowing red, if the handler lived. Killing
+ * the handler before that cancels it; killing it afterwards shrinks the pack back. If the handler is already
+ * dead when phase two begins, nothing happens.
  * The decisions are in {@link KennelsFinaleRules}; this class only does them to the world.
  *
  * <p>What the world holds, and where it is undone: the wolves' scale (and, if the knob is on, maximum health)
@@ -48,6 +50,15 @@ final class KennelsFinale implements FinaleScript {
     /** Louder than a mob, quieter than a raid: the party hears it from across the den. */
     private static final float HORN_VOLUME = 8.0f;
 
+    /** The Alpha's phases. One: the baseline fight. Two: the handler's windup. Three: the pack answers. */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0, List.of("The Alpha staggers.", "The handler raises his arm."),
+                    (ctx, boss) -> ctx.scriptState(Run.class, Run::new).windupRequested = true),
+            new BossFight.Step(1.0 / 3.0, List.of("The Alpha is cornered.", "The pack answers."),
+                    (ctx, boss) -> ctx.scriptState(Run.class, Run::new).empowerRequested = true));
+
     /** Set once, when the first team is made, so a pure test that builds the script never loads Fabric events. */
     private static boolean stopHooked;
 
@@ -60,6 +71,10 @@ final class KennelsFinale implements FinaleScript {
         /** Per wolf: scale and maximum health before the pack grew. */
         final Map<UUID, double[]> originals = new HashMap<>();
         boolean teamMade;
+        /** Phase two began: the handler may start his windup. */
+        boolean windupRequested;
+        /** Phase three began: the pack may grow once the windup has run. */
+        boolean empowerRequested;
     }
 
     @Override
@@ -78,12 +93,10 @@ final class KennelsFinale implements FinaleScript {
     @Override
     public void onTick(FinaleContext ctx) {
         Run run = ctx.scriptState(Run.class, Run::new);
+        ctx.scriptState(BossFight.class, () -> new BossFight(PHASES)).tick(ctx);
         Pillager handler = handlerOf(ctx, run);
-        Mob alpha = ctx.elite();
-        boolean alphaAlive = alpha != null && alpha.isAlive();
-        KennelsFinaleRules.Step step = KennelsFinaleRules.step(run.phase, ctx.tickCount(), run.windupEnd,
-                handler != null, alphaAlive, alphaAlive ? alpha.getHealth() : 0.0,
-                alphaAlive ? alpha.getMaxHealth() : 0.0, KennelsFinaleRules.TRIGGER_HEALTH_FRACTION);
+        KennelsFinaleRules.Step step = KennelsFinaleRules.phasedStep(run.phase, ctx.tickCount(), run.windupEnd,
+                handler != null, run.windupRequested, run.empowerRequested);
         run.phase = step.phase();
         switch (step.action()) {
             case START_WINDUP -> startWindup(ctx, run, handler);
