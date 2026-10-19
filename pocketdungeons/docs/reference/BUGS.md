@@ -318,7 +318,7 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 
 ### PD-218: Window bands dropped on room edges where rooms disagree on window `none` (Medium)
 **Reported:** 2026-10-19, playtest 2026-10-19-1 server log (06:15 and 06:22): six edges dropped their band because the two rooms disagree on window `none`: `black_seam_fork`/`hall_cross_rotunda`, `stone_rise_fork`/`exit_hall`, `black_seam_nook`/`hall_cross_rotunda`, `rust_ravine_run`/`exit_hall`, `rotation_lock`/`black_seam_bend`, `rust_ravine_bend`/`rotation_lock`. Five of the six involve the Act 0 rooms.
-**Status:** Open (wave 0 task W0a, backlog plan 2026-10-19).
+**Status:** Fixed 2026-10-19 at the data (the band rule is unchanged). Cause: all 18 Act 0 rooms of `first_night` shipped window `none` while the shared rooms they can neighbour (`hall_cross_rotunda`, `exit_hall`, `rotation_lock` and the rest of the halls) use bars, so any such edge lost its band. The 18 Act 0 manifests now say `bars`; `rotation_lock` already did and needed no edit. New pure test `WindowBandAgreementTest` builds each dungeon's eligible room pool and fails on any `none` against a material. Still open under this entry: `admirals_vault` and `seam_heart` (final floor vaults, `none` beside the shared halls) are listed in the test's KNOWN_OPEN set; give them bars or make their neighbours agree, then delete the entries. Unverified live: how bars read on the Act 0 outdoor rooms.
 
 ### PD-219: A block-attached entity at an invalid position (Medium)
 **Reported:** 2026-10-19, playtest 2026-10-19-1 server log (06:22): `BlockPos{x=9, y=65, z=1000710}`. A z of a million suggests a slot origin or an offset applied twice. Act 0 rooms are the first suspect.
