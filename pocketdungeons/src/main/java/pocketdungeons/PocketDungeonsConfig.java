@@ -236,6 +236,19 @@ public final class PocketDungeonsConfig {
      */
     private static final Knob<Integer> POT_KEEP_PERCENT = integer("potKeepPercent", 50,
             v -> v >= 0 && v <= 100, "must be 0 to 100");
+    /**
+     * Chance that an uncharted door's middle floor carries a relic (campaign and endgame, 2026-10-18):
+     * a heavy item on a plinth in a branch cell, carried to the pad for extra Loot. 0 turns relics
+     * off, 1 puts one on every uncharted middle floor.
+     */
+    private static final Knob<Double> RELIC_FLOOR_CHANCE = decimal("relicFloorChance", 0.25,
+            v -> v >= 0 && v <= 1, "must be 0 to 1");
+    /**
+     * Loot percent a relic carried to the pad adds to the floor's Loot percent (campaign and endgame,
+     * 2026-10-18); 100 doubles an unwagered floor's chests.
+     */
+    private static final Knob<Integer> RELIC_LOOT_PERCENT = integer("relicLootPercent", 100,
+            v -> v >= 0 && v <= 400, "must be 0 to 400");
     /** Omen a capstone dungeon's final floor starts with (design D16a), 0 to 4; 0 turns the head start off. */
     /** Chance, per player in the room, of 2 emeralds when an Ordeal resolves (J1). */
     private static final Knob<Double> ORDEAL_EMERALD_CHANCE = decimal("ordealEmeraldChance", 0.25,
@@ -1247,6 +1260,14 @@ public final class PocketDungeonsConfig {
 
     public static int potKeepPercent() {
         return POT_KEEP_PERCENT.get();
+    }
+
+    public static double relicFloorChance() {
+        return RELIC_FLOOR_CHANCE.get();
+    }
+
+    public static int relicLootPercent() {
+        return RELIC_LOOT_PERCENT.get();
     }
 
 

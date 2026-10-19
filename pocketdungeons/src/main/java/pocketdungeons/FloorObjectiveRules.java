@@ -50,4 +50,53 @@ final class FloorObjectiveRules {
     static int bonusRolls(int claimed, int quota) {
         return Math.max(0, claimed - quota);
     }
+
+    // ---- relic (campaign and endgame, 2026-10-18): one heavy thing, greed and never the gate ----
+
+    /** Whether a door seeded {@code salt} puts a relic on its middle floor: a stable roll against {@code chance} (0 to 1). */
+    static boolean relicRolls(long salt, double chance) {
+        if (chance <= 0.0) {
+            return false;
+        }
+        if (chance >= 1.0) {
+            return true;
+        }
+        return new java.util.Random(salt * 0x9E3779B97F4A7C15L + 0x5E11C).nextDouble() < chance;
+    }
+
+    /**
+     * Which cell holds the plinth, as an index into the branch cells followed by the cells of the
+     * critical path (both already without the entrance and the terminal): a branch cell when there is
+     * one, else a path cell, {@code -1} when the floor has neither (no relic, a spawner floor).
+     */
+    static int relicCell(int branchCells, int pathCells, long salt) {
+        if (branchCells > 0) {
+            return (int) Math.floorMod(salt, (long) branchCells);
+        }
+        if (pathCells > 0) {
+            return (int) Math.floorMod(salt, (long) pathCells);
+        }
+        return -1;
+    }
+
+    /**
+     * The chests a delivered relic adds: the floor pays {@code baseChests} at its Loot percent, and the
+     * relic raises that percent by {@code relicPercent}. Rounded the way {@code Wager.scaledChests} rounds,
+     * so the extra is exactly the difference the board would show.
+     */
+    static int relicBonusRolls(int baseChests, int lootPercent, int relicPercent) {
+        if (relicPercent <= 0 || baseChests <= 0) {
+            return 0;
+        }
+        return Math.max(0, Math.round(baseChests * (lootPercent + relicPercent) / 100f)
+                - Math.round(baseChests * lootPercent / 100f));
+    }
+
+    /**
+     * Whether the relic must be put back on its plinth: it is not delivered, and it is nowhere on the floor
+     * (not in a member's pack, not on the ground, not in a pot).
+     */
+    static boolean relicLost(boolean delivered, boolean held, boolean onGround, boolean inPot) {
+        return !delivered && !held && !onGround && !inPot;
+    }
 }

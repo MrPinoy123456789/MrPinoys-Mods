@@ -97,7 +97,8 @@ final class UnchartedDoors {
     static List<DungeonDef> doors(MinecraftServer server, UUID owner, InstanceRecord record) {
         DungeonLog.Entry entry = DungeonLog.forServer(server).get(owner);
         List<DungeonDef> doors = UnchartedGen.doors(owner, entry.campaign().tripCounter(),
-                partyCompass(server, owner, record), Campaign.releaseMaxAct(), entry.dungeonsFinished(),
+                partyCompass(server, owner, record), Campaign.releaseMaxAct(),
+                PocketDungeonsConfig.relicFloorChance(), entry.dungeonsFinished(),
                 DungeonDefs.current().all());
         for (DungeonDef def : doors) {
             remember(def);

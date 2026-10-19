@@ -7,6 +7,8 @@
     "ResultSlotMixin",
     "CraftedDurabilityMixin",
     "BlockItemPlaceMixin",
+    "RelicSlotMixin",
+    "RelicMenuMixin",
     "ServerExplosionMixin",
     "WitherBossMixin",
     "ServerCommonPacketListenerAccessor",

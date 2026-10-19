@@ -1247,8 +1247,7 @@ final class RunLifecycle {
         // A floor objective replaces the spawner gate with its own refusal;
         // a fallback objective (its placement could not be made) runs the
         // ordinary spawner gate below.
-        FloorObjective objective = FloorObjectives.of(record);
-        if (objective != FloorObjective.SPAWNERS && !FloorObjectives.isFallback(record)) {
+        if (FloorObjectives.gatesPad(record)) {
             String objectiveRefusal = FloorObjectives.padRefusal(record);
             if (objectiveRefusal != null) {
                 player.sendSystemMessage(Component.literal(objectiveRefusal).withStyle(ChatFormatting.YELLOW));
@@ -1483,10 +1482,11 @@ final class RunLifecycle {
         // PD-207: the wager percent the board showed is the floor's loot
         // multiplier: Loot 250% pays 250% of the base plus depth rolls. A won
         // finale still adds its flat chest on top (design pass 2026-10-09, Q4).
-        int chests = Wager.scaledChests(Omen.baseRewardChests() + rules.bonusChests(floorsCleared),
-                Wager.sum(record.floor.affixes, AffixManifest.current().definitions()),
-                PocketDungeonsConfig.lootPercentPerWager()) + FinaleWave.rewardChests(record)
-                + FloorObjectives.bonusRolls(record);
+        int baseChests = Omen.baseRewardChests() + rules.bonusChests(floorsCleared);
+        int wagerSum = Wager.sum(record.floor.affixes, AffixManifest.current().definitions());
+        int chests = Wager.scaledChests(baseChests, wagerSum, PocketDungeonsConfig.lootPercentPerWager()) + FinaleWave.rewardChests(record)
+                + FloorObjectives.bonusRolls(record) + FloorObjectives.bonusRolls(record, baseChests,
+                        Wager.lootPercent(wagerSum, PocketDungeonsConfig.lootPercentPerWager()));
         if (isPrologue(record)) {
             // Act 0 pays no loot: no chests on any floor and no finish vault (decision 2026-10-17).
             chests = 0;

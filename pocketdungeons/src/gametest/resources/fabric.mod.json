@@ -55,6 +55,7 @@
       "pocketdungeons.OssuaryFinaleGameTest",
       "pocketdungeons.MineshaftFinaleGameTest",
       "pocketdungeons.KennelsFinaleGameTest",
+      "pocketdungeons.RelicFloorGameTest",
       "pocketdungeons.EscrowCustodyGameTest",
       "pocketdungeons.FloorIntervalGameTest",
       "pocketdungeons.BankAnywhereGameTest",

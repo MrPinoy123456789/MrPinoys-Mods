@@ -52,9 +52,14 @@ public class BlockItemPlaceMixin {
      */
     private static final ThreadLocal<BlockState> BEFORE_STATE = new ThreadLocal<>();
 
-    @Inject(method = "place", at = @At("HEAD"))
+    @Inject(method = "place", at = @At("HEAD"), cancellable = true)
     private void pocketdungeons$captureBefore(BlockPlaceContext context,
                                               CallbackInfoReturnable<InteractionResult> cir) {
+        // (T7) The relic is a heavy core item, and a heavy core is a block: it is never set down as one.
+        if (pocketdungeons.RelicObjective.isRelic(context.getItemInHand())) {
+            cir.setReturnValue(InteractionResult.FAIL);
+            return;
+        }
         BEFORE_STATE.set(context.getLevel().getBlockState(context.getClickedPos()));
     }
 

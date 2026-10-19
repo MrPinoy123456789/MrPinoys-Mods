@@ -379,6 +379,7 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         static final String OBJECTIVE_CLAIM = "claim";
         static final String OBJECTIVE_HAUNT = "haunt";
         static final String OBJECTIVE_GATHER = "gather";
+        static final String OBJECTIVE_RELIC = "relic";
 
         /** {@link #minNodeRooms} value meaning "use the dungeon's own {@code minNodeRooms}". */
         static final int INHERIT_NODE_ROOMS = -1;
@@ -451,9 +452,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             objective = objective == null || objective.isEmpty() ? OBJECTIVE_SPAWNERS : objective;
             if (!OBJECTIVE_SPAWNERS.equals(objective) && !OBJECTIVE_HEIST.equals(objective)
                     && !OBJECTIVE_CLAIM.equals(objective) && !OBJECTIVE_HAUNT.equals(objective)
-                    && !OBJECTIVE_GATHER.equals(objective)) {
+                    && !OBJECTIVE_GATHER.equals(objective) && !OBJECTIVE_RELIC.equals(objective)) {
                 throw new IllegalArgumentException(
-                        "node objective must be spawners, heist, claim, haunt or gather: " + id + " has " + objective);
+                        "node objective must be spawners, heist, claim, haunt, gather or relic: " + id + " has " + objective);
             }
             if (OBJECTIVE_GATHER.equals(objective) != (gather != null)) {
                 throw new IllegalArgumentException("node " + id + ": a gather spec goes with the gather objective, and only with it");

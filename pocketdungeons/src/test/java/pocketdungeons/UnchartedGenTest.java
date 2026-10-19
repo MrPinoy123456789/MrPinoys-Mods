@@ -49,6 +49,7 @@ public class UnchartedGenTest {
         testRepeatedDoorsDiffer(affixes);
         testDoorAffixesRouting(affixes);
         testObjectiveHook();
+        testRelicFloors(all);
         testTokensAndNames(all);
         testHiddenFromChecklists(all);
         testChartPositions();
@@ -332,9 +333,43 @@ public class UnchartedGenTest {
     // ---- seams ---------------------------------------------------------------------------------------
 
     private static void testObjectiveHook() {
-        // T7 replaces this one method; until then every middle floor gates on spawners.
-        check(DungeonDef.Node.OBJECTIVE_SPAWNERS.equals(UnchartedGen.middleObjective(12345L)),
-                "the middle floor objective hook defaults to spawners");
+        // T7: the middle floor rolls the heavy thing at relicFloorChance; the roll is stable for a salt.
+        check(DungeonDef.Node.OBJECTIVE_SPAWNERS.equals(UnchartedGen.middleObjective(12345L, 0.0)),
+                "chance 0 never puts a relic on the middle floor");
+        check(DungeonDef.Node.OBJECTIVE_RELIC.equals(UnchartedGen.middleObjective(12345L, 1.0)),
+                "chance 1 always does");
+        check(UnchartedGen.middleObjective(777L, 0.5).equals(UnchartedGen.middleObjective(777L, 0.5)),
+                "the roll is a function of the salt");
+    }
+
+    /** The relic is only ever the middle floor's; the entry and the final keep the spawner gate; the validator is clean. */
+    private static void testRelicFloors(List<DungeonDef> all) {
+        Map<String, Integer> actOfTheme = DungeonDefs.actOfTheme(all);
+        int doors = 0;
+        int relics = 0;
+        for (int seed = 0; seed < 300; seed++) {
+            UUID owner = new UUID(seed * 13L + 5, seed * 7L + 3);
+            Set<String> finished = finishedThrough(1 + seed % 2);
+            for (DungeonDef def : UnchartedGen.doors(owner, seed, 5 + seed % 40, 1 + seed % 2, 1.0, finished, all)) {
+                check(def.nodes().get(1).objective().equals(DungeonDef.Node.OBJECTIVE_RELIC), "chance 1: the middle is a relic floor");
+                check(def.entry().objective().equals(DungeonDef.Node.OBJECTIVE_SPAWNERS)
+                        && def.finals().get(0).objective().equals(DungeonDef.Node.OBJECTIVE_SPAWNERS),
+                        "the entry and the final keep the spawner gate");
+                check(def.problems(theme -> actOfTheme.getOrDefault(theme, 0)).isEmpty(), "a relic door validates");
+            }
+            for (DungeonDef def : UnchartedGen.doors(owner, seed, 5 + seed % 40, 1 + seed % 2, 0.0, finished, all)) {
+                check(def.nodes().stream().noneMatch(n -> n.objective().equals(DungeonDef.Node.OBJECTIVE_RELIC)),
+                        "chance 0: no relic anywhere");
+            }
+            for (DungeonDef def : UnchartedGen.doors(owner, seed, 5 + seed % 40, 1 + seed % 2, finished, all)) {
+                doors++;
+                if (def.nodes().get(1).objective().equals(DungeonDef.Node.OBJECTIVE_RELIC)) {
+                    relics++;
+                }
+            }
+        }
+        double share = relics / (double) doors;
+        check(share > 0.17 && share < 0.33, "the default chance lands near a quarter: " + share);
     }
 
     private static void testTokensAndNames(List<DungeonDef> all) {

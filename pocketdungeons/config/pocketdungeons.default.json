@@ -51,6 +51,8 @@
   "finishVaultChests": 2,
   "failHaulKeepPercent": 50,
   "potKeepPercent": 50,
+  "relicFloorChance": 0.25,
+  "relicLootPercent": 100,
   "ordealEmeraldChance": 0.25,
   "cowSpecimenZeroScale": 3.0,
   "cowSpecimenZeroHealth": 60,
