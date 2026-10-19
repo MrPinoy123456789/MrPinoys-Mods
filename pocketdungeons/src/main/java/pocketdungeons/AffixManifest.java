@@ -179,6 +179,22 @@ final class AffixManifest {
     }
 
     /**
+     * The definitions of one {@link AffixDefinition#kind} ({@link AffixDefinition#KIND_RULE} or
+     * {@link AffixDefinition#KIND_STAT}), in stable order. The kind word itself is validated when a file is
+     * parsed ({@link AffixMeta}); a file with any other word is rejected there, with the reason listed in
+     * {@link #rejections}.
+     */
+    List<AffixDefinition> ofKind(String kind) {
+        List<AffixDefinition> out = new ArrayList<>();
+        for (AffixDefinition def : definitions) {
+            if (def.kind.equals(kind)) {
+                out.add(def);
+            }
+        }
+        return out;
+    }
+
+    /**
      * Whether every built-in affix id is present. The required coverage gate
      * for affixes: a pack that drops the {@code pocketdungeons} pack cannot
      * silently remove Ominous, the way the room manifest cannot drop entrance

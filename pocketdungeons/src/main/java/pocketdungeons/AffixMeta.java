@@ -42,6 +42,13 @@ final class AffixMeta {
             throw new IllegalArgumentException("wager must be " + AffixDefinition.MIN_WAGER + " to "
                     + AffixDefinition.MAX_WAGER + ": " + wager);
         }
+        // The Chart Room's rule/stat split (campaign endgame, 2026-10-18): optional, "stat" when absent. A word
+        // outside the pair is a data error, so the manifest rejects the file instead of guessing.
+        String kind = obj.has("kind") && !obj.get("kind").isJsonNull()
+                ? obj.get("kind").getAsString().trim() : AffixDefinition.KIND_STAT;
+        if (!AffixDefinition.KIND_RULE.equals(kind) && !AffixDefinition.KIND_STAT.equals(kind)) {
+            throw new IllegalArgumentException("kind must be rule or stat, not '" + kind + "'");
+        }
         Set<String> incompatible = stringSetOr(obj, "incompatible", Set.of());
 
         AffixEffects effects = parseEffects(obj, fileIdentity);
@@ -60,7 +67,7 @@ final class AffixMeta {
             }
         }
         return new AffixDefinition(id, label, shortName, blurb, order, minLevel, weight,
-                depletionMultiplier, incompatible, effects, wager);
+                depletionMultiplier, incompatible, effects, wager, kind);
     }
 
     private static AffixEffects parseEffects(JsonObject obj, String fileIdentity) {

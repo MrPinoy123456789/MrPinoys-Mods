@@ -49,6 +49,17 @@ final class AffixDefinition {
      * A floor's wager is the sum over its affixes ({@link Wager}); a file that names none wagers 1.
      */
     final int wager;
+    /**
+     * Whether this affix changes the rules of the floor ({@link #KIND_RULE}: the lights, the footing, the
+     * lives) or only the numbers ({@link #KIND_STAT}, the default). The Chart Room's uncharted doors draw at
+     * least half of their affixes from the rule kind (campaign endgame, 2026-10-18).
+     */
+    final String kind;
+
+    /** An affix that changes how the floor plays. */
+    static final String KIND_RULE = "rule";
+    /** An affix that changes only how many, how fast or how hard; the default. */
+    static final String KIND_STAT = "stat";
 
     static final int MIN_WAGER = 0;
     static final int MAX_WAGER = 10;
@@ -70,9 +81,20 @@ final class AffixDefinition {
     AffixDefinition(String id, String label, String shortName, String blurb, int order, int minLevel,
                    int weight, int depletionMultiplier, Set<String> incompatible,
                    AffixEffects effects, int wager) {
+        this(id, label, shortName, blurb, order, minLevel, weight, depletionMultiplier, incompatible, effects,
+                wager, KIND_STAT);
+    }
+
+    AffixDefinition(String id, String label, String shortName, String blurb, int order, int minLevel,
+                   int weight, int depletionMultiplier, Set<String> incompatible,
+                   AffixEffects effects, int wager, String kind) {
         if (wager < MIN_WAGER || wager > MAX_WAGER) {
             throw new IllegalArgumentException("wager must be " + MIN_WAGER + " to " + MAX_WAGER + ": " + wager);
         }
+        if (!KIND_RULE.equals(kind) && !KIND_STAT.equals(kind)) {
+            throw new IllegalArgumentException("kind must be " + KIND_RULE + " or " + KIND_STAT + ": " + kind);
+        }
+        this.kind = kind;
         this.wager = wager;
         this.shortName = shortName == null || shortName.isBlank() ? label : shortName;
         this.id = id;

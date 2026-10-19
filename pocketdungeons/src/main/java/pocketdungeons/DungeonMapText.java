@@ -36,7 +36,7 @@ final class DungeonMapText {
                             boolean finished) {
         List<Line> out = new ArrayList<>();
         out.add(new Line(def.name().toUpperCase(), Tone.TITLE));
-        out.add(new Line("Act " + def.act() + ", " + def.layers() + " layers. "
+        out.add(new Line(actWord(def) + ", " + def.layers() + " layers. "
                 + "You are here: >> <<. Visited: *. Some doors cost a life.", Tone.NOTE));
 
         Set<String> ahead = TripDoors.reachableFrom(def, current);
@@ -134,7 +134,7 @@ final class DungeonMapText {
             }
             DungeonDef.Node entry = def.node(door.nodeId());
             out.add(new Line("Door " + (slot + 1) + ": " + def.name() + ", " + stepWord(door.step()), Tone.HEADING));
-            out.add(new Line("    Act " + def.act() + ", " + def.layers() + " layers, opens at "
+            out.add(new Line("    " + actWord(def) + ", " + def.layers() + " layers, opens at "
                     + (entry == null ? door.nodeId() : entry.name()), Tone.NORMAL));
             List<String> finals = new ArrayList<>();
             for (DungeonDef.Node node : def.finals()) {
@@ -192,6 +192,11 @@ final class DungeonMapText {
                     + " of " + target + (met ? " (done)" : ""), Tone.NOTE));
         }
         return out;
+    }
+
+    /** {@code "Act 2"}; a Chart Room door belongs to no act, so it reads {@code "Uncharted"}. */
+    private static String actWord(DungeonDef def) {
+        return Campaign.isUncharted(def) ? "Uncharted" : "Act " + def.act();
     }
 
     private static int layerOf(DungeonDef def, String nodeId) {

@@ -113,6 +113,14 @@ final class IntervalState {
     String dungeonId = "";
 
     /**
+     * The generated dungeon this trip is playing when it is an uncharted door ({@link UnchartedGen}), or null.
+     * Set at the first door commit with {@link #dungeonId}; {@link TripView#def} reads it first, so the trip
+     * keeps its own dungeon whatever the {@link UnchartedDoors} registry later forgets. In memory like the
+     * rest of the trip: a restart ends it.
+     */
+    DungeonDef generatedDef;
+
+    /**
      * How many times the owner re-dealt the first staging room's dungeons
      * ({@code /dungeon reroll}); mixed into the deal's salt. Only the first
      * deal of a trip reads it, and a new interval starts it at zero.

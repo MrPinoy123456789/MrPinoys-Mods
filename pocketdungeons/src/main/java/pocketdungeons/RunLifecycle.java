@@ -1601,7 +1601,8 @@ final class RunLifecycle {
             if (memberPlayer == null) {
                 continue;
             }
-            boolean first = log.addDungeonFinished(member, def.id());
+            // A Chart Room door is not a dungeon of the campaign: it is never recorded as finished.
+            boolean first = !Campaign.isUncharted(def) && log.addDungeonFinished(member, def.id());
             // D8, D16, D29: every finish re-evaluates the member's acts; a
             // finish that opens nothing names what is left.
             DungeonProgress.onProgress(server, record, memberPlayer, true, first);

@@ -1780,6 +1780,8 @@ final class Instances {
         // An Endless Mine and an operator's experimental offer stay outside the graph.
         if (offer.door() != null && !openingMine && !record.interval.endlessMine) {
             record.interval.dungeonId = offer.dungeonId();
+            // A Chart Room door: the trip keeps its own generated dungeon (null for any other dungeon).
+            record.interval.generatedDef = UnchartedDoors.pin(offer.dungeonId());
             record.interval.nodeId = offer.nodeId();
             record.interval.path.add(offer.nodeId());
         }

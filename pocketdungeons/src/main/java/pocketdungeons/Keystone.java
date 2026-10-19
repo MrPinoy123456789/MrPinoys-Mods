@@ -167,9 +167,8 @@ final class Keystone {
         boolean mine = record != null && record.interval.endlessMine;
         if (mine || dungeons.size() == 0) {
             doors = null;
-        } else if (record != null && !record.interval.dungeonId.isEmpty()
-                && dungeons.byId(record.interval.dungeonId) != null) {
-            DungeonDef def = dungeons.byId(record.interval.dungeonId);
+        } else if (record != null && !record.interval.dungeonId.isEmpty() && TripView.def(record) != null) {
+            DungeonDef def = TripView.def(record);
             doors = TripDoors.dealNext(owner, def, record.interval.nodeId, record.interval.path.size());
         } else if (PocketDungeonsConfig.hallEnabled()) {
             // Design pass 2026-10-09 (Q1): the first staging room shows the dungeons of one act, chosen at the

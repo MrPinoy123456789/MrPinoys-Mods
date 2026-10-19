@@ -50,12 +50,16 @@ final class FinaleScripts {
 
     /** Whether this dungeon has a script. */
     static boolean has(String dungeonId) {
-        return SCRIPTS.containsKey(dungeonId);
+        return SCRIPTS.containsKey(dungeonId) || UnchartedGen.isUnchartedId(dungeonId);
     }
 
     /** The script for the dungeon id, or {@link FinaleScript#NONE}. */
     static FinaleScript forDungeon(String dungeonId) {
         FinaleScript script = dungeonId == null ? null : SCRIPTS.get(dungeonId);
+        if (script == null && UnchartedGen.isUnchartedId(dungeonId)) {
+            // Every generated Chart Room dungeon ends in the same guardian finale (campaign endgame, 2026-10-18).
+            return UnchartedFinale.INSTANCE;
+        }
         return script == null ? FinaleScript.NONE : script;
     }
 

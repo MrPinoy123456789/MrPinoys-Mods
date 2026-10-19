@@ -117,7 +117,13 @@ final class DungeonDefs {
         if (direct != null) {
             return direct;
         }
-        return id.indexOf(':') < 0 ? byId.get(DungeonDef.DEFAULT_NAMESPACE + ":" + id) : null;
+        DungeonDef bare = id.indexOf(':') < 0 ? byId.get(DungeonDef.DEFAULT_NAMESPACE + ":" + id) : null;
+        if (bare != null) {
+            return bare;
+        }
+        // A Chart Room door is generated in memory, never loaded (campaign endgame, 2026-10-18): every caller
+        // that holds its id finds the generated dungeon here.
+        return UnchartedGen.isUnchartedId(id) ? UnchartedDoors.lookup(id) : null;
     }
 
     /** Every loaded dungeon, sorted by id. */
