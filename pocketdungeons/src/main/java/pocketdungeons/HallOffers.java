@@ -217,7 +217,15 @@ final class HallOffers {
             DungeonDef def = hall.dungeon(slot);
             int step = (int) Math.floorMod(TripDoors.seed(owner, def.id(), "hall", (int) salt, 2), 3L) + 1;
             TripDoors.Door door = new TripDoors.Door(def.id(), def.entry().id(), step, 0, 0, (int) salt);
-            offers.add(Keystone.fromDoor(dungeons, door, level, max));
+            Keystone.Offer offer = Keystone.fromDoor(dungeons, door, level, max);
+            if (HallLayout.HALL_CHART.equals(def.hall()) && def.kind().descends()) {
+                // The dive's first floor runs at the same level as its later floors (T6): compass plus floor 1,
+                // then the door step as for any door.
+                int floorLevel = EndlessMineRules.diveFloorLevel(server, record, owner, 1);
+                offer = new Keystone.Offer(KeystoneMath.upgrade(floorLevel, step, max), offer.affixes(), step,
+                        offer.theme(), offer.tier(), door);
+            }
+            offers.add(offer);
         }
         // An operator's fixed offer takes the next free special place while one is active (M27 27.1).
         ExperimentalDungeon.Offer experimental = ExperimentalDungeon.current();

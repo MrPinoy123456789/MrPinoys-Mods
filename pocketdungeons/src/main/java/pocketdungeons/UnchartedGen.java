@@ -53,7 +53,7 @@ final class UnchartedGen {
 
     /** The doormat block of each door slot (0 based), distinct from every shipped dungeon's token. */
     private static final String[] TOKEN_MATS = {
-            "minecraft:amethyst_block", "minecraft:crying_obsidian", "minecraft:smooth_basalt"};
+            "minecraft:amethyst_block", "minecraft:calcite", "minecraft:smooth_basalt"};
 
     /** Most salts tried when a repeated door must differ from its twin. */
     static final int MAX_ATTEMPTS = 16;
