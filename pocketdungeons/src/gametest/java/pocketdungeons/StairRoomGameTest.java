@@ -53,13 +53,24 @@ public final class StairRoomGameTest {
                         e.getKey() + " keeps one lower door at turn " + turns);
             }
         }
+        DungeonDef mineshaft = DungeonDefs.current().byId("pocketdungeons:mineshaft");
+        if (mineshaft == null) {
+            mineshaft = DungeonDefs.current().byId("mineshaft");
+        }
+        helper.assertTrue(mineshaft != null, "the Mineshaft is loaded");
+        for (String deep : List.of("main_drift", "side_gallery", "deep_face")) {
+            helper.assertValueEqual(mineshaft.node(deep).stories(), 2, deep + " opts in to two stories");
+        }
+        for (String flat : List.of("timber_adit", "mine_mouth")) {
+            helper.assertValueEqual(mineshaft.node(flat).stories(), 1, flat + " stays flat");
+        }
         helper.succeed();
     }
 
     @GameTest(maxTicks = 200)
     public void stairRoomsStampWithOnlyTheirTwoDoorsOpen(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos origin = nearOrigin(helper);
+        BlockPos origin = nearOrigin(helper, 1);
         forceLoad(level, origin, true);
         try {
             for (Map.Entry<String, DoorMask.Direction> e : LOWER_DOOR.entrySet()) {
@@ -107,7 +118,7 @@ public final class StairRoomGameTest {
     @GameTest(maxTicks = 100)
     public void aMobFindsAPathDownEveryStairRoom(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos origin = nearOrigin(helper);
+        BlockPos origin = nearOrigin(helper, 2);
         forceLoad(level, origin, true);
         Mob mob = null;
         try {
@@ -153,7 +164,7 @@ public final class StairRoomGameTest {
     @GameTest(maxTicks = 700)
     public void aMobWalksDownTheStairs(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos origin = nearOrigin(helper);
+        BlockPos origin = nearOrigin(helper, 3);
         forceLoad(level, origin, true);
         clear(level, origin);
         stamp(level, origin, "stair_straight");
@@ -258,9 +269,10 @@ public final class StairRoomGameTest {
                 Identifier.parse("pocketdungeons:rooms/" + room), 0, 1L, null);
     }
 
-    private static BlockPos nearOrigin(GameTestHelper helper) {
+    private static BlockPos nearOrigin(GameTestHelper helper, int slot) {
         BlockPos near = helper.absolutePos(BlockPos.ZERO);
-        return new BlockPos((near.getX() >> 4) << 4, near.getY() + 24, (near.getZ() >> 4) << 4);
+        // Tests run side by side; each takes its own 64 block lane so one test's clear never reaches another's room.
+        return new BlockPos(((near.getX() >> 4) << 4) + 64 * slot, near.getY() + 24, (near.getZ() >> 4) << 4);
     }
 
     private static void forceLoad(ServerLevel level, BlockPos origin, boolean forced) {
