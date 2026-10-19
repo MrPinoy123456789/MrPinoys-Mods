@@ -51,7 +51,7 @@ final class FloorRooms {
         }
         List<PlanCell> rest = new ArrayList<>(plan.cells());
         rest.removeAll(order);
-        rest.sort(Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z));
+        rest.sort(PlanCell.ORDER);
         order.addAll(rest);
         for (PlanCell cell : order) {
             DungeonPlan.PlacedRoom placed = plan.rooms().get(cell);

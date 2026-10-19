@@ -1312,8 +1312,7 @@ final class RoomSelector {
     private static List<PlanCell> bfsOrder(Set<PlanCell> cells, Map<PlanCell, Integer> depths) {
         List<PlanCell> order = new ArrayList<>(cells);
         order.sort(Comparator.comparingInt((PlanCell c) -> depths.getOrDefault(c, 0))
-                .thenComparingInt(PlanCell::x)
-                .thenComparingInt(PlanCell::z));
+                .thenComparing(PlanCell.ORDER));
         return order;
     }
 

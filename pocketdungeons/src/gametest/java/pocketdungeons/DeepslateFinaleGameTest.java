@@ -29,7 +29,8 @@ import java.util.Set;
 public final class DeepslateFinaleGameTest {
 
     private static final DungeonDef.Finale FINALE = new DungeonDef.Finale(
-            List.of(new DungeonDef.FinaleMob("minecraft:pig", 4)), 0, null);
+            List.of(new DungeonDef.FinaleMob("minecraft:pig", 4)), 0,
+            new DungeonDef.Elite("minecraft:pig", "Test Sentry", 20, ""));
 
     @GameTest(maxTicks = 80)
     public void theScriptTakesTheRoomsMeter(GameTestHelper helper) {
@@ -56,6 +57,7 @@ public final class DeepslateFinaleGameTest {
         Run run = new Run(helper, 9966, true);
         try {
             run.start();
+            run.toPhase(1);
             run.step();
             helper.assertValueEqual(run.heard(), 0, "a quiet second adds nothing");
             run.level.getEntity(run.state().mobs.get(0)).discard();
@@ -88,6 +90,7 @@ public final class DeepslateFinaleGameTest {
         Run run = new Run(helper, 9967, true);
         try {
             run.start();
+            run.toPhase(2);
             PressureSources.addHeard(run.room(), PocketDungeonsConfig.hushCeiling());
             run.step();
             DeepslateFinale.Run script = run.script();
@@ -151,7 +154,7 @@ public final class DeepslateFinaleGameTest {
     }
 
     /** One scripted finale on a hand built record with one mock member and, optionally, a sensor room. */
-    private static final class Run {
+    static final class Run {
         final GameTestHelper helper;
         final ServerLevel level;
         final MinecraftServer server;
@@ -207,7 +210,18 @@ public final class DeepslateFinaleGameTest {
             FinaleWave.step(server, level, record, FINALE, List.of(member), true, "Test Deep");
             state().spawnTick = 0;
             step();
-            helper.assertValueEqual(state().mobs.size(), 4, "the data wave stands");
+            helper.assertValueEqual(state().mobs.size(), 5, "the data wave and its elite stand");
+        }
+
+        /** Walks the Sentry's phases with burst damage until the fight is in phase {@code n} (1 or 2, zero based). */
+        void toPhase(int n) {
+            net.minecraft.world.entity.Mob elite = (net.minecraft.world.entity.Mob) level.getEntity(state().elite);
+            for (int k = 1; k <= n; k++) {
+                elite.setHealth(elite.getMaxHealth() * (k == 1 ? 0.6f : 0.3f));
+                step();
+                ((BossFight) state().scriptState.get(BossFight.class)).staggerEnd = 0;
+                step();
+            }
         }
 
         FinaleWave.State state() {

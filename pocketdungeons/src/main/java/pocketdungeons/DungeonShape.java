@@ -139,7 +139,7 @@ record DungeonShape(
             x = nx;
             z = nz;
         }
-        return new PlanCell(x, z);
+        return new PlanCell(x, cell.y(), z);
     }
 
     /**
