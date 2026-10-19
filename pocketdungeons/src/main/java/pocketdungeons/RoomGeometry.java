@@ -33,6 +33,18 @@ final class RoomGeometry {
      */
     static final int STORY_HEIGHT = CEILING_Y + 2;
 
+    /**
+     * Vertical floors phase 2: which story of a {@code stories} high room a template-local y belongs to.
+     * Story 0 is the top (the cell's own), story 1 the one below. A one story room has only story 0, and a
+     * y outside the template clamps to the nearest story, so a malformed jigsaw is judged by the slot check
+     * rather than crashing here.
+     */
+    static int doorStoryOfTemplateY(int templateY, int stories) {
+        int band = Math.floorDiv(templateY - 1, STORY_HEIGHT);
+        int story = (stories - 1) - band;
+        return Math.max(0, Math.min(stories - 1, story));
+    }
+
     /** M61: the largest {@code spanY} a room may declare. */
     static final int MAX_SPAN_Y = 2;
 

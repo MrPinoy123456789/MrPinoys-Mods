@@ -252,6 +252,7 @@ final class RoomTemplateGenerator {
         specs.addAll(DeepslateRoomSpecs.list());
         specs.addAll(EnderArchiveRoomSpecs.list());
         specs.addAll(GenericHallVariantSpecs.list());
+        specs.addAll(StairSpecs.list());
         specs.addAll(FinalFloorSpecs.list());
         specs.addAll(NetherEndSpecs.list());
         specs.addAll(SculkRoomSpecs.list());
@@ -349,6 +350,7 @@ final class RoomTemplateGenerator {
         } else {
             buildCell(level, o, spec.doors, spec.spanY);
         }
+        placeLowerDoorJigsaws(level, o, spec);
         if (spec.decor != null) {
             spec.decor.accept(level, o);
         }
@@ -379,6 +381,7 @@ final class RoomTemplateGenerator {
         } else {
             buildCell(level, o, spec.doors, spec.spanY);
         }
+        placeLowerDoorJigsaws(level, o, spec);
         if (spec.decor != null) {
             spec.decor.accept(level, o);
         }
@@ -468,6 +471,16 @@ final class RoomTemplateGenerator {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Vertical floors phase 2: the door jigsaws of a stair room's lower story, placed against that story's own
+     * floor ({@code STORY_HEIGHT} below the cell's), the same slots the top story uses.
+     */
+    private static void placeLowerDoorJigsaws(ServerLevel level, BlockPos o, RoomSpec spec) {
+        if (spec.spanY > 1 && !spec.lowerDoors.isEmpty()) {
+            placeDoorJigsaws(level, o.below(STORY_HEIGHT), spec.lowerDoors);
         }
     }
 

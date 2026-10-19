@@ -167,6 +167,7 @@ final class ReturnPathValidator {
     }
 
     private static boolean isSolid(BlockState state) {
-        return state.isSolidRender();
+        // A stair block is not a full cube but is a step a player walks up; the stair rooms rely on it.
+        return state.isSolidRender() || state.getBlock() instanceof net.minecraft.world.level.block.StairBlock;
     }
 }
