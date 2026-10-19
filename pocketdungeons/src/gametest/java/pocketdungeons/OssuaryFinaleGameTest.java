@@ -89,6 +89,29 @@ public final class OssuaryFinaleGameTest {
             FinaleWave.step(server, level, record, FINALE, List.of(member), true, "Test Room");
             state().spawnTick = 0;
             step();
+            pin();
+            sexton = state().elite == null ? null : (Mob) level.getEntity(state().elite);
+        }
+
+        /** The Sexton as first stood, kept so a failure can say how it went. */
+        Mob sexton;
+
+        String sextonFate() {
+            return sexton == null ? "none" : "removed=" + sexton.getRemovalReason() + " health=" + sexton.getHealth()
+                    + " last=" + sexton.getLastDamageSource() + " pos=" + sexton.blockPosition();
+        }
+
+        /**
+         * Holds the Sexton (a cow here) where it stands: no AI, no gravity. In a full run a wandering cow can leave the
+         * 16 by 16 slab and fall out of the world, and a Sexton gone any other way wakes every coffin by design, which
+         * would open one "by itself" before the phase that allows it.
+         */
+        void pin() {
+            if (state().elite != null && level.getEntity(state().elite) instanceof Mob b && b.isAlive()) {
+                b.setNoAi(true);
+                b.setNoGravity(true);
+                b.setInvulnerable(true); // nothing in a shared full run may kill it between the test's own blows
+            }
         }
 
         BossFight fight() {
@@ -124,6 +147,7 @@ public final class OssuaryFinaleGameTest {
     /** A killing blow on the Sexton: the clamp holds him at the next bound, or lets the last phase die. */
     private static void burst(Run run) {
         Mob boss = run.boss();
+        boss.setInvulnerable(false);
         boss.invulnerableTime = 0;
         boss.hurtServer(run.level, run.level.damageSources().generic(), 1000.0f);
     }
@@ -134,6 +158,7 @@ public final class OssuaryFinaleGameTest {
         run.step();
         run.fight().staggerEnd = 0;
         run.step();
+        run.pin();
     }
 
     @GameTest(maxTicks = 500)
@@ -229,7 +254,11 @@ public final class OssuaryFinaleGameTest {
             long t = run.server.getTickCount() - start;
             if (t == OssuaryRules.SKIP_DELAY_TICKS + OssuaryRules.CRACK_TICKS + 10 && !third[0]) {
                 helper.assertTrue(run.lidIntact(6, 3, 1) && run.lidIntact(13, 3, 1) && run.lidIntact(13, 12, -1),
-                        "phase two: nobody is near, so time alone opens nothing");
+                        "phase two: nobody is near, so time alone opens nothing (lids " + run.lidIntact(6, 3, 1) + " "
+                        + run.lidIntact(13, 3, 1) + " " + run.lidIntact(13, 12, -1) + ", boss alive "
+                        + (run.state().elite != null && run.level.getEntity(run.state().elite) instanceof Mob b && b.isAlive())
+                        + ", fate " + run.sextonFate() + ", phase " + run.fight().phase() + ", member " + run.member.blockPosition() + ", origin "
+                        + run.origin + ")");
                 phase(run);
                 third[0] = true;
             }
