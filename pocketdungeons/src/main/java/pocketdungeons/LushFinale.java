@@ -24,8 +24,11 @@ import java.util.UUID;
  * gives way to one giant slime. On its first split the boss becomes double the usual number of children
  * (vanilla gives 2 to 4; this tops the count up to double); every later split is vanilla. Every slime counts
  * toward the wave, so the pad stays shut until all are dead, and the number alive at once is capped
- * ({@code lushSlimeMaxAlive}) so the crowd can never lag a server. The potion drip speeds up for the fight
- * ({@link PotionDrip#setBoss}).
+ * ({@code lushSlimeMaxAlive}) so the crowd can never lag a server.
+ *
+ * <p>The boss runs under a {@link BossFight} (roadmap T03): phase one is the baseline fight, phase two speeds
+ * the potion drip up ({@link PotionDrip#setBoss}), phase three arms the doubling of the first split. The
+ * boss can only die in the last phase, so its first split is always the doubled one in play.
  *
  * <p>Vanilla splits a slime as the body is removed, about a second after it dies, so a slime that has just
  * died is not alive but its children do not exist yet. To keep the pad shut across that gap a dead splitter
@@ -38,6 +41,18 @@ final class LushFinale implements FinaleScript {
 
     /** Tag on the guard that holds the wave open while a split is pending. */
     static final String GUARD_TAG = PocketDungeonsMod.MOD_ID + ".lush_guard";
+
+    /**
+     * The giant slime's three phases (2026-10-15 arena floors). One: the baseline fight at the floor's normal
+     * drip. Two: the potion drip quickens. Three: its first split will be double.
+     */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0, List.of("The Great Drip shudders.", "The brews fall faster."),
+                    (ctx, boss) -> PotionDrip.setBoss(ctx.record(), true)),
+            new BossFight.Step(1.0 / 3.0, List.of("The Great Drip swells.", "It will not fall alone."),
+                    (ctx, boss) -> ctx.scriptState(State.class, State::new).splitArmed = true));
 
     private record Track(BlockPos pos, int size, boolean boss) {}
 
@@ -63,6 +78,8 @@ final class LushFinale implements FinaleScript {
         final List<Pending> pending = new ArrayList<>();
         UUID guard;
         boolean firstSplitDone;
+        /** Phase three arms the doubling of the first split; before it the split is vanilla. */
+        boolean splitArmed;
     }
 
     // ---- the boss -----------------------------------------------------------------------------------
@@ -114,11 +131,6 @@ final class LushFinale implements FinaleScript {
         return false;
     }
 
-    @Override
-    public void onWaveSpawned(FinaleContext ctx) {
-        PotionDrip.setBoss(ctx.record(), true);
-    }
-
     // ---- the splits ---------------------------------------------------------------------------------
 
     @Override
@@ -134,6 +146,7 @@ final class LushFinale implements FinaleScript {
         if (first) {
             state.firstSplitDone = true;
         }
+        first &= state.splitArmed;
         state.pending.add(new Pending(mob, at, track.size(), first,
                 ctx.tickCount() + LushFinaleRules.SPLIT_WINDOW_TICKS));
         if (state.guard == null || !(ctx.level().getEntity(state.guard) instanceof Mob guard) || !guard.isAlive()) {
@@ -143,6 +156,7 @@ final class LushFinale implements FinaleScript {
 
     @Override
     public void onTick(FinaleContext ctx) {
+        ctx.scriptState(BossFight.class, () -> new BossFight(PHASES)).tick(ctx);
         State state = ctx.scriptState(State.class, State::new);
         ServerLevel level = ctx.level();
         for (Iterator<Pending> it = state.pending.iterator(); it.hasNext(); ) {
