@@ -33,12 +33,33 @@ final class PlanRenderer {
         if (cells.isEmpty()) {
             return "(empty shape)";
         }
+        java.util.TreeSet<Integer> stories = new java.util.TreeSet<>(java.util.Comparator.reverseOrder());
+        for (PlanCell c : cells) {
+            stories.add(c.y());
+        }
+        if (stories.size() == 1 && stories.first() == 0) {
+            return renderStory(cells, roles, doors, mark, 0);
+        }
+        // More than one story: each under a header, top first.
+        StringBuilder all = new StringBuilder();
+        for (int story : stories) {
+            if (!all.isEmpty()) {
+                all.append("\n");
+            }
+            all.append("story ").append(story).append('\n')
+                    .append(renderStory(cells, roles, doors, mark, story));
+        }
+        return all.toString();
+    }
 
+    private static String renderStory(Set<PlanCell> cells, Map<PlanCell, String> roles,
+                                      Set<PlanEdge> doors, PlanCell mark, int story) {
         int minX = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
         int minZ = Integer.MAX_VALUE;
         int maxZ = Integer.MIN_VALUE;
         for (PlanCell c : cells) {
+            if (c.y() != story) continue;
             if (c.x() < minX) minX = c.x();
             if (c.x() > maxX) maxX = c.x();
             if (c.z() < minZ) minZ = c.z();
@@ -50,7 +71,7 @@ final class PlanRenderer {
             StringBuilder cellLine = new StringBuilder();
             StringBuilder connLine = new StringBuilder();
             for (int x = minX; x <= maxX; x++) {
-                PlanCell c = new PlanCell(x, z);
+                PlanCell c = new PlanCell(x, story, z);
                 if (c.equals(mark)) {
                     cellLine.append('?');
                 } else if (cells.contains(c)) {
@@ -60,11 +81,11 @@ final class PlanRenderer {
                 }
 
                 if (x < maxX) {
-                    PlanCell right = new PlanCell(x + 1, z);
+                    PlanCell right = new PlanCell(x + 1, story, z);
                     cellLine.append(hasDoor(doors, c, right) ? '-' : ' ');
                 }
                 if (z < maxZ) {
-                    PlanCell down = new PlanCell(x, z + 1);
+                    PlanCell down = new PlanCell(x, story, z + 1);
                     connLine.append(hasDoor(doors, c, down) ? '|' : ' ');
                     if (x < maxX) {
                         connLine.append(' ');
