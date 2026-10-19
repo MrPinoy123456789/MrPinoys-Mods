@@ -428,6 +428,8 @@ for ((taskName, testClass) in mapOf(
     // Vertical floors phase 2: per-story door masks.
     "storyDoorMaskTest" to "StoryDoorMaskTest",
     "floorRoomCellKeyTest" to "FloorRoomCellKeyTest",
+    "stairLayoutTest" to "StairLayoutTest",
+    "stairLayoutFingerprintTest" to "StairLayoutFingerprintTest",
     "omenMathTest" to "OmenMathTest",
     // Audit wave 2a: the omen bar's titles, fill and completion verdict.
     "omenBarTextTest" to "OmenBarTextTest",
@@ -608,6 +610,8 @@ tasks.test {
     dependsOn("storyGeometryTest")
     dependsOn("storyDoorMaskTest")
     dependsOn("floorRoomCellKeyTest")
+    dependsOn("stairLayoutTest")
+    dependsOn("stairLayoutFingerprintTest")
     dependsOn("omenMathTest")
     dependsOn("omenBarTextTest")
     dependsOn("floorShapeTest")

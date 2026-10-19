@@ -562,7 +562,7 @@ final class LayoutStamper {
             int otherDepth = plan.depths().getOrDefault(other, 0);
             if (otherDepth > bestDepth) {
                 bestDepth = otherDepth;
-                best = cell.directionTo(other);
+                best = cell.wallTo(other);
             }
         }
         return best;
