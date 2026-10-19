@@ -76,6 +76,8 @@ final class CreepingBricks {
         final boolean collecting;
         /** How many more bricks may burst; a ripe brick waits while it is 0. The finale sets it to its silverfish cap. */
         int releaseBudget = Integer.MAX_VALUE;
+        /** How fast the stage clock runs, in percent: 200 ripens a brick twice as fast. The boss fight's last phase raises it. */
+        int speedPercent = 100;
         boolean open = true;
 
         Field(ServerLevel level, BlockPos floorKey, int roomCap, boolean collecting) {
@@ -121,7 +123,7 @@ final class CreepingBricks {
                     it.remove(); // smashed or replaced before it burst: nothing comes out
                     continue;
                 }
-                int target = CreepingRules.stageAt(now - brick.plantedAt, mossy, stone, infested);
+                int target = CreepingRules.stageAt((now - brick.plantedAt) * speedPercent / 100, mossy, stone, infested);
                 if (target == CreepingRules.BURST) {
                     if (releaseBudget <= 0) {
                         target = CreepingRules.INFESTED; // the cap is full: wait, shaking

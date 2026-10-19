@@ -209,10 +209,11 @@ deviations, live-only checks, machine problems), and ask to deploy.
 
 | Task | Branch | State | Notes |
 |---|---|---|---|
-| W0a PD-218 | feature/rm-t01-window-bands | running | |
-| W0b PD-219 | feature/rm-t02-invalid-entity-pos | running | |
-| W0c Ledger | feature/backlog-2026-10-19 | merged | done by the orchestrator, commit 9b118e2f |
-| F1 | | waiting on wave 0 | |
-| F2 | | waiting on wave 0 | |
-| V1 | | waiting on wave 0 | |
-| V2 | | waiting on V1 | |
+| W0a PD-218 | feature/rm-t01-window-bands | merged | 18 Act 0 manifests set to bars; admirals_vault and seam_heart left in a KNOWN_OPEN set in WindowBandAgreementTest (outside owned files) |
+| W0b PD-219 | feature/rm-t02-invalid-entity-pos | merged | scratch frame left by template capture; clear now discards entities |
+| W0c Ledger | feature/backlog-2026-10-19 | merged | commit 9b118e2f |
+| F1 | feature/rm-t03-phased-finales-act1 | merged | spine clamp merged first (eff72e83); "The Pit Boss" and "The Sexton" are placeholder names |
+| F2 | feature/rm-t04-phased-finales-act2 | merged | Cow Pits herd scale 1.5 is a new constant (no herd-scale mechanic existed) |
+| V1 | feature/rm-t05-vertical-phase-1 | merged | fingerprint fixture regenerated once on unchanged code (sorted output) |
+| Wave 1 verify | feature/backlog-2026-10-19 | SUITE GREEN, 406 tests | bedafacf plus V1 merge |
+| V2 | feature/rm-t06-vertical-phase-2 | running | |
