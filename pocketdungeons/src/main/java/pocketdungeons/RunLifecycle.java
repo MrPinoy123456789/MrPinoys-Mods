@@ -1404,6 +1404,9 @@ final class RunLifecycle {
         // stragglers) go with it.
         CapstoneFights.floorEnded(level, record);
 
+        // The floor ended: every pot still standing on it keeps its share for its owner (2026-10-18, rule 4).
+        PackPots.settleRun(server, record, PocketDungeonsConfig.potKeepPercent(), true);
+
         // The staging room about to be stamped is for the next floor, or the
         // way home: every checkpoint offers both, and nothing forces either.
         record.interval.floorIndex++;
@@ -1791,6 +1794,8 @@ final class RunLifecycle {
     static void onJoinHaul(MinecraftServer server, ServerPlayer player) {
         DungeonLog log = DungeonLog.forServer(server);
         UUID id = player.getUUID();
+        // A pot whose run is gone (a crash, a restart, a purge) comes back in full, ahead of everything else.
+        PackPots.onJoin(server, player);
         boolean inTrip = InstanceRegistry.byMember.containsKey(id) || ownsLiveRun(id);
         if (!inTrip && log.haulOf(id) > 0) {
             bankHaul(server, null, id, BankContext.ORPHAN);
@@ -1816,7 +1821,8 @@ final class RunLifecycle {
 
     /** The lines of the one time message a migrated player gets on the first join after the quest line shipped. */
     static List<String> questLineJoinMessage() {
-        return List.of("Your compass now shows the way. It will count again when the campaign is done.");
+        return List.of("Your compass now shows the way. It will count again when the campaign is done.",
+                "What's in your pack is at risk. Your hotbar, armour and Dungeon Storage are safe.");
     }
 
     /** Which exit is banking a haul; picks the member's message. */
@@ -1832,6 +1838,10 @@ final class RunLifecycle {
                                           BankContext context) {
         DungeonLog log = DungeonLog.forServer(server);
         int keep = context == BankContext.FAIL ? PocketDungeonsConfig.failHaulKeepPercent() : 100;
+        if (context == BankContext.FAIL) {
+            // A failed dungeon keeps half of the member's pack and of the pots they own (2026-10-18, rule 5).
+            PackPots.settleFail(server, record, member);
+        }
         DungeonLog.BankResult result = log.bankHaul(member, keep);
         ServerPlayer player = server.getPlayerList().getPlayer(member);
         if (result.compassAfter() > log.get(member).keystoneLevel()) {

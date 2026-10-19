@@ -109,6 +109,10 @@ final class RitualListener {
         if (result != null) {
             return result;
         }
+        // A pack pot (campaign and endgame, 2026-10-18): a decorated pot the mod placed; the click is its own.
+        if (PackPots.onUse(serverPlayer, pos)) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
         result = dungeonStorage(serverPlayer, level, pos);
         if (result != null) {
             return result;
@@ -267,7 +271,7 @@ final class RitualListener {
     // otherwise take it into a run from inside the room. The block stays
     // where it is and stays a decoration; it just does not open in here.
     private static InteractionResult dungeonStorage(ServerPlayer serverPlayer, Level level, BlockPos pos) {
-        if (RunStorage.onUse(serverPlayer, level.getBlockState(pos),
+        if (RunStorage.onUse(serverPlayer, level.getBlockState(pos), pos,
                 DungeonWorldRules.inDungeon(level))) {
             return InteractionResult.SUCCESS_SERVER;
         }
