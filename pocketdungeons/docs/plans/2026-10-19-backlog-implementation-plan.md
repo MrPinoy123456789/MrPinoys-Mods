@@ -216,4 +216,6 @@ deviations, live-only checks, machine problems), and ask to deploy.
 | F2 | feature/rm-t04-phased-finales-act2 | merged | Cow Pits herd scale 1.5 is a new constant (no herd-scale mechanic existed) |
 | V1 | feature/rm-t05-vertical-phase-1 | merged | fingerprint fixture regenerated once on unchanged code (sorted output) |
 | Wave 1 verify | feature/backlog-2026-10-19 | SUITE GREEN, 406 tests | bedafacf plus V1 merge |
-| V2 | feature/rm-t06-vertical-phase-2 | running | |
+| V2 | feature/rm-t06-vertical-phase-2 | merged | stair rooms, Mineshaft opts in |
+| T07 | feature/rm-t07-ossuary-test-interaction | merged | Ossuary phase test held the Sexton still; the cause of the early cow death in the full run was not found |
+| Wave 2 verify | feature/backlog-2026-10-19 | SUITE GREEN, 411 tests | gate reached; nothing pushed or deployed |
