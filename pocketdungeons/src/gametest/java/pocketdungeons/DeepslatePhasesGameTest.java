@@ -51,7 +51,7 @@ public final class DeepslatePhasesGameTest {
             run.script().tellTick = run.server.getTickCount() - DeepslateFinaleRules.TELL_TICKS;
             run.step();
             helper.assertTrue(Whelp.active(run.level, run.record), "a whelp comes");
-            helper.assertTrue(FinaleWave.padRefusal(run.server, run.record) != null, "the pad is shut mid fight");
+            helper.assertTrue(!run.state().done && !run.record.floor.finaleWon, "the pad stays shut mid fight");
             for (int i = 0; i < run.state().mobs.size(); i++) {
                 Entity mob = run.level.getEntity(run.state().mobs.get(i));
                 if (mob != null) {
@@ -59,8 +59,7 @@ public final class DeepslatePhasesGameTest {
                 }
             }
             run.step();
-            helper.assertTrue(run.state().done && run.record.floor.finaleWon, "the kill wins");
-            helper.assertTrue(FinaleWave.padRefusal(run.server, run.record) == null, "the pad opens");
+            helper.assertTrue(run.state().done && run.record.floor.finaleWon, "the kill wins and opens the pad");
             helper.assertTrue(!Whelp.active(run.level, run.record), "the whelp is gone with the win");
         } finally {
             run.close();

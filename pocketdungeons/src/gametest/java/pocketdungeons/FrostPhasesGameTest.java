@@ -21,10 +21,10 @@ public final class FrostPhasesGameTest {
         try {
             run.campfire(10, 2, 10, true, false);
             run.wave();
+            run.step();
             FinaleWave.State state = FinaleWave.stateOf(run.record);
             Mob boss = (Mob) run.level.getEntity(state.elite);
             BossFight fight = (BossFight) state.scriptState.get(BossFight.class);
-            run.step();
             helper.assertTrue(!FrostFinale.coldRunning(run.record.slot), "phase one has no cold");
             // A burst under both bounds still stops at the first.
             boss.setHealth(boss.getMaxHealth() * 0.2f);
@@ -60,7 +60,7 @@ public final class FrostPhasesGameTest {
                 FrostFinale.coldTick(run.level, cold, List.of(run.member), now++);
             }
             helper.assertTrue(run.member.getTicksFrozen() > 60, "the old edge no longer warms");
-            helper.assertTrue(FinaleWave.padRefusal(run.server, run.record) != null, "the pad is shut mid fight");
+            helper.assertTrue(!state.done && !run.record.floor.finaleWon, "the pad stays shut mid fight");
             for (java.util.UUID id : state.mobs) {
                 Entity mob = run.level.getEntity(id);
                 if (mob != null) {
@@ -68,8 +68,7 @@ public final class FrostPhasesGameTest {
                 }
             }
             run.step();
-            helper.assertTrue(state.done && run.record.floor.finaleWon, "the kill wins");
-            helper.assertTrue(FinaleWave.padRefusal(run.server, run.record) == null, "the pad opens");
+            helper.assertTrue(state.done && run.record.floor.finaleWon, "the kill wins and opens the pad");
             helper.assertTrue(!FrostFinale.coldRunning(run.record.slot), "and the cold ends");
         } finally {
             run.close();

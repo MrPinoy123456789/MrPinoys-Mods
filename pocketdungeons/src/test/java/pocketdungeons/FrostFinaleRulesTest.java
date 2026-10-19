@@ -56,6 +56,13 @@ public class FrostFinaleRulesTest {
         check(!FrostFinaleRules.withinRadius(3, 3, 0, 4), "diagonal 4.24 is outside 4");
         check(!FrostFinaleRules.withinRadius(0, 5, 0, 4), "five blocks up is outside");
 
+        // The last phase shrinks the warm spot, never below the minimum and never past the knob.
+        check(FrostFinaleRules.warmRadius(4, false) == 4.0, "a whole warm spot is the knob");
+        check(FrostFinaleRules.warmRadius(4, true) == 2.0, "a shrunk spot at 4 is half");
+        check(FrostFinaleRules.warmRadius(10, true) == 5.0, "a shrunk spot at 10 is 5");
+        check(FrostFinaleRules.warmRadius(3, true) == 2.0, "a small knob holds the minimum");
+        check(FrostFinaleRules.warmRadius(2, true) == 2.0, "the minimum never exceeds the knob");
+
         // No relief, no cold.
         check(!FrostFinaleRules.coldApplies(0, 6), "no braziers, no cold");
         check(!FrostFinaleRules.coldApplies(4, 0), "a rate of 0 turns the cold off");
