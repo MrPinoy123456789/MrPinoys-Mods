@@ -83,15 +83,15 @@ public class LayoutFingerprintTest {
             if (result.plan() == null) {
                 sb.append(p).append("unresolved ").append(result.failure()).append('\n');
             } else {
-                sb.append(p).append("rooms ").append(result.plan().rooms()).append('\n');
-                sb.append(p).append("doors ").append(result.plan().doors()).append('\n');
-                sb.append(p).append("depths ").append(result.plan().depths()).append('\n');
+                sb.append(p).append("rooms ").append(sorted(result.plan().rooms())).append('\n');
+                sb.append(p).append("doors ").append(sorted(result.plan().doors())).append('\n');
+                sb.append(p).append("depths ").append(sorted(result.plan().depths())).append('\n');
                 if (seed < RENDER_SEEDS) {
                     sb.append(p).append("render ")
                             .append(PlanRenderer.renderAscii(result.plan()).replace("\n", "\\n")).append('\n');
                 }
             }
-            sb.append(p).append("fallback ").append(result.fallbackCells()).append('\n');
+            sb.append(p).append("fallback ").append(sorted(result.fallbackCells())).append('\n');
 
             PlanGeometry g = PlanGeometry.of(origin, shape.cells());
             sb.append(p).append("geo cells ").append(g.cells()).append('\n');
@@ -113,6 +113,28 @@ public class LayoutFingerprintTest {
             sb.append(p).append("geo over ").append(over).append('\n');
         }
         return sb.toString();
+    }
+
+    /**
+     * Immutable collections from {@code Map.copyOf} and {@code Set.copyOf} iterate in an order
+     * salted per JVM, so facts read from the resolved plan are printed sorted by entry text.
+     */
+    private static String sorted(java.util.Collection<?> items) {
+        List<String> out = new ArrayList<>();
+        for (Object o : items) {
+            out.add(String.valueOf(o));
+        }
+        java.util.Collections.sort(out);
+        return out.toString();
+    }
+
+    private static String sorted(Map<?, ?> map) {
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<?, ?> e : map.entrySet()) {
+            out.add(e.getKey() + "=" + e.getValue());
+        }
+        java.util.Collections.sort(out);
+        return out.toString();
     }
 
     // ---- fixtures copied from GraphSolvabilityTest ----
