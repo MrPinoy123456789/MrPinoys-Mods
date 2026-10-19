@@ -99,11 +99,8 @@ final class Campaign {
         return isCampaignTrip(TripView.def(record));
     }
 
-    /**
-     * Whether {@code def} is a generated uncharted door. There are none yet; the Chart Room task replaces
-     * this with the generated dungeon's marker, and every caller of {@link #isCampaignTrip} follows.
-     */
+    /** Whether {@code def} is a generated uncharted door ({@link DungeonDef.Kind#UNCHARTED}). */
     static boolean isUncharted(DungeonDef def) {
-        return false;
+        return def != null && def.kind() == DungeonDef.Kind.UNCHARTED;
     }
 }

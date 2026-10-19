@@ -147,9 +147,14 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 hiddenOre, 0, 1, "");
     }
 
-    /** What a dungeon is for (design D12, revised 2026-10-06; PROVING added 2026-10-16). */
+    /**
+     * What a dungeon is for (design D12, revised 2026-10-06; PROVING added 2026-10-16; UNCHARTED added
+     * 2026-10-18 for the Chart Room's generated doors).
+     */
     enum Kind {
-        DUNGEON, CAPSTONE, ENDLESS, PROVING;
+        DUNGEON, CAPSTONE, ENDLESS, PROVING,
+        /** A door generated in memory for the Chart Room (never in a manifest); it floors like a dungeon. */
+        UNCHARTED;
 
         static Kind parse(String word) {
             return switch (word) {
@@ -157,8 +162,9 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                 case "capstone" -> CAPSTONE;
                 case "endless" -> ENDLESS;
                 case "proving" -> PROVING;
+                case "uncharted" -> UNCHARTED;
                 default -> throw new IllegalArgumentException(
-                        "kind must be dungeon, capstone, endless or proving: " + word);
+                        "kind must be dungeon, capstone, endless, proving or uncharted: " + word);
             };
         }
 
@@ -892,8 +898,12 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
         if (hall == null || hall.isBlank()) {
             hall = HallLayout.HALL_ACT;
         }
-        if (!hall.equals(HallLayout.HALL_ACT) && !hall.equals(HallLayout.HALL_SPECIAL)) {
-            throw new IllegalArgumentException(id + ": hall must be act or special: " + hall);
+        if (!hall.equals(HallLayout.HALL_ACT) && !hall.equals(HallLayout.HALL_SPECIAL)
+                && !hall.equals(HallLayout.HALL_CHART)) {
+            throw new IllegalArgumentException(id + ": hall must be act, special or chart: " + hall);
+        }
+        if (hall.equals(HallLayout.HALL_CHART) && !kind.descends()) {
+            throw new IllegalArgumentException(id + ": a chart hall dungeon must be a descent (endless or proving)");
         }
         String tokenMat = "";
         if (obj.has("token") && obj.get("token").isJsonObject()) {

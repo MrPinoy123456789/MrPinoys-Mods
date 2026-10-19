@@ -204,7 +204,8 @@ final class PackValidator {
         // special slot, never by a door: its theme is unreachable in the graph by design.
         Set<String> special = new HashSet<>();
         for (DungeonDef def : snapshot.dungeons().all()) {
-            if (HallLayout.HALL_SPECIAL.equals(def.hall()) && def.mainTheme() != null) {
+            if ((HallLayout.HALL_SPECIAL.equals(def.hall()) || HallLayout.HALL_CHART.equals(def.hall()))
+                    && def.mainTheme() != null) {
                 special.add(def.mainTheme());
             }
         }

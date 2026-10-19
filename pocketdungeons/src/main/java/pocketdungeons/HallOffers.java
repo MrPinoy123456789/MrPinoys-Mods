@@ -18,6 +18,27 @@ final class HallOffers {
 
     private HallOffers() {}
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger("PocketDungeons");
+
+    /**
+     * The endgame dive the Chart Room's side wall offers (campaign endgame; T6 creates this dungeon with
+     * hall {@code chart}). Until the data file exists {@link #chartDive} is null and the slot stays empty.
+     */
+    static final String CHART_DIVE_ID = "pocketdungeons:endless_mine_chart";
+
+    /**
+     * The dive dungeon for the Chart Room's side wall, or null while {@link #CHART_DIVE_ID} is not loaded
+     * (or is not a chart hall dungeon). Logs at most a debug line. T5 main places it on the side wall.
+     */
+    static DungeonDef chartDive(DungeonDefs dungeons) {
+        DungeonDef def = dungeons == null ? null : dungeons.byId(CHART_DIVE_ID);
+        if (def == null || !HallLayout.HALL_CHART.equals(def.hall()) || def.entry() == null) {
+            LOG.debug("Chart Room dive {} is not loaded yet; the slot stays empty", CHART_DIVE_ID);
+            return null;
+        }
+        return def;
+    }
+
     /** What the first staging room shows: the act, its doors in order, and the doors that belong to no act. */
     record Hall(int act, Set<Integer> openActs, List<DungeonDef> doors, List<HallLayout.Status> statuses,
                 List<DungeonDef> specials, int compass) {

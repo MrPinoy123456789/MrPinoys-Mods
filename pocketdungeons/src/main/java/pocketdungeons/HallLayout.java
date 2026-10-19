@@ -90,6 +90,11 @@ final class HallLayout {
     /** Whether a dungeon stands in an act's row or on its own. */
     static final String HALL_ACT = "act";
     static final String HALL_SPECIAL = "special";
+    /**
+     * The Chart Room (campaign endgame, 2026-10-18): shown only once the campaign is done. A dungeon with this hall
+     * is a descent that stands on the Chart Room's dive slot, never in an act's row or a special slot.
+     */
+    static final String HALL_CHART = "chart";
 
     /** What a door looks like and does. */
     enum State {
