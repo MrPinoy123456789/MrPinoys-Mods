@@ -34,28 +34,31 @@ node to a player.
   the starter tools (wooden axe, pickaxe and shovel). There is one bag, not a
   choice. Entering and leaving never grant items, and nothing refills it.
 - **Act 0, The First Night:** a new player's first dungeon, before Act 1. Five
-  floors, no lives to lose (deaths cost nothing here), and nothing is paid until
-  the last floor. The Home lever is locked until the finish; the Quit Door
-  restarts the night and clears the pack. The last floor is one trial spawner.
-  Finishing it banks 2 scrap, which is exactly what Compass 2 costs, and opens
-  Act 1. Lives start in Act 1. Teach the dungeons in general (the door board,
-  the lever, the pad at the end of a floor, scrap, compass, a furnace smelts
-  ore with fuel). Do not tell a player what to gather on a given floor.
+  floors, no lives to lose (deaths cost nothing here, and no pots), and nothing
+  is paid. The Home lever is locked until the finish; the Quit Door restarts the
+  night and clears the pack. The last floor is one trial spawner. Finishing it
+  opens Act 1 and the compass shows its first quest line. Lives start in Act 1.
+  Teach the dungeons in general (the door board, the lever, the pad at the end
+  of a floor, the pack and pots, the compass's quest line, a furnace smelts ore
+  with fuel). Do not tell a player what to gather on a given floor.
 - **Alex and the diaries:** Lemon is Alex's Allay. She lost Alex somewhere in the
   pocket dungeons and came out of the compass to look. She needs Alex's diaries
   to find her, so she asks the player to keep every page.
-- **Compass:** your level, shown as `Compass 10: 4/7` (scrap banked toward the
-  next level, and what that level costs). It only ever goes up. The first one is
-  free (`/dungeon key`); a lost one is replaced at the level you earned. A level
-  costs `4 + floor(compass / 3)` scrap: compass 1 costs 4, compass 10 costs 7.
+- **Compass:** in the campaign it is a quest line, not a number: its lore says
+  `Next: Mineshaft, Lush Caves or Infestation` and `2 more for the Spawner
+  Dungeon`. Finishing the Ancient City shows `Your compass wakes up.` and from
+  then on it is a level, `Compass 1: 0/4 scrap to 2` (a player who already had a
+  level keeps it). It only ever goes up. A level costs `4 + floor(compass / 3)`
+  scrap: compass 1 costs 4, compass 10 costs 7. The first compass is free
+  (`/dungeon key`); a lost one is replaced as it stood.
 - **The Astrolabe Room:** the first room of a trip. Right-click the astrolabe to
   turn to the next open act (sneak to turn back). Each door is a dungeon; the
-  side doors hold the act's Endless Mine. Clearing an act's capstone and floor 3
-  (the first guardian) of that act's Endless Mine opens the next act. The copper
-  bulb says how a dungeon stands: lit is open, oxidized is finished (the sign
-  says Play again), dark behind an iron door is locked (the sign says the compass
-  it needs, or Finish the act). Open a door to look inside through the wide
-  glass wall; the DESCEND lever glints beside the door you picked. Pull it to go.
+  side doors hold the act's Endless Mine. Finishing 3 of an act's dungeons opens
+  its capstone; clearing the capstone opens the next act. The copper bulb says
+  how a dungeon stands: lit is open, oxidized is finished (the sign says Play
+  again), dark behind an iron door is locked (the sign says `Finish 3 dungeons` or
+  `Finish Act 1`). Open a door to look inside through the wide glass wall; the
+  DESCEND lever glints beside the door you picked. Pull it to go.
 - **Floors and objectives:** most floors clear on the spawner gate (the bar
   shows `Spawners 2/3`) to open the way on. Some floors ask for something else
   instead, and the pad's refusal line says what is left: a heist floor (Sunken
@@ -68,46 +71,57 @@ node to a player.
   free. A side door or a door with the Blood affix costs 1 life (or 2 for some
   side branches), shared by the party, and is refused if it would take the last
   life. The door board shows the affixes, `Loot n%`, the barrel roll count
-  (`N rolls`), and any promised piece in the copper chest.
+  (`N rolls`), and any promised piece in the copper chest. In the campaign it
+  names no scrap.
 - **Names:** players call the room between floors "the Doors"; use that name.
-- **The sidebar:** shows floor, lives, spawners, haul and compass. `/dungeon
-  display off` hides it. Chat is only the log; players mostly do not read it live.
+- **The sidebar:** shows floor, lives and spawners (and `Pots N` when a pack is
+  down); after the campaign it adds haul and compass. `/dungeon display off`
+  hides it. Chat is only the log; players mostly do not read it live.
 
-## Scrap, haul, Loot percent and lives
+## The pack, pots, haul, Loot percent and lives
 
-- **Haul:** scrap carried on this trip. Each cleared floor pays into it. It is at
-  risk until it is banked.
-- **What a floor pays:** the door's step (+1, +2 or +3), plus 1 for each act
-  above the first, plus 1 on a dungeon's last floor. A floor below your compass
-  pays half (at least 1). Overclocked pays +1 extra scrap if cleared under 6:00.
+- **The pack:** the 27 inventory slots are what you risk. Your hotbar, armour,
+  offhand and Dungeon Storage are always safe.
+- **Pots:** when you fall in a dungeon, your pack stays where you fell, in a pot
+  named for you (or by that room's door when the spot is unsafe). You and your
+  party can take things out of it. A pot nobody empties keeps half when the floor
+  ends. The sidebar shows `Pots N` while any stand. Act 0 makes no pots.
+- **Dungeon Storage:** during a trip it opens only at the Doors and at home, not
+  from an ender chest out on a floor.
+- **Haul (after the campaign only):** scrap carried on this trip. In the campaign
+  floors pay no scrap; the compass shows the way instead. In the Chart Room each
+  cleared floor pays its step (+1, +2 or +3) into the haul, plus the act bonus and
+  1 on a last floor, and the haul is at risk until it is banked.
 - **Loot percent (`Loot n%`):** harder affixes raise the floor's Loot percent
   (100% with no affixes, higher with more or tougher affixes). It scales how many
   rolls your reward barrel gets (`N rolls` on the door board), and any floor
   above 100% also puts one extra piece of gear or material into the floor's
   copper chest, named right on the door board.
 - **Banking:** going home (the HOME lever, which asks first) or finishing a
-  dungeon banks the whole haul into your compass and rolls the deepest floor's
-  reward count into your reward barrel. A finish also pays emeralds and vault
-  chests; finishing the same dungeon again pays half the emeralds.
-- **Lives (from Act 1; Act 0 has none to lose):** the party shares 5 lives per trip. A death costs one; Blood or a
-  side door costs one (or two). The fifth death fails the dungeon.
-- **Failing:** a failed dungeon keeps half of everyone's haul, and the party is
-  sent back to the Home room (not out of the dungeon dimension), still together,
-  with the pack as carried and the doors ready to choose again.
+  dungeon keeps your whole pack, banks the haul into your compass after the
+  campaign, and rolls the deepest floor's reward count into your reward barrel.
+  A finish also pays emeralds and vault chests; finishing the same dungeon again
+  pays half the emeralds.
+- **Lives (from Act 1; Act 0 has none to lose):** the party shares lives fixed at
+  the first door: 5 solo, 6 for two, 7 for three, 8 for four. A death costs one;
+  Blood or a side door costs one (or two). The last death fails the dungeon.
+- **Failing:** every pot and every pack keeps half (and half the haul after the
+  campaign), and the party is sent back to the Home room, still together, with
+  the doors ready to choose again.
 - **Leaving:** leaving a floor in progress for any reason (the lodestone's Leave,
   `/dungeon exit`, a disconnect, joining another party) fails the dungeon for the
-  one who leaves: they keep half their haul. Leaving between floors cashes out in
-  full. If the party's owner leaves a floor in progress, the dungeon fails for
-  everyone. Leave asks first.
+  one who leaves: they keep half their pack and haul. Leaving between floors
+  keeps everything. If the party's owner leaves a floor in progress, the dungeon
+  fails for everyone. Leave asks first.
 - **Quit Door:** owner only, in a dungeon with a door chosen. It fails the
-  dungeon (half the haul), returns the party to the Home room and leaves the
-  compass alone.
+  dungeon (half the pack and haul), returns the party to the Home room and leaves
+  the compass alone.
 - **Disconnects:** the party owner has about two minutes to reconnect before the
   run ends as a failure.
 - **Vault keys:** a trial key lasts the whole dungeon, so carry one from floor 2
   into floor 3. Plain and ominous keys are separate and open separate vaults.
-  Keys you never use turn into emeralds when the haul banks (home, a finish or a
-  failed dungeon at its share).
+  Keys you never use turn into emeralds when you bank (home, a finish or a failed
+  dungeon at its share).
 - **Promised gear:** some floors say on the door board that the copper chest pays
   a named piece of gear. It is the exact piece the board named.
 
@@ -166,11 +180,24 @@ node to a player.
   yours (up to 3 follow you; extras sit).
 - **Fire:** fire does not spread inside dungeons.
 - **Endless Mine:** each act has its own Endless Mine (Act 1 `endless_mine`, Act
-  2 the Deep Mine). Every third floor (3, 6, 9 and on) holds a guardian fight and
-  pays a guardian loot table in the barrel (floor 3 tier A, floor 6 tier B, floor
-  9 and every guardian after tier C), escalating each lap. Clearing floor 3
-  counts toward opening the next act. Walls hide diggable ore that gets richer
-  with depth.
+  2 the Deep Mine). It is an optional dive: it never gates an act. Every third
+  floor (3, 6, 9 and on) holds a guardian fight and pays a guardian loot table in
+  the barrel (floor 3 tier A, floor 6 tier B, floor 9 and every guardian after
+  tier C), escalating each lap. Walls hide diggable ore that gets richer with
+  depth.
+- **The Chart Room (after the campaign):** finishing the Ancient City opens it;
+  the astrolabe turns to it after the last act. It holds three uncharted doors
+  and the endgame dive. An uncharted door is a new 3 floor dungeon built from the
+  themes of the acts you finished; at least half its affixes bend the rules
+  (Blackout, Restless, Molten, Explosive, Voided, Cooked, Blood); its last floor
+  is a guardian fight; its level is your compass plus the step you pick. The
+  three doors change after every trip. The endgame dive is a mine at your compass
+  plus the floor, with an arena every third floor: waves, then the guardian. The
+  Proving lives there now. Acts 3 to 5 are not open on this server.
+- **The Relic:** a middle floor of an uncharted door may hold a Relic (a heavy
+  core on a plinth). Carry it to the pad for a bigger Loot percent. It slows you,
+  it will not go into any container or Dungeon Storage, and if you fall it drops
+  into your pot. The pad opens without it.
 
 ## Gear and stations
 
@@ -1034,6 +1061,90 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Pass:** all three phases play in order even under burst; each transition shows its title and the stagger is readable; vents stay silent in phase 1 and fire from phase 2; the pad still opens only on the kill. PD-208's failure mode (an elite dying before its mechanic registers) cannot recur: a staggered boss is invulnerable while the next phase arms.
 - **Fail signs:** a phase skipped by burst; the stagger reading as "the game ate my crit"; vents firing in phase 1 or with no readable rhythm; the boss dying before phase 3's tell.
 
+### L103: Payoff rooms: Gilded Vault, Mason's Shortcut, Windlift (plan 2026-10-17)
+- **Status:** owed (built 2026-10-17; not yet visited live)
+- **Changed:** three dead-end side rooms cash in a tag found earlier on the same floor, and a spur cell draws them three times as often when the tag is provided upstream. Gilded Vault (`gold`): a vanilla vault that takes one gold ingot. Mason's Shortcut (`blocks`): a chest across a five block gap, reached by placing blocks. Windlift (`wind_charge`): a chest on a three block ledge, reached by a wind charge jump. Main path unchanged.
+- **Do:** find each room on a floor where its tag was provided earlier (gold from `the_herd`, blocks from a gallery, wind charges from the breeze arena), and once where it was not.
+- **Pass:** the Gilded Vault takes exactly one ingot, pays once per player and reads as a vanilla vault; the Mason's gap cannot be jumped; a wind charge from the chiseled tuff reaches the Windlift ledge; each room shows its cache through the window from the corridor; a room whose tag was missing is shut but never blocks the floor.
+- **Fail signs:** a payoff room on the main path; the vault taking more than one ingot or paying twice; the Mason's gap jumpable at a sprint; the Windlift ledge reachable without a charge or blocks; the cache invisible from the corridor.
+
+### L104: The quest-line compass (decision 2026-10-18)
+- **Status:** owed (built 2026-10-18, branch feature/campaign-endgame; needs a live playtest)
+- **Changed:** in the campaign the compass names the dungeons to do next and pays no scrap; a capstone opens after three of the act's dungeons and the Endless Mine is optional; campaign doors read `Finish Act N` or `Finish 3 dungeons`, never `Compass N`; the last capstone on the server shows `Your compass wakes up.`
+- **Do:** with a fresh player, finish Act 0 and two Act 1 dungeons, reading the compass after each; then finish a third and open the capstone.
+- **Pass:** the player can say what to do next from the compass alone; the capstone opens on the third finish without the mine; no scrap line appears on a campaign floor.
+- **Fail signs:** the quest line read as a chore list; a locked door showing a compass number; the player asking where scrap went.
+
+### L105: The pack and the pot (decision 2026-10-18)
+- **Status:** owed (built 2026-10-18, branch feature/campaign-endgame; needs a live playtest)
+- **Changed:** a rescue moves the 27 pack slots into a pot where the player fell; armour, offhand, hotbar and Dungeon Storage are safe; an unemptied pot keeps half when the floor ends; a failed dungeon keeps half of every pot and pack; Dungeon Storage opens only at the Doors and at home during a trip.
+- **Do:** die once with loot in the pack and walk back for the pot; die again and leave the pot when the floor ends; in a party, carry a teammate's pot home; fail one dungeon with pots on the floor.
+- **Pass:** the pot stands where the player fell (or at the cell's door when that spot is unsafe), opens for the party, shows on the sidebar as `Pots N`; the halves match the rule; hotbar and armour never move.
+- **Fail signs:** a pot in lava, the void or a sealed room; a pot blocking a door or the pad; items lost outright instead of halved; an ender chest mid-run still opening Dungeon Storage.
+
+### L106: The Chart Room and uncharted doors (decision 2026-10-18)
+- **Status:** owed (built 2026-10-18, branch feature/campaign-endgame; needs a live playtest)
+- **Changed:** after the last capstone on the server the Chart Room opens with three generated 3 floor doors (themes from the finished acts, half the affixes rules, a phased guardian finale, level = compass + step) and the endgame dive (mine floors with an arena every third floor).
+- **Do:** clear one uncharted door at step 0 and one at step 3; take the dive to its first arena.
+- **Pass:** a veteran at compass 15+ loses at least one life on a step 3 door; the guardian's rule shows before it dies; the doors reroll after the trip.
+- **Fail signs:** a door that is only stat affixes; a guardian dying before its first phase tell; the same three doors twice.
+
+### L107: Campaign seam: three dungeons open the capstone, no compass gate (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** Roadmap task T0 of the campaign and endgame build. The Spawner Dungeon (Act 1) and the Ancient City (Act 2) open after any 3 of the act's ordinary dungeons; the Endless Mine is no longer needed. The compass no longer gates a campaign door: every door of an open act is lit from the first trip, and the Act 1 mine opens with Act 1. Finishing the Ancient City opens nothing further (`releaseMaxAct` is 2); a save that already has Act 3 open keeps it stored but never sees it on the astrolabe or at the first doors.
+- **Do:** One account with a fresh Act 1 (finish Act 0 first), compass at its starting level, `releaseMaxAct` and `capstoneDungeonsNeeded` at their defaults. Open the astrolabe on Act 1 and look at every door. Finish any 2 ordinary dungeons of Act 1 and look at the Spawner Dungeon door, then finish a third and look again; read the title after the third finish. Leave the Endless Mine alone throughout. Then finish the Spawner Dungeon, turn the astrolabe to Act 2 and repeat with 3 of its dungeons and the Ancient City. Finish the Ancient City and cycle the astrolabe. If a save with Act 3 stored is at hand (a migrated tester), open the astrolabe on it.
+- **Pass:** At compass 1 every Act 1 door except the capstone has a lit bulb and is enterable (no "Needs compass" line on right click; the second sign line may still say Compass N until the quest-line compass task merges). The capstone stays iron and unlit after 2 finishes and its right click says it needs more dungeons; after the third finish a title says the capstone is unlocked and the door lights and is enterable. The Endless Mine door is lit from the start of Act 1. Finishing the Spawner Dungeon opens Act 2 (title and chat line). Finishing the Ancient City opens no Act 3: the astrolabe cycles between Acts 1 and 2 only, and a stored Act 3 does not appear. The "what is left" chat line after a finish reads `Act 1: N more dungeons.` and then `Act 1: Spawner Dungeon is open.`
+- **Fail signs:** A door still shows `Compass N` or refuses for the compass (the sign text is owned by the quest-line compass task, so a sign that still reads `Compass N` on the iron door is expected until it merges; a refusal on right click is not). The capstone opens after 2 finishes, or still waits for the Mine. Act 3 opens or shows after the Ancient City. The old chat line `clear it to open the next act` appears after the Ancient City.
+
+### L108: Mob curve: gentler start, no omen hardening in Act 1 (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** Roadmap task T1 of the campaign and endgame build. Mobs now scale as 0.85 + 0.02 per keystone level (level 8 is about vanilla strength, level 20 is 1.25x), so Act 1 starts gentler and Act 2 is clearly tougher. Deaths (the omen) no longer harden the floor in Acts 0 and 1; from Act 2 each point of omen adds 10% (was 15% everywhere).
+- **Do:** One account, defaults in pocketdungeons.json (a server whose file already holds mobScaleBase, mobScalePerLevel or omenDangerScalePerOmen keeps the old numbers; remove those keys first). Run an Act 1 dungeon at a low compass, get rescued twice, and compare a zombie or skeleton's health and hits before and after the rescues. Then run an Act 2 dungeon at about level 12 and repeat. Leave the Endless Mine alone.
+- **Pass:** In Act 1 a mob after two rescues has the same health and hits as before them. A level-3 Act 1 mob feels softer than it did before this build. In Act 2 each rescue visibly adds strength (about 10% per point), and a level-20 Act 2 mob has about 1.25x vanilla health. Nothing errors in the log when a trapped cache, a heist or claim wave, or an omen wave spawns.
+- **Fail signs:** Act 1 mobs still get tougher after a rescue. Act 2 mobs do not get tougher after a rescue. Early Act 1 feels as hard as the old curve. A log error from applyMobScale or the trapped cache ambush.
+
+### L109: Quest-line compass: the campaign compass names the next dungeons, no scrap (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** Roadmap task T2 of the campaign and endgame build. In the campaign (Act 0 included) the compass item is named `Compass` and its lore is a quest line: `Next: <up to three open dungeons, then "and N more">` and `N more for the Spawner Dungeon` (or `Next: the Spawner Dungeon` once it is open, `Next: the Astrolabe` when every open act is done). A campaign floor clear pays no scrap, the door board names no scrap part, the sidebar has no Haul or Compass line, and locked astrolabe doors read `Finish 3 dungeons` or `Finish Act 1`, never `Compass N`. Finishing Act 0 brings the first quest line (the Home lever still unlocks). Finishing the capstone of `releaseMaxAct` (the Ancient City) shows the title `Your compass wakes up.` with `The Chart Room is open.`, and from then on the item is the scrap compass again at the stored level. A player who already had progress gets one chat line on the first join after the update.
+- **Do:** (1) One fresh account: finish Act 0, then hold the compass and read its name and lore; open the astrolabe on Act 1 and read every door sign. (2) Take a trip into any Act 1 dungeon: watch the sidebar and the door board, clear a floor, and read the lore again after a finish. (3) Finish three Act 1 dungeons, then the Spawner Dungeon, then three Act 2 dungeons and the Ancient City, reading the compass lore and the astrolabe after each. (4) After the Ancient City, hover the compass and start a trip in the Endless Mine. (5) With a second account that already has progress (a compass above 1, a dungeon finished) join once after the update and read chat.
+- **Pass:** After Act 0 the compass is named `Compass` and says `Next: ...` (Act 1 dungeon names) and `3 more for the Spawner Dungeon`; each finish drops that dungeon from the first line and the count falls to `2 more`, `1 more`, then `Next: the Spawner Dungeon`. The capstone door sign on the astrolabe reads `Finish 3 dungeons` until it opens; no door sign says `Compass N`. The sidebar in a campaign trip shows floor, lives and spawners only; a floor clear adds nothing to a haul and no `+N scrap` chat line appears; the board's pay line lists items (ore words, rewards, emeralds, vault) and no scrap. Finishing the Ancient City shows the wake title and subtitle once; the compass then reads `Compass 1: 0/4 scrap to 2` for a fresh account (a migrated account keeps its stored level and bar), and the Endless Mine sidebar shows Haul and Compass again. The migrated account sees `Your compass now shows the way. It will count again when the campaign is done.` once, not on the next join.
+- **Fail signs:** A scrap number anywhere in a campaign trip (sidebar Haul or Compass line, a `+N scrap` chat line, `Banked 0 scrap` under a finish title, a scrap part on the board). A door sign that still says `Compass N`. The quest line not updating after a finish until the next join. The compass keeping the name `Compass` after the wake, or the quest line surviving it. The wake title firing on a later finish or a replay. A migrated account losing its stored compass level or bar. The migration line repeating on every join, or showing to a brand new account. Compass 1 asking for 2 scrap instead of 4.
+
+### L110: Lives grow with the party (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** a trip's lives now depend on the party size at the first door: solo 5, two players 6, three 7, four 8 (a fifth player adds nothing). Roadmap task T3, knob `livesPerExtraMember`.
+- **Do:** with two accounts in one party, pull the lever at a first door and read the lives bar and the sidebar. Die on purpose several times and watch the count fall. Then try a solo trip for comparison. Leave the config knob at 1.
+- **Pass:** the bar and sidebar say Lives 6 for two players (8 for four). The bar fills from full and goes green, then yellow, then red only at the last life. A player who joins the party after the first door does not raise the number. A Blood door is refused when it would take the last life. The run ends on the death that follows the last life.
+- **Fail signs:** the bar reads 5 for a party, the number changes mid trip when someone joins, the run ends after four deaths with eight lives, or the bar colour is red with several lives left.
+
+### L111: The pack and the pot (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** Campaign and endgame T4. A rescue now moves the 27 main inventory slots into a decorated pot where you fell (hotbar, armour, offhand and Dungeon Storage stay). Anyone in the party can take from the pot, nobody can put in. A floor that ends with a pot unemptied keeps half of it for its owner. A failed dungeon keeps half of every pot and every member's pack. The sidebar shows `Pots N`. Dungeon Storage opens only at the Doors and at home during a trip. Act 0 makes no pots.
+- **Do:** Two accounts, a campaign dungeon after Act 0 (the Mineshaft). 1) Fill your pack (slots above the hotbar) with stacks, a few tools and a few single items; keep a weapon in the hotbar and wear armour. Die on floor 1 (mob or lava): read the chat, the action bar and the sidebar. 2) Walk to the pot, right-click it: take a stack, try to drop an item into it, have the second account open it. Try to break it, and try to blow it up. 3) Die in lava, then in the void if the floor has one: the pot must stand beside the nearest door of that cell, never in the doorway. 4) Leave one pot unemptied and clear the floor: read what came with you. 5) Spend all the lives: the fifth death also makes a pot, then the dungeon fails. Check every pack and pot kept half. 6) Right-click an ender chest placed mid floor, then the one in the Doors. 7) Make a pot, then stop and restart the server (do not pull the plug mid save); rejoin: the pack must be in Dungeon Storage in full. 8) Play Act 0 and die: no pot, the pack stays.
+- **Pass:** Chat and action bar say `Your pack stayed where you fell.` once per trip; the sidebar shows `Pots 1` (white) and the line goes away when the pot is emptied or the floor ends. The pot menu is titled `<name>'s pack`, only takes out. The pot is never in a doorway, on the pad or in a one block gap. Floor end: about half of each stack (rounded down) is in your pack, the rest is gone; singles are kept every other one, best first. A fail says `The dungeon claims you. You keep half of your pack.` and every pack is half. A mid floor ender chest says `Dungeon Storage opens at the Doors.` and the Doors one opens. After a restart everything from the pot is in Dungeon Storage, and `Your pack came back.` shows. The migration message on first join has the second line `What's in your pack is at risk. Your hotbar, armour and Dungeon Storage are safe.`
+- **Fail signs:** A pot you cannot reach or one that blocks a door; items missing from a pot after a crash; the pack halved twice on one fail; a pot that survives its floor; a hotbar or armour slot emptied; a rescue at the Doors making a pot; an ender chest mid floor opening Dungeon Storage; the first-pot line repeating on every death. Also check `data/pocketdungeons/packjournal/<uuid>/` holds a file for the lost half of every settlement and for each pot made.
+
+### L112: Chart Room and uncharted doors (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** after the last capstone the astrolabe's last position is the Chart Room: three Uncharted doors (a generated three floor dungeon each, themes from the acts you finished, level = compass + step, half the affixes are rules) and, when loaded, the dive at the end of the row. The last floor ends in a guardian with phases. T5.
+- **Do:** one account with the campaign done. Turn the astrolabe past the last act, preview each door, take one, clear all three floors in a party of two (second member with a lower compass), then check the haul and a failed run once.
+- **Pass:** the signs say Uncharted with the theme; the board shows Level and Loot percent; doors differ and reroll after a trip; the floors run at the lowest compass plus step; the guardian wakes after the spawners clear, staggers at two thirds (guard arrives) and one third (enraged), and the pad opens only when all its mobs are down; scrap pays and banks; the act checklist never mentions the door.
+- **Fail signs:** a door that previews but will not commit, a wrong level, a guardian that never spawns or ends the floor early, an uncharted finish listed in the act checklist, a soft-lock on any floor.
+
+### L113: Endgame dive: mining floors, then the arena and the guardian every third floor (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** The Proving's astrolabe door is gone (roadmap T6). The Chart Room's dive (`endless_mine_chart`) is an Endless Mine on the Deep Mine's look and hidden ore. Floors 1, 2, 4, 5 are mining floors; floors 3, 6, 9 and on are the arena: the Proving's ring, `provingWavesPerFloor` (2) waves, then the act's guardian, then the pad room opens. The level is the party's lowest compass plus the floor, with no cap. The act mines in the campaign are unchanged.
+- **Do:** One account that has finished the campaign (Chart Room open; T5 puts the dive on its side wall). Walk the dive door with compass 10. Mine floor 1 and 2, take a door each time. On floor 3 stay in the ring. Let a second account with a lower compass join once and check the level.
+- **Pass:** Floors 1 and 2 are Deep Mine caves with hidden ore and no ring. Floor 3 is a gate then the ring; wave one at once, "Another wave is coming." when it falls, "The guardian is coming." after the last wave, and the far wall opens with "The guardian is down. The way on opens." only after the guardian dies. The pad pays the Act 2 tier A table on floor 3, B on floor 6, C after. The door boards show level compass + floor (11 on floor 1 at compass 10), and the lowest member's compass when a party joins.
+- **Fail signs:** The far wall opens with a wave or the guardian still alive; the pad refuses with nothing left to kill ("The guardian is still to come" that never clears); a ring on a mining floor or a mining floor on floor 3; the dive listed in the astrolabe or the Proving still there; the level capped at the keystone maximum.
+
+### L114: The relic: one heavy thing on an uncharted middle floor (2026-10-18)
+- **Status:** owed (built, never played; listed here so the knowledge pack carries it)
+- **Changed:** L107. One uncharted door in four (`relicFloorChance` 0.25) has a relic on its middle floor: a heavy core named `Relic` on a black stone plinth in a side cell. Carry it to the pad and the floor pays `relicLootPercent` (100) more Loot. It is greed, never the gate: the pad opens without it and the spawner gate is unchanged. Whoever holds it has Slowness I. It will not go in Dungeon Storage, a chest, a shulker box, a pot you put things into, or the ground as a block. A rescue puts it in your pot even from the hotbar. If it leaves the floor any other way it goes back to its plinth.
+- **Do:** One account that has finished an act, at the Chart Room; reroll trips until an uncharted door's floor title reads "Something heavy waits." (or set `relicFloorChance` to 1 in the test server config for the run). Walk into the middle floor, find the plinth, pick up the relic, try to put it in a chest and in a shulker box (shift click, drag, number key), then (a) walk to the pad with it and take the door, (b) on another run let a mob take your last life with the relic in your hotbar, (c) on another run drop it into lava or the void if the cell has one, (d) on another run leave the pad alone with spawners left and try to step on it. A second account joins once to take the relic out of the first account's pot.
+- **Pass:** The title says "Something heavy waits." and the bar still shows the spawner count. The relic sits on a plinth, glowing, named Relic, and does not stack. Holding it slows you. A chest, a shulker box and Dungeon Storage refuse it with "The relic will not fit." and it never places as a block. (a) at the pad "The relic pays. Loot +100%" shows, the relic is gone from the pack and the reward barrel holds about double the base chests. (b) the pot holds the relic with the rest of the pack (the hotbar item swapped into the freed slot if the pack was full) and the second account can take it. (c) within a second or two "The relic went back to its plinth." and it is on the plinth again. (d) the pad refuses with the ordinary spawner line, never a relic line, and opens at the usual spawner count with no relic.
+- **Fail signs:** The pad refuses because the relic is missing; the relic in a chest, a shulker box or Dungeon Storage; two relics on one floor; the relic still in a pack after the floor ends or after a rescue; Slowness staying after the relic is gone; a pot, a rescue or a settle that loses any other item; the plinth breakable.
+
 # Rooms (id: roles, tier, depth, requirements)
 
 - admirals_vault: encounter/loot/corridor, tier 1, depth 0+
@@ -1046,12 +1157,18 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - bastion_keep: encounter/loot/corridor, tier 1, depth 0+
 - bazaar: corridor, tier 2, depth 1+
 - big_freeze: encounter/loot/corridor, tier 1, depth 0+
+- black_seam_bend: corridor, tier 1, depth 0+
+- black_seam_fork: corridor, tier 1, depth 0+
+- black_seam_nook: corridor, tier 1, depth 0+
+- black_seam_run: corridor, tier 1, depth 0+
 - blaze_cellar: encounter, tier 3, depth 2+
 - blaze_loft: corridor, tier 2, depth 1+
 - bogged_marsh: encounter, tier 2, depth 1+
 - breeze_arena: encounter, tier 2, depth 1+, access gated
 - brood_chamber: exit, tier 1, depth 0+
 - burrow_tunnel: encounter/loot/corridor, tier 1, depth 0+
+- cave_mouth_nook: encounter, tier 1, depth 0+
+- cave_mouth_run: encounter, tier 1, depth 0+
 - charnel_niches: encounter/loot/corridor, tier 1, depth 0+
 - chasm: corridor, tier 1, depth 0+
 - clay_shelves: loot/corridor, tier 1, depth 0+
@@ -1091,6 +1208,7 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - fungal_hollow: encounter/loot/corridor, tier 1, depth 0+
 - galleon_hold: encounter/loot/corridor, tier 1, depth 1+
 - gallery: corridor, tier 2, depth 0+
+- gilded_vault: loot, tier 2, depth 2+, needs gold
 - gnawed_vein: encounter/loot/corridor, tier 1, depth 0+
 - great_crucible: encounter/loot/corridor, tier 1, depth 0+
 - great_drip_cavern: encounter/loot/corridor, tier 1, depth 0+
@@ -1126,6 +1244,7 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - lush_clay_pool: encounter/loot/corridor, tier 1, depth 1+
 - lush_hollow: encounter/loot/corridor, tier 1, depth 0+
 - lush_root_gallery: encounter/loot/corridor, tier 1, depth 0+
+- masons_shortcut: loot, tier 1, depth 2+, needs blocks
 - master_furnace: encounter/loot/corridor, tier 1, depth 0+
 - milking_stalls: corridor, tier 1, depth 0+
 - mineshaft_collapse: encounter/loot/corridor, tier 1, depth 1+
@@ -1154,6 +1273,10 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - rootworks_grove_path: corridor/encounter/loot, depth 1+
 - ropewalk: corridor, tier 1, depth 0+
 - rotation_lock: corridor, tier 2, depth 0+, access gated
+- rust_ravine_bend: corridor, tier 1, depth 0+
+- rust_ravine_fork: corridor, tier 1, depth 0+
+- rust_ravine_nook: corridor, tier 1, depth 0+
+- rust_ravine_run: corridor, tier 1, depth 0+
 - sculk_causeway: corridor, tier 2, depth 0+
 - sculk_nave: corridor, tier 2, depth 0+
 - seam_heart: encounter/loot/corridor, tier 1, depth 0+
@@ -1164,6 +1287,10 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - spawner_den: encounter, depth 2+
 - specimen_byre: corridor, tier 1, depth 0+
 - still_pond: loot/corridor, tier 1, depth 0+
+- stone_rise_bend: corridor, tier 1, depth 0+
+- stone_rise_fork: corridor, tier 1, depth 0+
+- stone_rise_nook: corridor, tier 1, depth 0+
+- stone_rise_run: corridor, tier 1, depth 0+
 - sump: corridor, tier 2, depth 0+
 - the_altar: loot, tier 2, depth 2+, pressure omen
 - the_herd: corridor, tier 1, depth 0+
@@ -1172,11 +1299,16 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - thicket: corridor, tier 1, depth 0+, pressure local
 - treasure_alcove: loot, depth 1+
 - treasury_strongroom: encounter/loot/corridor, tier 1, depth 1+
+- treeline_bend: corridor, tier 1, depth 0+
+- treeline_fork: corridor, tier 1, depth 0+
+- treeline_nook: corridor, tier 1, depth 0+
+- treeline_run: corridor, tier 1, depth 0+
 - tripwire_hall: corridor, tier 1, depth 0+, pressure local
 - vein_gallery: encounter/loot/corridor, tier 1, depth 1+
 - warden_hall: exit, tier 1, depth 0+
 - wardens_deep: encounter/loot/corridor, tier 1, depth 0+
 - warped_forest: encounter/loot/corridor, tier 2, depth 0+
+- windlift: loot, tier 1, depth 2+, needs wind_charge
 - witch_haven: encounter, tier 1, depth 0+
 - wither_hall: exit, tier 1, depth 0+
 - wither_loft: encounter, tier 3, depth 2+, access gated

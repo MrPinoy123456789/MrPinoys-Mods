@@ -13,28 +13,31 @@ node to a player.
   the starter tools (wooden axe, pickaxe and shovel). There is one bag, not a
   choice. Entering and leaving never grant items, and nothing refills it.
 - **Act 0, The First Night:** a new player's first dungeon, before Act 1. Five
-  floors, no lives to lose (deaths cost nothing here), and nothing is paid until
-  the last floor. The Home lever is locked until the finish; the Quit Door
-  restarts the night and clears the pack. The last floor is one trial spawner.
-  Finishing it banks 2 scrap, which is exactly what Compass 2 costs, and opens
-  Act 1. Lives start in Act 1. Teach the dungeons in general (the door board,
-  the lever, the pad at the end of a floor, scrap, compass, a furnace smelts
-  ore with fuel). Do not tell a player what to gather on a given floor.
+  floors, no lives to lose (deaths cost nothing here, and no pots), and nothing
+  is paid. The Home lever is locked until the finish; the Quit Door restarts the
+  night and clears the pack. The last floor is one trial spawner. Finishing it
+  opens Act 1 and the compass shows its first quest line. Lives start in Act 1.
+  Teach the dungeons in general (the door board, the lever, the pad at the end
+  of a floor, the pack and pots, the compass's quest line, a furnace smelts ore
+  with fuel). Do not tell a player what to gather on a given floor.
 - **Alex and the diaries:** Lemon is Alex's Allay. She lost Alex somewhere in the
   pocket dungeons and came out of the compass to look. She needs Alex's diaries
   to find her, so she asks the player to keep every page.
-- **Compass:** your level, shown as `Compass 10: 4/7` (scrap banked toward the
-  next level, and what that level costs). It only ever goes up. The first one is
-  free (`/dungeon key`); a lost one is replaced at the level you earned. A level
-  costs `4 + floor(compass / 3)` scrap: compass 1 costs 4, compass 10 costs 7.
+- **Compass:** in the campaign it is a quest line, not a number: its lore says
+  `Next: Mineshaft, Lush Caves or Infestation` and `2 more for the Spawner
+  Dungeon`. Finishing the Ancient City shows `Your compass wakes up.` and from
+  then on it is a level, `Compass 1: 0/4 scrap to 2` (a player who already had a
+  level keeps it). It only ever goes up. A level costs `4 + floor(compass / 3)`
+  scrap: compass 1 costs 4, compass 10 costs 7. The first compass is free
+  (`/dungeon key`); a lost one is replaced as it stood.
 - **The Astrolabe Room:** the first room of a trip. Right-click the astrolabe to
   turn to the next open act (sneak to turn back). Each door is a dungeon; the
-  side doors hold the act's Endless Mine. Clearing an act's capstone and floor 3
-  (the first guardian) of that act's Endless Mine opens the next act. The copper
-  bulb says how a dungeon stands: lit is open, oxidized is finished (the sign
-  says Play again), dark behind an iron door is locked (the sign says the compass
-  it needs, or Finish the act). Open a door to look inside through the wide
-  glass wall; the DESCEND lever glints beside the door you picked. Pull it to go.
+  side doors hold the act's Endless Mine. Finishing 3 of an act's dungeons opens
+  its capstone; clearing the capstone opens the next act. The copper bulb says
+  how a dungeon stands: lit is open, oxidized is finished (the sign says Play
+  again), dark behind an iron door is locked (the sign says `Finish 3 dungeons` or
+  `Finish Act 1`). Open a door to look inside through the wide glass wall; the
+  DESCEND lever glints beside the door you picked. Pull it to go.
 - **Floors and objectives:** most floors clear on the spawner gate (the bar
   shows `Spawners 2/3`) to open the way on. Some floors ask for something else
   instead, and the pad's refusal line says what is left: a heist floor (Sunken
@@ -47,46 +50,57 @@ node to a player.
   free. A side door or a door with the Blood affix costs 1 life (or 2 for some
   side branches), shared by the party, and is refused if it would take the last
   life. The door board shows the affixes, `Loot n%`, the barrel roll count
-  (`N rolls`), and any promised piece in the copper chest.
+  (`N rolls`), and any promised piece in the copper chest. In the campaign it
+  names no scrap.
 - **Names:** players call the room between floors "the Doors"; use that name.
-- **The sidebar:** shows floor, lives, spawners, haul and compass. `/dungeon
-  display off` hides it. Chat is only the log; players mostly do not read it live.
+- **The sidebar:** shows floor, lives and spawners (and `Pots N` when a pack is
+  down); after the campaign it adds haul and compass. `/dungeon display off`
+  hides it. Chat is only the log; players mostly do not read it live.
 
-## Scrap, haul, Loot percent and lives
+## The pack, pots, haul, Loot percent and lives
 
-- **Haul:** scrap carried on this trip. Each cleared floor pays into it. It is at
-  risk until it is banked.
-- **What a floor pays:** the door's step (+1, +2 or +3), plus 1 for each act
-  above the first, plus 1 on a dungeon's last floor. A floor below your compass
-  pays half (at least 1). Overclocked pays +1 extra scrap if cleared under 6:00.
+- **The pack:** the 27 inventory slots are what you risk. Your hotbar, armour,
+  offhand and Dungeon Storage are always safe.
+- **Pots:** when you fall in a dungeon, your pack stays where you fell, in a pot
+  named for you (or by that room's door when the spot is unsafe). You and your
+  party can take things out of it. A pot nobody empties keeps half when the floor
+  ends. The sidebar shows `Pots N` while any stand. Act 0 makes no pots.
+- **Dungeon Storage:** during a trip it opens only at the Doors and at home, not
+  from an ender chest out on a floor.
+- **Haul (after the campaign only):** scrap carried on this trip. In the campaign
+  floors pay no scrap; the compass shows the way instead. In the Chart Room each
+  cleared floor pays its step (+1, +2 or +3) into the haul, plus the act bonus and
+  1 on a last floor, and the haul is at risk until it is banked.
 - **Loot percent (`Loot n%`):** harder affixes raise the floor's Loot percent
   (100% with no affixes, higher with more or tougher affixes). It scales how many
   rolls your reward barrel gets (`N rolls` on the door board), and any floor
   above 100% also puts one extra piece of gear or material into the floor's
   copper chest, named right on the door board.
 - **Banking:** going home (the HOME lever, which asks first) or finishing a
-  dungeon banks the whole haul into your compass and rolls the deepest floor's
-  reward count into your reward barrel. A finish also pays emeralds and vault
-  chests; finishing the same dungeon again pays half the emeralds.
-- **Lives (from Act 1; Act 0 has none to lose):** the party shares 5 lives per trip. A death costs one; Blood or a
-  side door costs one (or two). The fifth death fails the dungeon.
-- **Failing:** a failed dungeon keeps half of everyone's haul, and the party is
-  sent back to the Home room (not out of the dungeon dimension), still together,
-  with the pack as carried and the doors ready to choose again.
+  dungeon keeps your whole pack, banks the haul into your compass after the
+  campaign, and rolls the deepest floor's reward count into your reward barrel.
+  A finish also pays emeralds and vault chests; finishing the same dungeon again
+  pays half the emeralds.
+- **Lives (from Act 1; Act 0 has none to lose):** the party shares lives fixed at
+  the first door: 5 solo, 6 for two, 7 for three, 8 for four. A death costs one;
+  Blood or a side door costs one (or two). The last death fails the dungeon.
+- **Failing:** every pot and every pack keeps half (and half the haul after the
+  campaign), and the party is sent back to the Home room, still together, with
+  the doors ready to choose again.
 - **Leaving:** leaving a floor in progress for any reason (the lodestone's Leave,
   `/dungeon exit`, a disconnect, joining another party) fails the dungeon for the
-  one who leaves: they keep half their haul. Leaving between floors cashes out in
-  full. If the party's owner leaves a floor in progress, the dungeon fails for
-  everyone. Leave asks first.
+  one who leaves: they keep half their pack and haul. Leaving between floors
+  keeps everything. If the party's owner leaves a floor in progress, the dungeon
+  fails for everyone. Leave asks first.
 - **Quit Door:** owner only, in a dungeon with a door chosen. It fails the
-  dungeon (half the haul), returns the party to the Home room and leaves the
-  compass alone.
+  dungeon (half the pack and haul), returns the party to the Home room and leaves
+  the compass alone.
 - **Disconnects:** the party owner has about two minutes to reconnect before the
   run ends as a failure.
 - **Vault keys:** a trial key lasts the whole dungeon, so carry one from floor 2
   into floor 3. Plain and ominous keys are separate and open separate vaults.
-  Keys you never use turn into emeralds when the haul banks (home, a finish or a
-  failed dungeon at its share).
+  Keys you never use turn into emeralds when you bank (home, a finish or a failed
+  dungeon at its share).
 - **Promised gear:** some floors say on the door board that the copper chest pays
   a named piece of gear. It is the exact piece the board named.
 
@@ -145,11 +159,24 @@ node to a player.
   yours (up to 3 follow you; extras sit).
 - **Fire:** fire does not spread inside dungeons.
 - **Endless Mine:** each act has its own Endless Mine (Act 1 `endless_mine`, Act
-  2 the Deep Mine). Every third floor (3, 6, 9 and on) holds a guardian fight and
-  pays a guardian loot table in the barrel (floor 3 tier A, floor 6 tier B, floor
-  9 and every guardian after tier C), escalating each lap. Clearing floor 3
-  counts toward opening the next act. Walls hide diggable ore that gets richer
-  with depth.
+  2 the Deep Mine). It is an optional dive: it never gates an act. Every third
+  floor (3, 6, 9 and on) holds a guardian fight and pays a guardian loot table in
+  the barrel (floor 3 tier A, floor 6 tier B, floor 9 and every guardian after
+  tier C), escalating each lap. Walls hide diggable ore that gets richer with
+  depth.
+- **The Chart Room (after the campaign):** finishing the Ancient City opens it;
+  the astrolabe turns to it after the last act. It holds three uncharted doors
+  and the endgame dive. An uncharted door is a new 3 floor dungeon built from the
+  themes of the acts you finished; at least half its affixes bend the rules
+  (Blackout, Restless, Molten, Explosive, Voided, Cooked, Blood); its last floor
+  is a guardian fight; its level is your compass plus the step you pick. The
+  three doors change after every trip. The endgame dive is a mine at your compass
+  plus the floor, with an arena every third floor: waves, then the guardian. The
+  Proving lives there now. Acts 3 to 5 are not open on this server.
+- **The Relic:** a middle floor of an uncharted door may hold a Relic (a heavy
+  core on a plinth). Carry it to the pad for a bigger Loot percent. It slows you,
+  it will not go into any container or Dungeon Storage, and if you fall it drops
+  into your pot. The pad opens without it.
 
 ## Gear and stations
 
