@@ -64,7 +64,14 @@ final class UnchartedGen {
     }
 
     /** Everything one generated dungeon is a function of. */
-    record Input(UUID owner, int trip, int slot, int compass, int maxAct) {
+    record Input(UUID owner, int trip, int slot, int compass, int maxAct, double relicChance) {
+
+        /** The chance of a relic floor the shipped {@code relicFloorChance} knob defaults to. */
+        static final double DEFAULT_RELIC_CHANCE = 0.25;
+
+        Input(UUID owner, int trip, int slot, int compass, int maxAct) {
+            this(owner, trip, slot, compass, maxAct, DEFAULT_RELIC_CHANCE);
+        }
 
         Input {
             slot = Math.floorMod(slot, DOORS);
@@ -137,9 +144,15 @@ final class UnchartedGen {
      */
     static List<DungeonDef> doors(UUID owner, int trip, int compass, int maxAct, Set<String> finished,
                                   Collection<DungeonDef> all) {
+        return doors(owner, trip, compass, maxAct, Input.DEFAULT_RELIC_CHANCE, finished, all);
+    }
+
+    /** {@link #doors(UUID, int, int, int, Set, Collection)} at a given chance of a relic on the middle floor. */
+    static List<DungeonDef> doors(UUID owner, int trip, int compass, int maxAct, double relicChance,
+                                  Set<String> finished, Collection<DungeonDef> all) {
         List<DungeonDef> out = new ArrayList<>();
         for (int slot = 0; slot < DOORS; slot++) {
-            DungeonDef def = generate(new Input(owner, trip, slot, compass, maxAct), finished, all);
+            DungeonDef def = generate(new Input(owner, trip, slot, compass, maxAct, relicChance), finished, all);
             if (def != null) {
                 out.add(def);
             }
@@ -164,7 +177,7 @@ final class UnchartedGen {
         boolean borrows = !DungeonDef.qualify(middle.mainTheme()).equals(DungeonDef.qualify(main.mainTheme()));
 
         int level = in.compass();
-        String objective = middleObjective(salt);
+        String objective = middleObjective(salt, in.relicChance());
         List<DungeonDef.Node> nodes = List.of(
                 node(ENTRY_NODE, "The Gate", 1, "", false, level, DungeonDef.Node.OBJECTIVE_SPAWNERS, ""),
                 node(MIDDLE_NODE, "The Deep", 2, borrows ? DungeonDef.qualify(middle.mainTheme()) : "", false, level,
@@ -197,12 +210,12 @@ final class UnchartedGen {
     }
 
     /**
-     * The objective of the middle floor. Always the ordinary spawner gate today; the heavy thing (task T7, a
-     * relic carried to the pad) replaces this one method with a seeded roll at {@code relicFloorChance}, and
-     * nothing else in the generator changes.
+     * The objective of the middle floor: the ordinary spawner gate, or (a seeded roll at {@code relicFloorChance})
+     * the heavy thing, a relic carried to the pad for greed. The relic never replaces the gate.
      */
-    static String middleObjective(long salt) {
-        return DungeonDef.Node.OBJECTIVE_SPAWNERS;
+    static String middleObjective(long salt, double relicChance) {
+        return FloorObjectiveRules.relicRolls(salt, relicChance)
+                ? DungeonDef.Node.OBJECTIVE_RELIC : DungeonDef.Node.OBJECTIVE_SPAWNERS;
     }
 
     /**
