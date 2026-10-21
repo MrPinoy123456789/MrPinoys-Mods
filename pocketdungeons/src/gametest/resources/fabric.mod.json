@@ -24,6 +24,7 @@
       "pocketdungeons.FloorLoopGameTest",
       "pocketdungeons.DoorCommitGameTest",
       "pocketdungeons.CubeRecipeGameTest",
+      "pocketdungeons.LeaderGraceGameTest",
       "pocketdungeons.ContentReloadGameTest",
       "pocketdungeons.ContentModuleGameTest",
       "pocketdungeons.PiglinBarterGameTest",

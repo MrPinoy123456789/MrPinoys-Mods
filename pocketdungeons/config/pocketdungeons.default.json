@@ -5,7 +5,7 @@
   "voidGuardDepth": 10,
   "maxPartyMembers": 6,
   "inviteTtlSeconds": 120,
-  "ownerReconnectGraceSeconds": 120,
+  "ownerReconnectGraceSeconds": 600,
   "maxConcurrentInstances": 32,
   "maxConcurrentVisits": 16,
   "maxConcurrentPreviews": 16,

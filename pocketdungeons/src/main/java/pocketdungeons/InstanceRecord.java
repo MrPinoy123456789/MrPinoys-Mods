@@ -99,6 +99,13 @@ final class InstanceRecord {
     long ownerAbsentUntilTick;
 
     /**
+     * The 5 minute and 1 minute grace warnings ({@code RunLifecycle.watchOwnerGrace})
+     * each fire once per hold. Reset with {@link #ownerAbsentUntilTick}.
+     */
+    boolean ownerGraceWarned5;
+    boolean ownerGraceWarned1;
+
+    /**
      * An operator's run outside the floor loop, opened by
      * {@code /dungeon admin untimed}: a full layout at once, no keystone
      * spent.

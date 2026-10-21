@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -591,10 +592,19 @@ final class RunLifecycle {
      *
      * @return the door to commit, or {@code null} when a gate refused
      */
-    private static DoorCommit checkCommitGates(ServerPlayer player, MinecraftServer server,
-                                               InstanceRecord record) {
+    static DoorCommit checkCommitGates(ServerPlayer player, MinecraftServer server,
+                                       InstanceRecord record) {
         // D15: any member may commit unless the leader's decide whitelist is on.
         if (!PartyDecide.mayOrRefuse(server, record, player)) {
+            return null;
+        }
+        // Nobody starts the next floor while the leader is away (owner, 2026-10-21):
+        // in reconnect grace or gone for any reason, commits wait for them. Guests
+        // may still preview doors, walk around, bank and leave.
+        if (!record.members.containsKey(record.owner)) {
+            Chime.refused(player);
+            actionBar(player, "Waiting for " + ownerDisplayName(server, record, null)
+                    + ". The next floor starts when they return.", ChatFormatting.YELLOW);
             return null;
         }
         if (record.floor.selectedStep == 0 || record.floor.previewPlan == null) {
@@ -2478,7 +2488,7 @@ final class RunLifecycle {
         // record.members has already had `member` removed above, so a non-empty
         // set here means someone else is still in the party.
         if (leadershipChanged(record, member, !record.members.isEmpty())) {
-            if (disconnected && holdForOwner(server, record)) {
+            if (disconnected && holdForOwner(server, record, player)) {
                 return;
             }
             if (record.isKeystoneRun() && record.inFloorLoop() && !record.visitInstance) {
@@ -2512,15 +2522,20 @@ final class RunLifecycle {
      * @return whether the run is being held for the owner; {@code false} (grace
      *         off, or not a floor loop run) means end it now, as before
      */
-    private static boolean holdForOwner(MinecraftServer server, InstanceRecord record) {
+    private static boolean holdForOwner(MinecraftServer server, InstanceRecord record, ServerPlayer leaving) {
         int grace = PocketDungeonsConfig.ownerReconnectGraceSeconds();
         if (grace <= 0 || !record.inFloorLoop() || record.tearingDown) {
             return false;
         }
         if (record.ownerAbsentUntilTick == 0) {
             record.ownerAbsentUntilTick = server.overworld().getGameTime() + grace * 20L;
-            Instances.announce(server, record, "Your party leader lost their connection. The run holds for "
-                    + grace + " seconds; the doors and the way home wait for them.", null);
+            record.ownerGraceWarned5 = false;
+            record.ownerGraceWarned1 = false;
+            String wait = grace >= 60
+                    ? Math.max(1, Math.round(grace / 60.0)) + " minutes"
+                    : grace + " seconds";
+            Instances.announce(server, record, ownerDisplayName(server, record, leaving)
+                    + " lost their connection. The run waits " + wait + " for them.", null);
             PocketDungeonsMod.LOG.info("Holding slot {} for its owner {} for {}s after a disconnect",
                     record.slot, record.owner, grace);
             PlaytestJournal.ownerHold(server, record, "start");
@@ -2530,25 +2545,56 @@ final class RunLifecycle {
 
     /**
      * The watcher's half of {@link #holdForOwner}, once per watch tick while
-     * the owner is away. The hold lifts when the owner is back, or when the
-     * rest of the party has left too (a run nobody is in simply waits for its
-     * owner, as it always has). When the deadline passes the run ends: at a
-     * checkpoint the members present first bank the interval one band worse,
-     * the same as the owner leaving there; mid-floor it ends as a leader
-     * leaving always has.
+     * the owner is away. The hold lifts when the owner is back. While the
+     * leader is away in grace and every other member has left the dungeon too,
+     * the run ends at once with the same ending the deadline uses (decision
+     * 2026-10-21). A leader alone in their run never gets a hold, so they still
+     * wait and resume where they left off. When the deadline passes the run
+     * ends: at a checkpoint the members present first bank the interval one
+     * band worse, the same as the owner leaving there; mid-floor it ends as a
+     * leader leaving always has.
      *
      * @return whether the run ended
      */
     static boolean watchOwnerGrace(MinecraftServer server, InstanceRecord record, long now) {
-        if (record.members.containsKey(record.owner) || record.members.isEmpty()) {
+        if (record.members.containsKey(record.owner)) {
             record.ownerAbsentUntilTick = 0;
+            record.ownerGraceWarned5 = false;
+            record.ownerGraceWarned1 = false;
             return false;
+        }
+        long remaining = record.ownerAbsentUntilTick - now;
+        if (!record.ownerGraceWarned5 && remaining > 0 && remaining <= 5 * 60 * 20L) {
+            record.ownerGraceWarned5 = true;
+            actionBarToMembers(server, record, ownerDisplayName(server, record, null)
+                    + " has 5 minutes to return", ChatFormatting.YELLOW);
+        }
+        if (!record.ownerGraceWarned1 && remaining > 0 && remaining <= 60 * 20L) {
+            record.ownerGraceWarned1 = true;
+            actionBarToMembers(server, record, ownerDisplayName(server, record, null)
+                    + " has 1 minute to return", ChatFormatting.YELLOW);
+        }
+        if (record.members.isEmpty()) {
+            endGraceRun(server, record, "all_members_left");
+            return true;
         }
         if (now < record.ownerAbsentUntilTick) {
             return false;
         }
+        endGraceRun(server, record, "expire");
+        return true;
+    }
+
+    /**
+     * The shared ending of {@link #watchOwnerGrace}: at a checkpoint the
+     * members present first bank the interval one band worse, mid-floor it is
+     * a failed dungeon, then the party is told and the run is torn down.
+     */
+    private static void endGraceRun(MinecraftServer server, InstanceRecord record, String journalReason) {
         record.ownerAbsentUntilTick = 0;
-        PlaytestJournal.ownerHold(server, record, "expire");
+        record.ownerGraceWarned5 = false;
+        record.ownerGraceWarned1 = false;
+        PlaytestJournal.ownerHold(server, record, journalReason);
         if (record.isKeystoneRun() && betweenFloors(record)) {
             ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
             if (record.phase == RunSession.Phase.PREVIEW && level != null) {
@@ -2559,9 +2605,39 @@ final class RunLifecycle {
             // The owner is not in the party at the end of a floor in progress: it is a failed dungeon.
             settleLeaderLeft(server, record, record.owner);
         }
-        Instances.announce(server, record, "Your party leader did not come back in time. The run ends.", null);
+        Instances.announce(server, record, ownerDisplayName(server, record, null)
+                + " did not return. The run is over.", null);
         InstanceTeardown.purge(server, record, "party leader did not reconnect");
-        return true;
+    }
+
+    /**
+     * The owner's display name for grace messages: the departing player when
+     * known, else the server's name cache, else the generic party leader word.
+     */
+    private static String ownerDisplayName(MinecraftServer server, InstanceRecord record, ServerPlayer leaving) {
+        if (leaving != null && leaving.getUUID().equals(record.owner)) {
+            return leaving.getName().getString();
+        }
+        return server.services().nameToIdCache().get(record.owner)
+                .map(net.minecraft.server.players.NameAndId::name)
+                .orElse("The party leader");
+    }
+
+    /** One action bar line to {@code player}. */
+    private static void actionBar(ServerPlayer player, String text, ChatFormatting colour) {
+        player.connection.send(new ClientboundSetActionBarTextPacket(
+                Component.literal(text).withStyle(colour)));
+    }
+
+    /** One action bar line to every online member of the run. */
+    private static void actionBarToMembers(MinecraftServer server, InstanceRecord record, String text,
+                                           ChatFormatting colour) {
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
+            if (memberPlayer != null) {
+                actionBar(memberPlayer, text, colour);
+            }
+        }
     }
 
     /**

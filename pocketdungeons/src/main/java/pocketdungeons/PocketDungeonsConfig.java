@@ -73,7 +73,7 @@ public final class PocketDungeonsConfig {
      * it at once, as it did before the grace existed.
      */
     private static final Knob<Integer> OWNER_RECONNECT_GRACE_SECONDS = integer(
-            "ownerReconnectGraceSeconds", 120, v -> v >= 0 && v <= 3600, "must be between 0 and 3600");
+            "ownerReconnectGraceSeconds", 600, v -> v >= 0 && v <= 3600, "must be between 0 and 3600");
     // M76: operating envelope. These bound how much concurrent world work the
     // mod can hold at once, so an overload refuses a new request before it
     // charges fuel or a catalyst rather than letting the server thrash. They
