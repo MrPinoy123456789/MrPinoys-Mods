@@ -70,6 +70,9 @@ public class DungeonLogGoldenTest {
                 "deepestMine=21");
         DungeonLog log = golden("full_current", expected);
         check(log.taskProgress(PLAYER, "station_a"), 2, "task progress sidecar is read");
+        // Crew model: no finish_bonus_claimed in the fixture, so the set seeds from dungeons_finished.
+        check(log.finishBonusClaimedOf(PLAYER), java.util.Set.of("pocketdungeons:frostworks"),
+                "finish_bonus_claimed seeds from dungeons_finished");
         // The one fixture whose input is already in the written form, but for the old scrap
         // pool, which is read and never written (always 0, so omitted).
         JsonElement input = read("full_current.json");

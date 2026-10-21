@@ -81,5 +81,13 @@
         "station_a": 2
       }
     }
+  ],
+  "finish_bonus_claimed": [
+    {
+      "player": "00000000-0000-0000-0000-00000000000a",
+      "dungeons": [
+        "pocketdungeons:frostworks"
+      ]
+    }
   ]
 }
