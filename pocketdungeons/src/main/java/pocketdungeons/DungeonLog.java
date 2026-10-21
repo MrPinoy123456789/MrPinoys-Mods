@@ -1171,8 +1171,10 @@ final class DungeonLog extends SavedData {
         // set from the player's finished dungeons, so an old finish does not pay
         // its first finish bonuses again (decision 2026-10-21).
         for (PlayerEntry entry : players) {
-            log.finishBonusClaimed.computeIfAbsent(entry.player(),
-                    id -> new HashSet<>(entry.entry().dungeonsFinished()));
+            if (!entry.entry().dungeonsFinished().isEmpty()) {
+                log.finishBonusClaimed.computeIfAbsent(entry.player(),
+                        id -> new HashSet<>(entry.entry().dungeonsFinished()));
+            }
         }
         return log;
     }
