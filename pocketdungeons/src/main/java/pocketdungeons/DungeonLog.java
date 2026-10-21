@@ -709,6 +709,18 @@ final class DungeonLog extends SavedData {
      */
     private final Map<UUID, List<FloorHistory.Entry>> floorHistory = new HashMap<>();
 
+    /**
+     * The dungeons each player has already claimed a first finish bonus for
+     * (the full emerald rate, the vault and the diary page). Crew model
+     * (decision 2026-10-21): campaign progress lands on the party leader's
+     * save, but a bonus is personal, so it is guarded per player rather than
+     * by {@code dungeonsFinished}, which a guest's save no longer gains. A
+     * sidecar map for the same reason {@link #taskProgress} is one, and seeded
+     * from {@code dungeonsFinished} at decode when a save predates the field,
+     * so a dungeon already finished does not pay its first finish twice.
+     */
+    private final Map<UUID, Set<String>> finishBonusClaimed = new HashMap<>();
+
     /** (M75) How many run records per player the sidecar keeps; oldest drop off the front. */
     static final int RUN_RECORD_LIMIT = 20;
 
@@ -1007,6 +1019,17 @@ final class DungeonLog extends SavedData {
             RecipeDiscovery.CODEC.fieldOf("discovery").forGetter(PlayerRecipeDiscovery::discovery)
     ).apply(instance, PlayerRecipeDiscovery::new));
 
+    /** One player's first finish bonus claims, keyed the same way {@link PlayerEntry} is. */
+    private record PlayerFinishBonuses(UUID player, Set<String> dungeons) {}
+
+    private static final Codec<PlayerFinishBonuses> PLAYER_FINISH_BONUSES_CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerFinishBonuses::player),
+            Codec.STRING.listOf().xmap(list -> (Set<String>) new HashSet<>(list), List::copyOf)
+                    .fieldOf("dungeons").forGetter(PlayerFinishBonuses::dungeons)
+    ).apply(instance, PlayerFinishBonuses::new));
+
     /** One player's floor history, keyed the same way {@link PlayerEntry} is. */
     private record PlayerFloorHistory(UUID player, List<FloorHistory.Entry> entries) {}
 
@@ -1089,7 +1112,13 @@ final class DungeonLog extends SavedData {
             // Campaign and endgame 2026-10-18 (T4): optional so a save written before pack pots loads
             // with none standing, which is the correct reading of "no rescue has made a pot yet".
             PackPot.CODEC.listOf().optionalFieldOf("pack_pots", List.of())
-                    .forGetter(log -> List.copyOf(log.packPots.values()))
+                    .forGetter(log -> List.copyOf(log.packPots.values())),
+            // Crew model (decision 2026-10-21): optional so a save written before first
+            // finish bonuses were their own set loads with none listed; fromEntries then
+            // seeds each player's set from their dungeons_finished, so nothing pays twice.
+            PLAYER_FINISH_BONUSES_CODEC.listOf().optionalFieldOf("finish_bonus_claimed", List.of())
+                    .forGetter(log -> log.finishBonusClaimed.entrySet().stream()
+                            .map(e -> new PlayerFinishBonuses(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
@@ -1102,7 +1131,8 @@ final class DungeonLog extends SavedData {
                                           List<PlayerKitChest> kitChests,
                                           List<PlayerStorageReturn> retiredStorageReturns,
                                           List<PlayerDungeonStorage> dungeonStorage,
-                                          List<PackPot> packPots) {
+                                          List<PackPot> packPots,
+                                          List<PlayerFinishBonuses> finishBonuses) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -1133,6 +1163,16 @@ final class DungeonLog extends SavedData {
         }
         for (PackPot pot : packPots) {
             log.packPots.put(pot.id(), pot);
+        }
+        for (PlayerFinishBonuses f : finishBonuses) {
+            log.finishBonusClaimed.put(f.player(), new HashSet<>(f.dungeons()));
+        }
+        // Migration: a save written before finish_bonus_claimed existed seeds the
+        // set from the player's finished dungeons, so an old finish does not pay
+        // its first finish bonuses again (decision 2026-10-21).
+        for (PlayerEntry entry : players) {
+            log.finishBonusClaimed.computeIfAbsent(entry.player(),
+                    id -> new HashSet<>(entry.entry().dungeonsFinished()));
         }
         return log;
     }
@@ -1588,6 +1628,27 @@ final class DungeonLog extends SavedData {
         entries.put(player, previous.withDungeonsFinished(finished));
         setDirty();
         return true;
+    }
+
+    /**
+     * Claims {@code player}'s first finish bonus of {@code dungeonId}: true the
+     * first time, for the leader and guests alike. Crew model (decision
+     * 2026-10-21): the bonus (full emerald rate, vault, diary page) keys on
+     * this personal set rather than {@link #addDungeonFinished}, which a
+     * guest's save no longer gains.
+     */
+    boolean claimFinishBonus(UUID player, String dungeonId) {
+        Set<String> claimed = finishBonusClaimed.computeIfAbsent(player, id -> new HashSet<>());
+        if (!claimed.add(dungeonId)) {
+            return false;
+        }
+        setDirty();
+        return true;
+    }
+
+    /** The dungeons {@code player} has already claimed a first finish bonus for. */
+    Set<String> finishBonusClaimedOf(UUID player) {
+        return Set.copyOf(finishBonusClaimed.getOrDefault(player, Set.of()));
     }
 
     /** Whether {@code player} may be offered dungeons of {@code act}. */

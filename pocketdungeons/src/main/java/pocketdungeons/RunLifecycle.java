@@ -1456,14 +1456,27 @@ final class RunLifecycle {
         }
         DungeonLog mineLog = DungeonLog.forServer(server);
         int mineAct = EndlessMineRules.actOf(record);
-        for (UUID member : record.members.keySet()) {
-            if (mineLog.recordMineFloor(member, mineAct, floorsCleared)) {
-                // D29: a new deepest floor may complete the act's Mine leg.
-                ServerPlayer memberPlayer = server.getPlayerList().getPlayer(member);
-                if (memberPlayer != null) {
-                    DungeonProgress.onProgress(server, record, memberPlayer, false);
-                }
-            }
+        // Crew model (decision 2026-10-21): the depth is campaign progress, so it
+        // writes to the party leader's save and nobody else's.
+        if (mineLog.recordMineFloor(record.owner, mineAct, floorsCleared)) {
+            // D29: a new deepest floor may complete the act's Mine leg.
+            progressOrDefer(server, record, mineLog, false, false);
+        }
+    }
+
+    /**
+     * Runs {@link DungeonProgress#onProgress} for the run's leader when they are
+     * online; when they are away (the reconnect grace, or gone entirely) marks
+     * {@link DungeonProgress#PENDING_PROGRESS_KEY} on their save so the
+     * evaluation runs on their next join ({@link #onJoinHaul}).
+     */
+    private static void progressOrDefer(MinecraftServer server, InstanceRecord record, DungeonLog log,
+                                        boolean announceRemaining, boolean newFinish) {
+        ServerPlayer leader = server.getPlayerList().getPlayer(record.owner);
+        if (leader != null) {
+            DungeonProgress.onProgress(server, record, leader, announceRemaining, newFinish);
+        } else {
+            log.setTaskProgress(record.owner, DungeonProgress.PENDING_PROGRESS_KEY, 1);
         }
     }
 
@@ -1587,11 +1600,15 @@ final class RunLifecycle {
      * the vault before it walks home. Going home early (any earlier staging room)
      * banks chests only, with no emeralds, vault or page.
      */
-    private static void finishDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record,
+    static void finishDungeon(MinecraftServer server, ServerLevel level, InstanceRecord record,
                                       DungeonDef def, BlockPos terminalOrigin, DoorMask.Direction entranceDir,
                                       ThemeManifest.Entry completionTheme) {
         int vaultChests = PocketDungeonsConfig.finishVaultChests();
         DungeonLog log = DungeonLog.forServer(server);
+        // Crew model (decision 2026-10-21): the finish is campaign progress, so it
+        // records on the party leader's save and nobody else's, even while the
+        // leader is away in the reconnect grace.
+        boolean ownerFirst = !Campaign.isUncharted(def) && log.addDungeonFinished(record.owner, def.id());
         // The finish banks the haul before anything else, present members and absent ones alike.
         for (UUID member : record.members.keySet()) {
             record.interval.finishBanked.put(member, bankHaul(server, record, member, BankContext.FINISH).banked());
@@ -1601,11 +1618,9 @@ final class RunLifecycle {
             if (memberPlayer == null) {
                 continue;
             }
-            // A Chart Room door is not a dungeon of the campaign: it is never recorded as finished.
-            boolean first = !Campaign.isUncharted(def) && log.addDungeonFinished(member, def.id());
-            // D8, D16, D29: every finish re-evaluates the member's acts; a
-            // finish that opens nothing names what is left.
-            DungeonProgress.onProgress(server, record, memberPlayer, true, first);
+            // The first finish bonuses (full emerald rate, vault, diary page) are
+            // personal: a guest earns each dungeon's bonus once too.
+            boolean first = !Campaign.isUncharted(def) && log.claimFinishBonus(member, def.id());
             // J1: the finish pays emeralds now; the echo shard is retired.
             int emeralds = isPrologue(record) ? 0 : PocketDungeonsConfig.finishEmeralds();
             if (!first) {
@@ -1644,6 +1659,10 @@ final class RunLifecycle {
             }
             PlaytestJournal.dungeonFinished(memberPlayer, record, emeralds, vaultChests, first, diaryId);
         }
+        // D8, D16, D29: the finish re-evaluates the leader's acts; a finish
+        // that opens nothing names what is left. An absent leader's save still
+        // got the finish above, so their evaluation runs on their next join.
+        progressOrDefer(server, record, log, true, ownerFirst);
     }
 
     /**
@@ -1818,6 +1837,12 @@ final class RunLifecycle {
             }
         }
         Keystone.showCompass(player, log.get(id), inTrip);
+        // Crew model (decision 2026-10-21): a finish or Mine floor recorded on this
+        // player's save while they led a run from offline is evaluated now.
+        if (log.taskProgress(id, DungeonProgress.PENDING_PROGRESS_KEY) != 0) {
+            log.setTaskProgress(id, DungeonProgress.PENDING_PROGRESS_KEY, 0);
+            DungeonProgress.onProgress(server, InstanceRegistry.byMember.get(id), player, true);
+        }
     }
 
     /** The lines of the one time message a migrated player gets on the first join after the quest line shipped. */

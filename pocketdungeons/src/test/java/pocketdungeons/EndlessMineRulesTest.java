@@ -257,11 +257,8 @@ public class EndlessMineRulesTest {
                     "each floor down is one level harder");
         }
 
-        check(EndlessMineRules.diveCompass(java.util.List.of(30, 12, 20)) == 12,
-                "the party levels on its lowest compass");
-        check(EndlessMineRules.diveCompass(java.util.List.of(7)) == 7 && EndlessMineRules.diveCompass(java.util.List.of()) == 1
-                        && EndlessMineRules.diveCompass(java.util.List.of(0)) == 1,
-                "a solo party, an empty one and a zero compass all read sanely");
+        // The dive compass is the leader's now (crew model, decision 2026-10-21);
+        // the server overload needs a DungeonLog, so the gametest covers it.
 
         // The dive is not an act's mine: it never lists with the open mines, and never replaces the act's own.
         java.util.List<DungeonDef> all = java.util.List.of(dive, proving, act2, act1);

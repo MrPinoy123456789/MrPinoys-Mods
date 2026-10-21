@@ -155,28 +155,13 @@ final class EndlessMineRules {
     }
 
     /**
-     * The compass a dive party levels on: the lowest among the party, so the floor never outruns a member.
-     * An empty party reads as compass 1.
+     * The party's dive compass: the leader's {@code highestCharts}. Crew model
+     * (decision 2026-10-21): the party plays the leader's campaign, so the dive
+     * levels on the leader's compass, superseding the old lowest-of-the-party
+     * read. A compass below 1 reads as 1.
      */
-    static int diveCompass(java.util.Collection<Integer> compasses) {
-        int lowest = Integer.MAX_VALUE;
-        for (int compass : compasses) {
-            lowest = Math.min(lowest, compass);
-        }
-        return lowest == Integer.MAX_VALUE ? 1 : Math.max(1, lowest);
-    }
-
-    /** The party's dive compass read from the dungeon log: the lowest {@code highestCharts} among the owner and the members. */
     static int diveCompass(net.minecraft.server.MinecraftServer server, InstanceRecord record, java.util.UUID owner) {
-        DungeonLog log = DungeonLog.forServer(server);
-        java.util.List<Integer> compasses = new java.util.ArrayList<>();
-        compasses.add(log.get(owner).highestCharts());
-        if (record != null) {
-            for (java.util.UUID member : record.members.keySet()) {
-                compasses.add(log.get(member).highestCharts());
-            }
-        }
-        return diveCompass(compasses);
+        return Math.max(1, DungeonLog.forServer(server).get(owner).highestCharts());
     }
 
     /** The dive's level for a floor given the party, as the door offers read it. */

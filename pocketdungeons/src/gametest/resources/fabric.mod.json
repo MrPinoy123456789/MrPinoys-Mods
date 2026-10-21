@@ -70,6 +70,7 @@
       "pocketdungeons.LemonGameTest",
       "pocketdungeons.LootTagGameTest",
       "pocketdungeons.FloorHistoryGameTest",
+      "pocketdungeons.CrewProgressGameTest",
       "pocketdungeons.FountainGameTest",
       "pocketdungeons.WagerGearGameTest",
 

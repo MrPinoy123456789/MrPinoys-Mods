@@ -283,6 +283,52 @@ public class DungeonLogTest {
                 com.mojang.serialization.JsonOps.INSTANCE, haulJson).result().orElseThrow().getFirst();
         check(migratedEmpty.get(player).chartProgress(), 0, "a migrated compass 12 with an empty pool lands on 0/5");
 
+        // Crew model (decision 2026-10-21): finish_bonus_claimed guards the first
+        // finish bonus per player. It claims once, round trips, and a save written
+        // before the field existed seeds it from dungeons_finished.
+        DungeonLog claims = new DungeonLog();
+        check(claims.claimFinishBonus(player, "pocketdungeons:mineshaft"), true, "first claim is reported");
+        check(claims.claimFinishBonus(player, "pocketdungeons:mineshaft"), false, "a second claim is not");
+        check(claims.claimFinishBonus(player, "pocketdungeons:kennels"), true, "another dungeon claims fresh");
+        com.google.gson.JsonElement claimsJson = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, claims).result().orElseThrow();
+        DungeonLog claimsDecoded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, claimsJson).result().orElseThrow().getFirst();
+        check(claimsDecoded.finishBonusClaimedOf(player),
+                java.util.Set.of("pocketdungeons:mineshaft", "pocketdungeons:kennels"),
+                "finishBonusClaimed round trips");
+        check(claimsDecoded.claimFinishBonus(player, "pocketdungeons:mineshaft"), false,
+                "a claim does not reset across a reload");
+
+        // Migration: no finish_bonus_claimed field, so the set seeds from dungeons_finished.
+        DungeonLog beforeChange = new DungeonLog();
+        beforeChange.addDungeonFinished(player, "pocketdungeons:ossuary");
+        com.google.gson.JsonObject oldSave = DungeonLog.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, beforeChange).result().orElseThrow().getAsJsonObject();
+        oldSave.remove("finish_bonus_claimed");
+        DungeonLog seeded = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, oldSave).result().orElseThrow().getFirst();
+        check(seeded.finishBonusClaimedOf(player), java.util.Set.of("pocketdungeons:ossuary"),
+                "a pre-crew save seeds finish_bonus_claimed from dungeons_finished");
+        check(seeded.claimFinishBonus(player, "pocketdungeons:ossuary"), false,
+                "an old finish does not pay its first bonus again");
+        check(seeded.claimFinishBonus(player, "pocketdungeons:infestation"), true,
+                "a dungeon never finished still pays its bonus");
+        // A player listed in finish_bonus_claimed keeps their list, not the seed:
+        // only an entry absent from the field is seeded from dungeons_finished.
+        com.google.gson.JsonArray claimed = new com.google.gson.JsonArray();
+        com.google.gson.JsonObject claimedEntry = new com.google.gson.JsonObject();
+        claimedEntry.addProperty("player", player.toString());
+        com.google.gson.JsonArray claimedDungeons = new com.google.gson.JsonArray();
+        claimedDungeons.add("pocketdungeons:kennels");
+        claimedEntry.add("dungeons", claimedDungeons);
+        claimed.add(claimedEntry);
+        oldSave.add("finish_bonus_claimed", claimed);
+        DungeonLog explicit = DungeonLog.CODEC.decode(
+                com.mojang.serialization.JsonOps.INSTANCE, oldSave).result().orElseThrow().getFirst();
+        check(explicit.finishBonusClaimedOf(player), java.util.Set.of("pocketdungeons:kennels"),
+                "a listed finish_bonus_claimed entry is kept, not reseeded");
+
         System.out.println("DungeonLogTest passed");
     }
 

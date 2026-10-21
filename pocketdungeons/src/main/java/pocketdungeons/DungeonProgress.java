@@ -37,6 +37,13 @@ final class DungeonProgress {
     static final String PROLOGUE_KEY = "act0";
 
     /**
+     * The {@link DungeonLog#taskProgress} key that marks progress written to a
+     * leader's save while they were offline (crew model, decision 2026-10-21):
+     * {@link RunLifecycle#onJoinHaul} runs the evaluation on their next join.
+     */
+    static final String PENDING_PROGRESS_KEY = "pending_progress";
+
+    /**
      * Whether {@code player} has finished Act 0 (The First Night). A stored 1 means done and 2 means a key reset
      * reopened it. With nothing stored, a player who already has progress (a compass above 1, a finished dungeon
      * or a later act open) counts as done, so players from before the prologue are never sent back to it.
@@ -133,21 +140,30 @@ final class DungeonProgress {
                 continue;
             }
             String label = ActProgress.label(next) + " is open";
-            member.sendSystemMessage(Component.literal(label + ". Its dungeons now appear at the first door.")
-                    .withStyle(ChatFormatting.GOLD));
-            StaggeredTitle.showMilestone(server, id, Component.literal(label).withStyle(ChatFormatting.GOLD),
-                    java.util.List.of("Act " + act + " complete"), ChatFormatting.GRAY,
-                    DungeonProgress::celebrate);
+            // Crew model (decision 2026-10-21): the act is the party's, so the
+            // opened line and the milestone title reach every member present,
+            // while the unlock itself writes only to the leader's save.
+            for (ServerPlayer present : presentMembers(server, record, member)) {
+                present.sendSystemMessage(Component.literal(
+                        label + ". Its dungeons now appear at the first door.")
+                        .withStyle(ChatFormatting.GOLD));
+                StaggeredTitle.showMilestone(server, present.getUUID(),
+                        Component.literal(label).withStyle(ChatFormatting.GOLD),
+                        java.util.List.of("Act " + act + " complete"), ChatFormatting.GRAY,
+                        DungeonProgress::celebrate);
+            }
             PlaytestJournal.actUnlocked(member, record, dungeonId, next, false);
             opened = next;
         }
 
         if (ActProgress.complete(DungeonDef.MAX_ACT, finished, depth, all)
                 && log.markCampaignComplete(id)) {
-            member.sendSystemMessage(Component.literal(
-                    "The campaign is complete. He got away, and Alex stayed behind to look for him. Nothing in the dark"
-                    + " is whole yet. The search continues.")
-                    .withStyle(ChatFormatting.GOLD));
+            for (ServerPlayer present : presentMembers(server, record, member)) {
+                present.sendSystemMessage(Component.literal(
+                        "The campaign is complete. He got away, and Alex stayed behind to look for him. Nothing in the dark"
+                        + " is whole yet. The search continues.")
+                        .withStyle(ChatFormatting.GOLD));
+            }
             PlaytestJournal.actUnlocked(member, record, dungeonId, 0, true);
         }
 
@@ -178,6 +194,29 @@ final class DungeonProgress {
             }
         }
         return opened;
+    }
+
+    /**
+     * Every member of the run who is online right now, {@code member} first:
+     * the audience of a progress announcement under the crew model, where the
+     * write lands on the leader's save but the act is the party's.
+     */
+    private static java.util.List<ServerPlayer> presentMembers(MinecraftServer server,
+                                                               InstanceRecord record, ServerPlayer member) {
+        java.util.List<ServerPlayer> present = new java.util.ArrayList<>();
+        present.add(member);
+        if (record != null) {
+            for (UUID other : record.members.keySet()) {
+                if (other.equals(member.getUUID())) {
+                    continue;
+                }
+                ServerPlayer online = server.getPlayerList().getPlayer(other);
+                if (online != null) {
+                    present.add(online);
+                }
+            }
+        }
+        return present;
     }
 
     /** The title when the last capstone on the server is finished (decision 2026-10-18). */
