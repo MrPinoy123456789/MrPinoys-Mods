@@ -78,6 +78,15 @@ public class DungeonLogGoldenTest {
         JsonElement input = read("full_current.json");
         input.getAsJsonObject().getAsJsonArray("players").get(0).getAsJsonObject()
                 .getAsJsonObject("entry").remove("scrap");
+        // The crew migration seeds finish_bonus_claimed from dungeons_finished on a save that
+        // lacks the field, so the first write carries it; expect that in the written input.
+        JsonObject bonus = new JsonObject();
+        bonus.addProperty("player", PLAYER.toString());
+        JsonArray finished = new JsonArray();
+        finished.add("pocketdungeons:frostworks");
+        bonus.add("dungeons", finished);
+        input.getAsJsonObject().add("finish_bonus_claimed", new JsonArray());
+        input.getAsJsonObject().getAsJsonArray("finish_bonus_claimed").add(bonus);
         check(pretty(normalize(input)), pretty(normalize(encode(log))),
                 "full shape: what the codec writes is the input, unchanged");
     }
