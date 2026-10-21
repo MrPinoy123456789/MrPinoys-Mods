@@ -29,8 +29,9 @@ import java.util.UUID;
 /**
  * The Act 1 Endless Mine's first guardian (roadmap T41), a miniature of the Infestation's Queen. The
  * young queen spawns already burrowed under the terminal cell: the floor cracks and dust rises (a tell
- * of {@link MineGuardianRules#tellTicks} ticks, never under two seconds), then she surfaces fighting at
- * a fraction of the real Queen's size. Around her, {@link CreepingBricks} bricks hatch her brood on the
+ * of {@link MineGuardianRules#tellTicks} ticks, never under two seconds, whose tiles are marked through
+ * {@link AoETelegraph} -- whoever still stands on them when she surfaces is slammed and tossed), then she
+ * surfaces fighting at a fraction of the real Queen's size. Around her, {@link CreepingBricks} bricks hatch her brood on the
  * field's own clock; every silverfish a brick releases is tagged as a guardian mob, so the pad stays
  * shut until she and her brood are dead.
  *
@@ -96,9 +97,12 @@ final class MineGuardianQueen implements MineGuardians.Guardian {
         level.playSound(null, spawn.centre(), SoundEvents.GRAVEL_BREAK, SoundSource.HOSTILE, 1.2f, 0.5f);
 
         CreepingBricks.Field field = CreepingBricks.open(level, spawn.terminal(), bricks, true);
-        Run run = new Run(level, spawn.terminal(), field, queen.getUUID(),
-                now + MineGuardianRules.tellTicks(MineGuardianRules.TELL_BASE_TICKS, spawn.hardness()), bricks);
+        int tell = MineGuardianRules.tellTicks(MineGuardianRules.TELL_BASE_TICKS, spawn.hardness());
+        Run run = new Run(level, spawn.terminal(), field, queen.getUUID(), now + tell, bricks);
         RUNS.put(spawn.terminal(), run);
+        // The crack tell is also the strike's marked warning: it lands as she surfaces.
+        AoETelegraph.detonate(level, null, spawn.centre(),
+                new AoEShapes.Circle(MineGuardianRules.EMERGE_RADIUS), tell, emergeSlam(spawn.hardness()));
         plantBricks(spawn, run, now);
     }
 
@@ -121,6 +125,18 @@ final class MineGuardianQueen implements MineGuardians.Guardian {
         if (run.planted == 0) {
             run.field.close();
         }
+    }
+
+    /** What the young queen's rise does to whoever still stands on the heaving floor. */
+    private static AoETelegraph.Effect emergeSlam(double hardness) {
+        float damage = MineGuardianRules.emergeDamage(hardness);
+        return (level, entity) -> {
+            if (entity instanceof ServerPlayer player) {
+                player.hurtServer(level, level.damageSources().generic(), damage);
+                player.push(0.0, 0.7, 0.0);
+                player.hurtMarked = true;
+            }
+        };
     }
 
     /** The dormant queen under the floor: hidden, untouchable, silent, still. */

@@ -79,4 +79,16 @@ final class InfestationRules {
     static boolean addsDone(int planted, int total, int activeBricks) {
         return planted >= total && activeBricks == 0;
     }
+
+    // ---- the emerge slam -----------------------------------------------------------------------------
+
+    /**
+     * The tiles the emergence strike covers, a circle of this radius in blocks around her rising spot.
+     * Marked through the whole emerge tell by {@link AoETelegraph}, so a member who reads the ground and
+     * steps off takes nothing.
+     */
+    static final double EMERGE_RADIUS = 3.0;
+
+    /** The damage the emergence strike lands (her melee is {@code infestationBossDamage}). */
+    static final float EMERGE_DAMAGE = 8.0f;
 }

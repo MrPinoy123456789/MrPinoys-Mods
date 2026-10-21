@@ -2413,6 +2413,10 @@ final class Instances {
         record.floor.onPad.remove(member);
         if (player != null) {
             clearTrialOmen(player);
+            // One tracker for the party (owner ask 2026-10-19): in the run their compass read the
+            // owner's quest line; out of it, and only now that byMember no longer maps them to this
+            // record, a repaint puts their own line back.
+            Keystone.showCompass(player, DungeonLog.forServer(server).get(member), false);
         }
         return point;
     }

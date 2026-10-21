@@ -497,7 +497,9 @@ for ((taskName, testClass) in mapOf(
     // Affix workshop quick changes (T10): mine fuse, Silenced count, Cooked line, Restless level, Voided cells.
     "affixQuickChangesTest" to "AffixQuickChangesTest",
     // Floor objectives: the fallback rule, the quotas, the wave tremor and the bonus rolls.
-    "floorObjectiveRulesTest" to "FloorObjectiveRulesTest"
+    "floorObjectiveRulesTest" to "FloorObjectiveRulesTest",
+    // Owner ask 2026-10-19: the telegraphed area shapes (circle, cone, line) and their tile maths.
+    "aoeShapesTest" to "AoEShapesTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -637,6 +639,7 @@ tasks.test {
     dependsOn("potionDripRulesTest")
     dependsOn("lushFinaleRulesTest")
     dependsOn("floorObjectiveRulesTest")
+    dependsOn("aoeShapesTest")
     failOnNoDiscoveredTests = false
 }
 

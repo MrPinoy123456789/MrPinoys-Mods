@@ -175,6 +175,56 @@ public final class QuestCompassGameTest {
         helper.succeed();
     }
 
+    /** Owner ask 2026-10-19: in a party every member's compass reads the owner's quest line. */
+    @GameTest(maxTicks = 20)
+    @SuppressWarnings("removal")
+    public void aPartysCompassesShareTheLeadersQuestLine(GameTestHelper helper) {
+        ServerPlayer leader = standInALoadedChunk(helper);
+        ServerPlayer member = helper.makeMockServerPlayerInLevel();
+        member.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        MinecraftServer server = leader.level().getServer();
+        DungeonLog log = DungeonLog.forServer(server);
+
+        // The leader is three act-1 dungeons deep: the capstone is their next step.
+        java.util.UUID leaderId = leader.getUUID();
+        log.setTaskProgress(leaderId, DungeonProgress.PROLOGUE_KEY, 1);
+        log.setCompass(leaderId, 3, 1);
+        log.setKeystone(leaderId, 3, Set.of());
+        leader.getInventory().setItem(0, Keystone.mint(3));
+        for (DungeonDef def : ActProgress.ordinaryDungeons(1, DungeonDefs.current().all())) {
+            if (log.get(leaderId).dungeonsFinished().size() < 3) {
+                log.addDungeonFinished(leaderId, def.id());
+            }
+        }
+
+        // The member is fresh; on their own their tracker knows nothing of the capstone.
+        java.util.UUID memberId = member.getUUID();
+        member.getInventory().setItem(0, Keystone.mint(1));
+        Keystone.showCompass(member, log.get(memberId), false);
+        helper.assertTrue(lore(member.getInventory().getItem(0)).stream()
+                        .noneMatch(l -> l.contains("Spawner Dungeon")),
+                "solo the member does not read the leader's step");
+
+        InstanceRecord record = floorRecord(helper, server, 9959, leader, COPPER_WORKS, false);
+        record.members.put(memberId, new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0.0f, 0.0f));
+        register(record, 9959, leader, member);
+        try {
+            Keystone.showCompass(leader, log.get(leaderId), true);
+            Keystone.showCompass(member, log.get(memberId), true);
+            List<String> leaderLore = lore(leader.getInventory().getItem(0));
+            List<String> memberLore = lore(member.getInventory().getItem(0));
+            helper.assertTrue(leaderLore.contains("Next: the Spawner Dungeon"),
+                    "the leader's next step is the capstone: " + leaderLore);
+            helper.assertValueEqual(questLines(memberLore), questLines(leaderLore),
+                    "the member reads the leader's quest line");
+            helper.assertTrue(memberLore.contains("Next: the Spawner Dungeon"),
+                    "one tracker for the party: " + memberLore);
+        } finally {
+            unregister(9959, leader, member);
+        }
+        helper.succeed();
+    }
+
     /** The door board names the items and no scrap for a campaign door; a dive door still names its scrap. */
     @GameTest(maxTicks = 20)
     public void theBoardNamesNoScrapForACampaignDoor(GameTestHelper helper) {
@@ -205,6 +255,17 @@ public final class QuestCompassGameTest {
     }
 
     // ---- scaffolding ---------------------------------------------------------------------------
+
+    /** The lines the quest line writes (the {@code Next:} and {@code more for} lines), in order. */
+    private static List<String> questLines(List<String> lore) {
+        List<String> out = new ArrayList<>();
+        for (String line : lore) {
+            if (line.startsWith("Next: ") || line.contains(" more for ")) {
+                out.add(line);
+            }
+        }
+        return out;
+    }
 
     private static List<String> lore(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);

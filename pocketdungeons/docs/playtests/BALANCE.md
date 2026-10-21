@@ -202,6 +202,10 @@ The journal's `floor_pay` and `haul_banked` events carry the scrap numbers.
 | 2026-10-16 | blackstone | 4 | 1 | | | 0 | | | 8 | unbanked at wrap | | 2026-10-16-1.md |
 | 2026-10-16 | blackstone | 5 | 1 | | | 0 | | | 10 | unbanked at wrap | | 2026-10-16-1.md |
 
+| 2026-10-20 | infestation | 2 | 1 | 761 | 0 | 0 | 3 | 32 | 3 | finished (banked at home, campaign: no scrap) | | 2026-10-19-2.md |
+| 2026-10-20 | infestation | 3 | 1 | | 0 | 0 | | | 6 | finished (anomaly store, 3 purchases) | | 2026-10-19-2.md |
+| 2026-10-20 | infestation | 4 (final, swarming) | 1 | ~600 | 0 | 0 | | | 7 | FINISHED, depth bonus 1, Queen adds report (PD-220) | | 2026-10-19-2.md |
+
 - 2026-10-13-1 session: guardian floors spike floor time (502 s, 162 s) without spiking threat at compass 15+ (PD-208). Two finishes banked 10 and 16; home salvage paid ~600 xp and 30 diamonds across four visits.
 - 2026-10-13: new knob `shellDupeEmeralds` (default 2). A duplicate shell token consumed on right-click and pays 2 emeralds, between the 1 for a vault key and the 3 for an ominous key. Reason: the owner drew four Sandstone Shells in one Drowned Vault visit and each was dead weight (PD-206's dupe branch refused without consuming, and the salvage bench refuses echo shards). Watch emerald inflow from `shell_dupe` journal events at drowned rates (~2/21 weight per chest roll).
 - 2026-10-13: floor objectives landed (decision-2026-10-13-act34-floor-types). New loot inflow to watch: a claim floor places `claimExtraVeins` (3) veins past the `claimQuota` (3) and each extra claim adds one barrel roll, and a heist floor's strongboxes (`heistStrongboxBase` 2, plus one per two members past the first) each pay a tier chest roll on the crack. Watch the Chests column on sunken_treasury and gilded_seam rows against same-act spawner floors.

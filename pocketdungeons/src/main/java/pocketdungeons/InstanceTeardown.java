@@ -168,6 +168,8 @@ final class InstanceTeardown {
         HostileWolves.clear(cellOrigin);
         KennelSpecs.clear(cellOrigin);
         CreepingBricks.clear(cellOrigin);
+        // Owner ask 2026-10-19: telegraphed area attacks die with their cell unspent.
+        AoETelegraph.clear(cellOrigin);
         MineGuardianQueen.clear(cellOrigin);
         MineGuardianCoffins.clear(cellOrigin);
         MineGuardianSentry.clear(cellOrigin);

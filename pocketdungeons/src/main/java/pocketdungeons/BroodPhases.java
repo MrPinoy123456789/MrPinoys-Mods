@@ -12,6 +12,8 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.BossEvent;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
@@ -64,6 +66,7 @@ final class BroodPhases {
         final Map<BlockPos, BlockState> lights = new LinkedHashMap<>();
         long nextDrip = Long.MAX_VALUE;
         boolean dripFast;
+        long nextWeb = Long.MAX_VALUE;
         UUID mother;
         ServerBossEvent bar;
         KennelsFinaleRules.Phase beat = KennelsFinaleRules.Phase.WAITING;
@@ -138,7 +141,7 @@ final class BroodPhases {
         if (now >= ph.nextDrip && PocketDungeonsConfig.potionDripEnabled()) {
             drip(level, record, ph, inRoom, now);
         }
-        motherTick(server, level, ph, members, now);
+        motherTick(server, level, record, ph, members, inRoom, now);
     }
 
     /** Frees cage {@code index}'s mechanic; returns the brood count after it stands. */
@@ -282,8 +285,9 @@ final class BroodPhases {
     /**
      * The fourth cage is done and a member is in the room: the mother rises beside the wave
      * {@link CapstoneFights#tickBrood} has just released. A scaled cave spider with a boss bar, her
-     * own party-scaled stats (she carries {@link CapstoneFights#UNSCALED_TAG}), and the drip behind
-     * her at double speed.
+     * own party-scaled stats (she carries {@link CapstoneFights#UNSCALED_TAG}), the drip behind
+     * her at double speed, and a web spit on its own clock that marks a member's ground through
+     * {@link AoETelegraph} and then holds it: whoever stands in it is slowed and bitten.
      */
     static void motherArrives(MinecraftServer server, ServerLevel level, InstanceRecord record,
                               CapstoneFights.State state, List<ServerPlayer> members, int party) {
@@ -330,18 +334,23 @@ final class BroodPhases {
                     Component.literal(BroodPhaseRules.MOTHER_NAME).withStyle(ChatFormatting.DARK_RED),
                     List.of("She has come for her cages."), ChatFormatting.RED);
         }
+        ph.nextWeb = server.getTickCount() + BroodPhaseRules.WEB_FIRST_TICKS;
         PocketDungeonsMod.LOG.info("Brood mother arrived in slot {} at {}", record.slot,
                 spot.toShortString());
     }
 
-    /** Her boss bar, and the Kennels beat on her half health: a windup, then the pack grows and turns. */
-    private static void motherTick(MinecraftServer server, ServerLevel level, Phases ph,
-                                   List<ServerPlayer> members, long now) {
+    /** Her boss bar, the Kennels beat on her half health, and her web spit on its own clock. */
+    private static void motherTick(MinecraftServer server, ServerLevel level, InstanceRecord record,
+                                   Phases ph, List<ServerPlayer> members, List<ServerPlayer> inRoom,
+                                   long now) {
         if (ph.mother == null && ph.bar == null) {
             return;
         }
         Entity entity = ph.mother == null ? null : level.getEntity(ph.mother);
         Mob mother = entity instanceof Mob mob && mob.isAlive() ? mob : null;
+        if (mother != null && now >= ph.nextWeb) {
+            spit(level, record, ph, inRoom, now);
+        }
         if (ph.bar != null) {
             for (ServerPlayer member : members) {
                 ph.bar.addPlayer(member);
@@ -380,6 +389,28 @@ final class BroodPhases {
             }
         }
     }
+
+    /** Her spit: one member's ground is marked, then held by a web for a while. */
+    private static void spit(ServerLevel level, InstanceRecord record, Phases ph,
+                             List<ServerPlayer> inRoom, long now) {
+        ph.nextWeb = now + BroodPhaseRules.WEB_INTERVAL_TICKS;
+        if (inRoom.isEmpty()) {
+            return;
+        }
+        ServerPlayer target = inRoom.get(level.getRandom().nextInt(inRoom.size()));
+        AoETelegraph.zone(level, record, target.blockPosition(), new AoEShapes.Circle(BroodPhaseRules.WEB_RADIUS),
+                BroodPhaseRules.WEB_WARN_TICKS, BroodPhaseRules.WEB_LIVE_TICKS, BroodPhaseRules.WEB_TICK_TICKS,
+                WEB);
+    }
+
+    /** A tick in her web: slowed and bitten. Only the party reads a web -- her brood crawls through it. */
+    private static final AoETelegraph.Effect WEB = (level, entity) -> {
+        if (entity instanceof ServerPlayer player) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, BroodPhaseRules.WEB_SLOW_TICKS, 1,
+                    false, true));
+            player.hurtServer(level, level.damageSources().generic(), BroodPhaseRules.WEB_DAMAGE);
+        }
+    };
 
     /** The pack grows: every brood mob but the mother scales up, glows and turns on the party. */
     private static void empower(ServerLevel level, Phases ph, List<ServerPlayer> members, long now) {

@@ -25,7 +25,9 @@ import java.util.UUID;
  * {@code infestationSurfaceSeconds} rears up (a tell), then burrows: invisible, invulnerable and under the floor
  * in a puff of dust. The floor cracks (a second tell) and the adds phase begins: mossy bricks are planted around
  * the arena and ripen into silverfish through {@link CreepingBricks}. When every brick is gone, or the phase
- * runs out, the ground heaves (a third tell) and she rises again; the cycle repeats. The fight ends when she is
+ * runs out, the ground heaves (a third tell: her rising spot's tiles are marked through
+ * {@link AoETelegraph}, and whoever still stands on them when she surfaces is slammed and tossed)
+ * and she rises again; the cycle repeats. The fight ends when she is
  * killed, which cannot happen while she is burrowed. The schedule is {@link InfestationRules}.
  *
  * <p>Her silverfish count toward the wave, so the pad stays shut until all are dead; the alive cap is
@@ -45,6 +47,18 @@ final class InfestationFinale implements FinaleScript {
     private static final int MAX_FAILS = 4;
     /** A brick is never planted this close to a member or the exit pad. */
     private static final double KEEP_CLEAR = 2.5;
+
+    /**
+     * What her rise does to whoever still stands on the heaving ground: the slam and the toss. Only the
+     * party reads a telegraph -- her brood walks through it.
+     */
+    private static final AoETelegraph.Effect EMERGE_SLAM = (level, entity) -> {
+        if (entity instanceof ServerPlayer player) {
+            player.hurtServer(level, level.damageSources().generic(), InfestationRules.EMERGE_DAMAGE);
+            player.push(0.0, 0.7, 0.0);
+            player.hurtMarked = true;
+        }
+    };
 
     /** One run's state, kept in {@link FinaleContext#scriptState}. */
     static final class Run {
@@ -174,6 +188,13 @@ final class InfestationFinale implements FinaleScript {
             case EMERGE_TELL -> {
                 BlockPos spot = ctx.freeSpotNearParty();
                 run.emergeAt = spot != null ? Vec3.atBottomCenterOf(spot) : run.burrowAt;
+                if (run.emergeAt != null) {
+                    // The heaving ground is the strike's telegraph: the marked tiles live exactly as
+                    // long as the tell, and the slam lands as she surfaces.
+                    AoETelegraph.detonate(level, ctx.record(), BlockPos.containing(run.emergeAt),
+                            new AoEShapes.Circle(InfestationRules.EMERGE_RADIUS), (int) timing().emergeTell(),
+                            EMERGE_SLAM);
+                }
                 say(ctx, "Something rises.");
             }
             case SURFACE -> {

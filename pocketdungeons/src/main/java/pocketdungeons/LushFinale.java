@@ -4,6 +4,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -25,7 +27,9 @@ import java.util.UUID;
  * (vanilla gives 2 to 4; this tops the count up to double); every later split is vanilla. Every slime counts
  * toward the wave, so the pad stays shut until all are dead, and the number alive at once is capped
  * ({@code lushSlimeMaxAlive}) so the crowd can never lag a server. The potion drip speeds up for the fight
- * ({@link PotionDrip#setBoss}).
+ * ({@link PotionDrip#setBoss}), and on her own clock she sheds a slime pool under a member: the tiles are
+ * marked through {@link AoETelegraph} first, then the pool stands for a while, slowing and dissolving
+ * whoever stays in it.
  *
  * <p>Vanilla splits a slime as the body is removed, about a second after it dies, so a slime that has just
  * died is not alive but its children do not exist yet. To keep the pad shut across that gap a dead splitter
@@ -63,7 +67,17 @@ final class LushFinale implements FinaleScript {
         final List<Pending> pending = new ArrayList<>();
         UUID guard;
         boolean firstSplitDone;
+        long nextPool = Long.MAX_VALUE;
     }
+
+    /** A tick in a shed pool: slowed and dissolved. Only the party reads a pool -- slimes swim in it. */
+    private static final AoETelegraph.Effect POOL_EFFECT = (level, entity) -> {
+        if (entity instanceof ServerPlayer player) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, LushFinaleRules.POOL_SLOW_TICKS, 0,
+                    false, true));
+            player.hurtServer(level, level.damageSources().generic(), LushFinaleRules.POOL_DAMAGE);
+        }
+    };
 
     // ---- the boss -----------------------------------------------------------------------------------
 
@@ -117,6 +131,7 @@ final class LushFinale implements FinaleScript {
     @Override
     public void onWaveSpawned(FinaleContext ctx) {
         PotionDrip.setBoss(ctx.record(), true);
+        ctx.scriptState(State.class, State::new).nextPool = ctx.tickCount() + LushFinaleRules.POOL_FIRST_TICKS;
     }
 
     // ---- the splits ---------------------------------------------------------------------------------
@@ -170,6 +185,23 @@ final class LushFinale implements FinaleScript {
             }
             state.guard = null;
         }
+        long now = ctx.tickCount();
+        if (now >= state.nextPool) {
+            state.nextPool = now + LushFinaleRules.POOL_INTERVAL_TICKS;
+            shed(ctx);
+        }
+    }
+
+    /** The slime sheds a standing pool under one member: marked first, then live for a while. */
+    private void shed(FinaleContext ctx) {
+        List<ServerPlayer> members = ctx.members();
+        if (members.isEmpty()) {
+            return;
+        }
+        ServerPlayer target = members.get(ctx.level().getRandom().nextInt(members.size()));
+        AoETelegraph.zone(ctx.level(), ctx.record(), target.blockPosition(),
+                new AoEShapes.Circle(LushFinaleRules.POOL_RADIUS), LushFinaleRules.POOL_WARN_TICKS,
+                LushFinaleRules.POOL_LIVE_TICKS, LushFinaleRules.POOL_TICK, POOL_EFFECT);
     }
 
     /** Finds the children a dead slime left, counts them toward the wave, and on the first split doubles them. */

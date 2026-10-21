@@ -1153,3 +1153,64 @@ the default; whether a walk back to the Doors for Dungeon Storage feels like a p
 uncharted floors suit a single session trip; whether rule affixes keep a veteran afraid.
 
 **Status: Built (2026-10-18)** on branch `feature/campaign-endgame` (T0 to T7, merged from `feature/rm-*`). Deviations are listed in `docs/reports/campaign-endgame-build.md`. The timed trial stays held; live checks are L104 to L114.
+
+## 2026-10-21: One campaign per party, the terminal, and glyphs
+
+The player's sentence: *When I join a friend we play their campaign, like a crew in REPO or Lethal Company; what I pick
+up is mine, and if I am there when an act ends I get its rewards. The wall of the staging room is a terminal that tells
+the whole party where to go next, and anyone can work it.*
+
+### The model
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| Campaign progress | Only the party leader's save moves: dungeons finished, acts opened, Endless Mine depth, campaign complete, the prologue flag | `DungeonLog`, `DungeonProgress`, `RunLifecycle.finishDungeon` |
+| Guest's own save | Never moved by a run they join as a guest. Loot, scrap, emeralds, diaries and storage stay personal, as today | `DungeonLog` |
+| First finish bonuses | Emeralds at full rate, the vault and the diary page key on a new per player set, so a guest earns each once, not forever | new `finishBonusClaimed` |
+| Door difficulty | The leader's compass, including the Endless Mine dive (was the party's lowest) | `HallOffers`, `EndlessMineRules` |
+| Act rewards | When an act completes on the leader's save, every member present gets that act's rewards once each | new `actRewardsClaimed`, `act_reward` JSON |
+| Rewards per act | A title (nameplate prefix), the act's stained glass window (a bundle and a pattern card), a music disc, a room decor set; Act 1 also a room shell | `act_reward` JSON |
+| Terminal | Replaces the floor history board: a 12 by 5 wall with three tabs (Objectives, Progress, History) | new `Terminal` |
+| Terminal state | Shared on the instance: one tab and one act page for everyone; anyone may click | `InstanceRecord` |
+| Astrolabe | Anyone may turn it (was owner only); turning it also turns the terminal's act page | `HallRoom` |
+| Glyphs | A look (item, text and block displays) plus a handler registered by name with small saved data, dispatched from one right click hook | new `Glyph`, `GlyphHandlers` |
+| Leader reconnect grace | 600 seconds (was 120); ends at once, closing the run, if every guest leaves the dungeon too | `ownerReconnectGraceSeconds`, `RunLifecycle.watchOwnerGrace` |
+
+### Rules
+
+1. **Crew.** A run only ever writes campaign progress to the leader's save. A guest's campaign stays where it was.
+2. **Personal things stay personal.** What a guest carries out, banks or is paid is theirs, as before.
+3. **Rewards.** An act completing on the leader's save pays that act's rewards to each member present, once per player
+   per act, the leader included. A player whose own save already completed an act before this change gets that act's
+   rewards once at their next login.
+4. **Terminal.** One wall, three tabs, Objectives by default. Clicking a tab or an act arrow changes it for the whole
+   party. The full layout, words and pixel art are in `docs/devin/01-SPEC.md`.
+5. **Glyphs.** Every clickable display (terminal tabs, act arrows, reward icons, the astrolabe) is a glyph. A glyph
+   that asks for an item never guards the way to finish a floor (PD-170).
+6. **Grace.** The leader dropping with guests inside holds the run 10 minutes. It closes early if the guests all leave.
+   A leader alone in their run keeps today's rule: the run waits and they resume where they left off. While the leader
+   is away, nobody may commit the next floor (owner, 2026-10-21).
+
+### Migration
+
+Nothing is taken away. Existing saves keep every finished dungeon, act and compass. `finishBonusClaimed` starts as a
+copy of each player's `dungeonsFinished`. Act rewards owed for acts already completed are paid once at next login.
+
+### Supersedes
+
+- The owner only astrolabe (design pass 2026-10-09, Q1, "the trip owner chooses").
+- `EndlessMineRules`: the dive compass as the lowest of the party.
+- R6: the 120 second reconnect grace default.
+- The floor history board as a standalone board (it becomes the History tab, content unchanged).
+
+### Knobs
+
+`ownerReconnectGraceSeconds` (600), `data/pocketdungeons/act_reward/act_<n>.json` (story lines, crest, colours,
+window pattern, rewards), terminal geometry constants in `Terminal`.
+
+### Open until played
+
+Whether the party reads the Objectives tab without being told; whether 12 blocks of wall reads from the middle of the
+room; whether guests feel rewarded enough to keep joining; whether the lit window is too bright for the room.
+
+**Status: approved, not built (2026-10-21).** Handoff pack in `docs/devin/`.

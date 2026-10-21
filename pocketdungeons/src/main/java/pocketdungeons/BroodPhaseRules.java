@@ -110,4 +110,22 @@ final class BroodPhaseRules {
     static long windupTicks() {
         return Math.max(40, KennelsFinaleRules.WINDUP_TICKS);
     }
+
+    // ---- the mother's web -----------------------------------------------------------------------------
+
+    /** Ticks after she arrives before her first spit, and between spits after that. */
+    static final int WEB_FIRST_TICKS = 100;
+    static final int WEB_INTERVAL_TICKS = 200;
+
+    /** The tiles one web covers (a circle of this radius) and the marked warning before it lands. */
+    static final double WEB_RADIUS = 2.0;
+    static final int WEB_WARN_TICKS = 30;
+
+    /** How long a landed web holds its ground and how often it applies its bite. */
+    static final int WEB_LIVE_TICKS = 160;
+    static final int WEB_TICK_TICKS = 20;
+
+    /** The slowness and damage one tick in a web applies; stepping out ends both. */
+    static final int WEB_SLOW_TICKS = 60;
+    static final float WEB_DAMAGE = 2.0f;
 }

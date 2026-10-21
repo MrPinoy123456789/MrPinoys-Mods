@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terminal Mockup</title>
+<style>
+  :root {
+    --bg: #14121a; --panel: #1e1b26; --ink: #e8e4f0; --muted: #9a94a8;
+    --block: 72px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: system-ui, -apple-system, Segoe UI, sans-serif; padding: 24px 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.note { color: var(--muted); margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; font-size: 14px; align-items: center; }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  select, input { background: var(--panel); color: var(--ink); border: 1px solid #3a3446; border-radius: 6px; padding: 4px 6px; }
+  .scroller { overflow-x: auto; padding-bottom: 8px; }
+  .room { position: relative; width: calc(var(--block) * 14); padding: calc(var(--block) * 0.5) var(--block);
+          background: repeating-linear-gradient(0deg, #6b6b6b 0 1px, #7c7c7c 1px 36px),
+                      linear-gradient(#7a7a7a, #6c6c6c); border-radius: 4px; }
+  .wall { position: relative; width: calc(var(--block) * 12); height: calc(var(--block) * 5); }
+  .blk { position: absolute; width: var(--block); height: var(--block); }
+  .K { background: #08090d; box-shadow: inset 0 0 0 1px #111319; }
+  .T { background: #2f2a35; box-shadow: inset 0 0 0 1px #3a3441; }
+  .S { background: radial-gradient(circle at 50% 45%, #f4fffb, #c9ded8 70%); box-shadow: inset 0 0 0 1px #b8cfc8; }
+  .ent { position: absolute; white-space: pre; line-height: 1; transform: translate(-50%, -100%);
+         font-family: "Minecraft", "Courier New", monospace; text-shadow: 0.12em 0.12em 0 rgba(0,0,0,.65); }
+  .left { transform: translate(0, -100%); }
+  .right { transform: translate(-100%, -100%); }
+  .top { transform: translate(0, 0); }
+  .clickable { cursor: pointer; }
+  .clickable:hover { outline: 1px dashed rgba(255,255,255,.35); outline-offset: 2px; }
+  .icon { position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center;
+          border-radius: 3px; font-family: system-ui, sans-serif; }
+  .px { position: absolute; }
+  .legend { margin-top: 16px; font-size: 13px; color: var(--muted); max-width: 1000px; line-height: 1.6; }
+  .toast { margin-top: 10px; min-height: 22px; font-family: "Courier New", monospace; color: #ffff55; }
+</style>
+</head>
+<body>
+<h1>Pocket Dungeons terminal: to-scale mockup</h1>
+<p class="note">The 12 by 5 terminal wall as a player sees it from the room, at 72 px per block. The tabs, arrows and
+reward icons can be clicked, just like in game. Item icons are drawn as placeholders. Where this picture and
+<code>01-SPEC.md</code> differ, the spec's numbers win.</p>
+
+<div class="controls">
+  <label>Leader's open acts up to
+    <select id="openUpTo"><option>0</option><option selected>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+  </label>
+  <label><input type="checkbox" id="leaderHasRewards"> Leader holds the shown act's rewards</label>
+</div>
+
+<div class="scroller"><div class="room"><div class="wall" id="wall"></div></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="legend">
+  Wall blocks: black = black concrete, pale = sea lantern backlight (lit only on an open act's Objectives page),
+  bottom row = polished blackstone tab bar. Text sizes follow 0.025 blocks per text pixel per unit of scale.
+</div>
+
+<script>
+const B = 72;                    // css px per block
+const PXS = 0.025 * B;           // css px per text pixel at scale 1
+const C = { gold:'#FFAA00', yellow:'#FFFF55', gray:'#AAAAAA', dark_gray:'#555555', white:'#FFFFFF',
+  green:'#55FF55', aqua:'#55FFFF', red:'#FF5555', dark_aqua:'#00AAAA', light_purple:'#FF55FF' };
+const GLASS = { K:'#191919', W:'#f9fffe', L:'#9d9d97', G:'#474f52', B:'#835432', O:'#f9801d', Y:'#fed83d',
+  R:'#b02e26', N:'#f38baa', M:'#c74ebd', P:'#8932b8', U:'#3c44aa', A:'#3ab3da', C:'#169c9c', E:'#5e7c16', I:'#80c71f' };
+const GLASS_NAME = { K:'black', W:'white', L:'light gray', G:'gray', B:'brown', O:'orange', Y:'yellow', R:'red',
+  N:'pink', M:'magenta', P:'purple', U:'blue', A:'light blue', C:'cyan', E:'green', I:'lime' };
+
+const ACTS = [
+  { n:0, name:'The First Night', colour:'gray', crest:'🧭',
+    story:['Lemon came out of the compass alone.','Alex followed it into the dark. She has not come back.'],
+    next:'The First Night', window:['UUUUUWYU','UWUUUYYU','UUUEUUUU','UUEEEUUW','UUUBUUUU','EEEBEEEE'], rewards:[] },
+  { n:1, name:'First Iron', colour:'white', crest:'⛏',
+    story:["These rooms are Steve's first days, laid down wrong.",'His first mine. The night he lost the stone house.'],
+    next:'Lush Caves', window:['GLLLLLGG','LGGBGGLG','GGBGGGGO','GBGGOGGG','BGGGGGGG','GGOGGGGG'],
+    rewards:[['shell','🧱','Room shell: Old Mine'],['title','🏷','Title: ◆ Delver'],['disc','💿','Music disc: First Iron'],
+             ['window','▦','First Iron Window'],['decor','🏮','First Iron Decor']] },
+  { n:2, name:'The Deep', colour:'aqua', crest:'◈',
+    story:['Deeper down, the memories hold together.','He found his first diamond here. The echo never stopped.'],
+    next:'Copper Works', window:['KKKKKKKK','KKKAAKKK','KKACCAKK','KCKAAKCK','KKCKKCKK','CKKKKKKC'],
+    rewards:[['title','🏷','Title: ◆ Deepwalker'],['disc','💿','Music disc: The Deep'],['window','▦','The Deep Window'],['decor','🏮','The Deep Decor']] },
+  { n:3, name:'The Monument', colour:'dark_aqua', crest:'●',
+    story:['He went to sea once. The sea remembers him.','Something swims in the tiled pools. You will not see it.'],
+    next:'Prismarine', window:['AAUUUUAA','ACCCCCCA','UCWWWWCU','UCWKOWCU','ACCCCCCA','UUAAAAUU'],
+    rewards:[['title','🏷','Title: ◆ Tideworn'],['disc','💿','Music disc: The Monument'],['window','▦','The Monument Window'],['decor','🏮','The Monument Decor']] },
+  { n:4, name:'The Nether', colour:'red', crest:'🔥',
+    story:['Fire, and the places he swore he would not go back to.','A keep stands where the map burned.'],
+    next:'Basalt Foundry', window:['KRKKKKRK','KKKBBKKK','RKBBBBKR','KKBYYBKK','ORBBBBRO','RORROORO'],
+    rewards:[['title','🏷','Title: ◆ Ashbound'],['disc','💿','Music disc: The Nether'],['window','▦','The Nether Window'],['decor','🏮','The Nether Decor']] },
+  { n:5, name:'The End', colour:'light_purple', crest:'👁',
+    story:['Every road ends at the same door.','He went in to fix the world. Something else walked out.'],
+    next:'Ender Archive', window:['KYKPKKWK','KKPMMPKK','PMKKKKMP','PMKYYKMP','KKPMMPKK','KWKKPKYK'],
+    rewards:[['title','🏷','Title: ◆ Voidsworn'],['disc','💿','Music disc: The End'],['window','▦','The End Window'],['decor','🏮','The End Decor']] },
+];
+const ACT_DUNGEONS = [
+  ['done','Mineshaft'], ['open','Lush Caves'], ['locked','Infestation','Compass 4'], ['open','Kennels'],
+  ['open','Ossuary'], ['cap','Spawner Dungeon'], ['mine','Endless Mine','floor 2 of 3'] ];
+const HISTORY = [
+  ['10/21 20:14','4','Mineshaft','3/5','CLEARED','6:12','Strong'],
+  ['10/21 20:05','4','Mineshaft','2/5','CLEARED','5:40','Strong'],
+  ['10/21 19:52','4','Mineshaft','1/5','CLEARED','4:58',''],
+  ['10/21 19:30','3','Lush Caves','4/4','FAILED','7:21','Bloom'],
+  ['10/21 19:11','3','Lush Caves','3/4','CLEARED','6:02',''],
+];
+
+let state = { tab:'objectives', page:1 };
+const wall = document.getElementById('wall');
+const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
+const X = (u) => u * B, Y = (v) => (6 - v) * B;   // wall top is v 6, wall bottom v 1
+
+function openUpTo() { return +document.getElementById('openUpTo').value; }
+function isOpen(n) { return n <= openUpTo(); }
+function pages() { const p = []; if (openUpTo() === 0) p.push(0); for (let a = 1; a <= 5; a++) p.push(a); return p; }
+
+function text(u, v, scale, html, cls = '', extra = '') {
+  const el = $(`<div class="ent ${cls}" style="left:${X(u)}px;top:${Y(v)}px;font-size:${8 * PXS * scale}px;${extra}">${html}</div>`);
+  wall.appendChild(el); return el;
+}
+function span(col, s, bold) { return `<span style="color:${C[col] || col};${bold ? 'font-weight:700' : ''}">${s}</span>`; }
+function icon(u, v, scale, glyph, bright, title) {
+  const s = scale * B;
+  const el = $(`<div class="icon" title="${title || ''}" style="left:${X(u)}px;top:${Y(v)}px;width:${s}px;height:${s}px;font-size:${s * 0.8}px;filter:brightness(${bright ? 1 : 0.28})">${glyph}</div>`);
+  wall.appendChild(el); return el;
+}
+function toast(msg) { document.getElementById('toast').innerHTML = msg; }
+
+function blocks() {
+  const act = ACTS[state.page];
+  const lit = state.tab === 'objectives' && isOpen(act.n);
+  for (let c = 1; c <= 12; c++) for (let y = 1; y <= 5; y++) {
+    let k = y === 1 ? 'T' : 'K';
+    if (lit && c >= 8 && c <= 11 && y >= 3) k = 'S';
+    wall.appendChild($(`<div class="blk ${k}" style="left:${(c - 1) * B}px;top:${(5 - y) * B}px"></div>`));
+  }
+}
+
+function tabs() {
+  [['objectives', 'OBJECTIVES', 2], ['progress', 'PROGRESS', 6], ['history', 'HISTORY', 10]].forEach(([id, label, u]) => {
+    const sel = state.tab === id;
+    const el = text(u, 1.32, 1.2, span(sel ? 'gold' : 'gray', label, true), 'clickable');
+    el.onclick = () => { if (state.tab !== id) { state.tab = id; render(); toast('ui.button.click'); } };
+    if (sel) text(u, 1.80, 0.7, span('gold', '▬▬▬▬▬▬▬▬▬▬'));
+  });
+}
+
+function objectives() {
+  const act = ACTS[state.page], open = isOpen(act.n), col = act.colour;
+  icon(0.75, 5.40, 0.8 * 0.7, act.crest, true, 'crest');
+  text(1.35, 5.50, 2.0, span(col, act.n === 0 ? 'PROLOGUE' : 'ACT ' + act.n, true), 'left');
+  text(1.35, 5.08, 1.3, span('gold', act.name), 'left');
+  text(3.15, 4.80, 0.8, span('dark_gray', '━━━━━━━━━━━━  ') + span('gold', '◆') + span('dark_gray', '  ━━━━━━━━━━━━'));
+  const lines = [];
+  if (!open) lines.push(span('white', '◆ ') + span('gray', act.n === 1 ? 'Finish the First Night to open.' : `Finish Act ${act.n - 1} to open.`));
+  else {
+    act.story.forEach(s => lines.push(span('white', '◆ ') + span('gray', s)));
+    const done = act.n < openUpTo();
+    lines.push(done ? span('green', '◆ Act complete') : span('white', '◆ Next: ') + span('gold', act.next));
+  }
+  const lineW = 207 * PXS * 1.1;
+  text(0.3, 4.62, 1.1, lines.join('<br>'), 'top',
+       `white-space:normal;width:${lineW}px;line-height:1.25`);
+  if (act.rewards.length) {
+    text(3.15, 2.82, 0.9, span('white', 'REWARDS', true));
+    const has = document.getElementById('leaderHasRewards').checked;
+    const n = act.rewards.length;
+    act.rewards.forEach((r, i) => {
+      const u = 3.15 + (i - (n - 1) / 2) * 0.95;
+      const el = icon(u, 2.45, 0.5 * 0.75, r[1], has, r[2]);
+      el.classList.add('clickable'); el.onclick = () => toast(r[2]);
+      if (has) text(u + 0.22, 2.12, 0.6, span('green', '✔'));
+    });
+  }
+  // window
+  const pal = open ? null : true;
+  act.window.forEach((row, py) => [...row].forEach((ch, px) => {
+    let colr = GLASS[ch];
+    if (pal) colr = ch === 'K' ? '#0d0d0d' : '#2a2d2f';
+    const el = $(`<div class="px" title="${open ? GLASS_NAME[ch] : 'locked'} stained glass" style="left:${X(7 + 0.5 * px)}px;top:${Y(6 - 0.5 * py)}px;width:${B / 2}px;height:${B / 2}px;background:${colr};opacity:${open ? 0.78 : 0.95};box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)"></div>`);
+    wall.appendChild(el);
+  }));
+  // arrows
+  const p = pages(), idx = p.indexOf(state.page);
+  [[-1, 6.5, '◀'], [1, 11.5, '▶']].forEach(([dir, u, g]) => {
+    const ok = idx + dir >= 0 && idx + dir < p.length;
+    const el = text(u, 4.25 - 0.15, 2.2, span(ok ? 'white' : 'dark_gray', g), 'clickable');
+    el.onclick = () => { if (ok) { state.page = p[idx + dir]; render(); toast('item.book.page_turn'); } else toast('refused'); };
+  });
+  // pips
+  [1, 2, 3, 4, 5].forEach((a, i) => {
+    const big = a === state.page;
+    icon(7.4 + 0.8 * i, 2.5, (big ? 0.55 : 0.4) * 0.75, ACTS[a].crest, isOpen(a), 'Act ' + a);
+  });
+}
+
+function progress() {
+  const act = ACTS[Math.max(1, state.page)];
+  text(0.4, 5.40, 1.4, span(act.colour, 'MINESHAFT', true), 'left');
+  text(0.4, 5.02, 1.0, span('white', 'Floor 3 of 5'), 'left');
+  text(0.4, 4.35, 1.6, span('green', '◆') + span('dark_gray', '━') + span('green', '◆') + span('dark_gray', '━') +
+       span('gold', '◆') + span('dark_gray', '━◇━◇'), 'left');
+  text(0.4, 3.30, 1.0, span('red', '❤') + span('white', ' 3 lives'), 'left');
+  text(0.4, 2.90, 1.0, span('aqua', 'Haul 12 scrap'), 'left');
+  text(6.4, 5.40, 1.2, span(act.colour, 'ACT ' + act.n, true) + '   ' + span('gold', act.name), 'left');
+  let v = 4.72; const step = 0.30;
+  ACT_DUNGEONS.forEach(d => {
+    let html;
+    if (d[0] === 'done') html = span('green', '✔ ' + d[1]);
+    else if (d[0] === 'open') html = span('white', '◆ ' + d[1]);
+    else if (d[0] === 'cap') html = span('gold', '★ ') + span('white', d[1]);
+    else if (d[0] === 'locked') html = span('dark_gray', '◆ ' + d[1]);
+    else html = span('white', '⛏ ' + d[1]);
+    text(6.4, v, 1.1, html, 'left');
+    if (d[2]) text(11.8, v, 1.1, span(d[0] === 'locked' ? 'yellow' : 'gray', d[2]), 'right');
+    v -= step;
+  });
+  text(6.4, 2.25, 1.0, span('gray', '1 of 7 done'), 'left');
+}
+
+function history() {
+  text(6.0, 5.4, 1.6, span('gold', 'FLOOR HISTORY', true));
+  const cols = [11, 3, 14, 5, 10, 6, 10];
+  const fit = (s, w) => (s + ' '.repeat(w)).slice(0, w);
+  const rows = HISTORY.map(r => {
+    const end = r[4] === 'CLEARED' ? 'green' : 'red';
+    return span('gray', fit(r[0], cols[0])) + span('yellow', fit(r[1], cols[1])) + span('white', fit(r[2], cols[2])) +
+           span('gray', fit(r[3], cols[3])) + span(end, fit(r[4], cols[4])) + span('gray', fit(r[5], cols[5])) +
+           span('light_purple', fit(r[6], cols[6]));
+  });
+  text(6.0, 3.6 - 0.6, 1.03, rows.join('<br>'), '', 'line-height:1.25');
+}
+
+function render() {
+  wall.innerHTML = '';
+  if (!pages().includes(state.page)) state.page = pages()[0];
+  blocks(); tabs();
+  if (state.tab === 'objectives') objectives();
+  else if (state.tab === 'progress') progress();
+  else history();
+}
+document.getElementById('openUpTo').onchange = () => { state.page = Math.min(Math.max(openUpTo(), 1), 5); render(); };
+document.getElementById('leaderHasRewards').onchange = render;
+render();
+</script>
+</body>
+</html>

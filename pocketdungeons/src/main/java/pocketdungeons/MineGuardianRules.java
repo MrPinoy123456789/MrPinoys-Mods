@@ -68,6 +68,17 @@ final class MineGuardianRules {
         return Math.min(QUEEN_MAX_SCALE, 1.5 + 0.1 * Math.max(0.0, hardness - 1.0));
     }
 
+    /** The tiles the young queen's emergence strike covers: a small circle for a small fight. */
+    static final double EMERGE_RADIUS = 2.0;
+
+    /** The most the young queen's emergence strike may hit for, however deep the mine runs. */
+    static final float MAX_EMERGE_DAMAGE = 12.0f;
+
+    /** The young queen's emergence strike at {@code hardness}: 4.0 at 1.0, two more per point, capped. */
+    static float emergeDamage(double hardness) {
+        return (float) Math.min(MAX_EMERGE_DAMAGE, 2.0 + 2.0 * hardness);
+    }
+
     /** {@code wanted} cut back to the {@code left} slots the mob cap leaves. */
     static int capped(int wanted, int left) {
         return Math.max(0, Math.min(wanted, left));

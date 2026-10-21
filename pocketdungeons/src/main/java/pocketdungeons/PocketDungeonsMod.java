@@ -58,6 +58,8 @@ public final class PocketDungeonsMod implements ModInitializer {
         RoomEditorHistory.register();
         RoomProtection.register();
         CreepingBricks.register();
+        // Owner ask 2026-10-19: telegraphed area attacks mark their tiles and land on a delay.
+        AoETelegraph.register();
         RoomTemplateGenerator.register();
         Locks.register();
         AltarOffering.register();

@@ -82,9 +82,23 @@ final class DungeonProgress {
                           boolean announceRemaining, boolean newFinish) {
         int opened = evaluate(server, record, member, announceRemaining, newFinish);
         // Decision 2026-10-18: the compass in the campaign is a quest line, so any progress rewrites it
-        // (the Act 0 finish brings the first line, a finished dungeon crosses one off).
+        // (the Act 0 finish brings the first line, a finished dungeon crosses one off). One tracker for
+        // the party (owner ask 2026-10-19): a member's compass reads the run owner's line, so progress
+        // repaints every online member's compass, not just the member who made it.
+        DungeonLog log = DungeonLog.forServer(server);
         UUID id = member.getUUID();
-        Keystone.showCompass(member, DungeonLog.forServer(server).get(id), InstanceRegistry.byMember.containsKey(id));
+        Keystone.showCompass(member, log.get(id), InstanceRegistry.byMember.containsKey(id));
+        if (record != null) {
+            for (UUID other : record.members.keySet()) {
+                if (other.equals(id)) {
+                    continue;
+                }
+                ServerPlayer online = server.getPlayerList().getPlayer(other);
+                if (online != null) {
+                    Keystone.showCompass(online, log.get(other), InstanceRegistry.byMember.containsKey(other));
+                }
+            }
+        }
         return opened;
     }
 

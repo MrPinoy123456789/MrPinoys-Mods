@@ -332,13 +332,33 @@ final class Keystone {
     /**
      * The campaign quest line for {@code player} (decision 2026-10-18): lines of lore that name the dungeons
      * to do next, or {@code null} once the campaign is done and the compass counts scrap again.
+     *
+     * <p>One tracker for the party (owner ask 2026-10-19): while {@code player} is in a run their compass
+     * shows the record owner's line -- the same progress the doors are already dealt from -- so the whole
+     * party reads the same quest. Outside a run, and for the owner, the line is the player's own.
      */
     static List<String> questLines(ServerPlayer player, DungeonLog.Entry entry) {
-        if (Campaign.done(entry)) {
+        net.minecraft.server.MinecraftServer server = player.level().getServer();
+        UUID quest = questOwner(player);
+        DungeonLog.Entry questEntry = quest.equals(player.getUUID()) ? entry
+                : DungeonLog.forServer(server).get(quest);
+        if (Campaign.done(questEntry)) {
             return null;
         }
-        return QuestLine.lines(DungeonProgress.unlockedActs(player.level().getServer(), player.getUUID()),
-                entry.dungeonsFinished(), DungeonDefs.current().all(), Campaign.capstoneDungeonsNeeded());
+        return QuestLine.lines(DungeonProgress.unlockedActs(server, quest), questEntry.dungeonsFinished(),
+                DungeonDefs.current().all(), Campaign.capstoneDungeonsNeeded());
+    }
+
+    /**
+     * Whose campaign a compass tracks: the owner of the run {@code player} is in, or the player themself.
+     * A read-only visit copy keeps the visitor's own line.
+     */
+    private static UUID questOwner(ServerPlayer player) {
+        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
+        if (record != null && record.owner != null && !record.visitInstance) {
+            return record.owner;
+        }
+        return player.getUUID();
     }
 
     /**

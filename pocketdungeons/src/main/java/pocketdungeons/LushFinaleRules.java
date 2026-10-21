@@ -44,4 +44,22 @@ final class LushFinaleRules {
 
     /** Ticks a dead slime waits for its children to appear (vanilla spawns them as the body is removed, about 20 ticks after death). */
     static final int SPLIT_WINDOW_TICKS = 80;
+
+    // ---- the boss's slime pools ---------------------------------------------------------------------
+
+    /** Ticks after the wave stands before the first pool, and between pools after that. */
+    static final int POOL_FIRST_TICKS = 120;
+    static final int POOL_INTERVAL_TICKS = 220;
+
+    /** The tiles one pool covers (a circle of this radius) and the marked warning before it lands. */
+    static final double POOL_RADIUS = 2.0;
+    static final int POOL_WARN_TICKS = 30;
+
+    /** How long a pool stands and how often it applies its dissolve. */
+    static final int POOL_LIVE_TICKS = 200;
+    static final int POOL_TICK = 20;
+
+    /** The slowness and damage one tick in a pool applies; stepping out ends both. */
+    static final int POOL_SLOW_TICKS = 60;
+    static final float POOL_DAMAGE = 1.0f;
 }
