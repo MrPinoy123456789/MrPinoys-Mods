@@ -127,6 +127,8 @@ public final class DialogRouter {
             case DialogScreens.ACTION_UNLOCK_SHELL -> unlockShell(player,
                     tag.getStringOr(DialogScreens.KEY_SHELL, ""));
             case DialogScreens.ACTION_DIARIES -> diaries(player, server);
+            case DialogScreens.ACTION_FLOOR_HISTORY ->
+                    DialogKit.show(player, DialogScreens.floorHistory(server, player.getUUID()));
             case DialogScreens.ACTION_READ_DIARY -> readDiary(player, server,
                     tag.getIntOr(DialogScreens.KEY_DIARY, 0));
             case DialogScreens.ACTION_BACK_MENU -> backToMenu(player);

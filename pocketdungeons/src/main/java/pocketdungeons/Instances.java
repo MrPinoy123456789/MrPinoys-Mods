@@ -532,6 +532,8 @@ final class Instances {
                     player.getUUID());
         }
 
+        Terminal.crewChanged(server, record);
+
         boolean toStaging = admitsToStaging(record);
         teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL, admitPosition(record),
                 toStaging ? 0.0f : record.layout.entranceYaw(), 0.0f);
@@ -2394,6 +2396,7 @@ final class Instances {
         ReturnPoint point = record.members.remove(member);
         record.guests.remove(member);
         InstanceRegistry.byMember.remove(member);
+        Terminal.crewChanged(server, record);
         record.floor.onPad.remove(member);
         if (player != null) {
             clearTrialOmen(player);

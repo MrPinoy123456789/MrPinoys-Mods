@@ -1269,4 +1269,4 @@ Terminal geometry constants in `Terminal`; the per-room opening tab (a constant 
 Whether a four or five member Crew tab fits at scale 1.0; whether the floor graph reads at wall distance; whether
 anyone misses history on the wall; whether `away 8:12` is understood without a label.
 
-**Status: approved, not built (2026-10-23).**
+**Status: built on `feature/terminal-map-crew` (2026-10-23), not played. Live check L116.**

@@ -119,6 +119,8 @@ final class DialogScreens {
     static final String ACTION_UNLOCK_SHELL = "unlock_shell";
     /** (M26) The lodestone menu's Diaries option, and the reader's own Back button. */
     static final String ACTION_DIARIES = "diaries";
+    /** The menu's Floor History: the player's own floors, off the shared terminal (decision 2026-10-23). */
+    static final String ACTION_FLOOR_HISTORY = "floor_history";
     /** Reads one unlocked diary entry in the book screen (playtest 2026-10-02-1). */
     static final String ACTION_READ_DIARY = "read_diary";
     static final String KEY_DIARY = "pd_diary";
@@ -753,6 +755,7 @@ final class DialogScreens {
                 options.add(new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM));
             }
             options.add(new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE));
+            options.add(new MenuOption("Floor History", null, ACTION_FLOOR_HISTORY));
             if (roomOwner) {
                 options.add(new MenuOption("Manage Party", null, ACTION_MANAGE_PARTY));
                 // From your own lobby you can look in on other rooms; mid-run you cannot.
@@ -766,6 +769,7 @@ final class DialogScreens {
                 new MenuOption("Start Dungeon", null, ACTION_START_DUNGEON),
                 new MenuOption("Manage Room", null, ACTION_MANAGE_ROOM),
                 new MenuOption("Inspect Compass", null, ACTION_INSPECT_KEYSTONE),
+                new MenuOption("Floor History", null, ACTION_FLOOR_HISTORY),
                 new MenuOption("Manage Party", null, ACTION_MANAGE_PARTY),
                 new MenuOption("View Lobbies", null, ACTION_VIEW_LOBBIES));
     }
@@ -1243,6 +1247,17 @@ final class DialogScreens {
      * #shellPicker} already uses for a shell the player has not unlocked --
      * never a clickable dead end.
      */
+    /**
+     * The player's own floor history, the board that used to hang on the staging
+     * room wall (decision 2026-10-23): their newest floors and their deepest Mine
+     * floor. A notice with Close, so it is never a button-less list.
+     */
+    static Dialog floorHistory(MinecraftServer server, UUID player) {
+        FloorHistory.Board board = FloorHistory.board(server, player);
+        return DialogKit.notice("Floor history",
+                List.of(DialogKit.text(board.heading()), DialogKit.text(board.body())));
+    }
+
     static Dialog diaryList(MinecraftServer server, UUID owner) {
         Set<Integer> seen = DungeonLog.forServer(server).get(owner).diaryBandsSeen();
         List<DialogBody> body = new ArrayList<>();

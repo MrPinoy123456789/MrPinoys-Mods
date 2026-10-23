@@ -215,9 +215,9 @@ final class DungeonScreen {
     }
 
     /**
-     * The floor history board's two layers now draw through {@link Terminal}'s
-     * History tab; the {@code HISTORY_*} constants stay here because the tab
-     * keeps the same sizes and positions the old board used.
+     * The floor history board left the wall (decision 2026-10-23) for
+     * {@code /dungeon history} and the lodestone menu; the {@code HISTORY_*}
+     * constants are the sizes the board used while it hung there.
      */
 
     /**
