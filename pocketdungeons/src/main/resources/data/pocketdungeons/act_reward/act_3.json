@@ -1,0 +1,9 @@
+{"version": 1, "act": 3, "colour": "dark_aqua", "crest": "minecraft:heart_of_the_sea",
+ "story": ["He went to sea once. The sea remembers him.",
+           "Something swims in the tiled pools. You will not see it."],
+ "window": ["AAUUUUAA", "ACCCCCCA", "UCWWWWCU", "UCWKOWCU", "ACCCCCCA", "UUAAAAUU"],
+ "rewards": {"title": "Tideworn", "disc": "minecraft:music_disc_ward",
+  "decor": [{"item": "minecraft:sea_lantern", "count": 4},
+            {"item": "minecraft:prismarine_bricks", "count": 16},
+            {"item": "minecraft:dark_prismarine", "count": 8},
+            {"item": "minecraft:sea_pickle", "count": 4}]}}

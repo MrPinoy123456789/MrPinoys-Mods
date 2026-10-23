@@ -157,6 +157,16 @@ final class RoomBuilder {
             "???",
             Blocks.SPRUCE_PLANKS, Blocks.SPRUCE_PLANKS, Blocks.SPRUCE_PLANKS,
             Blocks.SPRUCE_SLAB, Blocks.SPRUCE_STAIRS);
+    /**
+     * Crew model (decision 2026-10-21, spec 5.4): the Act 1 completion shell,
+     * granted by {@link ActRewards} to every member present when the act
+     * closes. Stone walls under a spruce floor and ceiling read like the
+     * inside of a mineshaft.
+     */
+    static final ShellPalette OLD_MINE = palette("old_mine", "Old Mine",
+            "Finish Act 1",
+            Blocks.SPRUCE_PLANKS, Blocks.COBBLESTONE, Blocks.SPRUCE_PLANKS,
+            Blocks.SPRUCE_SLAB, Blocks.SPRUCE_STAIRS);
 
     /**
      * (M24) The prestige shell {@link DungeonLog#addRoomCompletion} counts
@@ -172,7 +182,8 @@ final class RoomBuilder {
             SANDSTONE.name(), SANDSTONE,
             DEEPSLATE.name(), DEEPSLATE,
             NETHER_BRICK.name(), NETHER_BRICK,
-            ALEXS_ROOM.name(), ALEXS_ROOM);
+            ALEXS_ROOM.name(), ALEXS_ROOM,
+            OLD_MINE.name(), OLD_MINE);
 
     private static ShellPalette palette(String name, String displayName, String unlockHint,
                                         Block floor, Block wall, Block ceiling,
@@ -690,7 +701,7 @@ final class RoomBuilder {
 
     /** The selectable palettes in menu order: the default first, then the unlocks. */
     static List<ShellPalette> shellOrder() {
-        return List.of(OAK, STONE_BRICK, SANDSTONE, DEEPSLATE, NETHER_BRICK, ALEXS_ROOM);
+        return List.of(OAK, STONE_BRICK, SANDSTONE, DEEPSLATE, NETHER_BRICK, ALEXS_ROOM, OLD_MINE);
     }
 
     /**

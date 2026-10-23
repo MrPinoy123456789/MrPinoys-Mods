@@ -1,0 +1,9 @@
+{"version": 1, "act": 4, "colour": "red", "crest": "minecraft:blaze_rod",
+ "story": ["Fire, and the places he swore he would not go back to.",
+           "A keep stands where the map burned."],
+ "window": ["KRKKKKRK", "KKKBBKKK", "RKBBBBKR", "KKBYYBKK", "ORBBBBRO", "RORROORO"],
+ "rewards": {"title": "Ashbound", "disc": "minecraft:music_disc_pigstep",
+  "decor": [{"item": "minecraft:shroomlight", "count": 4},
+            {"item": "minecraft:polished_blackstone_bricks", "count": 16},
+            {"item": "minecraft:gilded_blackstone", "count": 2},
+            {"item": "minecraft:soul_campfire", "count": 1}]}}

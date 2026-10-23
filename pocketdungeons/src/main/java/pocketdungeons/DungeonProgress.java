@@ -120,6 +120,7 @@ final class DungeonProgress {
                 log.setTaskProgress(id, PROLOGUE_KEY, 1);
                 member.sendSystemMessage(Component.literal("The First Night is behind you. Act 1 is open.")
                         .withStyle(ChatFormatting.GOLD));
+                ActRewards.actCompleted(server, record, member, DungeonDef.PROLOGUE_ACT);
             }
             return DungeonDef.MIN_ACT;
         }
@@ -153,6 +154,7 @@ final class DungeonProgress {
                         DungeonProgress::celebrate);
             }
             PlaytestJournal.actUnlocked(member, record, dungeonId, next, false);
+            ActRewards.actCompleted(server, record, member, act);
             opened = next;
         }
 
@@ -165,6 +167,7 @@ final class DungeonProgress {
                         .withStyle(ChatFormatting.GOLD));
             }
             PlaytestJournal.actUnlocked(member, record, dungeonId, 0, true);
+            ActRewards.actCompleted(server, record, member, DungeonDef.MAX_ACT);
         }
 
         if (newFinish && record != null && compassWoke(finished, record, all)) {

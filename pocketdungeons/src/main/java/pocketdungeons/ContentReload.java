@@ -124,6 +124,7 @@ final class ContentReload {
                 RoleManifest.publish(candidate.roles());
                 CubeRecipeManifest.publish(candidate.recipes());
                 HauntManifest.publish(candidate.haunts());
+                ActRewardManifest.publish(candidate.actRewards());
                 ContentModules.publish(candidate.modules());
                 LootTables.validateAtStartup(server);
                 reconcileActiveFloors(server, candidate);

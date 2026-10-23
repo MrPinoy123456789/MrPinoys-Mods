@@ -721,6 +721,18 @@ final class DungeonLog extends SavedData {
      */
     private final Map<UUID, Set<String>> finishBonusClaimed = new HashMap<>();
 
+    /**
+     * (decision 2026-10-21, spec 6.1) Acts whose rewards this player has
+     * already been paid, and the acts whose titles they hold. Per player
+     * sets like {@link #finishBonusClaimed}: rewards are personal even
+     * though the campaign is the party leader's. Saved as
+     * {@code act_rewards_claimed} and {@code titles_earned}; a save written
+     * before either field decodes with empty sets and is caught up by
+     * {@link ActRewards#backPay} on the next join.
+     */
+    private final Map<UUID, Set<Integer>> actRewardsClaimed = new HashMap<>();
+    private final Map<UUID, Set<Integer>> titlesEarned = new HashMap<>();
+
     /** (M75) How many run records per player the sidecar keeps; oldest drop off the front. */
     static final int RUN_RECORD_LIMIT = 20;
 
@@ -1030,6 +1042,17 @@ final class DungeonLog extends SavedData {
                     .fieldOf("dungeons").forGetter(PlayerFinishBonuses::dungeons)
     ).apply(instance, PlayerFinishBonuses::new));
 
+    /** One player's claimed act rewards (or earned titles), keyed the same way {@link PlayerEntry} is. */
+    private record PlayerIntSet(UUID player, Set<Integer> acts) {}
+
+    private static final Codec<PlayerIntSet> PLAYER_INT_SET_CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.xmap(UUID::fromString, UUID::toString).fieldOf("player")
+                    .forGetter(PlayerIntSet::player),
+            Codec.INT.listOf().xmap(list -> (Set<Integer>) new HashSet<>(list), List::copyOf)
+                    .fieldOf("acts").forGetter(PlayerIntSet::acts)
+    ).apply(instance, PlayerIntSet::new));
+
     /** One player's floor history, keyed the same way {@link PlayerEntry} is. */
     private record PlayerFloorHistory(UUID player, List<FloorHistory.Entry> entries) {}
 
@@ -1118,7 +1141,15 @@ final class DungeonLog extends SavedData {
             // seeds each player's set from their dungeons_finished, so nothing pays twice.
             PLAYER_FINISH_BONUSES_CODEC.listOf().optionalFieldOf("finish_bonus_claimed", List.of())
                     .forGetter(log -> log.finishBonusClaimed.entrySet().stream()
-                            .map(e -> new PlayerFinishBonuses(e.getKey(), e.getValue())).toList())
+                            .map(e -> new PlayerFinishBonuses(e.getKey(), e.getValue())).toList()),
+            // Spec 6.1 (decision 2026-10-21): optional so a save written before act
+            // rewards existed loads with none claimed; back pay on join catches it up.
+            PLAYER_INT_SET_CODEC.listOf().optionalFieldOf("act_rewards_claimed", List.of())
+                    .forGetter(log -> log.actRewardsClaimed.entrySet().stream()
+                            .map(e -> new PlayerIntSet(e.getKey(), e.getValue())).toList()),
+            PLAYER_INT_SET_CODEC.listOf().optionalFieldOf("titles_earned", List.of())
+                    .forGetter(log -> log.titlesEarned.entrySet().stream()
+                            .map(e -> new PlayerIntSet(e.getKey(), e.getValue())).toList())
     ).apply(instance, DungeonLog::fromEntries));
 
     private static DungeonLog fromEntries(List<PlayerEntry> players, List<PlayerTaskProgress> taskProgress,
@@ -1132,7 +1163,9 @@ final class DungeonLog extends SavedData {
                                           List<PlayerStorageReturn> retiredStorageReturns,
                                           List<PlayerDungeonStorage> dungeonStorage,
                                           List<PackPot> packPots,
-                                          List<PlayerFinishBonuses> finishBonuses) {
+                                          List<PlayerFinishBonuses> finishBonuses,
+                                          List<PlayerIntSet> actRewards,
+                                          List<PlayerIntSet> titles) {
         DungeonLog log = new DungeonLog();
         for (PlayerEntry entry : players) {
             log.entries.put(entry.player(), entry.entry());
@@ -1166,6 +1199,12 @@ final class DungeonLog extends SavedData {
         }
         for (PlayerFinishBonuses f : finishBonuses) {
             log.finishBonusClaimed.put(f.player(), new HashSet<>(f.dungeons()));
+        }
+        for (PlayerIntSet s : actRewards) {
+            log.actRewardsClaimed.put(s.player(), new HashSet<>(s.acts()));
+        }
+        for (PlayerIntSet s : titles) {
+            log.titlesEarned.put(s.player(), new HashSet<>(s.acts()));
         }
         // Migration: a save written before finish_bonus_claimed existed seeds the
         // set from the player's finished dungeons, so an old finish does not pay
@@ -1651,6 +1690,38 @@ final class DungeonLog extends SavedData {
     /** The dungeons {@code player} has already claimed a first finish bonus for. */
     Set<String> finishBonusClaimedOf(UUID player) {
         return Set.copyOf(finishBonusClaimed.getOrDefault(player, Set.of()));
+    }
+
+    /**
+     * Marks act {@code act}'s rewards paid to {@code player}; returns
+     * whether they were newly claimed (the once per player per act guard,
+     * spec 6.1).
+     */
+    boolean claimActRewards(UUID player, int act) {
+        Set<Integer> claimed = actRewardsClaimed.computeIfAbsent(player, id -> new HashSet<>());
+        if (claimed.contains(act)) {
+            return false;
+        }
+        claimed.add(act);
+        setDirty();
+        return true;
+    }
+
+    /** The acts {@code player} has already been paid rewards for. */
+    Set<Integer> actRewardsClaimedOf(UUID player) {
+        return Set.copyOf(actRewardsClaimed.getOrDefault(player, Set.of()));
+    }
+
+    /** Adds act {@code act}'s title to {@code player}'s earned set. */
+    void earnTitle(UUID player, int act) {
+        if (titlesEarned.computeIfAbsent(player, id -> new HashSet<>()).add(act)) {
+            setDirty();
+        }
+    }
+
+    /** The acts whose titles {@code player} holds (spec 6.3). */
+    Set<Integer> titlesEarnedOf(UUID player) {
+        return Set.copyOf(titlesEarned.getOrDefault(player, Set.of()));
     }
 
     /** Whether {@code player} may be offered dungeons of {@code act}. */

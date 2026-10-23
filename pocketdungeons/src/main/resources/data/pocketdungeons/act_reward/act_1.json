@@ -1,0 +1,11 @@
+{"version": 1, "act": 1, "colour": "white", "crest": "minecraft:iron_pickaxe",
+ "story": ["These rooms are Steve's first days, laid down wrong.",
+           "His first mine. The night he lost the stone house."],
+ "window": ["GLLLLLGG", "LGGBGGLG", "GGBGGGGO", "GBGGOGGG", "BGGGGGGG", "GGOGGGGG"],
+ "rewards": {"title": "Delver", "disc": "minecraft:music_disc_13",
+  "decor": [{"item": "minecraft:lantern", "count": 4},
+            {"item": "minecraft:iron_chain", "count": 8},
+            {"item": "minecraft:barrel", "count": 2},
+            {"item": "minecraft:oak_log", "count": 8},
+            {"item": "minecraft:cobweb", "count": 2}],
+  "shell": "old_mine"}}

@@ -92,7 +92,8 @@
       "pocketdungeons.CopperFinaleGameTest",
       "pocketdungeons.ProvingGameTest",
       "pocketdungeons.GatherFloorGameTest",
-      "pocketdungeons.AoETelegraphGameTest"
+      "pocketdungeons.AoETelegraphGameTest",
+      "pocketdungeons.ActRewardGameTest"
     ],
     "main": [
       "pocketdungeons.gametest.DungeonIntegrationEntrypoint",

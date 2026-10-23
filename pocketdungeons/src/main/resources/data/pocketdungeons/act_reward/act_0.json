@@ -1,0 +1,5 @@
+{"version": 1, "act": 0, "colour": "gray", "crest": "minecraft:recovery_compass",
+ "story": ["Lemon came out of the compass alone.",
+           "Alex followed it into the dark. She has not come back."],
+ "window": ["UUUUUWYU", "UWUUUYYU", "UUUEUUUU", "UUEEEUUW", "UUUBUUUU", "EEEBEEEE"],
+ "rewards": {}}

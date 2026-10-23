@@ -56,6 +56,7 @@ final class ContentSnapshot {
     private final RoleManifest roles;
     private final CubeRecipeManifest recipes;
     private final HauntManifest haunts;
+    private final ActRewardManifest actRewards;
     private final ContentModules modules;
     private final List<String> errors;
     private final boolean valid;
@@ -63,8 +64,8 @@ final class ContentSnapshot {
     private ContentSnapshot(RoomManifest rooms, RoomManifest anomalyRooms,
                             ThemeManifest themes, AdventureGraphs adventure, DungeonDefs dungeons, Diaries diaries,
                             AffixManifest affixes, BagManifest bags, RoleManifest roles,
-                            CubeRecipeManifest recipes, HauntManifest haunts, ContentModules modules,
-                            List<String> errors, boolean valid) {
+                            CubeRecipeManifest recipes, HauntManifest haunts, ActRewardManifest actRewards,
+                            ContentModules modules, List<String> errors, boolean valid) {
         this.rooms = rooms;
         this.anomalyRooms = anomalyRooms;
         this.themes = themes;
@@ -76,6 +77,7 @@ final class ContentSnapshot {
         this.roles = roles;
         this.recipes = recipes;
         this.haunts = haunts;
+        this.actRewards = actRewards;
         this.modules = modules;
         this.errors = List.copyOf(errors);
         this.valid = valid;
@@ -121,6 +123,7 @@ final class ContentSnapshot {
         RoleManifest roles = RoleManifest.parse(server, rm);
         CubeRecipeManifest recipes = CubeRecipeManifest.parse(server, rm);
         HauntManifest haunts = HauntManifest.parse(server, rm);
+        ActRewardManifest actRewards = ActRewardManifest.parse(server, rm);
 
         List<String> errors = new ArrayList<>();
         boolean hasEntrance = false;
@@ -188,7 +191,7 @@ final class ContentSnapshot {
         }
 
         return new ContentSnapshot(rooms, anomalyRooms, themes, adventure, dungeons, diaries, affixes,
-                bags, roles, recipes, haunts, modules, errors, valid);
+                bags, roles, recipes, haunts, actRewards, modules, errors, valid);
     }
 
     RoomManifest rooms() {
@@ -240,6 +243,11 @@ final class ContentSnapshot {
         return haunts;
     }
 
+    /** The act reward manifest this snapshot parsed (data/pocketdungeons/act_reward). */
+    ActRewardManifest actRewards() {
+        return actRewards;
+    }
+
     /** L2 (D41): the content module manifest this snapshot parsed. */
     ContentModules modules() {
         return modules;
@@ -273,6 +281,7 @@ final class ContentSnapshot {
         all.addAll(roles.rejections());
         all.addAll(recipes.rejections());
         all.addAll(haunts.rejections());
+        all.addAll(actRewards.rejections());
         all.addAll(modules.rejections());
         all.addAll(errors);
         return all;

@@ -17,7 +17,7 @@ public class ShellPaletteTest {
         net.minecraft.SharedConstants.setVersion(net.minecraft.DetectedVersion.BUILT_IN);
         net.minecraft.server.Bootstrap.bootStrap();
 
-        check(RoomBuilder.SHELL_PALETTES.size(), 6, "six shipped palettes");
+        check(RoomBuilder.SHELL_PALETTES.size(), 7, "seven shipped palettes");
         check(RoomBuilder.isDefaultShell("oak"), true, "oak is the always-available default");
         check(RoomBuilder.isDefaultShell("stone_brick"), true,
                 "stone brick (PD-53) is also always available: every room starts on it");
@@ -30,11 +30,16 @@ public class ShellPaletteTest {
                 "nether brick resolves");
         check(RoomBuilder.palette("alexs_room").displayName(), "Alex's Room",
                 "alex's room resolves");
+        check(RoomBuilder.palette("old_mine").displayName(), "Old Mine",
+                "old mine resolves (Act 1 reward, spec 5.4)");
+        check(RoomBuilder.palette("old_mine").unlockHint(), "Finish Act 1",
+                "old mine is locked behind Act 1");
+        check(RoomBuilder.isDefaultShell("old_mine"), false, "old mine needs an unlock");
         check(RoomBuilder.palette("not_a_shell").name(), "oak",
                 "unknown names fall back to the default");
         check(RoomBuilder.SHELL_PALETTES.containsKey(RoomBuilder.PRESTIGE_SHELL), true,
                 "the prestige shell is a real palette");
-        check(RoomBuilder.shellOrder().size(), 6, "menu order lists every palette");
+        check(RoomBuilder.shellOrder().size(), 7, "menu order lists every palette");
         check(RoomBuilder.shellOrder().get(0).name(), "oak", "the default leads the menu");
         check(RoomBuilder.shellOrder().get(1).name(), "stone_brick",
                 "stone brick follows oak, PD-53");

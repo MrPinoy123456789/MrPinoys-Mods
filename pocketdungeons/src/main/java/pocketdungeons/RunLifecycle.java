@@ -1853,6 +1853,10 @@ final class RunLifecycle {
             log.setTaskProgress(id, DungeonProgress.PENDING_PROGRESS_KEY, 0);
             DungeonProgress.onProgress(server, InstanceRegistry.byMember.get(id), player, true);
         }
+        // Spec 6: acts this player's own save shows complete pay out on join,
+        // and their nameplate shows the highest title they hold.
+        ActRewards.backPay(server, player);
+        ActRewards.applyTitleTeam(server, player);
     }
 
     /** The lines of the one time message a migrated player gets on the first join after the quest line shipped. */

@@ -1,0 +1,9 @@
+{"version": 1, "act": 2, "colour": "aqua", "crest": "minecraft:echo_shard",
+ "story": ["Deeper down, the memories hold together.",
+           "He found his first diamond here. The echo never stopped."],
+ "window": ["KKKKKKKK", "KKKAAKKK", "KKACCAKK", "KCKAAKCK", "KKCKKCKK", "CKKKKKKC"],
+ "rewards": {"title": "Deepwalker", "disc": "minecraft:music_disc_5",
+  "decor": [{"item": "minecraft:soul_lantern", "count": 4},
+            {"item": "minecraft:sculk", "count": 8},
+            {"item": "minecraft:deepslate_tiles", "count": 16},
+            {"item": "minecraft:candle", "count": 4}]}}

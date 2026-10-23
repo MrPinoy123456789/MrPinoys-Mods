@@ -1,0 +1,9 @@
+{"version": 1, "act": 5, "colour": "light_purple", "crest": "minecraft:ender_eye",
+ "story": ["Every road ends at the same door.",
+           "He went in to fix the world. Something else walked out."],
+ "window": ["KYKPKKWK", "KKPMMPKK", "PMKKKKMP", "PMKYYKMP", "KKPMMPKK", "KWKKPKYK"],
+ "rewards": {"title": "Voidsworn", "disc": "minecraft:music_disc_11",
+  "decor": [{"item": "minecraft:end_rod", "count": 6},
+            {"item": "minecraft:purpur_block", "count": 16},
+            {"item": "minecraft:end_stone_bricks", "count": 16},
+            {"item": "minecraft:dragon_head", "count": 1}]}}

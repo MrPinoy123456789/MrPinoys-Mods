@@ -499,7 +499,9 @@ for ((taskName, testClass) in mapOf(
     // Floor objectives: the fallback rule, the quotas, the wave tremor and the bonus rolls.
     "floorObjectiveRulesTest" to "FloorObjectiveRulesTest",
     // Owner ask 2026-10-19: the telegraphed area shapes (circle, cone, line) and their tile maths.
-    "aoeShapesTest" to "AoEShapesTest"
+    "aoeShapesTest" to "AoEShapesTest",
+    // Crew model (decision 2026-10-21, spec 5/6): the act_reward data type.
+    "actRewardDataTest" to "ActRewardDataTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -640,6 +642,7 @@ tasks.test {
     dependsOn("lushFinaleRulesTest")
     dependsOn("floorObjectiveRulesTest")
     dependsOn("aoeShapesTest")
+    dependsOn("actRewardDataTest")
     failOnNoDiscoveredTests = false
 }
 
