@@ -1214,3 +1214,59 @@ Whether the party reads the Objectives tab without being told; whether 12 blocks
 room; whether guests feel rewarded enough to keep joining; whether the lit window is too bright for the room.
 
 **Status: approved, not built (2026-10-21).** Handoff pack in `docs/devin/`.
+
+## 2026-10-23: Terminal tabs: Objectives, Map, Crew
+
+The player's sentence: *The wall tells the crew where we are going (Objectives), where we are (Map) and how each of us
+is doing (Crew). My own floor log is mine, so it lives in my menu, not on everyone's wall.*
+
+### The model
+
+| Tab | Shows | Built from | Replaces |
+|---|---|---|---|
+| Objectives | The page act: crest, act name, story, next goal, rewards row, window, act pips. Reward icons have **no ticks** | `Terminal.objectives` as today | unchanged, minus the ticks |
+| Map | In a run: the floor graph (current floor gold, taken path, the doors ahead). In the hall: the page act's checklist (the Progress tab's right column today) | `DungeonMapText.lines`, `firstLines`, `actChecklist` | History, and Progress's right column |
+| Crew | One row per member: `★` on the leader, personal haul, pots left behind, that member's own act reward ticks. Footer: shared lives. While the leader's reconnect grace runs: `away 8:12` | `DungeonLog.haulOf`, `PackPot`, `actRewardsClaimedOf(member)`, `RunLifecycle.livesLeft`, the owner grace timer | Progress's left column (it repeated the sidebar) |
+| Floor history | Off the wall. `/dungeon history` in chat and a page in the lodestone menu | `FloorHistory.board`, data unchanged in `DungeonLog` | the History tab |
+
+### Rules
+
+1. **Three tabs, four columns each**, in the order `OBJECTIVES | MAP | CREW`. Shared state, anyone may click, as before.
+2. **Each room opens on its own tab** when it is stamped: the hall on Objectives, a staging room between floors on Map,
+   a cleared floor's go-home room on Crew. After that only a click changes the tab; nothing switches it on its own.
+3. **Ticks belong to people.** A shared wall cannot tell viewers apart, so a reward tick sits on that member's Crew
+   row, never on the Objectives icons.
+4. **Short text.** Position and colour carry the meaning: `◆ Last`, `Pots 1`, `away 8:12`, a bare haul number in aqua.
+   Clear text (`1 pot left behind`, `Leader away: 8:12`) was offered and not taken.
+5. **The map is on the wall again.** PD-224 removed the board's right-click map; the Map tab is now the in-world way
+   to read it. `/dungeon map` stays.
+6. **Nothing written to the wall is smaller than scale 1.0** (spec 7.4.1), including Crew rows with a full party.
+
+### Build notes
+
+While Objectives is open for the tick change, close the gaps found against `docs/devin/01-SPEC.md` 7.4 on 2026-10-23
+(the T6 report said none): locked acts draw no silhouette window; the rewards row lacks the title and window icons
+and its inspect text is the bare item name; line 3 reads `nextInAct` in plain white instead of the quest line in white
+and gold, a finished act shows no `◆ Act complete`, act 0 says `The Tutorial`; row wrapping is guessed from string
+length. `TerminalGameTest` needs a Map and a Crew case; the History case moves to the command.
+
+### Migration
+
+None. Saves are untouched; `InstanceRecord.terminalTab` values `progress` and `history` read as `map`.
+
+### Supersedes
+
+- 2026-10-21 rule 4 and its table row: the three tabs Objectives, Progress, History.
+- `docs/devin/01-SPEC.md` 7.5 (Progress tab), 7.6 (History tab), and the reward ticks in 7.4.
+- 2026-10-21 Supersedes, last line: floor history no longer becomes a tab.
+
+### Knobs
+
+Terminal geometry constants in `Terminal`; the per-room opening tab (a constant per room kind, not config).
+
+### Open until played
+
+Whether a four or five member Crew tab fits at scale 1.0; whether the floor graph reads at wall distance; whether
+anyone misses history on the wall; whether `away 8:12` is understood without a label.
+
+**Status: approved, not built (2026-10-23).**
