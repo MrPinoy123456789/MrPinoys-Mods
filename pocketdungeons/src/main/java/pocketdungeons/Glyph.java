@@ -177,6 +177,9 @@ public final class Glyph {
      * {@code scale} is the base scale of its transformation, kept for the refuse shake.
      */
     public void addVisual(ServerLevel level, Entity entity, float scale) {
+        if (entity == null) {
+            return;
+        }
         entity.addTag(TAG);
         entity.addTag(groupTag());
         if (entity instanceof Display.ItemDisplay) {

@@ -1,6 +1,5 @@
 package pocketdungeons;
 
-import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -19,14 +18,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.ProblemReporter;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.UUID;
@@ -59,16 +57,14 @@ final class HallRoom {
 
     private HallRoom() {}
 
+    /** The astrolabe's glyph handler: any party member may turn it (decision 2026-10-21, spec 4). */
+    static final Identifier TURN_ASTROLABE =
+            Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, "turn_astrolabe");
+
     static void register() {
-        UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
-            if (!entity.entityTags().contains(TAG)) {
-                return InteractionResult.PASS;
-            }
-            if (level.isClientSide() || hand != InteractionHand.MAIN_HAND || !(player instanceof ServerPlayer sp)) {
-                return InteractionResult.SUCCESS;
-            }
-            turn(sp, sp.isShiftKeyDown());
-            return InteractionResult.SUCCESS_SERVER;
+        GlyphHandlers.register(TURN_ASTROLABE, ctx -> {
+            turn(ctx.player(), ctx.sneaking());
+            return GlyphResult.PASS;
         });
     }
 
@@ -292,6 +288,11 @@ final class HallRoom {
         double cx = o.getX() + CORE_X + 0.5;
         double cz = o.getZ() + CORE_Z + 0.5;
 
+        // The astrolabe is a glyph (decision 2026-10-21, spec 4): the click box is its anchor,
+        // the clock icon and the act text its visuals. Same positions, scales and text as before.
+        Glyph glyph = Glyph.spawn(level, new Vec3(cx, o.getY() + 1.0, cz), 1.2f, 2.6f,
+                TURN_ASTROLABE, new CompoundTag(), List.of(TAG));
+
         // The turning instrument: a clock held above the plinth, always facing the viewer.
         CompoundTag item = new CompoundTag();
         item.putString("id", "minecraft:item_display");
@@ -302,7 +303,8 @@ final class HallRoom {
         item.putString("billboard", "center");
         item.putString("item_display", "fixed");
         item.put("transformation", DungeonScreen.scaleTransformation(1.1f));
-        spawn(level, EntityTypes.ITEM_DISPLAY.create(level, EntitySpawnReason.COMMAND), item, cx, o.getY() + 2.6, cz);
+        glyph.addVisual(level, load(level, EntityTypes.ITEM_DISPLAY.create(level,
+                EntitySpawnReason.COMMAND), item, cx, o.getY() + 2.6, cz), 1.1f);
 
         // The act, and which acts are open.
         CompoundTag text = new CompoundTag();
@@ -313,15 +315,8 @@ final class HallRoom {
         text.putString("alignment", "center");
         text.putInt("line_width", 240);
         text.put("transformation", DungeonScreen.scaleTransformation(1.0f));
-        spawn(level, EntityTypes.TEXT_DISPLAY.create(level, EntitySpawnReason.COMMAND), text, cx, o.getY() + 3.55, cz);
-
-        // The click box.
-        CompoundTag box = new CompoundTag();
-        box.putString("id", "minecraft:interaction");
-        box.putFloat("width", 1.2f);
-        box.putFloat("height", 2.6f);
-        box.putBoolean("response", true);
-        spawn(level, EntityTypes.INTERACTION.create(level, EntitySpawnReason.COMMAND), box, cx, o.getY() + 1.0, cz);
+        glyph.addVisual(level, load(level, EntityTypes.TEXT_DISPLAY.create(level,
+                EntitySpawnReason.COMMAND), text, cx, o.getY() + 3.55, cz), 1.0f);
     }
 
     /** {@code Act 2: The Deep} over a line of the five acts, the shown one in gold and the locked ones dark. */
@@ -344,9 +339,11 @@ final class HallRoom {
         return text;
     }
 
-    private static void spawn(ServerLevel level, Entity entity, CompoundTag tag, double x, double y, double z) {
+    /** Loads a display entity from {@code tag} with {@link #TAG}, ready for {@code Glyph.addVisual}. */
+    private static Entity load(ServerLevel level, Entity entity, CompoundTag tag,
+                               double x, double y, double z) {
         if (entity == null) {
-            return;
+            return null;
         }
         ListTag pos = new ListTag();
         pos.add(DoubleTag.valueOf(x));
@@ -365,7 +362,7 @@ final class HallRoom {
             ValueInput in = TagValueInput.create(reporter, level.registryAccess(), tag);
             entity.load(in);
         }
-        level.addFreshEntity(entity);
+        return entity;
     }
 
     private static void clearAstrolabeEntities(ServerLevel level, BlockPos o) {
@@ -388,16 +385,11 @@ final class HallRoom {
 
     // ---- turning --------------------------------------------------------------------------------------
 
-    /** Turns the astrolabe to the next open act (or the previous when {@code back}). Owner only. */
+    /** Turns the astrolabe to the next open act (or the previous when {@code back}). Any member may. */
     static void turn(ServerPlayer player, boolean back) {
         MinecraftServer server = player.level().getServer();
         InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
         if (server == null || record == null || !isHallStaging(record) || !RunSession.canChooseDoor(record)) {
-            return;
-        }
-        if (!player.getUUID().equals(record.owner)) {
-            Chime.refused(player);
-            player.sendOverlayMessage(Component.literal("The trip owner chooses.").withStyle(ChatFormatting.YELLOW));
             return;
         }
         HallOffers.Hall hall = HallOffers.of(server, record);
@@ -408,7 +400,13 @@ final class HallRoom {
             player.sendOverlayMessage(Component.literal("Only one act is open.").withStyle(ChatFormatting.YELLOW));
             return;
         }
+        // In a run the astrolabe room lives in the pocket dimension, which is where the
+        // interacting player stands; gametest worlds have no pocket dimension, so the
+        // player's own level stands in there.
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            level = player.level() instanceof ServerLevel serverLevel ? serverLevel : null;
+        }
         if (level == null) {
             return;
         }
@@ -418,6 +416,7 @@ final class HallRoom {
         record.interval.hallAct = next;
         arm(server, level, record.stagingCellOrigin, record.roomDungeonDoor, record.owner, record);
         DungeonScreen.updateDoor(level, record, DungeonScreen.idleContent(level, record.owner));
+        terminalActTurned(server, record, next);
         level.playSound(null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.2f);
         level.sendParticles(ParticleTypes.END_ROD, record.stagingCellOrigin.getX() + CORE_X + 0.5,
                 record.stagingCellOrigin.getY() + 2.6, record.stagingCellOrigin.getZ() + CORE_Z + 0.5,
@@ -430,5 +429,12 @@ final class HallRoom {
                     List.of(label.contains(": ") ? label.substring(label.indexOf(": ") + 2) : label),
                     ChatFormatting.GRAY);
         }
+    }
+
+    /**
+     * Spec 4: a successful turn sets the terminal's act page and redraws it. T6 wires this to
+     * {@code Terminal}; the hook is a no-op until then.
+     */
+    private static void terminalActTurned(MinecraftServer server, InstanceRecord record, int act) {
     }
 }

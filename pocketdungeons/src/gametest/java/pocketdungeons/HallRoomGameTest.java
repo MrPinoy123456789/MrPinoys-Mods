@@ -6,6 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.StandingSignBlock;
@@ -234,6 +235,49 @@ public final class HallRoomGameTest {
                 InstanceRegistry.usedSlots.remove(9972);
                 InstanceRegistry.byMember.remove(owner);
             }
+        }
+        helper.succeed();
+    }
+
+    /** Spec 4: the astrolabe is a glyph any member may turn, not only the trip owner. */
+    @GameTest(maxTicks = 40)
+    @SuppressWarnings("removal")
+    public void aGuestCanTurnTheAstrolabe(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        ServerPlayer owner = helper.makeMockServerPlayerInLevel();
+        ServerPlayer guest = helper.makeMockServerPlayerInLevel();
+        DungeonLog log = DungeonLog.forServer(server);
+        DoorMask.Direction wall = DoorMask.Direction.SOUTH;
+        BlockPos staging = helper.absolutePos(new BlockPos(0, 1, 0));
+        // Two open acts so a turn actually moves the astrolabe.
+        log.unlockAct(owner.getUUID(), 1);
+        log.unlockAct(owner.getUUID(), 2);
+        InstanceRecord record = new InstanceRecord(9973, staging, server.getTickCount(), null,
+                Set.of(), owner.getUUID(), false);
+        record.stagingCellOrigin = staging;
+        record.roomDungeonDoor = wall;
+        record.phase = RunSession.Phase.HOME;
+        net.minecraft.world.phys.Vec3 ret = new net.minecraft.world.phys.Vec3(0.5, 70.0, 0.5);
+        record.members.put(owner.getUUID(), new ReturnPoint(net.minecraft.world.level.Level.OVERWORLD, ret, 0.0f, 0.0f));
+        record.members.put(guest.getUUID(), new ReturnPoint(net.minecraft.world.level.Level.OVERWORLD, ret, 0.0f, 0.0f));
+        InstanceRegistry.bySlot.put(9973, record);
+        InstanceRegistry.usedSlots.add(9973);
+        InstanceRegistry.byMember.put(owner.getUUID(), record);
+        InstanceRegistry.byMember.put(guest.getUUID(), record);
+        try {
+            HallRoom.arm(server, level, staging, wall, owner.getUUID(), record);
+            helper.assertTrue(HallRoom.isHallStaging(record), "a fresh trip shows the hall");
+            int before = record.interval.hallAct;
+            HallRoom.turn(guest, false);
+            helper.assertTrue(record.interval.hallAct != before,
+                    "a guest's turn moves the astrolabe, was act " + before);
+        } finally {
+            HallRoom.dismantle(level, staging, wall);
+            InstanceRegistry.bySlot.remove(9973);
+            InstanceRegistry.usedSlots.remove(9973);
+            InstanceRegistry.byMember.remove(owner.getUUID());
+            InstanceRegistry.byMember.remove(guest.getUUID());
         }
         helper.succeed();
     }
