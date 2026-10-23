@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lemon": {
+      "command": "node",
+      "args": ["A:/MrPinoys Mods/pocketdungeons/tools/server/mcp.mjs", "--admin"]
+    }
+  }
+}

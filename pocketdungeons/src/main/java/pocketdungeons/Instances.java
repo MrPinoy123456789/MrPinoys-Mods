@@ -1052,20 +1052,6 @@ final class Instances {
     }
 
     /**
-     * Whether {@code pos} is a block of the floor history board in the staging room
-     * of the run this player is in. A click on it opens the dungeon map. Any member
-     * may read it.
-     */
-    static boolean isHistoryBoard(ServerPlayer player, BlockPos pos) {
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        if (record == null || record.stagingCellOrigin == null || record.visitInstance
-                || !record.inFloorLoop()) {
-            return false;
-        }
-        return StagingFurniture.isHistoryPanel(record.stagingCellOrigin, record.roomDungeonDoor, pos);
-    }
-
-    /**
      * Whether {@code pos} is the go-home lever in the staging room of the run
      * this player is in. Any member's click is claimed, so vanilla never
      * flips the lever, and {@code RunLifecycle.goHome} answers a member the

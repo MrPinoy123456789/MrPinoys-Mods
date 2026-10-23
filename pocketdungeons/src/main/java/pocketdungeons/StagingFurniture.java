@@ -532,23 +532,6 @@ final class StagingFurniture {
         placeTerminalPanel(level, o, RoomGeometry.leftOf(wall));
     }
 
-    /**
-     * Whether {@code pos} is a block of the terminal's panel in the staging
-     * room at {@code o} whose selector doors face {@code selectorWall}.
-     * Right-clicking it opens the dungeon map (dungeon structure W2).
-     */
-    static boolean isHistoryPanel(BlockPos o, DoorMask.Direction selectorWall, BlockPos pos) {
-        DoorMask.Direction historyWall = RoomGeometry.leftOf(selectorWall);
-        for (int y = TERMINAL_Y_MIN; y <= TERMINAL_Y_MAX; y++) {
-            for (int along = TERMINAL_ALONG_MIN; along <= TERMINAL_ALONG_MAX; along++) {
-                if (wallRingPos(o, historyWall, along, y).equals(pos)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     /** The terminal wall: {@link Terminal#placeWall} stamps the tab row, screen and backlight. */
     private static void placeTerminalPanel(ServerLevel level, BlockPos o, DoorMask.Direction historyWall) {
         Terminal.placeWall(level, o, historyWall, false);

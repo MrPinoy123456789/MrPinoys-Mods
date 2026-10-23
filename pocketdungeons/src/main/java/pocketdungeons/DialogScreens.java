@@ -260,8 +260,8 @@ final class DialogScreens {
      * The staging room's dungeon map: the layers of the dungeon this trip is in, the
      * node the party stands at, the final floor, each edge's scrap cost and which
      * floors each door can reach. Before the first door of a trip it lists the three
-     * dungeons on offer instead. Read only; opened by right-clicking the floor
-     * history board in the staging room, or {@code /dungeon map}. The lines come from
+     * dungeons on offer instead. Read only; opened with {@code /dungeon map}.
+     * The lines come from
      * {@link DungeonMapText}, so the shape is pinned by a plain test.
      */
     static Dialog dungeonMap(MinecraftServer server, InstanceRecord record) {

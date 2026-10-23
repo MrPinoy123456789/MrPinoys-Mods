@@ -132,8 +132,8 @@ final class Terminal {
         return switch (wall) {
             case SOUTH -> 180.0f;
             case NORTH -> 0.0f;
-            case WEST -> 90.0f;
-            case EAST -> -90.0f;
+            case WEST -> -90.0f;
+            case EAST -> 90.0f;
         };
     }
 

@@ -98,7 +98,7 @@ final class FirstVisitTutorial {
             List<String> lines() {
                 return List.of("Every dungeon has its own name and a last floor. Finish it and you are paid emeralds "
                         + "and a vault. Go home sooner and you keep the charts and the chests, but not the finish.",
-                        "Right-click the floor history board in the Doors to read the dungeon map: where you are, "
+                        "Read the dungeon map in the Doors with /dungeon map: where you are, "
                         + "the final floor, and which branches cost a life.");
             }
         },

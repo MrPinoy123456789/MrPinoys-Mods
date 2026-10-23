@@ -418,17 +418,8 @@ final class RitualListener {
         return null;
     }
 
-    /** The staging room furniture: the history board, the HOME lever, the commit lever and the selector doors. */
+    /** The staging room furniture: the HOME lever, the commit lever and the selector doors. */
     private static InteractionResult stagingFurniture(ServerPlayer serverPlayer, Level level, BlockPos pos) {
-        // The floor history board in a staging room opens the dungeon map (D6).
-        if (Instances.isHistoryBoard(serverPlayer, pos)) {
-            InstanceRecord mapRecord = InstanceRegistry.byMember.get(serverPlayer.getUUID());
-            if (mapRecord != null && serverPlayer.level().getServer() != null) {
-                DialogKit.show(serverPlayer, DialogScreens.dungeonMap(serverPlayer.level().getServer(), mapRecord));
-                Chime.menuOpens(serverPlayer);
-            }
-            return InteractionResult.SUCCESS_SERVER;
-        }
 
         // The HOME lever in a cleared floor's staging room: asks first, and
         // the confirm banks the interval and takes the party home (playtest
