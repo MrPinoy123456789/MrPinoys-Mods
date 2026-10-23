@@ -20,4 +20,10 @@ public interface DisplayAccessor {
 
     @Invoker("setTransformation")
     void pocketdungeons$setTransformation(com.mojang.math.Transformation transformation);
+
+    @Invoker("setTransformationInterpolationDuration")
+    void pocketdungeons$setTransformationInterpolationDuration(int ticks);
+
+    @Invoker("setTransformationInterpolationDelay")
+    void pocketdungeons$setTransformationInterpolationDelay(int ticks);
 }

@@ -106,6 +106,13 @@ final class InstanceRecord {
     boolean ownerGraceWarned1;
 
     /**
+     * Per-run glyph state (decision 2026-10-21, spec 3.4): the {@code cycle} and
+     * {@code toggle} glyph handlers read and write their keys here, shared by
+     * every member. In memory like the rest of the record.
+     */
+    final java.util.Map<String, String> glyphState = new java.util.HashMap<>();
+
+    /**
      * An operator's run outside the floor loop, opened by
      * {@code /dungeon admin untimed}: a full layout at once, no keystone
      * spent.

@@ -41,6 +41,7 @@
       "pocketdungeons.HerdGameTest",
       "pocketdungeons.FrostFinaleGameTest",
       "pocketdungeons.PlateRelayGameTest",
+      "pocketdungeons.GlyphGameTest",
       "pocketdungeons.RoomLibraryGameTest",
       "pocketdungeons.QuestCompassGameTest",
       "pocketdungeons.FloorSoakGameTest",

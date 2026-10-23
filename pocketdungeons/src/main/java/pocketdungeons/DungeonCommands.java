@@ -11,6 +11,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.network.chat.Component;
@@ -52,19 +54,21 @@ final class DungeonCommands {
             registerPlayerVerbs(root);
             registerPartyVerbs(root);
             registerRoomVerbs(root);
-            registerAdmin(root);
+            registerAdmin(root, registry);
             dispatcher.register(root);
         });
     }
 
     /** The operator subtree, built whole before it is attached (Brigadier snapshots a child when it is added). */
-    private static void registerAdmin(LiteralArgumentBuilder<CommandSourceStack> root) {
+    private static void registerAdmin(LiteralArgumentBuilder<CommandSourceStack> root,
+                                      net.minecraft.commands.CommandBuildContext registry) {
         LiteralArgumentBuilder<CommandSourceStack> admin = Commands.literal("admin")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
         registerAdminReports(admin);
         registerAdminBuilds(admin);
         registerAdminRoomTools(admin);
         registerAdminPlayerTools(admin);
+        registerAdminGlyphs(admin, registry);
         registerAdminModulesAndBias(admin);
         registerAdminPlansAndPacks(admin);
         registerAdminSaves(admin);
@@ -380,6 +384,41 @@ final class DungeonCommands {
 
             .then(Commands.literal("coverage")
                     .executes(ctx -> coverage(ctx.getSource())));
+    }
+
+    /**
+     * {@code glyph require <item>} (spec 3.5): spawns a {@code require_item} glyph two blocks
+     * in front of the caller, icon and label from the item, so the vault key idea can be
+     * tried live. The glyph's anchor persists its handler and data, so it survives a restart.
+     */
+    private static void registerAdminGlyphs(LiteralArgumentBuilder<CommandSourceStack> admin,
+                                            net.minecraft.commands.CommandBuildContext registry) {
+        admin
+            .then(Commands.literal("glyph")
+                    .then(Commands.literal("require")
+                            .then(Commands.argument("item",
+                                            net.minecraft.commands.arguments.item.ItemArgument.item(registry))
+                                    .executes(ctx -> adminGlyphRequire(ctx.getSource(),
+                                            net.minecraft.commands.arguments.item.ItemArgument
+                                                    .getItem(ctx, "item"))))));
+    }
+
+    private static int adminGlyphRequire(CommandSourceStack source,
+                                         net.minecraft.commands.arguments.item.ItemInput input)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.level();
+        ItemStack icon = input.createItemStack(1);
+        BlockPos spot = player.blockPosition().relative(player.getDirection(), 2);
+        CompoundTag data = new CompoundTag();
+        data.putString("item", BuiltInRegistries.ITEM.getKey(icon.getItem()).toString());
+        data.putInt("count", 1);
+        data.putString("label", icon.getHoverName().getString());
+        Glyph.itemGlyph(level, net.minecraft.world.phys.Vec3.atCenterOf(spot), icon,
+                icon.getHoverName(), GlyphHandlers.REQUIRE_ITEM, data, List.of());
+        source.sendSuccess(() -> Component.literal("Spawned a glyph needing "
+                + icon.getHoverName().getString() + "."), false);
+        return 1;
     }
 
     /** Playtest tooling for a player's compass and haul. */
