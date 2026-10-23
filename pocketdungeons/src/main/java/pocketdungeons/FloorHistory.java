@@ -139,7 +139,7 @@ final class FloorHistory {
     static void refresh(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level != null && record != null) {
-            DungeonScreen.updateHistory(level, record);
+            Terminal.redraw(level, record);
         }
     }
 

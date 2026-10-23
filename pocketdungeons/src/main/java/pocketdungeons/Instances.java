@@ -658,9 +658,9 @@ final class Instances {
             admit(server, record, companion);
         }
 
-        // The history screen was summoned at stamp time without a viewer; now
-        // that the owner is standing here, refresh it for them.
-        DungeonScreen.updateHistory(level, record);
+        // The terminal was summoned at stamp time; repaint it now that the
+        // owner is standing here.
+        Terminal.redraw(level, record);
 
         player.sendSystemMessage(Component.literal(
                 PocketDungeonsConfig.hallEnabled()
@@ -702,8 +702,7 @@ final class Instances {
             hideLockedDoors(level, stagingOrigin, dungeonDir, owner);
             DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                     DungeonScreen.idleContent(level, owner));
-            DungeonScreen.summonHistory(level, stagingOrigin, dungeonDir,
-                    FloorHistory.board(server, owner));
+            Terminal.summon(level, stagingOrigin, dungeonDir, null, owner);
         } catch (RuntimeException e) {
             // A half-stamped safe or staging room is swept up rather than
             // left for the next allocation to stamp over, the same route
@@ -2049,8 +2048,7 @@ final class Instances {
         hideLockedDoors(level, stagingOrigin, dungeonDir, record.owner);
         DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonHistory(level, stagingOrigin, dungeonDir,
-                FloorHistory.board(level.getServer(), record.owner));
+        Terminal.summon(level, stagingOrigin, dungeonDir, record, record.owner);
     }
 
     /** Pull every member into the safe room. */
@@ -2541,8 +2539,7 @@ final class Instances {
         hideLockedDoors(level, newStagingOrigin, newDungeonDir, record.owner);
         DungeonScreen.summonDoor(level, newStagingOrigin, newDungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonHistory(level, newStagingOrigin, newDungeonDir,
-                FloorHistory.board(level.getServer(), record.owner));
+        Terminal.summon(level, newStagingOrigin, newDungeonDir, record, record.owner);
     }
 
     /**

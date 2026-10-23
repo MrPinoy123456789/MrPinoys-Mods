@@ -413,6 +413,7 @@ for ((taskName, testClass) in mapOf(
     "connectorTest" to "ConnectorTest",
     "roomStoreTest" to "RoomStoreTest",
     "payoutTest" to "PayoutTest",
+    "terminalSourceTest" to "TerminalSourceTest",
     // Situations round, registered here by M46B so no other milestone in the
     // round has to open this file. Each class is filled in by its own
     // milestone: M46, M49, M47, M48, M54 and M45 respectively.
@@ -575,6 +576,7 @@ tasks.test {
     dependsOn("connectorTest")
     dependsOn("roomStoreTest")
     dependsOn("payoutTest")
+    dependsOn("terminalSourceTest")
     dependsOn("doorMaskTest")
     dependsOn("planSelectorTest")
     dependsOn("difficultyProfileTest")

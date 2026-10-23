@@ -3,6 +3,7 @@ package pocketdungeons;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Collection;
@@ -175,6 +176,7 @@ final class DungeonProgress {
             // The stored compass is left exactly as it is; from here it counts scrap (decision 2026-10-18).
             StaggeredTitle.showMilestone(server, id, Component.literal(WAKE_TITLE).withStyle(ChatFormatting.GOLD),
                     java.util.List.of(WAKE_SUBTITLE), ChatFormatting.GRAY, DungeonProgress::celebrate);
+            redrawTerminal(server, record);
             return opened;
         }
         if (opened == 0 && capstoneJustUnlocked(server, member, record, open, finished, depth, all,
@@ -196,7 +198,23 @@ final class DungeonProgress {
                 }
             }
         }
+        redrawTerminal(server, record);
         return opened;
+    }
+
+    /** Repaints the party's terminal after a progress change, when it has a staging room. */
+    private static void redrawTerminal(MinecraftServer server, InstanceRecord record) {
+        if (record == null) {
+            return;
+        }
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            ServerPlayer online = server.getPlayerList().getPlayer(record.owner);
+            level = online == null ? null : online.level();
+        }
+        if (level != null) {
+            Terminal.redraw(level, record);
+        }
     }
 
     /**

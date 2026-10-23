@@ -67,6 +67,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         EffectCaps.register();
         SidebarDisplay.register();
         HallRoom.register();
+        Terminal.register();
         GlyphHandlers.registerDefaults();
         Glyph.register();
         Restless.register();

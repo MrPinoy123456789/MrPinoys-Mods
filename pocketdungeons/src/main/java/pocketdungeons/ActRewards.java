@@ -10,6 +10,7 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerScoreboard;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -70,6 +71,15 @@ final class ActRewards {
         }
         if (member != null && paid.add(member.getUUID())) {
             pay(server, member, act);
+        }
+        if (record != null) {
+            ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (level == null && member != null) {
+                level = member.level();
+            }
+            if (level != null) {
+                Terminal.redraw(level, record);
+            }
         }
     }
 

@@ -126,16 +126,16 @@ final class DungeonScreen {
      * 5.0, still inside the four-row backdrop and under the 5.4 heading; the
      * width is the part to check in play, since it depends on the uniform font.
      */
-    private static final float HISTORY_SCALE = 1.03f;
+    static final float HISTORY_SCALE = 1.03f;
     /** The "FLOOR HISTORY" heading: its own display, much larger than the rows. */
-    private static final float HISTORY_HEADING_SCALE = 1.6f;
+    static final float HISTORY_HEADING_SCALE = 1.6f;
     /**
      * Bottom of the heading and middle of the body, in blocks above the room
      * floor. The heading sits at 5.4, up from 5.0 (playtest 2026-10-03-2,
      * "heading a bit higher"), which also clears the taller rows.
      */
-    private static final double HISTORY_HEADING_Y = 5.4;
-    private static final double HISTORY_BODY_CENTER_Y = 3.6;
+    static final double HISTORY_HEADING_Y = 5.4;
+    static final double HISTORY_BODY_CENTER_Y = 3.6;
 
     /** Marks the displays of the two-sheet door board, besides {@link #TAG}. */
     static final String SHEET_TAG = "pocketdungeons_screen_sheet";
@@ -184,7 +184,7 @@ final class DungeonScreen {
     private static final double HOME_BODY_CENTER_Y = HOME_CENTER_Y - 0.3;
     private static final int LINE_WIDTH = 200;
     /** A history line is one floor: wide enough that it stays one line on the eight-block panel. */
-    private static final int HISTORY_LINE_WIDTH = 1000;
+    static final int HISTORY_LINE_WIDTH = 1000;
     private static final boolean SEE_THROUGH = false;
 
     private DungeonScreen() {}
@@ -214,34 +214,11 @@ final class DungeonScreen {
                 DOOR_BODY_SCALE, DOOR_BODY_CENTER_Y, yawFor(wall), content);
     }
 
-    /** Repaints the floor history board in {@code record}'s staging room from its owner's history. */
-    static void updateHistory(ServerLevel level, InstanceRecord record) {
-        if (record.stagingCellOrigin == null) {
-            return;
-        }
-        summonHistory(level, record.stagingCellOrigin, record.roomDungeonDoor,
-                FloorHistory.board(level.getServer(), record.owner));
-    }
-
     /**
-     * Summons the floor history board on the wall to the left of the selector
-     * wall, where the echo shard engine used to be. Always cleared and
-     * summoned fresh rather than updated in place: a screen left there by the
-     * old engine carries the engine's scale, which an in-place text update
-     * would keep.
+     * The floor history board's two layers now draw through {@link Terminal}'s
+     * History tab; the {@code HISTORY_*} constants stay here because the tab
+     * keeps the same sizes and positions the old board used.
      */
-    static void summonHistory(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction selectorWall,
-                              FloorHistory.Board board) {
-        DoorMask.Direction wall = RoomGeometry.leftOf(selectorWall);
-        int lines = lines(board.body());
-        double y = HISTORY_BODY_CENTER_Y - RENDER_SCALE * HISTORY_SCALE * (5 * lines - 1);
-        double[] clearXyz = wallAnchor(roomOrigin, wall, HISTORY_SCREEN_ALONG, HISTORY_CENTER_Y);
-        clear(level, clearXyz);
-        summon(level, wallAnchor(roomOrigin, wall, HISTORY_SCREEN_ALONG, HISTORY_HEADING_Y), yawFor(wall),
-                HISTORY_HEADING_SCALE, board.heading(), LINE_WIDTH, false);
-        summon(level, wallAnchor(roomOrigin, wall, HISTORY_SCREEN_ALONG, y), yawFor(wall), HISTORY_SCALE,
-                board.body(), HISTORY_LINE_WIDTH, false);
-    }
 
     /**
      * Summons the go-home screen over the go-home control a cleared floor's

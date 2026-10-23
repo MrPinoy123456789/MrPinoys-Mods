@@ -498,9 +498,9 @@ final class RoomProtection {
                 return false;
             }
         }
-        return y >= StagingFurniture.HISTORY_Y_MIN && y <= StagingFurniture.HISTORY_Y_MAX
-                && along >= StagingFurniture.HISTORY_ALONG_MIN
-                && along <= StagingFurniture.HISTORY_ALONG_MAX; // the floor history panel
+        return y >= StagingFurniture.TERMINAL_Y_MIN && y <= StagingFurniture.TERMINAL_Y_MAX
+                && along >= StagingFurniture.TERMINAL_ALONG_MIN
+                && along <= StagingFurniture.TERMINAL_ALONG_MAX; // the terminal wall
     }
 
     /**

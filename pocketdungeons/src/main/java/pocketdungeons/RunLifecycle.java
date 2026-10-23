@@ -1549,8 +1549,7 @@ final class RunLifecycle {
         Instances.hideLockedDoors(level, newStagingOrigin, farWall, record.owner);
         DungeonScreen.summonDoor(level, newStagingOrigin, farWall,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonHistory(level, newStagingOrigin, farWall,
-                FloorHistory.board(level.getServer(), record.owner));
+        Terminal.summon(level, newStagingOrigin, farWall, record, record.owner);
 
         // The way home, beside the doors: the HOME lever and the screen that
         // says what it would bank, lit once the interval has run its usual
@@ -2396,8 +2395,7 @@ final class RunLifecycle {
         Instances.hideLockedDoors(level, stagingOrigin, dungeonDir, record.owner);
         DungeonScreen.summonDoor(level, stagingOrigin, dungeonDir,
                 DungeonScreen.idleContent(level, record.owner));
-        DungeonScreen.summonHistory(level, stagingOrigin, dungeonDir,
-                FloorHistory.board(level.getServer(), record.owner));
+        Terminal.summon(level, stagingOrigin, dungeonDir, record, record.owner);
 
         // Re-arm the bag chest at the safe room.
         Instances.placeBagChestForParty(level, server, record);

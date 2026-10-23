@@ -119,19 +119,19 @@ public class RoomFurnitureTest {
     }
 
     /**
-     * The floor history board sits on the wall to the left of the selector
-     * wall, where the echo shard engine was: a panel along 4..11, rows 2..5.
+     * The terminal sits on the wall to the left of the selector wall, where the
+     * echo shard engine was: a twelve by five panel along 2..13, rows 1..5.
      */
     private static void testHistoryPanelOnLeftWall(DoorMask.Direction wall) {
         DoorMask.Direction historyWall = RoomGeometry.leftOf(wall);
-        for (int along = 4; along <= 11; along++) {
-            for (int y = 2; y <= 5; y++) {
-                check(isFurniture(wallRing(historyWall, along, y), wall), "history panel " + along + "," + y + " " + wall);
+        for (int along = 2; along <= 13; along++) {
+            for (int y = 1; y <= 5; y++) {
+                check(isFurniture(wallRing(historyWall, along, y), wall), "terminal " + along + "," + y + " " + wall);
             }
         }
-        check(!isFurniture(wallRing(historyWall, 3, 3), wall), "panel edge " + wall);
-        check(!isFurniture(wallRing(historyWall, 12, 3), wall), "panel edge " + wall);
-        check(!isFurniture(wallRing(historyWall, 7, 1), wall), "below the panel " + wall);
+        check(!isFurniture(wallRing(historyWall, 1, 3), wall), "panel edge " + wall);
+        check(!isFurniture(wallRing(historyWall, 14, 3), wall), "panel edge " + wall);
+        check(!isFurniture(wallRing(historyWall, 7, 0), wall), "below the panel " + wall);
     }
 
     /**

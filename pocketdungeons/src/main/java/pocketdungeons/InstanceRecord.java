@@ -199,6 +199,15 @@ final class InstanceRecord {
     BlockPos stagingCellOrigin;
 
     /**
+     * The party's shared terminal state (spec 7): which tab every member's
+     * staging-room terminal shows, and which act its Objectives and Progress
+     * tabs page. {@code terminalAct} of {@code -1} means follow the context:
+     * the astrolabe's act in the hall, the running dungeon's act in a run.
+     */
+    String terminalTab = "objectives";
+    int terminalAct = -1;
+
+    /**
      * A silent homecoming waiting for the party to walk into the room, or
      * {@code null} when none is pending. Set by {@code returnToSafe};
      * {@code Instances.onTick} releases the old floor and staging room once

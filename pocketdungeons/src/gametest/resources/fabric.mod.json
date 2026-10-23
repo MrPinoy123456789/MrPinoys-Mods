@@ -49,6 +49,7 @@
       "pocketdungeons.EffectCapsGameTest",
       "pocketdungeons.JoinFromDungeonGameTest",
       "pocketdungeons.HallRoomGameTest",
+      "pocketdungeons.TerminalGameTest",
       "pocketdungeons.FinaleWaveGameTest",
       "pocketdungeons.HauntGameTest",
       "pocketdungeons.CreepingBricksGameTest",

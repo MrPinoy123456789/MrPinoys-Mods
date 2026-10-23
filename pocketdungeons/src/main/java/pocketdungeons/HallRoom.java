@@ -432,9 +432,17 @@ final class HallRoom {
     }
 
     /**
-     * Spec 4: a successful turn sets the terminal's act page and redraws it. T6 wires this to
-     * {@code Terminal}; the hook is a no-op until then.
+     * Spec 4: a successful turn sets the terminal's act page and redraws it.
      */
     private static void terminalActTurned(MinecraftServer server, InstanceRecord record, int act) {
+        record.terminalAct = act;
+        ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+        if (level == null) {
+            ServerPlayer member = server.getPlayerList().getPlayer(record.owner);
+            level = member == null ? null : member.level();
+        }
+        if (level != null) {
+            Terminal.redraw(level, record);
+        }
     }
 }

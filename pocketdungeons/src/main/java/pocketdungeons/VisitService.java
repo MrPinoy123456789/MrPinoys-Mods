@@ -173,8 +173,7 @@ final class VisitService {
         // visitor is already counted.
         DungeonScreen.summonDoor(level, origin, DoorMask.Direction.SOUTH,
                 DungeonScreen.roomContent(server, record, visitor));
-        DungeonScreen.summonHistory(level, origin, DoorMask.Direction.SOUTH,
-                FloorHistory.board(server, record.owner));
+        Terminal.summon(level, origin, DoorMask.Direction.SOUTH, record, record.owner);
 
         ServerPlayer ownerPlayer = server.getPlayerList().getPlayer(owner);
         if (ownerPlayer != null) {

@@ -137,14 +137,15 @@ final class StagingFurniture {
 
     /**
      * The floor history board on the wall to the left of the selector wall
-     * (2026-10-02, replacing the echo shard engine): a black panel along 4..11,
-     * rows 2..5, behind {@link FloorHistory}'s text. Y=6 is the ceiling, so 5
-     * is the top row.
+     * (2026-10-02, replacing the echo shard engine; widened for the terminal):
+     * a twelve by five panel along 2..13, rows 1..5, behind {@link Terminal}'s
+     * displays. Y=6 is the ceiling, so 5 is the top row. Nothing else stands on
+     * this wall: the bulbs and the home control are on the selector wall.
      */
-    static final int HISTORY_ALONG_MIN = 4;
-    static final int HISTORY_ALONG_MAX = 11;
-    static final int HISTORY_Y_MIN = 2;
-    static final int HISTORY_Y_MAX = 5;
+    static final int TERMINAL_ALONG_MIN = 2;
+    static final int TERMINAL_ALONG_MAX = 13;
+    static final int TERMINAL_Y_MIN = 1;
+    static final int TERMINAL_Y_MAX = 5;
 
     /**
      * The bulb sitting over selector door {@code step} (1, 2 or 3). Callers
@@ -528,18 +529,18 @@ final class StagingFurniture {
                 RoomBuilder.set(level, wallRingPos(o, wall, along, y), SCREEN_BLOCK);
             }
         }
-        placeHistoryPanel(level, o, RoomGeometry.leftOf(wall));
+        placeTerminalPanel(level, o, RoomGeometry.leftOf(wall));
     }
 
     /**
-     * Whether {@code pos} is a block of the floor history board's panel in the
-     * staging room at {@code o} whose selector doors face {@code selectorWall}.
+     * Whether {@code pos} is a block of the terminal's panel in the staging
+     * room at {@code o} whose selector doors face {@code selectorWall}.
      * Right-clicking it opens the dungeon map (dungeon structure W2).
      */
     static boolean isHistoryPanel(BlockPos o, DoorMask.Direction selectorWall, BlockPos pos) {
         DoorMask.Direction historyWall = RoomGeometry.leftOf(selectorWall);
-        for (int y = HISTORY_Y_MIN; y <= HISTORY_Y_MAX; y++) {
-            for (int along = HISTORY_ALONG_MIN; along <= HISTORY_ALONG_MAX; along++) {
+        for (int y = TERMINAL_Y_MIN; y <= TERMINAL_Y_MAX; y++) {
+            for (int along = TERMINAL_ALONG_MIN; along <= TERMINAL_ALONG_MAX; along++) {
                 if (wallRingPos(o, historyWall, along, y).equals(pos)) {
                     return true;
                 }
@@ -548,13 +549,9 @@ final class StagingFurniture {
         return false;
     }
 
-    /** The floor history board's panel; its rows cover every block the old engine bay used. */
-    private static void placeHistoryPanel(ServerLevel level, BlockPos o, DoorMask.Direction historyWall) {
-        for (int y = HISTORY_Y_MIN; y <= HISTORY_Y_MAX; y++) {
-            for (int along = HISTORY_ALONG_MIN; along <= HISTORY_ALONG_MAX; along++) {
-                RoomBuilder.set(level, wallRingPos(o, historyWall, along, y), SCREEN_BLOCK);
-            }
-        }
+    /** The terminal wall: {@link Terminal#placeWall} stamps the tab row, screen and backlight. */
+    private static void placeTerminalPanel(ServerLevel level, BlockPos o, DoorMask.Direction historyWall) {
+        Terminal.placeWall(level, o, historyWall, false);
     }
 
     /**
@@ -579,8 +576,8 @@ final class StagingFurniture {
             }
         }
         DoorMask.Direction historyWall = RoomGeometry.leftOf(wall);
-        for (int y = HISTORY_Y_MIN; y <= HISTORY_Y_MAX; y++) {
-            for (int along = HISTORY_ALONG_MIN; along <= HISTORY_ALONG_MAX; along++) {
+        for (int y = TERMINAL_Y_MIN; y <= TERMINAL_Y_MAX; y++) {
+            for (int along = TERMINAL_ALONG_MIN; along <= TERMINAL_ALONG_MAX; along++) {
                 RoomBuilder.set(level, wallRingPos(o, historyWall, along, y), RoomBuilder.WALL);
             }
         }
