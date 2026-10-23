@@ -1145,6 +1145,13 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Pass:** The title says "Something heavy waits." and the bar still shows the spawner count. The relic sits on a plinth, glowing, named Relic, and does not stack. Holding it slows you. A chest, a shulker box and Dungeon Storage refuse it with "The relic will not fit." and it never places as a block. (a) at the pad "The relic pays. Loot +100%" shows, the relic is gone from the pack and the reward barrel holds about double the base chests. (b) the pot holds the relic with the rest of the pack (the hotbar item swapped into the freed slot if the pack was full) and the second account can take it. (c) within a second or two "The relic went back to its plinth." and it is on the plinth again. (d) the pad refuses with the ordinary spawner line, never a relic line, and opens at the usual spawner count with no relic.
 - **Fail signs:** The pad refuses because the relic is missing; the relic in a chest, a shulker box or Dungeon Storage; two relics on one floor; the relic still in a pack after the floor ends or after a rescue; Slowness staying after the relic is gone; a pot, a rescue or a settle that loses any other item; the plinth breakable.
 
+### L115: Terminal wall and party campaign build (2026-10-23)
+- **Status:** owed (built and deployed 2026-10-23, session 2026-10-23-1 found and fixed PD-223/PD-224 mid-play; visual confirm still owed)
+- **Changed:** master `e1eccede` plus the session hotfix. The staging room's 12 by 5 terminal (Objectives, Progress, History tabs, act windows), the shared quest line, the astrolabe as a glyph usable by any member, act rewards for every present member, and the 10 minute leader reconnect grace.
+- **Do:** Stand in any staging room (lobby or the Doors) and read the terminal: tabs have words, clicking a tab switches the page, the act window matches the open acts, locked-act arrow clicks refuse. Right-click the bare concrete and confirm nothing opens. Turn the astrolabe as a non-leader. Finish an act with two accounts online and check both get the title, disc, bundles and (Act 1) the Old Mine shell. Disconnect the leader mid-floor and rejoin inside ten minutes.
+- **Pass:** Words render on the terminal on every wall orientation; no map opens on a bare wall click; tabs respond; rewards pay every member; the reconnect resumes the run.
+- **Fail signs:** blank text again (the PD-223 yaw bug), a dungeon map on a wall click, a refused tab, silent reward payout, the run failing on a leader disconnect inside grace.
+
 # Rooms (id: roles, tier, depth, requirements)
 
 - admirals_vault: encounter/loot/corridor, tier 1, depth 0+
