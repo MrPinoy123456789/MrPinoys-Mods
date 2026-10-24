@@ -35,7 +35,7 @@ Three ideas set the mod apart:
 
 | Failure | Answer in Charter |
 |---|---|
-| The first big faction snowballs and owns the map | Claims capped by active members (§9.1); food limits how many sieges a faction can feed (§10.6); empires strain and their parts break away (§14) |
+| The first big faction snowballs and owns the map | Claims capped by active members (§9.1); more members means more mouths to feed (§10.11); food limits how many sieges a faction can feed (§10.10); empires strain and their parts break away (§14) |
 | Offline raids: you log in to find your base gone | A full keep takes 3 to 4 days to starve (§10); the camp must be raised in the open first (§10.2); assault only once the keep is starving (§10.7) |
 | The king quits and the kingdom becomes a ghost town | Organizations hold power, not players; an absent Lord loses the office automatically (§6.4); dormant land returns to the map (§16.4) |
 | The politics happens on Discord | Treaties are contracts with mechanical terms (§15); everything is written into an in-world Chronicle (§17) |
@@ -282,14 +282,15 @@ loss.
 A keep is **besieged** while any active enemy camp claim touches one of its ring
 chunks. While besieged:
 
-- The granary drains at the **base rate:** a full granary lasts 84 hours, about
-  3.5 days, with nothing coming in.
-- Each besieging camp eats from its own store at half that rate. A camp with an
-  empty store stops counting as besieging.
+- The granary drains at the keep's **base rate,** which depends on how many mouths
+  it feeds (§10.11). A full granary of preserved food lasts 84 hours, about 3.5
+  days, with nothing coming in, whatever the faction's size.
+- Each besieging camp eats from its own store (default 30 nourishment an hour). A
+  camp with an empty store stops counting as besieging.
 
-An outlying claim with an enemy camp next to it is **raided:** its hold drains at
-the same base rate and stops refilling. At 6 hours of hold, a farm falls in an
-afternoon, and once its protection lifts, its crops and animals are open to the
+An outlying claim with an enemy camp next to it is **raided:** its hold (measured in
+hours, not food) counts down and stops refilling. At 6 hours of hold, a farm falls
+in an afternoon, and once its protection lifts, its crops and animals are open to the
 raiders. That is the pirate's living.
 
 ### 10.4 Getting food in
@@ -385,7 +386,7 @@ The same idea applies to all land:
   refilled with food carried in through an open side of that perimeter, by the
   same rule as a keep. When every side is closed (claimed by the defenders, or by
   anyone hostile to the camp), the camp is **cut off:** nothing can be carried in,
-  and its store burns at the full base rate instead of half. Defenders cut a raid
+  and its store burns twice as fast. Defenders cut a raid
   off by claiming the chunks around the camp, or by raising camps of their own
   beside it. A raid pushed deep into enemy land is surrounded by enemy claims
   already, so the deeper the raid, the easier it is to cut off. A raiding party
@@ -398,10 +399,36 @@ The same idea applies to all land:
 ### 10.11 Food and the granary
 
 Provisions are measured in **nourishment,** the hunger points a food restores: a
-steak is worth more than a carrot. A full granary is 84 hours at the base rate
-(default 60 nourishment an hour, about 5,000 in all: roughly ten stacks of
-steak). Filling it is a farming project, which is why a settled kingdom looks like
-farmland and not like an obsidian box.
+steak is worth more than a carrot. Filling a granary is a farming project, which
+is why a settled kingdom looks like farmland and not like an obsidian box.
+
+**Mouths.** A keep feeds its share of the faction: its owning organization's
+active members divided by the number of keeps it holds, never fewer than 3. Each
+mouth eats 10 nourishment an hour while besieged. A six-member faction with one
+keep drains 60 an hour; a twenty-member kingdom drains 200. A bigger faction needs
+bigger farms and suffers more when its supply is cut, which is one more brake on
+the snowball, as it was for real empires.
+
+**Storage.** A granary holds 84 hours of its keep's drain without trouble: about
+5,000 nourishment for six mouths (roughly ten stacks of steak), about 17,000 for
+twenty. It grows and shrinks as active membership changes.
+
+**Spoilage** takes the place of a hard cap, as damp and rats did in real
+storerooms:
+
+- Food in a granary slowly spoils, in peace and in war, at a rate that depends on
+  the food. Preserved food (bread, dried kelp, baked potatoes) keeps for weeks;
+  cooked meat for days; raw meat and fresh crops go off quickly.
+- **Past the storage limit, everything spoils fast.** An overpacked storeroom rots.
+  Stockpiling beyond 84 hours wastes itself, so siege length stays at 3 to 4 days
+  for a well-run keep.
+- What to store becomes a real decision: preserved food holds out longest under
+  siege, and a granary full of fresh meat falls short of 84 hours.
+- Keeping a granary full takes a steady supply from the farms, not one big haul.
+
+Only granaries and camp stores spoil. Ordinary chests are untouched, but their
+food cannot reach a besieged granary (§10.4), so it only helps before the siege
+begins.
 
 **The granary is a real chest.**
 
@@ -410,8 +437,8 @@ farmland and not like an obsidian box.
 - **The garrison eats real items.** While besieged, food is removed hour by hour,
   least nourishing first, so bread added in an emergency does not burn through the
   steak.
-- **It refuses food past the cap,** from a player or a hopper, so a siege lasts 3
-  to 4 days however big the farm. Spare food lives in ordinary chests.
+- **There is no hard cap.** Food past the storage limit spoils fast instead, so
+  spare food belongs in ordinary chests.
 - Members open it according to their grants; outsiders cannot open it while the
   keep stands.
 - **When the keep falls, the granary is loot.** Whatever is left inside belongs to
@@ -709,13 +736,13 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | **G Grant limits** | A kingdom tries to grant power over another kingdom's treasury. Rejected |
 | **H Persistence** | After a restart: structure, People, balances, contracts, grants, claims, granaries, running sieges and carry-in allowances are restored |
 | **I Raising** | A camp is breakable by anyone while raising and protected once active; the alert fires only when it becomes active |
-| **J Endurance** | A full granary lasts 84 hours besieged with no deposits and nobody present, and never less than 42 hours whoever is present |
+| **J Endurance** | A granary at its storage limit with preserved food lasts 84 hours besieged with no deposits and nobody present, for 3 mouths and for 30, and never less than 42 hours whoever is present |
 | **K Carry-in** | During a siege, food carried in from an open perimeter chunk can be deposited; food from a chest inside, an ender chest, a pearl or across an enemy chunk cannot |
 | **L Encirclement** | With all twelve perimeter chunks enemy-held, no deposit is possible; breaking one camp reopens that side |
 | **M Starvation gate** | Assault drain is impossible above 25% and four times base below it |
-| **N Camp supply** | A camp with an empty store stops besieging. A camp whose every perimeter chunk is claimed by hostile factions is cut off: it cannot be refilled and burns at the full base rate |
+| **N Camp supply** | A camp with an empty store stops besieging. A camp whose every perimeter chunk is claimed by hostile factions is cut off: it cannot be refilled and burns twice as fast |
 | **K2 Carts** | During a siege, a cart rolling in from an open perimeter chunk can unload its food into the granary; a cart rolling in across an enemy chunk, or loaded inside the keep, cannot. In peace any hopper or cart can fill it |
-| **K3 Granary** | The garrison eats real items, least nourishing first; the granary refuses food past 84 hours of base drain; its contents are loot when the keep falls |
+| **K3 Granary** | The garrison eats real items, least nourishing first; food spoils at its type's rate, and fast past the storage limit; storage and drain follow active members per keep; contents are loot when the keep falls |
 | **K4 Rail protection** | Outsiders cannot break rails or carts inside a claim; on neutral land they can |
 | **O Raid** | A camp next to a farm drains its hold in 6 hours; the hold refills only while connected and unraided |
 | **P Keep loss** | A faction with two linked keeps loses one; connected claims move to the other within capacity, the rest orphan with grace |
@@ -738,7 +765,10 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | Garrison | Defenders present slow the drain |
 | Passive factions | Valid, never immune |
 | Raids | End when the camp is cut off from home |
-| Granary | A real chest; the garrison eats real items, least nourishing first; capped at 84 hours |
+| Granary | A real chest; the garrison eats real items, least nourishing first |
+| Hoarding | No hard cap: food spoils by type, and fast past a storage limit of 84 hours of drain |
+| Mouths | Drain and storage scale with active members per keep, minimum 3 |
+| Garrison presence | Defenders present slow the drain. Realistically more people eat faster; rewarding players for showing up was chosen over realism on purpose |
 | Rails | Peacetime automation is free; during a siege only carts entering through an open side count; rails and carts are protected in claims, fair game on neutral land |
 | Camp store | A real chest, same rules as a granary |
 | Pillars in | Supplies, empire strain, the Chronicle, sellswords |
@@ -759,7 +789,7 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | # | Question | Recommendation |
 |---|---|---|
 | D1 | Can several factions besiege the same keep at once? | Yes; their camps all count toward encirclement, but the drain rate is the keep's, not per camp |
-| D2 | Food values | Nourishment (hunger points) per item, from a data file. Maybe a bonus for variety later |
+| D2 | Food values and shelf lives | Nourishment (hunger points) and a spoilage rate per item, from a data file. Maybe a bonus for variety later |
 | D3 | Unrest formula | Decide when tribute contracts exist |
 | D4 | Plunder share | 25% of the treasury when a keep falls |
 | D5 | Persistence engine | World saved data plus an append-only history file |
@@ -779,11 +809,14 @@ All in `config/charter/charter.json`. Starting values, to be tuned in play.
 | Camp capacity, range | 4 claims, 2 hops |
 | Claims per active member | 6, plus keeps |
 | Keep gap between factions | 4 chunks |
-| Base drain | 60 nourishment an hour |
-| Granary capacity | 84 hours of base drain |
-| Camp store burn | Half the base drain |
+| Drain per mouth | 10 nourishment an hour |
+| Mouths per keep | Active members divided by keeps, minimum 3 |
+| Granary storage limit | 84 hours of the keep's drain |
+| Spoilage, by food | Preserved about 2% a day, cooked meat about 10%, raw and fresh about 30% |
+| Spoilage past the storage limit | 50% a day on the excess |
+| Camp store burn | 30 nourishment an hour; 60 when cut off |
 | Outlying hold | 6 hours, refills over 24 hours |
-| Camp protection against a sally | 1 hour of base drain |
+| Camp protection against a sally | 1 hour |
 | Presence effect | 25% per player, total between 0.5 and 2 |
 | Notoriety effect | Up to 1.5 times, inside the same bound |
 | Starvation threshold, assault rate | 25%, 4 times |
