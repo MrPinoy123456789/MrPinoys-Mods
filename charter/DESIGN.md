@@ -39,6 +39,7 @@ Three ideas set the mod apart:
 | Offline raids: you log in to find your base gone | A full keep takes 3 to 4 days to starve (§10); the camp must be raised in the open first (§10.2); assault only once the keep is starving (§10.7) |
 | The king quits and the kingdom becomes a ghost town | Organizations hold power, not players; an absent Lord loses the office automatically (§6.4); dormant land returns to the map (§16.4) |
 | The politics happens on Discord | Treaties are contracts with mechanical terms (§15); everything is written into an in-world Chronicle (§17) |
+| Jails and executions used to remove people for days or weeks | Sentences are imposed contracts with hard caps (1 day at most), a weekly limit per player, food costs for the jailer, and the judge's name in the Chronicle (§15.5) |
 | Nothing to do between wars, or for players with no faction | Farming feeds the keep; patrols watch the walls; sellswords take contracts to run food through the lines (§15.3) |
 
 ## 3. Principles
@@ -366,9 +367,18 @@ Above 25% there is no assault. A healthy keep cannot be stormed overnight.
 
 ### 10.8 The fall
 
-When the granary is empty, the keep falls: the nexus breaks, the nine keep chunks
-are unclaimed, the plunder share of the treasury spills in the core chunk, and its
-outlying claims are reassigned or orphaned (§11).
+When the granary is empty, the keep falls. The besieger chooses:
+
+- **Raze:** the nexus breaks, the nine keep chunks are unclaimed, the plunder share
+  of the treasury spills in the core chunk, and its outlying claims are reassigned
+  or orphaned (§11).
+- **Occupy:** an imposed contract on the occupation basis (§15.4). The keep stays
+  recorded as the defender's, but the occupier controls it: access, the granary,
+  tribute while it lasts. Plunder still spills. The occupation ends when its cap
+  runs out (default 7 days), when a treaty settles it, or when the defenders starve
+  the occupiers out by the same siege rules with the sides swapped. Then control
+  returns to the owner unless a treaty ceded the keep. Recognized claim and
+  physical control, separated, exactly as spec rule 6 wants.
 
 ### 10.9 After a siege
 
@@ -547,13 +557,13 @@ a reason to leave. Empires historically fell to overextension and revolt.
 The winning move for a large faction becomes governing well, not just fighting
 well. Unrest needs tribute to exist, so it ships after contracts.
 
-## 15. Contracts, treaties and sellswords
+## 15. Contracts, treaties, justice and sellswords
 
 ### 15.1 Contracts
 
-- Structured terms only: recurring payments, a delivery by a deadline, attached
-  grants, access to named claims, escrow. Free text may explain a contract but
-  enforces nothing.
+- Structured terms only, from one shared vocabulary (§15.4): payments, deliveries,
+  grants, access, escrow, and the restrictive terms used by imposed contracts.
+  Free text may explain a contract but enforces nothing.
 - Lifecycle: draft, offered, accepted, active, fulfilled, breached, terminated,
   expired. Breach is detected only for observable terms and goes into the
   Chronicle.
@@ -562,7 +572,9 @@ well. Unrest needs tribute to exist, so it ships after contracts.
 
 ### 15.2 Peace treaties
 
-A war ends with a treaty, a contract between the two sides.
+A war ends with a treaty, a contract between the two sides. A treaty is **signed**
+by both (§15.4): a defeated faction that accepts terms gets a better deal than one
+that has terms imposed on it.
 
 - **War score** is earned per pair of enemies (claims taken, camps destroyed, keeps
   starved, sieges broken), so nobody farms points off a fake enemy.
@@ -579,9 +591,88 @@ A war ends with a treaty, a contract between the two sides.
 
 A board at spawn (and one in any keep that wants one) where factions post jobs
 with diamonds held in escrow: hold this chunk, break this camp, carry 500
-nourishment into a besieged keep, escort a cart shipment, cut a rail line. Players with no faction become **sellswords.**
-Running food through the lines is the best paid job in the game, and the Chronicle
-records each sellsword's finished and broken contracts as their reputation.
+nourishment into a besieged keep, escort a cart shipment, cut a rail line, break a
+prisoner out. Players with no faction become **sellswords.** Running food through
+the lines is the best paid job in the game, and the Chronicle records each
+sellsword's finished and broken contracts as their reputation.
+
+### 15.4 Signed and imposed contracts
+
+Every exercise of power over another government's or player's rights is a
+contract: a treaty, a vassalage, an occupation, a prison sentence, an execution.
+What differs is **consent.**
+
+| | Signed | Imposed |
+|---|---|---|
+| How it starts | Both parties accept | One party imposes it, on a **basis** (below) |
+| Breaking it | **Breach:** a mark on the faction page and in the Chronicle | **Resistance:** escaping, rebelling or fighting back carries no breach mark |
+| Notoriety | None | Costs the imposer notoriety, more for harsher terms |
+| Limits | Whatever both agree, within the server's caps | Hard caps per basis on duration and severity |
+| Chronicle | Recorded | Recorded under the name of whoever imposed it |
+
+Imposing is always possible but never free, and signing is always cheaper. That
+pushes players toward negotiation, which is the politics the mod is for.
+
+**A basis** is the leverage that lets one party impose terms on another. Each basis
+allows certain terms, up to a cap:
+
+| Basis | Comes from | Allows |
+|---|---|---|
+| **Custody** | Holding a player you arrested on your own land (§15.5) | Confinement, banishment, a capped fine |
+| **War score** | Earned against that faction (§15.2) | Tribute, ceding claims, relation locks, claim limits, vassalage |
+| **Occupation** | Starving a keep and choosing to occupy it (§10.8) | Control of the keep without owning it, tribute while it lasts |
+
+**The term vocabulary** is shared by every contract, signed or imposed, and each
+term is something the mod can actually enforce:
+
+| Term | Enforced as |
+|---|---|
+| Payment, tribute, fine | Scheduled transfers from a treasury or a player's deposit |
+| Delivery | Items into a named chest by a deadline |
+| Grant | Authority added through the action engine (§18) |
+| Access | Who may build or use what in named claims |
+| Confinement | The player is held in a named cell; teleports, pearls and commands are blocked; the walls do the rest |
+| Banishment | The player is pushed out of named land on entry |
+| Respawn delay | The player waits before respawning |
+| Relation lock | A faction cannot raise camps against named factions |
+| Claim limit | A lower cap on a faction's claims |
+| Cede | Named claims change owner |
+| Release | Prisoners freed, vassals released, occupations ended |
+
+Adding a new kind of power over others means adding a term, not a system, and the
+caps, notoriety and Chronicle come with it for free.
+
+### 15.5 Justice
+
+Jails and executions on kingdom servers fail because punishment is unbounded,
+free for the punisher and decided by one person, so it becomes a tool for
+removing people. Here they are imposed contracts on the custody basis, with the
+same caps for everyone.
+
+- **Due process is governance.** Arresting and sentencing need a grant: a Judge
+  or Sheriff office, or a vote. A Lordship can let the Lord judge alone; a Commune
+  can require a trial vote.
+- **Arrest is physical.** The office allows a sentence; the officer still has to
+  catch the player, on their own faction's land.
+- **Prison is a place, and prisoners eat.** A cell sits in a keep, and every
+  prisoner is an extra mouth on its granary. Long sentences cost real food; a
+  besieged keep cannot afford many prisoners; when a keep falls, its prisoners
+  walk free. A jailbreak is something players can do, by force or by hiring
+  sellswords.
+- **Execution is banishment, not a death ban.** A short respawn delay, then
+  banishment from that faction's land. The drama of an execution without locking
+  anyone out of the server.
+- **Hard limits:** confinement 1 hour to 1 day; respawn delay at most 1 hour;
+  banishment at most 1 day; a weekly cap on total punishment per player across all
+  factions, so nobody can be chain-jailed; a cooldown before the same faction can
+  sentence the same player again.
+- **Jailing an outsider is an act of war.** Imprisoning a member of another
+  faction gives that faction war score against the jailers. Jailing an unaligned
+  player costs notoriety, as raiding does.
+- **Pardons:** a higher organization in the tree can pardon, and a treaty term can
+  release prisoners, so prisoners become bargaining chips in peace deals.
+- Every arrest, sentence, escape and pardon is in the Chronicle under the judge's
+  name.
 
 ## 16. Political transitions
 
@@ -710,8 +801,8 @@ Commands kept to a handful: `/charter` (your faction page), `/charter found`,
 
 **v1**
 
-- Contracts with escrow; peace treaties and conditional surrender; the contract
-  board
+- Contracts with escrow; signed and imposed contracts; peace treaties and
+  conditional surrender; occupation; justice; the contract board
 - Secession with a People fork; settling; notoriety and posture labels; trophies;
   dormancy
 
@@ -748,6 +839,11 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | **P Keep loss** | A faction with two linked keeps loses one; connected claims move to the other within capacity, the rest orphan with grace |
 | **Q New faction** | A faction under 3 days old cannot be besieged; the grace ends if it raises a camp |
 | **R Truce** | A lifted siege bars the same attacker from that keep for 3 days |
+| **S Imposed caps** | An imposed contract cannot exceed its basis's caps; a sentence of 3 days is cut to 1; a term the basis does not allow is rejected |
+| **T Resistance** | Escaping a cell or ending an occupation by force leaves no breach mark; breaking a signed treaty does |
+| **U Weekly cap** | A player jailed by two factions in one week cannot be held past the weekly total |
+| **V Prisoners eat** | Each prisoner adds a mouth to the keep's drain; prisoners are released when the keep falls |
+| **W Occupation** | An occupied keep stays recorded to its owner and returns to them when the cap runs out or the occupiers starve |
 
 ## 23. Decisions
 
@@ -771,6 +867,9 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | Garrison presence | Defenders present slow the drain. Realistically more people eat faster; rewarding players for showing up was chosen over realism on purpose |
 | Rails | Peacetime automation is free; during a siege only carts entering through an open side count; rails and carts are protected in claims, fair game on neutral land |
 | Camp store | A real chest, same rules as a granary |
+| Power over others | One system: signed and imposed contracts. Imposed ones need a basis (custody, war score, occupation), are capped, cost notoriety, and resisting them is not breach |
+| Justice | Sentences are imposed contracts: confinement 1 hour to 1 day, execution as a short respawn delay plus banishment of at most 1 day, a weekly cap per player; prisoners eat from the granary |
+| After a keep falls | The besieger chooses to raze or occupy |
 | Pillars in | Supplies, empire strain, the Chronicle, sellswords |
 
 ### Considered and rejected
@@ -796,6 +895,8 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | D6 | Ships | A camp replanted at a dock. Claims that move with a vehicle are out of scope |
 | D7 | Can a player carry food in for a faction they do not belong to? | Yes, if the keep's owner grants them deposit rights. That is how sellswords and allies run supplies |
 | D8 | Mod name | Charter, until something better |
+| D9 | Does a sentence run in real time or only while the prisoner is online? | Real time, with the 1-day cap. The point is the roleplay moment, not making someone sit out |
+| D10 | Can a fine be imposed under custody? | Yes, capped low (default 16 diamonds), paid from the prisoner's own deposit; never from their faction's treasury |
 
 ## 24. Tuning knobs
 
@@ -832,6 +933,15 @@ All in `config/charter/charter.json`. Starting values, to be tuned in play.
 | Vote eligibility, duration, active window | 3 days, 48 hours, 14 days |
 | Found or secede cooldown | 7 days |
 | Dormancy | 30 days |
+| Confinement | 1 hour to 1 day |
+| Execution respawn delay | At most 1 hour |
+| Banishment | At most 1 day |
+| Weekly punishment cap per player | 1 day in total, across all factions |
+| Same faction, same player cooldown | 3 days |
+| Custody fine cap | 16 diamonds |
+| Occupation cap | 7 days |
+| Imposed vassalage cap | 14 days |
+| Imposed contract notoriety | Scales with the harshness of the terms |
 
 ## 25. Prior art
 
