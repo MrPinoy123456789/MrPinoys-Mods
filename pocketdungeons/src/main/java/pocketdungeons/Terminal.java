@@ -415,7 +415,7 @@ final class Terminal {
         // Each line sits below the last, one row lower for every row the one above wrapped to.
         double v = 4.62;
         for (Component line : storyLines(server, owner, act, ar, open)) {
-            v -= wrapRows(line.getString(), STORY_WIDTH) * LINE_H * 1.1;
+            v -= BoardText.wrapRows(line.getString(), STORY_WIDTH) * LINE_H * 1.1;
             textBox(level, o, wall, 0.3, 6.0, v, 1.1f, line);
         }
 
@@ -435,7 +435,8 @@ final class Terminal {
                     itemDisplay(level, o, wall, u, 2.45, 0.5f, open ? 15 : 5, icon.item());
                     CompoundTag data = new CompoundTag();
                     data.putString("text", encodeJson(server, icon.inspect()));
-                    Glyph.spawn(level, vec(anchor(o, wall, u, 2.45, BOX_DEPTH)),
+                    // An interaction stands on its bottom centre: drop it half its height to sit on the icon.
+                    Glyph.spawn(level, vec(anchor(o, wall, u, 2.45 - 0.3, BOX_DEPTH)),
                             0.6f, 0.6f, GlyphHandlers.INSPECT, data, List.of(TAG));
                 }
             }
@@ -518,43 +519,6 @@ final class Terminal {
 
     private static Component bullet(Component rest) {
         return Component.literal("◆ ").withStyle(ChatFormatting.WHITE).append(rest);
-    }
-
-    /**
-     * How many rows {@code text} wraps to at {@code lineWidth} text pixels, by the
-     * vanilla font's advance widths and the client's word wrap. The server has no
-     * font, so this is the default font's table for the characters the terminal
-     * writes; anything else counts as a full-width letter.
-     */
-    static int wrapRows(String text, int lineWidth) {
-        int rows = 1;
-        int at = 0;
-        for (String word : text.split(" ", -1)) {
-            int w = 0;
-            for (int i = 0; i < word.length(); i++) {
-                w += charWidth(word.charAt(i));
-            }
-            int needed = at == 0 ? w : at + charWidth(' ') + w;
-            if (needed > lineWidth && at > 0) {
-                rows++;
-                at = w;
-            } else {
-                at = needed;
-            }
-        }
-        return rows;
-    }
-
-    /** One character's advance in the vanilla font, its one-pixel gap included. */
-    static int charWidth(char c) {
-        return switch (c) {
-            case 'i', '!', '.', ',', ':', ';', '|', '\'' -> 2;
-            case 'l', '`' -> 3;
-            case 'I', 't', '[', ']', ' ' -> 4;
-            case 'f', 'k', '<', '>', '{', '}', '(', ')', '"', '*' -> 5;
-            case '@', '~' -> 7;
-            default -> 6;
-        };
     }
 
     /** One reward icon: the item it shows and the line a right click prints. */

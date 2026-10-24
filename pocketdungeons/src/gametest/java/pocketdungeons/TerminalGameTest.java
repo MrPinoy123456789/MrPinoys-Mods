@@ -200,9 +200,9 @@ public final class TerminalGameTest {
         helper.assertValueEqual("Room shell: Old Mine", icons.get(0).inspect().getString(), "shell line");
         helper.assertValueEqual("Title: ◆ Delver", icons.get(1).inspect().getString(), "title line");
         helper.assertValueEqual("8:12", Terminal.awayClock(492), "the away clock pads seconds");
-        helper.assertValueEqual(1, Terminal.wrapRows("◆ Next: Lush Caves", Terminal.STORY_WIDTH),
+        helper.assertValueEqual(1, BoardText.wrapRows("◆ Next: Lush Caves", Terminal.STORY_WIDTH),
                 "a short line keeps one row");
-        helper.assertValueEqual(2, Terminal.wrapRows("◆ " + act1.story().get(0), Terminal.STORY_WIDTH),
+        helper.assertValueEqual(2, BoardText.wrapRows("◆ " + act1.story().get(0), Terminal.STORY_WIDTH),
                 "a story line wraps to two rows");
         helper.succeed();
     }

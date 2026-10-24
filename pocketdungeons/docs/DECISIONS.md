@@ -1270,3 +1270,55 @@ Whether a four or five member Crew tab fits at scale 1.0; whether the floor grap
 anyone misses history on the wall; whether `away 8:12` is understood without a label.
 
 **Status: built on `feature/terminal-map-crew` (2026-10-23), not played. Live check L116.**
+
+## 2026-10-23: Door board icons
+
+The player's sentence: *"There's too much text on the screen above the selector doors" (PD-151). Show me what the
+door gives as things I recognise, and let me right-click one when I want the words.*
+
+### The model
+
+The two sheets stay (they passed play on 2026-10-07). The left sheet is unchanged: the dungeon, the floor, one
+sentence. The right sheet becomes two short text lines and a row of icons:
+
+| Part | Shows | Colour or item | Right-click says |
+|---|---|---|---|
+| Line 1 | The floor's name | white | |
+| Line 2 | Scrap pay, `Loot 250%`, `Costs 1 life` (only the parts the door has) | aqua, gold above 100 percent, yellow | |
+| Affix icon | One per affix | `DoorIcons.AFFIX` (TNT for Explosive, a clock for Overclocked) | the affix's own blurb, its name in magenta |
+| Mining icon | One per mining word from PD-211 (`mining`, `deep mining`, `nether mining`, `wood`, `sand`) | a pickaxe, a log, sand | the word |
+| Reward icons | The floor's promised items and the wagered gear piece | the item itself, its count beside it | the item's name |
+| Finish icons | On a last floor: emeralds, the vault, the diary page while owed | emerald, vault, paper | `12 emeralds for finishing`, `The vault`, `A diary page` |
+| Rolls icon | The reward rolls | a chest, the count beside it | `8 rolls in your reward barrel` |
+
+### Rules
+
+1. **Icons for things, text for numbers that decide.** Scrap, the loot percent and a life cost stay as words on
+   line 2, because a player weighs them before pulling the lever. Everything the floor hands out is an icon.
+2. **Every icon is an inspect glyph.** A right click prints its line, so nothing is lost by cutting the text.
+3. **Counts sit beside the icon at scale 1.0**, never smaller, and only when above one.
+4. **The row fits the sheet.** Slots shrink to fit 5 blocks; icons never overlap and never leave the backdrop.
+5. **Wrapping is measured** with the vanilla font widths the terminal uses (`BoardText.wrapRows`), not a flat
+   5.6 pixels a character.
+6. Notices (the first lever's tutorial, an experimental offer, a playtest bias) stay as text lines under line 2.
+
+### Migration
+
+None. The board is transient and redraws at the next preview.
+
+### Supersedes
+
+- 2026-10-06 design item 1 (the door board's colour-group text lines) for the deal sheet; the single board fallback
+  keeps them.
+- The deal sheet's affix line and the gets line (PD-151, PD-207, PD-211 wording stays as the inspect words).
+
+### Knobs
+
+`DoorIcons.AFFIX` and `DoorIcons.WORD` (affix id and mining word to item), the row constants in `DungeonScreen`.
+
+### Open until played
+
+Whether players right-click the icons at all; whether a new player knows the TNT means Explosive without the click;
+whether the icon row reads from the middle of the room; whether a last floor's long row stays readable.
+
+**Status: approved (owner, 2026-10-23, option A). Built on `feature/door-board-icons`.**

@@ -99,6 +99,44 @@ final class BoardText {
         return "Clear the spawners to open the way.";
     }
 
+    /**
+     * How many rows {@code text} wraps to at {@code lineWidth} text pixels, by the
+     * vanilla font's advance widths and the client's word wrap. The server has no
+     * font, so this is the default font's table for the characters the boards
+     * write; anything else counts as a full-width letter. The terminal and the
+     * door board both measure with it.
+     */
+    static int wrapRows(String text, int lineWidth) {
+        int rows = 1;
+        int at = 0;
+        for (String word : text.split(" ", -1)) {
+            int w = 0;
+            for (int i = 0; i < word.length(); i++) {
+                w += charWidth(word.charAt(i));
+            }
+            int needed = at == 0 ? w : at + charWidth(' ') + w;
+            if (needed > lineWidth && at > 0) {
+                rows++;
+                at = w;
+            } else {
+                at = needed;
+            }
+        }
+        return rows;
+    }
+
+    /** One character's advance in the vanilla font, its one-pixel gap included. */
+    static int charWidth(char c) {
+        return switch (c) {
+            case 'i', '!', '.', ',', ':', ';', '|', '\'' -> 2;
+            case 'l', '`' -> 3;
+            case 'I', 't', '[', ']', ' ' -> 4;
+            case 'f', 'k', '<', '>', '{', '}', '(', ')', '"', '*' -> 5;
+            case '@', '~' -> 7;
+            default -> 6;
+        };
+    }
+
     /** {@code "loot \u00d73"}: the completion rolls a floor pays at its Loot percent. */
     static String rollsText(int chests) {
         return chests + " rolls";

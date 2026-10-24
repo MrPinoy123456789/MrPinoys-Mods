@@ -21,6 +21,7 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.item.ItemStack;
 import pocketdungeons.mixin.TextDisplayAccessor;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
@@ -71,9 +72,17 @@ final class DungeonScreen {
      * @param dungeon the dungeon's name, the largest line
      * @param floor   {@code Floor 3 of 4}
      * @param notes   the one sentence of what to expect, the smallest and grey
-     * @param deal    the floor's name and everything the deal decides
+     * @param deal    the floor's name and the numbers that decide the door (scrap, loot, a life)
+     * @param icons   what the door hands out, as items under the deal (decision 2026-10-23)
      */
-    record Sheets(Component dungeon, Component floor, Component notes, Component deal) {}
+    record Sheets(Component dungeon, Component floor, Component notes, Component deal,
+                  List<DoorIcons.Icon> icons) {
+
+        /** A pair of sheets with no icon row. */
+        Sheets(Component dungeon, Component floor, Component notes, Component deal) {
+            this(dungeon, floor, notes, deal, List.of());
+        }
+    }
 
     /** A board: its first line, and everything below it. An empty body is no second display. */
     record Board(Component title, Component body, Sheets sheets) {
@@ -139,6 +148,17 @@ final class DungeonScreen {
 
     /** Marks the displays of the two-sheet door board, besides {@link #TAG}. */
     static final String SHEET_TAG = "pocketdungeons_screen_sheet";
+    /** Marks the deal sheet's icon row (item displays, counts and click boxes), besides {@link #TAG}. */
+    static final String ICON_TAG = "pocketdungeons_screen_icon";
+    /** The deal sheet's icon: half a block, the terminal's reward icon size. */
+    static final float ICON_SCALE = 0.5f;
+    /** The gap between two icons, and the count's scale beside an icon (never under 1.0). */
+    static final double ICON_GAP = 0.2;
+    static final float ICON_COUNT_SCALE = 1.0f;
+    /** The deal text's top edge when an icon row sits under it, just under the ceiling. */
+    static final double DEAL_TOP_Y = 5.92;
+    /** The lowest the icon row's centre goes: the bottom of the backdrop plus half an icon. */
+    static final double ICON_ROW_MIN_Y = 4.28;
     private static final String SLOT_DUNGEON = "pocketdungeons_sheet_dungeon";
     private static final String SLOT_FLOOR = "pocketdungeons_sheet_floor";
     private static final String SLOT_NOTES = "pocketdungeons_sheet_notes";
@@ -157,8 +177,6 @@ final class DungeonScreen {
     /** The smallest text on the board, for the notes sentence. */
     static final float SHEET_NOTES_SCALE = 1.2f;
     static final float SHEET_DEAL_SCALE = 1.6f;
-    /** A line of default font text is about 5.6 px wide per character; wrapping is estimated from it. */
-    private static final double CHAR_PX = 5.6;
 
     private static final String BILLBOARD_FIXED = "fixed";
     private static final float VIEW_RANGE = 2.0f;
@@ -390,8 +408,27 @@ final class DungeonScreen {
         }
         lines.add(loot);
 
-        List<Component> deal = dealSheet(name, effective, gets, loot);
+        // The deal sheet (decision 2026-10-23): the floor's name, then the numbers that decide the door
+        // in one colour-grouped line; what the floor hands out is the icon row under it.
+        List<Component> deal = new ArrayList<>();
+        deal.add(Component.literal(name).withStyle(ChatFormatting.WHITE));
+        MutableComponent summary = Component.empty();
+        int scrap = previewScrap(record, entry, offer, def);
+        if (scrap > 0) {
+            addPart(summary, IntervalBanking.scrapText(scrap), ChatFormatting.AQUA);
+        }
+        if (!summary.getString().isEmpty()) {
+            summary.append(Component.literal(BoardText.SEP).withStyle(ChatFormatting.GRAY));
+        }
+        summary.append(lootPercent(effective));
+        int livesCost = Keystone.livesCost(owner, offer);
+        if (livesCost > 0) {
+            addPart(summary, DoorLives.costText(livesCost), ChatFormatting.YELLOW);
+        }
+        deal.add(summary);
         addNoticeLines(lines, deal, node, offer, offerLevel, owner);
+        List<DoorIcons.Icon> icons = previewIcons(level, record, entry, offer, def, node, oreHonest, effective,
+                chests);
 
         // The floor info sheet: the dungeon, the floor, and one sentence of what to expect.
         Component[] names = previewNames(mine, def, node, dungeonName, header, floorNumber);
@@ -408,7 +445,7 @@ final class DungeonScreen {
                 names[0].copy().withStyle(ChatFormatting.YELLOW),
                 names[1].copy().withStyle(ChatFormatting.YELLOW),
                 Component.literal(notes).withStyle(ChatFormatting.GRAY),
-                joinLines(deal));
+                joinLines(deal), icons);
         return new Board(title, joinLines(lines), sheets);
     }
 
@@ -433,16 +470,9 @@ final class DungeonScreen {
                                                 Keystone.Offer offer, DungeonDef def, DungeonDef.Node node,
                                                 boolean oreHonest, Set<String> effective) {
         MutableComponent gets = Component.empty();
-        // Decision 2026-10-18: a campaign door pays items, never scrap, so the board names no scrap part.
-        boolean campaignDoor = !(record.interval.endlessMine || EndlessMineRules.isMineOffer(offer))
-                && Campaign.isCampaignTrip(def);
-        if (offer.step() > 0 && !campaignDoor) {
-            int pay = ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts(),
-                    FloorPay.bonus(def, offer.nodeId(), record.interval.endlessMine || EndlessMineRules.isMineOffer(offer),
-                            record.interval.floorIndex + 1));
-            if (pay > 0) {
-                addPart(gets, IntervalBanking.scrapText(pay), ChatFormatting.AQUA);
-            }
+        int pay = previewScrap(record, entry, offer, def);
+        if (pay > 0) {
+            addPart(gets, IntervalBanking.scrapText(pay), ChatFormatting.AQUA);
         }
         if (def != null && showsNodes(def, node) && oreHonest) {
             for (String word : BoardText.paletteWords(def.nodePalette())) {
@@ -479,27 +509,69 @@ final class DungeonScreen {
         return gets;
     }
 
-    // The deal sheet (what the random deal decided): the floor's name, its affixes on a line of their
-    // own, the pay, the loot and cost, and the caution and tutorial lines. The notes the floor itself
-    // carries (dark, sculk, ore) belong to the info sheet.
-    private static List<Component> dealSheet(String name, Set<String> effective,
-                                             MutableComponent gets, MutableComponent loot) {
-        List<Component> deal = new ArrayList<>();
-        deal.add(Component.literal(name).withStyle(ChatFormatting.WHITE));
-        MutableComponent affixLine = Component.empty();
+    /**
+     * The scrap this door pays the member for the floor, or 0. J1: at or below the floor's level the step
+     * is scrap; above it, emeralds at the over-level rate. Decision 2026-10-18: a campaign door pays items,
+     * never scrap.
+     */
+    private static int previewScrap(InstanceRecord record, DungeonLog.Entry entry, Keystone.Offer offer,
+                                    DungeonDef def) {
+        boolean mine = record.interval.endlessMine || EndlessMineRules.isMineOffer(offer);
+        if (offer.step() <= 0 || (!mine && Campaign.isCampaignTrip(def))) {
+            return 0;
+        }
+        return ScrapMath.floorPay(offer.step(), offer.level(), entry.highestCharts(),
+                FloorPay.bonus(def, offer.nodeId(), mine, record.interval.floorIndex + 1));
+    }
+
+    /**
+     * The deal sheet's icon row (decision 2026-10-23), left to right: the affixes, the mining words, the
+     * floor's promised items and the wagered piece, the finish (emeralds, vault, diary page) on a last floor,
+     * then the reward rolls. The same things {@link #previewGets} names, as items.
+     */
+    static List<DoorIcons.Icon> previewIcons(ServerLevel level, InstanceRecord record, DungeonLog.Entry entry,
+                                             Keystone.Offer offer, DungeonDef def, DungeonDef.Node node,
+                                             boolean oreHonest, Set<String> effective, int chests) {
+        List<DoorIcons.Icon> icons = new ArrayList<>();
         for (AffixDefinition affix : AffixMath.ordered(effective, AffixManifest.current().definitions())) {
-            addPart(affixLine, affix.label, ChatFormatting.LIGHT_PURPLE);
+            icons.add(DoorIcons.affix(affix));
         }
-        if (!affixLine.getString().isEmpty()) {
-            affixLine.append(Component.literal(BoardText.SEP).withStyle(ChatFormatting.LIGHT_PURPLE));
+        if (def != null && showsNodes(def, node) && oreHonest) {
+            for (String word : BoardText.paletteWords(def.nodePalette())) {
+                icons.add(DoorIcons.word(word));
+            }
         }
-        affixLine.append(lootPercent(effective));
-        deal.add(affixLine);
-        if (!gets.getString().isEmpty()) {
-            deal.add(gets);
+        if (node != null) {
+            for (DungeonDef.Node.Reward reward : node.rewards()) {
+                if (PromisedGear.isGear(reward.item())) {
+                    ItemStack piece = PromisedGear.roll(level, record.owner, record.interval, offer.nodeId(),
+                            reward.item());
+                    icons.add(DoorIcons.stack(piece, PromisedGear.describe(piece)));
+                } else {
+                    icons.add(DoorIcons.item(reward.item(), reward.count(), reward.displayName()));
+                }
+            }
+            WagerGear.Pick extra = PromisedGear.extraPick(def, node, record.owner, record.interval,
+                    offer.nodeId(), effective);
+            if (extra != null) {
+                ItemStack piece = PromisedGear.rollExtra(level, record.owner, record.interval, offer.nodeId(), extra);
+                icons.add(DoorIcons.stack(piece, PromisedGear.describe(piece)));
+            }
+            if (node.isFinal()) {
+                int emeralds = PocketDungeonsConfig.finishEmeralds();
+                if (emeralds > 0) {
+                    icons.add(DoorIcons.emeralds(emeralds));
+                }
+                icons.add(DoorIcons.vault());
+                if (diaryOwed(def, entry)) {
+                    icons.add(DoorIcons.diaryPage());
+                }
+            }
         }
-        deal.add(loot);
-        return deal;
+        if (chests > 0) {
+            icons.add(DoorIcons.rolls(chests));
+        }
+        return icons;
     }
 
     /** The light warning, the experimental flag, the lever tutorial and the bias note, onto the lines and the deal sheet. */
@@ -781,11 +853,11 @@ final class DungeonScreen {
         return (int) Math.round(SHEET_WIDTH / (RENDER_SCALE * scale));
     }
 
-    /** How many lines {@code text} takes at {@code lineWidth} pixels, counting explicit breaks and estimated wraps. */
+    /** How many lines {@code text} takes at {@code lineWidth} pixels: explicit breaks, then measured wraps. */
     private static int wrappedLines(Component text, int lineWidth) {
         int count = 0;
         for (String line : text.getString().split("\n", -1)) {
-            count += Math.max(1, (int) Math.ceil(line.length() * CHAR_PX / lineWidth));
+            count += BoardText.wrapRows(line, lineWidth);
         }
         return Math.max(1, count);
     }
@@ -801,6 +873,15 @@ final class DungeonScreen {
         for (Display.TextDisplay sheet : level.getEntitiesOfClass(Display.TextDisplay.class, around(centre, 7),
                 e -> e.entityTags().contains(SHEET_TAG))) {
             sheet.discard();
+        }
+        clearIcons(level, centre);
+    }
+
+    /** Takes the deal sheet's icon row down: item displays, counts and click boxes. */
+    private static void clearIcons(ServerLevel level, double[] centre) {
+        for (Entity e : level.getEntitiesOfClass(Entity.class, around(centre, 7),
+                e -> e.entityTags().contains(ICON_TAG))) {
+            e.discard();
         }
     }
 
@@ -848,11 +929,143 @@ final class DungeonScreen {
                 notesBottom + RENDER_SCALE * SHEET_NOTES_SCALE), yaw, SHEET_NOTES_SCALE,
                 sheets.notes(), notesWidth);
 
-        int dealWidth = sheetLineWidth(SHEET_DEAL_SCALE);
+        clearIcons(level, centre);
+        if (sheets.icons().isEmpty()) {
+            int dealWidth = sheetLineWidth(SHEET_DEAL_SCALE);
+            int dealLines = wrappedLines(sheets.deal(), dealWidth);
+            double dealY = DOOR_CENTER_Y - RENDER_SCALE * SHEET_DEAL_SCALE * (5 * dealLines - 1);
+            upsertSheet(level, centre, SLOT_DEAL, wallAnchor(roomOrigin, wall, dealAlong, dealY), yaw,
+                    SHEET_DEAL_SCALE, sheets.deal(), dealWidth);
+            return;
+        }
+        // With an icon row the text hangs from the top; three lines or more drop to a smaller (still >= 1.0) scale.
+        float dealScale = wrappedLines(sheets.deal(), sheetLineWidth(SHEET_DEAL_SCALE)) <= 2
+                ? SHEET_DEAL_SCALE : SHEET_NOTES_SCALE;
+        int dealWidth = sheetLineWidth(dealScale);
         int dealLines = wrappedLines(sheets.deal(), dealWidth);
-        double dealY = DOOR_CENTER_Y - RENDER_SCALE * SHEET_DEAL_SCALE * (5 * dealLines - 1);
-        upsertSheet(level, centre, SLOT_DEAL, wallAnchor(roomOrigin, wall, dealAlong, dealY), yaw,
-                SHEET_DEAL_SCALE, sheets.deal(), dealWidth);
+        double dealBottom = DEAL_TOP_Y - 0.25 * dealScale * dealLines;
+        upsertSheet(level, centre, SLOT_DEAL, wallAnchor(roomOrigin, wall, dealAlong, dealBottom), yaw,
+                dealScale, sheets.deal(), dealWidth);
+        double rowY = Math.max(ICON_ROW_MIN_Y, Math.min(4.6, dealBottom - 0.35));
+        showIcons(level, roomOrigin, wall, DOOR_SCREEN_ALONG + SHEET_OFFSET, rowY, yaw, sheets.icons());
+    }
+
+    /**
+     * The icon row, centred on viewer along {@code centreAlong} at height {@code rowY}: each icon an
+     * item display with its count beside it at scale 1.0 (above one only) and an inspect glyph over it.
+     * When the row would overrun the sheet the icons and gaps shrink; the counts never do.
+     */
+    private static void showIcons(ServerLevel level, BlockPos roomOrigin, DoorMask.Direction wall,
+                                  double centreAlong, double rowY, float yaw, List<DoorIcons.Icon> icons) {
+        MinecraftServer server = level.getServer();
+        double[] widths = iconRowWidths(icons, SHEET_WIDTH - 0.2);
+        double iconW = widths[0];
+        double gap = widths[1];
+        double total = widths[2];
+        double x = centreAlong - total / 2.0;
+        for (DoorIcons.Icon icon : icons) {
+            double iconCentre = x + iconW / 2.0;
+            summonItem(level, wallAnchorAt(roomOrigin, wall, absAlong(wall, iconCentre), rowY, 1.06), yaw,
+                    (float) iconW, icon.item(), TAG, ICON_TAG);
+            CompoundTag data = new CompoundTag();
+            data.putString("text", inspectJson(server, icon.inspect()));
+            double[] box = wallAnchorAt(roomOrigin, wall, absAlong(wall, iconCentre), rowY - iconW / 2.0, 1.5);
+            Glyph.spawn(level, new net.minecraft.world.phys.Vec3(box[0], box[1], box[2]), (float) iconW,
+                    (float) iconW, GlyphHandlers.INSPECT, data, List.of(TAG, ICON_TAG));
+            x += iconW;
+            double countW = countWidth(icon);
+            if (countW > 0) {
+                int px = (int) Math.round(countW / (RENDER_SCALE * ICON_COUNT_SCALE)) + 2;
+                summon(level, wallAnchor(roomOrigin, wall, absAlong(wall, x + countW / 2.0),
+                                rowY - 0.125), yaw, ICON_COUNT_SCALE,
+                        Component.literal(String.valueOf(icon.count())).withStyle(ChatFormatting.WHITE),
+                        px, false, ICON_TAG);
+                x += countW;
+            }
+            x += gap;
+        }
+    }
+
+    /**
+     * The row's icon width, gap and total width in blocks for {@code icons} inside {@code room} blocks:
+     * {@link #ICON_SCALE} and {@link #ICON_GAP} when they fit, else both shrunk by one factor (never below half),
+     * the counts kept at full size.
+     */
+    static double[] iconRowWidths(List<DoorIcons.Icon> icons, double room) {
+        int n = icons.size();
+        double counts = 0;
+        for (DoorIcons.Icon icon : icons) {
+            counts += countWidth(icon);
+        }
+        double shrinkable = n * ICON_SCALE + Math.max(0, n - 1) * ICON_GAP;
+        double factor = shrinkable <= 0 ? 1.0 : Math.max(0.5, Math.min(1.0, (room - counts) / shrinkable));
+        double iconW = ICON_SCALE * factor;
+        double gap = ICON_GAP * factor;
+        return new double[] {iconW, gap, n * iconW + Math.max(0, n - 1) * gap + counts};
+    }
+
+    /** The count's width beside an icon at scale 1.0 with a small lead, or 0 when the count is one. */
+    static double countWidth(DoorIcons.Icon icon) {
+        if (icon.count() <= 1) {
+            return 0;
+        }
+        String digits = String.valueOf(icon.count());
+        int px = 0;
+        for (int i = 0; i < digits.length(); i++) {
+            px += BoardText.charWidth(digits.charAt(i));
+        }
+        return 0.05 + px * RENDER_SCALE * ICON_COUNT_SCALE;
+    }
+
+    /** {@code component} as the JSON the inspect glyph decodes. */
+    private static String inspectJson(MinecraftServer server, Component component) {
+        return ComponentSerialization.CODEC
+                .encodeStart(server.registryAccess().createSerializationContext(
+                        com.mojang.serialization.JsonOps.INSTANCE), component)
+                .result().map(com.google.gson.JsonElement::toString)
+                .orElse(component.getString());
+    }
+
+    /** A fixed item display at {@code xyz}, lit fully, carrying {@code tags}. */
+    private static void summonItem(ServerLevel level, double[] xyz, float yaw, float scale, String itemId,
+                                   String... tags) {
+        Display.ItemDisplay display = EntityTypes.ITEM_DISPLAY.create(level, EntitySpawnReason.COMMAND);
+        if (display == null) {
+            return;
+        }
+        CompoundTag item = new CompoundTag();
+        item.putString("id", itemId);
+        item.putInt("count", 1);
+        CompoundTag tag = new CompoundTag();
+        tag.putString("id", "minecraft:item_display");
+        tag.put("item", item);
+        tag.putString("item_display", "fixed");
+        tag.putString("billboard", BILLBOARD_FIXED);
+        tag.putFloat("view_range", VIEW_RANGE);
+        tag.put("transformation", scaleTransformation(scale));
+        CompoundTag bright = new CompoundTag();
+        bright.putInt("block", 15);
+        bright.putInt("sky", 15);
+        tag.put("brightness", bright);
+        ListTag pos = new ListTag();
+        pos.add(DoubleTag.valueOf(xyz[0]));
+        pos.add(DoubleTag.valueOf(xyz[1]));
+        pos.add(DoubleTag.valueOf(xyz[2]));
+        tag.put("Pos", pos);
+        ListTag rot = new ListTag();
+        rot.add(FloatTag.valueOf(yaw));
+        rot.add(FloatTag.valueOf(0.0f));
+        tag.put("Rotation", rot);
+        ListTag tagList = new ListTag();
+        for (String t : tags) {
+            tagList.add(StringTag.valueOf(t));
+        }
+        tag.put("Tags", tagList);
+        try (ProblemReporter.ScopedCollector reporter =
+                     new ProblemReporter.ScopedCollector(display.problemPath(), PocketDungeonsMod.LOG)) {
+            display.load(TagValueInput.create(reporter, level.registryAccess(), tag));
+        }
+        level.addFreshEntity(display);
     }
 
     /**
@@ -986,13 +1199,19 @@ final class DungeonScreen {
      */
     private static double[] wallAnchor(BlockPos roomOrigin, DoorMask.Direction wall,
                                        double along, double y) {
+        return wallAnchorAt(roomOrigin, wall, along, y, 1.1);
+    }
+
+    /** {@link #wallAnchor} at {@code depth} blocks from the cell's outer edge (1.1 is text, 1.06 items, 1.5 boxes). */
+    private static double[] wallAnchorAt(BlockPos roomOrigin, DoorMask.Direction wall,
+                                         double along, double y, double depth) {
         return switch (wall) {
-            case NORTH -> new double[]{roomOrigin.getX() + along, roomOrigin.getY() + y, roomOrigin.getZ() + 1.1};
+            case NORTH -> new double[]{roomOrigin.getX() + along, roomOrigin.getY() + y, roomOrigin.getZ() + depth};
             case SOUTH -> new double[]{roomOrigin.getX() + along, roomOrigin.getY() + y,
-                    roomOrigin.getZ() + RoomGeometry.CELL - 1.1};
-            case EAST -> new double[]{roomOrigin.getX() + RoomGeometry.CELL - 1.1,
+                    roomOrigin.getZ() + RoomGeometry.CELL - depth};
+            case EAST -> new double[]{roomOrigin.getX() + RoomGeometry.CELL - depth,
                     roomOrigin.getY() + y, roomOrigin.getZ() + along};
-            case WEST -> new double[]{roomOrigin.getX() + 1.1, roomOrigin.getY() + y, roomOrigin.getZ() + along};
+            case WEST -> new double[]{roomOrigin.getX() + depth, roomOrigin.getY() + y, roomOrigin.getZ() + along};
         };
     }
 
