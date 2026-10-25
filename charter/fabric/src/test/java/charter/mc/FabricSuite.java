@@ -18,6 +18,7 @@ public final class FabricSuite {
         StoreTest.run();
         RegistryTest.run();
         RuntimeTest.run();
+        LandFixturesTest.run();
 
         System.out.println("fabric: " + passed + " passed, " + failures.size() + " failed");
         for (String failure : failures) {
