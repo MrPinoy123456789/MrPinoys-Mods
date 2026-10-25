@@ -4,7 +4,12 @@ import charter.gov.Office;
 import charter.gov.Vote;
 import charter.grant.Grant;
 import charter.history.History;
+import charter.id.ChunkKey;
+import charter.id.ClaimId;
+import charter.id.CoreId;
 import charter.id.GrantId;
+import charter.land.Claim;
+import charter.land.Core;
 import charter.id.IdSource;
 import charter.id.OfficeId;
 import charter.id.OrgId;
@@ -52,6 +57,12 @@ public final class CharterState {
     private final Map<GrantId, Grant> grants = new LinkedHashMap<>();
     private final Map<VoteId, Vote> votes = new LinkedHashMap<>();
     private final List<Invite> invites = new ArrayList<>();
+
+    // land block (M2): cores and claims
+    private final Map<CoreId, Core> cores = new LinkedHashMap<>();
+    private final Map<ClaimId, Claim> claims = new LinkedHashMap<>();
+    private final Map<ChunkKey, Claim> claimsByChunk = new HashMap<>();
+    private long nextCoreOrder = 1;
 
     /** Bumped on every tree or membership change; the descendant cache keys on it. */
     private long treeVersion = 0;
@@ -243,6 +254,62 @@ public final class CharterState {
 
     public void addGrant(Grant grant) {
         grants.put(grant.id, grant);
+    }
+
+    // ---- land: cores and claims (the rules live in charter.land.LandGraph) ----
+
+    public Optional<Core> core(CoreId id) {
+        return Optional.ofNullable(id == null ? null : cores.get(id));
+    }
+
+    /** Every core, oldest first. */
+    public Collection<Core> cores() {
+        return Collections.unmodifiableCollection(cores.values());
+    }
+
+    public List<Core> coresOf(OrgId owner) {
+        return cores.values().stream().filter(c -> c.owner.equals(owner)).toList();
+    }
+
+    /** The order number the next core placed takes; lower is older. */
+    public long takeCoreOrder() {
+        return nextCoreOrder++;
+    }
+
+    public void addCore(Core core) {
+        cores.put(core.id, core);
+        nextCoreOrder = Math.max(nextCoreOrder, core.order + 1);
+    }
+
+    public void removeCore(CoreId id) {
+        cores.remove(id);
+    }
+
+    public Optional<Claim> claim(ClaimId id) {
+        return Optional.ofNullable(id == null ? null : claims.get(id));
+    }
+
+    public Optional<Claim> claimAt(ChunkKey chunk) {
+        return Optional.ofNullable(claimsByChunk.get(chunk));
+    }
+
+    public Collection<Claim> claims() {
+        return Collections.unmodifiableCollection(claims.values());
+    }
+
+    public List<Claim> claimsOf(OrgId owner) {
+        return claims.values().stream().filter(c -> c.owner.equals(owner)).toList();
+    }
+
+    public void addClaim(Claim claim) {
+        if (claimsByChunk.containsKey(claim.chunk)) throw new IllegalStateException("chunk already claimed: " + claim.chunk);
+        claims.put(claim.id, claim);
+        claimsByChunk.put(claim.chunk, claim);
+    }
+
+    public void removeClaim(ClaimId id) {
+        Claim gone = claims.remove(id);
+        if (gone != null) claimsByChunk.remove(gone.chunk);
     }
 
     // ---- votes ----
