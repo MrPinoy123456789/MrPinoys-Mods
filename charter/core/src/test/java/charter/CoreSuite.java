@@ -14,6 +14,7 @@ public final class CoreSuite {
         charter.config.KnobsTest.run();
         charter.gov.GovernanceTest.run();
         charter.grant.AuthorityTest.run();
+        charter.food.FoodTest.run();
 
         System.out.println("core: " + Check.passed() + " passed, " + Check.failures().size() + " failed");
         for (String failure : Check.failures()) {
