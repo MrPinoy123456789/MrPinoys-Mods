@@ -29,6 +29,13 @@ public final class CharterMod implements ModInitializer {
     public void onInitialize() {
         Path configDir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
         knobs = CharterConfig.readOrCreate(configDir, LOG::info, LOG::warn);
+        Text.load(configDir, LOG::info, LOG::warn);
+
+        // M7: the store's type names, the live server (load, tick, save), the commands.
+        charter.mc.store.Persistence.register();
+        CharterServer.register();
+        charter.mc.cmd.CharterCommands.register();
+
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }
 

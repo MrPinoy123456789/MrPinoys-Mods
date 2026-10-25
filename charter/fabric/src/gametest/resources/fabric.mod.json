@@ -8,7 +8,9 @@
   "environment": "server",
   "entrypoints": {
     "fabric-gametest": [
-      "charter.gametest.SpikeGameTest"
+      "charter.gametest.SpikeGameTest",
+      "charter.gametest.StoreGameTest",
+      "charter.gametest.VoteCommandGameTest"
     ]
   },
   "mixins": [

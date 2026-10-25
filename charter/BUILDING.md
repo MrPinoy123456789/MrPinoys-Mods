@@ -92,3 +92,39 @@ must not assume a supply cart keeps rolling through chunks no player is near;
 that is the unloaded-chunk case in PLAN.md §4.5 and risk R3. Gametests that move
 entities across chunk borders should force-load the chunks they use and release
 them at the end.
+
+## Saving, ticking and commands (`charter.mc`, M7)
+
+- **The store** (`charter.mc.store`): `<world>/charter/state.json` (one JSON snapshot,
+  written to `.tmp`, forced, moved; the previous one kept as `.bak`; an hourly copy
+  in `backups/`, 24 kept) and `history.jsonl` (every history entry, one line each,
+  append only, read back into `state.history` on start). An unreadable `state.json`
+  is kept as `state.json.broken-<time>` and the load falls back to `.bak`, then the
+  newest backup; if nothing reads, the server refuses to start.
+- **Plugging in state:** `state.json` is a `formatVersion` plus one block per
+  `StateBlock` key. A feature that adds records to `CharterState` registers a block
+  (`Persistence.block(CoreBlocks.block("contracts", write, read))`) from its own
+  register call; it never edits `CoreBlocks`. A block missing from an old file is
+  simply not read; a block no jar claims is written back unchanged.
+- **Plugging in types:** every `Action` a vote can hold and every `HistoryEvent`
+  needs a store name: `Persistence.ACTIONS.register("feature.verb", Type.class)`
+  and `Persistence.EVENTS.registerNested(FeatureEvents.class, HistoryEvent.class)`.
+  `RegistryTest` scans core's source and fails on any type without a name. Each
+  action also needs a `motion.<name>` line in `en_us.json` (its record fields are
+  the placeholders), checked by the same test.
+- **Repair** (`Repair`): runs after every load and on `/charter admin repair`. A
+  block drops records that point at nothing; `Repair.run` handles what spans
+  blocks. Each repair is a `StoreEvents.Repaired` recorded as admin by `repair`.
+- **Runtime:** `CharterRuntime` wires state, engine, sim, store, history file, siege
+  log, `ClaimIndex` and notices with no Minecraft types, so plain tests run it as
+  the server does. `CharterServer` owns the live one; get it with
+  `CharterServer.runtime()`. The sim steps every `simStepTicks` by real time since
+  its last step (at most a minute), so the siege clock never runs while the server
+  is down.
+- **Text:** every player string is a key in `data/charter/lang/en_us.json`
+  (copied to `config/charter/` on first boot), read with `Text.get(key, "name",
+  value, ...)`. A core refusal can be reworded with a `reason.<key>` line.
+- **Links:** pages run `/charter act <token>`; `Chat.act(player, label, hover, run)`
+  issues a one-shot token bound to that player. Gametests click a link with
+  `CharterCommands.tokens().newest(uuid, label)`.
+- **Players:** commands accept a name or a UUID (mock players share a name).
