@@ -60,6 +60,24 @@ everything through the real engine. `Fixture.Use` is a test action that needs an
 power, for checking authority without building the feature. Tests must prove
 behaviour: run the real path and assert an observable result.
 
+## The siege (`charter.siege`, M5)
+
+- `SiegeSim.step(realMillis)` scales by `timeScale`; `advance(siegeMillis)` runs
+  passes of at most a siege minute. The fabric tick driver calls `step` every
+  `simStepTicks`; admin `time advance` calls `advance`. Both also tick governance.
+- All siege state is `state.siege` (`SiegeBook`). Granaries and camp stores are
+  `Store`s whose `provisions` mirror the real chests.
+- `SiegeRules` answers every question (which camps count, which sides are closed,
+  whether a claim is protected right now, who holds a keep). Protection Mixins and
+  events should call `protectedClaim`, not reimplement it.
+- `Supply.enter` is what crossing detection reports (players and carts);
+  `DepositFood` is the player action; hoppers unloading carts call
+  `Supply.deposit` with the cart as carrier.
+- Presence and prisoners come in through `SiegeInputs`, as counts.
+- `ChooseFall` is the besieger's raze or occupy; the sim razes when time runs out.
+- New-faction protection runs on wall time, so a time-scaled playtest never
+  shortens a new faction's grace. Everything else in the siege is siege time.
+
 ## Found in the M0 spike
 
 Two protection Mixin targets in PLAN.md §5.6 were renamed in 26.2:

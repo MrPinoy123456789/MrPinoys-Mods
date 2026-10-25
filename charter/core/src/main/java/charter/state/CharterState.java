@@ -49,6 +49,8 @@ public final class CharterState {
     public final IdSource ids = new IdSource();
     public final History history = new History();
     public final SiegeClock siegeClock = new SiegeClock();
+    /** Siege block (M5): granaries, camp stores, holds, allowances, truces, falls. */
+    public final charter.siege.SiegeBook siege = new charter.siege.SiegeBook();
 
     private final Map<OrgId, Organization> orgs = new LinkedHashMap<>();
     private final Map<PlayerId, PlayerRecord> players = new LinkedHashMap<>();

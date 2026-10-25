@@ -17,6 +17,7 @@ public final class CoreSuite {
         charter.land.LandTest.run();
         charter.food.FoodTest.run();
         charter.chronicle.ChronicleTest.run();
+        charter.siege.SiegeTest.run();
 
         System.out.println("core: " + Check.passed() + " passed, " + Check.failures().size() + " failed");
         for (String failure : Check.failures()) {

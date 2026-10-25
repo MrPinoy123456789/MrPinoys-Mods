@@ -69,6 +69,14 @@ public final class Knobs {
     public int orphanGraceMinutes = 30;
     public double plunderShare = 0.25;
     public int occupationCapDays = 7;
+    /** How long the besieger has to choose raze or occupy before the keep is razed. */
+    public int fallChoiceMinutes = 10;
+    /** Notoriety gained per camp raised against someone, and per claim or keep taken. */
+    public double notorietyPerCamp = 1;
+    public double notorietyPerClaimTaken = 1;
+    public double notorietyDecayPerDay = 1;
+    /** Notoriety at which a faction's keeps reach notorietyMaxMultiplier. */
+    public double notorietyForMax = 10;
 
     // ---- governance (wall time) ----
     public int settleDays = 3;
