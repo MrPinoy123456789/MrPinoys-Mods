@@ -100,6 +100,8 @@ public final class SiegeSim {
         double hours = dt / (double) Durations.HOUR;
 
         forgetGone();
+        events.addAll(charter.contract.Justice.freeOrphans(state, knobs, wall));
+        events.addAll(charter.contract.Justice.tick(state, knobs, wall));
         raiseCamps(rules, wall, now, events);
         settleFalls(rules, wall, now, events);
 
@@ -233,12 +235,14 @@ public final class SiegeSim {
             site.besiegers = new LinkedHashSet<>();
             site.starving = false;
             events.add(new SiegeEvents.OccupationEnded(wall, now, keep.id, occupation.occupier(), "starved"));
+            events.addAll(charter.contract.Occupations.end(state, keep.id, "starved", wall));
             return;
         }
         OrgId besieger = mainBesieger(rules, keep, counting);
         state.siege.falls.put(keep.id, new SiegeBook.PendingFall(keep.id, besieger, now + Durations.minutes(knobs.fallChoiceMinutes)));
         addNotoriety(rules.faction(besieger), knobs.notorietyPerClaimTaken);
         events.add(new SiegeEvents.KeepFell(wall, now, keep.id, keep.owner, besieger, keep.center));
+        events.addAll(charter.contract.Justice.freeKeep(state, knobs, keep.id, wall, "keep fell"));
     }
 
     /** The besieging organization holding the most closed sides; the older camp wins a tie. */
@@ -383,6 +387,7 @@ public final class SiegeSim {
             if (now >= occupation.untilSiege()) {
                 book.occupations.remove(occupation.keep());
                 events.add(new SiegeEvents.OccupationEnded(wall, now, occupation.keep(), occupation.occupier(), "cap"));
+                events.addAll(charter.contract.Occupations.end(state, occupation.keep(), "cap", wall));
             }
         }
         double decay = knobs.notorietyDecayPerDay * dt / (double) Durations.DAY;

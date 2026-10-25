@@ -52,6 +52,9 @@ public final class CharterState {
     /** Siege block (M5): granaries, camp stores, holds, allowances, truces, falls. */
     public final charter.siege.SiegeBook siege = new charter.siege.SiegeBook();
 
+    /** Contracts block (M6): contracts, custody, the punishment ledger, players' own deposits, breach marks. */
+    public final charter.contract.ContractBook contracts = new charter.contract.ContractBook();
+
     private final Map<OrgId, Organization> orgs = new LinkedHashMap<>();
     private final Map<PlayerId, PlayerRecord> players = new LinkedHashMap<>();
     private final Map<PlayerId, MemberRecord> memberships = new LinkedHashMap<>();

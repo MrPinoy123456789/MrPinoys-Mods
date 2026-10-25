@@ -49,6 +49,7 @@ public final class Falls {
             site.besiegers = new LinkedHashSet<>();
             site.starving = false;
             events.add(new SiegeEvents.Occupied(wall, now, keepId, keep.owner, occupier, until));
+            events.addAll(charter.contract.Occupations.begin(state, keep, occupier, wall, now, until));
         }
         return events;
     }
