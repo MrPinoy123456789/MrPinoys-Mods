@@ -68,9 +68,15 @@ public final class SpikeGameTest {
     public void cartCrossingSeenByScan(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0));
-        int border = Math.floorDiv(origin.getX(), 16) * 16 + 16;
+        int border = nearestBorder(origin.getX());
         int y = origin.getY();
         int z = origin.getZ() + 1;
+        // The test can land anywhere; a chunk outside the test area may not tick entities, and a
+        // cart there never moves. Force-load the chunks along the line for the length of the test.
+        int chunkZ = Math.floorDiv(z, 16);
+        for (int cx = Math.floorDiv(border - 4, 16); cx <= Math.floorDiv(border + 4, 16); cx++) {
+            level.setChunkForced(cx, chunkZ, true);
+        }
         for (int x = border - 4; x <= border + 4; x++) {
             level.setBlockAndUpdate(new BlockPos(x, y - 1, z), Blocks.STONE.defaultBlockState());
             level.setBlockAndUpdate(new BlockPos(x, y, z),
@@ -95,7 +101,18 @@ public final class SpikeGameTest {
                 seen[0] = true;
             }
         });
-        helper.succeedWhen(() -> helper.assertTrue(seen[0], "The 5 tick scan never saw the cart change chunk"));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(seen[0], "The 5 tick scan never saw the cart change chunk");
+            for (int cx = Math.floorDiv(border - 4, 16); cx <= Math.floorDiv(border + 4, 16); cx++) {
+                level.setChunkForced(cx, chunkZ, false);
+            }
+        });
+    }
+
+    /** The chunk border (a multiple of 16) nearest to x, so the test's rails stay close to its own area. */
+    static int nearestBorder(int x) {
+        int below = Math.floorDiv(x, 16) * 16;
+        return x - below < 8 ? below : below + 16;
     }
 
     /**
@@ -110,7 +127,7 @@ public final class SpikeGameTest {
                 "A mock server player is not in the player list, so the detector cannot see it");
 
         BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0));
-        int border = Math.floorDiv(origin.getX(), 16) * 16 + 16;
+        int border = nearestBorder(origin.getX());
         double[] x = {border - 3 + 0.5};
         player.teleportTo(x[0], origin.getY(), origin.getZ() + 0.5);
 

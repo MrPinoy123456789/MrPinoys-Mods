@@ -84,3 +84,11 @@ Two protection Mixin targets in PLAN.md §5.6 were renamed in 26.2:
 `FlowingFluid.spreadTo` (not `canSpreadTo`) and `FarmlandBlock.fallOn` (the class
 is not `FarmBlock`). Entity type constants live in `EntityTypes`, not
 `EntityType`. A Mixin package may hold only Mixins: put shared interfaces elsewhere.
+
+**Carts only move in chunks that tick entities.** The cart spike failed at random
+until its rails stayed near the test area and the chunks along them were
+force-loaded: a cart in a loaded but not entity-ticking chunk simply stops. M10
+must not assume a supply cart keeps rolling through chunks no player is near;
+that is the unloaded-chunk case in PLAN.md §4.5 and risk R3. Gametests that move
+entities across chunk borders should force-load the chunks they use and release
+them at the end.
