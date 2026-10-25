@@ -1,7 +1,9 @@
 # Charter: implementation plan
 
-**Status:** plan for approval, 2026-10-24. Nothing built. Written against
-`charter/DESIGN.md` as committed at `dacc2e58`.
+**Status:** approved 2026-10-24. Nothing built. Written against
+`charter/DESIGN.md` as committed at `dacc2e58`; the owner accepted every
+recommendation in §14 and every assumption in §15, and they are now folded into
+DESIGN.md (its §23 has the index).
 **Goal:** the best possible first playtest build of the supply-line siege, with
 enough of governance and justice to make the politics real.
 
@@ -46,7 +48,7 @@ and set up any of this in minutes.
 | v1 | Secession with a People fork | **Out** | Needs a population that has lived together. Test E waits |
 | v1 | Settling (camp to keep), posture labels, trophies, dormancy | **Out** | Settling and dormancy run on 3 and 30 day clocks a playtest will not reach; labels and trophies are cosmetic. Trophies are cheap and can ride along if a milestone finishes early |
 | Later | Unrest and distance costs; Monarchy, Council, Company presets | **Out** | Needs tribute contracts and a larger server |
-| New | Labour terms (imposed bond, signed indenture) | **Out of the first build, decision needed** | See D12. The imposed bond could ride on the justice milestone if the owner wants it tested |
+| New | Labour terms (imposed bond, signed indenture) | **Bond in, behind a knob (off by default); indenture out** | Accepted as D12. The bond rides on the justice milestone (M12); indenture waits for signed contracts |
 
 The cut leans toward the siege loop and toward justice because those are the two
 things a first session can actually exercise in an evening. Everything that only
@@ -892,7 +894,7 @@ written in M0 so `Knobs` and `charter.json` are not hot after it.
 | **M9** | **Fabric: granary and camp store.** linked chests, the sgui screen, real eating and spoilage, mirrors and load reconciliation, displays with time left, `food.json`, admin `granary set` | A stocked keep under an admin-forced siege visibly eats its chest, least nourishing first | K3 (gametest), food table registry check, mirror load test | **Parallel** with M8 |
 | **M10** | **Fabric: supply lines.** player crossings and snapshots, cart scan and pools, hopper Mixin 8, ender chest and pearl exclusions, deposit rule in the screen, `supply show` | A runner walks food in through an open side and deposits it; a cart line feeds a besieged granary; a tunnel under a camp does not | K, K2, L (gametest), cart in and out mints nothing | **Serial**, after M8 and M9 |
 | **M11** | **Fabric: the siege in the world.** presence counting, alerts and offline digests, the fall (raze or occupy choice for the besieger, nexus break, plunder spill, granary as loot), reassignment and grace in the world, occupation control, truce | A complete scripted siege runs on a dev server from raise to fall, both endings | V (release half), W gametest, a full siege gametest at time scale 600 | **Serial**, after M10 |
-| **M12** | **Fabric: justice.** cells, arrest with a lead, sentencing page, confinement and escape, execution with respawn wait, banishment, fine, pardon | On `runServer`: arrest, jail, escape, and an execution with banishment | T (gametest), U and V in the world, cell flood fill refusals | **Parallel** with M11 (touches only justice files plus hot-file lines) |
+| **M12** | **Fabric: justice.** cells, arrest with a lead, sentencing page, confinement and escape, execution with respawn wait, banishment, fine, pardon, the bond (tether term, `labourTerms` knob, off by default) | On `runServer`: arrest, jail, escape, an execution with banishment, and a bond with the knob on | T (gametest), U and V in the world, cell flood fill refusals | **Parallel** with M11 (touches only justice files plus hot-file lines) |
 | **M13** | **Fabric: Chronicle in the world.** charter lectern books, Realm Chronicle lectern, refresh on change | A lectern shows a readable Chronicle of a siege | Book page limits, regeneration on event | **Parallel** with M10 to M12 after M7 |
 | **M14** | **Playtest kit.** scenario files and `scenario run`, `siege_report.py`, a load check (100 fake claims, 10 active sieges, 40 simulated players in core; tick time measured in a dev server), README with the Mixin list, deploy steps, final `check` | `dist/` jar deployed to the test server and the five scenarios each run once by the builder | All suites green with counts reported; load check numbers recorded | **Serial**, last |
 
@@ -1023,6 +1025,11 @@ promises 100 players; a cheap benchmark now avoids a rewrite later).
 
 ## 14. Open decisions
 
+**Accepted 2026-10-24:** the owner accepted every recommendation below as written,
+including D11 (declared war goals with war exhaustion), D12 (bond in M12 behind a
+knob, indenture later) and D15 (extend the deploy script). DESIGN.md §23 records
+them. Only D3 (unrest) and the final mod name (D8) stay open.
+
 Each has a recommendation and the milestone it blocks. Where it blocks nothing in
 the first build, it says so.
 
@@ -1129,6 +1136,10 @@ to the jailer. Recommendation: to them, since only the quota is enforceable.
 | D20 | Does a camp eat while raising? | **No;** only while besieging or raiding | M5 |
 
 ## 15. Gaps and contradictions found in DESIGN.md
+
+**Resolved 2026-10-24:** the owner accepted every assumption below, and DESIGN.md
+now says each of them (gap 18, the missing `MOD_AUDIT.md`, is a suite document
+and stays as noted).
 
 Listed rather than silently resolved. Each says what this plan assumes until the
 owner decides; none changes DESIGN.md.

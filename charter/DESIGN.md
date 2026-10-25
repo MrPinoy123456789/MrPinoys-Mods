@@ -1,6 +1,7 @@
 # Charter: design
 
-**Status:** design, agreed in conversation 2026-10-24, nothing built.
+**Status:** design, agreed in conversation 2026-10-24, nothing built. The
+implementation plan is `charter/PLAN.md`; its decisions are folded in here (§23).
 **Working title:** Charter (mod id `charter`). Rename before the first jar if a better one turns up.
 **Platform:** Fabric 26.2, JDK 25, server-side only. Vanilla clients install nothing.
 **Audience:** 10 to 20 players to start; the goal is 100 or more. Every number that
@@ -210,8 +211,11 @@ beliefs, banner pattern and colours, membership rules, revision, `derived_from`.
   across the map.
 - **Capacity:** each core supports a limited number of claims.
 - **Active members cap total land:** a faction holds at most a set number of
-  claims per member seen in the last 14 days (default 6), on top of its keeps. Two
-  players with a keep cannot own half the map.
+  claims per member seen in the last 14 days (default 6), on top of its keeps. Camp
+  claims count toward this cap; the banner chunk itself does not. Two players with
+  a keep cannot own half the map.
+- **Overworld only** at first (a knob lists the dimensions where claims may be
+  made).
 - The owner of a core is the organization that placed it, at any level of the
   tree. The Royal Guard can own the eastern fort.
 
@@ -249,8 +253,16 @@ and fluids do not cross into it. Players can always **walk** through; protection
 stops building, not movement. Members' permissions inside their own land come from
 grants; default: members build anywhere except the core chunk.
 
-A claim stays fully protected until its granary, store or hold is empty, at which
-point it is no longer a claim. There is no partial protection.
+Farmland in a claim cannot be trampled by outsiders.
+
+A claim stays fully protected until it runs out, at which point it is no longer a
+claim. There is no partial protection. What runs out depends on the claim:
+
+| Claim | Runs out when |
+|---|---|
+| Keep chunks | The granary is empty (§10.8) |
+| Outlying claims | The hold is empty (§10.3) |
+| Camp claims | The **sally hold** is empty (§10.6). An empty camp store stops the camp besieging but leaves it protected |
 
 ## 10. Siege: supply lines
 
@@ -284,10 +296,18 @@ A keep is **besieged** while any active enemy camp claim touches one of its ring
 chunks. While besieged:
 
 - The granary drains at the keep's **base rate,** which depends on how many mouths
-  it feeds (§10.11). A full granary of preserved food lasts 84 hours, about 3.5
-  days, with nothing coming in, whatever the faction's size.
+  it feeds (§10.11). A full granary of preserved food lasts about 84 hours, about
+  3.5 days, with nothing coming in, whatever the faction's size, at zero
+  notoriety. (Even preserved food spoils slowly, so the real figure is a few hours
+  under 84; tests allow 7%.)
 - Each besieging camp eats from its own store (default 30 nourishment an hour). A
-  camp with an empty store stops counting as besieging.
+  camp eats only while besieging or raiding, not while it is raising. A camp with
+  an empty store stops counting as besieging.
+- **Siege time pauses while the server is down.** Every siege, spoilage, raising
+  and grace clock stops with the server and resumes with it.
+- **Several factions can besiege the same keep at once.** All their camps count
+  toward encirclement, the drain is the keep's (not per camp), and the truce after
+  a lifted siege applies to each attacker separately.
 
 An outlying claim with an enemy camp next to it is **raided:** its hold (measured in
 hours, not food) counts down and stops refilling. At 6 hours of hold, a farm falls
@@ -299,8 +319,9 @@ raiders. That is the pirate's living.
 This is the supply line, and it is physical.
 
 - The keep's **perimeter** is the twelve chunks that share an edge with its ring.
-- A perimeter chunk is **open** unless an enemy faction claims it. Defenders' own
-  outlying claims there are open, so a keep ringed by its own farms cannot be
+- A perimeter chunk is **open** unless it is claimed by a faction that has an
+  active camp touching this keep's ring. A neutral neighbour's farm stays open:
+  only the besiegers close sides. Defenders' own outlying claims there are open, so a keep ringed by its own farms cannot be
   surrounded until those farms are raided away. Cutting a supply line starts with
   stripping the land that feeds it.
 - **While besieged, food can only go into the granary if it came in through an
@@ -310,7 +331,11 @@ This is the supply line, and it is physical.
 - **Carts follow the same rule.** A chest minecart or hopper minecart that rolls
   into a keep chunk from an open perimeter chunk has its food noted, and up to that
   much can be unloaded into the granary, by hand or by hopper. Rails are the supply
-  line made physical (§10.12).
+  line made physical (§10.12). **Chest boats** count as carts, so a river can feed
+  a coastal keep. Pack animals with chests (donkeys, mules, llamas) carry nothing
+  that counts in the first build.
+- A player or cart that crosses more than 16 blocks between two checks is treated
+  as having teleported, so a fast elytra flight or minecart cannot skip the check.
 - Food that arrives any other way buys nothing: from a chest already inside, an
   ender chest, an ender pearl, a teleport, or crossing in from an enemy chunk on
   foot or by cart (over the camp, or tunnelling under it, since a claim is the
@@ -350,15 +375,24 @@ The base rate runs with nobody online. Players present change it:
   play, a full keep lasts at least 42 hours; with the usual few hours of attendance
   a day it is about 3 days.
 
-The same rule runs the other way. Defenders standing in their own claim next to a
-camp drain that camp's protection (a camp holds out about an hour against a
-sally), and attackers present slow it. Every drain in the game follows this one
-rule.
+**Sallies.** Each camp claim has a **sally hold** of 1 hour. It drains only while
+defenders stand in their own claim next to it: each defender present adds one unit
+of drain, each attacker present in the camp takes one away. It refills when nobody
+is contesting it. When it empties, the camp's claims lose protection and the
+banner can be broken. An hour of defenders standing at the camp's edge, unopposed,
+breaks it.
+
+**Alts.** Presence counts only members of at least 3 days' standing, so a faction
+cannot slow a siege by logging in fresh accounts. Logged-out players are never
+present.
 
 ### 10.7 Starvation and assault
 
-Once a keep's granary falls below 25%, the garrison is **starving** and assault is
-possible: attackers standing **inside** a keep chunk drain it four times faster.
+Once a keep's granary falls below 25% **of its storage limit** (a fixed 21 hours of
+drain), the garrison is **starving** and assault is possible: attackers standing
+**inside** a keep chunk drain it four times faster. The assault factor multiplies
+on top of the presence bound, so the combined rate can reach 8 times base; the
+42 hour floor in §10.6 applies to presence from outside the keep, not to assault.
 Protection still stops them breaking or placing there, so they have to get over or
 through the walls: a siege tower built in their own chunk, ender pearls, elytra, or
 a gate left open. That is when the walls and the people on them matter most.
@@ -394,8 +428,10 @@ The same idea applies to all land:
 - **Camps have supply lines too, and raids end by being cut off.** A camp's
   perimeter is every chunk sharing an edge with its claims. Its store can only be
   refilled with food carried in through an open side of that perimeter, by the
-  same rule as a keep. When every side is closed (claimed by the defenders, or by
-  anyone hostile to the camp), the camp is **cut off:** nothing can be carried in,
+  same rule as a keep. A side of a camp is closed when it is claimed by the faction
+  the camp is besieging or raiding, or by any faction with an active camp against
+  the camp's owner; neutral claims stay open. When every side is closed, the camp
+  is **cut off:** nothing can be carried in,
   and its store burns twice as fast. Defenders cut a raid
   off by claiming the chunks around the camp, or by raising camps of their own
   beside it. A raid pushed deep into enemy land is surrounded by enemy claims
@@ -421,7 +457,12 @@ the snowball, as it was for real empires.
 
 **Storage.** A granary holds 84 hours of its keep's drain without trouble: about
 5,000 nourishment for six mouths (roughly ten stacks of steak), about 17,000 for
-twenty. It grows and shrinks as active membership changes.
+twenty. It grows and shrinks as active membership changes. Prisoners add mouths
+but do not raise the storage limit, so they make a keep fall sooner.
+
+A large faction's granary does not fit in one chest, so a granary is **linked
+chests:** up to 8 single chests (a knob) placed together in the core chunk act as
+one granary.
 
 **Spoilage** takes the place of a hard cap, as damp and rats did in real
 storerooms:
@@ -576,11 +617,27 @@ A war ends with a treaty, a contract between the two sides. A treaty is **signed
 by both (§15.4): a defeated faction that accepts terms gets a better deal than one
 that has terms imposed on it.
 
-- **War score** is earned per pair of enemies (claims taken, camps destroyed, keeps
-  starved, sieges broken), so nobody farms points off a fake enemy.
-- War score buys **terms:** reparations in diamonds, ceding named claims, returning
-  captured claims, releasing a vassal, vassalage (tribute and limits for a set
-  time).
+**War goals and war exhaustion** (decided 2026-10-24, replacing war score; the
+model follows Stellaris):
+
+- **A war goal is declared up front.** When a faction first raises a camp against
+  another, it declares at most two goals, chosen from the term vocabulary (§15.4)
+  within server caps: cede named claims, tribute for a set time, vassalage,
+  release prisoners. The defender knows from day one what is at stake.
+- **Declaring costs something,** in diamonds and notoriety, more for harsher goals.
+- **Both sides build war exhaustion** from what the war costs them: camps lost,
+  claims lost, keeps fallen, food burned in sieges, prisoners taken, and time at
+  war. Exhaustion measures the thing Charter is about, and it cannot be farmed off
+  a fake enemy without really spending camps and food.
+- **At 100% exhaustion the war ends.** If the defender is exhausted, the attacker
+  may enforce its declared goals as an imposed contract on the war goal basis. If
+  the attacker is exhausted, the war ends in a **status quo peace:** occupations
+  end and nothing else changes hands.
+- **Before that, either side may sign any treaty** they agree on, which is always
+  cheaper than an imposed one.
+- The first playtest build records every war event per pair of factions but does
+  not yet run treaties, so both the old war score idea and this model can be
+  checked against real play before treaties are built.
 - **Conditional surrender** is a term: "these chunks pass to the besieger on
   Saturday unless the siege is lifted." A defender can give up part of its land on
   terms instead of losing a starving keep.
@@ -618,8 +675,8 @@ allows certain terms, up to a cap:
 
 | Basis | Comes from | Allows |
 |---|---|---|
-| **Custody** | Holding a player you arrested on your own land (§15.5) | Confinement, banishment, a capped fine |
-| **War score** | Earned against that faction (§15.2) | Tribute, ceding claims, relation locks, claim limits, vassalage |
+| **Custody** | Holding a player you arrested on your own land (§15.5) | Confinement, bond, banishment, a capped fine |
+| **War goal** | A declared goal, once the enemy's war exhaustion reaches 100% (§15.2) | Only the goals that were declared: tribute, ceding claims, relation locks, claim limits, vassalage, release |
 | **Occupation** | Starving a keep and choosing to occupy it (§10.8) | Control of the keep without owning it, tribute while it lasts |
 
 **The term vocabulary** is shared by every contract, signed or imposed, and each
@@ -632,6 +689,7 @@ term is something the mod can actually enforce:
 | Grant | Authority added through the action engine (§18) |
 | Access | Who may build or use what in named claims |
 | Confinement | The player is held in a named cell; teleports, pearls and commands are blocked; the walls do the rest |
+| Tether | The player is held to named land (pushed back when they try to leave) instead of a cell; used by a bond or an indenture |
 | Banishment | The player is pushed out of named land on entry |
 | Respawn delay | The player waits before respawning |
 | Relation lock | A faction cannot raise camps against named factions |
@@ -653,22 +711,45 @@ same caps for everyone.
   or Sheriff office, or a vote. A Lordship can let the Lord judge alone; a Commune
   can require a trial vote.
 - **Arrest is physical.** The office allows a sentence; the officer still has to
-  catch the player, on their own faction's land.
-- **Prison is a place, and prisoners eat.** A cell sits in a keep, and every
-  prisoner is an extra mouth on its granary. Long sentences cost real food; a
+  catch the player, on their own faction's land, by using a lead on them.
+- **Prison is a place, and prisoners eat.** A cell is an enclosed space in a keep,
+  marked as a cell by the faction, and every prisoner is an extra mouth on its
+  granary. Long sentences cost real food; a
   besieged keep cannot afford many prisoners; when a keep falls, its prisoners
   walk free. A jailbreak is something players can do, by force or by hiring
   sellswords.
 - **Execution is banishment, not a death ban.** A short respawn delay, then
-  banishment from that faction's land. The drama of an execution without locking
-  anyone out of the server.
+  banishment from that faction's land. The executed player keeps their inventory:
+  the drama is the wait and the banishment, not loot. No one is locked out of the
+  server.
 - **Hard limits:** confinement 1 hour to 1 day; respawn delay at most 1 hour;
   banishment at most 1 day; a weekly cap on total punishment per player across all
   factions, so nobody can be chain-jailed; a cooldown before the same faction can
-  sentence the same player again.
+  sentence the same player again. Confinement, bonds and respawn delays count
+  toward the weekly cap; banishment does not, because it restricts land, not play.
+- **Sentences run in real time,** capped at 1 day. The point is the roleplay
+  moment, not making someone sit out.
+- **A custody fine** is allowed, capped at 16 diamonds, paid from the prisoner's
+  own vault deposit and never from their faction's treasury. A player with no
+  deposit pays nothing.
 - **Jailing an outsider is an act of war.** Imprisoning a member of another
-  faction gives that faction war score against the jailers. Jailing an unaligned
-  player costs notoriety, as raiding does.
+  faction counts toward the jailers' war exhaustion in any war between them, and
+  is grounds for that faction to declare war goals against the jailers. Jailing an
+  unaligned player costs notoriety, as raiding does.
+- **Bond** (a knob, off by default in the first build): instead of a cell, a
+  prisoner can be tethered to the jailer's land with build and use access so they
+  can work. A bond is capped and counted exactly like confinement, the bonded
+  player is a mouth on the granary, and walking out by force or being freed is
+  resistance, not breach. What a bonded player gathers is theirs; only a delivery
+  quota is enforced.
+- **Indenture** (with signed contracts, after the first build): a player may
+  *sign* a contract to work for an organization for longer than any sentence, up
+  to 7 days, tethered to named land with a delivery quota and a wage paid from
+  escrow. Leaving early is breach on their record, or either side can end it early
+  for a buyout set in the contract. **No indenture may be offered to a player in
+  custody or sentenced in the last 24 hours,** so a sentence can never be turned
+  into long signed servitude. The Chronicle names both parties of every bond and
+  indenture.
 - **Pardons:** a higher organization in the tree can pardon, and a treaty term can
   release prisoners, so prisoners become bargaining chips in peace deals.
 - Every arrest, sentence, escape and pardon is in the Chronicle under the judge's
@@ -781,8 +862,11 @@ Commands kept to a handful: `/charter` (your faction page), `/charter found`,
   file per world (the Chronicle is rendered from it). All writes happen on the
   server thread, so a multi-record action is applied in memory and saved as one
   snapshot. SQLite stays an option if history grows past what a flat file handles.
+- **Decided:** a JSON snapshot in the world folder plus the append-only history,
+  not vanilla saved data and not SQLite (PLAN.md §8 explains why).
 - Running sieges, camp raising timers, carry-in allowances and grace timers are
-  saved, so a restart does not lift a siege or reset a granary.
+  saved, so a restart does not lift a siege or reset a granary. Siege clocks pause
+  while the server is down.
 - On load, repair rather than crash: drop grants whose source is gone, re-parent
   orphaned organizations to top level, orphan claims whose core is missing.
 
@@ -799,12 +883,16 @@ Commands kept to a handful: `/charter` (your faction page), `/charter found`,
 - Core loss, orphan grace, new-faction protection
 - Action engine, history and the Chronicle
 
+**Also in the first playtest build** (moved up from v1, PLAN.md §1)
+
+- Occupation, the contract and term model with bases and caps, justice (bond
+  behind a knob, off by default), and notoriety in its minimal form
+
 **v1**
 
-- Contracts with escrow; signed and imposed contracts; peace treaties and
-  conditional surrender; occupation; justice; the contract board
-- Secession with a People fork; settling; notoriety and posture labels; trophies;
-  dormancy
+- Signed contracts with escrow; war goals, war exhaustion and peace treaties;
+  conditional surrender; the contract board; indenture
+- Secession with a People fork; settling; posture labels; trophies; dormancy
 
 **Later**
 
@@ -821,16 +909,16 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | **A Commune** | Four players found a commune, vote through a spend and appoint an officer. Nobody acts beyond what the rules grant |
 | **B Lordship** | The four name a Lord with a spending limit. Members keep reserved powers and remove the Lord by the agreed procedure |
 | **C Delegated command** | A kingdom grants its guard the power to raise camps. The guard cannot withdraw unlimited funds or appoint the monarch |
-| **D Sellswords** | A company contracts with two kingdoms and stays its own top-level organization with its own treasury |
+| **D Sellswords** | A company contracts with two kingdoms and stays its own top-level organization with its own treasury. Needs signed contracts, so it waits for v1; the first build tests only the deposit grant half (D7) |
 | **E Identity fork** | A group secedes, forks People, edits it. Later edits stay separate |
 | **F Contested authority** | A kingdom revokes its guard's grants. The guard loses permissions at once, keeps the fort it owns, and can besiege the kingdom |
 | **G Grant limits** | A kingdom tries to grant power over another kingdom's treasury. Rejected |
 | **H Persistence** | After a restart: structure, People, balances, contracts, grants, claims, granaries, running sieges and carry-in allowances are restored |
 | **I Raising** | A camp is breakable by anyone while raising and protected once active; the alert fires only when it becomes active |
-| **J Endurance** | A granary at its storage limit with preserved food lasts 84 hours besieged with no deposits and nobody present, for 3 mouths and for 30, and never less than 42 hours whoever is present |
+| **J Endurance** | A granary at its storage limit with preserved food lasts 84 hours (within 7%, for spoilage) besieged with no deposits and nobody present, at zero notoriety, for 3 mouths and for 30, and never less than 42 hours whoever is present outside the keep |
 | **K Carry-in** | During a siege, food carried in from an open perimeter chunk can be deposited; food from a chest inside, an ender chest, a pearl or across an enemy chunk cannot |
 | **L Encirclement** | With all twelve perimeter chunks enemy-held, no deposit is possible; breaking one camp reopens that side |
-| **M Starvation gate** | Assault drain is impossible above 25% and four times base below it |
+| **M Starvation gate** | Assault drain is impossible above 25% of the storage limit and four times base below it, multiplying on top of presence up to 8 times in total |
 | **N Camp supply** | A camp with an empty store stops besieging. A camp whose every perimeter chunk is claimed by hostile factions is cut off: it cannot be refilled and burns twice as fast |
 | **K2 Carts** | During a siege, a cart rolling in from an open perimeter chunk can unload its food into the granary; a cart rolling in across an enemy chunk, or loaded inside the keep, cannot. In peace any hopper or cart can fill it |
 | **K3 Granary** | The garrison eats real items, least nourishing first; food spoils at its type's rate, and fast past the storage limit; storage and drain follow active members per keep; contents are loot when the keep falls |
@@ -844,6 +932,9 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | **U Weekly cap** | A player jailed by two factions in one week cannot be held past the weekly total |
 | **V Prisoners eat** | Each prisoner adds a mouth to the keep's drain; prisoners are released when the keep falls |
 | **W Occupation** | An occupied keep stays recorded to its owner and returns to them when the cap runs out or the occupiers starve |
+| **X Sally** | Defenders unopposed beside a camp break it in 1 hour; each attacker present in the camp cancels one defender; the sally hold refills when uncontested |
+| **Y Hostile sides** | A neutral faction's claim on a keep's perimeter stays open; only factions with an active camp against the keep close sides |
+| **Z Server down** | Siege, spoilage, raising and grace clocks do not advance while the server is stopped |
 
 ## 23. Decisions
 
@@ -867,10 +958,39 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | Garrison presence | Defenders present slow the drain. Realistically more people eat faster; rewarding players for showing up was chosen over realism on purpose |
 | Rails | Peacetime automation is free; during a siege only carts entering through an open side count; rails and carts are protected in claims, fair game on neutral land |
 | Camp store | A real chest, same rules as a granary |
-| Power over others | One system: signed and imposed contracts. Imposed ones need a basis (custody, war score, occupation), are capped, cost notoriety, and resisting them is not breach |
+| Power over others | One system: signed and imposed contracts. Imposed ones need a basis (custody, war goal, occupation), are capped, cost notoriety, and resisting them is not breach |
 | Justice | Sentences are imposed contracts: confinement 1 hour to 1 day, execution as a short respawn delay plus banishment of at most 1 day, a weekly cap per player; prisoners eat from the granary |
 | After a keep falls | The besieger chooses to raze or occupy |
 | Pillars in | Supplies, empire strain, the Chronicle, sellswords |
+
+### Accepted from PLAN.md, 2026-10-24
+
+The owner accepted every recommendation and assumption in PLAN.md §14 and §15.
+They are folded into the sections above; this table is the index.
+
+| # | Decision | Outcome |
+|---|---|---|
+| D1 | Several besiegers at once | Allowed; all camps count toward encirclement; the drain is the keep's; truce per attacker (§10.3) |
+| D2 | Food values | Nourishment from the vanilla food component; shelf class from `food.json`; no variety bonus yet |
+| D3 | Unrest formula | Deferred until tribute contracts exist |
+| D4 | Plunder | 25% of the treasury, spilled in the core chunk |
+| D5 | Persistence | JSON snapshot in the world folder plus append-only history (§20) |
+| D6 | Ships | A camp replanted at a dock; chest boats count as carts (§10.4) |
+| D7 | Outsiders carrying food | Allowed with a deposit grant from the keep's owner; the grant can include counting as garrison |
+| D8 | Mod name | Charter for the first jar; decide before the first public server, since renaming changes the mod id and config folder |
+| D9 | Sentence clock | Real time, 1 day cap (§15.5) |
+| D10 | Custody fine | 16 diamonds at most, from the prisoner's own deposit (§15.5) |
+| D11 | War score or war goals | **Declared war goals with war exhaustion** (§15.2); the first build records war events for both models |
+| D12 | Labour terms | Bond in the justice milestone behind a knob, off by default; indenture with signed contracts, 7 day cap, never offered to someone in custody or sentenced in the last 24 hours (§15.5) |
+| D13 | What the time scale covers | Siege, spoilage, raising, grace and carry-in timers; not governance; sentences only if a separate knob says so |
+| D14 | Server down | Siege clocks pause (§10.3, §20) |
+| D15 | Deployment | Extend the Pocket Dungeons deploy script with a jar option so Charter can share the test server 714a0605, overworld only; approved |
+| D16 | Granary size | Linked chests, up to 8 single chests (§10.11) |
+| D17 | Who closes a side | Only factions with an active camp against the keep (or camp); neutral claims stay open (§10.4, §10.10) |
+| D18 | Execution and items | The executed player keeps their inventory (§15.5) |
+| D19 | Farmland | Outsiders cannot trample it in a claim (§9.5) |
+| D20 | Raising camps | Do not eat until active (§10.3) |
+| Gaps | The eighteen gaps in PLAN.md §15 | Resolved as PLAN.md assumes: test J within 7% for spoilage; assault multiplies on top of presence to 8 times; starvation is 25% of the storage limit; camps use a sally hold; camp claims count toward the member cap; overworld only; pack animals ignored; banishment does not count toward the weekly cap; prisoners add mouths, not storage; arrest by lead, cells marked by the faction |
 
 ### Considered and rejected
 
@@ -882,21 +1002,14 @@ A to H are from the original spec; I onward cover land and supply. Most are pure
 | Defence and war paid in cobblestone and diamonds | Would imply a cobblestone to diamond rate; food is better and makes farming matter |
 | Mechanical People traits | Min-maxing and fork exploits; identity is enough |
 | Server-wide war events | Not needed once sieges take days |
+| War score (points earned, spent at the peace table) | Rewards taking claims, the action the design most wants slow; replaced by declared war goals and exhaustion (D11) |
 
 ### Still open
 
-| # | Question | Recommendation |
+| # | Question | Status |
 |---|---|---|
-| D1 | Can several factions besiege the same keep at once? | Yes; their camps all count toward encirclement, but the drain rate is the keep's, not per camp |
-| D2 | Food values and shelf lives | Nourishment (hunger points) and a spoilage rate per item, from a data file. Maybe a bonus for variety later |
-| D3 | Unrest formula | Decide when tribute contracts exist |
-| D4 | Plunder share | 25% of the treasury when a keep falls |
-| D5 | Persistence engine | World saved data plus an append-only history file |
-| D6 | Ships | A camp replanted at a dock. Claims that move with a vehicle are out of scope |
-| D7 | Can a player carry food in for a faction they do not belong to? | Yes, if the keep's owner grants them deposit rights. That is how sellswords and allies run supplies |
-| D8 | Mod name | Charter, until something better |
-| D9 | Does a sentence run in real time or only while the prisoner is online? | Real time, with the 1-day cap. The point is the roleplay moment, not making someone sit out |
-| D10 | Can a fine be imposed under custody? | Yes, capped low (default 16 diamonds), paid from the prisoner's own deposit; never from their faction's treasury |
+| D3 | Unrest formula | Waits for tribute contracts |
+| D8 | Final mod name | Before the first public server |
 
 ## 24. Tuning knobs
 
@@ -913,6 +1026,17 @@ All in `config/charter/charter.json`. Starting values, to be tuned in play.
 | Drain per mouth | 10 nourishment an hour |
 | Mouths per keep | Active members divided by keeps, minimum 3 |
 | Granary storage limit | 84 hours of the keep's drain |
+| Granary linked chests | Up to 8 single chests |
+| Starvation threshold | 25% of the storage limit |
+| Camp sally hold | 1 hour, one unit of drain per uncontested defender |
+| Presence counts members of at least | 3 days |
+| Teleport detection | More than 16 blocks moved between checks |
+| Claim dimensions | Overworld only |
+| Time scale | 1 (compresses siege, spoilage, raising, grace and carry-in timers; not governance) |
+| Scale sentences with time scale | Off |
+| Bond (labour term) | Off |
+| War goals per war | At most 2 |
+| Indenture cap | 7 days |
 | Spoilage, by food | Preserved about 2% a day, cooked meat about 10%, raw and fresh about 30% |
 | Spoilage past the storage limit | 50% a day on the excess |
 | Camp store burn | 30 nourishment an hour; 60 when cut off |
