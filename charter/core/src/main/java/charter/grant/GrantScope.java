@@ -15,7 +15,9 @@ public record GrantScope(Map<Currency, Long> spendLimitPerAction) {
     public static final GrantScope ANY = new GrantScope(Map.of());
 
     public GrantScope {
-        spendLimitPerAction = Map.copyOf(spendLimitPerAction);
+        EnumMap<Currency, Long> ordered = new EnumMap<>(Currency.class);
+        ordered.putAll(spendLimitPerAction);
+        spendLimitPerAction = java.util.Collections.unmodifiableMap(ordered);
     }
 
     public static GrantScope spendUpTo(long cobblestone, long diamonds) {

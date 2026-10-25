@@ -61,12 +61,18 @@ never break, add it here and to that test.
 
 ## Justice (M6)
 
-18. **Punishment never exceeds its caps:** confinement 1 day, banishment 1 day,
-    respawn delay 1 hour, and the weekly total per player across all factions.
-    (ContractTest; add to InvariantTest when merged)
-19. **Resisting an imposed contract is never breach.** (ContractTest)
+18. **Punishment never exceeds its caps:** confinement and bonds 1 day,
+    banishment 1 day, respawn delay 1 hour, a custody fine 16 diamonds, and the
+    weekly total per player across all factions. (tested; the random worlds use a
+    2 day weekly cap so the per-sentence caps can be told apart from it)
+19. **Resisting an imposed contract is never breach.** (tested, and ContractTest)
 
 ## Persistence (M7)
 
-20. **Save then load gives back the same state**, field by field. (StoreTest; add
-    to InvariantTest's random worlds when merged)
+20. **Save then load gives back the same state**, field by field, including the
+    contracts block and every kind of term. (StoreTest)
+21. **The same state always writes the same snapshot.** Every saved collection
+    keeps a stable order: never `Set.copyOf` or `Map.copyOf` in a saved record or a
+    getter the store reads, since their iteration order depends on how they were
+    built. Insertion order, a sorted map, or an `EnumMap` instead. (StoreGameTest,
+    which compares a reloaded state's snapshot with the live one)

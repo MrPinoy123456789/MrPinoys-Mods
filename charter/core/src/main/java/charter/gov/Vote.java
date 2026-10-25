@@ -73,15 +73,15 @@ public final class Vote {
         this.power = power;
         this.method = method;
         this.quorumShare = quorumShare;
-        this.electorate = Set.copyOf(electorate);
-        this.activeAtOpen = Set.copyOf(activeAtOpen);
+        this.electorate = java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<>(electorate));
+        this.activeAtOpen = java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<>(activeAtOpen));
         this.openedAt = openedAt;
         this.closesAt = closesAt;
     }
 
     public State state() { return state; }
     public String result() { return result; }
-    public Map<PlayerId, Ballot> ballots() { return Map.copyOf(ballots); }
+    public Map<PlayerId, Ballot> ballots() { return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(ballots)); }
     public boolean open() { return state == State.OPEN; }
 
     /** Engine only: records or replaces a ballot. */

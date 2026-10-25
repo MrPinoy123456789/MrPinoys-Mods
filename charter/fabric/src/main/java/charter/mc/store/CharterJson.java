@@ -67,8 +67,15 @@ public final class CharterJson {
         b.registerTypeAdapterFactory(new HolderFactory());
         b.registerTypeAdapterFactory(new Tagged<>(Action.class, actions));
         b.registerTypeAdapterFactory(new Tagged<>(HistoryEvent.class, events));
+        for (TypeAdapterFactory extra : EXTRA) b.registerTypeAdapterFactory(extra);
         return b;
     }
+
+    /**
+     * Adapters a feature adds for its own types (M6: {@code Term}), added through
+     * {@code Persistence.adapter}. Every CharterJson made afterwards uses them.
+     */
+    static final java.util.List<TypeAdapterFactory> EXTRA = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private static <T> void id(GsonBuilder b, Class<T> type, Function<UUID, T> make, Function<T, UUID> value) {
         b.registerTypeAdapter(type, new TypeAdapter<T>() {

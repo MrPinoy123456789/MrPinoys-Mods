@@ -69,7 +69,8 @@ public final class SpikeGameTest {
         ServerLevel level = helper.getLevel();
         BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0));
         int border = nearestBorder(origin.getX());
-        int y = origin.getY();
+        // 40 blocks up: the rails reach outside this test's area, and neighbouring tests build at ground level.
+        int y = origin.getY() + 40;
         int z = origin.getZ() + 1;
         // The test can land anywhere; a chunk outside the test area may not tick entities, and a
         // cart there never moves. Force-load the chunks along the line for the length of the test.

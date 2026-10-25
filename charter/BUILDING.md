@@ -106,6 +106,11 @@ them at the end.
   (`Persistence.block(CoreBlocks.block("contracts", write, read))`) from its own
   register call; it never edits `CoreBlocks`. A block missing from an old file is
   simply not read; a block no jar claims is written back unchanged.
+- **One register call:** `Persistence.register()` registers every feature (core
+  types, then `ContractTypes` for M6). Add a new feature's types there, so the
+  server, `RegistryTest` and `StoreTest` can never disagree about what is
+  registered. A feature's own JSON adapters go through `Persistence.adapter`
+  (M6's sealed `Term` uses `SealedAdapter`).
 - **Plugging in types:** every `Action` a vote can hold and every `HistoryEvent`
   needs a store name: `Persistence.ACTIONS.register("feature.verb", Type.class)`
   and `Persistence.EVENTS.registerNested(FeatureEvents.class, HistoryEvent.class)`.

@@ -59,8 +59,21 @@ public final class StoreGameTest {
         helper.assertTrue(back.grants().size() == rt.state.grants().size(), "Grants did not all reload");
         helper.assertTrue(back.siegeClock.now() == rt.state.siegeClock.now(), "The siege clock did not reload");
         helper.assertTrue(!mail.peek(founder).isEmpty(), "Offline messages did not reload");
-        helper.assertTrue(rt.json.gson.toJson(second.codec().write(back)).equals(rt.json.gson.toJson(rt.store.codec().write(rt.state))),
-                "The reloaded state does not write the same snapshot as the live one");
+        String reloaded = rt.json.gson.toJson(second.codec().write(back));
+        String live = rt.json.gson.toJson(rt.store.codec().write(rt.state));
+        helper.assertTrue(reloaded.equals(live), "The reloaded state does not write the same snapshot as the live one: " + firstDifference(live, reloaded));
         helper.succeed();
+    }
+
+    /** The first line where two snapshots differ, so a failure says what moved. */
+    static String firstDifference(String a, String b) {
+        String[] x = a.split("\n");
+        String[] y = b.split("\n");
+        for (int i = 0; i < Math.max(x.length, y.length); i++) {
+            String l = i < x.length ? x[i].strip() : "<none>";
+            String r = i < y.length ? y[i].strip() : "<none>";
+            if (!l.equals(r)) return "line " + i + ": live [" + l + "] reloaded [" + r + "]";
+        }
+        return "same lines";
     }
 }

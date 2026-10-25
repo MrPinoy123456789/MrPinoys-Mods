@@ -73,6 +73,9 @@ public final class InvariantTest {
 
     static final int SEEDS = 12;
     static final int STEPS = 1_500;
+    static final Map<String, Integer> JUSTICE_DONE = new java.util.TreeMap<>();
+    /** The knobs of the world being checked, for the cap invariants. */
+    static final ThreadLocal<charter.config.Knobs> KNOBS = ThreadLocal.withInitial(charter.config.Knobs::new);
 
     private InvariantTest() {
     }
@@ -97,6 +100,9 @@ public final class InvariantTest {
         check("invariants: the random worlds exercised both successes and refusals (" + done + " done, " + refused + " refused)",
                 done > SEEDS * 50 && refused > SEEDS * 200);
         System.out.println("invariants: " + SEEDS + " seeds x " + STEPS + " steps, " + done + " done, " + refused + " refused, every invariant held");
+        System.out.println("invariants: justice actions that succeeded: " + JUSTICE_DONE);
+        check("invariants: arrests and sentences really happen in the random worlds", JUSTICE_DONE.getOrDefault("Arrest", 0) > 0
+                && JUSTICE_DONE.getOrDefault("Confine", 0) + JUSTICE_DONE.getOrDefault("Sentence", 0) + JUSTICE_DONE.getOrDefault("Execute", 0) > 0);
     }
 
     // ---- one world ----
@@ -114,10 +120,13 @@ public final class InvariantTest {
             sim = new SiegeSim(f.engine, new FoodTable()
                     .put("minecraft:bread", 5, ShelfClass.PRESERVED)
                     .put("minecraft:cooked_beef", 8, ShelfClass.COOKED)
-                    .put("minecraft:carrot", 3, ShelfClass.FRESH)).inputs(inputs);
+                    .put("minecraft:carrot", 3, ShelfClass.FRESH))
+                    .inputs(charter.contract.JusticeInputs.wrap(inputs, f.state, f.knobs, f.engine::now));
             for (int i = 0; i < 8; i++) players.add(Fixture.player("chaos" + i));
             f.knobs.campRaisingHours = 0.25;
             f.knobs.newFactionProtectionDays = 0;
+            // A weekly cap above the per-sentence caps, so each cap can be broken (and caught) on its own.
+            f.knobs.weeklyPunishmentCapHours = 48;
         }
 
         <T> T pick(List<T> list) {
@@ -161,6 +170,41 @@ public final class InvariantTest {
             };
         }
 
+        /** Who should usually perform the last steered draw (a Lord with the power), or null. */
+        PlayerId preferred;
+
+        PlayerId lordOf(OrgId org) {
+            return f.state.officeNamed(org, Preset.LORD).map(Office::holder).orElse(null);
+        }
+
+        /** A claimed chunk where one exists (so arrests can happen on someone's land), else any chunk. */
+        ChunkKey claimChunk() {
+            Claim c = pick(new ArrayList<>(f.state.claims()));
+            return c == null || rng.nextInt(5) == 0 ? chunk() : c.chunk;
+        }
+
+        /** A random handful of terms, often over their caps or not allowed under custody. */
+        List<charter.contract.Term> terms() {
+            Core c = pick(new ArrayList<>(f.state.cores()));
+            return terms(c == null ? null : c.id);
+        }
+
+        List<charter.contract.Term> terms(charter.id.CoreId keep) {
+            List<charter.contract.Term> out = new ArrayList<>();
+            Core c = keep == null ? null : f.state.core(keep).orElse(null);
+            for (int i = rng.nextInt(3); i >= 0; i--) {
+                out.add(switch (rng.nextInt(6)) {
+                    case 0 -> new charter.contract.Term.Confinement(Durations.minutes(rng.nextInt(4 * 24 * 60)), c == null ? null : c.id, "cell");
+                    case 1 -> new charter.contract.Term.Banishment(org(), Durations.minutes(rng.nextInt(4 * 24 * 60)));
+                    case 2 -> new charter.contract.Term.RespawnDelay(Durations.minutes(rng.nextInt(240)));
+                    case 3 -> new charter.contract.Term.Fine(rng.nextInt(60));
+                    case 4 -> new charter.contract.Term.Tether(Durations.minutes(rng.nextInt(4 * 24 * 60)), c == null ? null : c.id);
+                    default -> new charter.contract.Term.Payment(currency(), rng.nextInt(50));
+                });
+            }
+            return out;
+        }
+
         Map<String, Integer> food() {
             String[] items = {"minecraft:bread", "minecraft:cooked_beef", "minecraft:carrot", "minecraft:stone"};
             return Map.of(items[rng.nextInt(items.length)], 1 + rng.nextInt(40));
@@ -170,8 +214,33 @@ public final class InvariantTest {
         Action action() {
             OrgId org = org();
             PlayerId p = player();
-            int roll = rng.nextInt(24);
+            int roll = rng.nextInt(34);
             if (org == null && roll > 1) roll = rng.nextInt(2);
+            preferred = null;
+            // Half the arrests are made on a faction's own land by its Lord, so custody really happens.
+            if (roll == 24 && rng.nextBoolean()) {
+                Core keep = pick(f.state.cores().stream().filter(Core::isKeep).toList());
+                if (keep != null) {
+                    OrgId faction = f.state.root(keep.owner);
+                    preferred = lordOf(faction);
+                    return new charter.contract.actions.Arrest(faction, player(), keep.center);
+                }
+            }
+            // Half the sentencing draws aim at a prisoner really in custody, usually by the Lord, so the caps are exercised.
+            charter.contract.Custody held = pick(new ArrayList<>(f.state.contracts.custodies()));
+            if (held != null && roll >= 25 && roll <= 30 && rng.nextBoolean()) {
+                preferred = lordOf(held.faction());
+                return switch (roll) {
+                    case 25 -> new charter.contract.actions.Confine(held.faction(), held.prisoner(),
+                            Durations.minutes(rng.nextInt(4 * 24 * 60)), held.keep(), "cell");
+                    case 26 -> new charter.contract.actions.Sentence(held.faction(), held.prisoner(), terms(held.keep()));
+                    case 27 -> new charter.contract.actions.Execute(held.faction(), held.prisoner(),
+                            Durations.minutes(rng.nextInt(240)), Durations.minutes(rng.nextInt(4 * 24 * 60)));
+                    case 28 -> new charter.contract.actions.FineCustody(held.faction(), held.prisoner(), rng.nextInt(60));
+                    case 29 -> new charter.contract.actions.Pardon(held.faction(), held.prisoner());
+                    default -> new charter.contract.actions.Release(held.faction(), held.prisoner());
+                };
+            }
             return switch (roll) {
                 case 0 -> new Found(p, "Realm" + rng.nextInt(6), rng.nextBoolean() ? Preset.LORDSHIP : Preset.COMMUNE);
                 case 1 -> {
@@ -210,6 +279,25 @@ public final class InvariantTest {
                     Core c = pick(new ArrayList<>(f.state.cores()));
                     yield c == null ? new PlaceNexus(org, chunk()) : new DepositFood(c.owner, c.id, "player:" + p, food());
                 }
+                case 24 -> new charter.contract.actions.Arrest(org, player(), claimChunk());
+                case 25 -> {
+                    Core c = pick(new ArrayList<>(f.state.cores()));
+                    yield new charter.contract.actions.Confine(org, player(), Durations.minutes(rng.nextInt(4 * 24 * 60)),
+                            c == null ? null : c.id, "cell");
+                }
+                case 26 -> new charter.contract.actions.Sentence(org, player(), terms());
+                case 27 -> new charter.contract.actions.Execute(org, player(), Durations.minutes(rng.nextInt(240)),
+                        Durations.minutes(rng.nextInt(4 * 24 * 60)));
+                case 28 -> new charter.contract.actions.FineCustody(org, player(), rng.nextInt(60));
+                case 29 -> new charter.contract.actions.Pardon(org, player());
+                case 30 -> new charter.contract.actions.Release(org, player());
+                case 31 -> new charter.contract.actions.Escape(player());
+                case 32 -> new charter.contract.actions.DepositPersonal(player(), currency(), rng.nextInt(50) - 5);
+                case 33 -> {
+                    charter.contract.Contract c = pick(new ArrayList<>(f.state.contracts.all()));
+                    yield c == null ? new charter.contract.actions.DepositPersonal(p, Currency.DIAMOND, 3)
+                            : new charter.contract.actions.Breach(c.id, rng.nextBoolean() ? c.imposer : c.subject);
+                }
                 default -> {
                     SiegeBook.PendingFall fall = pick(new ArrayList<>(f.state.siege.falls.values()));
                     yield fall == null ? new ClaimLand(org, chunk())
@@ -243,6 +331,7 @@ public final class InvariantTest {
     /** Returns {done, refused}, or null after reporting a broken invariant. */
     static int[] runSeed(long seed) {
         World w = new World(seed);
+        KNOBS.set(w.f.knobs);
         int done = 0;
         int refused = 0;
         int historyBefore = 0;
@@ -251,11 +340,14 @@ public final class InvariantTest {
             String before = fingerprint(w.f.state);
             int roll = w.rng.nextInt(20);
             Outcome outcome = null;
+            Action acted = null;
             if (roll < 13) {
                 Action action = w.action();
                 boolean asAdmin = w.rng.nextInt(15) == 0;
                 what = (asAdmin ? "admin " : "") + action;
-                outcome = asAdmin ? w.f.admin(action) : w.f.as(w.player(), action);
+                acted = action;
+                PlayerId actor = w.preferred != null && w.rng.nextInt(4) != 0 ? w.preferred : w.player();
+                outcome = asAdmin ? w.f.admin(action) : w.f.as(actor, action);
             } else if (roll < 15) {
                 Action action = w.action();
                 what = "propose " + action;
@@ -297,6 +389,9 @@ public final class InvariantTest {
                     }
                 } else {
                     done++;
+                    if (acted != null && acted.getClass().getPackageName().equals("charter.contract.actions")) {
+                        JUSTICE_DONE.merge(acted.getClass().getSimpleName(), 1, Integer::sum);
+                    }
                 }
             }
             String broken = invariants(w.f.state, w.f.clock.now());
@@ -388,6 +483,35 @@ public final class InvariantTest {
                 if (item.getValue() < 0) return "14: an allowance allows negative " + item.getKey();
             }
         }
+        return justice(s, now, KNOBS.get());
+    }
+
+    /** Invariants 18 and 19 (M6): punishment within its caps, and resistance never breach. */
+    static String justice(CharterState s, long now, charter.config.Knobs k) {
+
+        long weekly = Durations.hours(k.weeklyPunishmentCapHours);
+        for (int i = 0; i < 8; i++) {
+            PlayerId p = Fixture.player("chaos" + i);
+            long counted = s.contracts.punishments.counted(p, now);
+            if (counted > weekly) return "18: " + p + " has " + counted / Durations.MINUTE + " minutes of punishment this week, over the cap";
+        }
+        for (charter.contract.Contract c : s.contracts.all()) {
+            if (c.consent == charter.contract.Consent.IMPOSED && c.state() == charter.contract.ContractState.BREACHED) {
+                return "19: imposed contract " + c.id + " was marked as breached";
+            }
+            if (c.consent != charter.contract.Consent.IMPOSED) continue;
+            for (charter.contract.Term t : c.terms) {
+                String over = switch (t) {
+                    case charter.contract.Term.Confinement x -> x.durationMillis() > Durations.hours(k.confinementMaxHours) ? "confinement" : null;
+                    case charter.contract.Term.Tether x -> x.durationMillis() > Durations.hours(k.confinementMaxHours) ? "bond" : null;
+                    case charter.contract.Term.Banishment x -> x.durationMillis() > Durations.hours(k.banishmentMaxHours) ? "banishment" : null;
+                    case charter.contract.Term.RespawnDelay x -> x.durationMillis() > Durations.minutes(k.executionRespawnDelayMaxMinutes) ? "respawn delay" : null;
+                    case charter.contract.Term.Fine x -> x.diamonds() > k.custodyFineCapDiamonds ? "fine" : null;
+                    default -> null;
+                };
+                if (over != null) return "18: imposed contract " + c.id + " has a " + over + " over its cap: " + t;
+            }
+        }
         return null;
     }
 
@@ -474,6 +598,28 @@ public final class InvariantTest {
             PlayerId p = Fixture.player("chaos" + i);
             s.knownPlayer(p).ifPresent(r -> b.append("player ").append(p).append(' ').append(r.lastSeen).append(' ').append(r.lastFoundedAt).append('\n'));
         }
+        for (charter.contract.Contract c : s.contracts.all()) {
+            b.append("contract ").append(c.id).append(' ').append(c.state()).append(' ').append(c.breachedBy()).append('\n');
+        }
+        for (var held : s.contracts.custodies()) b.append("custody ").append(held).append('\n');
+        for (var e : s.contracts.punishments.entries()) b.append("punished ").append(e.player).append(' ').append(e.counted()).append('\n');
+        b.append("vaults ").append(vaults(s)).append('\n');
         return b.toString();
+    }
+
+    /** Players' own deposits, read without {@code ContractBook.vault}, which creates a ledger on read. */
+    static String vaults(CharterState s) {
+        try {
+            java.lang.reflect.Field field = charter.contract.ContractBook.class.getDeclaredField("vault");
+            field.setAccessible(true);
+            StringBuilder out = new StringBuilder();
+            Map<?, ?> vault = (Map<?, ?>) field.get(s.contracts);
+            for (var e : vault.entrySet()) {
+                out.append(e.getKey()).append('=').append(((charter.treasury.Ledger) e.getValue()).snapshot()).append(';');
+            }
+            return out.toString();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("the contract book's vault field moved", e);
+        }
     }
 }

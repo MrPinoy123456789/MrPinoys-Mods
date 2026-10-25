@@ -94,7 +94,7 @@ public sealed interface Term {
 
     /** A faction cannot raise camps against the named factions. */
     record RelationLock(Set<OrgId> against, long durationMillis) implements Term {
-        public RelationLock { against = Set.copyOf(against); }
+        public RelationLock { against = java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<>(against)); }
         public double severity(Knobs knobs) { return 1; }
         public Term withDuration(long millis) { return new RelationLock(against, millis); }
     }
@@ -107,7 +107,7 @@ public sealed interface Term {
 
     /** Named claims change owner. */
     record Cede(Set<ClaimId> claims) implements Term {
-        public Cede { claims = Set.copyOf(claims); }
+        public Cede { claims = java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<>(claims)); }
         public double severity(Knobs knobs) { return 1.0 + claims.size(); }
     }
 

@@ -27,6 +27,6 @@ public final class Ledger {
     }
 
     public Map<Currency, Long> snapshot() {
-        return Map.copyOf(balances);
+        return java.util.Collections.unmodifiableMap(new EnumMap<>(balances));
     }
 }

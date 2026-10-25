@@ -129,7 +129,7 @@ public final class Supply {
         if (items > 0) {
             Store store = state.siege.store(siteId);
             accepted.forEach(store.provisions::add);
-            events.add(new SiegeEvents.FoodDeposited(engine.now(), state.siegeClock.now(), siteId, carrier, Map.copyOf(accepted), nourishment, siege));
+            events.add(new SiegeEvents.FoodDeposited(engine.now(), state.siegeClock.now(), siteId, carrier, java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(accepted)), nourishment, siege));
         }
         return accepted;
     }

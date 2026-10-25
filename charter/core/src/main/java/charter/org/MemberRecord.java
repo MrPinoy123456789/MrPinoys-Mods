@@ -11,7 +11,7 @@ import java.util.Set;
  */
 public record MemberRecord(PlayerId player, OrgId org, long joinedAt, Set<String> roles) {
     public MemberRecord {
-        roles = Set.copyOf(roles);
+        roles = java.util.Collections.unmodifiableSet(new java.util.TreeSet<>(roles));
     }
 
     public static MemberRecord of(PlayerId player, OrgId org, long joinedAt) {

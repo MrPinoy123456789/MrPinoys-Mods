@@ -30,9 +30,19 @@ public final class Persistence {
     private Persistence() {
     }
 
-    /** The register call for M1 to M5 and the store's own events. */
+    /**
+     * The one register call for every feature's store names, adapters and blocks:
+     * M1 to M5 and the store's own events, then M6's contracts. Tests and the
+     * server both call this, so a feature registered here is never missed.
+     */
     public static void register() {
         if (!ACTIONS.has(charter.org.actions.Found.class)) CoreTypes.register(ACTIONS, EVENTS);
+        if (!ACTIONS.has(charter.contract.actions.Arrest.class)) ContractTypes.register();
+    }
+
+    /** Adds a JSON adapter for a feature's own types, before any CharterJson is made. */
+    public static void adapter(com.google.gson.TypeAdapterFactory factory) {
+        CharterJson.EXTRA.add(factory);
     }
 
     /** Adds a feature's block after the core blocks, in call order. */

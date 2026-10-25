@@ -185,6 +185,33 @@ final class FullState {
         book.protectionWaived.add(ironhold);
 
         state.siegeClock.advanceSiege(123_456);
+
+        // The contracts block (M6): a jailing through the real actions, a personal
+        // deposit, a breach mark, and a signed contract carrying every kind of term.
+        admin(new charter.contract.actions.Arrest(oakvale, eve, keep.center));
+        admin(new charter.contract.actions.Confine(oakvale, eve, Durations.hours(2), keep.id, "cell"));
+        admin(new charter.contract.actions.DepositPersonal(dan, Currency.DIAMOND, 7));
+        charter.contract.Party oakParty = new charter.contract.Party(oakvale, null);
+        charter.contract.Party ironParty = new charter.contract.Party(ironhold, null);
+        state.contracts.markBreach(ironParty);
+        java.util.List<charter.contract.Term> everyTerm = java.util.List.of(
+                new charter.contract.Term.Payment(Currency.COBBLESTONE, 64),
+                new charter.contract.Term.Fine(3),
+                new charter.contract.Term.Delivery("minecraft:bread", 100, 86_400_000L),
+                new charter.contract.Term.GrantTerm(Power.GRANARY_DEPOSIT, oakvale, 3_600_000L),
+                new charter.contract.Term.Access(keep.id, 7_200_000L),
+                new charter.contract.Term.Confinement(3_600_000L, keep.id, "north cell"),
+                new charter.contract.Term.Tether(3_600_000L, keep.id),
+                new charter.contract.Term.Banishment(oakvale, 3_600_000L),
+                new charter.contract.Term.RespawnDelay(600_000L),
+                new charter.contract.Term.RelationLock(java.util.Set.of(guard), 86_400_000L),
+                new charter.contract.Term.ClaimLimit(12, 86_400_000L),
+                new charter.contract.Term.Cede(java.util.Set.of(farm.id)),
+                new charter.contract.Term.Release("vassals"));
+        charter.contract.Contract treaty = new charter.contract.Contract(state.ids.contract(), charter.contract.Consent.SIGNED,
+                null, oakParty, ironParty, everyTerm, clock.now(), keep.id, false, clock.now() + Durations.days(5));
+        treaty.accept(oakParty);
+        state.contracts.add(treaty);
     }
 
     /** The grants derived from another grant. */

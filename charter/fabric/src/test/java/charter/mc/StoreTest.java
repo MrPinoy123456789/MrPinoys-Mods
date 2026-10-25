@@ -141,13 +141,13 @@ final class StoreTest {
         JsonObject root = read(dir);
         JsonObject future = new JsonObject();
         future.addProperty("keptBy", "a later milestone");
-        root.add("contracts", future);
+        root.add("some_future_block", future);
         write(dir, root);
         CharterStore again = store(dir);
         CharterStore.Loaded loaded = again.load(f.knobs, f.clock.now());
         again.save(loaded.state(), f.clock.now());
         check("store: a block no feature claims is written back unchanged",
-                read(dir).getAsJsonObject("contracts").get("keptBy").getAsString().equals("a later milestone"));
+                read(dir).getAsJsonObject("some_future_block").get("keptBy").getAsString().equals("a later milestone"));
     }
 
     static void newerFormatIsRefused() {

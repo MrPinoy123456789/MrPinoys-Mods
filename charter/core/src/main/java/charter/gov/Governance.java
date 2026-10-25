@@ -32,6 +32,6 @@ public final class Governance {
     }
 
     public Map<Power, VoteMethod> methods() {
-        return Map.copyOf(methods);
+        return java.util.Collections.unmodifiableMap(new EnumMap<>(methods));
     }
 }

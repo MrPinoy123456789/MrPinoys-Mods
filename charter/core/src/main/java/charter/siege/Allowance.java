@@ -30,7 +30,7 @@ public final class Allowance {
     }
 
     public Map<String, Integer> items() {
-        return Map.copyOf(items);
+        return java.util.Collections.unmodifiableMap(new TreeMap<>(items));
     }
 
     void use(String itemId, int n) {
