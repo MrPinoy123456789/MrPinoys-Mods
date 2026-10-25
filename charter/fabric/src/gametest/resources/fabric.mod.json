@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "charter-gametest",
+  "version": "1.0.0",
+  "name": "Charter Gametests",
+  "description": "Development-only gametests for Charter. This lives in the gametest source set, never in the shipped mod jar.",
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-gametest": [
+      "charter.gametest.SpikeGameTest"
+    ]
+  },
+  "mixins": [
+    "charter-gametest.mixins.json"
+  ],
+  "depends": {
+    "charter": "*"
+  }
+}

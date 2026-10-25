@@ -409,11 +409,11 @@ blocked. A claim being raided keeps full protection until its hold is empty
 | 3 | `PistonBaseBlock.moveBlocks` (head, cancellable) or the `PistonStructureResolver` result | Piston pushes and pulls fire no event | Refuses a move if any moved or destroyed position, or any destination, lies in a claim owned by someone other than the owner of the piston's chunk |
 | 4 | `FireBlock` spread and burn-out | Fire ticking has no event | Fire cannot spread into, or burn blocks in, a claim owned by someone other than the owner of the fire's chunk |
 | 5 | `LavaFluid.randomTick` ignition | Same | Lava cannot start fires in a foreign claim |
-| 6 | `FlowingFluid.canSpreadTo` | Fluid flow has no event | Water and lava do not flow across a border into a claim with a different owner |
+| 6 | `FlowingFluid.spreadTo` (head, cancellable; the spike found `canSpreadTo` no longer exists in 26.2, and `spreadTo` has the target position and the flow direction) | Fluid flow has no event | Water and lava do not flow across a border into a claim with a different owner |
 | 7 | `DispenserBlock.dispenseFrom` | Dispensers fire no event; a dispenser outside a border can place lava or fire into a claim | Refuses to dispense into a claim the dispenser's chunk owner does not own |
 | 8 | `HopperBlockEntity.addItem` (static) | Container transfers fire no event | §5.4: besieged granary gating |
 | 9 | `VehicleEntity.hurtServer` (minecarts and boats) | `AttackEntityCallback` covers melee only; arrows, tridents and fire charges break carts through `hurt` | Projectiles from an outsider cannot break carts in a claim (test K4) |
-| 10 | `FarmBlock.fallOn` (optional, D19) | Trampling fires no event | Outsiders cannot trample farmland in a protected claim. Recommended: raided farms are the prize only once their hold is empty |
+| 10 | `FarmlandBlock.fallOn` (D19; the class is `FarmlandBlock` in 26.2, not `FarmBlock`) | Trampling fires no event | Outsiders cannot trample farmland in a protected claim. Recommended: raided farms are the prize only once their hold is empty |
 
 Ten small Mixins, listed with these reasons in the README as the suite asks. The
 first spike in M0 confirms each target exists by that name and signature in 26.2.

@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "package": "charter.gametest.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "SpikeBlockItemMixin",
+    "SpikeServerExplosionMixin",
+    "SpikePistonBaseBlockMixin",
+    "SpikeFireBlockMixin",
+    "SpikeLavaFluidMixin",
+    "SpikeFlowingFluidMixin",
+    "SpikeDispenserBlockMixin",
+    "SpikeHopperBlockEntityMixin",
+    "SpikeVehicleEntityMixin",
+    "SpikeFarmlandBlockMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "charter",
+  "version": "${version}",
+  "name": "Charter",
+  "description": "Organizations, keeps and camps, and land taken by supply-line sieges. Vanilla clients need nothing.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "charter.mc.CharterMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "mixins": [
+    "charter.mixins.json"
+  ]
+}
