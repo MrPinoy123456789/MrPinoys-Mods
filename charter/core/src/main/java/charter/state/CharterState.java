@@ -327,4 +327,37 @@ public final class CharterState {
     public void addVote(Vote vote) {
         votes.put(vote.id, vote);
     }
+
+    // ---- persistence (M7): the store reads everything and restores it exactly ----
+
+    /** Every organization, dissolved ones included, in creation order. For the store. */
+    public Collection<Organization> allOrgs() {
+        return Collections.unmodifiableCollection(orgs.values());
+    }
+
+    /** Every player the rules have seen, in the order first seen. For the store. */
+    public Collection<PlayerRecord> allPlayers() {
+        return Collections.unmodifiableCollection(players.values());
+    }
+
+    /** Every membership record, including those of dissolved organizations. For the store. */
+    public Collection<MemberRecord> allMemberships() {
+        return Collections.unmodifiableCollection(memberships.values());
+    }
+
+    /** Puts a saved membership back as it was, roles and join time included. Store and admin tools only. */
+    public void restoreMembership(MemberRecord record) {
+        memberships.put(record.player(), record);
+        treeVersion++;
+    }
+
+    /** The order number the next core will take, for saving. */
+    public long nextCoreOrder() {
+        return nextCoreOrder;
+    }
+
+    /** Restores the core order counter after loading. Never moves it backwards. */
+    public void restoreCoreOrder(long value) {
+        nextCoreOrder = Math.max(nextCoreOrder, value);
+    }
 }

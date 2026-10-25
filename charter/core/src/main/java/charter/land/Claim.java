@@ -48,6 +48,11 @@ public final class Claim {
         contestedUntil = 0;
     }
 
+    /** Restores a saved orphan grace after loading. The store only; the rules go through the land graph. */
+    public void restoreContested(long until) {
+        if (until != 0) contest(until);
+    }
+
     void contest(long until) {
         core = null;
         kind = ClaimKind.OUTLYING;

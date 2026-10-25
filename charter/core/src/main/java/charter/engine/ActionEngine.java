@@ -246,6 +246,18 @@ public final class ActionEngine {
         }
     }
 
+    /**
+     * Closes an open vote now, counting the ballots cast so far, as if its time had
+     * run out (admin "vote close"). Refuses a vote that is not open.
+     */
+    public Outcome closeVote(VoteId voteId) {
+        Optional<Vote> found = state.vote(voteId);
+        if (found.isEmpty()) return Outcome.refuse(new Reason("no_such_vote", "That vote does not exist."));
+        if (!found.get().open()) return Outcome.refuse(new Reason("vote_closed", "That vote has closed."));
+        settle(found.get(), clock.now());
+        return Outcome.OK;
+    }
+
     private void settle(Vote vote, long now) {
         long cast = vote.ballots().size();
         if (cast < vote.quorumNeeded()) {

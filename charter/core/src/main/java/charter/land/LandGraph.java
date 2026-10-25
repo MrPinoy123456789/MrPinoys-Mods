@@ -265,6 +265,14 @@ public final class LandGraph {
         return events;
     }
 
+    /**
+     * Assigns an owner's land afresh after the store repaired a load (PLAN.md §8.4):
+     * claims whose core is gone move to another core if they can, or go contested.
+     */
+    public List<HistoryEvent> repair(OrgId owner, long wallNow) {
+        return reconcile(owner, wallNow);
+    }
+
     // ---- assignment ----
 
     /** Assigns an owner's land afresh and reports what moved. */
