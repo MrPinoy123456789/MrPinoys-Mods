@@ -13,7 +13,6 @@ import charter.org.OrgEvents;
 import charter.org.OrgReasons;
 import charter.org.OrgStatus;
 import charter.org.Organization;
-import charter.org.PlayerRecord;
 import charter.time.Durations;
 
 import java.util.ArrayList;
@@ -43,9 +42,9 @@ public record Found(PlayerId founder, String name, Preset preset) implements Act
         if (ctx.state.membership(founder).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
         Outcome named = checkName(ctx, name);
         if (named.refused()) return named;
-        PlayerRecord record = ctx.state.player(founder);
+        long lastFounded = ctx.state.knownPlayer(founder).map(r -> r.lastFoundedAt).orElse(0L);
         long cooldown = Durations.days(ctx.knobs.foundSecedeCooldownDays);
-        if (!ctx.admin() && record.lastFoundedAt != 0 && ctx.now - record.lastFoundedAt < cooldown) {
+        if (!ctx.admin() && lastFounded != 0 && ctx.now - lastFounded < cooldown) {
             return Outcome.refuse(OrgReasons.FOUND_COOLDOWN);
         }
         return Outcome.OK;
