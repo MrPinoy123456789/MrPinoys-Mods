@@ -78,6 +78,10 @@ public final class Knobs {
     public int activeWindowDays = 14;
     public int foundSecedeCooldownDays = 7;
     public int dormancyDays = 30;
+    /** What a Lordship's Lord may spend in one action without a vote. */
+    public int lordSpendLimitDiamonds = 32;
+    public int lordSpendLimitCobblestone = 2048;
+    public int orgNameMaxLength = 32;
 
     // ---- justice and contracts ----
     public int confinementMinMinutes = 60;

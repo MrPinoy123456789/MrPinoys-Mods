@@ -12,6 +12,8 @@ public final class CoreSuite {
 
     public static void main(String[] args) {
         charter.config.KnobsTest.run();
+        charter.gov.GovernanceTest.run();
+        charter.grant.AuthorityTest.run();
 
         System.out.println("core: " + Check.passed() + " passed, " + Check.failures().size() + " failed");
         for (String failure : Check.failures()) {
