@@ -1,0 +1,38 @@
+{
+  "_comment": "Charter food table. Copied to config/charter/food.json on first boot; edit that copy. Each item needs a shelf class (PRESERVED, COOKED or FRESH). Nourishment defaults to the vanilla food value; add \"nourishment\" to override. Foods with effects (golden apples, suspicious stew, chorus fruit, rotten flesh, spider eyes, pufferfish, poisonous potatoes) are left out on purpose.",
+
+  "minecraft:bread": { "shelf": "PRESERVED" },
+  "minecraft:dried_kelp": { "shelf": "PRESERVED" },
+  "minecraft:baked_potato": { "shelf": "PRESERVED" },
+  "minecraft:cookie": { "shelf": "PRESERVED" },
+  "minecraft:pumpkin_pie": { "shelf": "PRESERVED" },
+  "minecraft:honey_bottle": { "shelf": "PRESERVED" },
+
+  "minecraft:cooked_beef": { "shelf": "COOKED" },
+  "minecraft:cooked_porkchop": { "shelf": "COOKED" },
+  "minecraft:cooked_mutton": { "shelf": "COOKED" },
+  "minecraft:cooked_chicken": { "shelf": "COOKED" },
+  "minecraft:cooked_cod": { "shelf": "COOKED" },
+  "minecraft:cooked_salmon": { "shelf": "COOKED" },
+  "minecraft:cooked_rabbit": { "shelf": "COOKED" },
+  "minecraft:rabbit_stew": { "shelf": "COOKED" },
+  "minecraft:mushroom_stew": { "shelf": "COOKED" },
+  "minecraft:beetroot_soup": { "shelf": "COOKED" },
+  "minecraft:golden_carrot": { "shelf": "COOKED" },
+
+  "minecraft:beef": { "shelf": "FRESH" },
+  "minecraft:porkchop": { "shelf": "FRESH" },
+  "minecraft:mutton": { "shelf": "FRESH" },
+  "minecraft:chicken": { "shelf": "FRESH" },
+  "minecraft:cod": { "shelf": "FRESH" },
+  "minecraft:salmon": { "shelf": "FRESH" },
+  "minecraft:tropical_fish": { "shelf": "FRESH" },
+  "minecraft:rabbit": { "shelf": "FRESH" },
+  "minecraft:carrot": { "shelf": "FRESH" },
+  "minecraft:potato": { "shelf": "FRESH" },
+  "minecraft:beetroot": { "shelf": "FRESH" },
+  "minecraft:apple": { "shelf": "FRESH" },
+  "minecraft:melon_slice": { "shelf": "FRESH" },
+  "minecraft:sweet_berries": { "shelf": "FRESH" },
+  "minecraft:glow_berries": { "shelf": "FRESH" }
+}

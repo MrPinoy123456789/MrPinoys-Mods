@@ -10,7 +10,8 @@
     "fabric-gametest": [
       "charter.gametest.SpikeGameTest",
       "charter.gametest.StoreGameTest",
-      "charter.gametest.VoteCommandGameTest"
+      "charter.gametest.VoteCommandGameTest",
+      "charter.gametest.GranaryGameTest"
     ]
   },
   "mixins": [

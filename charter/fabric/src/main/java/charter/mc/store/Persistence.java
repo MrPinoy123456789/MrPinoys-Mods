@@ -38,6 +38,7 @@ public final class Persistence {
     public static void register() {
         if (!ACTIONS.has(charter.org.actions.Found.class)) CoreTypes.register(ACTIONS, EVENTS);
         if (!ACTIONS.has(charter.contract.actions.Arrest.class)) ContractTypes.register();
+        charter.mc.granary.GranaryBook.register();
     }
 
     /** Adds a JSON adapter for a feature's own types, before any CharterJson is made. */

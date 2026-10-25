@@ -35,6 +35,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.store.Persistence.register();
         CharterServer.register();
         charter.mc.cmd.CharterCommands.register();
+        // M9: granary and camp store chests, the screen, the food table.
+        charter.mc.granary.Granaries.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }

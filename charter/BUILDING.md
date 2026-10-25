@@ -133,3 +133,29 @@ them at the end.
   issues a one-shot token bound to that player. Gametests click a link with
   `CharterCommands.tokens().newest(uuid, label)`.
 - **Players:** commands accept a name or a UUID (mock players share a name).
+
+## The granary and camp store (`charter.mc.granary`, M9)
+
+- **Chests are the store.** `GranaryBook` (saved as the `granary` block) records which
+  chest positions belong to which keep or camp, and the removals queued for a chunk
+  that was not loaded. Core's `Store.provisions` is only a mirror of those chests.
+- **One wrapper around every step.** `Granaries.around(Runnable)` reads loaded chests into
+  the mirror, runs the sim step, then takes from the real items exactly what core removed
+  (eaten or spoiled), or queues it when the chunk is not loaded. The tick driver and
+  `/charter admin time advance` both go through it; anything new that calls `sim.step` or
+  `sim.advance` must too.
+- **Load reconciliation** runs from the chunk-load event and again when a chest is opened,
+  so the queue is applied before anyone sees the items. Gametests cannot unload their
+  chunk: they set `GranaryService.pretendUnloaded` and call `onChunkLoad` themselves.
+- **Linking** is by placement (a member's chest in the keep core chunk; a barrel or chest
+  within 3 blocks of a banner in a camp's banner chunk) or `/charter admin granary set <pos>`.
+  M8's nexus and banner code may call `GranaryService.link(core, level, pos, needBanner, true)`.
+- **The screen** (`GranaryScreen`) shows the real slots. Every tick the chest is compared
+  with the mirror; extra food is a deposit through `DepositFood` and what core refuses is
+  handed back. Outsiders cannot open a store while its keep stands; after the fall anyone can.
+- **Food values** come from `config/charter/food.json` (shelf class per item, nourishment
+  from the vanilla food component unless the file overrides it), filled into the sim's own
+  `FoodTable` when the server starts.
+- **Gametest worlds share one sim.** A test that advances time moves every other test's
+  keeps too, so a world that must live across ticks has no camp; the world and Charter state
+  also persist between runs, so each run uses its own block of chunks.

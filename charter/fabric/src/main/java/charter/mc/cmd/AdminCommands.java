@@ -88,7 +88,7 @@ final class AdminCommands {
     private static int advance(CommandContext<CommandSourceStack> ctx) {
         long millis = Args.duration(StringArgumentType.getString(ctx, "duration"));
         if (millis <= 0) return fail(ctx, Text.get("admin.bad_duration"));
-        rt().sim.advance(millis);
+        charter.mc.granary.Granaries.around(() -> rt().sim.advance(millis));
         return ok(ctx, Text.get("admin.advanced", "by", Chat.duration(millis), "siege", Chat.duration(rt().state.siegeClock.now())));
     }
 
