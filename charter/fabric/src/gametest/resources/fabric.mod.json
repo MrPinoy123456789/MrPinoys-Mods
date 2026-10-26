@@ -13,7 +13,8 @@
       "charter.gametest.VoteCommandGameTest",
       "charter.gametest.LandPlacementGameTest",
       "charter.gametest.LandProtectionGameTest",
-      "charter.gametest.LandHazardsGameTest"
+      "charter.gametest.LandHazardsGameTest",
+      "charter.gametest.GranaryGameTest"
     ]
   },
   "mixins": [

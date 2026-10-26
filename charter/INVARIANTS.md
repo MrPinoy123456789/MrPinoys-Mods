@@ -76,3 +76,10 @@ never break, add it here and to that test.
     getter the store reads, since their iteration order depends on how they were
     built. Insertion order, a sorted map, or an `EnumMap` instead. (StoreGameTest,
     which compares a reloaded state's snapshot with the live one)
+
+## The granary (M9)
+
+22. **A loaded granary's mirror equals its chests** after every step: core's provisions for
+    a store are the food the real chests hold. (GranaryGameTest)
+23. **What the sim removed from an unloaded store is taken from the real items before the
+    chest can be opened.** The queue is empty afterwards. (GranaryGameTest)
