@@ -96,3 +96,17 @@ never break, add it here and to that test.
     chorus fruit. (SupplyGameTest)
 26. **A cart that rolls in and out still holding its food mints nothing.** (SiegeTest,
     SupplyGameTest)
+
+## The siege in the world (M11)
+
+27. **An occupied keep is held by the occupier and not by the owner**, for walls,
+    core chunk and granary, until the occupation ends; then the owner holds it again.
+    (SiegeWorldGameTest)
+28. **A siege lifted or an occupation run out leaves a truce** against the same
+    attacker, so a keep never falls again at once to the camp still beside it.
+    (SiegeTest)
+29. **No siege record outlives its core.** Removing a core removes its store, keep or
+    camp record, falls, occupations, allowances and truces at once. (StoreGameTest:
+    repair on load would otherwise drop them and break invariant 21)
+30. **Presence counts only players of standing:** online, not spectators, not AFK,
+    and members for at least `presenceMinMemberDays`. (SiegeWorldGameTest)

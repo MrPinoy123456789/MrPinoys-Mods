@@ -417,7 +417,9 @@ When the granary is empty, the keep falls. The besieger chooses:
 ### 10.9 After a siege
 
 A keep whose siege is lifted (every camp gone or starved) gets a **truce** from the
-same attacker for 3 days. No chain sieges against one target.
+same attacker for 3 days. No chain sieges against one target. An occupation that runs
+out ends the same way: the occupier leaves under a 3 day truce, or a keep handed back
+with an empty granary would fall at once to the camp still beside it (found in M11).
 
 ### 10.10 Supply lines everywhere
 

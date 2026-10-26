@@ -15,7 +15,8 @@
       "charter.gametest.LandProtectionGameTest",
       "charter.gametest.LandHazardsGameTest",
       "charter.gametest.GranaryGameTest",
-      "charter.gametest.SupplyGameTest"
+      "charter.gametest.SupplyGameTest",
+      "charter.gametest.SiegeWorldGameTest"
     ]
   },
   "mixins": [

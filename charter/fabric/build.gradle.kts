@@ -50,6 +50,15 @@ loom {
     }
 }
 
+// Every gametest run starts from a fresh world. The world folder would otherwise keep
+// blocks (chests with food in them) and Charter's saved state from earlier runs, and a
+// test that lands on the same chunks as an earlier one inherits what it left behind.
+tasks.matching { it.name == "runGameTest" }.configureEach {
+    doFirst {
+        delete(layout.buildDirectory.dir("run/gameTest/world"))
+    }
+}
+
 java {
     withSourcesJar()
     sourceCompatibility = JavaVersion.VERSION_25

@@ -388,6 +388,11 @@ public final class SiegeSim {
                 book.occupations.remove(occupation.keep());
                 events.add(new SiegeEvents.OccupationEnded(wall, now, occupation.keep(), occupation.occupier(), "cap"));
                 events.addAll(charter.contract.Occupations.end(state, occupation.keep(), "cap", wall));
+                // The occupier leaves under the same truce as a lifted siege, or a keep handed back
+                // with an empty granary would fall to the camp still beside it at once, again and again.
+                long until = now + Durations.days(knobs.truceDays);
+                book.truces.add(new SiegeBook.Truce(occupation.keep(), occupation.occupier(), until));
+                events.add(new SiegeEvents.TruceBegan(wall, now, occupation.keep(), occupation.occupier(), until));
             }
         }
         double decay = knobs.notorietyDecayPerDay * dt / (double) Durations.DAY;

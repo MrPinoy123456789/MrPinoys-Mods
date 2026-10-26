@@ -60,6 +60,11 @@ public final class CharterServer {
         return runtime != null;
     }
 
+    /** The running server, or null. */
+    public static MinecraftServer server() {
+        return server;
+    }
+
     public static Path charterDir(MinecraftServer s) {
         return s.getWorldPath(LevelResource.ROOT).resolve(CharterMod.MOD_ID);
     }
@@ -90,6 +95,7 @@ public final class CharterServer {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             runtime.state.touch(new PlayerId(player.getUUID()), player.getPlainTextName(), now);
         }
+        charter.mc.war.SiegeWorld.beforeStep(server, runtime);
         charter.mc.granary.Granaries.around(() -> runtime.sim.step(elapsed));
     }
 
@@ -161,6 +167,19 @@ public final class CharterServer {
         public void send(PlayerId player, String text) {
             ServerPlayer p = server == null ? null : server.getPlayerList().getPlayer(player.value());
             if (p != null) p.sendSystemMessage(Component.literal(text).withStyle(ChatFormatting.AQUA));
+        }
+
+        @Override
+        public void alert(PlayerId player, String text) {
+            ServerPlayer p = server == null ? null : server.getPlayerList().getPlayer(player.value());
+            if (p == null) return;
+            p.sendSystemMessage(Component.literal(text).withStyle(ChatFormatting.GOLD));
+            p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(5, 50, 15));
+            p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(Component.literal(text).withStyle(ChatFormatting.GOLD)));
+            p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(Component.literal(Text.get("notice.alert_title"))));
+            // A quiet confirmation, not a fanfare (docs/DESIGN.md §4.8: volume 0.15 to 0.4).
+            p.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BELL,
+                    net.minecraft.sounds.SoundSource.MASTER, p.getX(), p.getY(), p.getZ(), 0.3F, 1.0F, p.getRandom().nextLong()));
         }
 
         @Override

@@ -13,16 +13,16 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.function.Consumer;
 
 /** Chat page pieces in one style, as in {@code ballot}'s Screens: gold headers, yellow links, gray detail. */
-final class Chat {
+public final class Chat {
 
     private Chat() {
     }
 
-    static Component header(String text) {
+    public static Component header(String text) {
         return Component.literal(text).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
     }
 
-    static MutableComponent line(String text) {
+    public static MutableComponent line(String text) {
         return Component.literal(text).withStyle(ChatFormatting.WHITE);
     }
 
@@ -30,16 +30,16 @@ final class Chat {
         return Component.literal(text).withStyle(ChatFormatting.GRAY);
     }
 
-    static Component good(String text) {
+    public static Component good(String text) {
         return Component.literal(text).withStyle(ChatFormatting.GREEN);
     }
 
-    static Component bad(String text) {
+    public static Component bad(String text) {
         return Component.literal(text).withStyle(ChatFormatting.RED);
     }
 
     /** A link that runs a one-shot token bound to this player. */
-    static MutableComponent act(ServerPlayer player, String label, String hover, Consumer<ServerPlayer> run) {
+    public static MutableComponent act(ServerPlayer player, String label, String hover, Consumer<ServerPlayer> run) {
         String token = CharterCommands.TOKENS.issue(player.getUUID(), label, System.currentTimeMillis(), run);
         return Component.literal("[" + label + "]").withStyle(style -> style
                 .withColor(ChatFormatting.YELLOW)
@@ -70,7 +70,7 @@ final class Chat {
     }
 
     /** "2 days, 3 hours", "47 hours", "12 minutes". */
-    static String duration(long millis) {
+    public static String duration(long millis) {
         if (millis <= 0) return Text.get("time.now");
         long days = millis / Durations.DAY;
         long hours = (millis % Durations.DAY) / Durations.HOUR;

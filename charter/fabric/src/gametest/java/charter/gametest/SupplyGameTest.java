@@ -115,6 +115,7 @@ public final class SupplyGameTest {
             keep = rt.state.coresOf(ashfall).getFirst();
 
             BlockPos chestAt = new BlockPos(cx * 16 + 3, Y, cz * 16 + 3);
+            level.setBlock(chestAt, Blocks.AIR.defaultBlockState(), 3); // an empty chest, never one left by an earlier test
             level.setBlock(chestAt, Blocks.CHEST.defaultBlockState(), 3);
             command("charter admin granary set " + chestAt.getX() + " " + chestAt.getY() + " " + chestAt.getZ());
             granary = (ChestBlockEntity) level.getBlockEntity(chestAt);
@@ -200,7 +201,7 @@ public final class SupplyGameTest {
 
     // ---- K: runners ----
 
-    @GameTest(maxTicks = 200)
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void aRunnerWalksFoodInThroughAnOpenSide(GameTestHelper helper) {
         try (World w = new World(helper, 0)) {
             String carrier = SupplyLines.playerCarrier(w.lord);
@@ -222,7 +223,7 @@ public final class SupplyGameTest {
         }
     }
 
-    @GameTest(maxTicks = 200)
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void crossingTheCampTeleportsAndPearlsCarryNothing(GameTestHelper helper) {
         try (World w = new World(helper, 1)) {
             String carrier = SupplyLines.playerCarrier(w.lord);
@@ -252,7 +253,7 @@ public final class SupplyGameTest {
         }
     }
 
-    @GameTest(maxTicks = 200)
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void anEnderChestCannotBeOpenedInABesiegedKeep(GameTestHelper helper) {
         try (World w = new World(helper, 2)) {
             BlockPos inKeep = new BlockPos(w.cx * 16 + 6, Y, w.cz * 16 + 6);
@@ -275,7 +276,7 @@ public final class SupplyGameTest {
         return cart;
     }
 
-    @GameTest(maxTicks = 200)
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void aCartLineFeedsABesiegedGranary(GameTestHelper helper) {
         try (World w = new World(helper, 3)) {
             Supply supply = w.supply();
@@ -323,7 +324,7 @@ public final class SupplyGameTest {
 
     // ---- L: encirclement ----
 
-    @GameTest(maxTicks = 200)
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void anEncircledKeepTakesNoFoodFromAnySide(GameTestHelper helper) {
         try (World w = new World(helper, 4)) {
             int cx = w.cx;

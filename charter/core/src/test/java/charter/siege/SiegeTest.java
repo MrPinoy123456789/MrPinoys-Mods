@@ -619,6 +619,10 @@ public final class SiegeTest {
         eq("fall: the occupier holds it", o.brine, o.rules().holder(o.keep));
         o.advance(Durations.days(o.f.knobs.occupationCapDays) + Durations.MINUTE);
         check("fall: control returns when the occupation cap runs out", !o.f.state.siege.occupations.containsKey(o.keep.id));
+        check("fall: the occupier leaves under a truce", o.f.state.siege.truce(o.keep.id, o.brine, o.f.state.siegeClock.now()));
+        o.advance(Durations.hours(1));
+        check("fall: so the camp still beside it does not take it again at once",
+                o.f.state.core(o.keep.id).isPresent() && !o.f.state.siege.falls.containsKey(o.keep.id));
     }
 
     // ---- X: sallies ----

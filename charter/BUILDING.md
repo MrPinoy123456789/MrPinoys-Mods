@@ -188,3 +188,25 @@ them at the end.
   and live allowances.
 - Gametests drive `SupplyLines.observe` and `observeCart` directly, in one tick,
   after moving a real player or cart.
+
+## The siege in the world (`charter.mc.war`, M11)
+
+- `SiegeWorld` feeds presence (`WorldInputs`, counted before each sim step) and
+  prisoners (M6's `JusticeInputs`) into the sim, offers the besieger raze or occupy
+  as two chat links when a keep falls, spills plunder as real items at the nexus,
+  and breaks the nexus on a raze. If the keep's chunk is not loaded, the physical
+  part waits for it to load (not saved across a restart).
+- Siege alerts go to the whole faction, subordinates included, as a message, a
+  title and a quiet bell; offline members get them through `Mail` on join.
+- `Protection.holderOf` gives control of an occupied keep's nine chunks to the
+  occupier.
+
+## Gametests that move the siege clock
+
+The siege clock is shared by every gametest. **Any gametest that advances it** (a
+`time advance` command, `besiege()`, a camp raising) **runs in its own batch:**
+`@GameTest(environment = "charter-gametest:long_siege")`. Batches run one after
+another, so a long siege cannot age a test that is waiting across ticks in the
+default batch. Every gametest run also starts from a fresh world (the build deletes
+`build/run/gameTest/world` first), and tests clear a chest's spot before placing it,
+so nothing an earlier test left behind leaks into a later one.

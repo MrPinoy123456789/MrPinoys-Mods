@@ -286,8 +286,20 @@ public final class CharterState {
         nextCoreOrder = Math.max(nextCoreOrder, core.order + 1);
     }
 
+    /**
+     * Removes a core and, at the same moment, every siege record keyed by it, so the
+     * state never holds records of a site that is gone (repair on load would drop
+     * them, and a save taken in between would not reload the same, INVARIANTS 21).
+     */
     public void removeCore(CoreId id) {
         cores.remove(id);
+        siege.stores.remove(id);
+        siege.keeps.remove(id);
+        siege.camps.remove(id);
+        siege.falls.remove(id);
+        siege.occupations.remove(id);
+        siege.allowances.removeIf(a -> a.site.equals(id));
+        siege.truces.removeIf(t -> t.keep().equals(id));
     }
 
     public Optional<Claim> claim(ClaimId id) {

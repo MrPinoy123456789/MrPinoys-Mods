@@ -61,6 +61,14 @@ public final class StoreGameTest {
         helper.assertTrue(!mail.peek(founder).isEmpty(), "Offline messages did not reload");
         String reloaded = rt.json.gson.toJson(second.codec().write(back));
         String live = rt.json.gson.toJson(rt.store.codec().write(rt.state));
+        if (!reloaded.equals(live)) {
+            // Keep both for a diff: the first different line alone rarely says which block moved.
+            try {
+                Files.writeString(rt.store.dir().resolve("mismatch-live.json"), live);
+                Files.writeString(rt.store.dir().resolve("mismatch-reloaded.json"), reloaded);
+            } catch (java.io.IOException ignored) {
+            }
+        }
         helper.assertTrue(reloaded.equals(live), "The reloaded state does not write the same snapshot as the live one: " + firstDifference(live, reloaded));
         helper.succeed();
     }

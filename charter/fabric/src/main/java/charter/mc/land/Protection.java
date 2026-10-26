@@ -91,10 +91,24 @@ public final class Protection {
     public static boolean isMemberOf(Player player, Claim claim) {
         CharterRuntime rt = rt();
         if (rt == null) return true;
+        OrgId holder = holderOf(rt, claim);
         return rt.state.membership(new PlayerId(player.getUUID()))
                 .map(MemberRecord::org)
-                .filter(org -> faction(rt, org).equals(faction(rt, claim.owner)))
+                .filter(org -> faction(rt, org).equals(holder))
                 .isPresent();
+    }
+
+    /**
+     * The faction that acts in a claim: its owner's, except in an occupied keep's nine
+     * chunks, where the occupier holds control while the owner keeps the record
+     * (DESIGN.md §10.8, test W).
+     */
+    public static OrgId holderOf(CharterRuntime rt, Claim claim) {
+        if (claim.core() != null && claim.kind() != ClaimKind.OUTLYING) {
+            var occupation = rt.state.siege.occupations.get(claim.core());
+            if (occupation != null) return occupation.occupier();
+        }
+        return faction(rt, claim.owner);
     }
 
     /** May this player build, break or use things at this block? True on unprotected ground. */
@@ -110,8 +124,10 @@ public final class Protection {
             }
         }
         // Authority is resolved at the moment of use and never cached on the player (INVARIANTS 6, 7).
+        // In an occupied keep it is the occupier's own power that counts, not the owner's.
+        OrgId over = rt.state.siege.occupations.containsKey(claim.core()) ? holderOf(rt, claim) : claim.owner;
         return new AuthorityResolver(rt.state, rt.clock.now())
-                .resolve(new Who.AsPlayer(new PlayerId(player.getUUID())), claim.owner, Power.PLACE_CORE, ScopeNeed.NONE, false).ok();
+                .resolve(new Who.AsPlayer(new PlayerId(player.getUUID())), over, Power.PLACE_CORE, ScopeNeed.NONE, false).ok();
     }
 
     /** The same question for an entity that caused something: only a permitted player passes. */

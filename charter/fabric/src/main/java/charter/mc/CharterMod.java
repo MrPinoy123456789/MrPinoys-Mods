@@ -41,6 +41,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.granary.Granaries.register();
         // M10: supply lines: player and cart crossings, transit, ender chests, supply show.
         charter.mc.supply.SupplyLines.register();
+        // M11: the siege in the world: presence, the fall, plunder, occupation, alerts.
+        charter.mc.war.SiegeWorld.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }

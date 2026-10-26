@@ -173,6 +173,7 @@ public final class GranaryGameTest {
         /** Places a real chest and registers it with the granary through the admin command. */
         Container chest(int index) {
             BlockPos at = chestAt(index);
+            level.setBlock(at, Blocks.AIR.defaultBlockState(), 3); // an empty chest, never one left by an earlier test
             level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
             command("charter admin granary set " + at.getX() + " " + at.getY() + " " + at.getZ());
             return container(at);
@@ -401,7 +402,7 @@ public final class GranaryGameTest {
      * fills it in peace, and fills nothing while the keep is besieged, since the
      * mirror would otherwise take hopper-fed food as provisions (DESIGN.md §10.4).
      */
-    @GameTest(maxTicks = 200)
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void aHopperCannotFillABesiegedGranary(GameTestHelper helper) {
         // One tick throughout: other tests share the siege clock, so a besieged world must not wait.
         try (World w = new World(helper, 7)) {
@@ -427,6 +428,7 @@ public final class GranaryGameTest {
     }
 
     static BlockPos placeChest(World w, BlockPos at) {
+        w.level.setBlock(at, Blocks.AIR.defaultBlockState(), 3); // an empty chest, never one left by an earlier test
         w.level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
         return at;
     }
@@ -468,6 +470,7 @@ public final class GranaryGameTest {
         w.lord.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.CHEST));
         // The use event notes the placement; the block appears as vanilla would place it.
         rightClick(w.lord, w.level, at.below());
+        w.level.setBlock(at, Blocks.AIR.defaultBlockState(), 3); // an empty chest, never one left by an earlier test
         w.level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
         helper.runAfterDelay(3, () -> {
             try {
