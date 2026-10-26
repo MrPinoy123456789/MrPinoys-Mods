@@ -43,6 +43,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.supply.SupplyLines.register();
         // M11: the siege in the world: presence, the fall, plunder, occupation, alerts.
         charter.mc.war.SiegeWorld.register();
+        // M13: the Chronicle in the world: charter lecterns, the Realm Chronicle, its voice file.
+        charter.mc.chronicle.Chronicles.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }

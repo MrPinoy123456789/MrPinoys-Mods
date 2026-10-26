@@ -1,8 +1,11 @@
 package charter.chronicle;
 
+import charter.contract.Party;
 import charter.grant.Holder;
 import charter.history.History;
 import charter.history.HistoryEvent;
+import charter.id.ChunkKey;
+import charter.id.CoreId;
 import charter.id.OfficeId;
 import charter.id.OrgId;
 import charter.id.PlayerId;
@@ -13,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -46,12 +50,15 @@ public final class ChronicleRenderer {
     public Optional<String> render(History.Entry entry) {
         if (entry.admin() && !includeAdmin) return Optional.empty();
         HistoryEvent event = entry.event();
+        if (routine(event)) return Optional.empty();
         String key = TemplateSet.keyOf(event.getClass());
         String text = templates.get(key).map(Template::text)
                 .or(() -> templates.get(TemplateSet.FALLBACK).map(Template::text))
                 .orElse(LAST_RESORT);
         Map<String, Object> fields = fields(event);
         String line = fill(text, event, entry, fields);
+        // A template rewritten to nothing silences its event.
+        if (line.isBlank()) return Optional.empty();
         if (entry.admin()) {
             line += templates.get(TemplateSet.ADMIN).map(t -> " " + fill(t.text(), event, entry, fields)).orElse("");
         }
@@ -63,6 +70,11 @@ public final class ChronicleRenderer {
         List<String> lines = new ArrayList<>();
         for (History.Entry entry : entries) render(entry).ifPresent(lines::add);
         return lines;
+    }
+
+    /** Everyday traffic that would drown the story: food carried in when no siege needed it. */
+    static boolean routine(HistoryEvent event) {
+        return event instanceof charter.siege.SiegeEvents.FoodDeposited f && !f.underSiege();
     }
 
     private static Map<String, Object> fields(HistoryEvent event) {
@@ -98,7 +110,15 @@ public final class ChronicleRenderer {
     }
 
     private String hole(String spec, HistoryEvent event, History.Entry entry, Map<String, Object> fields) {
+        int hash = spec.indexOf('#');
         int q = spec.indexOf('?');
+        if (hash >= 0 && (q < 0 || hash < q)) {
+            // {count#claim}: the number and the noun, "1 claim" or "3 claims"
+            Object n = lookup(spec.substring(0, hash), event, entry, fields);
+            String noun = spec.substring(hash + 1);
+            if (!(n instanceof Number number)) return "unknown";
+            return number + " " + noun + (number.longValue() == 1 ? "" : "s");
+        }
         String name = q < 0 ? spec : spec.substring(0, q);
         Object value = lookup(name, event, entry, fields);
         if (q >= 0) {
@@ -125,10 +145,50 @@ public final class ChronicleRenderer {
         if (value instanceof Holder.OfPlayer h) return names.player(h.player());
         if (value instanceof Holder.OfOffice h) return "the " + names.office(h.office());
         if (value instanceof Holder.OfOrg h) return names.org(h.org());
+        if (value instanceof CoreId id) return names.core(id);
+        if (value instanceof ChunkKey c) return (c.x() * 16 + 8) + ", " + (c.z() * 16 + 8);
+        if (value instanceof Party p) return p.isPlayer() ? names.player(p.player()) : names.org(p.org());
+        if (value instanceof Collection<?> c) return list(name, c);
+        if (value instanceof Map<?, ?> m) return amounts(m);
+        if (value instanceof Long l && name.endsWith("Millis")) return span(l);
         if (value instanceof Enum<?> e) return e.name().toLowerCase(Locale.ROOT).replace('_', ' ');
         if (value instanceof Boolean b) return b ? "yes" : "no";
         if (value instanceof Long l && (name.equals("at") || name.endsWith("At"))) return calendar.phrase(l);
         return String.valueOf(value);
+    }
+
+    /** "A, B and C"; a collection of terms is told by its size; a set is told in name order. */
+    private String list(String name, Collection<?> items) {
+        if (items.isEmpty()) return "no one";
+        if (items.iterator().next() instanceof charter.contract.Term) return plural(items.size(), "term");
+        List<String> parts = new ArrayList<>();
+        for (Object item : items) parts.add(show(name, item));
+        if (items instanceof java.util.Set) java.util.Collections.sort(parts);
+        return join(parts);
+    }
+
+    private static String join(List<String> parts) {
+        if (parts.size() == 1) return parts.get(0);
+        return String.join(", ", parts.subList(0, parts.size() - 1)) + " and " + parts.get(parts.size() - 1);
+    }
+
+    /** "12 diamond and 1250 cobblestone". */
+    private String amounts(Map<?, ?> amounts) {
+        List<String> parts = new ArrayList<>();
+        amounts.forEach((k, v) -> parts.add(v + " " + show("currency", k)));
+        return parts.isEmpty() ? "nothing" : join(parts);
+    }
+
+    /** A duration in the biggest whole unit: "2 hours", "1 day", "30 minutes". */
+    static String span(long millis) {
+        long minutes = Math.max(0, millis) / 60_000;
+        if (minutes >= 1440 && minutes % 1440 == 0) return plural(minutes / 1440, "day");
+        if (minutes >= 60) return plural(minutes / 60, "hour");
+        return plural(minutes, "minute");
+    }
+
+    private static String plural(long n, String noun) {
+        return n + " " + noun + (n == 1 ? "" : "s");
     }
 
     /** {@code VoteOpened} becomes "vote opened". */
