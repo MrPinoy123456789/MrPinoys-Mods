@@ -25,6 +25,8 @@ public final class Scenario {
     public List<Faction> factions = new ArrayList<>();
     /** Roles that belong to no faction: trespassers, sellswords. */
     public List<String> outsiders = new ArrayList<>();
+    /** The roles named players take first, in order; the rest follow in {@link #roles} order. Empty for all of them. */
+    public List<String> players = new ArrayList<>();
     public List<Keep> keeps = new ArrayList<>();
     public List<Farm> farms = new ArrayList<>();
     public List<Camp> camps = new ArrayList<>();
@@ -34,6 +36,10 @@ public final class Scenario {
     public List<Rails> rails = new ArrayList<>();
     public List<Give> give = new ArrayList<>();
     public List<Stand> stand = new ArrayList<>();
+    /** Pillars that mark a spot for the players, such as where a tutorial says to plant a banner. */
+    public List<Marker> markers = new ArrayList<>();
+    /** Written books handed to a role, such as a tutorial's guide. */
+    public List<Book> books = new ArrayList<>();
 
     public static final class Faction {
         /** The short id other steps use, such as "A". */
@@ -94,7 +100,25 @@ public final class Scenario {
 
     public static final class Give {
         public String role = "";
+        /** Item id to count. {@code charter:nexus} and {@code charter:war_banner} are the mod's own items. */
         public Map<String, Integer> items = new LinkedHashMap<>();
+    }
+
+    public static final class Book {
+        public String role = "";
+        public String title = "";
+        public String author = "Charter";
+        /** One string per page. A book page shows about 14 lines of 19 characters. */
+        public List<String> pages = new ArrayList<>();
+    }
+
+    public static final class Marker {
+        public int[] at = {0, 0};
+        /** The block the pillar is made of. */
+        public String block = "minecraft:gold_block";
+        public int height = 4;
+        /** Placed this many blocks from the chunk's middle, so it does not stand where the players build. */
+        public int[] offset = {4, 4};
     }
 
     public static final class Stand {
@@ -102,11 +126,18 @@ public final class Scenario {
         public int[] at = {0, 0};
     }
 
-    /** Every role in the order players are named for them: faction members first, then outsiders. */
+    /** Every role: faction members first, then outsiders. */
     public List<String> roles() {
         List<String> out = new ArrayList<>();
         for (Faction f : factions) out.addAll(f.roles);
         out.addAll(outsiders);
+        return out;
+    }
+
+    /** Every role in the order named players fill them: {@link #players} first, then the rest. */
+    public List<String> castOrder() {
+        List<String> out = new ArrayList<>(players);
+        for (String role : roles()) if (!out.contains(role)) out.add(role);
         return out;
     }
 }

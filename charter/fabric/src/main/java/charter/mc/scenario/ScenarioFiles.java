@@ -17,13 +17,13 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * The scenario files in {@code config/charter/scenarios/}. The five the plan names
- * (PLAN.md §12.3) ship in the jar and are written out on first use, so an operator
+ * The scenario files in {@code config/charter/scenarios/}. The tutorial and the five
+ * the plan names (PLAN.md §12.3) ship in the jar and are written out on first use, so an operator
  * can change or copy them; a file already there is never overwritten.
  */
 public final class ScenarioFiles {
 
-    public static final List<String> DEFAULTS = List.of("raid", "partial-siege", "encirclement", "sally", "jail");
+    public static final List<String> DEFAULTS = List.of("tutorial", "raid", "partial-siege", "encirclement", "sally", "jail");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private ScenarioFiles() {

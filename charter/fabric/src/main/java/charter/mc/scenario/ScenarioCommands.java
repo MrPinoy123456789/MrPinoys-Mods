@@ -83,7 +83,7 @@ public final class ScenarioCommands {
         Map<String, Scenario> all = scenarios();
         ctx.getSource().sendSuccess(() -> Chat.header(Text.get("scenario.list_header", "count", all.size())), false);
         for (Map.Entry<String, Scenario> e : all.entrySet()) {
-            String line = Text.get("scenario.list_line", "name", e.getKey(), "roles", String.join(" ", e.getValue().roles()), "setup", e.getValue().setup);
+            String line = Text.get("scenario.list_line", "name", e.getKey(), "roles", String.join(" ", e.getValue().castOrder()), "setup", e.getValue().setup);
             ctx.getSource().sendSuccess(() -> Chat.line(line), false);
         }
         return all.size();

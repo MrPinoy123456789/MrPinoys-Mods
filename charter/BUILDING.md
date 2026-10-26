@@ -261,3 +261,7 @@ so nothing an earlier test left behind leaks into a later one.
   `transient`, never saved). Core computes the numbers; the feed only copies them.
 - A keep that is lost takes its cells at once (`JusticeMod` on `CoreLost`), so the
   live state matches what a reload's repair would leave.
+- `scenario clear` is global: it takes down every faction a scenario made and any
+  faction a named player founded since. A gametest whose player founds a faction
+  (`TutorialGameTest`) runs in its own environment, `tutorial_alone`, so a scenario
+  test clearing in the same batch cannot take its faction down mid test.

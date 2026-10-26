@@ -68,6 +68,9 @@ public final class Granaries {
     public static void register() {
         GranaryBook.register();
         ServerLifecycleEvents.SERVER_STARTING.register(Granaries::start);
+        ServerLifecycleEvents.SERVER_STARTED.register(s -> {
+            if (CharterServer.running()) CharterServer.runtime().state.history.listen(Granaries::onHistory);
+        });
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> {
             if (service != null) {
@@ -191,6 +194,18 @@ public final class Granaries {
     /** Forces a display refresh now (after an admin change, and in tests). */
     public static void refreshDisplays() {
         if (service != null) showDisplays();
+    }
+
+    /**
+     * A keep or camp that is gone takes its granary record with it, as repair would on
+     * the next load. Its chests stay in the world as ordinary chests: after a raze,
+     * whatever food is left in them is loot.
+     */
+    static void onHistory(charter.history.History.Entry entry) {
+        if (service == null || !(entry.event() instanceof charter.land.LandEvents.CoreLost lost)) return;
+        if (service.book().site(lost.core()) == null) return;
+        service.book().remove(lost.core());
+        forget(lost.core());
     }
 
     /** Drops a site's display (the site is being removed by hand). */

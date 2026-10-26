@@ -182,6 +182,33 @@ public final class ScenarioGameTest {
     }
 
     @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
+    public void anExposedCampsBannerBreaksAndEndsTheCamp(GameTestHelper helper) throws Exception {
+        try (Run r = new Run(helper, 5)) {
+            r.run("sally");
+            Core east = r.camps().stream().filter(c -> c.center.x() == r.chunkX + 2 && c.center.z() == r.chunkZ)
+                    .findFirst().orElseThrow(() -> new AssertionError("No east camp"));
+            var banner = charter.mc.land.Fixtures.of(r.rt.state).first(east.id, charter.mc.land.Fixtures.Kind.BANNER);
+            r.check(banner != null, "The east camp has no banner");
+            BlockPos at = new BlockPos(banner.x(), banner.y(), banner.z());
+            net.minecraft.server.level.ServerPlayer defender = helper.makeMockServerPlayerInLevel();
+            defender.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+            defender.teleportTo(at.getX() - 1.5, at.getY(), at.getZ() + 0.5);
+
+            defender.gameMode.destroyBlock(at);
+            r.check(r.rt.state.core(east.id).isPresent(), "A protected camp's banner came down");
+            r.check(!r.level.getBlockState(at).isAir(), "The protected banner block was broken");
+
+            // The sally hold has run out (core test X drains it): the camp is exposed.
+            r.rt.state.siege.camp(east.id).exposed = true;
+            defender.gameMode.destroyBlock(at);
+            r.check(r.rt.state.core(east.id).isEmpty(), "Breaking an exposed camp's banner did not end the camp");
+            r.check(r.level.getBlockState(at).isAir(), "The exposed camp's banner still stands");
+            r.server.getPlayerList().remove(defender);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void theJailHasACellAndASheriff(GameTestHelper helper) throws Exception {
         CoreId keepId;
         try (Run r = new Run(helper, 4)) {

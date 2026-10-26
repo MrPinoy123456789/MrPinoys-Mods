@@ -38,8 +38,8 @@ final class ScenarioFilesTest {
     }
 
     static void everyDefaultIsWholeAndConsistent() throws Exception {
-        check("the plan's five scenarios are the defaults",
-                ScenarioFiles.DEFAULTS.equals(List.of("raid", "partial-siege", "encirclement", "sally", "jail")));
+        check("the tutorial and the plan's five scenarios are the defaults",
+                ScenarioFiles.DEFAULTS.equals(List.of("tutorial", "raid", "partial-siege", "encirclement", "sally", "jail")));
         for (String name : ScenarioFiles.DEFAULTS) {
             Scenario s = shipped(name);
             check(name + ": its name matches its file", name.equals(s.name));
@@ -62,7 +62,9 @@ final class ScenarioFilesTest {
             for (Scenario.Keep k : s.keeps) check(name + ": keep faction " + k.faction + " is founded", factions.contains(k.faction));
             for (Scenario.Farm f : s.farms) check(name + ": farm faction " + f.faction + " is founded", factions.contains(f.faction));
             for (Scenario.Camp c : s.camps) check(name + ": camp faction " + c.faction + " is founded", factions.contains(c.faction));
+            for (String p : s.players) check(name + ": players names role " + p, roles.contains(p));
             for (Scenario.Give g : s.give) check(name + ": give names role " + g.role, roles.contains(g.role));
+            for (Scenario.Book b : s.books) check(name + ": a book goes to role " + b.role, roles.contains(b.role));
             for (Scenario.Stand st : s.stand) check(name + ": stand names role " + st.role, roles.contains(st.role));
             for (String knob : s.knobs.keySet()) {
                 boolean found;
@@ -77,6 +79,48 @@ final class ScenarioFilesTest {
         }
         check("encirclement: four camps hold the twelve sides", shipped("encirclement").camps.size() == 4);
         check("jail: the keep has a cell", !shipped("jail").keeps.getFirst().cell.isBlank());
+        Scenario tutorial = shipped("tutorial");
+        check("tutorial: one player, an outsider who founds their own faction", tutorial.outsiders.equals(List.of("YOU")));
+        check("tutorial: the first player named is the newcomer, not Brinewatch's Lord", tutorial.castOrder().getFirst().equals("YOU"));
+        check("tutorial: you are given a nexus and a war banner", tutorial.give.getFirst().items.containsKey("charter:nexus")
+                && tutorial.give.getFirst().items.containsKey("charter:war_banner"));
+        check("tutorial: two pillars mark where the keep and the banner go", tutorial.markers.size() == 2);
+        check("tutorial: the guide is handed over as a book", tutorial.books.size() == 1 && tutorial.books.getFirst().role.equals("YOU"));
+        for (String name : ScenarioFiles.DEFAULTS) {
+            for (Scenario.Book book : shipped(name).books) {
+                for (int i = 0; i < book.pages.size(); i++) {
+                    String page = book.pages.get(i);
+                    int lines = bookLines(page);
+                    check(name + ": book page " + (i + 1) + " fits a page (" + lines + " of 14 lines)", lines <= 14);
+                    check(name + ": book page " + (i + 1) + " has no em dash", page.indexOf(0x2014) < 0);
+                }
+            }
+        }
+    }
+
+    /** Lines a book page takes, wrapping words at 19 characters, about what the book screen shows on a line. */
+    static int bookLines(String page) {
+        int lines = 0;
+        for (String paragraph : page.split("\n", -1)) {
+            int width = 0;
+            int used = 1;
+            for (String word : paragraph.split(" ")) {
+                if (word.isEmpty()) continue;
+                int need = width == 0 ? word.length() : width + 1 + word.length();
+                if (need > 19 && width > 0) {
+                    used++;
+                    width = word.length();
+                } else {
+                    width = need;
+                }
+                while (width > 19) {
+                    used++;
+                    width -= 19;
+                }
+            }
+            lines += used;
+        }
+        return lines;
     }
 
     static boolean exists(String power) {
@@ -92,12 +136,12 @@ final class ScenarioFilesTest {
         Path dir = Files.createTempDirectory("charter-scenarios");
         Files.writeString(dir.resolve("raid.json"), "{\"name\": \"raid\", \"setup\": \"mine\"}");
         int written = ScenarioFiles.writeDefaults(dir, w -> { });
-        check("the four missing defaults are written", written == 4);
+        check("the five missing defaults are written", written == 5);
         check("an operator's own raid is kept", "mine".equals(ScenarioFiles.all(dir, w -> { }).get("raid").setup));
         check("a second start writes nothing", ScenarioFiles.writeDefaults(dir, w -> { }) == 0);
         Files.writeString(dir.resolve("broken.json"), "{ not json");
         List<String> warnings = new java.util.ArrayList<>();
-        check("a broken file is skipped and the rest still read", ScenarioFiles.all(dir, warnings::add).size() == 5);
+        check("a broken file is skipped and the rest still read", ScenarioFiles.all(dir, warnings::add).size() == 6);
         check("and the broken file is named in a warning", warnings.stream().anyMatch(w -> w.contains("broken.json")));
     }
 }

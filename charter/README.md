@@ -55,12 +55,13 @@ Everything an operator needs for the first session (PLAN.md §12).
 
 ### Scenarios
 
-Five scenario files ship in the jar and are written to
+Six scenario files ship in the jar and are written to
 `config/charter/scenarios/` the first time a scenario command runs; edit or copy
 them there, and a file already there is never replaced.
 
 | Scenario | Sets up |
 |---|---|
+| `tutorial` | One new player's first hour: they found a faction, raise a keep at an emerald pillar, then plant a banner at a gold pillar beside Brinewatch's nearly empty keep and starve it out. A 13 page book guides them in game; `TUTORIAL.md` is the long version |
 | `raid` | Ashfall's keep and three farms with wheat and cows; a raised Brinewatch camp beside the farthest farm |
 | `partial-siege` | Ashfall's keep at half; two Brinewatch camps close the east side; a food chest to the west with rails and a chest cart into the keep |
 | `encirclement` | Ashfall's keep at 30 percent; four camps with two claims each hold all twelve sides (the plan said three camps, but a camp holds three sides, so the ring takes four) |
@@ -74,6 +75,9 @@ them there, and a file already there is never replaced.
 /charter admin scenario clear                               take down every faction a scenario made
 /charter admin note <text>                                  a check-in, written to the siege log
 ```
+
+Start the tutorial with `/charter admin scenario run tutorial with <player>`; `scenario
+clear` afterwards also takes down the faction that player founded in it.
 
 Players are named for the scenario's roles in order (`scenario list` shows them:
 `A1 A2 A3 B1 B2` for the raid); a role nobody is named for is an offline

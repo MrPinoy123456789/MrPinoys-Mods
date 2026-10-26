@@ -91,6 +91,8 @@ public final class ScenarioRunner {
 
     /** Factions made by scenario runs since the server started, newest last. */
     private static final List<OrgId> MADE = new ArrayList<>();
+    /** Real players named in a run, with when it ran: a faction they found after that is the scenario's too (the tutorial's). */
+    private static final Map<PlayerId, Long> CAST = new LinkedHashMap<>();
 
     private final CharterRuntime rt = CharterServer.runtime();
     private final Actor admin;
@@ -130,6 +132,8 @@ public final class ScenarioRunner {
             for (Scenario.Chest c : s.chests) chest(c);
             for (Scenario.Rails r : s.rails) rails(r);
             for (Scenario.Give g : s.give) give(g);
+            for (Scenario.Book b : s.books) book(b);
+            for (Scenario.Marker m : s.markers) marker(m);
             for (Scenario.Stand st : s.stand) stand(st);
             rt.claims.rebuild();
             return new Report(true, lines);
@@ -142,20 +146,21 @@ public final class ScenarioRunner {
     // ---- people ----
 
     private void cast(Scenario s, List<String> names) {
-        List<String> roles = s.roles();
+        List<String> roles = s.castOrder();
         if (names.size() > roles.size()) {
             throw new Failed(Text.get("scenario.too_many_players", "count", names.size(), "roles", roles.size()));
         }
         for (int i = 0; i < roles.size(); i++) {
             String role = roles.get(i);
             if (i < names.size()) {
-                ServerPlayer player = server.getPlayerList().getPlayer(names.get(i));
+                ServerPlayer player = online(names.get(i));
                 if (player == null) throw new Failed(Text.get("scenario.not_online", "player", names.get(i)));
                 PlayerId id = new PlayerId(player.getUUID());
                 rt.state.membership(id).ifPresent(m -> {
                     throw new Failed(Text.get("scenario.already_member", "player", player.getPlainTextName(), "org", rt.describe.org(m.org())));
                 });
                 rt.state.touch(id, player.getPlainTextName(), rt.clock.now());
+                CAST.putIfAbsent(id, rt.clock.now());
                 people.put(role, id);
                 online.put(role, player);
                 lines.add(Text.get("scenario.cast_player", "role", role, "player", player.getPlainTextName()));
@@ -166,6 +171,17 @@ public final class ScenarioRunner {
             }
         }
         if (names.size() < roles.size()) lines.add(Text.get("scenario.cast_stand_ins", "count", roles.size() - names.size()));
+    }
+
+    /** An online player by name, or by UUID (mock players in tests all share one name). */
+    private ServerPlayer online(String name) {
+        ServerPlayer found = server.getPlayerList().getPlayer(name);
+        if (found != null) return found;
+        try {
+            return server.getPlayerList().getPlayer(UUID.fromString(name));
+        } catch (IllegalArgumentException notAUuid) {
+            return null;
+        }
     }
 
     private PlayerId person(String role) {
@@ -437,7 +453,47 @@ public final class ScenarioRunner {
     private void give(Scenario.Give g) {
         ServerPlayer player = online.get(g.role);
         if (player == null) return;
-        for (Map.Entry<String, Integer> e : g.items.entrySet()) player.getInventory().add(new ItemStack(item(e.getKey()), e.getValue()));
+        for (Map.Entry<String, Integer> e : g.items.entrySet()) {
+            for (int i = 0; i < e.getValue(); ) {
+                ItemStack stack = stack(e.getKey());
+                int n = Math.min(stack.getMaxStackSize(), e.getValue() - i);
+                stack.setCount(n);
+                player.getInventory().add(stack);
+                i += n;
+            }
+        }
+    }
+
+    private void book(Scenario.Book b) {
+        ServerPlayer player = online.get(b.role);
+        if (player == null) return;
+        player.getInventory().add(book(b.title, b.author, b.pages));
+    }
+
+    /** A written book with these pages. Public so a test can read what a scenario hands out. */
+    public static ItemStack book(String title, String author, List<String> pages) {
+        ItemStack stack = new ItemStack(net.minecraft.world.item.Items.WRITTEN_BOOK);
+        List<net.minecraft.server.network.Filterable<net.minecraft.network.chat.Component>> out = new ArrayList<>();
+        for (String page : pages) out.add(net.minecraft.server.network.Filterable.passThrough(net.minecraft.network.chat.Component.literal(page)));
+        stack.set(net.minecraft.core.component.DataComponents.WRITTEN_BOOK_CONTENT, new net.minecraft.world.item.component.WrittenBookContent(
+                net.minecraft.server.network.Filterable.passThrough(title), author, 0, out, true));
+        return stack;
+    }
+
+    /** One of an item: the mod's nexus and war banner by their charter ids, else a vanilla item. */
+    private static ItemStack stack(String id) {
+        return switch (id) {
+            case "charter:nexus" -> LandItems.nexus();
+            case "charter:war_banner" -> LandItems.warBanner();
+            default -> new ItemStack(item(id));
+        };
+    }
+
+    private void marker(Scenario.Marker m) {
+        if (!(item(m.block) instanceof BlockItem block)) throw new Failed(Text.get("scenario.bad_item", "item", m.block));
+        var state = block.getBlock().defaultBlockState();
+        BlockPos base = ground(chunk(m.at), m.offset[0], m.offset[1]);
+        for (int dy = 0; dy < m.height; dy++) level.setBlockAndUpdate(base.above(dy), state);
     }
 
     private void stand(Scenario.Stand st) {
@@ -470,12 +526,22 @@ public final class ScenarioRunner {
 
     // ---- clearing ----
 
-    /** Takes down every faction a scenario made: cores, claims, granaries, and its members set free. Returns how many. */
+    /**
+     * Takes down every faction a scenario made, and any faction a player named in a
+     * run founded since: cores, claims, granaries, and its members set free. Returns how many.
+     */
     public static int clear(CharterRuntime rt) {
         int n = 0;
         Actor admin = new Actor.Admin("scenario clear");
         GranaryService service = Granaries.service();
-        for (OrgId org : List.copyOf(MADE)) {
+        List<OrgId> doomed = new ArrayList<>(MADE);
+        for (Map.Entry<PlayerId, Long> cast : CAST.entrySet()) {
+            rt.state.membership(cast.getKey()).map(m -> rt.state.root(m.org())).ifPresent(root -> {
+                var org = rt.state.org(root).orElse(null);
+                if (org != null && org.foundedAt >= cast.getValue() && !doomed.contains(root)) doomed.add(root);
+            });
+        }
+        for (OrgId org : doomed) {
             if (rt.state.org(org).isEmpty()) continue;
             for (Core core : List.copyOf(rt.state.coresOf(org))) {
                 if (service != null) service.book().remove(core.id);
@@ -486,6 +552,7 @@ public final class ScenarioRunner {
             n++;
         }
         MADE.clear();
+        CAST.clear();
         rt.claims.rebuild();
         return n;
     }

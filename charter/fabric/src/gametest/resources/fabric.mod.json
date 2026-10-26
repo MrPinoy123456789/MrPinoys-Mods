@@ -21,7 +21,8 @@
       "charter.gametest.JusticeSiegeGameTest",
       "charter.gametest.ChronicleGameTest",
       "charter.gametest.ScenarioGameTest",
-      "charter.gametest.LoadGameTest"
+      "charter.gametest.LoadGameTest",
+      "charter.gametest.TutorialGameTest"
     ]
   },
   "mixins": [
