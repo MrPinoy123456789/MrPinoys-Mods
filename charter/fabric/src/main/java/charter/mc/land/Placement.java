@@ -131,7 +131,7 @@ public final class Placement {
      * campfire on it, burning signal smoke. It stays inside the banner's own chunk
      * so raising a camp never writes into a neighbour's land. Null when no spot is free.
      */
-    static BlockPos raiseSignal(Level level, BlockPos banner) {
+    public static BlockPos raiseSignal(Level level, BlockPos banner) {
         for (Direction side : Direction.Plane.HORIZONTAL) {
             BlockPos hay = banner.relative(side);
             BlockPos fire = hay.above();

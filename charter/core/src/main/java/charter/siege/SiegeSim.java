@@ -46,6 +46,7 @@ public final class SiegeSim {
     private final Knobs knobs;
     private final FoodTable food;
     private SiegeInputs inputs = SiegeInputs.NONE;
+    private Runnable afterPass = () -> { };
 
     public SiegeSim(ActionEngine engine, FoodTable food) {
         this.engine = engine;
@@ -57,6 +58,12 @@ public final class SiegeSim {
 
     public SiegeSim inputs(SiegeInputs newInputs) {
         inputs = newInputs == null ? SiegeInputs.NONE : newInputs;
+        return this;
+    }
+
+    /** Runs after every pass, step and admin advance alike (the debrief log's hourly snapshots). */
+    public SiegeSim afterPass(Runnable listener) {
+        afterPass = listener == null ? () -> { } : listener;
         return this;
     }
 
@@ -115,6 +122,7 @@ public final class SiegeSim {
         timers(rules, dt, wall, now, events);
 
         engine.recordSystem(events);
+        afterPass.run();
     }
 
     private List<Core> keeps() {
@@ -191,6 +199,9 @@ public final class SiegeSim {
         double multiplier = clamp(presence * rules.notorietyMultiplier(rules.holder(keep)), knobs.multiplierMin, knobs.multiplierMax);
         boolean starving = store.provisions.nourishment(food) < knobs.starvationThreshold * limit;
         if (starving && inputs.attackersInsideKeep(keep.id) > 0) multiplier *= knobs.assaultMultiplier;
+        site.multiplier = multiplier;
+        site.mouths = rules.mouths(keep, inputs.prisoners(keep.id));
+        site.perHour = perHour;
         if (starving && !site.starving) events.add(new SiegeEvents.Starving(wall, now, keep.id));
         site.starving = starving;
 

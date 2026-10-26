@@ -11,8 +11,9 @@ break `INVARIANTS.md`.
 The suite rule: every Mixin is listed here with the reason an event would not do.
 All live in `fabric/src/main/java/charter/mc/mixin` and are listed in
 `charter.mixins.json`. Each is a few lines; the logic is in `charter.mc.land`
-(`Protection`, `Hazards`, `Placement`, `HopperGate`), and every check goes through
-`ClaimIndex` and core's `SiegeRules.protectedClaim`.
+(`Protection`, `Hazards`, `Placement`, `HopperGate`) and `charter.mc.justice`
+(`CommandGate`), and every land check goes through `ClaimIndex` and core's
+`SiegeRules.protectedClaim`.
 
 | # | Mixin | Target | Why no event covers it | What it does |
 |---|---|---|---|---|
@@ -26,6 +27,7 @@ All live in `fabric/src/main/java/charter/mc/mixin` and are listed in
 | 8 | `HopperBlockEntityMixin` | `HopperBlockEntity.addItem(Container, Container, ItemStack, Direction)` (static) | Container transfers fire no event | The gate only: every insert is offered to `HopperGate`. M8 registers nothing; the granary and supply lines register their interceptors |
 | 9 | `VehicleEntityMixin` | `VehicleEntity.hurtServer` | `AttackEntityCallback` covers melee only; arrows, tridents and fire charges hurt a cart through `hurtServer` | In protected land only a permitted player can hurt a minecart or boat (test K4) |
 | 10 | `FarmlandBlockMixin` | `FarmlandBlock.fallOn` (the `turnToDirt` call; the class was `FarmBlock` before 26.2) | Trampling fires no event | Outsiders and mobs cannot trample farmland in protected land; fall damage still works |
+| 11 | `CommandsMixin` | `Commands.performCommand` (head) | No Fabric API event sees every command a player runs, and a prisoner must not `/home`, `/tpa` or `/spawn` out of a cell | Asks `CommandGate` first: a player in custody or held by a sentence may run `/charter` and nothing else. The console and command blocks pass |
 
 Protection that does use a Fabric API event (`Guard`): `PlayerBlockBreakEvents.BEFORE`,
 `AttackBlockCallback`, `UseBlockCallback`, `UseItemCallback` (buckets, flint and
@@ -46,3 +48,86 @@ Not protected on purpose: mob griefing (endermen, ravagers) follows the vanilla
   yours, red theirs, yellow the open sides of a besieged keep.
 - Admin: `/charter admin faction spawn <name> <player>`, `camp raise-now`,
   `perimeter show`, `give`.
+
+## The playtest kit
+
+Everything an operator needs for the first session (PLAN.md §12).
+
+### Scenarios
+
+Five scenario files ship in the jar and are written to
+`config/charter/scenarios/` the first time a scenario command runs; edit or copy
+them there, and a file already there is never replaced.
+
+| Scenario | Sets up |
+|---|---|
+| `raid` | Ashfall's keep and three farms with wheat and cows; a raised Brinewatch camp beside the farthest farm |
+| `partial-siege` | Ashfall's keep at half; two Brinewatch camps close the east side; a food chest to the west with rails and a chest cart into the keep |
+| `encirclement` | Ashfall's keep at 30 percent; four camps with two claims each hold all twelve sides (the plan said three camps, but a camp holds three sides, so the ring takes four) |
+| `sally` | The encirclement, with the defenders beside the east camp and food beyond it |
+| `jail` | Ashfall's keep with a stone cell, a Sheriff with arrest and judge powers and leads; an outsider and a Brinewatch member stand in the keep |
+
+```
+/charter admin scenario list
+/charter admin scenario run <name> [with <player> ...]      around your chunk
+/charter admin scenario runat <x> <z> <name> [with ...]     around a block, overworld (from the console)
+/charter admin scenario clear                               take down every faction a scenario made
+/charter admin note <text>                                  a check-in, written to the siege log
+```
+
+Players are named for the scenario's roles in order (`scenario list` shows them:
+`A1 A2 A3 B1 B2` for the raid); a role nobody is named for is an offline
+stand-in. Every scenario sets `timeScale` 24, `carryInWindowMinutes` 240 and
+`presenceMinMemberDays` 0, waives new-faction protection for its factions, and
+backdates their membership 30 days. Each step runs through the engine as the
+admin, so a refused step stops the run and says why. Named players must not
+already belong to an organization; `scenario clear` frees them.
+
+### The siege log and the debrief report
+
+`world/charter/siege-log/<yyyy-mm-dd>.jsonl` holds the debrief events (PLAN.md
+§8.3). On top of the history events, M14 writes a `drain_hour` snapshot of every
+keep under siege each siege hour (provisions, limit, percent, debt, drain per hour,
+multiplier, mouths), a `presence` line when a keep's multiplier moves, a
+`crossing` line for every carrier that entered a besieged site or was turned back
+at a closed side, and the operator's `note` lines.
+
+```
+python charter/tools/siege_report.py <siege-log folder or files> --state <world>/charter/state.json --out report.md
+python charter/tools/siege_report.py --selftest
+```
+
+The report has a timeline per besieged keep (provisions hour by hour, crossings
+counted and refused with reasons, deposits, the fall and the choice), then camps,
+land, justice, operator notes and every admin command. `--state` turns ids into
+faction names and places. Standard library only.
+
+### Load check
+
+| Check | Size | Result (2026-10-25, the build machine) |
+|---|---|---|
+| `gradlew :core:loadCheck` | 10 sieges, 110 claims, 40 players walking at random, every crossing checked every tick, the sim stepped every tick at time scale 24, 6,000 ticks | mean 0.65 ms a tick, median 0.47 ms, p99 3.7 ms (budget 10 ms) |
+| `LoadGameTest` (dev server) | an encirclement, 20 mock players moving every tick for 300 ticks | sim step 0.3 to 2.2 ms each (one every 100 ticks), crossing checks 0.1 to 0.4 ms a tick |
+
+The core check is not part of `check`, since timing on a busy machine is not a
+rule; the gametest fails only above 5 ms on average. Risk R1's fallback (check
+players outside any active site every 4 ticks) is not needed at this size.
+
+### Deploying to the test server
+
+1. From `charter/`: `gradlew build` (every suite, then the jar into the suite's
+   `dist/`). Check `dist/MrPinoys_Charter-<version>.jar` is newer than the last
+   source edit.
+2. The target is the Kinetic test server **`714a0605`**, never `365f9682`. Check
+   `pocketdungeons/tools/server/kinetic.env` names `714a0605` first.
+3. `node pocketdungeons/tools/server/pdserver.mjs deploy --jar MrPinoys_Charter --restart`
+   (the `--jar` option is decision D15). Pocket Dungeons stays on the same server:
+   Charter claims only the overworld and the dungeons live in their own
+   dimension.
+4. In the server log: `Charter initialised`, the config written to
+   `config/charter/charter.json`, no Mixin errors. Then, as a smoke check:
+   `pdserver.mjs cmd charter admin supply show` and
+   `pdserver.mjs cmd charter admin scenario list`.
+5. Before players join, an op claims spawn and the Pocket Dungeons lobby for a
+   "Crown" organization (`/charter admin faction spawn Crown <op>`, then a nexus
+   at spawn), so nobody can claim them.

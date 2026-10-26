@@ -239,3 +239,25 @@ so nothing an earlier test left behind leaks into a later one.
   teleported; sentences run in wall time, so a gametest cannot wait one out.
 - **Left out on purpose:** core has no action to take diamonds back out of a personal safe,
   so `/charter safe` can only deposit.
+
+## The playtest kit (`charter.mc.scenario`, M14)
+
+- A scenario is data (`Scenario`), never code: a new one is a JSON file. The shipped
+  five live in `fabric/src/main/resources/charter/scenarios/` and must stay
+  consistent with `ScenarioFilesTest` (every role, faction, knob and power they
+  name exists; no dashes in their text).
+- `ScenarioRunner` runs every rule through the engine as the admin and stops at
+  the first refusal. It may touch the world (pads, chests, rails, cells) but never
+  decides a rule; cells are marked with `Cells.markAt`, the same flood fill a
+  player's marking uses.
+- A scenario sets knobs. A gametest that runs one saves every `Knobs` field first
+  and restores them after, as `ScenarioGameTest` does, or the next test runs at
+  time scale 24.
+- A gametest that reads the scenario files deletes the copies in the run's
+  `config/charter/scenarios/` first, so it tests the shipped files.
+- The debrief lines no history event carries (`drain_hour`, `presence`,
+  `crossing`) come from `SiegeLogFeed`, fed by core's `SiegeSim.afterPass` and the
+  keep's last-pass readings (`KeepSite.multiplier`, `mouths`, `perHour`, all
+  `transient`, never saved). Core computes the numbers; the feed only copies them.
+- A keep that is lost takes its cells at once (`JusticeMod` on `CoreLost`), so the
+  live state matches what a reload's repair would leave.

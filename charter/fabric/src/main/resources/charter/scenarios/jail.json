@@ -1,0 +1,18 @@
+{
+  "name": "jail",
+  "setup": "Ashfall's keep with a full granary and a cell east of the nexus. A2 is Sheriff, with the power to arrest and judge, and carries leads. An outsider and a Brinewatch member stand in the keep.",
+  "tries": "Arrest with a lead, sentence (confinement, then a fine), an escape attempt, then an execution with banishment. Does the prisoner's mouth show on the granary?",
+  "knobs": {"timeScale": 24, "carryInWindowMinutes": 240, "presenceMinMemberDays": 0},
+  "factions": [
+    {"id": "A", "name": "Ashfall", "roles": ["A1", "A2"],
+     "offices": [{"name": "Sheriff", "holder": "A2", "powers": ["ARREST", "JUDGE"]}]},
+    {"id": "B", "name": "Brinewatch", "roles": ["B1"]}
+  ],
+  "outsiders": ["O1"],
+  "keeps": [{"faction": "A", "at": [0, 0], "granary": 1.0, "cell": "Gaol", "cellAt": [1, 0]}],
+  "give": [{"role": "A2", "items": {"minecraft:lead": 4}}, {"role": "O1", "items": {"minecraft:bread": 8}}],
+  "stand": [
+    {"role": "A1", "at": [0, 0]}, {"role": "A2", "at": [0, 0]},
+    {"role": "B1", "at": [0, 1]}, {"role": "O1", "at": [0, -1]}
+  ]
+}

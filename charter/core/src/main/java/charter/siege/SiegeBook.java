@@ -25,6 +25,10 @@ public final class SiegeBook {
         public boolean starving;
         /** Factions whose camps counted against this keep on the last step. */
         public Set<OrgId> besiegers = new LinkedHashSet<>();
+        /** The last pass's drain, for the debrief log. Recomputed every pass, never saved. */
+        public transient double multiplier = 1;
+        public transient int mouths;
+        public transient double perHour;
     }
 
     /** A camp's siege record. */

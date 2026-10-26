@@ -145,6 +145,12 @@ public final class JusticeMod {
                 if (prisoner != null) Jail.enforce(prisoner);
             }
             case ContractEvents.Executed e -> Executions.carryOut(e.prisoner());
+            // A keep that is gone takes its cells with it, as repair would on the next load;
+            // its prisoners are already freed by the sim (Justice.freeOrphans).
+            case charter.land.LandEvents.CoreLost e -> {
+                CellBook book = Cells.book();
+                for (CellBook.Cell cell : book.of(e.core())) book.remove(cell.keep, cell.name);
+            }
             default -> {
             }
         }

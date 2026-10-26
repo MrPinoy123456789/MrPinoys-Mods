@@ -65,8 +65,16 @@ public final class Cells {
         Claim here = Protection.claimAt(level, feet);
         Core keep = here == null || here.core() == null ? null : rt.state.core(here.core()).orElse(null);
         if (keep == null || !keep.isKeep() || !rt.state.root(here.owner).equals(rt.state.root(org))) return no("cell.not_your_keep");
-        if (book().get(keep.id, name) != null) return no("cell.exists", "name", name);
+        return markAt(level, keep, feet, name);
+    }
 
+    /**
+     * Marks the enclosed space around {@code feet} as a cell of {@code keep}, with no
+     * check of who asks: the scenario runner builds a cell and marks it this way.
+     */
+    public static Done markAt(ServerLevel level, Core keep, BlockPos feet, String name) {
+        CharterRuntime rt = CharterServer.runtime();
+        if (book().get(keep.id, name) != null) return no("cell.exists", "name", name);
         String dimension = Protection.dimension(level);
         CellFill.Result fill = CellFill.fill(new LevelSpace(level, keep.id), new CellBook.Pos(feet.getX(), feet.getY(), feet.getZ()), MAX_BLOCKS);
         if (!fill.ok()) return no(fill.refusal(), "max", MAX_BLOCKS);

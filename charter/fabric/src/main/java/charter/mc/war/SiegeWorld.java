@@ -69,6 +69,7 @@ public final class SiegeWorld {
             CharterRuntime rt = CharterServer.runtime();
             rt.sim.inputs(JusticeInputs.wrap(PRESENCE, rt.state, rt.knobs, rt.clock::now));
             rt.state.history.listen(SiegeWorld::onHistory);
+            SiegeLogFeed.attach(rt);
             WAITING.clear();
         });
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> {

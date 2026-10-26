@@ -89,6 +89,7 @@ public final class CharterServer {
 
     /** One sim step: seen players, then siege time by real time elapsed, then governance. */
     static void step() {
+        long started = System.nanoTime();
         long now = runtime.clock.now();
         long elapsed = Math.max(0, Math.min(MAX_STEP_MILLIS, now - lastStepMillis));
         lastStepMillis = now;
@@ -97,6 +98,7 @@ public final class CharterServer {
         }
         charter.mc.war.SiegeWorld.beforeStep(server, runtime);
         charter.mc.granary.Granaries.around(() -> runtime.sim.step(elapsed));
+        LoadMeter.step(System.nanoTime() - started);
     }
 
     private static void save() {

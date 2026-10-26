@@ -111,6 +111,7 @@ public final class SupplyLines {
         tick++;
         if (!CharterServer.running()) return;
         CharterRuntime rt = CharterServer.runtime();
+        long started = System.nanoTime();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (player.isSpectator()) continue;
             observe(player);
@@ -119,18 +120,23 @@ public final class SupplyLines {
             scanCarts(server, rt);
             flushHopperTally(rt);
         }
+        charter.mc.LoadMeter.crossings(System.nanoTime() - started);
     }
 
     /** Observes one player now. The tick does this for everyone online. */
     public static Crossings.Result observe(ServerPlayer player) {
-        return crossings().observe(playerCarrier(player), Protection.dimension(player.level()), player.getX(), player.getZ(),
+        Crossings.Result result = crossings().observe(playerCarrier(player), Protection.dimension(player.level()), player.getX(), player.getZ(),
                 tick, () -> carried(player));
+        charter.mc.war.SiegeLogFeed.crossing(playerCarrier(player), Protection.dimension(player.level()), player.getX(), player.getZ(), result);
+        return result;
     }
 
     /** Observes one cart or chest boat now. The scan does this for those near active sites. */
     public static Crossings.Result observeCart(Entity cart) {
-        return crossings().observe(cartCarrier(cart), Protection.dimension(cart.level()), cart.getX(), cart.getZ(),
+        Crossings.Result result = crossings().observe(cartCarrier(cart), Protection.dimension(cart.level()), cart.getX(), cart.getZ(),
                 tick, () -> aboard(cart));
+        charter.mc.war.SiegeLogFeed.crossing(cartCarrier(cart), Protection.dimension(cart.level()), cart.getX(), cart.getZ(), result);
+        return result;
     }
 
     /** Every chest or hopper cart and chest boat near a keep under siege or a fighting camp. */
