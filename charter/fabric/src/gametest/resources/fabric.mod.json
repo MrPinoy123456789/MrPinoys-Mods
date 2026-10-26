@@ -14,7 +14,8 @@
       "charter.gametest.LandPlacementGameTest",
       "charter.gametest.LandProtectionGameTest",
       "charter.gametest.LandHazardsGameTest",
-      "charter.gametest.GranaryGameTest"
+      "charter.gametest.GranaryGameTest",
+      "charter.gametest.SupplyGameTest"
     ]
   },
   "mixins": [

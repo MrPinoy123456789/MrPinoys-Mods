@@ -39,6 +39,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.land.LandMod.register();
         // M9: granary and camp store chests, the screen, the food table.
         charter.mc.granary.Granaries.register();
+        // M10: supply lines: player and cart crossings, transit, ender chests, supply show.
+        charter.mc.supply.SupplyLines.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }

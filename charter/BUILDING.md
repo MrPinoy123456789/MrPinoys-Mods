@@ -168,3 +168,23 @@ them at the end.
 - **Gametest worlds share one sim.** A test that advances time moves every other test's
   keeps too, so a world that must live across ticks has no camp; the world and Charter state
   also persist between runs, so each run uses its own block of chunks.
+
+## Supply lines in the world (`charter.mc.supply`, M10)
+
+- `SupplyLines` observes every online player each tick and every chest or hopper
+  cart and chest boat near a site under siege every `cartScanTicks`, through one
+  `Crossings` tracker. `Crossings.observe` filters movement (edge-adjacent chunk,
+  within `teleportDetectBlocks`, not in transit); core's `Supply.enter` and
+  `Supply.leave` decide the rest. A pearl or chorus fruit puts a player in transit
+  for `TRANSIT_TICKS`.
+- Carriers are `player:<uuid>` and `cart:<uuid>`. Cart allowances together are a
+  site's cart pool (`Supply.cartPool`): a hopper deposits as `Supply.HOPPER` and
+  draws on the pool only; a player draws on their own allowance, then the pool.
+- `GranaryHopperGate` lets a single hopper item into a besieged granary only when
+  the pool covers it and it fits, debiting the pool; unloads are recorded as one
+  `FoodDeposited` per scan, not one per item.
+- `SupplyLines.enderChestBlocked` refuses ender chests in a besieged keep or a cut
+  off camp. `/charter admin supply show` lists a site's state, open sides, cart pool
+  and live allowances.
+- Gametests drive `SupplyLines.observe` and `observeCart` directly, in one tick,
+  after moving a real player or cart.

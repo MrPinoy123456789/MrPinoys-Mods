@@ -66,6 +66,7 @@ public final class SiegeTest {
         testJPresenceFloor();
         timeScaleAgrees();
         testKCarryIn();
+        cartPool();
         depositNeedsMembershipOrGrant();
         testLEncirclement();
         testMStarvationGate();
@@ -338,6 +339,41 @@ public final class SiegeTest {
                 s.enter("player:gil", ch(0, 1), ch(0, 0), Map.of(BREAD, 5)));
         check("K: deposits under siege are recorded for the debrief",
                 events.stream().anyMatch(e -> e instanceof SiegeEvents.FoodDeposited d && d.underSiege()));
+    }
+
+    /** K2, core half (PLAN.md §5.3, §5.4): carts feed a pool that hoppers and hand deposits draw on. */
+    static void cartPool() {
+        World w = world();
+        w.fill(w.keep.id, BREAD, 200);
+        w.brineCamp(2, 0, 2000);
+        w.raise();
+        Supply s = w.supply();
+        List<HistoryEvent> events = new ArrayList<>();
+
+        eq("K2: a hopper with no cart pool puts nothing in", Map.of(), s.deposit(Supply.HOPPER, w.keep.id, Map.of(BREAD, 1), events));
+        eq("K2: a cart rolling in through an open side is noted", Supply.Entry.GRANTED,
+                s.enter("cart:a", ch(0, 2), ch(0, 1), Map.of(BREAD, 20, BEEF, 4)));
+        eq("K2: the pool covers what the cart carried", 20, s.poolLeft(w.keep.id, BREAD));
+        eq("K2: a hopper unloading it draws on the pool", Map.of(BREAD, 1), s.deposit(Supply.HOPPER, w.keep.id, Map.of(BREAD, 1), events));
+        eq("K2: and debits it", 19, s.poolLeft(w.keep.id, BREAD));
+        eq("K2: a cart cannot carry its own way in as a hopper would", Map.of(), s.deposit("cart:b", w.keep.id, Map.of(BREAD, 1), events));
+
+        s.enter("player:runner", ch(-2, 0), ch(-1, 0), Map.of(BREAD, 2));
+        eq("K2: a player uses their own allowance first, then the cart pool", Map.of(BREAD, 7),
+                s.deposit("player:runner", w.keep.id, Map.of(BREAD, 7), events));
+        eq("K2: two came from the runner, five from the pool", 14, s.poolLeft(w.keep.id, BREAD));
+        eq("K2: matching is by item id: beef in the pool does not let carrots in", Map.of(),
+                s.deposit(Supply.HOPPER, w.keep.id, Map.of("minecraft:carrot", 1), events));
+
+        s.enter("cart:c", ch(0, -2), ch(0, -1), Map.of(BREAD, 30));
+        s.leave("cart:c", w.keep.id, Map.of(BREAD, 30));
+        eq("K2: a cart that rolls in full and out full mints nothing", 14, s.poolLeft(w.keep.id, BREAD));
+        s.enter("cart:c", ch(0, -2), ch(0, -1), Map.of(BREAD, 30));
+        s.leave("cart:c", w.keep.id, Map.of(BREAD, 10));
+        eq("K2: one that unloads twenty and leaves with ten adds twenty", 34, s.poolLeft(w.keep.id, BREAD));
+        eq("K2: a cart crossing in from the camp's chunk adds nothing", Supply.Entry.CLOSED,
+                s.enter("cart:d", ch(2, 0), ch(1, 0), Map.of(BREAD, 50)));
+        eq("K2: so the pool is unchanged", 34, s.poolLeft(w.keep.id, BREAD));
     }
 
     static void depositNeedsMembershipOrGrant() {

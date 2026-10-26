@@ -83,3 +83,16 @@ never break, add it here and to that test.
     a store are the food the real chests hold. (GranaryGameTest)
 23. **What the sim removed from an unloaded store is taken from the real items before the
     chest can be opened.** The queue is empty afterwards. (GranaryGameTest)
+
+## Supply lines (M10)
+
+24. **Under siege, food reaches a granary or camp store only through an allowance of
+    the same item id:** a carrier's own, earned by crossing in through an open side
+    on foot or by cart, then the site's cart pool. Hands, hoppers and droppers all
+    obey it; an ender chest cannot be opened there at all. (SiegeTest, SupplyGameTest,
+    GranaryGameTest)
+25. **Movement earns nothing unless it is a real crossing:** into an edge-adjacent
+    chunk, no more than 16 blocks since the last look, and not in transit by pearl or
+    chorus fruit. (SupplyGameTest)
+26. **A cart that rolls in and out still holding its food mints nothing.** (SiegeTest,
+    SupplyGameTest)

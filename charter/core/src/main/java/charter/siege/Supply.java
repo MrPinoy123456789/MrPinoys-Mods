@@ -108,21 +108,36 @@ public final class Supply {
                 .findFirst();
     }
 
+    /** The carrier a hopper or dropper deposits as: it has no allowance of its own, only the site's cart pool. */
+    public static final String HOPPER = "hopper";
+    /** Prefix of cart carriers; their allowances together are the site's cart pool (PLAN.md §5.3). */
+    public static final String CART = "cart:";
+
     /**
-     * Puts food into a site's store and returns what was accepted. Under siege only
-     * what the carrier's allowance covers goes in; otherwise every food item does.
-     * Non-food items are never accepted. Used by players at the granary and by
-     * hoppers unloading carts; the fabric side moves exactly the accepted items.
+     * Puts food into a site's store and returns what was accepted. Under siege an item
+     * is accepted only if an allowance of the same item id covers it: the carrier's
+     * own first, then, for a player or a hopper, the site's cart pool, soonest to
+     * expire first. Otherwise every food item goes in. Non-food items never do. The
+     * fabric side moves exactly the accepted items.
      */
     public Map<String, Integer> deposit(String carrier, CoreId siteId, Map<String, Integer> offered, List<HistoryEvent> events) {
         Map<String, Integer> accepted = preview(carrier, siteId, offered);
         if (accepted.isEmpty()) return accepted;
         boolean siege = underSiege(state.core(siteId).orElseThrow());
-        Allowance allowance = siege ? allowance(carrier, siteId).orElseThrow() : null;
         int items = 0;
         double nourishment = 0;
         for (Map.Entry<String, Integer> entry : accepted.entrySet()) {
-            if (siege) allowance.use(entry.getKey(), entry.getValue());
+            if (siege) {
+                int left = entry.getValue();
+                for (Allowance a : sources(carrier, siteId)) {
+                    int n = Math.min(left, a.left(entry.getKey()));
+                    if (n > 0) {
+                        a.use(entry.getKey(), n);
+                        left -= n;
+                    }
+                    if (left == 0) break;
+                }
+            }
             items += entry.getValue();
             nourishment += entry.getValue() * food.get(entry.getKey()).nourishment();
         }
@@ -140,15 +155,52 @@ public final class Supply {
         Optional<Core> site = state.core(siteId);
         if (site.isEmpty() || state.siege.falls.containsKey(siteId)) return accepted;
         boolean siege = underSiege(site.get());
-        Allowance allowance = siege ? allowance(carrier, siteId).orElse(null) : null;
-        if (siege && allowance == null) return accepted;
+        List<Allowance> sources = siege ? sources(carrier, siteId) : List.of();
+        if (siege && sources.isEmpty()) return accepted;
         for (Map.Entry<String, Integer> entry : new TreeMap<>(offered).entrySet()) {
             FoodEntry kind = food.get(entry.getKey());
             if (kind == null || entry.getValue() <= 0) continue;
-            int n = siege ? Math.min(entry.getValue(), allowance.left(entry.getKey())) : entry.getValue();
+            int covered = 0;
+            for (Allowance a : sources) covered += a.left(entry.getKey());
+            int n = siege ? Math.min(entry.getValue(), covered) : entry.getValue();
             if (n > 0) accepted.put(entry.getKey(), n);
         }
         return accepted;
+    }
+
+    /** The allowances a carrier may draw on at a site, in the order they are used. */
+    private List<Allowance> sources(String carrier, CoreId siteId) {
+        List<Allowance> out = new java.util.ArrayList<>();
+        if (!carrier.equals(HOPPER)) allowance(carrier, siteId).ifPresent(out::add);
+        if (carrier.equals(HOPPER) || carrier.startsWith("player:")) out.addAll(cartPool(siteId));
+        return out;
+    }
+
+    /** The site's cart pool: every live cart allowance there, soonest to expire first. */
+    public List<Allowance> cartPool(CoreId siteId) {
+        long now = state.siegeClock.now();
+        return state.siege.allowances.stream()
+                .filter(a -> a.site.equals(siteId) && a.carrier.startsWith(CART) && now < a.expiresSiege)
+                .sorted(java.util.Comparator.comparingLong(a -> a.expiresSiege))
+                .toList();
+    }
+
+    /** How much of an item the site's cart pool still covers. */
+    public int poolLeft(CoreId siteId, String itemId) {
+        int n = 0;
+        for (Allowance a : cartPool(siteId)) n += a.left(itemId);
+        return n;
+    }
+
+    /**
+     * A carrier left a site still holding this food. Its allowance there loses that
+     * much, so a cart that rolls in full and out full mints nothing (PLAN.md §5.3).
+     */
+    public void leave(String carrier, CoreId siteId, Map<String, Integer> aboard) {
+        allowance(carrier, siteId).ifPresent(a -> aboard.forEach((id, n) -> {
+            int take = Math.min(n, a.left(id));
+            if (take > 0) a.use(id, take);
+        }));
     }
 
     /** True if this chunk is one of the keep's twelve perimeter chunks. */

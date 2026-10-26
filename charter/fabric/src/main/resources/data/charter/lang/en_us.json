@@ -256,5 +256,13 @@
   "granary.removed": "The container at {x} {y} {z} is no longer part of a granary.",
   "granary.not_a_granary": "There is no granary or camp store container there.",
   "granary.none": "No granary or camp store is set.",
-  "granary.list_line": "{core}: {count} container(s) from {x} {y} {z}, {queued} item(s) queued for the next load"
+  "granary.list_line": "{core}: {count} container(s) from {x} {y} {z}, {queued} item(s) queued for the next load",
+
+  "supply.ender_chest": "An ender chest cannot be opened here while the siege lasts. Food must come in through an open side.",
+  "supply.show": "{core} is {state} and {siege}: {open} of {total} sides open.",
+  "supply.under_siege": "under siege",
+  "supply.at_peace": "at peace",
+  "supply.pool": "Cart pool: {items}",
+  "supply.nothing": "nothing",
+  "supply.allowance": "{carrier} may put in {items} for {minutes} more siege minutes"
 }

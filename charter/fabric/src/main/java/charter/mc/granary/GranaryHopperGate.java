@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -20,7 +21,7 @@ import java.util.Optional;
  * let through here would become provisions without coming in through an open
  * side. In peace, and for any chest that is not a granary, nothing changes.
  *
- * <p>M10 adds the exception: food unloaded from a cart that came in through an
+ * <p>The exception (M10): food unloaded from a cart that came in through an
  * open side, up to that cart's allowance.
  */
 final class GranaryHopperGate implements HopperGate.Interceptor {
@@ -31,8 +32,32 @@ final class GranaryHopperGate implements HopperGate.Interceptor {
         if (svc == null || stack.isEmpty()) return null;
         Optional<Core> site = siteOf(svc, destination);
         if (site.isEmpty()) return null;
-        boolean underSiege = new Supply(svc.runtime().engine, svc.food()).underSiege(site.get());
-        return underSiege ? stack : null;
+        Supply supply = new Supply(svc.runtime().engine, svc.food());
+        if (!supply.underSiege(site.get())) return null;
+        // M10: a hopper may unload what carts brought in through an open side, debiting the
+        // site's cart pool. Vanilla hoppers and droppers pass one item at a time; anything the
+        // pool does not cover in full, or that would not fit, is refused whole.
+        String id = charter.mc.granary.GranaryService.itemId(stack);
+        if (!hasRoom(destination, stack)) return stack;
+        Map<String, Integer> accepted = supply.preview(Supply.HOPPER, site.get().id, Map.of(id, stack.getCount()));
+        if (accepted.getOrDefault(id, 0) < stack.getCount()) return stack;
+        supply.deposit(Supply.HOPPER, site.get().id, Map.of(id, stack.getCount()), new java.util.ArrayList<>());
+        charter.mc.supply.SupplyLines.tallyHopper(site.get().id, id, stack.getCount());
+        return null;
+    }
+
+    /** True if the whole stack would fit, so a pool debit is never lost to a full chest. */
+    static boolean hasRoom(Container destination, ItemStack stack) {
+        int room = 0;
+        for (int i = 0; i < destination.getContainerSize() && room < stack.getCount(); i++) {
+            ItemStack there = destination.getItem(i);
+            if (there.isEmpty()) {
+                if (destination.canPlaceItem(i, stack)) room += stack.getMaxStackSize();
+            } else if (ItemStack.isSameItemSameComponents(there, stack)) {
+                room += Math.max(0, there.getMaxStackSize() - there.getCount());
+            }
+        }
+        return room >= stack.getCount();
     }
 
     /** The keep or camp whose granary or store this container is part of, if any. */
