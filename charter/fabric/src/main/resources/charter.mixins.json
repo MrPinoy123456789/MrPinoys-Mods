@@ -2,7 +2,18 @@
   "required": true,
   "package": "charter.mc.mixin",
   "compatibilityLevel": "JAVA_25",
-  "mixins": [],
+  "mixins": [
+    "BlockItemMixin",
+    "ServerExplosionMixin",
+    "PistonBaseBlockMixin",
+    "FireBlockMixin",
+    "LavaFluidMixin",
+    "FlowingFluidMixin",
+    "DispenserBlockMixin",
+    "HopperBlockEntityMixin",
+    "VehicleEntityMixin",
+    "FarmlandBlockMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
