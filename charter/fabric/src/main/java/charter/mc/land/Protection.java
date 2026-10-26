@@ -43,7 +43,17 @@ public final class Protection {
         boolean allows(ServerPlayer player, Claim claim, BlockPos pos);
     }
 
+    /**
+     * A feature's say over whether a player may act at a block, ahead of the claim rules (M12 justice:
+     * a prisoner may not build or break, a bonded player may work the jailer's land).
+     * Answer {@code FALSE} to forbid, {@code TRUE} to count the player as a member of the claim, null to stay silent.
+     */
+    public interface ActorRule {
+        Boolean decide(Player player, Level level, BlockPos pos, Claim claim);
+    }
+
     private static final List<CoreChunkException> CORE_CHUNK_EXCEPTIONS = new ArrayList<>();
+    private static final List<ActorRule> ACTOR_RULES = new ArrayList<>();
     private static final Map<UUID, Long> LAST_WARNED = new java.util.HashMap<>();
 
     private Protection() {
@@ -51,6 +61,10 @@ public final class Protection {
 
     public static void addCoreChunkException(CoreChunkException exception) {
         CORE_CHUNK_EXCEPTIONS.add(exception);
+    }
+
+    public static void addActorRule(ActorRule rule) {
+        ACTOR_RULES.add(rule);
     }
 
     /** The live runtime, or null when no server is running (a Mixin can fire before it starts). */
@@ -114,8 +128,14 @@ public final class Protection {
     /** May this player build, break or use things at this block? True on unprotected ground. */
     public static boolean mayAct(Player player, Level level, BlockPos pos) {
         Claim claim = guardedClaim(level, pos);
+        boolean counted = false;
+        for (ActorRule rule : ACTOR_RULES) {
+            Boolean said = rule.decide(player, level, pos, claim);
+            if (Boolean.FALSE.equals(said)) return false;
+            counted |= Boolean.TRUE.equals(said);
+        }
         if (claim == null) return true;
-        if (!isMemberOf(player, claim)) return false;
+        if (!counted && !isMemberOf(player, claim)) return false;
         if (claim.kind() != ClaimKind.KEEP_CORE) return true;
         CharterRuntime rt = rt();
         if (player instanceof ServerPlayer sp) {

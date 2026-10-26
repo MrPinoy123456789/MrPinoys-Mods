@@ -12,7 +12,8 @@
     "DispenserBlockMixin",
     "HopperBlockEntityMixin",
     "VehicleEntityMixin",
-    "FarmlandBlockMixin"
+    "FarmlandBlockMixin",
+    "CommandsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

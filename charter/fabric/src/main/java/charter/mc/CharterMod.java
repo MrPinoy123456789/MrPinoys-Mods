@@ -43,6 +43,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.supply.SupplyLines.register();
         // M11: the siege in the world: presence, the fall, plunder, occupation, alerts.
         charter.mc.war.SiegeWorld.register();
+        // M12: justice in the world: arrest, cells, sentences, execution, banishment.
+        charter.mc.justice.JusticeMod.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }
