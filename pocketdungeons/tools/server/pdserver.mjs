@@ -16,7 +16,8 @@
 //   lemon think <player> [text...]     "let me check" line; Lemon hides until the reply
 //   lemon quiet <player>                 make Lemon vanish and hold unprompted lines until the player speaks
 //   lemon mode <player> <guide|llm>      llm holds the player's questions for you; refresh it every few minutes
-//   deploy [--restart]                 remote only: upload the built jar from dist/ to the server's mods folder
+//   deploy [--restart] [--jar <name>]  remote only: upload the built jar from dist/ to the server's mods folder;
+//                                      --jar picks another mod's jar by its file name prefix (MrPinoys_Charter)
 //
 // Local (the default): the server runs from source with Gradle (runServer) in
 // pocketdungeons/run, bound to 127.0.0.1, RCON enabled.
@@ -610,16 +611,21 @@ async function lemon() {
 /**
  * Remote only: uploads the Pocket Dungeons jar that `gradlew build` (or `dist`) put in
  * the workspace's dist/ folder into the server's mods folder, replacing the old one.
+ * --jar <name> uploads another mod's jar from the same folder instead, by its file
+ * name prefix (Charter's is MrPinoys_Charter); both mods share the test server.
  * A running server keeps the old jar until it restarts; --restart does that.
  */
 async function deploy() {
   const restart = flag('--restart')
+  const prefix = flagValue('--jar', 'MrPinoys_Pocket_Dungeons')
+  if (!/^[A-Za-z0-9_]+$/.test(prefix)) throw new Error(`--jar takes a jar name prefix such as MrPinoys_Charter, not ${prefix}`)
   if (!panel) throw new Error('deploy is for a remote server; the local server builds from source on start')
   const distDir = resolve(modDir, '..', 'dist')
+  const pattern = new RegExp(`^${prefix}-.*\\.jar$`)
   const jars = existsSync(distDir)
-    ? readdirSync(distDir).filter(f => /^MrPinoys_Pocket_Dungeons-.*\.jar$/.test(f) && !f.endsWith('-sources.jar'))
+    ? readdirSync(distDir).filter(f => pattern.test(f) && !f.endsWith('-sources.jar'))
     : []
-  if (jars.length !== 1) throw new Error(`expected one Pocket Dungeons jar in ${distDir}, found ${jars.length}; run gradlew dist`)
+  if (jars.length !== 1) throw new Error(`expected one ${prefix} jar in ${distDir}, found ${jars.length}; run gradlew dist`)
   const bytes = readFileSync(join(distDir, jars[0]))
   announceTarget(`uploading ${jars[0]} to`)
   await panel.upload('/mods', [{ name: jars[0], bytes }])

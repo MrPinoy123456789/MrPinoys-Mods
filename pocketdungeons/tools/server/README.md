@@ -134,6 +134,10 @@ How it works, through the panel's client API only (no RCON port is opened):
   `MrPinoys_Pocket_Dungeons-*.jar` (not `-sources`) in `dist/`, so delete stale ones. Uploading a stale jar
   ships the old build, and a passing `dungeon admin validate` on it proves nothing.
   Fabric, Fabric API and the Minecraft version are set up on the panel by hand.
+- `deploy --jar MrPinoys_Charter [--restart]` uploads Charter's jar from the same `dist/` folder
+  instead (build it with `gradlew build` from `charter`). The two mods share the test server: Charter
+  claims only the overworld, the dungeons live in their own dimension. The jar name carries the
+  version, so after a version bump delete the old Charter jar from `mods/` on the panel by hand.
 
 ## A live interview session
 
