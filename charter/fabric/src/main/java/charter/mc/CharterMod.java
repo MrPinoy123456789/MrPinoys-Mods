@@ -45,6 +45,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.war.SiegeWorld.register();
         // M12: justice in the world: arrest, cells, sentences, execution, banishment.
         charter.mc.justice.JusticeMod.register();
+        // M13: the Chronicle in the world: charter lecterns, the Realm Chronicle, its voice file.
+        charter.mc.chronicle.Chronicles.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }

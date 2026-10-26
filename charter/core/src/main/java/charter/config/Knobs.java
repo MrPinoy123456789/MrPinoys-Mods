@@ -115,6 +115,10 @@ public final class Knobs {
     public int simStepTicks = 100;
     public int cartScanTicks = 5;
 
+    // ---- the Chronicle in the world (M13) ----
+    /** Whether books also tell admin events, with the clerk's voice (PLAN.md section 3). Off keeps test scenarios out of the story. */
+    public boolean chronicleShowAdmin = false;
+
     /**
      * Problems that would make the rules misbehave, one plain sentence each. An
      * empty list means the knobs are usable. The fabric side logs these and falls

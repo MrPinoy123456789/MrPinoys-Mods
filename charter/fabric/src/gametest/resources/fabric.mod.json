@@ -18,7 +18,8 @@
       "charter.gametest.SupplyGameTest",
       "charter.gametest.SiegeWorldGameTest",
       "charter.gametest.JusticeGameTest",
-      "charter.gametest.JusticeSiegeGameTest"
+      "charter.gametest.JusticeSiegeGameTest",
+      "charter.gametest.ChronicleGameTest"
     ]
   },
   "mixins": [

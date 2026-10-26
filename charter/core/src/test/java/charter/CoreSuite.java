@@ -17,6 +17,7 @@ public final class CoreSuite {
         charter.land.LandTest.run();
         charter.food.FoodTest.run();
         charter.chronicle.ChronicleTest.run();
+        charter.chronicle.ChronicleStoryTest.run();
         charter.siege.SiegeTest.run();
         charter.contract.ContractTest.run();
         charter.InvariantTest.run();

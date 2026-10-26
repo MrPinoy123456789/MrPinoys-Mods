@@ -371,5 +371,14 @@
   "war.occupy_hover": "Hold the keep and its granary for a while; it stays theirs on record",
   "war.razed_you": "You razed {site}.",
   "war.occupied_you": "You occupy {site}.",
-  "war.choice_refused": "That choice is no longer open."
+  "war.choice_refused": "That choice is no longer open.",
+  "chronicle.players_only": "Only a player can be handed a book.",
+  "chronicle.no_faction": "You are not in a faction. The realm's Chronicle is /charter chronicle realm.",
+  "chronicle.given": "You are given \"{title}\" ({pages} pages).",
+  "chronicle.realm_blocked": "Something is in the way. Stand in open air.",
+  "chronicle.realm_placed": "The Realm Chronicle now stands at {x} {y} {z}.",
+  "chronicle.realm_removed": "That lectern no longer keeps the Realm Chronicle.",
+  "chronicle.realm_none_near": "No Realm Chronicle lectern within 3 blocks.",
+  "chronicle.realm_empty": "No Realm Chronicle lecterns yet. Use /charter admin realm-chronicle here.",
+  "chronicle.realm_line": "Realm Chronicle: {dimension} at {x} {y} {z}"
 }

@@ -1,5 +1,6 @@
 package charter.chronicle;
 
+import charter.id.CoreId;
 import charter.id.OfficeId;
 import charter.id.OrgId;
 import charter.id.PlayerId;
@@ -16,6 +17,11 @@ public interface NameLookup {
 
     String office(OfficeId id);
 
+    /** "the keep of Ashfall": a core is named by its kind and owner. Default for lookups that do not know cores. */
+    default String core(CoreId id) {
+        return "a keep";
+    }
+
     /** Names read from the live state, including dissolved organizations. */
     static NameLookup from(CharterState state) {
         return new NameLookup() {
@@ -27,6 +33,30 @@ public interface NameLookup {
             @Override
             public String player(PlayerId id) {
                 return state.knownPlayer(id).map(p -> p.name).filter(n -> !n.isEmpty()).orElse("someone");
+            }
+
+            /** Cores that are gone (razed, lost) are found again through the history that placed them. */
+            private java.util.Map<CoreId, String> placed;
+
+            @Override
+            public String core(CoreId id) {
+                var live = state.core(id);
+                if (live.isPresent()) return kind(live.get().kind) + " of " + org(live.get().owner);
+                if (placed == null) placed = history(state);
+                return placed.getOrDefault(id, "a lost keep");
+            }
+
+            private String kind(charter.land.CoreKind kind) {
+                return kind == charter.land.CoreKind.KEEP ? "the keep" : "the camp";
+            }
+
+            private java.util.Map<CoreId, String> history(CharterState s) {
+                java.util.Map<CoreId, String> out = new java.util.HashMap<>();
+                for (var entry : s.history.entries()) {
+                    if (entry.event() instanceof charter.land.LandEvents.NexusPlaced e) out.put(e.core(), "the keep of " + org(e.org()));
+                    else if (entry.event() instanceof charter.land.LandEvents.CampPlanted e) out.put(e.core(), "the camp of " + org(e.org()));
+                }
+                return out;
             }
 
             @Override
