@@ -46,6 +46,9 @@ loom {
     runs.configureEach {
         if (name == "gameTest") {
             vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory.get().asFile}/gametest-report.xml")
+            // A fixed heap: the default share of RAM ran the machine out of commit
+            // space while other sessions were open. The test world needs far less.
+            vmArg("-Xmx2G")
         }
     }
 }

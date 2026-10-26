@@ -83,6 +83,10 @@ backdates their membership 30 days. Each step runs through the engine as the
 admin, so a refused step stops the run and says why. Named players must not
 already belong to an organization; `scenario clear` frees them.
 
+Run one scenario at a time and clear it before the next. The siege clock is shared, so
+raising a later scenario's camps moves every earlier siege on by the raising time
+too: run back to back, the raid's far farm was empty before anyone arrived.
+
 ### The siege log and the debrief report
 
 `world/charter/siege-log/<yyyy-mm-dd>.jsonl` holds the debrief events (PLAN.md
