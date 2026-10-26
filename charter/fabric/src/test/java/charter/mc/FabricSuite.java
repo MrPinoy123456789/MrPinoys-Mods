@@ -20,6 +20,7 @@ public final class FabricSuite {
         RuntimeTest.run();
         LandFixturesTest.run();
         GranaryTest.run();
+        JusticeTest.run();
 
         System.out.println("fabric: " + passed + " passed, " + failures.size() + " failed");
         for (String failure : failures) {

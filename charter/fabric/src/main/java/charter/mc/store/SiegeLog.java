@@ -69,6 +69,12 @@ public final class SiegeLog implements AutoCloseable {
         name(LandEvents.Contested.class, "claim_orphaned");
         name(LandEvents.Rescued.class, "grace_saved");
         name(LandEvents.Lapsed.class, "grace_expired");
+        name(charter.contract.ContractEvents.Arrested.class, "arrest");
+        name(charter.contract.ContractEvents.Imposed.class, "sentence");
+        name(charter.contract.ContractEvents.Escaped.class, "escape");
+        name(charter.contract.ContractEvents.Released.class, "release");
+        name(charter.contract.ContractEvents.Pardoned.class, "release");
+        name(charter.contract.ContractEvents.Executed.class, "execution");
         NAMES.put(LandEvents.CoreLost.class, e -> ((LandEvents.CoreLost) e).kind() == CoreKind.CAMP ? "camp_destroyed" : null);
     }
 

@@ -127,8 +127,43 @@ public final class Notices {
                     alert(e.at(), faction(holder(keep)), Text.get("notice.lifted", "site", describe.core(e.keep()))));
             case charter.land.LandEvents.Contested e -> alert(e.at(), faction(e.org()), Text.get("notice.contested", "count", e.count()));
             case charter.land.LandEvents.Lapsed e -> alert(e.at(), faction(e.org()), Text.get("notice.lapsed", "count", e.count()));
+            // ---- justice (M12): to the prisoner, and to the judge or officer who acted ----
+            case charter.contract.ContractEvents.Arrested e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.arrested",
+                    "officer", describe.player(e.officer()), "org", describe.org(e.faction())));
+            case charter.contract.ContractEvents.CustodyLapsed e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.custody_lapsed"));
+            case charter.contract.ContractEvents.Imposed e -> {
+                if (e.basis() != charter.contract.Basis.CUSTODY || !e.subject().isPlayer()) return;
+                String terms = charter.mc.justice.JusticeText.terms(e.terms());
+                tell(e.at(), Set.of(e.subject().player()), Text.get("notice.sentenced", "org", describe.org(e.imposer().org()), "terms", terms));
+                PlayerId judge = judge(entry);
+                if (judge != null) tell(e.at(), Set.of(judge), Text.get("notice.sentence_done",
+                        "player", describe.player(e.subject().player()), "terms", terms));
+            }
+            case charter.contract.ContractEvents.Fined e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.fined",
+                    "org", describe.org(e.to()), "asked", e.asked(), "paid", e.paid()));
+            case charter.contract.ContractEvents.Escaped e -> tell(e.at(), faction(e.faction()), Text.get("notice.escaped",
+                    "player", describe.player(e.prisoner())));
+            case charter.contract.ContractEvents.Released e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.released", "org", describe.org(e.by())));
+            case charter.contract.ContractEvents.Pardoned e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.pardoned", "org", describe.org(e.by())));
+            case charter.contract.ContractEvents.PrisonersFreed e -> {
+                for (PlayerId freed : e.prisoners()) tell(e.at(), Set.of(freed), Text.get("notice.freed", "site", describe.core(e.keep())));
+            }
+            case charter.contract.ContractEvents.Fulfilled e -> state.contracts.get(e.contract()).ifPresent(c -> {
+                if (c.basis == charter.contract.Basis.CUSTODY && c.subject.isPlayer()) {
+                    tell(e.at(), Set.of(c.subject.player()), Text.get("notice.served"));
+                }
+            });
             default -> {
             }
+        }
+    }
+
+    /** The player who ran the action behind an entry, or null when it was a vote, an operator or the rules. */
+    private static PlayerId judge(History.Entry entry) {
+        try {
+            return new PlayerId(java.util.UUID.fromString(entry.actor().startsWith("player:") ? entry.actor().substring(7) : entry.actor()));
+        } catch (IllegalArgumentException notAPlayer) {
+            return null;
         }
     }
 

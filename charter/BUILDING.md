@@ -210,3 +210,32 @@ another, so a long siege cannot age a test that is waiting across ticks in the
 default batch. Every gametest run also starts from a fresh world (the build deletes
 `build/run/gameTest/world` first), and tests clear a chest's spot before placing it,
 so nothing an earlier test left behind leaks into a later one.
+
+## Justice in the world (`charter.mc.justice`, M12)
+
+- **Nothing is stored on a player.** Each tick `Jail`, `Executions` and `Banishments`
+  ask core (`Justice.holding`, `respawnDelayLeft`, `banished`) and act on the answer, so
+  a pardon, a release, a sentence that ran out and a fallen keep all free a prisoner by
+  the same path. `Jail.enforce(player)` and the others are public so gametests call them
+  in one tick.
+- **Arrest** is `UseEntityCallback` with a lead in hand, then core's `Arrest`; the officer
+  is shown the sentencing page. Custody pulls the prisoner back to 6 blocks from the officer.
+- **Cells** live in `CellBook` (saved block `cells`; cell name, keep, blocks, spawn). Marking
+  (`/charter cell mark <name>`, needs the judge power) flood fills with `CellFill` over a
+  `Space`, so a plain test can run it: it refuses a start in stone, a space that leaks out of
+  the keep or open to the sky, and one over `Cells.MAX_BLOCKS` (150).
+- **Confinement:** outside the cell but within `teleportDetectBlocks` of where they last
+  stood, on the keep's land, is an escape (core's `Escape`, resistance). A bigger jump, or off
+  the keep, is put back. A prisoner or someone in custody cannot build or break
+  (`Protection.addActorRule`); a bonded one may work the jailer's keep land.
+- **Commands and pearls:** Mixin `CommandsMixin` asks `CommandGate` (only `/charter` passes
+  for a held player); `UseItemCallback` refuses pearls and chorus fruit.
+- **Execution** kills once with `keepInventory` switched on for that call, copies inventory
+  and experience across the respawn (`COPY_FROM`), then waits in adventure mode, slowed and
+  blind, with a boss bar. A client that has not finished loading is immune to damage, so
+  the kill sets health to 0 and calls `die` if `kill` did nothing.
+- **Gametest traps:** mock players are online, so notices reach them as messages and never
+  as mail (use an offline `PlayerId` to read mail); a respawned mock player cannot be
+  teleported; sentences run in wall time, so a gametest cannot wait one out.
+- **Left out on purpose:** core has no action to take diamonds back out of a personal safe,
+  so `/charter safe` can only deposit.
