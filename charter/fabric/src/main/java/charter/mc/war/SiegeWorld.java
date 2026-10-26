@@ -29,6 +29,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -59,6 +60,8 @@ public final class SiegeWorld {
 
     private static final WorldInputs PRESENCE = new WorldInputs();
     private static final Map<ChunkKey, List<Work>> WAITING = new LinkedHashMap<>();
+    /** Chunks with waiting work that loaded since the last tick. */
+    private static final java.util.Set<ChunkKey> LOADED = new java.util.LinkedHashSet<>();
 
     private SiegeWorld() {
     }
@@ -71,11 +74,24 @@ public final class SiegeWorld {
             rt.state.history.listen(SiegeWorld::onHistory);
             SiegeLogFeed.attach(rt);
             WAITING.clear();
+            LOADED.clear();
         });
+        // Queued work waits for the tick after its chunk loads: placing blocks or spawning
+        // items inside the load itself can hang the server thread on its own chunk.
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> {
             ChunkKey key = new ChunkKey(Protection.dimension(level), chunk.getPos().x(), chunk.getPos().z());
-            List<Work> due = WAITING.remove(key);
-            if (due != null) for (Work work : due) apply(level, work);
+            if (WAITING.containsKey(key)) LOADED.add(key);
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (LOADED.isEmpty()) return;
+            List<ChunkKey> now = List.copyOf(LOADED);
+            LOADED.clear();
+            for (ChunkKey key : now) {
+                ServerLevel level = levelOf(server, key.dimension());
+                if (level == null || !level.hasChunk(key.x(), key.z())) continue;
+                List<Work> due = WAITING.remove(key);
+                if (due != null) for (Work work : due) apply(level, work);
+            }
         });
     }
 
@@ -147,6 +163,13 @@ public final class SiegeWorld {
         ServerLevel level = level(where.dimension());
         if (level != null && level.hasChunk(where.x(), where.z())) apply(level, work);
         else WAITING.computeIfAbsent(where, k -> new ArrayList<>()).add(work);
+    }
+
+    private static ServerLevel levelOf(net.minecraft.server.MinecraftServer server, String dimension) {
+        for (ServerLevel level : server.getAllLevels()) {
+            if (Protection.dimension(level).equals(dimension)) return level;
+        }
+        return null;
     }
 
     private static void apply(ServerLevel level, Work work) {

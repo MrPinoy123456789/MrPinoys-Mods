@@ -347,6 +347,43 @@ public final class GranaryGameTest {
         }
     }
 
+    /**
+     * The crash of 2026-10-26 on the test server: the chunk load event took items out
+     * of the granary while the chunk was still loading, the chest marked its chunk
+     * changed, the server waited on its own unfinished chunk and the watchdog killed
+     * it. The real event must leave the chest alone; the queue lands on the next tick.
+     */
+    @GameTest(maxTicks = 200)
+    public void theChunkLoadEventNeverTouchesTheChestItself(GameTestHelper helper) {
+        World w = new World(helper, 8);
+        Container chest = w.chest(0);
+        put(chest, KELP, 40);
+        put(chest, BREAD, 300); // enough that other tests moving the shared clock cannot starve it meanwhile
+        w.svc.reconcile(w.svc.book().site(w.keep.id), null);
+        w.besiege();
+        w.svc.pretendUnloaded.add(w.keep.id);
+        w.advance("2h");
+        var site = w.svc.book().site(w.keep.id);
+        helper.assertTrue(!site.queued.isEmpty(), "Nothing was queued while the chunk was away");
+
+        w.svc.pretendUnloaded.clear();
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.invoker()
+                .onChunkLoad(w.level, w.level.getChunk(w.cx, w.cz), false);
+        helper.assertTrue(count(chest, KELP) == 40 && count(chest, BREAD) == 300,
+                "The chunk load event took items out of the chest during the load itself");
+        helper.runAfterDelay(2, () -> {
+            try {
+                helper.assertTrue(count(chest, KELP) == 0, "The queued kelp was not taken on the tick after the load");
+                helper.assertTrue(site.queued.isEmpty(), "The queue was not applied on the tick after the load: " + site.queued);
+                helper.assertTrue(mirror(w, BREAD) == count(chest, BREAD), "The mirror and the chest disagree after the load: mirror "
+                        + mirror(w, BREAD) + ", chest " + count(chest, BREAD));
+                helper.succeed();
+            } finally {
+                w.close();
+            }
+        });
+    }
+
     @GameTest(maxTicks = 200)
     public void openingTheChestAppliesTheQueueFirst(GameTestHelper helper) {
         try (World w = new World(helper, 3)) {

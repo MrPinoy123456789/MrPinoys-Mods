@@ -59,6 +59,8 @@ public final class Granaries {
     private static GranaryService service;
     private static final GranaryDisplays DISPLAYS = new GranaryDisplays();
     private static final List<Pending> PENDING = new ArrayList<>();
+    /** Chunks that loaded since the last tick, reconciled on the next one. */
+    private static final java.util.Set<ChunkKey> LOADED = new java.util.LinkedHashSet<>();
     private static long ticks;
 
     private Granaries() {
@@ -72,10 +74,14 @@ public final class Granaries {
             if (CharterServer.running()) CharterServer.runtime().state.history.listen(Granaries::onHistory);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
+        // Never touch a chest while its chunk is loading: taking an item marks the chunk
+        // changed, which asks the server for the very chunk still being loaded, and the
+        // server thread waits on itself until the watchdog kills it (a crash on the test
+        // server, 2026-10-26). The chunk is noted here and reconciled on the next tick.
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> {
             if (service != null) {
                 var pos = chunk.getPos();
-                service.onChunkLoad(level.dimension().identifier().toString(), pos.x(), pos.z(), chunk);
+                LOADED.add(new ChunkKey(level.dimension().identifier().toString(), pos.x(), pos.z()));
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(Granaries::tick);
@@ -95,6 +101,7 @@ public final class Granaries {
         FoodConfig.load(configDir, service.food(), Granaries::vanillaNourishment, CharterMod.LOG::info, CharterMod.LOG::warn);
         ticks = 0;
         PENDING.clear();
+        LOADED.clear();
     }
 
     private static void stop() {
@@ -150,6 +157,11 @@ public final class Granaries {
     private static void tick(MinecraftServer server) {
         if (service == null) return;
         ticks++;
+        if (!LOADED.isEmpty()) {
+            List<ChunkKey> now = List.copyOf(LOADED);
+            LOADED.clear();
+            for (ChunkKey chunk : now) service.onChunkLoaded(chunk.dimension(), chunk.x(), chunk.z());
+        }
         if (!PENDING.isEmpty()) {
             List<Pending> now = List.copyOf(PENDING);
             PENDING.clear();

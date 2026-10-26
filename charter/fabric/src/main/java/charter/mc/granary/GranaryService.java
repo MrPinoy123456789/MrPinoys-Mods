@@ -190,6 +190,18 @@ public final class GranaryService {
     }
 
     /**
+     * The same, on the tick after a chunk loaded, never inside the load itself (see
+     * {@link Granaries}). A site whose chunk has unloaded again meanwhile stays queued.
+     */
+    public void onChunkLoaded(String dimension, int chunkX, int chunkZ) {
+        for (Site site : book().sites()) {
+            if (!site.dimension.equals(dimension) || site.containers.isEmpty()) continue;
+            Pos first = site.containers.getFirst();
+            if (first.chunkX() == chunkX && first.chunkZ() == chunkZ && loaded(site)) reconcile(site, null);
+        }
+    }
+
+    /**
      * Runs one sim step (or an admin advance) with the mirror honest on both sides:
      * loaded chests are read in before, and afterwards whatever core removed (eaten,
      * spoiled) is taken from the real items, or queued when the chunk is not loaded.
