@@ -85,6 +85,15 @@ Two protection Mixin targets in PLAN.md §5.6 were renamed in 26.2:
 is not `FarmBlock`). Entity type constants live in `EntityTypes`, not
 `EntityType`. A Mixin package may hold only Mixins: put shared interfaces elsewhere.
 
+**Hoppers and the granary.** M8's `HopperGate` (Mixin 8) offers every hopper and
+dropper insert to registered interceptors. `GranaryHopperGate` refuses every insert
+into a granary or camp store while its site is under siege, because the mirror
+reads the chests each step and would take hopper-fed food as provisions. M10 adds
+its exception there: food unloaded from a cart that came in through an open side,
+up to that cart's allowance. Test new gate rules by calling
+`HopperBlockEntity.addItem` directly in one tick: the siege clock is shared by
+every gametest, so a besieged world must not wait across ticks.
+
 **Carts only move in chunks that tick entities.** The cart spike failed at random
 until its rails stayed near the test area and the chunks along them were
 force-loaded: a cart in a loaded but not entity-ticking chunk simply stops. M10

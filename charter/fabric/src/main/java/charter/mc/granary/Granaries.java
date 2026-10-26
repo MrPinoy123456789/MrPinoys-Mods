@@ -77,6 +77,7 @@ public final class Granaries {
         });
         ServerTickEvents.END_SERVER_TICK.register(Granaries::tick);
         UseBlockCallback.EVENT.register(Granaries::onUse);
+        charter.mc.land.HopperGate.register(new GranaryHopperGate());
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> GranaryCommands.register(dispatcher));
     }
 

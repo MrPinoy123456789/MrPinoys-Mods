@@ -396,6 +396,41 @@ public final class GranaryGameTest {
         }
     }
 
+    /**
+     * M8's hopper gate and the granary together: a real hopper above a granary chest
+     * fills it in peace, and fills nothing while the keep is besieged, since the
+     * mirror would otherwise take hopper-fed food as provisions (DESIGN.md §10.4).
+     */
+    @GameTest(maxTicks = 200)
+    public void aHopperCannotFillABesiegedGranary(GameTestHelper helper) {
+        // One tick throughout: other tests share the siege clock, so a besieged world must not wait.
+        try (World w = new World(helper, 7)) {
+            Container chest = w.chest(0);
+            Container source = new net.minecraft.world.SimpleContainer(1);
+            ItemStack left = net.minecraft.world.level.block.entity.HopperBlockEntity.addItem(
+                    source, chest, new ItemStack(BREAD, 3), net.minecraft.core.Direction.DOWN);
+            helper.assertTrue(left.isEmpty() && count(chest, BREAD) == 3, "In peace a hopper should fill the granary, left " + left.getCount());
+            w.svc.reconcile(w.svc.book().site(w.keep.id), null);
+
+            w.besiege();
+            ItemStack refused = net.minecraft.world.level.block.entity.HopperBlockEntity.addItem(
+                    source, chest, new ItemStack(BREAD, 5), net.minecraft.core.Direction.DOWN);
+            helper.assertTrue(refused.getCount() == 5, "Under siege the hopper put " + (5 - refused.getCount()) + " bread into the granary");
+            helper.assertTrue(count(chest, BREAD) == 3, "The granary chest changed under siege: " + count(chest, BREAD));
+
+            Container ordinary = w.container(placeChest(w, w.chestAt(3).above(2)));
+            ItemStack free = net.minecraft.world.level.block.entity.HopperBlockEntity.addItem(
+                    source, ordinary, new ItemStack(BREAD, 4), net.minecraft.core.Direction.DOWN);
+            helper.assertTrue(free.isEmpty() && count(ordinary, BREAD) == 4, "A chest that is not a granary should fill as usual");
+            helper.succeed();
+        }
+    }
+
+    static BlockPos placeChest(World w, BlockPos at) {
+        w.level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
+        return at;
+    }
+
     // ---- linking ----
 
     @GameTest(maxTicks = 200)
