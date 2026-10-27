@@ -110,6 +110,10 @@ public final class ScenarioCommands {
             chunkZ = (int) Math.floor(ctx.getSource().getPosition().z) >> 4;
         }
         List<String> names = players.isBlank() ? List.of() : Arrays.stream(players.trim().split("\\s+")).toList();
+        // A scenario that names its player roles (the tutorial) is for whoever ran it: without a name, that is the operator.
+        if (names.isEmpty() && !scenario.players.isEmpty() && ctx.getSource().getPlayer() != null) {
+            names = List.of(ctx.getSource().getPlayer().getPlainTextName());
+        }
         rt().siegeLog.admin(rt().clock.now(), ctx.getSource().getTextName(), ctx.getInput());
         ScenarioRunner.Report report = new ScenarioRunner(ctx.getSource().getServer(), level, chunkX, chunkZ, ctx.getSource().getTextName())
                 .run(scenario, names);
