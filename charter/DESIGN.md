@@ -900,6 +900,7 @@ Commands kept to a handful: `/charter` (your faction page), `/charter found`,
 
 - Unrest and distance costs (needs tribute contracts)
 - Monarchy, Council and Company presets
+- A one way Discord bridge for the Chronicle (§23, 2026-10-27)
 
 ## 22. Acceptance tests
 
@@ -993,6 +994,20 @@ They are folded into the sections above; this table is the index.
 | D19 | Farmland | Outsiders cannot trample it in a claim (§9.5) |
 | D20 | Raising camps | Do not eat until active (§10.3) |
 | Gaps | The eighteen gaps in PLAN.md §15 | Resolved as PLAN.md assumes: test J within 7% for spoilage; assault multiplies on top of presence to 8 times; starvation is 25% of the storage limit; camps use a sally hold; camp claims count toward the member cap; overworld only; pack animals ignored; banishment does not count toward the weekly cap; prisoners add mouths, not storage; arrest by lead, cells marked by the faction |
+
+### Settled in conversation, 2026-10-27
+
+From a look at Imperial Refuge, a kingdom server run mostly through Discord:
+staff host wars, rule on reports backed by video clips, and kingdom leaders post
+their own currency counts by hand.
+
+| Decision | Outcome |
+|---|---|
+| Discord | **The game owns the state; Discord carries the voice.** Anything with a true answer (who holds a chunk, what a treasury holds, who is at war, who leads) lives in Charter and is enforced there. Negotiation, banter and roleplay stay wherever players like to talk. Nothing in Discord is ever the only record of what happened |
+| The test | If a process needs a staff member to say what happened, it belongs in the mod. If it is only people talking, it does not |
+| Ceremony | Game actions should read as proclamations, not log lines, so that declaring war in the world feels like the public declarations players enjoy on Discord. The Chronicle voice (§17) carries this |
+| Discord bridge | Later: Chronicle entries posted one way to a Discord channel by webhook, a URL in the config. It brings the pings and the public spectacle that call people back, and nothing comes back in, so there is no input to secure |
+| Acting from Discord | Not planned. Voting or declaring from Discord waits until players ask for it |
 
 ### Considered and rejected
 
