@@ -1,6 +1,8 @@
 # Proposal: the Charter of Rights and Freedoms
 
-Status: proposed 2026-10-27, waiting for the owner's approval. Nothing here is built.
+Status: approved 2026-10-27 with one change. Decision 1 is option A, the book
+only: the Nexus will get its own, different menu later. Decisions 2 and 3 are
+approved as recommended. Recorded in DESIGN.md §23. Nothing here is built.
 
 Every player carries a book called **[Name]'s Charter of Rights and Freedoms**.
 Right-clicking it opens a dialog menu that shows where they stand right now: the
@@ -127,6 +129,9 @@ faction stays FORMING until a second member joins.
 makes the keep the place for faction business. A Herald can come later if
 players still arrive lost.
 
+**Decided: A.** The owner chose the book only. The Nexus is not a way in to these
+pages; it will have a menu of its own, designed separately.
+
 ### Decision 2: how a player gets a Nexus and founds a faction
 
 | Option | What it is | For | Against |
@@ -138,12 +143,16 @@ players still arrive lost.
 **Recommendation: A**, with the recipe cost as an open question. It also means a
 faction's name and banner come from the player's own hands.
 
+**Decided: A**, as recommended. The recipe cost is still open.
+
 ### Decision 3: the Lordship or Commune choice
 
 With option 2A there is no menu to pick governance at founding. Recommendation:
 every new faction starts as a Lordship, and the Ashfall page has a "Become a
 Commune" vote for the members. That matches §6.3, which says presets only fill
 things in at founding and everything can be amended.
+
+**Decided:** as recommended.
 
 ## 5. Open questions
 

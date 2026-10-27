@@ -1008,6 +1008,10 @@ their own currency counts by hand.
 | Ceremony | Game actions should read as proclamations, not log lines, so that declaring war in the world feels like the public declarations players enjoy on Discord. The Chronicle voice (§17) carries this |
 | Discord bridge | Later: Chronicle entries posted one way to a Discord channel by webhook, a URL in the config. It brings the pings and the public spectacle that call people back, and nothing comes back in, so there is no input to secure |
 | Acting from Discord | Not planned. Voting or declaring from Discord waits until players ask for it |
+| The Charter book | Every player carries **[Name]'s Charter of Rights and Freedoms**, a book and quill look on an item with no use of its own. Right-clicking it opens a dialog of the player's current state: Rights (powers they hold), Freedoms (powers others hold over them, or that need a vote) and their situation. A player with no faction sees Join and Found instead. No guaranteed caps on it; current state only. Full proposal: `docs/2026-10-27-charter-book-proposal.md` |
+| Ways in | The book only. The Nexus is not a way in to these pages; it gets its own menu later, designed separately |
+| Founding | Craft a Nexus from a lodestone and a banner named at an anvil. Placing it founds the faction under that name, with the banner's design as its banner, then raises the keep. The recipe cost is open |
+| Governance at founding | Every new faction starts as a Lordship; its members can vote to become a Commune |
 
 ### Considered and rejected
 
@@ -1027,6 +1031,7 @@ their own currency counts by hand.
 |---|---|---|
 | D3 | Unrest formula | Waits for tribute contracts |
 | D8 | Final mod name | Before the first public server |
+| D21 | The Nexus recipe: a lodestone (needs netherite) or something cheaper | With the Charter book build |
 
 ## 24. Tuning knobs
 
