@@ -33,6 +33,11 @@ public final class Notices {
 
         void send(PlayerId player, String text);
 
+        /** Tells a member who may take players in that someone asked to join; in game with a link to the Faction page. */
+        default void askedToJoin(PlayerId to, String text) {
+            send(to, text);
+        }
+
         /** Hands over whatever {@link Mail} says is owed, if the player is online. */
         void deliver(PlayerId player);
 
@@ -61,6 +66,19 @@ public final class Notices {
             case OrgEvents.Invited e -> tell(e.at(), Set.of(e.player()), Text.get("notice.invited", "org", describe.org(e.org())));
             case OrgEvents.Joined e -> tell(e.at(), membersExcept(e.org(), e.player()),
                     Text.get("notice.joined", "player", describe.player(e.player()), "org", describe.org(e.org())));
+            case OrgEvents.Asked e -> {
+                String text = Text.get("notice.asked", "player", describe.player(e.player()), "org", describe.org(e.org()));
+                var resolver = new charter.grant.AuthorityResolver(state, e.at());
+                for (PlayerId member : members(e.org())) {
+                    boolean admits = resolver.resolve(new charter.grant.Who.AsPlayer(member), e.org(),
+                            charter.grant.Power.MANAGE_MEMBERS, charter.grant.ScopeNeed.NONE, false).ok();
+                    if (!admits) continue;
+                    if (messenger.online(member)) messenger.askedToJoin(member, text);
+                    else mail.post(member, e.at(), text);
+                }
+            }
+            case OrgEvents.Admitted e -> tell(e.at(), Set.of(e.player()), Text.get("notice.admitted", "org", describe.org(e.org())));
+            case OrgEvents.Rejected e -> tell(e.at(), Set.of(e.player()), Text.get("notice.rejected", "org", describe.org(e.org())));
             case OrgEvents.Expelled e -> tell(e.at(), Set.of(e.player()), Text.get("notice.expelled", "org", describe.org(e.org())));
             case OrgEvents.Activated e -> tell(e.at(), members(e.org()), Text.get("notice.activated", "org", describe.org(e.org())));
             case GovEvents.VoteOpened e -> {

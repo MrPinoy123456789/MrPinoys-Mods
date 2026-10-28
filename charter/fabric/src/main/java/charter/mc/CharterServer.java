@@ -173,6 +173,15 @@ public final class CharterServer {
         }
 
         @Override
+        public void askedToJoin(PlayerId player, String text) {
+            ServerPlayer p = server == null ? null : server.getPlayerList().getPlayer(player.value());
+            if (p == null) return;
+            p.sendSystemMessage(Component.literal(text + " ").withStyle(ChatFormatting.AQUA)
+                    .append(charter.mc.cmd.Chat.act(p, Text.get("book.button.open_faction"), Text.get("book.button.open_faction_hover"),
+                            charter.mc.book.MemberPages::openFaction)));
+        }
+
+        @Override
         public void alert(PlayerId player, String text) {
             ServerPlayer p = server == null ? null : server.getPlayerList().getPlayer(player.value());
             if (p == null) return;

@@ -243,6 +243,11 @@ public final class MemberPages {
 
     // ---- The faction ----
 
+    /** For the link in a join request notice. */
+    public static void openFaction(ServerPlayer player) {
+        faction(player, null);
+    }
+
     public static void faction(ServerPlayer player, String notice) {
         if (!member(player)) return;
         CharterRuntime rt = rt();

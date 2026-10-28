@@ -62,7 +62,7 @@ public final class Placement {
         if (!result.consumesAction()) return result;
 
         String problem = switch (kind) {
-            case LandItems.NEXUS -> placeNexus(sp, level, pos);
+            case LandItems.NEXUS -> placeNexus(sp, level, pos, single);
             case LandItems.WAR_BANNER -> plantCamp(sp, level, pos);
             default -> null;
         };
@@ -92,18 +92,28 @@ public final class Placement {
         return null;
     }
 
-    private static String placeNexus(ServerPlayer player, Level level, BlockPos pos) {
+    private static String placeNexus(ServerPlayer player, Level level, BlockPos pos, ItemStack placed) {
         CharterRuntime rt = CharterServer.runtime();
         Optional<OrgId> org = orgOf(rt, player);
-        if (org.isEmpty()) return Text.get("page.no_org");
+        if (org.isEmpty()) {
+            // A player with no faction can place only a named Nexus: it founds the faction and its keep.
+            Optional<String> name = charter.mc.book.NexusItems.foundingName(placed);
+            if (name.isEmpty()) return Text.get("book.nexus.unnamed");
+            return charter.mc.book.FoundingPlacement.found(player, level, pos, name.get(), charter.mc.book.NexusItems.bannerOf(placed));
+        }
         ChunkKey chunk = chunkOf(level, pos);
         String problem = run(rt, player, new PlaceNexus(org.get(), chunk));
         if (problem != null) return problem;
+        recordNexus(rt, level, pos, chunk);
+        player.sendSystemMessage(Component.literal(Text.get("land.nexus_placed", "org", rt.describe.org(org.get()))).withStyle(ChatFormatting.GREEN));
+        return null;
+    }
+
+    /** Remembers the block of the nexus of the keep just raised on this chunk (shared with founding). */
+    public static void recordNexus(CharterRuntime rt, Level level, BlockPos pos, ChunkKey chunk) {
         Core core = rt.state.claimAt(chunk).flatMap(c -> rt.state.core(c.core())).orElseThrow();
         Fixtures.of(rt.state).add(new Fixtures.Fixture(Fixtures.Kind.NEXUS, Protection.dimension(level),
                 pos.getX(), pos.getY(), pos.getZ(), core.id));
-        player.sendSystemMessage(Component.literal(Text.get("land.nexus_placed", "org", rt.describe.org(org.get()))).withStyle(ChatFormatting.GREEN));
-        return null;
     }
 
     private static String plantCamp(ServerPlayer player, Level level, BlockPos pos) {
