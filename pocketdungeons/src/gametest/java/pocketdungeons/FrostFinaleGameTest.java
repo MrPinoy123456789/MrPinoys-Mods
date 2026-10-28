@@ -34,12 +34,13 @@ public final class FrostFinaleGameTest {
         @Override
         public boolean spawnWave(FinaleContext ctx) {
             ctx.spawnNearParty("minecraft:zombie");
+            ctx.spawnElite(new DungeonDef.Elite("minecraft:zombie", "Test Frost", 20, ""));
             return true;
         }
 
         @Override
-        public void onWaveSpawned(FinaleContext ctx) {
-            inner.onWaveSpawned(ctx);
+        public void onTick(FinaleContext ctx) {
+            inner.onTick(ctx);
         }
 
         @Override
@@ -233,7 +234,7 @@ public final class FrostFinaleGameTest {
     }
 
     /** One scripted finale on a hand built record with one mock member. */
-    private static final class Run {
+    static final class Run {
         final GameTestHelper helper;
         final ServerLevel level;
         final MinecraftServer server;
@@ -284,12 +285,30 @@ public final class FrostFinaleGameTest {
             FinaleWave.step(server, level, record, FINALE, List.of(member), false, "Test Freeze");
         }
 
-        /** Triggers, skips the countdown and lets the wave spawn (which starts the tell). */
+        /** Triggers, skips the countdown, lets the wave spawn and walks to phase two (which starts the tell). */
         void start() {
+            wave();
+            toPhase(1);
+        }
+
+        /** Triggers, skips the countdown and lets the wave spawn: phase one, no cold yet. */
+        void wave() {
             FinaleWave.step(server, level, record, FINALE, List.of(member), true, "Test Freeze");
             FinaleWave.stateOf(record).spawnTick = 0;
             step();
-            helper.assertValueEqual(FinaleWave.stateOf(record).mobs.size(), 1, "the wave stands");
+            helper.assertValueEqual(FinaleWave.stateOf(record).mobs.size(), 2, "the wave and its elite stand");
+        }
+
+        /** Walks Jack Frost's phases with burst damage until the fight is in phase {@code n} (zero based). */
+        void toPhase(int n) {
+            net.minecraft.world.entity.Mob elite = (net.minecraft.world.entity.Mob)
+                    level.getEntity(FinaleWave.stateOf(record).elite);
+            for (int k = 1; k <= n; k++) {
+                elite.setHealth(elite.getMaxHealth() * (k == 1 ? 0.6f : 0.3f));
+                step();
+                ((BossFight) FinaleWave.stateOf(record).scriptState.get(BossFight.class)).staggerEnd = 0;
+                step();
+            }
         }
 
         FrostFinale.Run state() {

@@ -73,6 +73,7 @@
     },
     {
       "id": "main_drift",
+      "stories": 2,
       "name": "The Main Drift",
       "notes": "Long rail tunnels with ore seams along the walls.",
       "layer": 3,
@@ -85,6 +86,7 @@
     },
     {
       "id": "side_gallery",
+      "stories": 2,
       "name": "Side Gallery",
       "notes": "Crossroads and ore seams. More ways to dig.",
       "layer": 3,
@@ -97,6 +99,7 @@
     },
     {
       "id": "deep_face",
+      "stories": 2,
       "name": "The Deep Face",
       "notes": "The last floor. Cave-ins and ore seams.",
       "layer": 4,

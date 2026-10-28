@@ -14,8 +14,8 @@ workspace root. The canonical CLI is `playtest.mjs`; `pdserver.mjs` forwards to 
 1. Only target Kinetic test server `714a0605`. Never touch `365f9682`.
 2. Before a start, stop or deploy, verify the selected `KINETIC_SERVER_ID` without
    printing the API key. Configuration comes from environment variables or
-   `tools/playtest/kinetic.env`. The previous local credential file is accepted
-   only as a migration fallback. Read the target announcement; stop if it differs.
+   `tools/playtest/kinetic.env`. Legacy local files and the main checkout's copy
+   are migration fallbacks for worktrees. Read the target announcement; stop if it differs.
 3. Deploy only when the owner asks. Commits, deployments and restarts are separate
    decisions. A request to implement code does not authorize a remote restart.
 4. Check status first. If any player is online, ask the owner before restarting.

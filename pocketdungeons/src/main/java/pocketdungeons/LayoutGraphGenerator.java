@@ -104,6 +104,24 @@ public final class LayoutGraphGenerator {
     public static DungeonShape generate(long seed, int minPathLength, int maxPathLength,
                                         double branchProbability, double loopProbability,
                                         List<RoomRoleDefinition> populationRoles) {
+        return generate(seed, minPathLength, maxPathLength, branchProbability, loopProbability,
+                populationRoles, 1);
+    }
+
+    /**
+     * Vertical floors phase 2: as the data-driven overload, for a dungeon node that opts in to
+     * {@code stories} stories (1 is flat, at most {@link #MAX_STORIES}). With more than one story the
+     * generator puts a stair room on the spine and continues the walk one story down from it, once per
+     * extra story. Everything that decides the flat shape (the path, its length, the terminal index) is
+     * drawn exactly as for a flat dungeon; the stair indices come from a second random stream seeded off
+     * {@code seed}, so {@code stories == 1} is byte for byte the old generator.
+     *
+     * <p>Returns {@code null} (the planner tries the next seed) when {@code stories > 1} and the spine
+     * is too short to host a stair room with a cell on each side of it.
+     */
+    public static DungeonShape generate(long seed, int minPathLength, int maxPathLength,
+                                        double branchProbability, double loopProbability,
+                                        List<RoomRoleDefinition> populationRoles, int stories) {
         if (minPathLength < 2) {
             throw new IllegalArgumentException("minPathLength must be at least 2: " + minPathLength);
         }
@@ -145,6 +163,15 @@ public final class LayoutGraphGenerator {
         // Only keep cells up to and including the terminal. Cells past the
         // terminal are discarded entirely.
         List<PlanCell> keptPath = new ArrayList<>(criticalPath.subList(0, terminalIndex + 1));
+        Set<PlanCell> stairCells = Set.of();
+        if (stories > 1) {
+            List<Integer> stairIndices = pickStairIndices(seed, keptPath.size(), stories);
+            if (stairIndices.isEmpty()) {
+                return null;
+            }
+            stairCells = new HashSet<>();
+            keptPath = stepDown(keptPath, stairIndices, stairCells);
+        }
         Set<PlanCell> cells = new HashSet<>(keptPath);
         Set<PlanEdge> openEdges = new HashSet<>();
         for (int i = 0; i < keptPath.size() - 1; i++) {
@@ -158,10 +185,10 @@ public final class LayoutGraphGenerator {
         // single-door at both ends.
         List<PlanCell> storedPath = new ArrayList<>(keptPath);
 
-        addBranches(rng, storedPath, cells, openEdges, branchProbability, entranceDir);
-        addLoops(rng, cells, openEdges, loopProbability, entrance, terminal);
+        addBranches(rng, storedPath, cells, openEdges, branchProbability, entranceDir, stairCells);
+        addLoops(rng, cells, openEdges, loopProbability, entrance, terminal, stairCells);
 
-        Map<PlanCell, String> roles = assignRoles(rng, storedPath, cells, openEdges, populationRoles);
+        Map<PlanCell, String> roles = assignRoles(rng, storedPath, cells, openEdges, populationRoles, stairCells);
 
         // M45 (spec 6.6): the one BFS from the entrance. validate() reads it back
         // off the shape for its reachability check rather than walking again.
@@ -242,7 +269,7 @@ public final class LayoutGraphGenerator {
         for (int i = 0; i < path.size() - 1; i++) {
             PlanCell a = path.get(i);
             PlanCell b = path.get(i + 1);
-            if (a.directionTo(b) == null) {
+            if (a.wallTo(b) == null) {
                 problems.add("critical path step " + i + " is not adjacent: " + a + " -> " + b);
             } else {
                 PlanEdge expected = new PlanEdge(a, b);
@@ -377,6 +404,7 @@ public final class LayoutGraphGenerator {
             int step = Integer.signum(tz - ez);
             PlanCell prev = entrance;
             for (int z = ez + step; z != tz; z += step) {
+                // Story 0 only: the generator is flat until vertical floors phase 2.
                 PlanCell cur = new PlanCell(ex, z);
                 if (!cells.contains(cur) || !edges.contains(new PlanEdge(prev, cur))) {
                     return false;
@@ -390,6 +418,7 @@ public final class LayoutGraphGenerator {
             int step = Integer.signum(tx - ex);
             PlanCell prev = entrance;
             for (int x = ex + step; x != tx; x += step) {
+                // Story 0 only: the generator is flat until vertical floors phase 2.
                 PlanCell cur = new PlanCell(x, ez);
                 if (!cells.contains(cur) || !edges.contains(new PlanEdge(prev, cur))) {
                     return false;
@@ -405,6 +434,7 @@ public final class LayoutGraphGenerator {
     private static List<PlanCell> generateCriticalPath(Random rng, int targetLength) {
         List<PlanCell> path = new ArrayList<>(targetLength);
         Set<PlanCell> visited = new HashSet<>(targetLength * 2);
+        // Story 0 only: the generator is flat until vertical floors phase 2.
         path.add(new PlanCell(0, 0));
         visited.add(path.get(0));
 
@@ -473,7 +503,8 @@ public final class LayoutGraphGenerator {
 
     private static void addBranches(Random rng, List<PlanCell> criticalPath,
                                     Set<PlanCell> cells, Set<PlanEdge> openEdges,
-                                    double branchProbability, DoorMask.Direction entranceDir) {
+                                    double branchProbability, DoorMask.Direction entranceDir,
+                                    Set<PlanCell> stairCells) {
         double center = (criticalPath.size() - 1) / 2.0;
         // Skip index 0 and the last index: no spur ever roots at the entrance or
         // the terminal, so both keep a single-door mask.
@@ -485,6 +516,10 @@ public final class LayoutGraphGenerator {
             }
 
             PlanCell root = criticalPath.get(i);
+            if (stairCells.contains(root)) {
+                // A stair room has the door in and the door on, and no spare.
+                continue;
+            }
             int depth = MIN_BRANCH_DEPTH + rng.nextInt(MAX_BRANCH_DEPTH - MIN_BRANCH_DEPTH + 1);
             tryGrowBranch(rng, root, depth, cells, openEdges, entranceDir);
         }
@@ -497,7 +532,7 @@ public final class LayoutGraphGenerator {
         PlanCell first = null;
         for (DoorMask.Direction dir : directions) {
             PlanCell candidate = root.neighbor(dir);
-            if (!cells.contains(candidate)
+            if (!columnTaken(cells, candidate)
                     && (entranceDir == null || !isBehindEntrance(candidate, entranceDir))) {
                 first = candidate;
                 break;
@@ -516,7 +551,7 @@ public final class LayoutGraphGenerator {
             PlanCell next = null;
             for (DoorMask.Direction dir : directions) {
                 PlanCell candidate = current.neighbor(dir);
-                if (!cells.contains(candidate)
+                if (!columnTaken(cells, candidate)
                         && (entranceDir == null || !isBehindEntrance(candidate, entranceDir))) {
                     next = candidate;
                     break;
@@ -532,7 +567,8 @@ public final class LayoutGraphGenerator {
     }
 
     private static void addLoops(Random rng, Set<PlanCell> cells, Set<PlanEdge> openEdges,
-                                 double loopProbability, PlanCell entrance, PlanCell terminal) {
+                                 double loopProbability, PlanCell entrance, PlanCell terminal,
+                                 Set<PlanCell> stairCells) {
         // Only consider east/south directions to visit each unordered adjacent
         // pair exactly once.
         DoorMask.Direction[] loopDirs = {DoorMask.Direction.EAST, DoorMask.Direction.SOUTH};
@@ -548,6 +584,10 @@ public final class LayoutGraphGenerator {
                 }
                 // A loop edge onto either end cap would give it a second door.
                 if (edge.touches(entrance) || edge.touches(terminal)) {
+                    continue;
+                }
+                // A loop onto a stair room would give it a third door.
+                if (stairCells.contains(a) || stairCells.contains(b)) {
                     continue;
                 }
                 if (rng.nextDouble() < loopProbability) {
@@ -581,7 +621,8 @@ public final class LayoutGraphGenerator {
      */
     private static Map<PlanCell, String> assignRoles(Random rng, List<PlanCell> criticalPath,
                                                        Set<PlanCell> cells, Set<PlanEdge> openEdges,
-                                                       List<RoomRoleDefinition> populationRoles) {
+                                                       List<RoomRoleDefinition> populationRoles,
+                                                       Set<PlanCell> stairCells) {
         Map<PlanCell, String> roles = new HashMap<>(cells.size());
         PlanCell entrance = criticalPath.get(0);
         PlanCell terminal = criticalPath.get(criticalPath.size() - 1);
@@ -599,6 +640,12 @@ public final class LayoutGraphGenerator {
             totalWeight += role.weight;
         }
         for (int i = 1; i < criticalPath.size() - 1; i++) {
+            if (stairCells.contains(criticalPath.get(i))) {
+                // A stair room is a corridor and draws nothing, so the draws other cells make are
+                // the draws a flat dungeon of this shape would make.
+                roles.put(criticalPath.get(i), ROLE_CORRIDOR);
+                continue;
+            }
             String role = totalWeight <= 0 ? ROLE_CORRIDOR : weightedRole(rng, populationRoles, totalWeight);
             roles.put(criticalPath.get(i), role);
         }
@@ -611,8 +658,8 @@ public final class LayoutGraphGenerator {
             roles.put(cell, degrees.getOrDefault(cell, 0) <= 1 ? ROLE_LOOT : ROLE_CORRIDOR);
         }
 
-        guaranteeOnPath(roles, criticalPath);
-        balanceKeyBudget(roles, criticalPath);
+        guaranteeOnPath(roles, criticalPath, stairCells);
+        balanceKeyBudget(roles, criticalPath, stairCells);
         return roles;
     }
 
@@ -675,7 +722,8 @@ public final class LayoutGraphGenerator {
      * failed-plan rate on exactly the branchy layouts U1 was built to support.
      * {@code validate}'s check stays as the regression guard that this pass ran.
      */
-    private static void balanceKeyBudget(Map<PlanCell, String> roles, List<PlanCell> criticalPath) {
+    private static void balanceKeyBudget(Map<PlanCell, String> roles, List<PlanCell> criticalPath,
+                                         Set<PlanCell> stairCells) {
         List<PlanCell> ordered = new ArrayList<>(roles.keySet());
         ordered.sort((a, b) -> a.x() != b.x()
                 ? Integer.compare(a.x(), b.x())
@@ -687,11 +735,11 @@ public final class LayoutGraphGenerator {
             // 1. Promote a corridor. This adds a fight rather than removing a
             //    reward, which is the generous direction and the one DESIGN.md's
             //    "err on the side of paying out" argues for.
-            PlanCell target = firstWithRole(ordered, roles, ROLE_CORRIDOR, criticalPath, false);
+            PlanCell target = firstWithRole(ordered, roles, ROLE_CORRIDOR, criticalPath, false, stairCells);
             // 2. Otherwise convert an off-path loot cell, so the guaranteed
             //    on-path loot survives as long as possible.
             if (target == null) {
-                target = firstWithRole(ordered, roles, ROLE_LOOT, criticalPath, true);
+                target = firstWithRole(ordered, roles, ROLE_LOOT, criticalPath, true, stairCells);
             }
             // 3. Last resort: an on-path loot cell. Reached when the weighted draw
             //    happened to fill a whole critical path with loot -- rare, but real
@@ -699,7 +747,7 @@ public final class LayoutGraphGenerator {
             //    cells and one encounter). Losing a vault is a smaller wrong than
             //    shipping a vault nobody can open.
             if (target == null) {
-                target = firstWithRole(ordered, roles, ROLE_LOOT, criticalPath, false);
+                target = firstWithRole(ordered, roles, ROLE_LOOT, criticalPath, false, stairCells);
             }
             if (target == null) {
                 return;
@@ -796,9 +844,9 @@ public final class LayoutGraphGenerator {
      */
     private static PlanCell firstWithRole(List<PlanCell> ordered, Map<PlanCell, String> roles,
                                           String role, List<PlanCell> criticalPath,
-                                          boolean offPathOnly) {
+                                          boolean offPathOnly, Set<PlanCell> stairCells) {
         for (PlanCell cell : ordered) {
-            if (!role.equals(roles.get(cell))) {
+            if (!role.equals(roles.get(cell)) || stairCells.contains(cell)) {
                 continue;
             }
             if (offPathOnly && criticalPath.contains(cell)) {
@@ -816,7 +864,8 @@ public final class LayoutGraphGenerator {
      * only one interior cell to give -- in which case encounter wins and there is
      * nothing more to do.
      */
-    private static void guaranteeOnPath(Map<PlanCell, String> roles, List<PlanCell> criticalPath) {
+    private static void guaranteeOnPath(Map<PlanCell, String> roles, List<PlanCell> criticalPath,
+                                        Set<PlanCell> stairCells) {
         int interior = criticalPath.size() - 2;
         if (interior < 1) {
             return;
@@ -843,12 +892,12 @@ public final class LayoutGraphGenerator {
         // relying on -- a path holding a single loot cell and no encounter would
         // otherwise trade one missing role for the other.
         if (!hasEncounter) {
-            roles.put(criticalPath.get(pickTarget(roles, criticalPath, interior, true, ROLE_LOOT)),
+            roles.put(criticalPath.get(pickTarget(roles, criticalPath, interior, true, ROLE_LOOT, stairCells)),
                     ROLE_ENCOUNTER);
         }
         if (!hasLoot) {
-            roles.put(criticalPath.get(pickTarget(roles, criticalPath, interior, false, ROLE_ENCOUNTER)),
-                    ROLE_LOOT);
+            roles.put(criticalPath.get(pickTarget(roles, criticalPath, interior, false, ROLE_ENCOUNTER,
+                    stairCells)), ROLE_LOOT);
         }
     }
 
@@ -859,21 +908,38 @@ public final class LayoutGraphGenerator {
      * scan if every interior cell holds it.
      */
     private static int pickTarget(Map<PlanCell, String> roles, List<PlanCell> criticalPath,
-                                  int interior, boolean fromTerminal, String protectedRole) {
+                                  int interior, boolean fromTerminal, String protectedRole,
+                                  Set<PlanCell> stairCells) {
         if (fromTerminal) {
             for (int i = interior; i >= 1; i--) {
-                if (!protectedRole.equals(roles.get(criticalPath.get(i)))) {
+                if (!protectedRole.equals(roles.get(criticalPath.get(i)))
+                        && !stairCells.contains(criticalPath.get(i))) {
                     return i;
                 }
             }
-            return interior;
+            return firstUnlocked(criticalPath, interior, stairCells, interior);
         }
         for (int i = 1; i <= interior; i++) {
-            if (!protectedRole.equals(roles.get(criticalPath.get(i)))) {
+            if (!protectedRole.equals(roles.get(criticalPath.get(i)))
+                    && !stairCells.contains(criticalPath.get(i))) {
                 return i;
             }
         }
-        return 1;
+        return firstUnlocked(criticalPath, interior, stairCells, 1);
+    }
+
+    /** The fallback index of {@link #pickTarget}: {@code fallback} unless it is a stair room, then any other interior cell. */
+    private static int firstUnlocked(List<PlanCell> criticalPath, int interior, Set<PlanCell> stairCells,
+                                     int fallback) {
+        if (!stairCells.contains(criticalPath.get(fallback))) {
+            return fallback;
+        }
+        for (int i = 1; i <= interior; i++) {
+            if (!stairCells.contains(criticalPath.get(i))) {
+                return i;
+            }
+        }
+        return fallback;
     }
 
     private static Map<PlanCell, Integer> degrees(Set<PlanCell> cells, Set<PlanEdge> openEdges) {
@@ -938,6 +1004,68 @@ public final class LayoutGraphGenerator {
             }
         }
         return depths;
+    }
+
+    /** The deepest a floor may go: the entrance story and two below it (DECISIONS 2026-10-17). */
+    static final int MAX_STORIES = 3;
+
+    /**
+     * Whether a cell in the same plan column as {@code candidate}, on any story, already exists. Phase 2
+     * keeps one cell per column; for a flat layout this is exactly {@code cells.contains(candidate)}.
+     */
+    private static boolean columnTaken(Set<PlanCell> cells, PlanCell candidate) {
+        for (int story = 0; story > -MAX_STORIES; story--) {
+            if (cells.contains(new PlanCell(candidate.x(), story, candidate.z()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The spine indices that become stair rooms, drawn from their own stream so the flat draws stay put.
+     * A stair room needs a cell before it that is not the entrance, and a cell after it that is not the
+     * terminal, so the indices run from 2 to {@code size - 3}. One stair per extra story, each at least two
+     * cells after the last. Empty when the spine is too short for even one.
+     */
+    static List<Integer> pickStairIndices(long seed, int pathSize, int stories) {
+        int wanted = Math.min(Math.max(stories, 1), MAX_STORIES) - 1;
+        List<Integer> out = new ArrayList<>();
+        Random stairRng = new Random(seed * 0x9E3779B97F4A7C15L + 0x57A1B5L);
+        int from = 2;
+        int last = pathSize - 3;
+        for (int n = 0; n < wanted; n++) {
+            if (from > last) {
+                break;
+            }
+            // Leave room for the stairs still to come: each needs two cells.
+            int remaining = wanted - n - 1;
+            int ceiling = Math.max(from, last - 2 * remaining);
+            int index = from + stairRng.nextInt(ceiling - from + 1);
+            out.add(index);
+            from = index + 2;
+        }
+        return out;
+    }
+
+    /**
+     * The spine with every cell after a stair room one story lower than the one before it. The stair cells
+     * go into {@code stairCells}. Plan columns are unchanged, so a spine that was self avoiding stays so.
+     */
+    private static List<PlanCell> stepDown(List<PlanCell> path, List<Integer> stairIndices,
+                                           Set<PlanCell> stairCells) {
+        List<PlanCell> out = new ArrayList<>(path.size());
+        int story = 0;
+        for (int i = 0; i < path.size(); i++) {
+            PlanCell flat = path.get(i);
+            PlanCell cell = new PlanCell(flat.x(), story, flat.z());
+            out.add(cell);
+            if (stairIndices.contains(i)) {
+                stairCells.add(cell);
+                story--;
+            }
+        }
+        return out;
     }
 
     /** Simple mutable integer holder for recursion bookkeeping. */

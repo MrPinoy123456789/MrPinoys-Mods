@@ -16,6 +16,10 @@ public class KennelsFinaleRulesTest {
         return KennelsFinaleRules.step(p, now, end, handler, alpha, hp, 40.0, F);
     }
 
+    private static Step p(Phase ph, long now, long end, boolean handler, boolean two, boolean three) {
+        return KennelsFinaleRules.phasedStep(ph, now, end, handler, two, three);
+    }
+
     public static void main(String[] args) throws Exception {
         // The trigger line is half the Alpha's health, inclusive.
         check(!KennelsFinaleRules.atTrigger(21, 40, F), "21 of 40 is above half");
@@ -64,6 +68,35 @@ public class KennelsFinaleRulesTest {
         }
         check(seen[0] == Action.START_WINDUP && seen[1] == Action.EMPOWER && seen[2] == Action.SHRINK && seen[3] == null,
                 "windup, empower, shrink, in that order, once each");
+
+        // The phased rule (roadmap T03): phase two starts the windup, phase three grows the pack after it ran.
+        eq(p(Phase.WAITING, 0, 0, true, false, false), new Step(Phase.WAITING, Action.NONE));
+        eq(p(Phase.WAITING, 0, 0, true, true, false), new Step(Phase.WINDUP, Action.START_WINDUP));
+        eq(p(Phase.WAITING, 0, 0, false, true, false), new Step(Phase.SPENT, Action.NONE));
+        eq(p(Phase.WINDUP, 500, 100, true, true, false), new Step(Phase.WINDUP, Action.NONE));
+        eq(p(Phase.WINDUP, 99, 100, true, true, true), new Step(Phase.WINDUP, Action.NONE));
+        eq(p(Phase.WINDUP, 100, 100, true, true, true), new Step(Phase.EMPOWERED, Action.EMPOWER));
+        eq(p(Phase.WINDUP, 50, 100, false, true, false), new Step(Phase.SPENT, Action.CANCEL));
+        eq(p(Phase.WINDUP, 100, 100, false, true, true), new Step(Phase.SPENT, Action.CANCEL));
+        eq(p(Phase.EMPOWERED, 500, 100, true, true, true), new Step(Phase.EMPOWERED, Action.NONE));
+        eq(p(Phase.EMPOWERED, 500, 100, false, true, true), new Step(Phase.SPENT, Action.SHRINK));
+        eq(p(Phase.SPENT, 501, 100, false, true, true), new Step(Phase.SPENT, Action.NONE));
+        Phase q = Phase.WAITING;
+        Action[] order = new Action[4];
+        long until = 0;
+        int n = 0;
+        for (long now = 0; now < 400 && n < 4; now++) {
+            Step st = p(q, now, until, now < 300, now >= 10, now >= 20);
+            q = st.phase();
+            if (st.action() == Action.START_WINDUP) {
+                until = now + KennelsFinaleRules.WINDUP_TICKS;
+            }
+            if (st.action() != Action.NONE) {
+                order[n++] = st.action();
+            }
+        }
+        check(order[0] == Action.START_WINDUP && order[1] == Action.EMPOWER && order[2] == Action.SHRINK
+                && order[3] == null, "phased: windup, empower, shrink, once each");
 
         // The numbers: 5 second windup, 1.4 times, health bonus off.
         eq(KennelsFinaleRules.WINDUP_TICKS, 100);

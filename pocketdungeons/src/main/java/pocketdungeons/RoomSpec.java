@@ -34,6 +34,11 @@ final class RoomSpec {
      * and spec 13.
      */
     int spanY = 1;
+    /**
+     * Vertical floors phase 2: the doors of the story below the cell (a stair room's way on). Empty for every
+     * other room. Only meaningful with {@code spanY >= 2}.
+     */
+    Set<Direction> lowerDoors = Set.of();
 
     RoomSpec(String name, Set<Direction> doors) {
         this.name = name;
@@ -78,6 +83,15 @@ final class RoomSpec {
      */
     RoomSpec spanY(int spanY) {
         this.spanY = Math.clamp(spanY, 1, RoomGeometry.MAX_SPAN_Y);
+        return this;
+    }
+
+    /**
+     * Vertical floors phase 2: puts door jigsaws on the lower story's walls too. The room is a stair room: a
+     * two story room whose top story holds the way in ({@link #doors}) and whose lower story holds the way on.
+     */
+    RoomSpec lowerDoors(Direction... walls) {
+        this.lowerDoors = Set.of(walls);
         return this;
     }
 }

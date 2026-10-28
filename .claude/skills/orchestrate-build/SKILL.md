@@ -78,3 +78,20 @@ The owner may ask for reports only at the end. Then stay quiet between merges: o
 end give: what is merged and green, what is not built, anything that changed the plan, what only a live server can
 confirm, and the machine problems that mattered. Once the wave is integrated and verified, delete the temporary
 `docs/roadmap-build-*.md` and `docs/reports/` files so throwaway build docs do not pile up.
+
+## Lessons from the backlog build (2026-10-19)
+
+- **Do not give every agent a baseline full suite.** Three of four first-wave agents spent their first run on
+  `--quick` and died with a daemon heap error. The orchestrator takes counts; agents start with `--only` and
+  `--pure-fast`. A final `--quick` once is enough.
+- **Heap errors are usually the temp directory, not memory.** `A:/tmp` held 700,000 entries and the Jansi cleanup in
+  Gradle runs out of heap listing it. `tools/ship.sh` now defaults temp to `A:/tmp-ci`; direct Gradle calls export
+  `TMP=TEMP=A:/tmp-ci`. For a lone pure test use `./gradlew.bat <task> --no-daemon -Dorg.gradle.jvmargs=-Xmx3g`.
+  Never `gradlew --stop`: it kills every other agent's daemon.
+- **A shared spine change goes first.** When one agent must change a shared class (the `BossFight` clamp), have it
+  commit that alone and stop; merge it into the integration branch; tell the parallel agent to merge it before its
+  tests. Then resume the first agent.
+- **A full-run-only failure after a merge is an interaction.** Rerun the full suite once before blaming a flake; if it
+  repeats, hand it to the agent that owns the test, on a fresh task branch off the integration branch.
+- **Deploying needs the owner's go in that session.** `kinetic.mjs` reads `kinetic.env` from the main checkout when a
+  worktree has none; see `deploy-test-server`.

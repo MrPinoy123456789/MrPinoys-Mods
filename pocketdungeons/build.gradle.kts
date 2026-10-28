@@ -391,6 +391,8 @@ for ((taskName, testClass) in mapOf(
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
     "roomEligibilityTest" to "RoomEligibilityTest",
+    // PD-218: no pair of rooms that can share an edge disagrees on window "none".
+    "windowBandAgreementTest" to "WindowBandAgreementTest",
     // Dungeon structure W7a: brood wave sizing and phases, the sculk omen rule, the Warden summon rule, the capstone offer rule.
     "capstoneRulesTest" to "CapstoneRulesTest",
     // Roadmap T43: the Brood Chamber's cage to mechanic order, headcounts, drip pace, mother stats, mob cap.
@@ -428,6 +430,13 @@ for ((taskName, testClass) in mapOf(
     "bagSelectionTest" to "BagSelectionTest",
     "resetCampaignTest" to "ResetCampaignTest",
     "graphSolvabilityTest" to "GraphSolvabilityTest",
+    "layoutFingerprintTest" to "LayoutFingerprintTest",
+    "storyGeometryTest" to "StoryGeometryTest",
+    // Vertical floors phase 2: per-story door masks.
+    "storyDoorMaskTest" to "StoryDoorMaskTest",
+    "floorRoomCellKeyTest" to "FloorRoomCellKeyTest",
+    "stairLayoutTest" to "StairLayoutTest",
+    "stairLayoutFingerprintTest" to "StairLayoutFingerprintTest",
     "omenMathTest" to "OmenMathTest",
     // Audit wave 2a: the omen bar's titles, fill and completion verdict.
     "omenBarTextTest" to "OmenBarTextTest",
@@ -562,6 +571,7 @@ tasks.test {
     dependsOn("plateRelayTest")
     dependsOn("nodePaletteTest")
     dependsOn("roomEligibilityTest")
+    dependsOn("windowBandAgreementTest")
     dependsOn("bossRulesTest")
     dependsOn("dungeonLogTest")
     dependsOn("dungeonLogGoldenTest")
@@ -607,6 +617,12 @@ tasks.test {
     dependsOn("bagSelectionTest")
     dependsOn("resetCampaignTest")
     dependsOn("graphSolvabilityTest")
+    dependsOn("layoutFingerprintTest")
+    dependsOn("storyGeometryTest")
+    dependsOn("storyDoorMaskTest")
+    dependsOn("floorRoomCellKeyTest")
+    dependsOn("stairLayoutTest")
+    dependsOn("stairLayoutFingerprintTest")
     dependsOn("omenMathTest")
     dependsOn("omenBarTextTest")
     dependsOn("floorShapeTest")

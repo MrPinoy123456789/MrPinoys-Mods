@@ -179,7 +179,7 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
             }
             (plan.criticalPath() != null && plan.criticalPath().contains(cell) ? path : branches).add(cell);
         }
-        Comparator<PlanCell> byCell = Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z);
+        Comparator<PlanCell> byCell = PlanCell.ORDER;
         branches.sort(byCell);
         path.sort(byCell);
         List<PlanCell> order = new ArrayList<>(branches);
@@ -354,7 +354,7 @@ final class ClaimObjective extends FloorObjectives.ObjectiveState {
             }
             neighbours.sort(Comparator
                     .comparingInt((PlanCell c) -> plan.depths().getOrDefault(c, 0)).reversed()
-                    .thenComparingInt(PlanCell::x).thenComparingInt(PlanCell::z));
+                    .thenComparing(PlanCell.ORDER));
         }
         if (terminal != null) {
             neighbours.add(terminal);

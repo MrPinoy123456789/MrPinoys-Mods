@@ -162,7 +162,13 @@ final class LayoutPlanner {
      * it branches and loops, and the widest grid span a plan may take.
      */
     record PathProfile(int minPath, int maxPath, double branchProbability, double loopProbability,
-                       int maxGridSpan) {}
+                       int maxGridSpan, int stories) {
+
+        /** A flat profile: every floor on the entrance story, which is every profile before vertical floors. */
+        PathProfile(int minPath, int maxPath, double branchProbability, double loopProbability, int maxGridSpan) {
+            this(minPath, maxPath, branchProbability, loopProbability, maxGridSpan, 1);
+        }
+    }
 
     /**
      * Everything one plan asks for; the long {@code plan} overloads above build
@@ -200,7 +206,7 @@ final class LayoutPlanner {
             List<RoomRoleDefinition> populationRoles = RoleManifest.current().definitions();
             DungeonShape shape = LayoutGraphGenerator.generate(
                     attemptSeed, path.minPath(), path.maxPath(), path.branchProbability(),
-                    path.loopProbability(), populationRoles);
+                    path.loopProbability(), populationRoles, path.stories());
             if (shape == null) {
                 lastReason = "shape generation rejected the seed"
                         + " (backtracking budget or entrance-to-exit sight line)";

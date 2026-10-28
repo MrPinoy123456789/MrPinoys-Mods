@@ -252,6 +252,7 @@ final class RoomTemplateGenerator {
         specs.addAll(DeepslateRoomSpecs.list());
         specs.addAll(EnderArchiveRoomSpecs.list());
         specs.addAll(GenericHallVariantSpecs.list());
+        specs.addAll(StairSpecs.list());
         specs.addAll(FinalFloorSpecs.list());
         specs.addAll(NetherEndSpecs.list());
         specs.addAll(SculkRoomSpecs.list());
@@ -349,6 +350,7 @@ final class RoomTemplateGenerator {
         } else {
             buildCell(level, o, spec.doors, spec.spanY);
         }
+        placeLowerDoorJigsaws(level, o, spec);
         if (spec.decor != null) {
             spec.decor.accept(level, o);
         }
@@ -371,12 +373,15 @@ final class RoomTemplateGenerator {
     private static void buildAndQueue(ServerLevel level, Path outDir, RoomSpec spec, int zOffset) {
         BlockPos o = new BlockPos(SCRATCH_X, BASE_Y, SCRATCH_Z + zOffset);
         forceChunks(level, o, true);
+        // A stale decor entity from an earlier capture would be copied into this one too.
+        discardEntities(level, o.below(RoomGeometry.storyOffset(spec.spanY)), templateSize(spec.spanY));
 
         if (spec.shellPalette != null) {
             buildCellWithPalette(level, o, spec.doors, spec.shellPalette, spec.spanY);
         } else {
             buildCell(level, o, spec.doors, spec.spanY);
         }
+        placeLowerDoorJigsaws(level, o, spec);
         if (spec.decor != null) {
             spec.decor.accept(level, o);
         }
@@ -466,6 +471,16 @@ final class RoomTemplateGenerator {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Vertical floors phase 2: the door jigsaws of a stair room's lower story, placed against that story's own
+     * floor ({@code STORY_HEIGHT} below the cell's), the same slots the top story uses.
+     */
+    private static void placeLowerDoorJigsaws(ServerLevel level, BlockPos o, RoomSpec spec) {
+        if (spec.spanY > 1 && !spec.lowerDoors.isEmpty()) {
+            placeDoorJigsaws(level, o.below(STORY_HEIGHT), spec.lowerDoors);
         }
     }
 
@@ -690,13 +705,29 @@ final class RoomTemplateGenerator {
         return cleaned.isEmpty() ? "room" : cleaned;
     }
 
-    private static void clear(ServerLevel level, BlockPos origin, Vec3i size) {
+    /**
+     * Empties the box: blocks to air and non-player entities discarded, except companion parts. Decor can spawn
+     * block-attached entities (the Rotation Lock item frame); {@code fillFromWorld} copies them into the
+     * template but leaves the original, and with its support block cleared it ticks at z=1000710 outside the
+     * world border and logs "Block-attached entity at invalid position" (PD-219).
+     */
+    static void clear(ServerLevel level, BlockPos origin, Vec3i size) {
+        discardEntities(level, origin, size);
         for (int x = 0; x < size.getX(); x++) {
             for (int z = 0; z < size.getZ(); z++) {
                 for (int y = 0; y < size.getY(); y++) {
                     RoomBuilder.set(level, origin.offset(x, y, z), RoomBuilder.AIR);
                 }
             }
+        }
+    }
+
+    private static void discardEntities(ServerLevel level, BlockPos origin, Vec3i size) {
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(origin.getX(), origin.getY(), origin.getZ(),
+                origin.getX() + size.getX(), origin.getY() + size.getY(), origin.getZ() + size.getZ());
+        for (net.minecraft.world.entity.Entity entity : level.getEntities((net.minecraft.world.entity.Entity) null, box,
+                e -> !(e instanceof net.minecraft.world.entity.player.Player) && !LemonBridge.isPart(e))) {
+            entity.discard();
         }
     }
 

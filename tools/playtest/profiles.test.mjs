@@ -1,8 +1,22 @@
 import assert from 'node:assert/strict'
+import { join } from 'node:path'
+import { configPaths } from './kinetic.mjs'
 import { mergedContext, parseContext, profiles } from './profiles.mjs'
 import { eventOf, wakesWait } from './wait-filter.mjs'
 import { pocketDungeonsHooks } from './runtime.mjs'
 
+const sampleRoot = join('A:/', 'sample')
+const mainConfig = join(sampleRoot, 'tools', 'playtest', 'kinetic.env')
+const legacyConfig = join(sampleRoot, 'pocketdungeons', 'tools', 'server', 'kinetic.env')
+assert.deepEqual(configPaths(join(sampleRoot, 'tools', 'playtest')), [mainConfig, legacyConfig])
+for (const tool of ['.claude', '.devin']) {
+  const tree = join(sampleRoot, tool, 'worktrees', 'task')
+  assert.deepEqual(configPaths(join(tree, 'tools', 'playtest')), [
+    join(tree, 'tools', 'playtest', 'kinetic.env'),
+    join(tree, 'pocketdungeons', 'tools', 'server', 'kinetic.env'),
+    mainConfig, legacyConfig,
+  ])
+}
 assert.equal(profiles.length, 2)
 assert.deepEqual(parseContext('noise\n[console] {"present":true}\n'), { present: true })
 assert.equal(parseContext('Unknown command'), null)

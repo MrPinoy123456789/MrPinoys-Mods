@@ -1091,6 +1091,20 @@ final class Instances {
         return ordinary;
     }
 
+    /**
+     * Vertical floors phase 2: how many stories the floor behind {@code offer} may use, from its dungeon node
+     * ({@code stories}, default 1). Anything that is not a node of a loaded dungeon is flat.
+     */
+    static int nodeStories(Keystone.Offer offer) {
+        if (offer == null || offer.door() == null) {
+            return DungeonDef.Node.FLAT;
+        }
+        DungeonDefs defs = DungeonDefs.current();
+        DungeonDef def = defs == null ? null : defs.byId(offer.dungeonId());
+        DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        return node == null ? DungeonDef.Node.FLAT : node.stories();
+    }
+
     static List<String> nodeRoomBias(Keystone.Offer offer) {
         if (offer == null || offer.door() == null) {
             return List.of();
@@ -1302,7 +1316,8 @@ final class Instances {
                             new LayoutPlanner.PathProfile(minPath, maxPath,
                                     PocketDungeonsConfig.branchProbability(),
                                     PocketDungeonsConfig.loopProbability(),
-                                    PocketDungeonsConfig.maxGridSpan()),
+                                    PocketDungeonsConfig.maxGridSpan(),
+                                    proving ? 1 : nodeStories(offer)),
                             roomTheme, dungeonDoor, bagTags, recipePlan,
                             encounterCap(offer, record.interval.floorIndex == 0
                                     ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0),

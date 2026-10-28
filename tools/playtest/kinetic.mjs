@@ -13,11 +13,18 @@ import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
+export function configPaths(folder = here) {
+  const paths = [join(folder, 'kinetic.env'), join(folder, '..', '..', 'pocketdungeons', 'tools', 'server', 'kinetic.env')]
+  // A task worktree (.claude/worktrees/<name>/...) has no copy of the gitignored file: use the main checkout's.
+  const m = folder.replace(/\\/g, '/').match(/^(.*)\/\.(?:claude|devin)\/worktrees\//)
+  if (m) paths.push(join(m[1], 'tools', 'playtest', 'kinetic.env'), join(m[1], 'pocketdungeons', 'tools', 'server', 'kinetic.env'))
+  return paths
+}
+
 /** KEY=VALUE lines from kinetic.env, quotes optional; the environment wins over the file. */
 function fileConfig() {
-  const current = join(here, 'kinetic.env')
-  const path = existsSync(current) ? current : join(here, '..', '..', 'pocketdungeons', 'tools', 'server', 'kinetic.env')
-  if (!existsSync(path)) return {}
+  const path = configPaths().find(path => existsSync(path))
+  if (!path) return {}
   const out = {}
   for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Z_]+)\s*=\s*"?([^"]*)"?\s*$/)

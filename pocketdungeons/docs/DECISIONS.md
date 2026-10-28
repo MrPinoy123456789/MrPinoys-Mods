@@ -1023,7 +1023,7 @@ Whether one ingot is the right price once players can find gold (supply chests, 
 
 Approved by the owner on 2026-10-18 with every recommendation of `docs/plans/2026-10-18-campaign-and-endgame-brief.md`
 and option a for Dungeon Storage. The brief holds the research, the stories and the options not taken; this record is
-the rule. Nothing is built.
+the rule. Built 2026-10-18; see the status line at the end of this section.
 
 The player's sentence: *In the campaign my compass tells me which dungeons to do next, and what's in my pack is at
 risk; when I finish the campaign my compass wakes up, the Chart Room opens, and from then on it levels on scrap.*

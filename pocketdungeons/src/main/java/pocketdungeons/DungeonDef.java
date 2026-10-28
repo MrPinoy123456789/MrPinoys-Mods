@@ -346,7 +346,22 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
     record Node(String id, String name, int layer, String theme, String signatureAffix,
                 List<String> roomBias, int roomCount, boolean isFinal, String light,
                 List<Reward> rewards, int minNodeRooms, int level, String notes, String objective,
-                Gather gather) {
+                Gather gather, int stories) {
+
+        /** {@link #stories} value of a flat node: the floor stays on the entrance story. */
+        static final int FLAT = 1;
+
+        /**
+         * A node that does not opt in to vertical floors: the shape this record had before them. A node that
+         * sets nothing is flat and generates exactly as it did.
+         */
+        Node(String id, String name, int layer, String theme, String signatureAffix,
+             List<String> roomBias, int roomCount, boolean isFinal, String light,
+             List<Reward> rewards, int minNodeRooms, int level, String notes, String objective,
+             Gather gather) {
+            this(id, name, layer, theme, signatureAffix, roomBias, roomCount, isFinal, light, rewards,
+                    minNodeRooms, level, notes, objective, gather, FLAT);
+        }
 
         /**
          * What a {@code gather} floor asks the party to break: {@code count} blocks of {@code block}
@@ -481,6 +496,10 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
             }
             if (level < UNSET_LEVEL || level == 0) {
                 throw new IllegalArgumentException("node level must be >= 1 when present: " + id);
+            }
+            if (stories < FLAT || stories > LayoutGraphGenerator.MAX_STORIES) {
+                throw new IllegalArgumentException("node stories must be " + FLAT + " to "
+                        + LayoutGraphGenerator.MAX_STORIES + " when present: " + id + " has " + stories);
             }
         }
 
@@ -979,7 +998,8 @@ record DungeonDef(String id, String name, int act, Kind kind, String mainTheme, 
                             ? node.get("objective").getAsString().trim() : Node.OBJECTIVE_SPAWNERS,
                     node.has("gather") && node.get("gather").isJsonObject()
                             ? new Node.Gather(requiredString(node.getAsJsonObject("gather"), "block"),
-                                    requiredInt(node.getAsJsonObject("gather"), "count")) : null));
+                                    requiredInt(node.getAsJsonObject("gather"), "count")) : null,
+                    node.has("stories") ? requiredInt(node, "stories") : Node.FLAT));
         }
         List<Edge> edges = new ArrayList<>();
         for (JsonElement element : optionalArray(obj, "edges")) {

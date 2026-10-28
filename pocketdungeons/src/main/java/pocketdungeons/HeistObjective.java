@@ -181,7 +181,7 @@ final class HeistObjective extends FloorObjectives.ObjectiveState {
             }
             (plan.criticalPath() != null && plan.criticalPath().contains(cell) ? rest : branches).add(cell);
         }
-        Comparator<PlanCell> byCell = Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z);
+        Comparator<PlanCell> byCell = PlanCell.ORDER;
         branches.sort(byCell);
         rest.sort(byCell);
         List<PlanCell> order = new ArrayList<>(branches);
