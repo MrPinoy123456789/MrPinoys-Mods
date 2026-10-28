@@ -1215,3 +1215,46 @@ a lordship" for a council, and "Put a change to the members"; a member who does 
 office goes straight to the members' list. Tests: core scenarios 8a to 8d in `SeatsTest`
 (lord alone, council vote passing and failing, a council becoming a lordship, Commune
 transitions, only the office itself) and a book page gametest.
+
+### NPC strongholds (`2026-10-28-npc-strongholds-brief.md`) and `admin dissolve`
+
+**Admin dissolve** (`860ffb43`). `DissolveOrg` (operators only) dissolves a faction and its whole
+subtree: members freed, keeps and land removed, open votes closed as failed, join requests and invites
+dropped, grants revoked and live contracts ended with the reason "organization dissolved", one
+`Dissolved` Chronicle line each (shown only where operator events are shown, like other admin lines). The
+organization stays as `DISSOLVED` so `orgIncludingDissolved` still names it. The command first breaks the
+Nexus blocks, unlinks granaries and drops fixtures, then runs the action, then repairs; it prints what it did and
+is written to the siege log.
+
+**N1, N3** (`9dab6654`). `Organization.npc` (saved; an older save reads false). Refused for a faction of the raiders:
+Apply and InviteMember (`not_joinable`), PlantCamp (`npc_no_camps`), occupy (`raze_only`). Treaties and war do
+not exist as player actions in this build, so there was nothing to refuse beyond camps. The absent ruler tick
+skips them; `dormancyDays` is a knob with no code behind it, so nothing to exempt. A fallen NPC keep is razed at
+once inside `SiegeSim.fall` (no pending choice, no choice links offered), so the plunder and the Nexus break
+follow from the usual `Razed` and `Plundered` events. The Join page never lists them. The `protectedFaction`
+rule skips NPC factions: found in the first stronghold gametest, which never saw its keep fall because a fresh
+NPC faction counted as a protected new faction for three days.
+
+**N5** (`9bf208a3`, committed together with the first world code by a background build). `NpcPlacement.choose` is
+a pure function of a seeded `Random` (twenty candidates; never inside a claim; `keepGapChunks` from every keep; at
+least `npcPlayerClearChunks` from any player claim and online player; the terrain test is the caller's).
+`NpcScheduler` holds the caps and the respawn delay (`npcMaxStrongholds` 4, `npcMaxOutposts` 4,
+`npcRespawnDays` 3); `NpcBook` is a saved state block (`npc`) with the sites and the timers.
+
+**N2, N4, N7.** `NpcWorld` (fabric) builds a stronghold (a stone floor, a cobblestone wall ring with a gate, the
+Nexus, up to the granary chests linked to the keep and filled to the tier's share) or an outpost (a raised camp,
+banner, signal fire, a store of bread), stocks the treasury by tier, and spawns vanilla pillagers, vindicators
+and (from the middle tier, one in four) ravagers tagged `charter.npc`, kept near home with `setHomeTo`. Tiers
+follow the chunk distance from the world spawn (`npcNearChunks` 40, `npcMiddleChunks` 120). The defenders are
+removed when the scheduler sees the core gone. An outpost ends the way a player camp does (its banner broken once
+it is exposed); the rules spill nothing for a camp, so the scheduler leaves a small chest of its store where the
+banner stood. Commands under `/charter admin npc`: `spawn <stronghold|outpost>` (the tier follows the position),
+`list`, `clear <id>`, `respawn`. Chronicle: `NpcEvents.Raised` and `Replaced`; the fall and the razing use the
+existing siege lines. The names are twelve lang keys (`npc.name.N`).
+
+**Choices to know about.** The scheduler runs every ten seconds and builds at most one site per pass. A site
+needs a generated, dry, flat enough surface, and a candidate is only tried inside the rings 16 to 250 chunks
+from the spawn. The raiders never raid players (N6): the comment is on `NpcWorld` and on
+`Organization.npc`. Not done: a real hostile-mob presence rule so defenders never count as attackers (they are
+mobs, not members, so the siege counts do not see them) was relied on rather than tested; and the outpost
+gametest ends the outpost with `LoseCore` rather than by breaking its banner while exposed.

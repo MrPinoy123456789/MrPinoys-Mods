@@ -67,7 +67,8 @@ public final class SiegeRules {
     public boolean protectedFaction(OrgId faction) {
         if (state.siege.protectionWaived.contains(faction)) return false;
         Optional<Organization> org = state.org(faction);
-        return org.isPresent() && wallNow - org.get().foundedAt < Durations.days(knobs.newFactionProtectionDays);
+        // The raiders are there to be besieged: they are never a protected new faction.
+        return org.isPresent() && !org.get().npc && wallNow - org.get().foundedAt < Durations.days(knobs.newFactionProtectionDays);
     }
 
     // ---- keeps ----
