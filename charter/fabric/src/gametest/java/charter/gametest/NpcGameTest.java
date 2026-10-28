@@ -113,6 +113,8 @@ public final class NpcGameTest {
         BlockPos nexusAt = new BlockPos(nexus.x(), nexus.y(), nexus.z());
         GranaryService svc = Granaries.service();
         helper.assertTrue(svc.book().site(keep.id) != null, "The stronghold has no granary");
+        // Checked here: the scheduler's own pass may already have cleared them by the time the keep has fallen.
+        helper.assertTrue(!s.defenders().isEmpty(), "The stronghold had no defenders");
 
         // Almost empty its granary so the siege is short.
         for (int i = 0; i < 4; i++) {
@@ -147,7 +149,6 @@ public final class NpcGameTest {
                 if (e.getItem().is(Items.DIAMOND)) spilled += e.getItem().getCount();
             }
             helper.assertTrue(spilled == expectedDiamonds / 4, "The plunder should be a quarter of the diamonds (" + expectedDiamonds / 4 + "), was " + spilled);
-            helper.assertTrue(!s.defenders().isEmpty(), "The stronghold had no defenders");
             // The scheduler notices the fall: the defenders go and a replacement is awaited.
             NpcWorld.runOnce(s.server, new Random(1));
             helper.assertTrue(rt.state.npc.sites.stream().noneMatch(x -> x.id() == site.id()), "The fallen site is still listed");

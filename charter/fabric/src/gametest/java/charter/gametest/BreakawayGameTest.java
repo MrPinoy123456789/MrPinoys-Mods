@@ -77,6 +77,32 @@ public final class BreakawayGameTest {
     }
 
     @GameTest(maxTicks = 200)
+    public void leaveIsAButtonOnFreedomsWithAConfirm(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Exit");
+            OrgId org = kit.orgOf(lord);
+            ServerPlayer gil = member(kit, org);
+
+            MemberPages.freedoms(gil, null);
+            press(helper, gil, Text.get("book.breakaway.button"));
+            MemberPages.freedoms(gil, null);
+            press(helper, gil, Text.get("book.leave.button"));
+            helper.assertTrue(kit.rt.state.isMember(id(gil), org), "Pressing Leave left at once, with no confirm");
+            String shown = BookDialogs.LAST.get(gil.getUUID()).common().title().getString();
+            helper.assertTrue(shown.equals(Text.get("book.leave.title", "org", kit.rt.describe.org(org))), "The Leave button did not open the confirm: " + shown);
+            press(helper, gil, Text.get("book.leave.yes"));
+            helper.assertTrue(kit.rt.state.membership(id(gil)).isEmpty(), "Confirming did not leave the faction");
+
+            // A sole Lord is not refused: Leave works for them too.
+            MemberPages.freedoms(lord, null);
+            press(helper, lord, Text.get("book.leave.button"));
+            press(helper, lord, Text.get("book.leave.yes"));
+            helper.assertTrue(kit.rt.state.membership(id(lord)).isEmpty(), "The Lord could not leave");
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 200)
     public void aSubFactionPutsSecessionToAVote(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Crown");

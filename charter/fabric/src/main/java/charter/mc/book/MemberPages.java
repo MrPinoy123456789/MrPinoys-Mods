@@ -151,7 +151,26 @@ public final class MemberPages {
         // Members of a Lordship or a council cannot vote the ruler out; the only ways out are to leave or break away.
         if (v.form() != Standing.Form.COMMUNE) body.add(Text.get("book.freedoms.no_vote"));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body),
-                List.of(BreakawayPages.button(player)), BookDialogs.back(player, p -> home(p, null))));
+                List.of(BookDialogs.act(player, Text.get("book.leave.button"), null, p -> leaveConfirm(p)),
+                        BreakawayPages.button(player)),
+                BookDialogs.back(player, p -> home(p, null))));
+    }
+
+    /** Leave is never refused for a member, a sole Lord included (Leave.check), so the button always shows. */
+    static void leaveConfirm(ServerPlayer player) {
+        if (!member(player)) return;
+        Standing.View v = view(player).orElseThrow();
+        ActionButton yes = BookDialogs.act(player, Text.get("book.leave.yes"), null, p -> {
+            PlayerId me = me(p);
+            BookRouter.run(p, new charter.org.actions.Leave(me), line -> {
+                if (line != null) freedoms(p, line);
+                else NewcomerPages.home(p, Text.get("leave.done", "org", v.orgName()));
+            });
+        });
+        ActionButton no = BookDialogs.back(player, p -> freedoms(p, null));
+        BookDialogs.show(player, BookDialogs.confirm(Text.get("book.leave.title", "org", v.orgName()),
+                List.of(BookDialogs.text(Text.get("book.leave.confirm", "org", v.orgName())),
+                        BookDialogs.text(Text.get("book.leave.cooldown", "days", rt().knobs.foundSecedeCooldownDays))), yes, no));
     }
 
     // ---- Your situation ----
