@@ -58,6 +58,10 @@ public final class OrgEvents {
     public record GroupBrokeAway(long at, OrgId org, OrgId from, int count) implements HistoryEvent {
     }
 
+    /** An operator dissolved a faction. {@code members} were set free; its keeps and land are gone. */
+    public record Dissolved(long at, OrgId org, int members, int keeps) implements HistoryEvent {
+    }
+
     public record Left(long at, OrgId org, PlayerId player) implements HistoryEvent {
     }
 

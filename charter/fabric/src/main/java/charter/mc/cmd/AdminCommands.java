@@ -19,6 +19,7 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -56,6 +57,8 @@ final class AdminCommands {
                 .then(Commands.literal("vote")
                         .then(Commands.literal("close")
                                 .then(Commands.argument("number", LongArgumentType.longArg(1)).executes(AdminCommands::closeVote))))
+                .then(Commands.literal("dissolve")
+                        .then(Commands.argument("faction", StringArgumentType.string()).executes(AdminCommands::dissolve)))
                 .then(Commands.literal("repair").executes(AdminCommands::repair))
                 .then(Commands.literal("save").executes(AdminCommands::save));
     }
@@ -117,6 +120,36 @@ final class AdminCommands {
         Outcome outcome = rt().engine.closeVote(vote.get().id);
         if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
         return ok(ctx, Text.get("admin.vote_closed", "number", number, "result", Pages.result(vote.get())));
+    }
+
+    /** Dissolves a faction and its sub-factions: the world is cleaned first (Nexus blocks, granary links), then the rules run. */
+    private static int dissolve(CommandContext<CommandSourceStack> ctx) {
+        String name = StringArgumentType.getString(ctx, "faction");
+        var found = rt().state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("admin.dissolve_none", "name", name));
+        var doomed = charter.org.actions.DissolveOrg.subtree(rt().state, found.get().id);
+        int members = 0, keeps = 0, claims = 0;
+        List<String> names = new java.util.ArrayList<>();
+        var granaries = charter.mc.granary.Granaries.service();
+        for (var id : doomed) {
+            names.add(rt().describe.org(id));
+            members += rt().state.members(id).size();
+            claims += rt().state.claimsOf(id).size();
+            for (var core : List.copyOf(rt().state.coresOf(id))) {
+                if (core.isKeep()) keeps++;
+                charter.mc.war.SiegeWorld.physical(core.id, core.center, true, java.util.Map.of());
+                if (granaries != null) granaries.book().remove(core.id);
+                charter.mc.land.Fixtures.of(rt().state).removeCore(core.id);
+            }
+        }
+        Outcome outcome = rt().engine.run(new charter.engine.Actor.Admin(ctx.getSource().getTextName()),
+                new charter.org.actions.DissolveOrg(found.get().id));
+        if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
+        rt().claims.rebuild();
+        rt().repairNow();
+        String told = names.size() == 1 ? names.get(0) : names.get(names.size() - 1) + " and its sub-factions ("
+                + String.join(", ", names.subList(0, names.size() - 1)) + ")";
+        return ok(ctx, Text.get("admin.dissolved", "orgs", told, "members", members, "keeps", keeps, "claims", claims));
     }
 
     private static int repair(CommandContext<CommandSourceStack> ctx) {

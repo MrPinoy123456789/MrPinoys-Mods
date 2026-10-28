@@ -128,6 +128,8 @@ public final class ChronicleTest {
                 IN + "Gil left the office of Treasurer in Riverside: voted out.");
         golden(events, expected, new OrgEvents.Admitted(AT, ASHFALL, GIL),
                 IN + "Ashfall took in Gil.");
+        golden(events, expected, new OrgEvents.Dissolved(AT, ASHFALL, 3, 1),
+                IN + "Ashfall was dissolved. 3 members went free, and its keeps fell.");
         golden(events, expected, new OrgEvents.BreakawayBegan(AT, ASHFALL, null, AT + 1000),
                 IN + "Ashfall began to break away.");
         golden(events, expected, new OrgEvents.BreakawayLapsed(AT, ASHFALL),

@@ -51,6 +51,7 @@ public final class CoreTypes {
                 .register("org.leave", Leave.class)
                 .register("org.found_keep", charter.org.actions.FoundKeep.class)
                 .register("org.secede", charter.org.actions.Secede.class)
+                .register("org.dissolve", charter.org.actions.DissolveOrg.class)
                 .register("org.break_away", charter.org.actions.BreakAway.class)
                 .register("org.apply", charter.org.actions.Apply.class)
                 .register("org.admit", charter.org.actions.Admit.class)

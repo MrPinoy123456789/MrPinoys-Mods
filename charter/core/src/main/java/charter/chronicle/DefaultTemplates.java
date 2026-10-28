@@ -34,6 +34,7 @@ public final class DefaultTemplates {
         t.put("GovEvents.VoteRefusedAtExecution", "On {when}, the vote of {org} carried, but could not be carried out, for the world had changed ({reasonKey}).");
         t.put("GovEvents.OfficeCreated", "On {when}, {org} created the office of {name}{reserved?, which only a vote may fill}.");
         t.put("GovEvents.OfficeFilled", "On {when}, {holder} took up the office of {office} in {org}.");
+        t.put("OrgEvents.Dissolved", "On {when}, {org} was dissolved. {members#member} went free{keeps?, and its keeps fell}.");
         t.put("OrgEvents.BreakawayBegan", "On {when}, {org} began to break away.");
         t.put("OrgEvents.BreakawayLapsed", "On {when}, the break away of {org} came to nothing: its time ran out.");
         t.put("OrgEvents.Seceded", "On {when}, {org} broke away from {from} and stood alone.");

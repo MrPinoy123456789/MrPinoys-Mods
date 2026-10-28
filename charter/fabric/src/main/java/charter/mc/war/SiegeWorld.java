@@ -153,7 +153,7 @@ public final class SiegeWorld {
     // ---- the physical fall ----
 
     /** Spills plunder at the nexus, or breaks it, now if the chunk is loaded, else when it loads. */
-    static void physical(CoreId keep, ChunkKey chunk, boolean breakNexus, Map<Currency, Long> spill) {
+    public static void physical(CoreId keep, ChunkKey chunk, boolean breakNexus, Map<Currency, Long> spill) {
         CharterRuntime rt = CharterServer.runtime();
         Fixtures.Fixture nexus = Fixtures.of(rt.state).first(keep, Fixtures.Kind.NEXUS);
         ChunkKey where = nexus != null ? new ChunkKey(nexus.dimension(), nexus.x() >> 4, nexus.z() >> 4) : chunk;
