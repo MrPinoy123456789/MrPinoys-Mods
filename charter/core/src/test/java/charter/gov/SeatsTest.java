@@ -34,7 +34,9 @@ public final class SeatsTest {
         aCommuneBecomesACouncilThatActsAlone();
         aCouncilDecidingTogetherVotesAmongItsSeats();
         aCouncilVoteCannotDoWhatOnlyTheMembersMay();
-        loweringTheSeatsUnseatsTheNewest();
+        shrinkingACouncilLetsItsHoldersChoose();
+        shrinkingToTwoSeatsHoldsTwoElections();
+        aLoneHolderShrinkingChoosesNothing();
         anAbsentHolderLosesOnlyTheirSeat();
         appointRespectsTheSeats();
         vacateEmptiesEverySeat();
@@ -165,16 +167,76 @@ public final class SeatsTest {
         eq("6: nothing changed", 3, f.office(org(f), Preset.LORD).seats());
     }
 
-    static void loweringTheSeatsUnseatsTheNewest() {
+    private static Vote openElection(Fixture f) {
+        return f.state.votes().stream().filter(v -> v.open() && v.kind == Vote.Kind.ELECTION && lord(f).equals(v.office))
+                .findFirst().orElse(null);
+    }
+
+    static void shrinkingACouncilLetsItsHoldersChoose() {
         Fixture f = world(Preset.COMMUNE);
         setSeats(f, 3, Office.Deciding.ALONE);
         elect(f, KRIS);
         elect(f, GIL);
         elect(f, CY);
+        PlayerId dee = player("Dee");
+        f.seen(dee);
+        f.admin(new charter.org.actions.InviteMember(org(f), dee));
+        f.as(dee, new charter.org.actions.AcceptInvite(dee, org(f)));
         setSeats(f, 1, Office.Deciding.ALONE);
         Office lord = f.office(org(f), Preset.LORD);
-        eq("7: one holder remains", 1, lord.holders().size());
-        eq("7: the first seated stays", KRIS, lord.holders().get(0).player());
+        check("7: every holder stepped down", lord.vacant());
+        Vote vote = openElection(f);
+        check("7: an election opened at once", vote != null);
+        check("7: it is among the former council", vote.restricted() && vote.electorate.equals(java.util.Set.of(KRIS, GIL, CY)));
+        eq("7: a member who was not on the council cannot vote", charter.engine.Reason.NOT_ELIGIBLE.key(),
+                f.engine.cast(dee, vote.id, Vote.Ballot.candidate(dee)).reasonKey());
+        for (PlayerId voter : new PlayerId[]{KRIS, GIL, CY}) f.engine.cast(voter, vote.id, Vote.Ballot.candidate(GIL));
+        eq("7: the winner takes the seat", GIL, f.holder(org(f), Preset.LORD));
+        eq("7: and only they", 1, lord.holders().size());
+        check("7: no further election", openElection(f) == null);
+    }
+
+    static void shrinkingToTwoSeatsHoldsTwoElections() {
+        Fixture f = world(Preset.COMMUNE);
+        setSeats(f, 3, Office.Deciding.ALONE);
+        elect(f, KRIS);
+        elect(f, GIL);
+        elect(f, CY);
+        setSeats(f, 2, Office.Deciding.ALONE);
+        Vote first = openElection(f);
+        check("7b: the first election opened", first != null);
+        for (PlayerId voter : new PlayerId[]{KRIS, GIL, CY}) f.engine.cast(voter, first.id, Vote.Ballot.candidate(CY));
+        Vote second = openElection(f);
+        check("7b: a second election follows among the same holders", second != null && second.restricted()
+                && second.electorate.equals(first.electorate));
+        eq("7b: the seated winner cannot be named again", Appoint.ALREADY_SEATED.key(),
+                f.engine.cast(KRIS, second.id, Vote.Ballot.candidate(CY)).reasonKey());
+        for (PlayerId voter : new PlayerId[]{KRIS, GIL, CY}) f.engine.cast(voter, second.id, Vote.Ballot.candidate(KRIS));
+        Office lord = f.office(org(f), Preset.LORD);
+        check("7b: both seats are filled", lord.holds(CY) && lord.holds(KRIS) && lord.holders().size() == 2);
+    }
+
+    static void aLoneHolderShrinkingChoosesNothing() {
+        Fixture lordship = world(Preset.LORDSHIP);
+        f(lordship, 0, Office.Deciding.ALONE);
+        check("7c: a lone Lord shrinking to 0 just steps down, no election",
+                lordship.office(org(lordship), Preset.LORD).vacant() && openElection(lordship) == null);
+        Fixture same = world(Preset.LORDSHIP);
+        f(same, 1, Office.Deciding.TOGETHER);
+        check("7c: a lone Lord keeps the seat when the seats do not drop", same.holder(org(same), Preset.LORD).equals(KRIS)
+                && openElection(same) == null);
+        Fixture council = world(Preset.COMMUNE);
+        setSeats(council, 3, Office.Deciding.ALONE);
+        elect(council, KRIS);
+        elect(council, GIL);
+        elect(council, CY);
+        f(council, 0, Office.Deciding.ALONE);
+        check("7c: a council shrinking to 0 hands the decision to the members, no election",
+                council.office(org(council), Preset.LORD).vacant() && openElection(council) == null);
+    }
+
+    private static void f(Fixture f, int seats, Office.Deciding deciding) {
+        f.motion(KRIS, new SetSeats(org(f), lord(f), seats, deciding), GIL, CY);
     }
 
     static void anAbsentHolderLosesOnlyTheirSeat() {

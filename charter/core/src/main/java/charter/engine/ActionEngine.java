@@ -217,13 +217,22 @@ public final class ActionEngine {
 
     /** Opens an election to fill an office. Used for succession; any eligible member may also call it. */
     public Outcome openElection(OfficeId officeId, PlayerId proposer) {
+        return openElection(officeId, proposer, null);
+    }
+
+    /**
+     * As {@link #openElection(OfficeId, PlayerId)}, with the vote among {@code council}
+     * (the former holders of a shrunken office) when it is given.
+     */
+    public Outcome openElection(OfficeId officeId, PlayerId proposer, Set<PlayerId> council) {
         long now = clock.now();
         Optional<Office> office = state.office(officeId);
         if (office.isEmpty()) return Outcome.refuse(Reason.NO_SUCH_ORG);
         OrgId org = office.get().org;
         if (office.get().seats() == 0) return Outcome.refuse(Appoint.NO_SEATS);
         if (office.get().full() && office.get().seats() > 1) return Outcome.refuse(Appoint.OFFICE_FULL);
-        Set<PlayerId> electorate = eligibleVoters(org, now);
+        Set<PlayerId> electorate = council != null ? new LinkedHashSet<>(council) : eligibleVoters(org, now);
+        if (electorate.isEmpty()) return Outcome.refuse(Reason.NOT_ELIGIBLE);
         if (proposer != null && !electorate.contains(proposer)) return Outcome.refuse(Reason.NOT_ELIGIBLE);
         boolean alreadyOpen = state.votes().stream()
                 .anyMatch(v -> v.open() && v.kind == Vote.Kind.ELECTION && officeId.equals(v.office));
@@ -231,6 +240,7 @@ public final class ActionEngine {
         Organization o = state.org(org).orElseThrow();
         Vote vote = openVote(org, Vote.Kind.ELECTION, null, officeId, proposer, null, VoteMethod.MAJORITY,
                 o.governance.quorumShare, electorate, now, "election of " + office.get().name, null);
+        if (council != null) vote.restrict();
         return new Outcome.VoteOpened(vote.id);
     }
 
@@ -271,6 +281,9 @@ public final class ActionEngine {
         }
         if (electionBallot && !vote.electorate.contains(ballot.candidate()) && !state.isMember(ballot.candidate(), vote.org)) {
             return Outcome.refuse(new Reason("not_a_candidate", "Only a member can be elected."));
+        }
+        if (electionBallot && state.office(vote.office).map(o -> o.holds(ballot.candidate())).orElse(false)) {
+            return Outcome.refuse(Appoint.ALREADY_SEATED);
         }
         vote.cast(voter, ballot);
         settleIfComplete(vote, now);
@@ -407,6 +420,11 @@ public final class ActionEngine {
         vote.settle(Vote.State.PASSED, "elected");
         record(new Actor.System(), List.of(new GovEvents.VotePassed(now, vote.id, vote.org, best, 0, vote.count(Vote.Choice.ABSTAIN))));
         execute(vote, new Appoint(vote.org, vote.office, winner), now);
+        // A shrunken council fills its seats one election at a time, among the same former holders.
+        if (vote.restricted() && vote.state() == Vote.State.EXECUTED) {
+            Office filled = state.office(vote.office).orElse(null);
+            if (filled != null && !filled.full() && filled.seats() > 0) openElection(vote.office, null, vote.electorate);
+        }
     }
 
     private void execute(Vote vote, Action action, long now) {

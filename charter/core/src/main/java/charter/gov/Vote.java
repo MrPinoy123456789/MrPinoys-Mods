@@ -59,6 +59,9 @@ public final class Vote {
     /** The office whose seats are the electorate (a council vote); null for every vote of the members. */
     public final OfficeId seatsOf;
 
+    /** An election whose electorate is the former council of an office, not every eligible member. */
+    private boolean restricted;
+
     private final Map<PlayerId, Ballot> ballots = new LinkedHashMap<>();
     private State state = State.OPEN;
     private String result = "";
@@ -87,6 +90,11 @@ public final class Vote {
         this.openedAt = openedAt;
         this.closesAt = closesAt;
     }
+
+    public boolean restricted() { return restricted; }
+
+    /** Engine only: marks an election as among a council's former holders. */
+    public void restrict() { restricted = true; }
 
     public State state() { return state; }
     public String result() { return result; }

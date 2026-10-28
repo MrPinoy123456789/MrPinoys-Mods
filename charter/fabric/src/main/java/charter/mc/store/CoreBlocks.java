@@ -443,6 +443,7 @@ public final class CoreBlocks {
             if (v.motion != null) o.add("motion", gson.toJsonTree(v.motion, Action.class));
             if (v.office != null) o.add("office", gson.toJsonTree(v.office));
             if (v.seatsOf != null) o.add("seatsOf", gson.toJsonTree(v.seatsOf));
+            if (v.restricted()) o.addProperty("restricted", true);
             if (v.proposer != null) o.add("proposer", gson.toJsonTree(v.proposer));
             if (v.power != null) o.addProperty("power", v.power.name());
             o.addProperty("method", v.method.name());
@@ -482,6 +483,7 @@ public final class CoreBlocks {
                     VoteMethod.valueOf(str(o, "method")), dbl(o, "quorumShare"),
                     orEmpty(get(o, "electorate", PLAYER_SET, gson)), orEmpty(get(o, "activeAtOpen", PLAYER_SET, gson)),
                     num(o, "openedAt"), num(o, "closesAt"), get(o, "seatsOf", OfficeId.class, gson));
+            if (bool(o, "restricted")) vote.restrict();
             Map<PlayerId, Vote.Ballot> ballots = get(o, "ballots", BALLOTS, gson);
             if (ballots != null) ballots.forEach(vote::cast);
             vote.settle(Vote.State.valueOf(str(o, "state")), str(o, "result"));

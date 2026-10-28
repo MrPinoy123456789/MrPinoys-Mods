@@ -1171,3 +1171,22 @@ electorate is fixed when a vote opens, the Lord's powers are unchanged, and a vo
 one still passes only what votes could already pass. The moment a second member joins,
 the wait applies to both again. Core test `aSoleMemberVotesAtOnce`; the full suite,
 including the invariant simulation, is unchanged.
+
+**Third live finding (owner, 2026-10-28): shrinking a council kept the founder.** `SetSeats`
+used to unseat the newest holders, so Lordship to council and back left the founder as
+Lord. Now, when the seats drop below two or more current holders (and stay at 1 or more),
+every holder steps down ("seat removed") and an election opens at once among those
+former holders. Electorate: `ActionEngine.openElection` gained an overload taking the
+electorate, and `Vote` gained a `restricted` flag (saved) so the election and the ones
+that follow know they are the former council's; the electorate itself was already a
+`Vote` field. A council shrinking to 2 or more seats holds one election per seat, each
+opened when the last one is carried out, among the same people; a seated winner cannot be
+named again (`already_seated`, now also refused at casting). A lone holder, or seats that
+do not drop below the holders, or a shrink to 0, behave as before (no election). If a
+restricted election fails (a tie, no quorum) the office stays vacant and any eligible
+member may open a normal election from the faction page. While the office is empty
+nothing else breaks: the standing rules read the faction as members by vote, the
+absent-holder tick skips vacant offices, reserved actions never needed the holder, and
+the faction page tells members "An election ... is open among the council that stepped
+down". Tests: three core scenarios in `SeatsTest` (3 to 1, 3 to 2, lone holder and to 0),
+a store round trip of the flag, and a faction page gametest.

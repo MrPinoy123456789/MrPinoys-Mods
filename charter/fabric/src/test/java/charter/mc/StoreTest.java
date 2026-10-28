@@ -276,6 +276,7 @@ final class StoreTest {
     /** S1: a council and its seat vote survive a save; a state saved before seats reads as one seat, and a Commune gets its office. */
     static void seatsRoundTripAndOldSavesRead() throws Exception {
         FullState f = FullState.build();
+        f.state.votes().stream().filter(v -> v.kind == Vote.Kind.ELECTION).findFirst().orElseThrow().restrict();
         Path dir = Files.createTempDirectory("charter-seats");
         store(dir).save(f.state, f.clock.now());
         CharterState back = store(dir).load(f.knobs, f.clock.now()).state();
@@ -284,6 +285,7 @@ final class StoreTest {
                 council.seats() == 2 && council.deciding() == charter.gov.Office.Deciding.TOGETHER && council.holders().size() == 2);
         check("seats: a vote among the seats keeps its office",
                 back.votes().stream().anyMatch(v -> council.id.equals(v.seatsOf) && v.electorate.size() == 2));
+        check("seats: an election among a former council stays restricted", back.votes().stream().anyMatch(v -> v.kind == Vote.Kind.ELECTION && v.restricted()));
         check("seats: an organization keeps its decision makers", council.id.equals(back.org(f.ironhold).orElseThrow().governance.deciders));
 
         String ironhold = f.ironhold.value().toString();

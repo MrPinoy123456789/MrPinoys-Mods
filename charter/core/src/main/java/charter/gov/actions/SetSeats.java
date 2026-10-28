@@ -19,7 +19,8 @@ import java.util.Optional;
  * Changes how many seats an office has and how its holders decide. Always
  * reserved: only a vote of the members runs it. This is how a faction changes its
  * form: 0 seats is a Commune, 1 a Lordship, more a council. Lowering the seats
- * unseats the most recently seated holders.
+ * with two or more holders to fewer seats unseats them all and opens an election
+ * among those former holders; with fewer holders it unseats the newest.
  */
 public record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding deciding) implements Action {
 
@@ -54,12 +55,25 @@ public record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding de
     public List<HistoryEvent> apply(ActionContext ctx) {
         Office o = ctx.state.office(office).orElseThrow();
         List<HistoryEvent> events = new ArrayList<>();
-        for (int i = o.holders().size() - 1; i >= seats && i >= 0; i--) {
-            events.add(new GovEvents.OfficeVacated(ctx.now, o.id, org, o.holders().get(i).player(), "seat removed"));
+        // A council that shrinks does not keep whoever sat first: every holder steps down and the
+        // former holders choose who keeps the seats (a lone holder, or no drop below the holders, is as before).
+        boolean council = seats >= 1 && o.holders().size() >= 2 && seats < o.holders().size();
+        java.util.Set<charter.id.PlayerId> former = new java.util.LinkedHashSet<>();
+        if (council) {
+            for (Office.Seat seat : o.holders()) former.add(seat.player());
+            for (Office.Seat seat : o.holders()) {
+                events.add(new GovEvents.OfficeVacated(ctx.now, o.id, org, seat.player(), "seat removed"));
+            }
+            o.unseatAll();
+        } else {
+            for (int i = o.holders().size() - 1; i >= seats && i >= 0; i--) {
+                events.add(new GovEvents.OfficeVacated(ctx.now, o.id, org, o.holders().get(i).player(), "seat removed"));
+            }
         }
         o.setSeats(seats);
         o.setDeciding(deciding);
         events.add(new GovEvents.SeatsChanged(ctx.now, o.id, org, seats, deciding));
+        if (council) ctx.engine.openElection(o.id, null, former);
         return events;
     }
 }

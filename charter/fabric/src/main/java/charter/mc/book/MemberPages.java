@@ -266,6 +266,11 @@ public final class MemberPages {
         body.add(Text.get("book.faction.members", "count", members.size(), "list", String.join(", ", members)));
         List<String> empty = rt.state.offices(org).stream().filter(o -> o.vacant() && o.seats() > 0).map(o -> o.name).toList();
         if (!empty.isEmpty()) body.add(Text.get("book.faction.empty", "offices", String.join(", ", empty)));
+        for (Vote running : rt.state.votes()) {
+            if (!running.open() || !running.org.equals(org) || running.kind != Vote.Kind.ELECTION) continue;
+            body.add(Text.get(running.restricted() ? "book.faction.election_council" : "book.faction.election_running",
+                    "office", rt.describe.office(running.office)));
+        }
         List<String> balances = new ArrayList<>();
         Organization organization = rt.state.org(org).orElseThrow();
         for (Currency c : Currency.values()) {

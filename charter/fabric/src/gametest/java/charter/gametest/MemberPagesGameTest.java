@@ -164,6 +164,29 @@ public final class MemberPagesGameTest {
     }
 
     @GameTest(maxTicks = 200)
+    public void aShrunkCouncilSeesItsElectionOnTheFactionPage(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Shrink");
+            OrgId org = kit.orgOf(lord);
+            asOp(kit, "charter admin age " + lord.getUUID() + " 4");
+            ServerPlayer second = member(kit, org);
+            OfficeId deciders = kit.rt.state.org(org).orElseThrow().governance.deciders;
+            var admin = new Actor.Admin("gametest");
+            kit.rt.engine.run(admin, new SetSeats(org, deciders, 2, Office.Deciding.ALONE));
+            kit.rt.engine.run(admin, new Appoint(org, deciders, id(second)));
+            kit.rt.engine.run(admin, new SetSeats(org, deciders, 1, Office.Deciding.ALONE));
+            helper.assertTrue(kit.rt.state.office(deciders).orElseThrow().vacant(), "The shrunk council kept a holder");
+            Vote election = kit.rt.state.votes().stream().filter(v -> v.open() && deciders.equals(v.office)).findFirst().orElse(null);
+            helper.assertTrue(election != null && election.restricted() && election.electorate.size() == 2,
+                    "No election among the two former holders opened");
+            MemberPages.faction(second, null);
+            helper.assertTrue(body(second).stream().anyMatch(l -> l.contains("open among the council")),
+                    "The faction page does not say the council is choosing: " + body(second));
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 200)
     public void castingYesFromTheVotePage(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Ballot");
@@ -219,13 +242,17 @@ public final class MemberPagesGameTest {
             ServerPlayer other = kit.faction("Seat");
             OrgId orgTwo = kit.orgOf(other);
             asOp(kit, "charter admin age " + other.getUUID() + " 4");
+            // Someone to elect: a seated holder cannot be named again. Mock players share a name,
+            // so the newest "Vote for" button is the last member listed, the newcomer.
+            ServerPlayer candidate = member(kit, orgTwo);
             OfficeId deciders = kit.rt.state.org(orgTwo).orElseThrow().governance.deciders;
             kit.rt.engine.run(new Actor.Admin("gametest"), new SetSeats(orgTwo, deciders, 2, Office.Deciding.ALONE));
             MemberPages.faction(other, null);
             press(helper, other, Text.get("book.faction.elect"));
-            press(helper, other, Text.get("book.vote.for", "name", kit.rt.describe.player(id(other))));
+            press(helper, other, Text.get("book.vote.for", "name", kit.rt.describe.player(id(candidate))));
             boolean cast = kit.rt.state.votes().stream().anyMatch(v -> v.kind == Vote.Kind.ELECTION && deciders.equals(v.office)
-                    && v.ballots().containsKey(id(other)) && v.ballots().get(id(other)).choice() == Vote.Choice.CANDIDATE);
+                    && v.ballots().containsKey(id(other)) && v.ballots().get(id(other)).choice() == Vote.Choice.CANDIDATE
+                    && id(candidate).equals(v.ballots().get(id(other)).candidate()));
             helper.assertTrue(cast, "The election page button cast no candidate ballot");
             helper.succeed();
         }

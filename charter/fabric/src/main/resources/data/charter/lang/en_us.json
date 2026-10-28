@@ -468,6 +468,8 @@
   "book.button.pay": "Pay in {amount} {currency}",
   "book.faction.paid": "Paid {amount} {currency} into the treasury.",
   "book.faction.vote_later": "You can vote on changes in {time}.",
+  "book.faction.election_running": "An election for {office} is open.",
+  "book.faction.election_council": "An election for {office} is open among the council that stepped down. Its members choose who keeps the seat.",
   "book.faction.not_paid": "Nothing was paid.",
   "book.seats.proposed": "Put to the {office}. It passes when most of them agree.",
   "book.button.rights": "Rights",
