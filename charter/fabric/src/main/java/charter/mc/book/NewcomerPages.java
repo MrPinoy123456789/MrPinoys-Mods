@@ -127,8 +127,17 @@ public final class NewcomerPages {
         long keeps = rt.state.coresOf(id).stream().filter(c -> c.isKeep()).count();
         body.add(BookDialogs.text(Text.get("book.join.about", "form", formText(v.form()),
                 "members", rt.state.members(id).size(), "keeps", keeps)));
-        body.add(BookDialogs.text(Text.get("book.join.gives_away")));
-        for (String line : StandingText.joined(v.freedoms())) body.add(BookDialogs.text(line));
+        // Only what an ordinary member lives under: who takes members in and removes them, who spends,
+        // who declares war and signs treaties, who changes or ends the charter. The rest is one closing line.
+        body.add(BookDialogs.text(Text.get("book.join.who_decides")));
+        java.util.Set<charter.gov.PowerGroup> shown = java.util.EnumSet.of(charter.gov.PowerGroup.MEMBERS,
+                charter.gov.PowerGroup.TREASURY, charter.gov.PowerGroup.WAR, charter.gov.PowerGroup.DIPLOMACY,
+                charter.gov.PowerGroup.CHARTER);
+        List<Standing.Line> mine = v.freedoms().stream().filter(l -> shown.contains(l.group())).toList();
+        for (String line : StandingText.joined(mine, true)) body.add(BookDialogs.text(line));
+        boolean restByHands = v.freedoms().stream().anyMatch(l -> !shown.contains(l.group())
+                && l.kind() != Standing.HolderKind.MEMBERS_BY_VOTE);
+        if (restByHands) body.add(BookDialogs.text(Text.get("book.join.runs_keeps")));
         List<ActionButton> buttons = new ArrayList<>();
         Optional<JoinRequest> asked = rt.state.joinRequestOf(me(player));
         if (asked.isPresent() && asked.get().org().equals(id)) {

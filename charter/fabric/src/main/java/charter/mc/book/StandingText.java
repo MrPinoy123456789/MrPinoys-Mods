@@ -20,6 +20,11 @@ public final class StandingText {
 
     /** One sentence per holder, in the order holders first appear: the holder, then what they hold. */
     public static List<String> joined(List<Standing.Line> lines) {
+        return joined(lines, false);
+    }
+
+    /** As {@link #joined(List)}; {@code newcomer} words the vote as something the reader could do once a member. */
+    public static List<String> joined(List<Standing.Line> lines, boolean newcomer) {
         Map<String, List<Standing.Line>> byHolder = new LinkedHashMap<>();
         for (Standing.Line line : lines) {
             String key = line.kind() + "|" + line.name() + "|" + line.holders() + "|" + line.together() + "|" + line.youCanVote();
@@ -29,7 +34,7 @@ public final class StandingText {
         for (List<Standing.Line> group : byHolder.values()) {
             List<String> things = new ArrayList<>();
             for (Standing.Line line : group) things.add(label(line));
-            out.add(holder(group.get(0)) + ": " + String.join(", ", things));
+            out.add(holder(group.get(0), newcomer) + ": " + String.join(", ", things));
         }
         return out;
     }
@@ -45,6 +50,10 @@ public final class StandingText {
 
     /** Who holds it, said to the reader. */
     static String holder(Standing.Line line) {
+        return holder(line, false);
+    }
+
+    static String holder(Standing.Line line, boolean newcomer) {
         return switch (line.kind()) {
             case YOU -> line.name().isEmpty() ? Text.get("book.holder.you_grant")
                     : Text.get("book.holder.you", "name", line.name());
@@ -56,7 +65,8 @@ public final class StandingText {
             }
             case PLAYER -> Text.get("book.holder.player", "name", line.name());
             case ORG -> Text.get("book.holder.org", "name", line.name());
-            case MEMBERS_BY_VOTE -> Text.get(line.youCanVote() ? "book.holder.vote_you" : "book.holder.vote_not_yet");
+            case MEMBERS_BY_VOTE -> Text.get(line.youCanVote() ? "book.holder.vote_you"
+                    : newcomer ? "book.holder.vote_newcomer" : "book.holder.vote_not_yet");
         };
     }
 }

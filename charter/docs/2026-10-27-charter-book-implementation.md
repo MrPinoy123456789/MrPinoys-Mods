@@ -1151,3 +1151,12 @@ deleted after the gate.
 
 **What only a live server can confirm (B7 checks, with the owner):** see the list in
 section B7. Nothing from B1 to B7 has been seen on a vanilla client yet.
+
+**After the B6 live check (owner, 2026-10-28):** the Join page heading "What joining gives
+away" was wrong, since a player with no faction never held those powers. It now reads
+"Who decides here:" and lists only what a member lives under (taking in and removing
+members, the treasury, war, treaties, the charter), with the charter vote worded "you
+could vote once you are a member"; a closing line says the same hands run the keeps and
+the rest. The founding cooldown (`foundSecedeCooldownDays` 7) blocked the owner's second
+founding attempt on the test server, which is correct; only the tutorial scenario sets it
+to 0. Rights and Freedoms for members are unchanged.

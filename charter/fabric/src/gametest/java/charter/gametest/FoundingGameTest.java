@@ -172,6 +172,14 @@ public final class FoundingGameTest {
             NewcomerPages.faction(newcomer, org, null);
             press(helper, newcomer, Text.get("book.button.ask"));
             helper.assertTrue(kit.rt.state.joinRequest(org, id(newcomer)).isPresent(), "Asking to join left no request");
+            var page = BookDialogs.LAST.get(newcomer.getUUID());
+            var text = new java.util.ArrayList<String>();
+            for (var b : page.common().body()) if (b instanceof net.minecraft.server.dialog.body.PlainMessage m) text.add(m.contents().getString());
+            String all = String.join(" ", text);
+            helper.assertTrue(all.contains(Text.get("book.join.who_decides")), "The faction page does not say who decides: " + all);
+            helper.assertTrue(!all.toLowerCase().contains("gives away") && !all.toLowerCase().contains("garrison"),
+                    "The faction page still lists what does not touch a member: " + all);
+            helper.assertTrue(all.contains(Text.get("book.holder.vote_newcomer")), "The charter vote is not worded for a newcomer: " + all);
             NewcomerPages.home(newcomer, null);
             helper.assertTrue(BookDialogs.LAST.containsKey(newcomer.getUUID()), "The newcomer home sent no dialog");
 
