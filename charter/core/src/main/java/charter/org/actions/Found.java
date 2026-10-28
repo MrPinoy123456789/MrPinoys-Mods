@@ -42,6 +42,11 @@ public record Found(PlayerId founder, String name, Preset preset) implements Act
         if (ctx.state.membership(founder).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
         Outcome named = checkName(ctx, name);
         if (named.refused()) return named;
+        return cooldownProblem(ctx, founder);
+    }
+
+    /** Refuses a founder who founded too recently; shared with {@link FoundKeep}. */
+    static Outcome cooldownProblem(ActionContext ctx, PlayerId founder) {
         long lastFounded = ctx.state.knownPlayer(founder).map(r -> r.lastFoundedAt).orElse(0L);
         long cooldown = Durations.days(ctx.knobs.foundSecedeCooldownDays);
         if (!ctx.admin() && lastFounded != 0 && ctx.now - lastFounded < cooldown) {
@@ -50,7 +55,7 @@ public record Found(PlayerId founder, String name, Preset preset) implements Act
         return Outcome.OK;
     }
 
-    static Outcome checkName(ActionContext ctx, String name) {
+    public static Outcome checkName(ActionContext ctx, String name) {
         String trimmed = name == null ? "" : name.strip();
         if (trimmed.length() < 3 || trimmed.length() > ctx.knobs.orgNameMaxLength) return Outcome.refuse(OrgReasons.BAD_NAME);
         if (ctx.state.orgNamed(trimmed).isPresent()) return Outcome.refuse(OrgReasons.NAME_TAKEN);

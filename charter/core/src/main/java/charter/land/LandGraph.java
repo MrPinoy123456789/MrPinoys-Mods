@@ -153,6 +153,19 @@ public final class LandGraph {
         return Optional.empty();
     }
 
+    /** Keep checks for a faction that does not exist yet: every existing keep is foreign. */
+    public Optional<Reason> keepProblemForNew(ChunkKey center) {
+        if (!dimensionAllowed(center)) return Optional.of(LandReasons.WRONG_DIMENSION);
+        for (ChunkKey chunk : footprint(center)) {
+            if (state.claimAt(chunk).isPresent()) return Optional.of(LandReasons.KEEP_NEEDS_ROOM);
+        }
+        for (Core other : state.cores()) {
+            if (!other.isKeep()) continue;
+            if (gapBetween(center, other.center) < knobs.keepGapChunks) return Optional.of(LandReasons.KEEP_GAP);
+        }
+        return Optional.empty();
+    }
+
     /** A camp may stand beside foreign land but never inside it. */
     public Optional<Reason> campProblem(ChunkKey center) {
         if (!dimensionAllowed(center)) return Optional.of(LandReasons.WRONG_DIMENSION);

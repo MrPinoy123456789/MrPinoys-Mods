@@ -49,6 +49,7 @@ public final class CoreTypes {
                 .register("org.invite", InviteMember.class)
                 .register("org.accept_invite", AcceptInvite.class)
                 .register("org.leave", Leave.class)
+                .register("org.found_keep", charter.org.actions.FoundKeep.class)
                 .register("org.apply", charter.org.actions.Apply.class)
                 .register("org.admit", charter.org.actions.Admit.class)
                 .register("org.reject", charter.org.actions.Reject.class)

@@ -160,6 +160,7 @@
   "motion.gov.create_office": "create the office of {name}",
   "motion.gov.appoint": "appoint {player} as {office}",
   "motion.gov.vacate": "empty the office of {office}",
+  "motion.org.found_keep": "found {name} and raise its keep",
   "motion.org.apply": "ask to join {org}",
   "motion.org.admit": "admit {player}",
   "motion.org.reject": "turn {player} away",
