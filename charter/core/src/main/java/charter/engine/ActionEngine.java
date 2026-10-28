@@ -180,7 +180,8 @@ public final class ActionEngine {
 
         Organization o = state.org(org).orElseThrow();
         Power power = action.power().orElse(null);
-        Vote vote = openVote(org, Vote.Kind.MOTION, action, null, proposer, power, o.governance.method(power),
+        Vote vote = openVote(org, Vote.Kind.MOTION, action, null, proposer, power,
+                action.allEligibleMajority() ? VoteMethod.ALL_ELIGIBLE : o.governance.method(power),
                 o.governance.quorumShare, electorate, now, action.getClass().getSimpleName(), null);
         vote.cast(proposer, Vote.Ballot.YES);
         settleIfComplete(vote, now);
@@ -295,7 +296,7 @@ public final class ActionEngine {
 
     private void settleIfComplete(Vote vote, long now) {
         if (!vote.open()) return;
-        if (vote.seatsOf != null) {
+        if (vote.seatsOf != null || vote.method == VoteMethod.ALL_ELIGIBLE) {
             settleSeats(vote, now, false);
         } else if (vote.everyoneVoted()) {
             settle(vote, now);
@@ -303,8 +304,8 @@ public final class ActionEngine {
     }
 
     /**
-     * A council vote has no quorum: it passes as soon as the Yes ballots are more
-     * than half the seats, fails as soon as that can no longer happen, and when time
+     * A council vote, and a secession (more than half of ALL eligible members), has no quorum: it passes
+     * as soon as the Yes ballots are more than half the electorate, fails as soon as that can no longer happen, and when time
      * runs out ({@code closing}) the same test decides.
      */
     private void settleSeats(Vote vote, long now, boolean closing) {
@@ -341,6 +342,15 @@ public final class ActionEngine {
             state.removeJoinRequest(request.org(), request.player());
             record(new Actor.System(), List.of(new charter.org.OrgEvents.RequestLapsed(now, request.org(), request.player())));
         }
+        for (charter.org.Breakaway b : new ArrayList<>(state.breakaways())) {
+            if (b.kind() == charter.org.Breakaway.Kind.SUBFACTION && state.coresOf(b.org()).stream().anyMatch(c -> c.isKeep())) {
+                state.removeBreakaway(b);
+                recordSystem(charter.org.Secession.complete(state, b.org(), now));
+            } else if (now >= b.deadline()) {
+                state.removeBreakaway(b);
+                recordSystem(List.of(new charter.org.OrgEvents.BreakawayLapsed(now, b.org())));
+            }
+        }
         long absentLimit = now - Durations.days(knobs.absentLordDays);
         for (Office office : new ArrayList<>(state.allOffices())) {
             if (!office.vacateWhenAbsent || office.vacant() || state.org(office.org).isEmpty()) continue;
@@ -370,7 +380,7 @@ public final class ActionEngine {
     }
 
     private void settle(Vote vote, long now) {
-        if (vote.seatsOf != null) {
+        if (vote.seatsOf != null || vote.method == VoteMethod.ALL_ELIGIBLE) {
             settleSeats(vote, now, true);
             return;
         }

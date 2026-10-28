@@ -83,6 +83,8 @@ public final class Knobs {
     public int absentLordDays = 7;
     public int voteEligibilityDays = 3;
     public int voteDurationHours = 48;
+    /** How long a faction that voted to break away has to place its Nexus, and a group has to gather, before it lapses. */
+    public int breakawayHours = 24;
     /** How long a request to join a faction waits for an answer before it lapses. */
     public int joinRequestDays = 7;
     /** Most seats an office may have. */

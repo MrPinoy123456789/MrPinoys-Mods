@@ -142,6 +142,8 @@ final class FullState {
         Outcome renamed = engine.propose(alice, new Rename(oakvale, "Oakvale Commons"));
         engine.cast(bob, ((Outcome.VoteOpened) renamed).vote(), Vote.Ballot.NO);
         Office lord = state.officeNamed(ironhold, "Lord").orElseThrow();
+        state.addBreakaway(new charter.org.Breakaway(charter.org.Breakaway.Kind.SUBFACTION, guard, null, java.util.List.of(), now, now + 1000));
+        state.addBreakaway(new charter.org.Breakaway(charter.org.Breakaway.Kind.GROUP, oakvale, alice, java.util.List.of(alice, bob), now, now + 2000));
         state.addJoinRequest(new charter.org.JoinRequest(oakvale, eve, clock.now()));
         // A council of two deciding together, with a vote among its seats still open (S1).
         admin(new charter.gov.actions.SetSeats(ironhold, lord.id, 3, Office.Deciding.TOGETHER));

@@ -19,5 +19,10 @@ public final class OrgReasons {
     public static final Reason ALREADY_ASKING = new Reason("already_asking", "You have already asked to join a faction. Wait for an answer first.");
     public static final Reason NO_REQUEST = new Reason("no_request", "That player has not asked to join.");
     public static final Reason NOT_JOINABLE = new Reason("not_joinable", "That faction cannot be asked to take new members.");
+    public static final Reason NOT_A_SUBFACTION = new Reason("not_a_subfaction", "Only a sub-faction can secede as a whole.");
+    public static final Reason ALREADY_BREAKING = new Reason("already_breaking", "That faction is already breaking away.");
+    public static final Reason HAS_SUBFACTIONS = new Reason("has_subfactions", "A faction with sub-factions cannot be left by a group. Its sub-factions secede by a vote.");
+    public static final Reason RULER_STAYS = new Reason("ruler_stays", "A ruler abdicates before breaking away.");
+    public static final Reason NEEDS_GROUP = new Reason("needs_group", "At least two must break away together.");
     public static final Reason NOT_YOU = new Reason("not_you", "Only that player can do this.");
 }

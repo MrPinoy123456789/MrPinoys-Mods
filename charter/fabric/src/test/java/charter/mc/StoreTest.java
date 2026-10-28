@@ -67,6 +67,7 @@ final class StoreTest {
         check("store: every field of every record reads back the same" + (diff.isEmpty() ? "" : ": " + diff.subList(0, Math.min(5, diff.size()))),
                 diff.isEmpty());
 
+        check("store: break aways read back", back.pendingSecession(f.guard).isPresent() && back.groupLeaving(f.oakvale).orElseThrow().members().size() == 2);
         check("store: an open join request reads back", back.joinRequest(f.oakvale, f.eve).isPresent());
 
         // Spot checks on what matters most, so a broken comparator cannot hide a loss.

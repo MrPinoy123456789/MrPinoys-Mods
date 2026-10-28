@@ -120,6 +120,14 @@ public final class ChronicleTest {
                 IN + "Gil left the office of Treasurer in Riverside: voted out.");
         golden(events, expected, new OrgEvents.Admitted(AT, ASHFALL, GIL),
                 IN + "Ashfall took in Gil.");
+        golden(events, expected, new OrgEvents.BreakawayBegan(AT, ASHFALL, null, AT + 1000),
+                IN + "Ashfall began to break away.");
+        golden(events, expected, new OrgEvents.BreakawayLapsed(AT, ASHFALL),
+                IN + "the break away of Ashfall came to nothing: its time ran out.");
+        golden(events, expected, new OrgEvents.Seceded(AT, ASHFALL, RIVERSIDE),
+                IN + "Ashfall broke away from Riverside and stood alone.");
+        golden(events, expected, new OrgEvents.GroupBrokeAway(AT, ASHFALL, RIVERSIDE, 3),
+                IN + "3 left Riverside and founded Ashfall.");
         golden(events, expected, new OrgEvents.Asked(AT, ASHFALL, GIL), "(hidden)");
         golden(events, expected, new OrgEvents.Rejected(AT, ASHFALL, GIL), "(hidden)");
         golden(events, expected, new OrgEvents.RequestLapsed(AT, ASHFALL, GIL), "(hidden)");

@@ -50,6 +50,8 @@ public final class CoreTypes {
                 .register("org.accept_invite", AcceptInvite.class)
                 .register("org.leave", Leave.class)
                 .register("org.found_keep", charter.org.actions.FoundKeep.class)
+                .register("org.secede", charter.org.actions.Secede.class)
+                .register("org.break_away", charter.org.actions.BreakAway.class)
                 .register("org.apply", charter.org.actions.Apply.class)
                 .register("org.admit", charter.org.actions.Admit.class)
                 .register("org.reject", charter.org.actions.Reject.class)
@@ -82,6 +84,7 @@ public final class CoreTypes {
                 .registerNested(SiegeEvents.class, HistoryEvent.class)
                 .registerNested(StoreEvents.class, HistoryEvent.class);
         Persistence.block(CoreBlocks.block("join_requests", CoreTypes::writeRequests, CoreTypes::readRequests));
+        Persistence.block(CoreBlocks.block("breakaways", CoreTypes::writeBreakaways, CoreTypes::readBreakaways));
     }
 
     private static com.google.gson.JsonElement writeRequests(charter.state.CharterState state, com.google.gson.Gson gson) {
@@ -100,6 +103,25 @@ public final class CoreTypes {
                 continue;
             }
             state.addJoinRequest(request);
+        }
+    }
+
+    private static com.google.gson.JsonElement writeBreakaways(charter.state.CharterState state, com.google.gson.Gson gson) {
+        com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+        root.add("breakaways", gson.toJsonTree(state.breakaways()));
+        return root;
+    }
+
+    private static void readBreakaways(com.google.gson.JsonObject json, charter.state.CharterState state, com.google.gson.Gson gson, Repairs repairs) {
+        if (!json.has("breakaways")) return;
+        java.util.List<charter.org.Breakaway> read = gson.fromJson(json.get("breakaways"),
+                new com.google.gson.reflect.TypeToken<java.util.List<charter.org.Breakaway>>() { }.getType());
+        for (charter.org.Breakaway b : read) {
+            if (state.org(b.org()).isEmpty()) {
+                repairs.note("breakaway_dropped", "a break away of " + b.org() + ", which is gone");
+                continue;
+            }
+            state.addBreakaway(b);
         }
     }
 }

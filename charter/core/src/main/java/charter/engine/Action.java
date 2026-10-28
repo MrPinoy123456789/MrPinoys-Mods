@@ -50,6 +50,11 @@ public interface Action {
         return false;
     }
 
+    /** True for a motion that passes only when more than half of ALL eligible members vote yes (a secession). */
+    default boolean allEligibleMajority() {
+        return false;
+    }
+
     /** True if the authority used must be passable on (issuing or revoking a derived grant). */
     default boolean needsRedelegable() {
         return false;

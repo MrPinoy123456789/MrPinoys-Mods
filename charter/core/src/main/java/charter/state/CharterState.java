@@ -64,6 +64,7 @@ public final class CharterState {
     private final Map<VoteId, Vote> votes = new LinkedHashMap<>();
     private final List<Invite> invites = new ArrayList<>();
     private final List<JoinRequest> joinRequests = new ArrayList<>();
+    private final List<charter.org.Breakaway> breakaways = new ArrayList<>();
 
     // land block (M2): cores and claims
     private final Map<CoreId, Core> cores = new LinkedHashMap<>();
@@ -158,7 +159,10 @@ public final class CharterState {
 
     public void setStatus(OrgId id, OrgStatus status) {
         org(id).ifPresent(o -> o.setStatus(status));
-        if (status == OrgStatus.DISSOLVED) joinRequests.removeIf(r -> r.org().equals(id));
+        if (status == OrgStatus.DISSOLVED) {
+            joinRequests.removeIf(r -> r.org().equals(id));
+            breakaways.removeIf(b -> b.org().equals(id));
+        }
         treeVersion++;
     }
 
@@ -254,6 +258,40 @@ public final class CharterState {
     /** Every request a player has open, gone when they join somewhere. */
     public void removeJoinRequestsOf(PlayerId player) {
         joinRequests.removeIf(r -> r.player().equals(player));
+    }
+
+    // ---- break aways ----
+
+    public List<charter.org.Breakaway> breakaways() {
+        return Collections.unmodifiableList(breakaways);
+    }
+
+    public void addBreakaway(charter.org.Breakaway b) {
+        breakaways.add(b);
+    }
+
+    public void removeBreakaway(charter.org.Breakaway b) {
+        breakaways.remove(b);
+    }
+
+    public void replaceBreakaway(charter.org.Breakaway old, charter.org.Breakaway fresh) {
+        int at = breakaways.indexOf(old);
+        if (at >= 0) breakaways.set(at, fresh);
+    }
+
+    /** The sub-faction that voted to secede and has yet to place its Nexus, if this one has. */
+    public Optional<charter.org.Breakaway> pendingSecession(OrgId org) {
+        return breakaways.stream().filter(b -> b.kind() == charter.org.Breakaway.Kind.SUBFACTION && b.org().equals(org)).findFirst();
+    }
+
+    /** The group gathering to leave this faction. */
+    public Optional<charter.org.Breakaway> groupLeaving(OrgId org) {
+        return breakaways.stream().filter(b -> b.kind() == charter.org.Breakaway.Kind.GROUP && b.org().equals(org)).findFirst();
+    }
+
+    /** The group this player started. */
+    public Optional<charter.org.Breakaway> groupStartedBy(PlayerId player) {
+        return breakaways.stream().filter(b -> b.kind() == charter.org.Breakaway.Kind.GROUP && player.equals(b.starter())).findFirst();
     }
 
     // ---- offices ----

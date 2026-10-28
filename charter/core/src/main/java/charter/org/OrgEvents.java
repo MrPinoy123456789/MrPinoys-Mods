@@ -42,6 +42,22 @@ public final class OrgEvents {
     public record RequestLapsed(long at, OrgId org, PlayerId player) implements HistoryEvent {
     }
 
+    /** A sub-faction's secession passed, or a group began to gather to leave a faction (starter null for a sub-faction). */
+    public record BreakawayBegan(long at, OrgId org, PlayerId starter, long deadline) implements HistoryEvent {
+    }
+
+    /** A break away ran out of time and changed nothing. */
+    public record BreakawayLapsed(long at, OrgId org) implements HistoryEvent {
+    }
+
+    /** A sub-faction became a top-level faction of its own. */
+    public record Seceded(long at, OrgId org, OrgId from) implements HistoryEvent {
+    }
+
+    /** A group left a faction and founded a new one with its own keep. */
+    public record GroupBrokeAway(long at, OrgId org, OrgId from, int count) implements HistoryEvent {
+    }
+
     public record Left(long at, OrgId org, PlayerId player) implements HistoryEvent {
     }
 

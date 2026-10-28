@@ -34,6 +34,10 @@ public final class DefaultTemplates {
         t.put("GovEvents.VoteRefusedAtExecution", "In {when}, the vote of {org} carried, but could not be carried out, for the world had changed ({reasonKey}).");
         t.put("GovEvents.OfficeCreated", "In {when}, {org} created the office of {name}{reserved?, which only a vote may fill}.");
         t.put("GovEvents.OfficeFilled", "In {when}, {holder} took up the office of {office} in {org}.");
+        t.put("OrgEvents.BreakawayBegan", "In {when}, {org} began to break away.");
+        t.put("OrgEvents.BreakawayLapsed", "In {when}, the break away of {org} came to nothing: its time ran out.");
+        t.put("OrgEvents.Seceded", "In {when}, {org} broke away from {from} and stood alone.");
+        t.put("OrgEvents.GroupBrokeAway", "In {when}, {count} left {from} and founded {org}.");
         t.put("OrgEvents.Admitted", "In {when}, {org} took in {player}.");
         // Routine (ChronicleRenderer.routine hides them); the templates keep the coverage rule whole.
         t.put("OrgEvents.Asked", "In {when}, {player} asked to join {org}.");

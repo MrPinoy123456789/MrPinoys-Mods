@@ -17,6 +17,7 @@ public final class CoreSuite {
         charter.gov.StandingTest.run();
         charter.org.JoinRequestTest.run();
         charter.org.FoundKeepTest.run();
+        charter.org.BreakawayTest.run();
         charter.grant.AuthorityTest.run();
         charter.land.LandTest.run();
         charter.food.FoodTest.run();
