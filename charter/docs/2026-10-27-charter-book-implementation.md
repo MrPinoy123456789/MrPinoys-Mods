@@ -44,6 +44,8 @@ Read these before starting, in this order:
   `javap -p -cp <jar> net.minecraft.world.item.crafting.CustomRecipe` for
   signatures, or decompile one class with `cfr-0.152.jar` at the repo root. Never
   guess a method name; 26.2 renamed many (BUILDING.md "Found in the M0 spike").
+- **Order:** B0, then S1 and B3 (while the owner answers B0's check), then B1 and
+  B2, then B4 (after the owner's answer), B5, B6, B7.
 - **Pocket Dungeons is a reference, never a dependency.** Read its classes to copy
   shapes; never import them (`docs/DESIGN.md` §4 rule 3). The useful ones are in
   `pocketdungeons/src/main/java/pocketdungeons/`: `DialogKit.java` (the dialog
@@ -61,7 +63,8 @@ Read these before starting, in this order:
 |---|---|---|---|
 | C1 | Mixin 12, `CustomClickMixin`, for button presses | **No Mixin.** Every button runs `/charter act <token>` with a vanilla `run_command` click, through the existing one-shot `Tokens` | Charter already has owner-bound tokens (`Chat.act`) and gametests that click them; Pocket Dungeons uses the same route for fixed buttons (`DialogKit.command`). The suite allows a Mixin only when nothing else works (`docs/DESIGN.md` §4 rule 7) |
 | C2 | Given once, with a `bookGiven` flag on the player record | **Nothing is recorded.** Every join hands a book to a player who carries none | The owner, 2026-10-27: there is no risk in more books, since a book is only a shortcut to `/charter`. Checking the inventory keeps a player from collecting a stack of them |
-| C3 | `BecomeCommune` "removes the office" | It revokes the Lord's grants and removes the office with a new `CharterState.removeOffice` | No removal method exists; `Governance.preset` is final, so the page reads the form from the grants, never from the stored preset (B1) |
+| C3 | `BecomeCommune` "removes the office" | **No `BecomeCommune`.** Every faction has a decision makers office with seats (S1, new): 0 seats is a Commune, 1 a Lordship, more a council that acts alone or together. Becoming a Commune is a vote to set the seats to 0 | Owner, 2026-10-27: one structure for every faction. `Governance.preset` is final, so pages read the form from the seats, never from the stored preset |
+| C4 | Rights and Freedoms list one line per group of powers | Lines with the same holder are **joined into one line** ("Alice, as Lord: spending, land, war..."), so a usual Lordship reads as two or three lines, not thirteen | Fewer lines for a new player to read; the detail is the same (B5). Proposed 2026-10-27, the owner may overrule before the build starts |
 
 ## 2. Shared pieces this plan uses
 
@@ -247,6 +250,185 @@ Delete `spike` and its test after the gate; keep the rest.
 
 ---
 
+## S1: core, seats for every office
+
+**Owner decision, 2026-10-27:** every faction is run the same way. One office, the
+**decision makers**, holds the routine powers. It has a number of **seats** and a
+**way of deciding**:
+
+| Seats | Each acts alone | Together |
+|---|---|---|
+| 0 | the members decide everything by vote (a Commune) | same |
+| 1 | a Lordship | same as alone |
+| 2 or more | co-rulers: any one of them may act | a council: a majority of the seats must agree |
+
+Changing the form of a faction is changing those two settings by a vote of the
+members. Nothing is deleted, and the menu reads one structure for every faction.
+
+Build S1 after B0's code (it does not wait for the owner's B0 answer; it is core
+only) and before B1 and B2, which use it. B3 does not touch offices and can be
+built alongside.
+
+### Files
+
+`core/src/main/java/charter/gov/Office.java`: one holder becomes a list of seats.
+
+```java
+public enum Deciding { ALONE, TOGETHER }
+public record Seat(PlayerId player, long since) {}
+
+private int seats;                 // how many may hold it; 0 or more
+private Deciding deciding = Deciding.ALONE;
+private final List<Seat> holders = new ArrayList<>();
+
+public Office(OfficeId id, OrgId org, String name, boolean reserved, boolean vacateWhenAbsent, int seats)
+public int seats()
+public Deciding deciding()
+public List<Seat> holders()                     // unmodifiable, in seating order
+public boolean holds(PlayerId player)
+public boolean vacant()                         // no holders
+public boolean full()                           // holders.size() >= seats
+public long heldSince(PlayerId player)          // 0 if they do not hold it
+public void seat(PlayerId player, long now)     // caller has checked full() and holds()
+public void unseat(PlayerId player)
+public void unseatAll()
+public void setSeats(int seats)                 // also unseats the newest holders beyond the count
+public void setDeciding(Deciding deciding)
+```
+
+**Remove `holder()`, `heldSince()`, `fill()` and `vacate()`** so the compiler lists
+every place that assumed one holder (about 60 uses in 20 files). Fix each one by
+what it means: "who holds it" becomes `holders()` (Describe and pages list every
+name), "is this player the holder" becomes `holds(p)`. Keep the old five argument
+constructor as one that passes `seats = 1`, so offices like Sheriff are unchanged.
+
+`core/src/main/java/charter/gov/Governance.java`: add
+`public OfficeId deciders;` (null for an organization saved before S1; Repair fixes
+it, below).
+
+`core/src/main/java/charter/gov/Preset.java`: both presets create the decision
+makers office, named `Preset.LORD` ("Lord"), reserved, `vacateWhenAbsent` true,
+with the same root grants for `LORD_POWERS` that the Lordship has today (the spend
+limit included), and store its id in `governance.deciders`.
+
+- `LORDSHIP`: one seat, the founder seated. Today's behaviour, unchanged.
+- `COMMUNE`: **zero seats**, nobody seated. The grants exist but reach nobody, so
+  every power stays with the members' vote, as today.
+
+`core/src/main/java/charter/gov/actions/Appoint.java`: seats the player.
+
+- Already holds it: refused `already_seated` ("That player already holds this
+  office.").
+- Office has 0 seats: refused `no_seats` ("This office has no seats.").
+- Full with one seat: the holder is replaced, as today (`OfficeVacated` "replaced",
+  then `OfficeFilled`). Full with more seats: refused `office_full` ("Every seat is
+  taken. Remove someone first.").
+
+`core/src/main/java/charter/gov/actions/Unseat.java` (new):
+`record Unseat(OrgId org, OfficeId office, PlayerId player)`, power `APPOINT`,
+reserved when the office is (copy `Vacate.reserved`). Refused when the player does
+not hold it. `OfficeVacated` "removed".
+
+`Vacate` keeps its fields and now empties **every** seat (one `OfficeVacated` per
+holder), so old saved votes and scenario files that name it still mean what they
+meant. Refused when nobody holds it, as today.
+
+`core/src/main/java/charter/gov/actions/SetSeats.java` (new):
+`record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding deciding)`,
+power `AMEND`, `reserved` true, so only a vote of the members runs it. Refused when
+`seats` is below 0 or above the knob `maxSeats` (new, default 7), or when nothing
+would change (`no_change`, "That is how it already is."). Apply: `setSeats`, one
+`OfficeVacated` "seat removed" for each holder it unseats (the most recently
+seated go first), `setDeciding`, and a new
+`GovEvents.SeatsChanged(at, office, org, seats, deciding)`.
+
+`core/src/main/java/charter/engine/ActionEngine.java`:
+
+- **Elections** fill one seat: `openElection` refuses when the office has 0 seats,
+  or is full and has more than one seat (`office_full`). A one seat office that is
+  full can still hold an election, which replaces the holder, as today.
+- **Absent holders:** in `tick`, for each office with `vacateWhenAbsent`, unseat
+  every holder not seen for `absentLordDays` (one `OfficeVacated` "absent" each),
+  then open one election if any seat is now empty (`openElection` already refuses
+  a second one while one is open; the next tick opens the next).
+- **Deciding together.** In `authorize`, after `resolve` for a player: when the
+  authority came through a grant whose recipient is `Holder.OfOffice(id)`, and that
+  office decides `TOGETHER` and has two or more holders, refuse with a new
+  `Reason.NEEDS_SEATS` (key `needs_seats`, "The council decides this together.
+  Propose it to them."). Add the case to `refusalFor` the same way `NEEDS_VOTE` is
+  chosen.
+- `public Outcome proposeToSeats(PlayerId proposer, OfficeId office, Action action)`:
+  the proposer must hold the office and the action must be one the office's grants
+  cover (resolve with a new `Who.AsSeats(office)`); reserved actions are refused
+  (`Reason.RESERVED`). Opens a vote whose electorate is exactly the office's
+  holders, every one counted active, closing after the knob `seatVoteHours` (new,
+  default 24). The proposer's Yes is cast at once.
+- `Vote` gains `public final OfficeId seatsOf` (null for every vote of the members).
+  For such a vote, after each ballot: it **passes as soon as Yes ballots are more
+  than half the electorate**, and **fails as soon as that can no longer happen**.
+  When time runs out, the same test decides. Quorum does not apply.
+- `authorize` for `Actor.Vote` whose vote has `seatsOf`: `who` is
+  `new Who.AsSeats(seatsOf)`, never `AsOrg`, so a council vote can never do what
+  only the members may (reserved actions stay `NONE`).
+
+`core/src/main/java/charter/grant/Who.java`: add `record AsSeats(OfficeId office)`.
+`AuthorityResolver.reaches`: `Holder.OfOffice(var id)` is reached by
+`Who.AsSeats(var s)` when `id.equals(s)`; `AsSeats` reaches nothing else.
+
+`fabric/src/main/java/charter/mc/store/CoreBlocks.java` (offices, around line 317):
+write `seats`, `deciding` and `holders` (a list of `{player, since}`). Read the old
+form too: a saved `holder` and `heldSince` become one seat, and `seats` defaults to
+1 when missing. Votes: write and read `seatsOf`, null when missing.
+`Governance.deciders`: write and read with the organization.
+
+`Repair`: an organization whose `governance.deciders` is null gets one. If it has a
+reserved office named `Lord`, that is it. Otherwise (a Commune saved before S1),
+create the office with 0 seats and the Lord grants, exactly as `Preset.COMMUNE`
+now does, recorded as a `StoreEvents.Repaired`.
+
+Store names and text: `gov.unseat` and `gov.set_seats` in `CoreTypes`;
+`motion.unseat` (`remove {player} from {office}`) and `motion.set_seats` (`give
+{office} {seats} seats, deciding {deciding}`) in `en_us.json`, with whatever
+placeholders `RegistryTest` asks for. A Chronicle template for `SeatsChanged`:
+`In {when}, {org} changed how it is ruled: {seats} seats, deciding {deciding}.`
+`Describe.office` lists the holders' names. `Pages` and `Notices`: every line that
+printed the holder prints every holder.
+
+### Tests
+
+`core/src/test/java/charter/gov/SeatsTest.java`, registered in `CoreSuite`:
+
+1. A Lordship founds with one seat, the founder seated, deciding alone; the
+   founder spends as today.
+2. A Commune founds with the decision office at 0 seats; a member's spend is
+   refused with the needs a vote reason; a vote of the members spends.
+3. `SetSeats` run by the Lord directly is refused (reserved); passed by the
+   members, a Lordship becomes 0 seats and the former Lord's spend now needs a
+   vote.
+4. A Commune voting to 3 seats, alone: three elections seat three members; each of
+   them spends on their own.
+5. The same council set to together: one holder's spend is refused with
+   `needs_seats`; `proposeToSeats` opens a vote of the three; the second Yes passes
+   it at once and the spend happens; a vote with two No fails at once.
+6. A council vote cannot run `SetSeats` or any `AMEND` action (refused reserved).
+7. Lowering 3 seats to 1 unseats the two most recently seated.
+8. An absent holder of three is unseated after `absentLordDays` and one election
+   opens; the other two keep their seats.
+9. `Appoint` into a full three seat office is refused `office_full`; into a full
+   one seat office it replaces, as today.
+10. `Vacate` empties every seat.
+
+Fabric `StoreTest`: an office with three holders, deciding together, and a seat
+vote in progress survive a save and load; a saved state from before S1 (written by
+hand in the test, with `holder` and `heldSince`) loads as one seat; a pre S1
+Commune gets its decision office from `Repair`.
+
+**Every existing test must still pass.** `GovernanceTest`, `JusticeTest`,
+`InvariantTest` and the gametests that appoint or vacate offices change only where
+they named the removed methods.
+
+---
+
 ## B1: core, the standing model
 
 **Goal:** what one player holds and gives away, computed from grants at the
@@ -284,12 +466,14 @@ That covers all 18 powers once each; the test proves it.
 
 ```java
 public final class Standing {
-    public enum Form { LORDSHIP, COMMUNE }
+    public enum Form { COMMUNE, LORDSHIP, COUNCIL }
     public enum HolderKind { YOU, OFFICE, PLAYER, ORG, MEMBERS_BY_VOTE }
 
     /** One reader-facing line: a group, or one power of a group whose powers differ. */
     public record Line(PowerGroup group, Power power /* null for the whole group */,
                        HolderKind kind, String name /* office, player or org name; "" otherwise */,
+                       List<String> holders /* for OFFICE: the seated players' names */,
+                       boolean together /* for OFFICE: the office decides together */,
                        boolean youCanVote, long spendLimitDiamonds /* -1 when none */) {
         public boolean right() { return kind == HolderKind.YOU; }
     }
@@ -306,7 +490,7 @@ public final class Standing {
     /** The same view as a member of org would read it on joining today (for the Join page). */
     public static View asNewcomer(CharterState state, ActionEngine engine, OrgId org, long now)
 
-    public static Form form(CharterState state, AuthorityResolver resolver, OrgId org)
+    public static Form form(CharterState state, OrgId org)
 }
 ```
 
@@ -320,10 +504,18 @@ Rules, in order, for each power `P` of the player's organization `O`:
 2. Otherwise take the valid grants over `O` for `P` (`resolver.valid`). If there are
    none, the holder is `MEMBERS_BY_VOTE`, with `youCanVote` =
    `engine.eligibleVoters(O, now).contains(me)`.
-3. Otherwise the holder is the first such grant's recipient, by kind: `OFFICE` (the
-   office name, `" (vacant)"` is not added here; pages do that), `PLAYER` (their
-   last known name, `state.knownPlayer`), `ORG`. With a `SPEND` grant, the limit as
-   in rule 1.
+3. Drop the grants whose recipient is an office with no holders (they reach
+   nobody). If none are left, the holder is `MEMBERS_BY_VOTE` as in rule 2.
+4. Otherwise the holder is the first such grant's recipient, by kind: `OFFICE` (the
+   office name, its holders' last known names in seating order, and `together`
+   when it decides `TOGETHER` with two or more holders), `PLAYER` (their last
+   known name, `state.knownPlayer`), `ORG`. With a `SPEND` grant, the limit as in
+   rule 1.
+
+In rule 1, a player who holds a seat in an office that decides together (with two
+or more holders) does **not** count as `YOU` for powers that reach them only
+through that office: the line is `OFFICE` with `together` true, because they
+cannot act alone.
 
 Then fold by group: if every power in a group produced an equal line (same kind,
 name, vote and limit), emit one line with `power = null`; otherwise one line per
@@ -332,8 +524,8 @@ power, in the enum's order. Groups in the enum's order.
 `asNewcomer` runs the same rules with a player who holds nothing and cannot vote
 yet (`youCanVote` false), so it never needs a real player.
 
-`form`: `LORDSHIP` when any office of `O` with `reserved` true is the recipient of
-at least one valid grant; else `COMMUNE`. Pages show this, never
+`form`: from the decision makers office (`governance.deciders`): 0 seats
+`COMMUNE`, 1 seat `LORDSHIP`, more `COUNCIL`. Pages show this, never
 `governance.preset` (C3).
 
 `yourOffices`: names of offices of `O` held by the player. `memberSince`:
@@ -358,6 +550,9 @@ Use `Fixture` (`f.found(...)`, `f.as(...)`, `f.passDays(...)`, `f.motion(...)`).
 6. A mixed group: grant only `ARREST` to the Sheriff; `JUSTICE` splits into two
    lines, `ARREST` a Right and `JUDGE` held by the Lord.
 7. A Commune member: every line is `MEMBERS_BY_VOTE`; `form` is `COMMUNE`.
+8. A council of three deciding together: a holder's lines are `OFFICE` with three
+   names and `together` true, never `YOU`; deciding alone, they are `YOU`; `form`
+   is `COUNCIL` either way.
 8. A sub-organization member (`CreateSubOrg`): lines are about the sub-organization;
    whatever its creation grants show their recipient's name.
 9. `votesWaiting` lists an open motion until the player votes on it, then not.
@@ -367,7 +562,7 @@ Use `Fixture` (`f.found(...)`, `f.as(...)`, `f.passDays(...)`, `f.motion(...)`).
 
 ---
 
-## B2: core, founding at a Nexus, and becoming a Commune
+## B2: core, founding at a Nexus
 
 ### Files
 
@@ -406,42 +601,8 @@ public record FoundKeep(PlayerId founder, String name, String banner, ChunkKey c
 Because `check` runs before `apply` and nothing else mutates in between, a refusal
 leaves nothing behind. Do not call `ActionEngine.run` from inside `apply`.
 
-`core/src/main/java/charter/state/CharterState.java`: add
-
-```java
-/** Removes an office. Grants to it stop working at once (their recipient is gone). */
-public void removeOffice(OfficeId id)
-```
-
-Check how `offices` is stored and remove it there; nothing else.
-
-`core/src/main/java/charter/gov/GovEvents.java`: add
-`record OfficeAbolished(long at, OfficeId office, OrgId org, String name) implements HistoryEvent`.
-
-`core/src/main/java/charter/gov/actions/BecomeCommune.java`:
-
-```java
-public record BecomeCommune(OrgId org) implements Action
-```
-
-- `actingFor()` `org`, `power()` `AMEND`, and override `reserved(ActionContext ctx)`
-  to return true (see its javadoc in `charter.engine.Action`).
-- `check`: the organization's `Standing.form` is `LORDSHIP`, else a new reason
-  `GovReasons.ALREADY_COMMUNE` (`"already_commune"`, `"This faction has no Lord
-  to do away with."`; put it where the gov package keeps its reasons, or create
-  `GovReasons` like `OrgReasons`); no open election for any reserved office of the
-  organization, else `GovReasons.ELECTION_OPEN` (`"election_open"`, `"Wait for the
-  election for that office to close."`).
-- `apply`: for every reserved office of `org` that is the recipient of a valid
-  grant: revoke each such grant (`grant.revoke(now)`, a `GrantEvents.Revoked` each),
-  then `state.removeOffice(id)` and an `OfficeAbolished`.
-
-Register it: `ACTIONS.register("gov.become_commune", BecomeCommune.class)` in
-`CoreTypes`, and the line `"motion.become_commune": "do away with the Lord and
-govern by vote"` in `en_us.json`. `RegistryTest` fails until both exist. Add a
-Chronicle template for `GovEvents.OfficeAbolished` in `DefaultTemplates` beside
-the others: `In {when}, {org} did away with the office of {name}.` (match the
-placeholder style already used there).
+Becoming a Commune needs no action of its own any more: it is `SetSeats` to 0
+(S1).
 
 ### Tests
 
@@ -458,15 +619,7 @@ placeholder style already used there).
 4. The events are `Founded`, the Lordship's office and grant events,
    `Deposited`, `NexusPlaced`, in that order.
 
-`core/src/test/java/charter/gov/BecomeCommuneTest.java`, registered:
-
-1. The Lord running it directly is refused (reserved; it needs a vote).
-2. A motion passed by the members runs it: no Lord office, no valid grant to it,
-   `Standing.form` is `COMMUNE`, a former Freedom line now reads
-   `MEMBERS_BY_VOTE`.
-3. Run on a Commune: refused with `already_commune`.
-
-Add a round trip of `people.banner` and of a removed office to the fabric
+Add a round trip of `people.banner` to the fabric
 `StoreTest` (find it under `fabric/src/test`), so a save and load keeps both.
 
 ---
@@ -633,19 +786,29 @@ notice)`, `notice` the line from the last press or null. Each builds from live
 state through `CharterServer.runtime()` and `Standing.of(...)`.
 
 **Home** (`home`): title `book.home.title` = `{org}`; body lines: `book.home.form`
-(`{form}, you are {offices}`, with `book.form.lordship` / `book.form.commune`, and
+(`{form}, you are {offices}`, with `book.form.commune`, `book.form.lordship` and
+`book.form.council` (`a council of {count}, any one may act` or `a council of
+{count}, deciding together`), and
 `book.home.no_office` = `a member` when the player holds none); buttons: Rights,
 Freedoms, Your situation, `{org}` (the Faction page), Chronicle; exit Close.
 
-**Rights** (`rights`) and **Freedoms** (`freedoms`): one body line per
-`Standing.Line`, built by one shared formatter:
+**Rights** (`rights`) and **Freedoms** (`freedoms`): lines with the same holder
+(same kind, names, together and vote) are **joined** (C4): one body line per
+holder, the holder text first and then the groups, in the enum's order, with the
+spend limit after the treasury group. So a Lordship member reads two lines:
+`Alice, as Lord: taking in members, appointing officers, spending the treasury (up
+to 32 diamonds at a time), ...` and `The members, by vote (you can vote):
+changing or ending the charter`. Group labels are lower case in this joined form.
+The table below is the holder text for one group; the joined line uses the same
+holder text in front of the list:
 
 | Line | Text |
 |---|---|
 | `YOU`, `OFFICE` name | `{group}: as {name}` |
 | `YOU`, `ORG` name | `{group}: through {name}` |
 | `YOU`, no name | `{group}: granted to you` |
-| `OFFICE` | `{group}: the {name}` (append ` (vacant)` when that office has no holder) |
+| `OFFICE`, one holder | `{group}: {holder}, as {name}` |
+| `OFFICE`, several | `{group}: {holders}, any one of them`, or with `together`, `{group}: {holders}, together` |
 | `PLAYER` | `{group}: {name}` |
 | `ORG` | `{group}: {name}, by its own decision` |
 | `MEMBERS_BY_VOTE` | `{group}: the members, by vote (you can vote)` or `(you cannot vote yet)` |
@@ -701,9 +864,25 @@ compute it again), open votes as buttons to `vote`. When the player passes
 `resolve(..., MANAGE_MEMBERS, ...)`: a line per join request with two buttons,
 Admit (`BookRouter.run(new Admit(org, p))`) and Reject, which first opens a
 `confirm` dialog (`book.reject.confirm` = `Turn {player} away?`) whose yes runs
-`Reject`. When `Standing.form` is `LORDSHIP` and the player is an eligible voter:
-a button `book.faction.become_commune` = `Propose: govern without a Lord` that
-calls `rt.engine.propose(me, new BecomeCommune(org))` and shows the outcome.
+`Reject`. For an eligible voter, two more buttons:
+
+- `book.faction.who_decides` = `Propose a change to who decides`, opening
+  **Who decides** (`whoDecides`): one button per choice, each proposing
+  `SetSeats(org, deciders, seats, deciding)` with `rt.engine.propose`: `Everyone,
+  by vote` (0 seats), `One ruler` (1), and for n from 2 to 5 `A council of {n},
+  any one may act` and `A council of {n}, deciding together`. The current choice
+  is shown as a line, not a button. Back to Faction.
+- When the decision makers office has an empty seat and no election is open:
+  `book.faction.elect` = `Hold an election for a seat` (`rt.engine.openElection`).
+
+A player who holds a seat in an office that decides together is refused
+`needs_seats` for its powers. `BookRouter.run` handles that once for every page: on
+a `needs_seats` refusal it calls `rt.engine.proposeToSeats(me, office, action)` and
+shows `book.seats.proposed` = `Put to the {office}. It passes when most of them
+agree.`
+
+**Vote** pages for an **election** show one button per member of the faction
+(at most 20), each casting `Vote.Ballot.candidate(p)`, instead of Yes and No.
 
 **Chronicle** (`chronicle`): build the faction's newest volume with
 `ChronicleBooks.faction(...)`, turn it into a written book with
@@ -720,14 +899,17 @@ server inventory is never touched). Put that copy in
    a keep) and its emptiest (a lone founder), leaves a dialog in
    `BookDialogs.LAST` with at least one button and no exception.
 2. A Lordship member and a Commune member get different Freedoms bodies (compare
-   the body text).
+   the body text); a Lordship member's Freedoms page has at most three lines.
 3. Casting Yes from the vote page: the vote's `ballots()` holds the player's Yes.
 4. Admit from the Faction page (run the newest token labelled Admit): the
    applicant is a member.
 5. Reject goes through the confirm screen first: the request survives until the
    confirm's yes runs.
-6. The Become a Commune button opens a vote whose motion is `BecomeCommune`.
-7. Chronicle sends no inventory change (the player's selected slot is the same
+6. The Who decides page's `Everyone, by vote` button opens a vote whose motion is
+   `SetSeats` with 0 seats; an election page button casts a candidate ballot.
+7. A council member deciding together presses Admit: a seat vote opens instead,
+   and the second council Yes admits the applicant.
+8. Chronicle sends no inventory change (the player's selected slot is the same
    item before and after).
 
 ---
@@ -876,7 +1058,10 @@ notes":
 2. They follow Found your own to a placed keep without typing anything.
 3. A second player asks to join from their book; the first admits them from theirs.
 4. Both read Rights and Freedoms and they match who holds what.
-5. The members vote to become a Commune; the Freedoms page changes.
+5. The members vote to become a council of two deciding together and elect a
+   second member; the Freedoms page says `together`; one of them admits a new
+   member through a seat vote. Then they vote to become a Commune and the Freedoms
+   page reads `the members, by vote`.
 6. The tutorial scenario (`/charter admin scenario run tutorial`) reads with no
    commands except the claiming page.
 

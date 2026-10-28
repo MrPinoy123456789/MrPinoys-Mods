@@ -6,7 +6,7 @@ and wins where the two differ. Builds what
 `docs/2026-10-27-charter-book-proposal.md` approved (DESIGN.md §23, 2026-10-27).
 Conventions are `BUILDING.md`; branch off `feature/charter-build`.
 
-Eight milestones, B0 to B7. **B0 is a spike and gates everything:** if the book
+Eight milestones, B0 to B7, plus S1 (seats for every office, added 2026-10-27; `BecomeCommune` below is replaced by it, see the implementation plan). **B0 is a spike and gates everything:** if the book
 cannot look and click right on a vanilla client, the rest waits for a new plan.
 
 ## What the book is
