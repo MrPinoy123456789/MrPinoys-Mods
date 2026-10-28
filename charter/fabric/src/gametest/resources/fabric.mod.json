@@ -23,7 +23,8 @@
       "charter.gametest.ScenarioGameTest",
       "charter.gametest.LoadGameTest",
       "charter.gametest.TutorialGameTest",
-      "charter.gametest.BookGameTest"
+      "charter.gametest.BookGameTest",
+      "charter.gametest.MemberPagesGameTest"
     ]
   },
   "mixins": [

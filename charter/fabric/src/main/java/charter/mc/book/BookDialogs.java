@@ -101,7 +101,7 @@ public final class BookDialogs {
         if (exit == null) throw new IllegalArgumentException("a Charter dialog needs an exit button: " + title);
         if (actions.isEmpty()) {
             List<DialogBody> lines = new ArrayList<>(body);
-            lines.add(text(Text.get("book.nothing_here")));
+            if (body.isEmpty()) lines.add(text(Text.get("book.nothing_here")));
             return notice(title, lines, exit);
         }
         return new MultiActionDialog(common(title, body), actions, Optional.of(exit), 1);

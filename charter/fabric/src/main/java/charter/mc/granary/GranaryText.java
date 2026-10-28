@@ -14,7 +14,7 @@ import charter.time.Durations;
  * what is in the chest, and the state of the siege. The drain and the storage limit
  * come from core; this only divides and words them.
  */
-final class GranaryText {
+public final class GranaryText {
 
     private GranaryText() {
     }
@@ -40,7 +40,7 @@ final class GranaryText {
         return Text.get("time.minutes", "minutes", Math.max(1, minutes));
     }
 
-    static String timeLine(CharterRuntime rt, Core core) {
+    public static String timeLine(CharterRuntime rt, Core core) {
         Provisions provisions = rt.state.siege.store(core.id).provisions;
         if (provisions.nourishment(rt.sim.food()) <= 0) return Text.get("granary.empty");
         double hours = hoursLeft(rt, core);
