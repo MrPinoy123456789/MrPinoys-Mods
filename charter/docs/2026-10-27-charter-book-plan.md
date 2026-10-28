@@ -18,7 +18,8 @@ chat). Once a player knows the command, they never need the book.
 
 So the book carries no owner and nothing of its own: it drops on death like any
 item, and a player who picks up someone else's book simply sees their own
-Charter. It is given once, on a player's first join.
+Charter. A player who joins without one is handed a book; there is no risk in more
+books (owner, 2026-10-27).
 
 ## One choice this plan makes (the owner can overrule)
 
@@ -187,9 +188,8 @@ come back.
 - `CharterBook.java`: builds the item (B0's components, named "Charter of Rights
   and Freedoms"), and on use runs `/charter` as the player through the command
   dispatcher, so the book and the command can never behave differently. No owner,
-  no special death handling. Given once, on a player's first join, from
-  `CharterServer.join` (a `bookGiven` flag on the player record, so a dropped or
-  thrown away book is not handed back each join).
+  no special death handling. Handed over from `CharterServer.join` whenever the
+  player carries none; nothing is recorded.
 - `BookDialogs.java`: Charter's dialog kit, written fresh for Charter (no
   Pocket Dungeons code is imported, DESIGN.md §5), following the rules in the
   `dialog-screens` skill: never a dialog without buttons, Esc runs a harmless
@@ -202,8 +202,8 @@ come back.
   in `charter.mixins.json` and in the README's Mixin table with its reason.
 - Text keys in `en_us.json`, prefix `book.`.
 
-**Tests:** gametests for: a first join gets one book, a second join does not get
-a second, even with the first one thrown away; `/charter` and the book send the
+**Tests:** gametests for: a join gets one book, a join while carrying one gets no
+second, a join after throwing it away gets a new one; `/charter` and the book send the
 same dialog; a player using someone else's book sees their own Home; a press
 from the wrong player does nothing; a press on a screen built for an empty list
 never sends a dialog without buttons.

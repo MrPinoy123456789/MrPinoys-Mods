@@ -27,7 +27,7 @@ It answers three problems found on 2026-10-26 and 2026-10-27:
 | Look | A book and quill, named `Charter of Rights and Freedoms` |
 | Base item | An item with no use of its own, given the book and quill look with the `item_model` component and a `charter: book` tag. A real book and quill cannot be used: the vanilla client opens the writing screen itself, before the server sees the click |
 | Opening | `UseItemCallback`, main hand only, as Pocket Dungeons' keystone does in `Lemon.java` |
-| Getting one | Given once, on first join. It drops on death like any item; a player who picks up someone else's book sees their own Charter |
+| Getting one | Handed over on any join when the player carries none; there is no risk in more books (owner, 2026-10-27). It drops on death like any item; a player who picks up someone else's book sees their own Charter |
 
 **To check first:** that the `item_model` route shows a book and quill on a vanilla
 26.2 client and that the click reaches the server. One gametest and one look in

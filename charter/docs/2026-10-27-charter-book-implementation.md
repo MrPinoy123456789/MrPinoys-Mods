@@ -60,7 +60,7 @@ Read these before starting, in this order:
 | # | Build plan said | This plan does | Why |
 |---|---|---|---|
 | C1 | Mixin 12, `CustomClickMixin`, for button presses | **No Mixin.** Every button runs `/charter act <token>` with a vanilla `run_command` click, through the existing one-shot `Tokens` | Charter already has owner-bound tokens (`Chat.act`) and gametests that click them; Pocket Dungeons uses the same route for fixed buttons (`DialogKit.command`). The suite allows a Mixin only when nothing else works (`docs/DESIGN.md` §4 rule 7) |
-| C2 | `bookGiven` flag on the player record | A fabric state block `book`, holding the UUIDs that were given a book | `PlayerRecord` is what the rules know; a book is not a rule. Same pattern as `Mail` and `CellBook` |
+| C2 | Given once, with a `bookGiven` flag on the player record | **Nothing is recorded.** Every join hands a book to a player who carries none | The owner, 2026-10-27: there is no risk in more books, since a book is only a shortcut to `/charter`. Checking the inventory keeps a player from collecting a stack of them |
 | C3 | `BecomeCommune` "removes the office" | It revokes the Lord's grants and removes the office with a new `CharterState.removeOffice` | No removal method exists; `Governance.preset` is final, so the page reads the form from the grants, never from the stored preset (B1) |
 
 ## 2. Shared pieces this plan uses
@@ -565,12 +565,13 @@ stub page with a Close button and the line `book.newcomer.soon`).
 `server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "charter")`.
 This is the whole of the book: no owner, nothing stored on the item.
 
-`charter/mc/book/BookLedger.java`: the state block `book`, a `Set<UUID>` of players
-who were given a book, saved and loaded like `Fixtures`. `CharterServer.join`
-calls `BookMod.onJoin(player)` after `give(player)`: when the UUID is not in the
-set and the runtime is running, add the book with the suite's give or drop pattern
+`CharterServer.join` calls `BookMod.onJoin(player)` after `give(player)`. When the
+runtime is running and no slot of the player's inventory holds a book
+(`CharterBook.isBook`, main inventory, off hand and armour slots all checked), it
+hands one over with the suite's give or drop pattern
 (`player.getInventory().add(stack)`, and `player.drop(stack, false)` when it did not
-fit), add the UUID, and send `book.given` in chat once.
+fit) and sends `book.given`. Nothing is saved: a player who drops, loses or throws
+away their book gets a new one the next time they join (owner, 2026-10-27).
 
 `BookDialogs` (from B0) gains the house rules from the Pocket Dungeons
 `dialog-screens` skill (`.claude/skills/dialog-screens/SKILL.md`; read it):
@@ -606,8 +607,9 @@ see where you stand.`), `book.nothing_here` (`Nothing here yet.`),
 
 Add to `BookGameTest`:
 
-1. A first join (call `BookMod.onJoin` with a mock player) gives one book; a second
-   call gives none, even after the book is removed from the inventory.
+1. A join (call `BookMod.onJoin` with a mock player) gives one book; a second call
+   while they still carry it gives none; after the book is removed from the
+   inventory, the next call gives one again.
 2. A full inventory gets the book dropped at the feet (an `ItemEntity` near the
    player).
 3. `/charter` (run with `performPrefixedCommand`) and `CharterBook.use` both leave
@@ -869,7 +871,8 @@ to `founding_alone.json`.
 the test server with a vanilla client and write their answers under "Builder's
 notes":
 
-1. A fresh player joins and gets one book; using it opens their Home.
+1. A fresh player joins and gets one book; using it opens their Home. They throw it
+   away, rejoin, and have one again.
 2. They follow Found your own to a placed keep without typing anything.
 3. A second player asks to join from their book; the first admits them from theirs.
 4. Both read Rights and Freedoms and they match who holds what.
