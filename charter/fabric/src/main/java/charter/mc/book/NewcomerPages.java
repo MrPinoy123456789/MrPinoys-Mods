@@ -73,6 +73,8 @@ public final class NewcomerPages {
         } else {
             body.add(BookDialogs.text(Text.get("book.newcomer.intro")));
         }
+        body.add(BookDialogs.text(Text.get("book.calendar.seasons", "seasons", MemberPages.seasonNames())));
+        body.add(BookDialogs.text(Text.get("book.calendar.days")));
         List<ActionButton> buttons = List.of(
                 go(player, Text.get("book.button.join"), p -> join(p, null)),
                 go(player, Text.get("book.button.found"), p -> found(p, null)),

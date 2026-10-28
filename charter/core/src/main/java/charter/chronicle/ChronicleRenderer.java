@@ -32,7 +32,7 @@ import java.util.Optional;
  */
 public final class ChronicleRenderer {
 
-    private static final String LAST_RESORT = "Something was recorded in {when}.";
+    private static final String LAST_RESORT = "Something was recorded on {when}.";
 
     private final TemplateSet templates;
     private final Calendar calendar;
@@ -96,6 +96,9 @@ public final class ChronicleRenderer {
     }
 
     private String fill(String text, HistoryEvent event, History.Entry entry, Map<String, Object> fields) {
+        // "On day 3, the first week of Bargains, ..." reads right where "In day 3" does not; a voice file written before
+        // the day was told still says "In {when}".
+        if (text.startsWith("In {when}")) text = "On " + text.substring("In ".length());
         StringBuilder out = new StringBuilder();
         int i = 0;
         while (i < text.length()) {
@@ -133,7 +136,7 @@ public final class ChronicleRenderer {
 
     private Object lookup(String name, HistoryEvent event, History.Entry entry, Map<String, Object> fields) {
         return switch (name) {
-            case "when" -> calendar.phrase(event.at());
+            case "when" -> calendar.dayPhrase(event.at());
             case "actor" -> entry.actor();
             case "type" -> humanize(event.getClass().getSimpleName());
             default -> fields.get(name);

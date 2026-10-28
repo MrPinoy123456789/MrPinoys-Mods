@@ -120,7 +120,11 @@ public final class CharterServer {
         var waiting = runtime.mail.take(id);
         if (!waiting.isEmpty()) {
             player.sendSystemMessage(Component.literal(Text.get("mail.header", "count", waiting.size())).withStyle(ChatFormatting.GOLD));
-            for (Mail.Message m : waiting) player.sendSystemMessage(Component.literal("  " + m.text()).withStyle(ChatFormatting.GRAY));
+            charter.chronicle.Calendar days = new charter.chronicle.Calendar(0, charter.time.Durations.DAY);
+            for (Mail.Message m : waiting) {
+                player.sendSystemMessage(Component.literal("  " + Text.get("mail.line", "age", days.ago(runtime.clock.now(), m.at()), "text", m.text()))
+                        .withStyle(ChatFormatting.GRAY));
+            }
         }
         give(player);
         charter.mc.book.BookMod.onJoin(player);

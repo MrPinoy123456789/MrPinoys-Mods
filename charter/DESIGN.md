@@ -804,7 +804,7 @@ Every event the history records (votes, successions, camps raised, keeps starved
 treaties, secessions, breached contracts) is also written as **prose**, from
 templates filled with names, places and numbers. For example:
 
-> *In the second week of Frostfall, the Eastern Guard rose against the Crown of
+> *On day 1, the second week of Eclipse, the Eastern Guard rose against the Crown of
 > Ashfall. They held the river fort for six days. Ashfall's granary ran dry before
 > any relief arrived, and the fort is theirs.*
 

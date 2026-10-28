@@ -111,8 +111,15 @@ public final class MemberPages {
                 go(player, v.orgName(), p -> faction(p, null)),
                 go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.home.title", "org", v.orgName()),
-                lines(notice, List.of(Text.get("book.home.form", "form", form, "offices", offices))),
+                lines(notice, List.of(Text.get("book.home.form", "form", form, "offices", offices),
+                        Text.get("book.calendar.seasons", "seasons", seasonNames()), Text.get("book.calendar.days"))),
                 buttons, BookDialogs.close()));
+    }
+
+    /** "Bargains, Bloodmoons, Ragnarok and Eclipse". */
+    static String seasonNames() {
+        String[] s = charter.chronicle.Calendar.SEASONS;
+        return String.join(", ", java.util.Arrays.copyOf(s, s.length - 1)) + " and " + s[s.length - 1];
     }
 
     private static Office deciders(OrgId org) {

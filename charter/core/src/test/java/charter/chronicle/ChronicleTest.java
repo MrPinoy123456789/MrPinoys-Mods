@@ -43,9 +43,9 @@ public final class ChronicleTest {
     private static final VoteId VOTE = new VoteId(new UUID(3, 1));
     private static final GrantId GRANT = new GrantId(new UUID(4, 1));
 
-    /** Day 91 from the origin: the second week of Frostfall in year one. */
+    /** Day 91 from the origin: day 1 of the second week of Eclipse in year one. */
     private static final long AT = Durations.days(91) + Durations.hours(5);
-    private static final String IN = "In the second week of Frostfall, ";
+    private static final String IN = "On day 1, the second week of Eclipse, ";
 
     private static final NameLookup NAMES = new NameLookup() {
         @Override public String org(OrgId id) { return id.equals(ASHFALL) ? "Ashfall" : id.equals(RIVERSIDE) ? "Riverside" : "an unknown organization"; }
@@ -72,16 +72,24 @@ public final class ChronicleTest {
 
     static void calendarPhrases() {
         Calendar c = new Calendar(0, Durations.DAY);
-        eq("calendar: day 0", "the first week of Handicrafts", c.phrase(0));
-        eq("calendar: the last day of a week", "the first week of Handicrafts", c.phrase(Durations.days(6)));
-        eq("calendar: the next week", "the second week of Handicrafts", c.phrase(Durations.days(7)));
-        eq("calendar: the next season", "the first week of Highsun", c.phrase(Durations.days(28)));
-        eq("calendar: Frostfall", "the second week of Frostfall", c.phrase(Durations.days(91)));
-        eq("calendar: the last day of the year", "the fourth week of Frostfall", c.phrase(Durations.days(111)));
-        eq("calendar: the year turns", "the first week of Handicrafts, year 2", c.phrase(Durations.days(112)));
-        eq("calendar: before the origin counts as the start", "the first week of Handicrafts", c.phrase(-5));
+        eq("calendar: day 0", "the first week of Bargains", c.phrase(0));
+        eq("calendar: the last day of a week", "the first week of Bargains", c.phrase(Durations.days(6)));
+        eq("calendar: the next week", "the second week of Bargains", c.phrase(Durations.days(7)));
+        eq("calendar: the next season", "the first week of Bloodmoons", c.phrase(Durations.days(28)));
+        eq("calendar: Ragnarok", "the first week of Ragnarok", c.phrase(Durations.days(56)));
+        eq("calendar: Eclipse", "the second week of Eclipse", c.phrase(Durations.days(91)));
+        eq("calendar: the last day of the year", "the fourth week of Eclipse", c.phrase(Durations.days(111)));
+        eq("calendar: the year turns", "the first week of Bargains, year 2", c.phrase(Durations.days(112)));
+        eq("calendar: before the origin counts as the start", "the first week of Bargains", c.phrase(-5));
         Calendar fast = new Calendar(1_000, Durations.HOUR);
-        eq("calendar: a short day moves the weeks along", "the second week of Handicrafts", fast.phrase(1_000 + 7 * Durations.HOUR));
+        eq("calendar: a short day moves the weeks along", "the second week of Bargains", fast.phrase(1_000 + 7 * Durations.HOUR));
+        eq("calendar: the day is told with the week", "day 1, the first week of Bargains", c.dayPhrase(0));
+        eq("calendar: the third day", "day 3, the first week of Bargains", c.dayPhrase(Durations.days(2)));
+        eq("calendar: the last day of the week", "day 7, the first week of Bargains", c.dayPhrase(Durations.days(6)));
+        eq("calendar: the day beside the year", "day 2, the first week of Bargains, year 2", c.dayPhrase(Durations.days(113)));
+        eq("calendar: an age of no days", "today", c.ago(Durations.days(5) + 100, Durations.days(5)));
+        eq("calendar: an age of one day", "yesterday", c.ago(Durations.days(6), Durations.days(5)));
+        eq("calendar: an age of three days", "3 days ago", c.ago(Durations.days(8), Durations.days(5)));
     }
 
     /** One known event per default template, with the exact sentence it must produce. */
@@ -105,7 +113,7 @@ public final class ChronicleTest {
         golden(events, expected, new OrgEvents.Renamed(AT, ASHFALL, "Ashfall", "Free Ashfall"),
                 IN + "Ashfall took the name Free Ashfall.");
         golden(events, expected, new GovEvents.VoteOpened(AT, VOTE, RIVERSIDE, Vote.Kind.MOTION, "spend 30 diamond", KRIS, AT + Durations.days(1)),
-                IN + "Kris put a motion before Riverside: spend 30 diamond. The members may vote until the second week of Frostfall.");
+                IN + "Kris put a motion before Riverside: spend 30 diamond. The members may vote until the second week of Eclipse.");
         golden(events, expected, new GovEvents.VotePassed(AT, VOTE, RIVERSIDE, 3, 1, 0),
                 IN + "the vote of Riverside carried, 3 for and 1 against, with 0 abstaining.");
         golden(events, expected, new GovEvents.VoteFailed(AT, VOTE, RIVERSIDE, "the votes were tied"),
@@ -208,7 +216,7 @@ public final class ChronicleTest {
 
         TemplateSet bare = new TemplateSet();
         ChronicleRenderer none = new ChronicleRenderer(bare, new Calendar(0, Durations.DAY), NAMES, false);
-        eq("fallback: even an empty template set does not crash", "Something was recorded in the second week of Frostfall.",
+        eq("fallback: even an empty template set does not crash", "Something was recorded on day 1, the second week of Eclipse.",
                 none.render(new History.Entry(new Mystery(AT), "test", false)).orElse(""));
 
         // a later milestone plugs in by adding an entry, with no code change

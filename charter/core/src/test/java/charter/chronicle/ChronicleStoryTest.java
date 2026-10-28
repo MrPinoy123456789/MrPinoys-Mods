@@ -46,7 +46,7 @@ public final class ChronicleStoryTest {
     private static final ChunkKey CHUNK = new ChunkKey("minecraft:overworld", 12, -4);
 
     private static final long AT = Durations.days(91) + Durations.hours(5);
-    private static final String IN = "In the second week of Frostfall, ";
+    private static final String IN = "On day 1, the second week of Eclipse, ";
 
     private static final NameLookup NAMES = new NameLookup() {
         @Override public String org(OrgId id) { return id.equals(ASHFALL) ? "Ashfall" : id.equals(EASTERN) ? "the Eastern Guard" : id.equals(RIVERSIDE) ? "Riverside" : "an unknown organization"; }
