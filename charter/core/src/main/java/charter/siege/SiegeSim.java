@@ -254,6 +254,10 @@ public final class SiegeSim {
         addNotoriety(rules.faction(besieger), knobs.notorietyPerClaimTaken);
         events.add(new SiegeEvents.KeepFell(wall, now, keep.id, keep.owner, besieger, keep.center));
         events.addAll(charter.contract.Justice.freeKeep(state, knobs, keep.id, wall, "keep fell"));
+        // A stronghold of the raiders is razed at once: nobody chooses (NPC strongholds, N3).
+        if (state.org(keep.owner).map(o -> o.npc).orElse(false)) {
+            events.addAll(Falls.resolve(state, knobs, keep.id, FallChoice.RAZE, wall));
+        }
     }
 
     /** The besieging organization holding the most closed sides; the older camp wins a tie. */

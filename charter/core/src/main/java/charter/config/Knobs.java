@@ -83,6 +83,23 @@ public final class Knobs {
     public int absentLordDays = 7;
     public int voteEligibilityDays = 3;
     public int voteDurationHours = 48;
+    // ---- NPC strongholds (wall time) ----
+    /** Most strongholds (NPC keeps) standing at once. */
+    public int npcMaxStrongholds = 4;
+    /** Most outposts (NPC camps) standing at once. */
+    public int npcMaxOutposts = 4;
+    /** Real days before a fallen site is replaced elsewhere. */
+    public int npcRespawnDays = 3;
+    /** A new site stands at least this many chunks from any player claim and any online player. */
+    public int npcPlayerClearChunks = 8;
+    /** Tiers by distance from the world spawn, in chunks: near is below the first, middle below the second, else far. */
+    public int npcNearChunks = 40;
+    public int npcMiddleChunks = 120;
+    /** Granary share at spawn, defenders, treasury diamonds and cobblestone, near, middle, far. */
+    public double[] npcGranaryShare = {0.30, 0.50, 0.70};
+    public int[] npcDefenders = {3, 5, 8};
+    public int[] npcDiamonds = {16, 32, 64};
+    public int[] npcCobblestone = {128, 256, 512};
     /** How long a faction that voted to break away has to place its Nexus, and a group has to gather, before it lapses. */
     public int breakawayHours = 24;
     /** How long a request to join a faction waits for an answer before it lapses. */

@@ -209,6 +209,7 @@ public final class CoreBlocks {
             if (org.parent() != null) o.add("parent", gson.toJsonTree(org.parent()));
             o.addProperty("status", org.status().name());
             o.addProperty("foundedAt", org.foundedAt);
+            if (org.npc) o.addProperty("npc", true);
 
             JsonObject gov = new JsonObject();
             gov.addProperty("preset", org.governance.preset.name());
@@ -246,6 +247,7 @@ public final class CoreBlocks {
             Organization org = new Organization(id, str(o, "name"), null, gov,
                     OrgStatus.valueOf(str(o, "status")), num(o, "foundedAt"));
             org.describe(str(o, "description"));
+            org.npc = bool(o, "npc");
             Map<Currency, Long> balances = get(o, "ledger", BALANCES, gson);
             if (balances != null) balances.forEach(org.ledger::add);
             People people = get(o, "people", People.class, gson);

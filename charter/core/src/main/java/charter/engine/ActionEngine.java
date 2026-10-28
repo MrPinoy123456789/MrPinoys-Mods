@@ -354,6 +354,7 @@ public final class ActionEngine {
         long absentLimit = now - Durations.days(knobs.absentLordDays);
         for (Office office : new ArrayList<>(state.allOffices())) {
             if (!office.vacateWhenAbsent || office.vacant() || state.org(office.org).isEmpty()) continue;
+            if (state.org(office.org).map(o -> o.npc).orElse(false)) continue;
             boolean lost = false;
             for (Office.Seat seat : new ArrayList<>(office.holders())) {
                 long lastSeen = state.knownPlayer(seat.player()).map(p -> p.lastSeen).orElse(0L);

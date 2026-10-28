@@ -10,6 +10,7 @@ import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.org.Invite;
 import charter.org.OrgEvents;
+import charter.org.OrgReasons;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,7 @@ public record InviteMember(OrgId org, PlayerId player) implements Action {
 
     @Override
     public Outcome check(ActionContext ctx) {
+        if (ctx.state.org(org).map(o -> o.npc).orElse(false)) return Outcome.refuse(OrgReasons.NOT_JOINABLE);
         if (ctx.state.isMember(player, org)) return Outcome.refuse(new Reason("already_here", "That player is already a member."));
         return Outcome.OK;
     }

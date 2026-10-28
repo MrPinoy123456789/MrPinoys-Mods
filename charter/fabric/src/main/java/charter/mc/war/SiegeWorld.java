@@ -125,6 +125,8 @@ public final class SiegeWorld {
         CharterRuntime rt = CharterServer.runtime();
         MinecraftServer server = CharterServer.server();
         if (server == null) return;
+        // A stronghold of the raiders is razed at once, so there is nothing to choose.
+        if (!rt.state.siege.falls.containsKey(keep)) return;
         OrgId faction = rt.state.root(besieger);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             PlayerId id = new PlayerId(player.getUUID());

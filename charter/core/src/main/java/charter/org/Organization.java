@@ -17,6 +17,13 @@ public final class Organization {
     public final Ledger ledger = new Ledger();
     public final People people = new People();
 
+    /**
+     * A stronghold or outpost of the raiders (NPC strongholds, N1): a normal organization that cannot be joined,
+     * invited to, make war or plant camps, and can only be razed. Never raids players in this version (N6);
+     * camps against player keeps come later with the Ragnarok season work, and nobody should wire them in early.
+     */
+    public boolean npc;
+
     private String name;
     private String description = "";
     private OrgId parent;

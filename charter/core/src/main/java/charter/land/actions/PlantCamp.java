@@ -21,6 +21,7 @@ import java.util.Optional;
  */
 public record PlantCamp(OrgId org, ChunkKey center) implements Action {
 
+    public static final charter.engine.Reason NPC_NO_CAMPS = new charter.engine.Reason("npc_no_camps", "The raiders do not plant camps.");
     public static final charter.engine.Reason TRUCE = new charter.engine.Reason("truce",
             "You lifted your siege of that keep too recently. The truce has not run out.");
 
@@ -36,6 +37,8 @@ public record PlantCamp(OrgId org, ChunkKey center) implements Action {
 
     @Override
     public Outcome check(ActionContext ctx) {
+        // The raiders never plant camps in this version (NPC strongholds, N6).
+        if (ctx.state.org(org).map(o -> o.npc).orElse(false)) return Outcome.refuse(NPC_NO_CAMPS);
         var problem = new LandGraph(ctx.state, ctx.knobs).campProblem(center);
         if (problem.isPresent()) return Outcome.refuse(problem.get());
         // A lifted siege bars the same attacker from planting against that keep during the truce (DESIGN.md §10.9).

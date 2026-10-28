@@ -22,6 +22,7 @@ import java.util.Optional;
  */
 public record ChooseFall(OrgId besieger, CoreId keep, FallChoice choice) implements Action {
 
+    public static final Reason RAZE_ONLY = new Reason("raze_only", "The raiders pay no tribute and sign no treaty. Raze the stronghold.");
     public static final Reason NOT_FALLEN = new Reason("not_fallen", "That keep has not fallen to you.");
 
     @Override
@@ -38,6 +39,9 @@ public record ChooseFall(OrgId besieger, CoreId keep, FallChoice choice) impleme
     public Outcome check(ActionContext ctx) {
         SiegeBook.PendingFall pending = ctx.state.siege.falls.get(keep);
         if (pending == null || !pending.besieger().equals(besieger)) return Outcome.refuse(NOT_FALLEN);
+        // A stronghold of the raiders is only razed: no tribute, no treaty (NPC strongholds, N3).
+        boolean npc = ctx.state.core(keep).flatMap(k -> ctx.state.org(k.owner)).map(o -> o.npc).orElse(false);
+        if (npc && choice == FallChoice.OCCUPY) return Outcome.refuse(RAZE_ONLY);
         return Outcome.OK;
     }
 

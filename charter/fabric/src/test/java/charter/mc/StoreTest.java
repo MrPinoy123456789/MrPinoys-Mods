@@ -278,6 +278,7 @@ final class StoreTest {
     static void seatsRoundTripAndOldSavesRead() throws Exception {
         FullState f = FullState.build();
         f.state.votes().stream().filter(v -> v.kind == Vote.Kind.ELECTION).findFirst().orElseThrow().restrict();
+        f.state.org(f.guard).orElseThrow().npc = true;
         Path dir = Files.createTempDirectory("charter-seats");
         store(dir).save(f.state, f.clock.now());
         CharterState back = store(dir).load(f.knobs, f.clock.now()).state();
@@ -286,6 +287,8 @@ final class StoreTest {
                 council.seats() == 3 && council.deciding() == charter.gov.Office.Deciding.TOGETHER && council.holders().size() == 2);
         check("seats: a vote among the seats keeps its office",
                 back.votes().stream().anyMatch(v -> council.id.equals(v.seatsOf) && v.electorate.size() == 2));
+        check("npc: the flag reads back, and an organization saved without it is not one",
+                back.org(f.guard).orElseThrow().npc && !back.org(f.oakvale).orElseThrow().npc);
         check("seats: an election among a former council stays restricted", back.votes().stream().anyMatch(v -> v.kind == Vote.Kind.ELECTION && v.restricted()));
         check("seats: an organization keeps its decision makers", council.id.equals(back.org(f.ironhold).orElseThrow().governance.deciders));
 
