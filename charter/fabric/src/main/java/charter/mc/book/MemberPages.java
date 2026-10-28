@@ -315,6 +315,9 @@ public final class MemberPages {
                 buttons.add(go(player, Text.get("book.faction.elect"), p -> elect(p, deciders.id)));
             }
         }
+        boolean voter = rt.engine.eligibleVoters(org, now).contains(me);
+        long wait = v.memberSince() + charter.time.Durations.days(rt.knobs.voteEligibilityDays) - now;
+        if (!voter && wait > 0) body.add(Text.get("book.faction.vote_later", "time", Chat.duration(wait)));
         BookDialogs.show(player, BookDialogs.list(v.orgName(), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
     }

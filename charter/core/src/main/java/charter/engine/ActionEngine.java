@@ -142,11 +142,17 @@ public final class ActionEngine {
 
     // ---- votes ----
 
-    /** Members who may vote in this organization now: direct members of long enough standing. */
+    /** Members who may vote in this organization now: direct members of long enough standing, or the only member. */
     public Set<PlayerId> eligibleVoters(OrgId org, long now) {
         long minJoined = now - Durations.days(knobs.voteEligibilityDays);
         Set<PlayerId> out = new LinkedHashSet<>();
-        for (MemberRecord member : state.members(org)) {
+        List<MemberRecord> members = state.members(org);
+        // The wait stops newcomers swaying a faction; a faction of one has nobody to be swayed, so its only member votes at once.
+        if (members.size() == 1) {
+            out.add(members.get(0).player());
+            return out;
+        }
+        for (MemberRecord member : members) {
             if (member.joinedAt() <= minJoined) out.add(member.player());
         }
         return out;

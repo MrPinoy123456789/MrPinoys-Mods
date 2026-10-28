@@ -145,6 +145,25 @@ public final class MemberPagesGameTest {
     }
 
     @GameTest(maxTicks = 200)
+    public void aNewMemberIsToldWhenTheyCanVote(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Wait");
+            OrgId org = kit.orgOf(lord);
+            // The lone founder votes at once, so is told nothing.
+            MemberPages.faction(lord, null);
+            helper.assertTrue(body(lord).stream().noneMatch(l -> l.startsWith("You can vote on changes")), "A lone founder was told to wait");
+            ServerPlayer young = kit.outsider();
+            kit.rt.state.touch(id(young), young.getPlainTextName(), kit.rt.clock.now());
+            kit.rt.engine.run(new Actor.Admin("gametest"), new InviteMember(org, id(young)));
+            kit.rt.engine.run(new Actor.Player(id(young)), new AcceptInvite(id(young), org));
+            MemberPages.faction(young, null);
+            helper.assertTrue(body(young).stream().anyMatch(l -> l.startsWith("You can vote on changes in")),
+                    "A new member was not told when they can vote: " + body(young));
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 200)
     public void castingYesFromTheVotePage(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Ballot");

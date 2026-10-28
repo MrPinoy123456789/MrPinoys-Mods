@@ -51,6 +51,22 @@ public final class GovernanceTest {
         tiesFail();
         quorumCountsActiveMembersOnly();
         passedVoteIsRecheckedWhenItRuns();
+        aSoleMemberVotesAtOnce();
+    }
+
+    static void aSoleMemberVotesAtOnce() {
+        Fixture f = new Fixture();
+        f.seen(KRIS, GIL);
+        f.as(KRIS, new Found(KRIS, "Ashfall", Preset.LORDSHIP));
+        OrgId org = f.state.orgNamed("Ashfall").orElseThrow().id;
+        check("sole: the founder may vote on day zero", f.engine.eligibleVoters(org, f.clock.now()).contains(KRIS));
+        check("sole: and a vote of one settles at once",
+                f.engine.propose(KRIS, new CreateOffice(org, "Reeve")) instanceof Outcome.VoteOpened);
+        f.as(KRIS, new InviteMember(org, GIL));
+        f.as(GIL, new AcceptInvite(GIL, org));
+        check("sole: with a second member the wait applies to both", f.engine.eligibleVoters(org, f.clock.now()).isEmpty());
+        f.passDays(3.1, KRIS, GIL);
+        eq("sole: and ends after the usual days", 2, f.engine.eligibleVoters(org, f.clock.now()).size());
     }
 
     static void foundingNeedsASecondMember() {

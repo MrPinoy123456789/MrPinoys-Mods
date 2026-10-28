@@ -1160,3 +1160,14 @@ could vote once you are a member"; a closing line says the same hands run the ke
 the rest. The founding cooldown (`foundSecedeCooldownDays` 7) blocked the owner's second
 founding attempt on the test server, which is correct; only the tutorial scenario sets it
 to 0. Rights and Freedoms for members are unchanged.
+
+**Second live finding (owner, 2026-10-28):** a fresh founder saw no "who decides" or
+election buttons and no reason, because the faction page shows them only to eligible
+voters. Two changes. (1) The faction page now says "You can vote on changes in {time}."
+to any member who cannot vote yet. (2) `ActionEngine.eligibleVoters` returns the only
+member of a faction at once, since the 3 day wait guards against newcomers swaying a
+faction and a faction of one has none. This touches no reserved or war rule: the
+electorate is fixed when a vote opens, the Lord's powers are unchanged, and a vote of
+one still passes only what votes could already pass. The moment a second member joins,
+the wait applies to both again. Core test `aSoleMemberVotesAtOnce`; the full suite,
+including the invariant simulation, is unchanged.
