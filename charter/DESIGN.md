@@ -768,6 +768,14 @@ same caps for everyone.
 4. People is forked if they want.
 5. Open contracts and grants with the old parent are ended and recorded.
 
+As built (2026-10-28): a sub-faction secedes as a whole by a vote of its members, whatever its
+form, passing when more than half of ALL members eligible to vote say yes (not voting and
+abstaining count as no, no activity filter). With no keep of its own it has `breakawayHours`
+(24) to place a Nexus at its own cost or nothing changes. A group of two or more can leave a
+faction that has no sub-factions with no vote: one starts, the others press the same button, and
+the starter places a named Nexus. Members of a Lordship or a council have no other vote on the
+ruler; breaking away is the way out (`docs/2026-10-28-government-forms-brief.md`).
+
 Limits: a top-level organization needs at least 2 founders, and a player cannot
 found or secede more than once every 7 days (unless unrest waives it, §14).
 

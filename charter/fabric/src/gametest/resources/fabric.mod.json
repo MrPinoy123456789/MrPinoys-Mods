@@ -25,7 +25,8 @@
       "charter.gametest.TutorialGameTest",
       "charter.gametest.BookGameTest",
       "charter.gametest.MemberPagesGameTest",
-      "charter.gametest.FoundingGameTest"
+      "charter.gametest.FoundingGameTest",
+      "charter.gametest.BreakawayGameTest"
     ]
   },
   "mixins": [

@@ -95,8 +95,10 @@ public final class Placement {
     private static String placeNexus(ServerPlayer player, Level level, BlockPos pos, ItemStack placed) {
         CharterRuntime rt = CharterServer.runtime();
         Optional<OrgId> org = orgOf(rt, player);
-        if (org.isEmpty()) {
-            // A player with no faction can place only a named Nexus: it founds the faction and its keep.
+        boolean leavingGroup = org.isPresent() && charter.mc.book.NexusItems.foundingName(placed).isPresent()
+                && rt.state.groupStartedBy(new PlayerId(player.getUUID())).isPresent();
+        if (org.isEmpty() || leavingGroup) {
+            // A player with no faction, or the starter of a group breaking away, places a named Nexus to found a faction and its keep.
             Optional<String> name = charter.mc.book.NexusItems.foundingName(placed);
             if (name.isEmpty()) return Text.get("book.nexus.unnamed");
             return charter.mc.book.FoundingPlacement.found(player, level, pos, name.get(), charter.mc.book.NexusItems.bannerOf(placed));

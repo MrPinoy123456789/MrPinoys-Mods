@@ -143,8 +143,8 @@ public final class MemberPages {
         if (freedoms.isEmpty()) body.add(Text.get("book.freedoms.none")); else body.addAll(freedoms);
         // Members of a Lordship or a council cannot vote the ruler out; the only ways out are to leave or break away.
         if (v.form() != Standing.Form.COMMUNE) body.add(Text.get("book.freedoms.no_vote"));
-        BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body), List.of(),
-                BookDialogs.back(player, p -> home(p, null))));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body),
+                List.of(BreakawayPages.button(player)), BookDialogs.back(player, p -> home(p, null))));
     }
 
     // ---- Your situation ----
