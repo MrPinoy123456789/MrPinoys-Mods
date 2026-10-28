@@ -46,7 +46,7 @@ public final class OssuaryFinaleGameTest {
             this.slot = slot;
             this.level = helper.getLevel();
             this.server = level.getServer();
-            this.origin = helper.absolutePos(BlockPos.ZERO);
+            this.origin = helper.absolutePos(new BlockPos(0, 96 + 24 * (slot - 10040), 0));
             for (int x = 0; x < 16; x++) {
                 for (int z = 0; z < 16; z++) {
                     level.setBlock(origin.offset(x, 0, z), Blocks.STONE.defaultBlockState(), 3);

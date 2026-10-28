@@ -118,11 +118,14 @@ public final class StairRoomGameTest {
     @GameTest(maxTicks = 100)
     public void aMobFindsAPathDownEveryStairRoom(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos origin = nearOrigin(helper, 2);
-        forceLoad(level, origin, true);
+        BlockPos base = nearOrigin(helper, 2);
+        List<BlockPos> origins = new ArrayList<>();
         Mob mob = null;
         try {
             for (String room : new java.util.TreeSet<>(LOWER_DOOR.keySet())) {
+                BlockPos origin = base.south(64 * origins.size());
+                origins.add(origin);
+                forceLoad(level, origin, true);
                 clear(level, origin);
                 stamp(level, origin, room);
                 mob = spawnHusk(level, origin.offset(2, 1, 7));
@@ -151,8 +154,10 @@ public final class StairRoomGameTest {
             if (mob != null) {
                 mob.discard();
             }
-            clear(level, origin);
-            forceLoad(level, origin, false);
+            for (BlockPos origin : origins) {
+                clear(level, origin);
+                forceLoad(level, origin, false);
+            }
         }
         helper.succeed();
     }
@@ -280,6 +285,10 @@ public final class StairRoomGameTest {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 level.setChunkForced(chunk.x() + dx, chunk.z() + dz, forced);
+                if (forced) {
+                    level.getChunk(chunk.x() + dx, chunk.z() + dz);
+                    level.waitForEntities(new ChunkPos(chunk.x() + dx, chunk.z() + dz), 0);
+                }
             }
         }
     }

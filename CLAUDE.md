@@ -73,3 +73,8 @@ Before immediately counting spawned mobs, load every touched chunk (including
 spawn-ring overshoot) and call `level.waitForEntities(chunkPos, 0)`. Repeat before
 a delayed spawn if the chunks could unload. Scope entity counts and cleanup to
 the owning floor, not just a shared mob-kind tag.
+
+`GameTestInfo.succeed` removes entities inside that test's structure bounds,
+including another test's mobs. Keep long-lived arena fixtures outside neighbouring
+harness cleanup bounds, and give independently stamped navigation cases separate
+cells rather than reusing one cell's terrain and path cache in the same tick.
