@@ -211,8 +211,13 @@ public final class LandGraph {
 
     /** Plants a camp, raising. The caller has checked {@link #campProblem}. */
     public List<HistoryEvent> plantCamp(OrgId owner, ChunkKey center, long wallNow) {
+        return plantCamp(owner, center, wallNow, CampPhase.RAISING);
+    }
+
+    /** Plants a camp in the given phase; the raiders' outposts stand raised from the start. */
+    public List<HistoryEvent> plantCamp(OrgId owner, ChunkKey center, long wallNow, CampPhase phase) {
         Core core = new Core(state.ids.core(), CoreKind.CAMP, owner, center, state.takeCoreOrder(), wallNow,
-                CampPhase.RAISING, state.siegeClock.now());
+                phase, state.siegeClock.now());
         state.addCore(core);
         state.addClaim(new Claim(state.ids.claim(), center, owner, ClaimKind.CAMP, core.id, 0, wallNow));
         List<HistoryEvent> events = new ArrayList<>();

@@ -20,6 +20,7 @@ public final class CoreSuite {
         charter.org.BreakawayTest.run();
         charter.org.DissolveOrgTest.run();
         charter.siege.NpcTest.run();
+        charter.siege.NpcPlacementTest.run();
         charter.grant.AuthorityTest.run();
         charter.land.LandTest.run();
         charter.food.FoodTest.run();

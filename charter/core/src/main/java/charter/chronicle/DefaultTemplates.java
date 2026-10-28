@@ -34,6 +34,8 @@ public final class DefaultTemplates {
         t.put("GovEvents.VoteRefusedAtExecution", "On {when}, the vote of {org} carried, but could not be carried out, for the world had changed ({reasonKey}).");
         t.put("GovEvents.OfficeCreated", "On {when}, {org} created the office of {name}{reserved?, which only a vote may fill}.");
         t.put("GovEvents.OfficeFilled", "On {when}, {holder} took up the office of {office} in {org}.");
+        t.put("NpcEvents.Raised", "On {when}, a band calling itself {org} raised a {kind} at {center}.");
+        t.put("NpcEvents.Replaced", "On {when}, a fallen {kind} was replaced: {org} raised another at {center}.");
         t.put("OrgEvents.Dissolved", "On {when}, {org} was dissolved. {members#member} went free{keeps?, and its keeps fell}.");
         t.put("OrgEvents.BreakawayBegan", "On {when}, {org} began to break away.");
         t.put("OrgEvents.BreakawayLapsed", "On {when}, the break away of {org} came to nothing: its time ran out.");

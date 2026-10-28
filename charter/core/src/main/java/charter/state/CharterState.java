@@ -53,6 +53,9 @@ public final class CharterState {
     /** Siege block (M5): granaries, camp stores, holds, allowances, truces, falls. */
     public final charter.siege.SiegeBook siege = new charter.siege.SiegeBook();
 
+    /** The raiders' strongholds and outposts that stand, and the replacements waiting (NPC strongholds). */
+    public final charter.npc.NpcBook npc = new charter.npc.NpcBook();
+
     /** Contracts block (M6): contracts, custody, the punishment ledger, players' own deposits, breach marks. */
     public final charter.contract.ContractBook contracts = new charter.contract.ContractBook();
 

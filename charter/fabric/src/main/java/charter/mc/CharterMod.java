@@ -49,6 +49,9 @@ public final class CharterMod implements ModInitializer {
         charter.mc.chronicle.Chronicles.register();
         // M14: the playtest kit: operator scenarios.
         charter.mc.scenario.ScenarioCommands.register();
+        // The raiders' strongholds and outposts, and their admin commands.
+        charter.mc.npc.NpcWorld.register();
+        charter.mc.npc.NpcCommands.register();
         // The Charter book and the founding Nexus.
         charter.mc.book.BookMod.register();
 

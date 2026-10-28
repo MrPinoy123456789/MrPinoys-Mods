@@ -52,6 +52,7 @@ public final class CoreTypes {
                 .register("org.found_keep", charter.org.actions.FoundKeep.class)
                 .register("org.secede", charter.org.actions.Secede.class)
                 .register("org.dissolve", charter.org.actions.DissolveOrg.class)
+                .register("npc.spawn", charter.npc.SpawnNpc.class)
                 .register("org.break_away", charter.org.actions.BreakAway.class)
                 .register("org.apply", charter.org.actions.Apply.class)
                 .register("org.admit", charter.org.actions.Admit.class)
@@ -83,9 +84,11 @@ public final class CoreTypes {
                 .registerNested(TreasuryEvents.class, HistoryEvent.class)
                 .registerNested(LandEvents.class, HistoryEvent.class)
                 .registerNested(SiegeEvents.class, HistoryEvent.class)
+                .registerNested(charter.npc.NpcEvents.class, HistoryEvent.class)
                 .registerNested(StoreEvents.class, HistoryEvent.class);
         Persistence.block(CoreBlocks.block("join_requests", CoreTypes::writeRequests, CoreTypes::readRequests));
         Persistence.block(CoreBlocks.block("breakaways", CoreTypes::writeBreakaways, CoreTypes::readBreakaways));
+        Persistence.block(CoreBlocks.block("npc", CoreTypes::writeNpc, CoreTypes::readNpc));
     }
 
     private static com.google.gson.JsonElement writeRequests(charter.state.CharterState state, com.google.gson.Gson gson) {
@@ -124,5 +127,32 @@ public final class CoreTypes {
             }
             state.addBreakaway(b);
         }
+    }
+
+    private static com.google.gson.JsonElement writeNpc(charter.state.CharterState state, com.google.gson.Gson gson) {
+        com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+        root.add("sites", gson.toJsonTree(state.npc.sites));
+        root.add("respawns", gson.toJsonTree(state.npc.respawns));
+        root.addProperty("nextId", state.npc.nextId);
+        return root;
+    }
+
+    private static void readNpc(com.google.gson.JsonObject json, charter.state.CharterState state, com.google.gson.Gson gson, Repairs repairs) {
+        state.npc.sites.clear();
+        state.npc.respawns.clear();
+        if (json.has("sites")) {
+            java.util.List<charter.npc.NpcBook.Site> sites = gson.fromJson(json.get("sites"),
+                    new com.google.gson.reflect.TypeToken<java.util.List<charter.npc.NpcBook.Site>>() { }.getType());
+            for (charter.npc.NpcBook.Site site : sites) {
+                // A site whose core is not in the state is dropped; the scheduler then replaces it after the usual wait.
+                state.npc.sites.add(site);
+            }
+        }
+        if (json.has("respawns")) {
+            java.util.List<charter.npc.NpcBook.Respawn> respawns = gson.fromJson(json.get("respawns"),
+                    new com.google.gson.reflect.TypeToken<java.util.List<charter.npc.NpcBook.Respawn>>() { }.getType());
+            state.npc.respawns.addAll(respawns);
+        }
+        if (json.has("nextId")) state.npc.nextId = json.get("nextId").getAsLong();
     }
 }

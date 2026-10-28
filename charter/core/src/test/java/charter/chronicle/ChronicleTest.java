@@ -128,6 +128,10 @@ public final class ChronicleTest {
                 IN + "Gil left the office of Treasurer in Riverside: voted out.");
         golden(events, expected, new OrgEvents.Admitted(AT, ASHFALL, GIL),
                 IN + "Ashfall took in Gil.");
+        golden(events, expected, new charter.npc.NpcEvents.Raised(AT, ASHFALL, charter.npc.NpcBook.Kind.STRONGHOLD, new charter.id.ChunkKey("minecraft:overworld", 3, 4)),
+                IN + "a band calling itself Ashfall raised a stronghold at 56, 72.");
+        golden(events, expected, new charter.npc.NpcEvents.Replaced(AT, ASHFALL, charter.npc.NpcBook.Kind.OUTPOST, new charter.id.ChunkKey("minecraft:overworld", 3, 4)),
+                IN + "a fallen outpost was replaced: Ashfall raised another at 56, 72.");
         golden(events, expected, new OrgEvents.Dissolved(AT, ASHFALL, 3, 1),
                 IN + "Ashfall was dissolved. 3 members went free, and its keeps fell.");
         golden(events, expected, new OrgEvents.BreakawayBegan(AT, ASHFALL, null, AT + 1000),
