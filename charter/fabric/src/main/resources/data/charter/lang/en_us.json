@@ -411,5 +411,9 @@
   "scenario.chest": "Food chest at {x}, {z}.",
   "scenario.rails": "Laid {length} rails.",
   "scenario.rails_straight": "Rails run along one axis only.",
-  "scenario.noted": "Noted in the siege log."
+  "scenario.noted": "Noted in the siege log.",
+
+  "book.item.name": "Charter of Rights and Freedoms",
+  "book.item.lore": "Use it to see where you stand.",
+  "book.nexus.lore": "Place it to found {name}."
 }

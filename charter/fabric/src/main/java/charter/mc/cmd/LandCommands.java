@@ -52,7 +52,7 @@ import java.util.Optional;
  *   /charter admin faction spawn &lt;name&gt; &lt;player&gt;   a ready lordship, funded, with a nexus and a banner for the player
  *   /charter admin camp raise-now         finish raising the nearest raising camp
  *   /charter admin perimeter show         the sides of the nearest keep or camp, open and closed
- *   /charter admin give nexus|banner [player]
+ *   /charter admin give nexus|banner|book [player]
  * </pre>
  */
 public final class LandCommands {
@@ -84,7 +84,7 @@ public final class LandCommands {
                         .then(Commands.literal("show").executes(LandCommands::perimeter)))
                 .then(Commands.literal("give")
                         .then(Commands.argument("what", StringArgumentType.word())
-                                .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"nexus", "banner"}, b))
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"nexus", "banner", "book"}, b))
                                 .executes(ctx -> give(ctx, ctx.getSource().getPlayerOrException()))
                                 .then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
@@ -296,6 +296,7 @@ public final class LandCommands {
         switch (what) {
             case "nexus" -> target.getInventory().add(LandItems.nexus());
             case "banner" -> target.getInventory().add(LandItems.warBanner());
+            case "book" -> target.getInventory().add(charter.mc.book.CharterBook.create());
             default -> {
                 return fail(ctx, Text.get("land.admin.bad_item"));
             }

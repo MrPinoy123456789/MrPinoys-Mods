@@ -1079,3 +1079,14 @@ notes":
 
 (The builder writes here: B0's live answers, anything in this plan that was wrong
 and what was done instead, and the final counts.)
+
+### B0 (built 2026-10-27)
+
+- Counts after B0: core 1322, fabric 418, gametests 81 (including vanilla's `always_pass`). The starting counts quoted above (fabric 362, gametests 73) were stale: the run before B0 was not re-measured, so only core is a clean before and after. The four new `BookGameTest` tests all appear in the report.
+- `LandItems.stamp` is private to `charter.mc.land`; "package private" would not reach `charter.mc.book`, so `CharterBook.create` copies its four lines.
+- `CharterCommands.TOKENS` stays package private; a public `issue(player, label, run)` wrapper was added instead.
+- `BookDialogs.LAST` is public (the gametests live in another package) and is cleared on disconnect from `BookMod`.
+- `NexusRecipe` refuses a lodestone or banner that already carries custom data, so a Nexus or War Banner is never consumed by it. The recipe JSON is only `{"type": "charter:nexus"}`: the serializer is a unit codec and `category()` is the vanilla default.
+- `NexusItems.bannerJson` takes null registries (a recipe has no level; `NexusRecipe` passes the server's registry access when the server is running) and then writes an empty patterns list.
+- `NexusItems.bannerOf(stack)` was added (B6 calls it).
+- Live check: NOT deployed (this build was told never to deploy). Waiting for the owner.

@@ -63,6 +63,11 @@ public final class CharterCommands {
         return TOKENS;
     }
 
+    /** Issues a one-shot token bound to this player, for the buttons of the Charter book. */
+    public static String issue(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> run) {
+        return TOKENS.issue(player.getUUID(), label, System.currentTimeMillis(), run);
+    }
+
     private CharterCommands() {
     }
 

@@ -49,6 +49,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.chronicle.Chronicles.register();
         // M14: the playtest kit: operator scenarios.
         charter.mc.scenario.ScenarioCommands.register();
+        // The Charter book and the founding Nexus.
+        charter.mc.book.BookMod.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }
