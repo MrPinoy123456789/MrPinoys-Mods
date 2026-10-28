@@ -78,3 +78,5 @@ the owning floor, not just a shared mob-kind tag.
 including another test's mobs. Keep long-lived arena fixtures outside neighbouring
 harness cleanup bounds, and give independently stamped navigation cases separate
 cells rather than reusing one cell's terrain and path cache in the same tick.
+Chunk-scoped helpers such as `AoETelegraph.clear` require distinct chunks for
+concurrent fixtures; different origin tiles inside one chunk are not isolated.

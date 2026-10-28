@@ -1269,7 +1269,7 @@ Terminal geometry constants in `Terminal`; the per-room opening tab (a constant 
 Whether a four or five member Crew tab fits at scale 1.0; whether the floor graph reads at wall distance; whether
 anyone misses history on the wall; whether `away 8:12` is understood without a label.
 
-**Status: built on `feature/terminal-map-crew` (2026-10-23), not played. Live check L119.**
+**Status: built and integrated into `master`, not played. Live check L119.**
 
 ## 2026-10-23: Door board icons
 
@@ -1321,4 +1321,4 @@ None. The board is transient and redraws at the next preview.
 Whether players right-click the icons at all; whether a new player knows the TNT means Explosive without the click;
 whether the icon row reads from the middle of the room; whether a last floor's long row stays readable.
 
-**Status: approved (owner, 2026-10-23, option A). Built on `feature/door-board-icons`.**
+**Status: approved (owner, 2026-10-23, option A), built and integrated into `master`. Live check L120 remains owed.**

@@ -960,14 +960,14 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 
 
 ## L119: Terminal tabs Objectives, Map, Crew (2026-10-23)
-- **Status:** owed (built on `feature/terminal-map-crew`, not deployed)
+- **Status:** owed (integrated into `master`, not deployed)
 - **Changed:** decision 2026-10-23. History and Progress left the terminal; Map (floor graph in a run, act checklist in the hall) and Crew (one row per member: haul, pots, reward ticks, lives, the leader-away clock) took their places. Each new room opens on its own tab. Floor history is on `/dungeon history` and the lodestone menu. Objectives now shows a dark silhouette window for a locked act, the five reward icons in spec order with their inspect lines, the next goal in white and gold, and `Act complete`.
 - **Do:** In the hall read Objectives, page to a locked act and see the silhouette. Right-click each reward icon. Click MAP and read the checklist. Take a door: the next staging room should open on MAP with the floor graph (you are the gold diamond). Finish a dungeon: the go-home room should open on CREW. With a second account, check both rows, the star on the leader, and `Pots 1` after a rescue. Disconnect the leader and watch `away 9:59` count down on CREW. Open Floor History from the lodestone menu and with `/dungeon history`.
 - **Pass:** Every tab reads from the middle of the room; a full party fits on CREW at scale 1.0 or larger; the floor graph matches the doors; the away clock ticks without the wall flickering.
 - **Fail signs:** wrapped story lines overlapping (the wrap estimate is off), CREW rows running off the screen, the clock leaving a stale copy, a tab that switches by itself after a click, a member who never appears on CREW.
 
 ## L120: Door board icons (2026-10-23)
-- **Status:** owed (built on `feature/door-board-icons`, not deployed)
+- **Status:** owed (integrated into `master`, not deployed)
 - **Changed:** decision 2026-10-23, "Door board icons". The deal sheet (right of the door board) is now the floor's name, one line of scrap, `Loot N%` and a life cost, and a row of icons: one per affix, the mining word, the promised items, the finish on a last floor, and a chest with the roll count. Each icon prints its words on a right click. Wrapping on both sheets is measured with font widths.
 - **Do:** Preview a door with two affixes, one on a resource dungeon, and a last floor. Read each board from the middle of the room, then right-click every icon. Ask a new player what the TNT and the clock mean before they click.
 - **Pass:** The board reads at a glance; each icon's click line matches it; nothing overlaps the doors, the ceiling or the left sheet; a last floor's long row stays inside the backdrop.
