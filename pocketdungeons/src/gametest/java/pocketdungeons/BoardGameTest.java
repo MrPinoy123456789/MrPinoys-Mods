@@ -119,6 +119,93 @@ public final class BoardGameTest {
 
 
     /**
+     * Decision 2026-10-23 (door board icons): the deal sheet's icon row is one item display and one
+     * inspect glyph per icon, a count beside each icon above one, all inside the backdrop (blocks 3 to
+     * 12, rows 4 and 5). An update replaces the row rather than doubling it, and a single board takes
+     * it down with the sheets.
+     */
+    @GameTest(maxTicks = 100)
+    public void theDealSheetShowsAnIconRowInsideTheBackdrop(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0));
+        DoorMask.Direction wall = DoorMask.Direction.NORTH;
+        List<DoorIcons.Icon> icons = List.of(
+                new DoorIcons.Icon("minecraft:tnt", 1, Component.literal("Explosive")),
+                new DoorIcons.Icon("minecraft:iron_pickaxe", 1, Component.literal("Mining")),
+                new DoorIcons.Icon("minecraft:emerald", 12, Component.literal("12 emeralds for finishing")),
+                DoorIcons.rolls(8));
+        DungeonScreen.Sheets sheets = new DungeonScreen.Sheets(
+                Component.literal("Ossuary"), Component.literal("Floor 3 of 3"),
+                Component.literal("The last floor."), Component.literal("Bone Throne\n2 scrap · Loot 200%"),
+                icons);
+        DungeonScreen.summonDoor(level, origin, wall, new DungeonScreen.Board(
+                Component.literal("t"), Component.literal("b"), sheets));
+
+        helper.assertValueEqual(4, iconEntities(level, origin, Display.ItemDisplay.class).size(), "one item per icon");
+        helper.assertValueEqual(4, iconEntities(level, origin, net.minecraft.world.entity.Interaction.class).size(),
+                "one click box per icon");
+        helper.assertValueEqual(2, iconEntities(level, origin, Display.TextDisplay.class).size(),
+                "a count beside the emeralds and the chest only");
+        for (var item : iconEntities(level, origin, Display.ItemDisplay.class)) {
+            double along = item.getX() - origin.getX();
+            double y = item.getY() - origin.getY();
+            helper.assertTrue(along > 3.0 && along < 13.0, "an icon stays on the backdrop's blocks (along " + along + ")");
+            helper.assertTrue(y > 4.0 && y < 6.0, "an icon stays on the backdrop's rows (y " + y + ")");
+            helper.assertTrue(along > 8.0, "the icon row sits under the deal, on the viewer's right");
+        }
+
+        DungeonScreen.summonDoor(level, origin, wall, new DungeonScreen.Board(
+                Component.literal("t"), Component.literal("b"), sheets));
+        helper.assertValueEqual(4, iconEntities(level, origin, Display.ItemDisplay.class).size(),
+                "an update replaces the row, never doubles it");
+
+        DungeonScreen.summonDoor(level, origin, wall, DungeonScreen.refusalContent("Select a door first"));
+        helper.assertValueEqual(0, iconEntities(level, origin, net.minecraft.world.entity.Entity.class).size(),
+                "a single board takes the icon row down");
+        helper.succeed();
+    }
+
+    /** A long last-floor row still fits the 5 block sheet, and the counts keep their full size. */
+    @GameTest
+    public void aLongIconRowShrinksToFitTheSheet(GameTestHelper helper) {
+        List<DoorIcons.Icon> icons = new java.util.ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            icons.add(new DoorIcons.Icon("minecraft:paper", 1, Component.literal("x")));
+        }
+        icons.add(DoorIcons.emeralds(12));
+        icons.add(DoorIcons.rolls(10));
+        double[] row = DungeonScreen.iconRowWidths(icons, DungeonScreen.SHEET_WIDTH - 0.2);
+        helper.assertTrue(row[2] <= DungeonScreen.SHEET_WIDTH, "the row fits the sheet (" + row[2] + ")");
+        helper.assertTrue(row[0] < DungeonScreen.ICON_SCALE, "the icons shrank to fit");
+        double[] short_ = DungeonScreen.iconRowWidths(List.of(DoorIcons.rolls(3)), DungeonScreen.SHEET_WIDTH - 0.2);
+        helper.assertTrue(short_[0] == DungeonScreen.ICON_SCALE, "a short row keeps full size icons");
+        helper.succeed();
+    }
+
+    /** Every loaded affix has its own icon, and every mapped item is a real item. */
+    @GameTest
+    public void everyAffixHasARealIcon(GameTestHelper helper) {
+        for (AffixDefinition affix : AffixManifest.current().definitions()) {
+            helper.assertTrue(DoorIcons.AFFIX.containsKey(affix.id), affix.id + " has an icon in DoorIcons.AFFIX");
+            DoorIcons.Icon icon = DoorIcons.affix(affix);
+            helper.assertTrue(icon.inspect().getString().startsWith(affix.label),
+                    affix.id + " reads its own name first on a right click: " + icon.inspect().getString());
+        }
+        for (String item : java.util.stream.Stream.concat(DoorIcons.AFFIX.values().stream(),
+                DoorIcons.WORD.values().stream()).toList()) {
+            helper.assertTrue(net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(
+                    net.minecraft.resources.Identifier.parse(item)), item + " is a real item");
+        }
+        helper.succeed();
+    }
+
+    private static <T extends net.minecraft.world.entity.Entity> List<T> iconEntities(ServerLevel level,
+                                                                                      BlockPos origin, Class<T> type) {
+        return level.getEntitiesOfClass(type, new AABB(origin).inflate(RoomGeometry.CELL),
+                e -> e.entityTags().contains(DungeonScreen.ICON_TAG) && !e.isRemoved());
+    }
+
+    /**
      * PD-161: the board only promises ore the plan can deliver. A dungeon that
      * buries hidden ore (the Mineshaft) always can; a palette-only dungeon
      * (Deepslate) can only through a placed room that declares nodes, and

@@ -136,12 +136,20 @@ final class DungeonCommands {
                         return 0;
                     }))
 
-            // The staging room's dungeon map, typed (also opened by clicking
-            // the floor history board). Read only.
+            // The player's own floor history (decision 2026-10-23: off the
+            // shared terminal). Also on the lodestone menu. Read only.
+            .then(Commands.literal("history")
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayerOrException();
+                        DialogKit.show(player, DialogScreens.floorHistory(player.level().getServer(),
+                                player.getUUID()));
+                        return 1;
+                    }))
             // Re-deals the first staging room's dungeons (the owner, before a door is taken).
             .then(Commands.literal("reroll")
                     .executes(ctx -> rerollDoors(ctx.getSource().getPlayerOrException())))
 
+            // The staging room's dungeon map, typed; the terminal's Map tab is the wall's. Read only.
             .then(Commands.literal("map")
                     .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
 

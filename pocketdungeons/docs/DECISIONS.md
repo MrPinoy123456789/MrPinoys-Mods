@@ -1214,3 +1214,111 @@ Whether the party reads the Objectives tab without being told; whether 12 blocks
 room; whether guests feel rewarded enough to keep joining; whether the lit window is too bright for the room.
 
 **Status: approved, not built (2026-10-21).** Handoff pack in `docs/devin/`.
+
+## 2026-10-23: Terminal tabs: Objectives, Map, Crew
+
+The player's sentence: *The wall tells the crew where we are going (Objectives), where we are (Map) and how each of us
+is doing (Crew). My own floor log is mine, so it lives in my menu, not on everyone's wall.*
+
+### The model
+
+| Tab | Shows | Built from | Replaces |
+|---|---|---|---|
+| Objectives | The page act: crest, act name, story, next goal, rewards row, window, act pips. Reward icons have **no ticks** | `Terminal.objectives` as today | unchanged, minus the ticks |
+| Map | In a run: the floor graph (current floor gold, taken path, the doors ahead). In the hall: the page act's checklist (the Progress tab's right column today) | `DungeonMapText.lines`, `firstLines`, `actChecklist` | History, and Progress's right column |
+| Crew | One row per member: `★` on the leader, personal haul, pots left behind, that member's own act reward ticks. Footer: shared lives. While the leader's reconnect grace runs: `away 8:12` | `DungeonLog.haulOf`, `PackPot`, `actRewardsClaimedOf(member)`, `RunLifecycle.livesLeft`, the owner grace timer | Progress's left column (it repeated the sidebar) |
+| Floor history | Off the wall. `/dungeon history` in chat and a page in the lodestone menu | `FloorHistory.board`, data unchanged in `DungeonLog` | the History tab |
+
+### Rules
+
+1. **Three tabs, four columns each**, in the order `OBJECTIVES | MAP | CREW`. Shared state, anyone may click, as before.
+2. **Each room opens on its own tab** when it is stamped: the hall on Objectives, a staging room between floors on Map,
+   a cleared floor's go-home room on Crew. After that only a click changes the tab; nothing switches it on its own.
+3. **Ticks belong to people.** A shared wall cannot tell viewers apart, so a reward tick sits on that member's Crew
+   row, never on the Objectives icons.
+4. **Short text.** Position and colour carry the meaning: `◆ Last`, `Pots 1`, `away 8:12`, a bare haul number in aqua.
+   Clear text (`1 pot left behind`, `Leader away: 8:12`) was offered and not taken.
+5. **The map is on the wall again.** PD-224 removed the board's right-click map; the Map tab is now the in-world way
+   to read it. `/dungeon map` stays.
+6. **Nothing written to the wall is smaller than scale 1.0** (spec 7.4.1), including Crew rows with a full party.
+
+### Build notes
+
+While Objectives is open for the tick change, close the gaps found against `docs/devin/01-SPEC.md` 7.4 on 2026-10-23
+(the T6 report said none): locked acts draw no silhouette window; the rewards row lacks the title and window icons
+and its inspect text is the bare item name; line 3 reads `nextInAct` in plain white instead of the quest line in white
+and gold, a finished act shows no `◆ Act complete`, act 0 says `The Tutorial`; row wrapping is guessed from string
+length. `TerminalGameTest` needs a Map and a Crew case; the History case moves to the command.
+
+### Migration
+
+None. Saves are untouched; `InstanceRecord.terminalTab` values `progress` and `history` read as `map`.
+
+### Supersedes
+
+- 2026-10-21 rule 4 and its table row: the three tabs Objectives, Progress, History.
+- `docs/devin/01-SPEC.md` 7.5 (Progress tab), 7.6 (History tab), and the reward ticks in 7.4.
+- 2026-10-21 Supersedes, last line: floor history no longer becomes a tab.
+
+### Knobs
+
+Terminal geometry constants in `Terminal`; the per-room opening tab (a constant per room kind, not config).
+
+### Open until played
+
+Whether a four or five member Crew tab fits at scale 1.0; whether the floor graph reads at wall distance; whether
+anyone misses history on the wall; whether `away 8:12` is understood without a label.
+
+**Status: built on `feature/terminal-map-crew` (2026-10-23), not played. Live check L119.**
+
+## 2026-10-23: Door board icons
+
+The player's sentence: *"There's too much text on the screen above the selector doors" (PD-151). Show me what the
+door gives as things I recognise, and let me right-click one when I want the words.*
+
+### The model
+
+The two sheets stay (they passed play on 2026-10-07). The left sheet is unchanged: the dungeon, the floor, one
+sentence. The right sheet becomes two short text lines and a row of icons:
+
+| Part | Shows | Colour or item | Right-click says |
+|---|---|---|---|
+| Line 1 | The floor's name | white | |
+| Line 2 | Scrap pay, `Loot 250%`, `Costs 1 life` (only the parts the door has) | aqua, gold above 100 percent, yellow | |
+| Affix icon | One per affix | `DoorIcons.AFFIX` (TNT for Explosive, a clock for Overclocked) | the affix's own blurb, its name in magenta |
+| Mining icon | One per mining word from PD-211 (`mining`, `deep mining`, `nether mining`, `wood`, `sand`) | a pickaxe, a log, sand | the word |
+| Reward icons | The floor's promised items and the wagered gear piece | the item itself, its count beside it | the item's name |
+| Finish icons | On a last floor: emeralds, the vault, the diary page while owed | emerald, vault, paper | `12 emeralds for finishing`, `The vault`, `A diary page` |
+| Rolls icon | The reward rolls | a chest, the count beside it | `8 rolls in your reward barrel` |
+
+### Rules
+
+1. **Icons for things, text for numbers that decide.** Scrap, the loot percent and a life cost stay as words on
+   line 2, because a player weighs them before pulling the lever. Everything the floor hands out is an icon.
+2. **Every icon is an inspect glyph.** A right click prints its line, so nothing is lost by cutting the text.
+3. **Counts sit beside the icon at scale 1.0**, never smaller, and only when above one.
+4. **The row fits the sheet.** Slots shrink to fit 5 blocks; icons never overlap and never leave the backdrop.
+5. **Wrapping is measured** with the vanilla font widths the terminal uses (`BoardText.wrapRows`), not a flat
+   5.6 pixels a character.
+6. Notices (the first lever's tutorial, an experimental offer, a playtest bias) stay as text lines under line 2.
+
+### Migration
+
+None. The board is transient and redraws at the next preview.
+
+### Supersedes
+
+- 2026-10-06 design item 1 (the door board's colour-group text lines) for the deal sheet; the single board fallback
+  keeps them.
+- The deal sheet's affix line and the gets line (PD-151, PD-207, PD-211 wording stays as the inspect words).
+
+### Knobs
+
+`DoorIcons.AFFIX` and `DoorIcons.WORD` (affix id and mining word to item), the row constants in `DungeonScreen`.
+
+### Open until played
+
+Whether players right-click the icons at all; whether a new player knows the TNT means Explosive without the click;
+whether the icon row reads from the middle of the room; whether a last floor's long row stays readable.
+
+**Status: approved (owner, 2026-10-23, option A). Built on `feature/door-board-icons`.**
