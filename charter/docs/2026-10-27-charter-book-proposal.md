@@ -4,11 +4,11 @@ Status: approved 2026-10-27 with one change. Decision 1 is option A, the book
 only: the Nexus will get its own, different menu later. Decisions 2 and 3 are
 approved as recommended. Recorded in DESIGN.md §23. Nothing here is built.
 
-Every player carries a book called **[Name]'s Charter of Rights and Freedoms**.
-Right-clicking it opens a dialog menu that shows where they stand right now: the
+`/charter` opens a dialog menu that shows where a player stands right now: the
 powers they hold (Rights), the powers others hold over them (Freedoms), and their
 situation. A player with no faction sees how to join one or found one instead.
-Commands stay as shortcuts, but nothing needs typing.
+New players get a book, the **Charter of Rights and Freedoms**, that runs the same
+command when used, so nobody has to know the command to find the menu.
 
 It answers three problems found on 2026-10-26 and 2026-10-27:
 
@@ -23,11 +23,11 @@ It answers three problems found on 2026-10-26 and 2026-10-27:
 
 | | |
 |---|---|
-| Look | A book and quill, named `[Name]'s Charter of Rights and Freedoms` |
+| What it is | A shortcut: using it runs `/charter`, which opens the Charter menu for whoever holds it. Once a player knows the command they never need the book (owner, 2026-10-27) |
+| Look | A book and quill, named `Charter of Rights and Freedoms` |
 | Base item | An item with no use of its own, given the book and quill look with the `item_model` component and a `charter: book` tag. A real book and quill cannot be used: the vanilla client opens the writing screen itself, before the server sees the click |
 | Opening | `UseItemCallback`, main hand only, as Pocket Dungeons' keystone does in `Lemon.java` |
-| Getting one | Given on first join. A lost one comes back from `/charter book`, and on the next join if the player has none |
-| Name | Follows the player's current name, rewritten when they join |
+| Getting one | Given once, on first join. It drops on death like any item; a player who picks up someone else's book sees their own Charter |
 
 **To check first:** that the `item_model` route shows a book and quill on a vanilla
 26.2 client and that the click reaches the server. One gametest and one look in

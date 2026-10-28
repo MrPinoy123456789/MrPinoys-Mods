@@ -7,13 +7,22 @@ Conventions are `BUILDING.md`; branch off `feature/charter-build`.
 Eight milestones, B0 to B7. **B0 is a spike and gates everything:** if the book
 cannot look and click right on a vanilla client, the rest waits for a new plan.
 
-## Three choices this plan makes (the owner can overrule)
+## What the book is
+
+**The book is a shortcut, not a possession.** Using it does exactly what typing
+`/charter` does: it opens the Charter menu for whoever is holding it. `/charter`
+with no arguments becomes the dialog menu (today it prints the faction page in
+chat). Once a player knows the command, they never need the book.
+
+So the book carries no owner and nothing of its own: it drops on death like any
+item, and a player who picks up someone else's book simply sees their own
+Charter. It is given once, on a player's first join.
+
+## One choice this plan makes (the owner can overrule)
 
 | # | Question | This plan assumes | Why |
 |---|---|---|---|
 | P1 | A new faction's first keep costs 64 diamonds from its treasury (`keepPriceDiamonds`), but a faction founded by placing a Nexus has an empty treasury | Placing a founding Nexus takes the 64 diamonds **from the founder's inventory**, refused with a plain line if they carry fewer | Paying with what you hold is the most vanilla answer, and the price stays where it is |
-| P2 | What happens to the book on death | **Kept**: it never drops and is in the inventory after respawn | It is an identity, not loot; a dropped one is only a page someone else cannot open |
-| P3 | Who can open a book | **Only its owner** (owner UUID in the item's custom data). Anyone else gets one line: "This is Bob's Charter." | Nobody reads another player's standing by picking up their book |
 
 ## Milestones
 
@@ -39,8 +48,8 @@ lang file, so run them one after the other or give each its own page class.
 **Goal:** prove four things on a real vanilla 26.2 client before building on them.
 
 1. **The look.** An item based on `minecraft:paper` with `item_model` set to
-   `minecraft:writable_book`, `max_stack_size` 1, a custom name, lore and a
-   `charter: book` custom data tag shows as a book and quill in the hotbar, in
+   `minecraft:writable_book`, a custom name, lore and a `charter: book` custom
+   data tag shows as a book and quill in the hotbar, in
    the hand and in a chest. Paper is the base because it has no use of its own:
    the client opens no screen and predicts nothing. Fallback if paper renders
    wrong: `minecraft:recovery_compass`, which Pocket Dungeons' keystone already
@@ -164,16 +173,21 @@ both resolve to one membership.
 
 ---
 
-## B4: fabric, the book in play
+## B4: fabric, the menu command and the book
 
-**Goal:** every player has their book, it opens a dialog, and buttons come back.
+**Goal:** `/charter` opens the Charter menu, the book runs `/charter`, and buttons
+come back.
 
 **Files** (new package `charter.mc.book`):
 
-- `CharterBook.java`: builds the item (B0's components), recognises it, and keeps
-  it named after its owner. Given on join from `CharterServer.join` when the
-  player has none; `/charter book` gives a fresh one. Kept on death (P2), through
-  the respawn copy `Executions` already uses as a model. Opens only for its owner (P3).
+- `/charter` with no arguments opens the Home dialog (`CharterCommands`). The
+  chat faction page stays reachable as `/charter page`, so nothing is lost.
+- `CharterBook.java`: builds the item (B0's components, named "Charter of Rights
+  and Freedoms"), and on use runs `/charter` as the player through the command
+  dispatcher, so the book and the command can never behave differently. No owner,
+  no special death handling. Given once, on a player's first join, from
+  `CharterServer.join` (a `bookGiven` flag on the player record, so a dropped or
+  thrown away book is not handed back each join).
 - `BookDialogs.java`: Charter's dialog kit, written fresh for Charter (no
   Pocket Dungeons code is imported, DESIGN.md §5), following the rules in the
   `dialog-screens` skill: never a dialog without buttons, Esc runs a harmless
@@ -187,9 +201,10 @@ both resolve to one membership.
 - Text keys in `en_us.json`, prefix `book.`.
 
 **Tests:** gametests for: a first join gets one book, a second join does not get
-a second; `/charter book` replaces a lost one; another player's book does not
-open; the book survives death; a press from the wrong player does nothing; a
-press on a screen built for an empty list never sends a dialog without buttons.
+a second, even with the first one thrown away; `/charter` and the book send the
+same dialog; a player using someone else's book sees their own Home; a press
+from the wrong player does nothing; a press on a screen built for an empty list
+never sends a dialog without buttons.
 
 ---
 
