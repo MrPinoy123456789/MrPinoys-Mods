@@ -151,7 +151,10 @@ Everything a mod #8 must do to belong to this suite:
    (add to inventory, drop at feet if full). Never destroy a reward.
 2. **Charge in plain diamonds or cobblestone items** if it charges at all.
 3. **Never depend on another mod** at compile time. No `depends`, no api module,
-   no shared classes.
+   no shared classes. A mod may run another mod's command by name when that
+   command is registered, and must still work, with a plainer result, when it is
+   not. Commands are the only bridge (amended 2026-10-27 for the Lemon mod,
+   `docs/2026-10-27-lemon-decouple-spec.md`).
 4. **Publish custom items as suite items** (`SUITE_ITEMS.md`) — a vanilla item
    plus a component patch, shipped as read-only JSON in your own jar, so any mod
    can sell or grant it. Never through an api module or an integration file. A
