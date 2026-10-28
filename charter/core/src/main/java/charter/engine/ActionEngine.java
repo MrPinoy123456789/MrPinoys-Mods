@@ -105,15 +105,16 @@ public final class ActionEngine {
             return who instanceof Who.AsOrg(OrgId voter) && voter.equals(org) ? Authority.SOURCE : Authority.NONE;
         }
         Authority found = ctx.resolver().resolve(who, org, power.get(), action.need(ctx), action.needsRedelegable());
-        if (who instanceof Who.AsPlayer && council(found).isPresent()) return Authority.NONE;
+        if (who instanceof Who.AsPlayer && council(found, action, ctx).isPresent()) return Authority.NONE;
         return found;
     }
 
     /** The office, when this authority came through a grant to a council that decides together. */
-    private Optional<Office> council(Authority authority) {
+    private Optional<Office> council(Authority authority, Action action, ActionContext ctx) {
         if (authority.kind() != Authority.Kind.GRANT || !(authority.via().recipient instanceof Holder.OfOffice o)) return Optional.empty();
         return state.office(o.office())
-                .filter(office -> office.deciding() == Office.Deciding.TOGETHER && office.holders().size() >= 2);
+                .filter(office -> office.holders().size() >= 2
+                        && (office.deciding() == Office.Deciding.TOGETHER || action.needsSeatMajority(ctx)));
     }
 
     private Reason refusalFor(ActionContext ctx, Action action) {
@@ -122,7 +123,7 @@ public final class ActionEngine {
         if (player != null && action.actingFor() != null && action.power().isPresent() && !action.reserved(ctx)) {
             Authority found = ctx.resolver().resolve(new Who.AsPlayer(player), action.actingFor(), action.power().get(),
                     action.need(ctx), action.needsRedelegable());
-            if (council(found).isPresent()) return Reason.NEEDS_SEATS;
+            if (council(found, action, ctx).isPresent()) return Reason.NEEDS_SEATS;
         }
         if (action.reserved(ctx)) return voteCould ? Reason.RESERVED.with(Reason.RESERVED.text() + " Propose it as a vote.") : Reason.RESERVED;
         return voteCould ? Reason.NEEDS_VOTE : Reason.NO_AUTHORITY;

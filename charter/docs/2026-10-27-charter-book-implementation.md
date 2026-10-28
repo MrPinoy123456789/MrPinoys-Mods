@@ -262,8 +262,11 @@ Delete `spike` and its test after the gate; keep the rest.
 | 1 | a Lordship | same as alone |
 | 2 or more | co-rulers: any one of them may act | a council: a majority of the seats must agree |
 
-Changing the form of a faction is changing those two settings by a vote of the
-members. Nothing is deleted, and the menu reads one structure for every faction.
+Changing the form of a faction is changing those two settings. Going to or from a
+Commune (0 seats) is a vote of the members; any other change of form is the office's
+own to make (a lone Lord at once, a council by a majority of its seats), and a vote of
+the members may still make any of them (owner, 2026-10-28; see Builder's notes).
+Nothing is deleted, and the menu reads one structure for every faction.
 
 Build S1 after B0's code (it does not wait for the owner's B0 answer; it is core
 only) and before B1 and B2, which use it. B3 does not touch offices and can be
@@ -335,7 +338,10 @@ meant. Refused when nobody holds it, as today.
 
 `core/src/main/java/charter/gov/actions/SetSeats.java` (new):
 `record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding deciding)`,
-power `AMEND`, `reserved` true, so only a vote of the members runs it. Refused when
+power `APPOINT` (changed from `AMEND` on 2026-10-28), `reserved` only when the old or new
+seat count is 0; otherwise the office's deciders run it, acting through that very office
+(`not_decider` for anyone else) and, for a council of two or more, by a majority of its
+seats (`Action.needsSeatMajority`). Refused when
 `seats` is below 0 or above the knob `maxSeats` (new, default 7), or when nothing
 would change (`no_change`, "That is how it already is."). Apply: `setSeats`, one
 `OfficeVacated` "seat removed" for each holder it unseats (the most recently
@@ -1190,3 +1196,22 @@ absent-holder tick skips vacant offices, reserved actions never needed the holde
 the faction page tells members "An election ... is open among the council that stepped
 down". Tests: three core scenarios in `SeatsTest` (3 to 1, 3 to 2, lone holder and to 0),
 a store round trip of the flag, and a faction page gametest.
+
+**Fourth change (owner, 2026-10-28): who may run SetSeats.** Any faction can be a lordship, a
+council where any one may act, or a council deciding together. The office's own deciders
+change its form between 1 seat and 2 or more without a vote of the members: a lone Lord
+at once (he stays seated, the new seats empty until filled by election or appointment), a
+council by a majority of its seats through `proposeToSeats` (even a council whose holders
+may act alone, so one holder cannot reshape it: `Action.needsSeatMajority`). Council to
+lordship uses the shrink election already built. To or from a Commune (0 seats) stays a
+vote of the members, and the members' vote may still change any form. `SetSeats` moved from
+`AMEND` to `APPOINT` for this, with `reserved` true only when either count is 0, and it
+refuses a grant that does not reach the actor through this very office (`not_decider`), so
+a Sheriff given APPOINT cannot reshape the Lord's office. A council still cannot run any
+other reserved action (the `Who.AsSeats` limit is unchanged; its test now tries a Commune
+and a Rename). Book: "Who decides" offers a holder of the office "Become a council, any one
+may act", "Become a council, deciding together" (each then asks for 2 to 5 seats), "Become
+a lordship" for a council, and "Put a change to the members"; a member who does not hold the
+office goes straight to the members' list. Tests: core scenarios 8a to 8d in `SeatsTest`
+(lord alone, council vote passing and failing, a council becoming a lordship, Commune
+transitions, only the office itself) and a book page gametest.

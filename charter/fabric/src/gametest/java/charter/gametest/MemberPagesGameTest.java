@@ -187,6 +187,30 @@ public final class MemberPagesGameTest {
     }
 
     @GameTest(maxTicks = 200)
+    public void aDeciderChangesTheFormFromTheBook(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Form");
+            OrgId org = kit.orgOf(lord);
+            OfficeId deciders = kit.rt.state.org(org).orElseThrow().governance.deciders;
+            MemberPages.whoDecides(lord, null);
+            press(helper, lord, Text.get("book.decides.to_council_together"));
+            press(helper, lord, Text.get("book.decides.seats", "n", 3));
+            var office = kit.rt.state.office(deciders).orElseThrow();
+            helper.assertTrue(office.seats() == 3 && office.deciding() == Office.Deciding.TOGETHER && office.holds(id(lord)),
+                    "The Lord did not make a council of three deciding together: " + office.seats());
+
+            ServerPlayer plain = member(kit, org);
+            MemberPages.whoDecides(plain, null);
+            helper.assertTrue(BookDialogs.buttons(BookDialogs.LAST.get(plain.getUUID())).stream()
+                    .noneMatch(b -> b.button().label().getString().equals(Text.get("book.decides.to_lordship"))),
+                    "A member who is not a decider was offered the deciders' changes");
+            helper.assertTrue(CharterCommands.tokens().newest(plain.getUUID(), Text.get("book.decides.everyone")).isPresent(),
+                    "A member who is not a decider was not offered the members' list");
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 200)
     public void castingYesFromTheVotePage(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Ballot");
@@ -233,7 +257,7 @@ public final class MemberPagesGameTest {
             ServerPlayer lord = kit.faction("Choice");
             OrgId org = kit.orgOf(lord);
             asOp(kit, "charter admin age " + lord.getUUID() + " 4");
-            MemberPages.whoDecides(lord, null);
+            MemberPages.whoDecidesMembers(lord, null);
             press(helper, lord, Text.get("book.decides.everyone"));
             boolean proposed = kit.rt.state.votes().stream().anyMatch(v -> v.org.equals(org)
                     && v.motion instanceof SetSeats s && s.seats() == 0);

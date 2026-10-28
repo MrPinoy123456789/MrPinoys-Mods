@@ -349,7 +349,58 @@ public final class MemberPages {
 
     // ---- Who decides ----
 
+    /**
+     * Who decides. A holder of the decision makers office sees the changes the office may make
+     * itself (to a council, or back to a lordship); everyone, holders included, may put any form to
+     * a vote of the members.
+     */
     public static void whoDecides(ServerPlayer player, String notice) {
+        if (!member(player)) return;
+        Standing.View v = view(player).orElseThrow();
+        Office deciders = deciders(v.org());
+        if (deciders == null || !deciders.holds(me(player)) || deciders.seats() == 0) {
+            whoDecidesMembers(player, notice);
+            return;
+        }
+        List<String> body = new ArrayList<>();
+        body.add(Text.get("book.decides.own"));
+        body.add(Text.get("book.decides.now", "now", choiceText(deciders.seats(), deciders.deciding())));
+        List<ActionButton> buttons = new ArrayList<>();
+        buttons.add(go(player, Text.get("book.decides.to_council_alone"), p -> councilSize(p, Office.Deciding.ALONE, null)));
+        buttons.add(go(player, Text.get("book.decides.to_council_together"), p -> councilSize(p, Office.Deciding.TOGETHER, null)));
+        if (deciders.seats() >= 2) {
+            buttons.add(go(player, Text.get("book.decides.to_lordship"), p -> changeForm(p, v.org(), deciders.id, 1, Office.Deciding.ALONE)));
+        }
+        buttons.add(go(player, Text.get("book.decides.to_members"), p -> whoDecidesMembers(p, null)));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, body), buttons,
+                BookDialogs.back(player, p -> faction(p, null))));
+    }
+
+    /** How many seats, for a council the office makes itself: a short list rather than a button per form. */
+    private static void councilSize(ServerPlayer player, Office.Deciding how, String notice) {
+        if (!member(player)) return;
+        Standing.View v = view(player).orElseThrow();
+        Office deciders = deciders(v.org());
+        if (deciders == null) return;
+        List<ActionButton> buttons = new ArrayList<>();
+        for (int n = 2; n <= 5; n++) {
+            if (n == deciders.seats() && how == deciders.deciding()) continue;
+            int seats = n;
+            buttons.add(go(player, Text.get("book.decides.seats", "n", n), p -> changeForm(p, v.org(), deciders.id, seats, how)));
+        }
+        List<String> body = List.of(Text.get(how == Office.Deciding.TOGETHER ? "book.decides.size_together" : "book.decides.size_alone"));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, body), buttons,
+                BookDialogs.back(player, p -> whoDecides(p, null))));
+    }
+
+    /** The office changes its own form: a lone Lord at once, a council by a majority of its seats. */
+    private static void changeForm(ServerPlayer player, OrgId org, OfficeId office, int seats, Office.Deciding how) {
+        BookRouter.run(player, new SetSeats(org, office, seats, how),
+                line -> whoDecides(player, line != null ? line : Text.get("book.decides.changed")));
+    }
+
+    /** Any form, put to a vote of the members. */
+    public static void whoDecidesMembers(ServerPlayer player, String notice) {
         if (!member(player)) return;
         CharterRuntime rt = rt();
         Standing.View v = view(player).orElseThrow();
@@ -367,14 +418,17 @@ public final class MemberPages {
                     Office.Deciding how = deciding;
                     buttons.add(go(player, choiceText(n, how), p -> {
                         Outcome outcome = rt().engine.propose(me(p), new SetSeats(v.org(), deciders.id, n, how));
-                        whoDecides(p, outcome instanceof Outcome.Refused(Reason reason) ? BookRouter.refusal(reason)
+                        whoDecidesMembers(p, outcome instanceof Outcome.Refused(Reason reason) ? BookRouter.refusal(reason)
                                 : Text.get("book.decides.proposed"));
                     }));
                 }
             }
         }
+        boolean own = deciders != null && deciders.holds(me(player)) && deciders.seats() > 0;
         BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, body), buttons,
-                BookDialogs.back(player, p -> faction(p, null))));
+                BookDialogs.back(player, p -> {
+                    if (own) whoDecides(p, null); else faction(p, null);
+                })));
     }
 
     private static String choiceText(int seats, Office.Deciding deciding) {

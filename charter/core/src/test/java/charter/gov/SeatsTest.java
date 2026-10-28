@@ -34,6 +34,10 @@ public final class SeatsTest {
         aCommuneBecomesACouncilThatActsAlone();
         aCouncilDecidingTogetherVotesAmongItsSeats();
         aCouncilVoteCannotDoWhatOnlyTheMembersMay();
+        aLordChangesHisOwnForm();
+        aCouncilChangesItsFormByMajority();
+        aCommuneChangeStillNeedsTheMembers();
+        onlyTheOfficeItselfMayChangeItsForm();
         shrinkingACouncilLetsItsHoldersChoose();
         shrinkingToTwoSeatsHoldsTwoElections();
         aLoneHolderShrinkingChoosesNothing();
@@ -162,14 +166,90 @@ public final class SeatsTest {
         elect(f, KRIS);
         elect(f, GIL);
         elect(f, CY);
-        Outcome seats = f.engine.proposeToSeats(KRIS, lord(f), new SetSeats(org(f), lord(f), 1, Office.Deciding.ALONE));
-        eq("6: the seats cannot set the seats", Reason.RESERVED.key(), seats.reasonKey());
+        Outcome seats = f.engine.proposeToSeats(KRIS, lord(f), new SetSeats(org(f), lord(f), 0, Office.Deciding.ALONE));
+        eq("6: the seats cannot make a Commune", Reason.RESERVED.key(), seats.reasonKey());
+        Outcome rename = f.engine.proposeToSeats(KRIS, lord(f), new charter.org.actions.Rename(org(f), "Free Ashfall"));
+        eq("6: nor amend the charter", Reason.RESERVED.key(), rename.reasonKey());
         eq("6: nothing changed", 3, f.office(org(f), Preset.LORD).seats());
     }
 
     private static Vote openElection(Fixture f) {
         return f.state.votes().stream().filter(v -> v.open() && v.kind == Vote.Kind.ELECTION && lord(f).equals(v.office))
                 .findFirst().orElse(null);
+    }
+
+    private static Fixture council3(Office.Deciding deciding) {
+        Fixture f = world(Preset.COMMUNE);
+        setSeats(f, 3, deciding);
+        elect(f, KRIS);
+        elect(f, GIL);
+        elect(f, CY);
+        return f;
+    }
+
+    static void aLordChangesHisOwnForm() {
+        Fixture f = world(Preset.LORDSHIP);
+        check("8a: the Lord makes a council of 3 without a vote",
+                f.as(KRIS, new SetSeats(org(f), lord(f), 3, Office.Deciding.ALONE)).done());
+        Office lord = f.office(org(f), Preset.LORD);
+        check("8a: he stays seated and the new seats are empty", lord.seats() == 3 && lord.holders().size() == 1 && lord.holds(KRIS));
+        check("8a: and may make it deciding together", f.as(KRIS, new SetSeats(org(f), lord(f), 3, Office.Deciding.TOGETHER)).done());
+        eq("8a: an ordinary member may not", Reason.NEEDS_VOTE.key(),
+                f.as(GIL, new SetSeats(org(f), lord(f), 2, Office.Deciding.ALONE)).reasonKey());
+    }
+
+    static void aCouncilChangesItsFormByMajority() {
+        Fixture f = council3(Office.Deciding.ALONE);
+        eq("8b: one holder alone cannot change the form", Reason.NEEDS_SEATS.key(),
+                f.as(KRIS, new SetSeats(org(f), lord(f), 1, Office.Deciding.ALONE)).reasonKey());
+        Outcome opened = f.engine.proposeToSeats(KRIS, lord(f), new SetSeats(org(f), lord(f), 5, Office.Deciding.TOGETHER));
+        check("8b: proposing to the seats opens a vote", opened instanceof Outcome.VoteOpened);
+        Vote vote = f.vote(((Outcome.VoteOpened) opened).vote());
+        f.engine.cast(GIL, vote.id, Vote.Ballot.YES);
+        eq("8b: a majority of the seats changes it", Vote.State.EXECUTED, vote.state());
+        Office lord = f.office(org(f), Preset.LORD);
+        check("8b: five seats deciding together, the three still seated",
+                lord.seats() == 5 && lord.deciding() == Office.Deciding.TOGETHER && lord.holders().size() == 3);
+
+        Fixture g = council3(Office.Deciding.TOGETHER);
+        Outcome second = g.engine.proposeToSeats(KRIS, lord(g), new SetSeats(org(g), lord(g), 1, Office.Deciding.ALONE));
+        Vote no = g.vote(((Outcome.VoteOpened) second).vote());
+        g.engine.cast(GIL, no.id, Vote.Ballot.NO);
+        g.engine.cast(CY, no.id, Vote.Ballot.NO);
+        eq("8b: two no fail it", Vote.State.FAILED, no.state());
+        eq("8b: and the council is as it was", 3, g.office(org(g), Preset.LORD).holders().size());
+
+        Fixture h = council3(Office.Deciding.ALONE);
+        Outcome toLord = h.engine.proposeToSeats(KRIS, lord(h), new SetSeats(org(h), lord(h), 1, Office.Deciding.ALONE));
+        Vote yes = h.vote(((Outcome.VoteOpened) toLord).vote());
+        h.engine.cast(GIL, yes.id, Vote.Ballot.YES);
+        check("8b: a council becomes a lordship by electing its Lord", openElection(h) != null && openElection(h).restricted()
+                && h.office(org(h), Preset.LORD).vacant());
+    }
+
+    static void aCommuneChangeStillNeedsTheMembers() {
+        Fixture lordship = world(Preset.LORDSHIP);
+        eq("8c: a Lord cannot make a Commune", Reason.RESERVED.key(),
+                lordship.as(KRIS, new SetSeats(org(lordship), lord(lordship), 0, Office.Deciding.ALONE)).reasonKey());
+        Fixture commune = world(Preset.COMMUNE);
+        eq("8c: a member cannot leave the Commune alone", Reason.RESERVED.key(),
+                commune.as(KRIS, new SetSeats(org(commune), lord(commune), 3, Office.Deciding.ALONE)).reasonKey());
+        commune.motion(KRIS, new SetSeats(org(commune), lord(commune), 3, Office.Deciding.ALONE), GIL, CY);
+        eq("8c: a vote of the members does", 3, commune.office(org(commune), Preset.LORD).seats());
+        Fixture council = council3(Office.Deciding.ALONE);
+        council.motion(KRIS, new SetSeats(org(council), lord(council), 2, Office.Deciding.TOGETHER), GIL, CY);
+        eq("8c: the members may also change any form", 2, council.office(org(council), Preset.LORD).seats());
+    }
+
+    static void onlyTheOfficeItselfMayChangeItsForm() {
+        Fixture f = world(Preset.LORDSHIP);
+        check("8d: a Sheriff office", f.as(KRIS, new charter.gov.actions.CreateOffice(org(f), "Sheriff")).done());
+        OfficeId sheriff = f.office(org(f), "Sheriff").id;
+        f.as(KRIS, new Appoint(org(f), sheriff, GIL));
+        check("8d: given the power to appoint", f.as(KRIS, new charter.grant.actions.GrantPower(org(f), charter.grant.Power.APPOINT,
+                new charter.grant.Holder.OfOffice(sheriff), charter.grant.GrantScope.ANY, false, 0)).done());
+        eq("8d: the Sheriff cannot change the Lord's form", SetSeats.NOT_DECIDER.key(),
+                f.as(GIL, new SetSeats(org(f), lord(f), 2, Office.Deciding.ALONE)).reasonKey());
     }
 
     static void shrinkingACouncilLetsItsHoldersChoose() {

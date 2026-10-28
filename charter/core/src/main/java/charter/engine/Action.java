@@ -42,6 +42,14 @@ public interface Action {
         return false;
     }
 
+    /**
+     * True for an action a council of two or more must decide by a majority of its seats even when
+     * each holder may otherwise act alone (changing the council's own form).
+     */
+    default boolean needsSeatMajority(ActionContext ctx) {
+        return false;
+    }
+
     /** True if the authority used must be passable on (issuing or revoking a derived grant). */
     default boolean needsRedelegable() {
         return false;

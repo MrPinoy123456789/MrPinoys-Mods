@@ -1018,7 +1018,7 @@ their own currency counts by hand.
 | Ways in | The book only. The Nexus is not a way in to these pages; it gets its own menu later, designed separately |
 | Founding | Craft a Nexus from a lodestone and a banner named at an anvil. Placing it founds the faction under that name, with the banner's design as its banner, then raises the keep. The recipe cost is open |
 | Governance at founding | Every new faction starts as a Lordship; its members can vote to become a Commune |
-| Who decides | Every faction has one office of decision makers holding the routine powers, with a number of seats and a way of deciding: 0 seats is a Commune (the members vote on everything), 1 a Lordship, 2 or more a council whose holders either each act alone or decide together by a majority of the seats. The members change the seats and the way of deciding by vote. One structure for every form; built as S1 of `docs/2026-10-27-charter-book-implementation.md` |
+| Who decides | Every faction has one office of decision makers holding the routine powers, with a number of seats and a way of deciding: 0 seats is a Commune (the members vote on everything), 1 a Lordship, 2 or more a council whose holders either each act alone or decide together by a majority of the seats. Going to or from a Commune is a vote of the members; any other change of form is the office's own to make (a lone Lord at once, a council by a majority of its seats), and the members' vote may still change any form. One structure for every form; built as S1 of `docs/2026-10-27-charter-book-implementation.md` |
 
 ### Considered and rejected
 
