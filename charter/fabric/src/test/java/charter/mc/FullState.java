@@ -143,6 +143,7 @@ final class FullState {
         engine.cast(bob, ((Outcome.VoteOpened) renamed).vote(), Vote.Ballot.NO);
         Office lord = state.officeNamed(ironhold, "Lord").orElseThrow();
         engine.openElection(lord.id, null);
+        state.addJoinRequest(new charter.org.JoinRequest(oakvale, eve, clock.now()));
         // A council of two deciding together, with a vote among its seats still open (S1).
         admin(new charter.gov.actions.SetSeats(ironhold, lord.id, 2, Office.Deciding.TOGETHER));
         admin(new InviteMember(ironhold, dan));

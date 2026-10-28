@@ -74,7 +74,10 @@ public final class ChronicleRenderer {
 
     /** Everyday traffic that would drown the story: food carried in when no siege needed it. */
     static boolean routine(HistoryEvent event) {
-        return event instanceof charter.siege.SiegeEvents.FoodDeposited f && !f.underSiege();
+        return event instanceof charter.siege.SiegeEvents.FoodDeposited f && !f.underSiege()
+                || event instanceof charter.org.OrgEvents.Asked
+                || event instanceof charter.org.OrgEvents.Rejected
+                || event instanceof charter.org.OrgEvents.RequestLapsed;
     }
 
     private static Map<String, Object> fields(HistoryEvent event) {

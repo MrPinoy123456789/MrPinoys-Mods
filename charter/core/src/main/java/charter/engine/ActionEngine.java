@@ -313,6 +313,12 @@ public final class ActionEngine {
         for (Vote vote : new ArrayList<>(state.votes())) {
             if (vote.open() && now >= vote.closesAt) settle(vote, now);
         }
+        long requestLimit = now - Durations.days(knobs.joinRequestDays);
+        for (charter.org.JoinRequest request : new ArrayList<>(state.joinRequests())) {
+            if (request.at() >= requestLimit) continue;
+            state.removeJoinRequest(request.org(), request.player());
+            record(new Actor.System(), List.of(new charter.org.OrgEvents.RequestLapsed(now, request.org(), request.player())));
+        }
         long absentLimit = now - Durations.days(knobs.absentLordDays);
         for (Office office : new ArrayList<>(state.allOffices())) {
             if (!office.vacateWhenAbsent || office.vacant() || state.org(office.org).isEmpty()) continue;

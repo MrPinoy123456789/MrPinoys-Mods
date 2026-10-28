@@ -67,6 +67,8 @@ final class StoreTest {
         check("store: every field of every record reads back the same" + (diff.isEmpty() ? "" : ": " + diff.subList(0, Math.min(5, diff.size()))),
                 diff.isEmpty());
 
+        check("store: an open join request reads back", back.joinRequest(f.oakvale, f.eve).isPresent());
+
         // Spot checks on what matters most, so a broken comparator cannot hide a loss.
         Vote pending = back.votes().stream().filter(Vote::open).filter(v -> v.kind == Vote.Kind.MOTION).findFirst().orElseThrow();
         check("store: a pending motion keeps its action", pending.motion.equals(new Withdraw(f.oakvale, Currency.DIAMOND, 5, f.bob)));

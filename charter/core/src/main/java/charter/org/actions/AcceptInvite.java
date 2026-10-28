@@ -49,17 +49,6 @@ public record AcceptInvite(PlayerId player, OrgId org) implements Action {
 
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
-        OrgId from = ctx.state.membership(player).map(MemberRecord::org).orElse(null);
-        ctx.state.leave(player);
-        ctx.state.join(player, org, ctx.now);
-        ctx.state.removeInvite(org, player);
-        List<HistoryEvent> events = new ArrayList<>();
-        events.add(new OrgEvents.Joined(ctx.now, org, player, from));
-        Organization joined = ctx.state.org(org).orElseThrow();
-        if (joined.status() == OrgStatus.FORMING && ctx.state.members(org).size() >= 2) {
-            ctx.state.setStatus(org, OrgStatus.ACTIVE);
-            events.add(new OrgEvents.Activated(ctx.now, org));
-        }
-        return events;
+        return Joining.join(ctx, player, org);
     }
 }

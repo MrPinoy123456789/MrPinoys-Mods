@@ -118,6 +118,11 @@ public final class ChronicleTest {
                 IN + "Gil took up the office of Treasurer in Riverside.");
         golden(events, expected, new GovEvents.OfficeVacated(AT, TREASURER, RIVERSIDE, GIL, "voted out"),
                 IN + "Gil left the office of Treasurer in Riverside: voted out.");
+        golden(events, expected, new OrgEvents.Admitted(AT, ASHFALL, GIL),
+                IN + "Ashfall took in Gil.");
+        golden(events, expected, new OrgEvents.Asked(AT, ASHFALL, GIL), "(hidden)");
+        golden(events, expected, new OrgEvents.Rejected(AT, ASHFALL, GIL), "(hidden)");
+        golden(events, expected, new OrgEvents.RequestLapsed(AT, ASHFALL, GIL), "(hidden)");
         golden(events, expected, new GovEvents.SeatsChanged(AT, TREASURER, RIVERSIDE, 3, charter.gov.Office.Deciding.TOGETHER),
                 IN + "Riverside changed how it is ruled: 3 seats, deciding together.");
         golden(events, expected, new GrantEvents.Granted(AT, GRANT, RIVERSIDE, Power.SPEND, new Holder.OfOffice(TREASURER), null, false),

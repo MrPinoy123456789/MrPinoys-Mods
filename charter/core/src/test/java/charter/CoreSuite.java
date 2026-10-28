@@ -14,6 +14,7 @@ public final class CoreSuite {
         charter.config.KnobsTest.run();
         charter.gov.GovernanceTest.run();
         charter.gov.SeatsTest.run();
+        charter.org.JoinRequestTest.run();
         charter.grant.AuthorityTest.run();
         charter.land.LandTest.run();
         charter.food.FoodTest.run();

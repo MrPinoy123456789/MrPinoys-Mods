@@ -27,6 +27,21 @@ public final class OrgEvents {
     public record Joined(long at, OrgId org, PlayerId player, OrgId from) implements HistoryEvent {
     }
 
+    /** A player asked to join a faction. */
+    public record Asked(long at, OrgId org, PlayerId player) implements HistoryEvent {
+    }
+
+    /** A faction took in a player who had asked. The usual Joined follows. */
+    public record Admitted(long at, OrgId org, PlayerId player) implements HistoryEvent {
+    }
+
+    public record Rejected(long at, OrgId org, PlayerId player) implements HistoryEvent {
+    }
+
+    /** A request waited longer than joinRequestDays. */
+    public record RequestLapsed(long at, OrgId org, PlayerId player) implements HistoryEvent {
+    }
+
     public record Left(long at, OrgId org, PlayerId player) implements HistoryEvent {
     }
 

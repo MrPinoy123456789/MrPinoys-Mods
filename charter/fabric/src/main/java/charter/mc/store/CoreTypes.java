@@ -49,6 +49,9 @@ public final class CoreTypes {
                 .register("org.invite", InviteMember.class)
                 .register("org.accept_invite", AcceptInvite.class)
                 .register("org.leave", Leave.class)
+                .register("org.apply", charter.org.actions.Apply.class)
+                .register("org.admit", charter.org.actions.Admit.class)
+                .register("org.reject", charter.org.actions.Reject.class)
                 .register("org.expel", Expel.class)
                 .register("org.rename", Rename.class)
                 .register("org.create_suborg", CreateSubOrg.class)
@@ -77,5 +80,25 @@ public final class CoreTypes {
                 .registerNested(LandEvents.class, HistoryEvent.class)
                 .registerNested(SiegeEvents.class, HistoryEvent.class)
                 .registerNested(StoreEvents.class, HistoryEvent.class);
+        Persistence.block(CoreBlocks.block("join_requests", CoreTypes::writeRequests, CoreTypes::readRequests));
+    }
+
+    private static com.google.gson.JsonElement writeRequests(charter.state.CharterState state, com.google.gson.Gson gson) {
+        com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+        root.add("requests", gson.toJsonTree(state.joinRequests()));
+        return root;
+    }
+
+    private static void readRequests(com.google.gson.JsonObject json, charter.state.CharterState state, com.google.gson.Gson gson, Repairs repairs) {
+        if (!json.has("requests")) return;
+        java.util.List<charter.org.JoinRequest> read = gson.fromJson(json.get("requests"),
+                new com.google.gson.reflect.TypeToken<java.util.List<charter.org.JoinRequest>>() { }.getType());
+        for (charter.org.JoinRequest request : read) {
+            if (state.org(request.org()).isEmpty()) {
+                repairs.note("request_dropped", "a request of " + request.player() + " to join " + request.org() + ", which is gone");
+                continue;
+            }
+            state.addJoinRequest(request);
+        }
     }
 }

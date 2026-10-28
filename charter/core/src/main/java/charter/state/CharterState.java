@@ -16,6 +16,7 @@ import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.id.VoteId;
 import charter.org.Invite;
+import charter.org.JoinRequest;
 import charter.org.MemberRecord;
 import charter.org.Organization;
 import charter.org.OrgStatus;
@@ -62,6 +63,7 @@ public final class CharterState {
     private final Map<GrantId, Grant> grants = new LinkedHashMap<>();
     private final Map<VoteId, Vote> votes = new LinkedHashMap<>();
     private final List<Invite> invites = new ArrayList<>();
+    private final List<JoinRequest> joinRequests = new ArrayList<>();
 
     // land block (M2): cores and claims
     private final Map<CoreId, Core> cores = new LinkedHashMap<>();
@@ -156,6 +158,7 @@ public final class CharterState {
 
     public void setStatus(OrgId id, OrgStatus status) {
         org(id).ifPresent(o -> o.setStatus(status));
+        if (status == OrgStatus.DISSOLVED) joinRequests.removeIf(r -> r.org().equals(id));
         treeVersion++;
     }
 
@@ -222,6 +225,35 @@ public final class CharterState {
 
     public void removeInvite(OrgId org, PlayerId player) {
         invites.removeIf(i -> i.org().equals(org) && i.player().equals(player));
+    }
+
+    // ---- join requests ----
+
+    public List<JoinRequest> joinRequests() {
+        return Collections.unmodifiableList(joinRequests);
+    }
+
+    public void addJoinRequest(JoinRequest request) {
+        joinRequests.removeIf(r -> r.org().equals(request.org()) && r.player().equals(request.player()));
+        joinRequests.add(request);
+    }
+
+    public Optional<JoinRequest> joinRequest(OrgId org, PlayerId player) {
+        return joinRequests.stream().filter(r -> r.org().equals(org) && r.player().equals(player)).findFirst();
+    }
+
+    /** The one open request a player has, to any faction. */
+    public Optional<JoinRequest> joinRequestOf(PlayerId player) {
+        return joinRequests.stream().filter(r -> r.player().equals(player)).findFirst();
+    }
+
+    public void removeJoinRequest(OrgId org, PlayerId player) {
+        joinRequests.removeIf(r -> r.org().equals(org) && r.player().equals(player));
+    }
+
+    /** Every request a player has open, gone when they join somewhere. */
+    public void removeJoinRequestsOf(PlayerId player) {
+        joinRequests.removeIf(r -> r.player().equals(player));
     }
 
     // ---- offices ----

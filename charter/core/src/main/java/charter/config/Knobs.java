@@ -83,6 +83,8 @@ public final class Knobs {
     public int absentLordDays = 7;
     public int voteEligibilityDays = 3;
     public int voteDurationHours = 48;
+    /** How long a request to join a faction waits for an answer before it lapses. */
+    public int joinRequestDays = 7;
     /** Most seats an office may have. */
     public int maxSeats = 7;
     /** How long a vote among the seats of a council stays open. */

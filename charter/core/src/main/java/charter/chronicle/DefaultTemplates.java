@@ -34,6 +34,11 @@ public final class DefaultTemplates {
         t.put("GovEvents.VoteRefusedAtExecution", "In {when}, the vote of {org} carried, but could not be carried out, for the world had changed ({reasonKey}).");
         t.put("GovEvents.OfficeCreated", "In {when}, {org} created the office of {name}{reserved?, which only a vote may fill}.");
         t.put("GovEvents.OfficeFilled", "In {when}, {holder} took up the office of {office} in {org}.");
+        t.put("OrgEvents.Admitted", "In {when}, {org} took in {player}.");
+        // Routine (ChronicleRenderer.routine hides them); the templates keep the coverage rule whole.
+        t.put("OrgEvents.Asked", "In {when}, {player} asked to join {org}.");
+        t.put("OrgEvents.Rejected", "In {when}, {org} turned {player} away.");
+        t.put("OrgEvents.RequestLapsed", "In {when}, the request of {player} to join {org} lapsed.");
         t.put("GovEvents.SeatsChanged", "In {when}, {org} changed how it is ruled: {seats} seats, deciding {deciding}.");
         t.put("GovEvents.OfficeVacated", "In {when}, {formerHolder} left the office of {office} in {org}: {why}.");
 
