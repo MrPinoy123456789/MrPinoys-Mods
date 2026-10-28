@@ -82,7 +82,10 @@ come from the new org's own treasury.
 
 - Join page: state plainly that members cannot vote the ruler out; they can leave or
   break away. Remove "changing or ending the charter".
-- Freedoms page for a member says the same and shows one "Break away" button. The
+- Freedoms page for a member says the same and shows one break away button. Its label
+  is a joke that still reads as plain English: "I didn't vote for you" (Monty Python),
+  with the line under it "Break away from this faction." The page it opens is titled
+  "Break away". The owner may swap the joke later, so keep it in one lang key. The
   button opens a short page listing who comes along, the cost (diamonds, or none if
   the group owns a keep), the time limit, and the cooldown, then a confirm dialog.
 - "Who decides" page: a decider sees only the changes their office may make (a short
