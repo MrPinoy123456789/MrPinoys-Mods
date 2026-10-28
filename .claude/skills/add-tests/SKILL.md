@@ -61,7 +61,7 @@ not conflict). Then `tools/ship.sh --only <Name>` runs only that class in second
 
 - Mock player: `@SuppressWarnings("removal") ServerPlayer p = helper.makeMockServerPlayerInLevel();`
   then `p.setGameMode(GameType.SURVIVAL)` and `p.teleportTo(level, x, y, z, Set.of(), 0F, 0F, false)`. The mock is
-  in the player list, so server-wide code sees it. Always `Lemon.forget(...)` / unregister in `finally`.
+  in the player list, so server-wide code sees it. Always unregister test records and release fixtures in `finally`.
 - Build a run record (see `BankAnywhereGameTest`, `RescueGameTest`): a `PlanGeometry` of one cell, an
   `InstanceLayout`, then `new InstanceRecord(slot, origin, tick, layout, Set.of(), owner, false)`; put members with
   `record.members.put(uuid, new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0, 0))`; register in
@@ -71,7 +71,10 @@ not conflict). Then `tools/ship.sh --only <Name>` runs only that class in second
   was added for this reason).
 - Placing blocks: use `helper.absolutePos(BlockPos.ZERO)` for a cell origin and clear what you place. For a far
   location, force chunks (`level.setChunkForced`) and release them in `finally` (`HiddenOreGameTest` or `SeamGameTest`; `TollRoomGameTest` was retired with the toll rooms).
-- Lemon: `Lemon.setMode(player, true)` then `Lemon.heard(...)`; `Lemon.view(player)` reads pending state.
+- Lemon engine tests belong in the independent `lemon/` mod: `Lemon.setMode(player, true)`, `Lemon.heard(...)`,
+  `Lemon.view(player)`, and `Lemon.forget(...)` in `finally`. PD tests use only `LemonBridge` commands and entity tags;
+  they must not import Lemon classes. Build Lemon first, then pass `-PlemonTestJar=../lemon/build/libs/MrPinoys_Lemon-0.1.0.jar`
+  to a PD gametest run to exercise the optional runtime bridge.
 - Ordeals and locks tick on their own period; call `INSTANCE.tickDanger(level, origin, state)` directly in a loop
   (`PlateRelayGameTest`) instead of waiting game time.
 
