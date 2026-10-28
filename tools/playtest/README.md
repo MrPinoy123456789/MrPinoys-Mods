@@ -1,9 +1,10 @@
 # Test server control (for agents and humans)
 
-One small tool to start the Pocket Dungeons **test server**, talk to the player in
-Minecraft chat, read what they say and do, and shut it down cleanly. It is what
-the live playtest interview uses, and any agent that can run a shell command can
-use it (Claude Code, Devin, a script).
+The suite's shared Lemon playtest transport: RCON or Kinetic control, chat,
+profiles, merged context and MCP. The canonical entrypoint is `playtest.mjs`;
+`pdserver.mjs` remains a forwarder. Local mode still runs Pocket Dungeons from
+source and builds Lemon independently into its runtime mods folder. No game mod
+compiles against Lemon. Read `../../lemon/docs/LEMON_AGENT.md` before interviewing.
 
 ## Rules
 
@@ -41,7 +42,7 @@ else `node pdserver.mjs <command>`.
 | `chat --follow` | Prints new events as they happen, until stopped. |
 | `sync` | Skips every event logged so far, so the next `chat` or `wait` starts from now. |
 | `wait [--player <p>] [--timeout <s>]` | Blocks until there are new events (default up to 240 s), prints them, exits. The loop for agents that cannot stream. With `--player`, keeps that player's Lemon in llm mode while the server is up, and re-asserts llm mode immediately when that player joins. `chat` and `wait` share one cursor: use one or the other. |
-| `context <player>` | Prints the player's context snapshot as one line of JSON: where they are, every room on the floor, omen, spawners, inventory essentials, Lemon's state and their last 20 journal events (`docs/LEMON_SPEC.md` section 3). |
+| `context <player>` | One JSON object: companion state under `lemon`, available game snapshots under mod ids such as `pocketdungeons` and `charter`. Profiles own each game's context command and event patterns. Missing game commands are omitted; missing Lemon or an offline player is reported. |
 | `lemon say <player> <text>` | Lemon appears beside the player, says it (a speech bubble only they see, plus a yellow `Lemon:` chat line), then idles away. |
 | `lemon ask <player> <text>` | The same, then Lemon stays lit and waits for the reply; the player's next line to Lemon comes back as a `lemon answer` event. |
 | `lemon reply <player> <text>` | Answer the player's pending question. Delivered now, never held for a fight or quiet. The journal records `answered_by: llm` and the wait time. |
@@ -96,8 +97,10 @@ Lemon lines look like this:
 - `lemon unanswered`: a question nobody answered in time.
 - `lemon mode`: mode change (llm refresh lines are filtered out of `wait`).
 
-Solo, everything the player types in chat goes to Lemon and is not broadcast, so it
-shows up here as `lemon ask`, never as `chat`; in a party only lines that start with "Lemon" do.
+Without another player within 48 blocks in the same level, plain chat reaches
+Lemon rather than the broadcast. With someone nearby, use a leading "Lemon" or
+`/lemon <text>`. This is distance-based, not party-based. Nearby player speech is
+journaled as heard chat. The body, bubble and Lemon's replies remain private.
 
 `wait` never wakes on a line Lemon itself emits: `lemon says`, `lemon asks`,
 `lemon replies`, `lemon thinks`, `lemon held`, `lemon hushed` and `lemon mode`
@@ -128,12 +131,14 @@ How it works, through the panel's client API only (no RCON port is opened):
   the `(PocketDungeons)` logger name the local dev server adds; `wait-filter.mjs` reads both.
 - Every command that starts, stops or uploads first prints the panel server it is about
   to act on and where the id came from, since `kinetic.env` redirects every call.
-- `deploy` uploads the Pocket Dungeons jar from the workspace's `dist/` folder into
-  the server's `mods/`; `deploy --restart` also restarts the server so it loads.
-  `deploy` **never builds**: run `gradlew dist` (from `pocketdungeons`) first, and it needs exactly one
-  `MrPinoys_Pocket_Dungeons-*.jar` (not `-sources`) in `dist/`, so delete stale ones. Uploading a stale jar
-  ships the old build, and a passing `dungeon admin validate` on it proves nothing.
-  Fabric, Fabric API and the Minecraft version are set up on the panel by hand.
+- `deploy --restart` uploads both Pocket Dungeons and Lemon from workspace `dist/`
+  and restarts to load them. It is restricted to test server `714a0605`. Deploy only
+  when asked, after checking status and getting approval if players are online.
+  `deploy` **never builds**: run `gradlew dist` in each mod first. Exactly one
+  `MrPinoys_Pocket_Dungeons-*.jar` and one `MrPinoys_Lemon-*.jar` are required, not
+  sources jars. Ask before deleting stale artifacts. Both must be fresh.
+  The tool installs PD click hooks in `config/lemon/lemon.json`, retaining timing
+  values and custom hooks. Fabric, Fabric API and Minecraft are panel setup.
 
 ## A live interview session
 
@@ -151,8 +156,9 @@ How it works, through the panel's client API only (no RCON port is opened):
    unless they start it. Short questions, one at a time, a few per hour, and stop
    when asked. The full interview method is in
    `.claude/skills/playtest/SKILL.md` (sections 2, 3 and 6).
-5. When they are done: `server stop`, then write the findings to
-   `pocketdungeons/docs/playtests/<yyyy-mm-dd>-<n>.md` as the skill describes.
+5. When done, hand back with `server lemon mode <name> guide`. Leave the server
+   running unless asked to stop it. Write findings to the tested game's
+   `docs/playtests/<yyyy-mm-dd>-<n>.md`.
 
 ## Where things are
 
@@ -163,6 +169,26 @@ How it works, through the panel's client API only (no RCON port is opened):
 | Build and startup output | `pocketdungeons/run/logs/agent-console.log` |
 | RCON port and password | `pocketdungeons/run/server.properties` (`rcon.port`, `rcon.password`); the server binds to 127.0.0.1 only |
 | Playtest journal | `pocketdungeons/run/world/pocketdungeons/playtest/<yyyy-mm-dd>/<uuid>.jsonl` (format: `pocketdungeons/docs/PLAYTEST_EVENTS.md`) |
+
+## Profiles and MCP
+
+Each module under `profiles/` owns a game's context command, logger names and
+event patterns; `profiles.mjs` gathers them. The Charter profile is prepared for founding, claiming, camp raised,
+keep fallen and arrest lines; its source-side context and event additions require
+the Charter source checkout. `wait-filter.mjs` consumes the profile patterns.
+
+The MCP server identifies as `lemon-playtest`. Start `node mcp.mjs` for stdio;
+HTTP mode requires a bearer token and binds only to loopback. Set `PLAYTEST_GAME`
+to choose game-specific knowledge-pack and notes paths (default `pocketdungeons`).
+Companion state is generic; PD-only admin tools are explicitly game-specific.
+
+Lemon writes `<world>/lemon/journal/<UTC date>/<uuid>.jsonl`; each game retains
+its own journal. The old remote cursor directory is reused when no new state
+directory exists, avoiding a replay on upgrade. Still run `sync` at session start.
+The old local credential file is a migration fallback, never printed or copied
+into source control.
+
+Run `node --test *.test.mjs` here for event, cursor and profile regressions.
 
 ## Troubleshooting
 

@@ -115,7 +115,7 @@ final class StationTutorial {
         }
         if (step != null) {
             String tip = RoomScan.tip(room);
-            Lemon.tour(player, tip == null ? step.line() : tip + " " + step.line());
+            LemonBridge.tour(player, tip == null ? step.line() : tip + " " + step.line());
         }
     }
 

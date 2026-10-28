@@ -1,4 +1,4 @@
-package pocketdungeons;
+package lemon;
 
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.ChatFormatting;
@@ -116,9 +116,7 @@ final class LemonBody extends Allay {
         if (hand == InteractionHand.MAIN_HAND && player instanceof ServerPlayer serverPlayer
                 && owner.equals(serverPlayer.getUUID())) {
             // A found diary handed over is kept in her archive (playtest 2026-10-02-1).
-            if (!LemonArchive.handOver(serverPlayer, serverPlayer.getMainHandItem())) {
-                Lemon.journalReached(serverPlayer);
-            }
+            Lemon.journalReached(serverPlayer);
             undoClientPrediction(serverPlayer);
             return InteractionResult.SUCCESS_SERVER;
         }

@@ -24,8 +24,11 @@ export async function context(player, { full = false, recent = 5 } = {}) {
   if (!ok || full) return out
   let snap
   try { snap = JSON.parse(out) } catch { return out }
-  if (Array.isArray(snap.rooms)) snap.rooms = snap.rooms.map(compactRoom)
-  if (Array.isArray(snap.recent)) snap.recent = snap.recent.slice(-recent)
+  for (const game of Object.values(snap)) {
+    if (!game || typeof game !== 'object') continue
+    if (Array.isArray(game.rooms)) game.rooms = game.rooms.map(compactRoom)
+    if (Array.isArray(game.recent)) game.recent = game.recent.slice(-recent)
+  }
   return JSON.stringify(snap)
 }
 

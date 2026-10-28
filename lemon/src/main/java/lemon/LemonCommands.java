@@ -1,4 +1,4 @@
-package pocketdungeons;
+package lemon;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -12,9 +12,9 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Lemon's commands: the player's {@code /lemon}, the agent's console-side
- * {@code dungeon lemon ...} driver, and {@code dungeon admin context}. The
- * two {@code dungeon} subtrees are attached by {@link DungeonCommands}, the
- * driver gated like the admin tree (operators, the console and RCON).
+ * {@code lemon ...} driver, and {@code lemon context}. Player actions stay
+ * available without operator permissions; targeted driver arguments require
+ * operator permissions, including when called by a game's command bridge.
  */
 final class LemonCommands {
 
@@ -23,7 +23,25 @@ final class LemonCommands {
     /** Registers {@code /lemon}. */
     static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
-                dispatcher.register(Commands.literal("lemon")
+                dispatcher.register(driverNode()
+                        .then(reportNode())
+                        .then(contextNode())
+                        .then(Commands.literal("summon").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .executes(ctx -> {
+                                    ServerPlayer player = EntityArgument.getPlayer(ctx, "target");
+                                    Lemon.summon(player);
+                                    return Lemon.view(player).present() ? 1 : 0;
+                                })))
+                        .then(Commands.literal("tour").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .then(Commands.argument("text", StringArgumentType.greedyString())
+                                                .executes(ctx -> switch (Lemon.tour(EntityArgument.getPlayer(ctx, "target"),
+                                                        StringArgumentType.getString(ctx, "text"))) {
+                                                    case SHOWN -> 1;
+                                                    case DEFERRED_FIGHT -> 2;
+                                                    case HELD_QUIET -> 3;
+                                                }))))
                         .executes(ctx -> talk(ctx.getSource().getPlayerOrException(), ""))
                         .then(Commands.literal("quiet")
                                 .executes(ctx -> quiet(ctx.getSource().getPlayerOrException(), true)))
@@ -49,26 +67,25 @@ final class LemonCommands {
     }
 
     /**
-     * {@code dungeon lemon say|ask|quiet|mode <player> ...}: the agent's
+     * {@code lemon say|ask|quiet|mode <player> ...}: the agent's
      * driver. Each reply is one line saying what happened to the request.
      */
     static LiteralArgumentBuilder<CommandSourceStack> driverNode() {
         return Commands.literal("lemon")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.literal("say")
-                        .then(Commands.argument("target", EntityArgument.player())
+                        .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .then(Commands.argument("text", StringArgumentType.greedyString())
                                         .executes(ctx -> deliver(ctx.getSource(),
                                                 EntityArgument.getPlayer(ctx, "target"),
                                                 StringArgumentType.getString(ctx, "text"), false)))))
                 .then(Commands.literal("ask")
-                        .then(Commands.argument("target", EntityArgument.player())
+                        .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .then(Commands.argument("text", StringArgumentType.greedyString())
                                         .executes(ctx -> deliver(ctx.getSource(),
                                                 EntityArgument.getPlayer(ctx, "target"),
                                                 StringArgumentType.getString(ctx, "text"), true)))))
                 .then(Commands.literal("reply")
-                        .then(Commands.argument("target", EntityArgument.player())
+                        .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .then(Commands.argument("text", StringArgumentType.greedyString())
                                         .executes(ctx -> {
                                             ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
@@ -77,7 +94,7 @@ final class LemonCommands {
                                             return 1;
                                         }))))
                 .then(Commands.literal("think")
-                        .then(Commands.argument("target", EntityArgument.player())
+                        .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .then(Commands.argument("text", StringArgumentType.greedyString())
                                         .executes(ctx -> {
                                             ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
@@ -94,7 +111,7 @@ final class LemonCommands {
                                     return 1;
                                 })))
                 .then(Commands.literal("quiet")
-                        .then(Commands.argument("target", EntityArgument.player())
+                        .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .executes(ctx -> {
                                     ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                                     Lemon.quietUntilSpoken(target);
@@ -103,7 +120,7 @@ final class LemonCommands {
                                     return 1;
                                 })))
                 .then(Commands.literal("mode")
-                        .then(Commands.argument("target", EntityArgument.player())
+                        .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .then(Commands.literal("guide")
                                         .executes(ctx -> mode(ctx.getSource(),
                                                 EntityArgument.getPlayer(ctx, "target"), false)))
@@ -127,20 +144,28 @@ final class LemonCommands {
         Lemon.setMode(target, llm);
         reply(source, llm
                 ? "LLM mode for " + target.getName().getString() + " for "
-                        + PocketDungeonsConfig.lemonLlmLapseSeconds() + "s; refresh before it lapses."
+                        + LemonConfig.lemonLlmLapseSeconds() + "s; refresh before it lapses."
                 : "Guide mode for " + target.getName().getString() + ".");
         return 1;
     }
 
-    /** {@code dungeon admin context <player>}: the snapshot as one line of JSON. */
+    /** {@code lemon context <player>}: the snapshot as one line of JSON. */
     static LiteralArgumentBuilder<CommandSourceStack> contextNode() {
         return Commands.literal("context")
-                .then(Commands.argument("target", EntityArgument.player())
+                .then(Commands.argument("target", EntityArgument.player()).requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .executes(ctx -> {
                             ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
-                            String json = PlayerContext.toJson(
-                                    PlayerContext.gather(ctx.getSource().getServer(), target)).toString();
-                            reply(ctx.getSource(), json);
+                            Lemon.View view = Lemon.view(target);
+                            com.google.gson.JsonObject json = new com.google.gson.JsonObject();
+                            json.addProperty("present", view.present());
+                            json.addProperty("waiting", view.waiting());
+                            json.addProperty("mode", view.mode());
+                            json.addProperty("quiet", view.quiet());
+                            json.addProperty("quiet_until_spoken", view.quietUntilSpoken());
+                            json.addProperty("pending_questions", view.pendingQuestions());
+                            json.addProperty("thinking", view.thinking());
+                            json.addProperty("question", view.question());
+                            reply(ctx.getSource(), json.toString());
                             return 1;
                         }));
     }
@@ -149,15 +174,15 @@ final class LemonCommands {
         source.sendSuccess(() -> Component.literal(line), false);
     }
 
-    /** {@code /dungeon report <text>}: a note for the playtest journal. */
+    /** {@code /lemon report <text>}: a note for the playtest journal. */
     static LiteralArgumentBuilder<CommandSourceStack> reportNode() {
         return Commands.literal("report")
                 .then(Commands.argument("text", StringArgumentType.greedyString())
                         .executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
                             String text = StringArgumentType.getString(ctx, "text");
-                            PlaytestJournal.report(player, text);
-                            PocketDungeonsMod.LOG.info("Report from {}: {}", player.getName().getString(), text);
+                            LemonJournal.report(player, text);
+                            LemonMod.LOG.info("Report from {}: {}", player.getName().getString(), text);
                             player.sendSystemMessage(Component.literal("Noted. Thank you.")
                                     .withStyle(ChatFormatting.GRAY));
                             return 1;

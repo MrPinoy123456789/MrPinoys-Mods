@@ -123,14 +123,14 @@ final class RoomStore {
     static boolean capture(ServerLevel level, MinecraftServer server, UUID owner,
                            BlockPos cellOrigin, int capturedQuarterTurns) {
         for (Entity entity : level.getEntities((Entity) null, cellVolume(cellOrigin),
-                e -> !(e instanceof Player) && !Lemon.isPart(e) && !isRoomEntity(e))) {
+                e -> !(e instanceof Player) && !LemonBridge.isPart(e) && !isRoomEntity(e))) {
             entity.discard();
         }
 
         // Lemon is lifted out for the capture itself: it is neither part of
         // the room nor something to discard.
         StructureTemplate template = new StructureTemplate();
-        Lemon.withoutLemon(level, cellVolume(cellOrigin), () ->
+        LemonBridge.withoutLemon(level, cellVolume(cellOrigin), () ->
                 template.fillFromWorld(level, cellOrigin, TemplateStamper.TEMPLATE_SIZE, true, List.of()));
         CompoundTag tag = template.save(new CompoundTag());
         tag.putInt(ROTATION_KEY, ((capturedQuarterTurns % 4) + 4) % 4);
@@ -176,7 +176,7 @@ final class RoomStore {
      */
     static boolean isRoomEntity(Entity entity) {
         // Lemon's bubble is a display entity, but never part of a room.
-        if (Lemon.isPart(entity)) {
+        if (LemonBridge.isPart(entity)) {
             return false;
         }
         if (entity instanceof Display) {

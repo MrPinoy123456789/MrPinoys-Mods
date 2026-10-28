@@ -15,7 +15,8 @@ const here = dirname(fileURLToPath(import.meta.url))
 
 /** KEY=VALUE lines from kinetic.env, quotes optional; the environment wins over the file. */
 function fileConfig() {
-  const path = join(here, 'kinetic.env')
+  const current = join(here, 'kinetic.env')
+  const path = existsSync(current) ? current : join(here, '..', '..', 'pocketdungeons', 'tools', 'server', 'kinetic.env')
   if (!existsSync(path)) return {}
   const out = {}
   for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {

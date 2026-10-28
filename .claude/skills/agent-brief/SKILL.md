@@ -14,7 +14,7 @@ An agent reading this file should treat everything below as its standing orders.
   `feature/rm-<id>-<topic>` off the base and prints the path. If you were handed a worktree instead, first merge
   the base branch, then create your branch (named in the task). Merge the base again before your
   final run. Never push, never touch `master` or another agent's branch, never deploy, never run
-  `tools/server/pdserver.mjs`, never use the Lemon tools or any server.
+  `../tools/playtest/pdserver.mjs`, never use the Lemon tools or any server.
 - Read `CLAUDE.md` at the repo root and the docs the task names. `docs/CODEMAP.md` says which class does what; grep it
   before reading source. `docs/DECISIONS.md` has the settled owner decisions and workshop specs.
 

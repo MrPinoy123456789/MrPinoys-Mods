@@ -152,13 +152,14 @@ echo "SUITE GREEN (${REQ:-no required-test line found})"
 [ "$DEPLOY" -eq 1 ] || exit 0
 
 if [ -n "$(git status --porcelain)" ]; then echo "REFUSING TO DEPLOY: uncommitted changes"; exit 4; fi
+../lemon/gradlew.bat -p ../lemon build dist --console=plain || exit 4
 JAR=$(ls ../dist/MrPinoys_Pocket_Dungeons-*.jar 2>/dev/null | grep -v sources | head -1)
 if [ -z "$JAR" ]; then echo "REFUSING TO DEPLOY: no jar in dist/"; exit 4; fi
 if [ "$(stat -c %Y "$JAR")" -lt "$(git log -1 --format=%ct)" ]; then echo "REFUSING TO DEPLOY: dist jar is older than the last commit"; exit 4; fi
-STATUS=$(node tools/server/pdserver.mjs status 2>&1 | head -3)
+STATUS=$(node ../tools/playtest/pdserver.mjs status 2>&1 | head -3)
 echo "$STATUS" | head -2
 if ! echo "$STATUS" | grep -q "There are 0 of" && [ "$FORCE" -ne 1 ]; then
   echo "REFUSING TO DEPLOY: players are online (use --force-players after asking the owner)"; exit 5
 fi
-node tools/server/pdserver.mjs deploy --restart 2>&1 | tail -3
-node tools/server/pdserver.mjs cmd dungeon admin validate 2>&1 | tail -3
+node ../tools/playtest/pdserver.mjs deploy --restart 2>&1 | tail -3
+node ../tools/playtest/pdserver.mjs cmd dungeon admin validate 2>&1 | tail -3

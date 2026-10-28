@@ -22,6 +22,6 @@ Grep this file before reading source: `grep -n -i "sculk" docs/CODEMAP.md`. The 
 | Mob stats and scaling | `MobScaling`, `AffixEffects`, `MobUniforms` | |
 | Player-facing words | | `player-text` |
 | A test | `src/test` (pure `main()`), `src/gametest` (register in `fabric.mod.json`) | `add-tests` |
-| Build, test, deploy | `tools/ship.sh`, `tools/server/pdserver.mjs` | `deploy-test-server` |
+| Build, test, deploy | `tools/ship.sh`, `../tools/playtest/pdserver.mjs` | `deploy-test-server` |
 | Scripted source edits | `tools/pyedit.py` (CRLF safe) | |
 | Sub-agent prompts | | `agent-brief` |

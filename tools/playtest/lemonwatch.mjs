@@ -5,7 +5,7 @@
 // need the latest events. It is the ONLY wait_events consumer; do not call
 // wait_events yourself while it runs (the cursor is shared).
 //
-//   node tools/server/lemonwatch.mjs <player> [timeout_s]
+//   node tools/playtest/lemonwatch.mjs <player> [timeout_s]
 //
 // Events and errors go to stdout and to run/lemon-watch.log. It never exits on
 // its own: a quiet stretch prints a heartbeat line, an error retries in 5 s.
@@ -14,7 +14,7 @@ import { appendFileSync, readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'pocketdungeons')
 const player = process.argv[2]
 const timeout = Math.max(5, Math.min(240, Number(process.argv[3]) || 240))
 if (!player) { console.error('usage: node lemonwatch.mjs <player> [timeout_s]'); process.exit(2) }

@@ -24,6 +24,7 @@ public class DisconnectHandlerTest {
             files = walk.filter(p -> p.toString().endsWith(".java")).toList();
         }
         int handlers = 0;
+        java.util.Set<String> owners = new java.util.HashSet<>();
         for (Path file : files) {
             String source = stripLineComments(Files.readString(file));
             int from = 0;
@@ -35,12 +36,14 @@ public class DisconnectHandlerTest {
                 int open = at + MARKER.length();
                 String body = balanced(source, open);
                 handlers++;
+                owners.add(file.getFileName().toString());
                 check(body.contains(".execute("),
                         file.getFileName() + " has a DISCONNECT handler that does not defer to server.execute");
                 from = open + body.length();
             }
         }
-        check(handlers >= 5, "found only " + handlers + " DISCONNECT handlers in the sources");
+        check(owners.containsAll(java.util.Set.of("Instances.java", "PlaytestJournal.java", "PowerListener.java",
+                "TrimListener.java")), "missing game-owned DISCONNECT handlers: " + owners);
         System.out.println("DisconnectHandlerTest passed (" + handlers + " handlers)");
     }
 

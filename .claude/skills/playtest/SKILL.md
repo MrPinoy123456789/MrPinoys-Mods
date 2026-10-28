@@ -142,18 +142,27 @@ many times, a zone they never saw), ask about it.
 
 ## 6. Live mode: interviewing in Minecraft chat
 
+Read `lemon/docs/LEMON_AGENT.md` for the generic interviewer loop and game
+briefings. Lemon's own ask, answer, heard and report events now live under
+`<world>/lemon/journal/<UTC date>/<uuid>.jsonl`; Pocket Dungeons keeps its game
+events. Correlate both by timestamp and UUID. The shared tool's context object
+nests companion state under `lemon` and game state under `pocketdungeons` or
+`charter`. Plain chat reaches Lemon only without another player within 48 blocks
+in the same level. Nearby players need the `Lemon,` prefix or `/lemon <text>`.
+
 Use when the player is on the local test server and asks for a live
 interview. Everything in sections 1 to 5 still applies; only the channel and
 pacing change. Never do this on the owner's live server.
 
-- **Prefer the Lemon MCP:** the workspace `.mcp.json` registers `lemon`
-  (`tools/server/mcp.mjs --admin`). If its tools (`mcp__lemon__*`) are not in
-  your tool list, the session started before it was registered: tell the owner
-  and ask for a restart rather than silently using the shell tool below.
-- **Server control:** otherwise everything goes through `pocketdungeons/tools/server/`
+- **Prefer the Lemon MCP when configured:** use
+  `tools/playtest/mcp.mjs --admin` (server name `lemon-playtest`). If expected
+  tools (`mcp__lemon__*`) are missing, tell the owner and check their MCP
+  configuration before falling back to shell commands. Do not claim the
+  workspace's empty compatibility MCP file registers a server.
+- **Server control:** otherwise everything goes through `tools/playtest/`
   (read its `README.md`): `server start` / `stop` / `status`, `server say`,
-  `server cmd`, `server chat`. On Windows `pocketdungeons\tools\server\server.bat
-  <command>`, elsewhere `node pocketdungeons/tools/server/pdserver.mjs <command>`.
+  `server cmd`, `server chat`. On Windows `tools\playtest\server.bat
+  <command>`, elsewhere `node tools/playtest/pdserver.mjs <command>`.
 - **Listen:** run `server chat --follow` under the Monitor tool. It already
   filters the log down to chat, joins and leaves, floor completions and mod
   errors, one compact line each. Once the in-game journal exists, follow its

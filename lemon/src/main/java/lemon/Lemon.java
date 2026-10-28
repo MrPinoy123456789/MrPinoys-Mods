@@ -1,11 +1,10 @@
-package pocketdungeons;
+package lemon;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
@@ -20,8 +19,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Enemy;
@@ -58,21 +55,21 @@ import java.util.UUID;
  * never reaches the vanilla chat log the server tool reads. The kind word
  * after {@code Lemon} is what the server tool sorts on: {@link #EVENT_KINDS}
  * wake a waiting agent, {@link #ECHO_KINDS} only echo the agent's own action.
- * Keep both lists and {@code tools/server/pdserver.mjs} in step.
+ * Keep both lists and {@code tools/playtest/pdserver.mjs} in step.
  */
 final class Lemon {
 
     private Lemon() {}
 
     /** Carried by the body and the bubble, so every entity sweep can recognise them. */
-    static final String TAG = "pocketdungeons_lemon";
+    static final String TAG = "lemon.part";
 
     /** The team that colours Lemon's glowing outline yellow. */
     private static final String TEAM = "pd_lemon";
 
     static final String HONEST_LINE = "I do not know that one yet.";
 
-    /** What {@code dungeon lemon think} says when the agent gives no text. */
+    /** What {@code lemon think} says when the agent gives no text. */
     static final String THINK_LINE = "Let me check. Back in a moment.";
 
     /**
@@ -117,7 +114,7 @@ final class Lemon {
         final List<Deferred> deferred = new ArrayList<>();
         /** The player's own {@code /lemon quiet}: lasts until {@code /lemon on}. */
         boolean quiet;
-        /** The agent's {@code dungeon lemon quiet}: lasts until the player next speaks to Lemon. */
+        /** The agent's {@code lemon quiet}: lasts until the player next speaks to Lemon. */
         boolean agentQuiet;
         /** Set by {@code think}: the guide fallback waits until then instead of {@code lemonFallbackSeconds}. */
         long thinkingUntil;
@@ -177,19 +174,11 @@ final class Lemon {
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) ->
                 despawnBody(newPlayer.level().getServer(), newPlayer.getUUID()));
 
-        // The keystone summons Lemon: a right-click with it in the main hand.
-        // A recovery compass has no use of its own, so claiming the click
-        // takes nothing away. Main hand only, or a keystone carried in the
-        // off hand would summon Lemon on every right-click with a sword.
-        UseItemCallback.EVENT.register((player, level, hand) -> {
-            if (level.isClientSide() || hand != InteractionHand.MAIN_HAND
-                    || !(player instanceof ServerPlayer serverPlayer)
-                    || !Keystone.isKeystone(player.getItemInHand(hand))) {
-                return InteractionResult.PASS;
-            }
-            summon(serverPlayer);
-            return InteractionResult.SUCCESS_SERVER;
-        });
+        // Games summon Lemon through the registered command, not an item callback.
+        // Each game owns its item's click behavior and its missing-mod fallback.
+        // Body interactions use the configured command hooks instead of game code.
+        // Those hooks run as the player, with only the player's permissions.
+
 
         // A fight is damage taken or dealt; Lemon never interrupts one unasked.
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
@@ -247,7 +236,7 @@ final class Lemon {
         boolean anyone = false;
         for (ServerPlayer member : partyOf(speaker)) {
             if (!member.getUUID().equals(speaker.getUUID())) {
-                PlaytestJournal.lemonHeard(member, from, text);
+                LemonJournal.lemonHeard(member, from, text);
                 anyone = true;
             }
         }
@@ -255,44 +244,24 @@ final class Lemon {
         // lemon_heard only reached the journal, so party talk showed as plain
         // chat. One line per utterance, however many members heard it.
         if (anyone) {
-            PocketDungeonsMod.LOG.info("Lemon heard <{}> {}", from, text);
+            LemonMod.LOG.info("Lemon heard <{}> {}", from, text);
         }
     }
 
-    /** Every online member of {@code player}'s party (their instance's members, else their party), themselves included. */
+    /** Every online player within 48 blocks in the same level, including {@code player}. */
     static List<ServerPlayer> partyOf(ServerPlayer player) {
-        MinecraftServer server = player.level().getServer();
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        java.util.Set<UUID> ids = new java.util.LinkedHashSet<>();
-        ids.add(player.getUUID());
-        if (record != null) {
-            ids.addAll(record.members.keySet());
-        } else {
-            ids.addAll(PartyService.partyCompanions(player.getUUID()));
-        }
-        List<ServerPlayer> online = new ArrayList<>();
-        for (UUID id : ids) {
-            ServerPlayer member = server.getPlayerList().getPlayer(id);
-            if (member != null) {
-                online.add(member);
-            }
-        }
-        return online;
+        return player.level().getServer().getPlayerList().getPlayers().stream()
+                .filter(member -> member.level() == player.level() && member.distanceToSqr(player) <= 48 * 48)
+                .toList();
     }
 
     /**
-     * Solo for chat routing: nobody else in the player's party or instance,
-     * and either standing in a dungeon instance or alone on the server, so a
-     * solo player in the overworld can still talk to other people online.
+     * Solo for chat routing: nobody else within 48 blocks in the same level.
+     * Other players elsewhere on the server do not intercept plain chat.
+     * The explicit Lemon prefix works regardless of nearby players.
      */
     static boolean soloForChat(ServerPlayer player) {
-        InstanceRecord record = InstanceRegistry.byMember.get(player.getUUID());
-        int party = record != null ? record.members.size()
-                : 1 + PartyService.partyCompanions(player.getUUID()).size();
-        if (party > 1) {
-            return false;
-        }
-        return record != null || player.level().getServer().getPlayerList().getPlayerCount() <= 1;
+        return partyOf(player).stream().noneMatch(member -> !member.getUUID().equals(player.getUUID()));
     }
 
     /** Whether {@code entity} is a Lemon body or bubble. Every entity sweep skips these. */
@@ -347,8 +316,8 @@ final class Lemon {
         state.agentQuiet = false;
         String name = player.getName().getString();
         if (state.waiting) {
-            PocketDungeonsMod.LOG.info("Lemon answer <{}> {}", name, text);
-            PlaytestJournal.lemonAnswer(player, state.question, text);
+            LemonMod.LOG.info("Lemon answer <{}> {}", name, text);
+            LemonJournal.lemonAnswer(player, state.question, text);
             state.waiting = false;
             state.question = null;
             // Answered: Lemon heads off after a short linger instead of hovering.
@@ -357,11 +326,11 @@ final class Lemon {
             echo(player, text);
             return;
         }
-        PocketDungeonsMod.LOG.info("Lemon ask <{}> {}", name, text);
+        LemonMod.LOG.info("Lemon ask <{}> {}", name, text);
         echo(player, text);
         if (text.isEmpty()) {
             show(player, state, "Yes?", false, "says");
-            PlaytestJournal.lemonAsk(player, text, "guide", 0, 0);
+            LemonJournal.lemonAsk(player, text, "guide", 0, 0);
             return;
         }
         if (agentServing(player.getUUID(), now)) {
@@ -375,7 +344,7 @@ final class Lemon {
             return;
         }
         show(player, state, HONEST_LINE, false, "says");
-        PlaytestJournal.lemonAsk(player, text, "none", 0, 0);
+        LemonJournal.lemonAsk(player, text, "none", 0, 0);
     }
 
     /**
@@ -402,8 +371,8 @@ final class Lemon {
             reanchor(player, state, now, inFight(player, now));
             chirp(player, SoundEvents.ALLAY_AMBIENT_WITH_ITEM, 0.6f, 1.2f);
         }
-        state.idleUntil = Math.max(state.idleUntil, now + 20L * PocketDungeonsConfig.lemonIdleSeconds());
-        PocketDungeonsMod.LOG.info("Lemon summoned <{}>", player.getName().getString());
+        state.idleUntil = Math.max(state.idleUntil, now + 20L * LemonConfig.lemonIdleSeconds());
+        LemonMod.LOG.info("Lemon summoned <{}>", player.getName().getString());
     }
 
     /**
@@ -416,9 +385,9 @@ final class Lemon {
         State state = STATES.get(player.getUUID());
         if (state != null) {
             state.lastAddressed = now;
-            state.idleUntil = Math.max(state.idleUntil, now + 20L * PocketDungeonsConfig.lemonIdleSeconds());
+            state.idleUntil = Math.max(state.idleUntil, now + 20L * LemonConfig.lemonIdleSeconds());
         }
-        RitualListener.openMenu(player);
+        LemonConfig.interact(player);
     }
 
     /** The player's own line, echoed back to them alone so their chat still reads as a conversation. */
@@ -437,13 +406,13 @@ final class Lemon {
             state.deferred.clear();
         }
         // An event for the agent: the player changed what Lemon may do unasked.
-        PocketDungeonsMod.LOG.info("Lemon quiet <{}> {}", player.getName().getString(), quiet ? "on" : "off");
+        LemonMod.LOG.info("Lemon quiet <{}> {}", player.getName().getString(), quiet ? "on" : "off");
     }
 
     // ---- what the agent says ----------------------------------------------------------
 
     /**
-     * {@code dungeon lemon say}: an unprompted line. Appear, speak, leave a
+     * {@code lemon say}: an unprompted line. Appear, speak, leave a
      * few seconds after the last bubble. It waits out a fight (two minutes at
      * most) and is dropped while the player has Lemon quiet, unless the player
      * is in a conversation (a question is pending, or they spoke to Lemon in
@@ -454,8 +423,8 @@ final class Lemon {
     }
 
     /**
-     * PD-138 (playtest 2026-10-03-2): a tour line from {@link FirstVisitTutorial}
-     * or {@link StationTutorial}. Delivered exactly like {@link #say}, but logged
+     * PD-138 (playtest 2026-10-03-2): a tour line from a game's tutorial
+     * command bridge. Delivered exactly like {@link #say}, but logged
      * as {@code Lemon tour}, so the operator's {@code wait} shows which tour
      * lines fired; {@code Lemon says} is the agent's own echo and never shows.
      */
@@ -463,7 +432,7 @@ final class Lemon {
         return deliver(player, text, false, "tour");
     }
 
-    /** {@code dungeon lemon ask}: like {@link #say}, then highlighted and waiting for the reply. */
+    /** {@code lemon ask}: like {@link #say}, then highlighted and waiting for the reply. */
     static Delivery ask(ServerPlayer player, String text) {
         return deliver(player, text, true, "asks");
     }
@@ -474,12 +443,12 @@ final class Lemon {
         boolean prompted = !state.pending.isEmpty() || now - state.lastAddressed < CONVERSATION_TICKS;
         if (!prompted) {
             if (state.quiet || state.agentQuiet) {
-                PocketDungeonsMod.LOG.info("Lemon held <{}> (quiet) {}", player.getName().getString(), text);
+                LemonMod.LOG.info("Lemon held <{}> (quiet) {}", player.getName().getString(), text);
                 return Delivery.HELD_QUIET;
             }
             if (inFight(player, now)) {
                 state.deferred.add(new Deferred(text, ask, now));
-                PocketDungeonsMod.LOG.info("Lemon held <{}> (fight) {}", player.getName().getString(), text);
+                LemonMod.LOG.info("Lemon held <{}> (fight) {}", player.getName().getString(), text);
                 return Delivery.DEFERRED_FIGHT;
             }
         }
@@ -489,7 +458,7 @@ final class Lemon {
     }
 
     /**
-     * {@code dungeon lemon reply}: the agent's answer to the player. Always
+     * {@code lemon reply}: the agent's answer to the player. Always
      * shown now, however long the agent took, never held for a fight or quiet.
      * It answers every pending question (journaled as {@code answered_by: llm}
      * with the wait), and with none pending it is simply said. Lemon leaves a
@@ -503,9 +472,9 @@ final class Lemon {
         // already given up on. The reply is still shown, and the journal says it was a late
         // answer instead of leaving only "unanswered" for a question that did get one.
         if (state.fallbackText != null && now - state.fallbackAt <= LATE_REPLY_TICKS) {
-            PocketDungeonsMod.LOG.info("Lemon late reply <{}> {}s after the fallback: {}",
+            LemonMod.LOG.info("Lemon late reply <{}> {}s after the fallback: {}",
                     player.getName().getString(), (now - state.fallbackAt) / 20, state.fallbackText);
-            PlaytestJournal.lemonAsk(player, state.fallbackText, "llm_late", 0, (now - state.fallbackAt) / 20);
+            LemonJournal.lemonAsk(player, state.fallbackText, "llm_late", 0, (now - state.fallbackAt) / 20);
         }
         state.fallbackText = null;
         state.fallbackAt = 0;
@@ -517,7 +486,7 @@ final class Lemon {
     static final long LATE_REPLY_TICKS = 20L * 120;
 
     /**
-     * {@code dungeon lemon think}: acknowledge a question while the agent
+     * {@code lemon think}: acknowledge a question while the agent
      * looks something up. Lemon says a short line ({@link #THINK_LINE} when
      * {@code text} is blank), then leaves once it is read and stays away until
      * the reply (or until the player speaks again). The pending question is
@@ -528,14 +497,14 @@ final class Lemon {
         State state = stateFor(player.getUUID());
         show(player, state, text == null || text.isBlank() ? THINK_LINE : text, false, "thinks");
         if (!state.pending.isEmpty()) {
-            state.thinkingUntil = now + 20L * PocketDungeonsConfig.lemonThinkSeconds();
+            state.thinkingUntil = now + 20L * LemonConfig.lemonThinkSeconds();
         }
         state.hidden = true;
         return Delivery.SHOWN;
     }
 
     /**
-     * {@code dungeon lemon quiet}: honour the player saying "quiet". Lemon
+     * {@code lemon quiet}: honour the player saying "quiet". Lemon
      * vanishes and holds its unprompted lines until the player next speaks to
      * it; replies still come. The player's own {@code /lemon quiet} is the
      * sticky version.
@@ -543,11 +512,11 @@ final class Lemon {
     static void quietUntilSpoken(ServerPlayer player) {
         State state = stateFor(player.getUUID());
         state.agentQuiet = true;
-        PocketDungeonsMod.LOG.info("Lemon hushed <{}> until they speak to Lemon", player.getName().getString());
+        LemonMod.LOG.info("Lemon hushed <{}> until they speak to Lemon", player.getName().getString());
         hush(player);
     }
 
-    /** {@code dungeon lemon dismiss}: vanish now, dropping anything still to say. */
+    /** {@code lemon dismiss}: vanish now, dropping anything still to say. */
     static void hush(ServerPlayer player) {
         State state = STATES.get(player.getUUID());
         if (state == null) {
@@ -562,18 +531,18 @@ final class Lemon {
     }
 
     /**
-     * {@code dungeon lemon mode}: {@code llm} holds player questions for the
+     * {@code lemon mode}: {@code llm} holds player questions for the
      * agent for {@code lemonLlmLapseSeconds}, after which Lemon lapses back
      * to guide mode unless the agent has set it again.
      */
     static void setMode(ServerPlayer player, boolean llm) {
         long now = player.level().getServer().getTickCount();
         if (llm) {
-            LLM_UNTIL.put(player.getUUID(), now + 20L * PocketDungeonsConfig.lemonLlmLapseSeconds());
+            LLM_UNTIL.put(player.getUUID(), now + 20L * LemonConfig.lemonLlmLapseSeconds());
         } else {
             LLM_UNTIL.remove(player.getUUID());
         }
-        PocketDungeonsMod.LOG.info("Lemon mode <{}> {}", player.getName().getString(), llm ? "llm" : "guide");
+        LemonMod.LOG.info("Lemon mode <{}> {}", player.getName().getString(), llm ? "llm" : "guide");
     }
 
     /**
@@ -612,7 +581,7 @@ final class Lemon {
             try {
                 tickOne(server, player, state, now);
             } catch (RuntimeException e) {
-                PocketDungeonsMod.LOG.warn("Lemon tick failed for {}; Lemon vanishes ({})",
+                LemonMod.LOG.warn("Lemon tick failed for {}; Lemon vanishes ({})",
                         player.getName().getString(), e.toString());
                 despawn(server, state, false);
             }
@@ -626,13 +595,13 @@ final class Lemon {
         Long until = LLM_UNTIL.get(state.player);
         if (until != null && now >= until) {
             LLM_UNTIL.remove(state.player);
-            PocketDungeonsMod.LOG.info("Lemon mode <{}> guide (lapsed)", player.getName().getString());
+            LemonMod.LOG.info("Lemon mode <{}> guide (lapsed)", player.getName().getString());
         }
         // Guide mode answers whatever the agent left hanging, so the player
         // is never ignored.
         if (!state.pending.isEmpty() && fallbackDue(agentServing(state.player, now),
                 state.pending.get(0).askedAt(), state.thinkingUntil, now)) {
-            PocketDungeonsMod.LOG.info("Lemon unanswered <{}> {}", player.getName().getString(),
+            LemonMod.LOG.info("Lemon unanswered <{}> {}", player.getName().getString(),
                     state.pending.get(state.pending.size() - 1).text());
             state.fallbackAt = now;
             state.fallbackText = state.pending.get(state.pending.size() - 1).text();
@@ -669,10 +638,10 @@ final class Lemon {
         }
         boolean talking = state.bubbleTicksLeft > 0;
         if (talking) {
-            state.idleUntil = Math.max(state.idleUntil, now + 20L * PocketDungeonsConfig.lemonIdleSeconds());
+            state.idleUntil = Math.max(state.idleUntil, now + 20L * LemonConfig.lemonIdleSeconds());
         }
         if (state.waiting && now >= state.waitUntil) {
-            PocketDungeonsMod.LOG.info("Lemon unanswered <{}> (no reply) {}", player.getName().getString(),
+            LemonMod.LOG.info("Lemon unanswered <{}> (no reply) {}", player.getName().getString(),
                     state.question);
             state.waiting = false;
             state.question = null;
@@ -689,7 +658,7 @@ final class Lemon {
 
     private static void resolvePending(ServerPlayer player, State state, long now, String answeredBy) {
         for (Question q : state.pending) {
-            PlaytestJournal.lemonAsk(player, q.text(), answeredBy, 0, (now - q.askedAt()) / 20);
+            LemonJournal.lemonAsk(player, q.text(), answeredBy, 0, (now - q.askedAt()) / 20);
         }
         state.pending.clear();
         state.thinkingUntil = 0;
@@ -707,7 +676,7 @@ final class Lemon {
         if (!llm) {
             return true;
         }
-        long fallbackAt = askedAt + 20L * PocketDungeonsConfig.lemonFallbackSeconds();
+        long fallbackAt = askedAt + 20L * LemonConfig.lemonFallbackSeconds();
         return now >= Math.max(fallbackAt, thinkingUntil);
     }
 
@@ -753,7 +722,7 @@ final class Lemon {
     // ---- speech -------------------------------------------------------------------------
 
     private static long lingerTicks() {
-        return 20L * PocketDungeonsConfig.lemonLingerSeconds();
+        return 20L * LemonConfig.lemonLingerSeconds();
     }
 
     private static void show(ServerPlayer player, State state, String text, boolean ask, String kind) {
@@ -767,11 +736,11 @@ final class Lemon {
         }
         player.sendSystemMessage(Component.literal("Lemon: ").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
                 .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
-        PocketDungeonsMod.LOG.info("Lemon {} <{}> {}", kind, player.getName().getString(), text);
+        LemonMod.LOG.info("Lemon {} <{}> {}", kind, player.getName().getString(), text);
         if (ask) {
             state.waiting = true;
             state.question = text;
-            state.waitUntil = now + 20L * PocketDungeonsConfig.lemonAskIdleSeconds();
+            state.waitUntil = now + 20L * LemonConfig.lemonAskIdleSeconds();
             state.idleUntil = Math.max(state.idleUntil, state.waitUntil);
         } else {
             state.idleUntil = now + lingerTicks();

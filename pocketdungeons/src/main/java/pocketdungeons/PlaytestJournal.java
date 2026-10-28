@@ -661,46 +661,6 @@ final class PlaytestJournal {
         });
     }
 
-    /** Something the player said to Lemon, once it has been answered (or not). */
-    static void lemonAsk(ServerPlayer player, String text, String answeredBy, int hintTier, long waitSeconds) {
-        safely("lemon_ask", () -> {
-            Map<String, Object> extras = new LinkedHashMap<>();
-            extras.put("text", text);
-            extras.put("room", FloorRooms.roomAt(InstanceRegistry.byMember.get(player.getUUID()),
-                    player.blockPosition()));
-            extras.put("answered_by", answeredBy);
-            extras.put("hint_tier", hintTier);
-            extras.put("wait_s", waitSeconds);
-            record(player, "lemon_ask", extras);
-        });
-    }
-
-    /**
-     * A party member said {@code text} in chat and {@code player} is in their party
-     * (owner decision, 2026-10-03: Lemon takes in what the whole party says, tagged
-     * with who said it). Written for the listener, so their {@code context} shows
-     * the party's side of the conversation; the speaker's own line is a
-     * {@code lemon_ask} or plain chat already.
-     */
-    static void lemonHeard(ServerPlayer player, String from, String text) {
-        safely("lemon_heard", () -> {
-            Map<String, Object> extras = new LinkedHashMap<>();
-            extras.put("from", from);
-            extras.put("text", text);
-            record(player, "lemon_heard", extras);
-        });
-    }
-
-    /** The player answered a question the interviewer asked through Lemon. */
-    static void lemonAnswer(ServerPlayer player, String question, String text) {
-        safely("lemon_answer", () -> {
-            Map<String, Object> extras = new LinkedHashMap<>();
-            extras.put("question", question);
-            extras.put("text", text);
-            record(player, "lemon_answer", extras);
-        });
-    }
-
     // ---- floor tallies -----------------------------------------------------------
 
     private static FloorTally tally(ServerPlayer player, InstanceRecord record) {

@@ -89,24 +89,6 @@ public final class PocketDungeonsConfig {
             v -> v >= 0, "must be >= 0");
     /** Record the playtest journal ({@code docs/PLAYTEST_EVENTS.md}). */
     private static final Knob<Boolean> PLAYTEST_JOURNAL = flag("playtestJournal", true);
-    /** Seconds Lemon lingers after its last line before it vanishes. */
-    private static final Knob<Integer> LEMON_IDLE_SECONDS = integer("lemonIdleSeconds", 20,
-            v -> v >= 3 && v <= 600, "must be between 3 and 600");
-    /** Seconds Lemon waits for the answer to a question before it vanishes. */
-    private static final Knob<Integer> LEMON_ASK_IDLE_SECONDS = integer("lemonAskIdleSeconds", 120,
-            v -> v >= 10 && v <= 1800, "must be between 10 and 1800");
-    /** Seconds an agent's LLM mode lasts without a refresh before Lemon falls back to guide mode. */
-    private static final Knob<Integer> LEMON_LLM_LAPSE_SECONDS = integer("lemonLlmLapseSeconds", 300,
-            v -> v >= 30 && v <= 3600, "must be between 30 and 3600");
-    /** Seconds a player's question waits for the agent before guide mode answers it. */
-    private static final Knob<Integer> LEMON_FALLBACK_SECONDS = integer("lemonFallbackSeconds", 45,
-            v -> v >= 5 && v <= 600, "must be between 5 and 600");
-    /** Seconds Lemon stays after its last line before vanishing. */
-    private static final Knob<Integer> LEMON_LINGER_SECONDS = integer("lemonLingerSeconds", 4,
-            v -> v >= 1 && v <= 60, "must be between 1 and 60");
-    /** Seconds a {@code dungeon lemon think} holds the guide's fallback answer. */
-    private static final Knob<Integer> LEMON_THINK_SECONDS = integer("lemonThinkSeconds", 90,
-            v -> v >= 10 && v <= 600, "must be between 10 and 600");
     /** Mob health/damage/speed bonus per point of omen on the current floor, from Act 2 (Act 0 and 1 use omenDangerScaleActOne). */
     private static final Knob<Double> OMEN_DANGER_SCALE_PER_OMEN = decimal("omenDangerScalePerOmen", 0.1,
             v -> v >= 0.0 && v <= 1.0, "must be between 0.0 and 1.0");
@@ -1025,6 +1007,7 @@ public final class PocketDungeonsConfig {
 
     /** The file {@link #load} last read, so {@link #setModuleOverride} can write it back. */
     private static volatile Path configFile;
+    private static boolean warnedLegacyLemon;
 
     private PocketDungeonsConfig() {}
 
@@ -1046,6 +1029,11 @@ public final class PocketDungeonsConfig {
             }
             if (parsed == null) {
                 throw new IllegalStateException("pocketdungeons.json is empty");
+            }
+            if (!warnedLegacyLemon && parsed.keySet().stream()
+                    .anyMatch(key -> key.matches("lemon(AskIdle|Fallback|Idle|Linger|LlmLapse|Think)Seconds"))) {
+                warnedLegacyLemon = true;
+                PocketDungeonsMod.LOG.warn("Old Lemon timing keys are ignored; configure config/lemon/lemon.json instead");
             }
             apply(parsed);
             // Keys added since the file was written are filled in so the
@@ -1131,30 +1119,6 @@ public final class PocketDungeonsConfig {
 
     public static boolean playtestJournal() {
         return PLAYTEST_JOURNAL.get();
-    }
-
-    public static int lemonIdleSeconds() {
-        return LEMON_IDLE_SECONDS.get();
-    }
-
-    public static int lemonAskIdleSeconds() {
-        return LEMON_ASK_IDLE_SECONDS.get();
-    }
-
-    public static int lemonLlmLapseSeconds() {
-        return LEMON_LLM_LAPSE_SECONDS.get();
-    }
-
-    public static int lemonFallbackSeconds() {
-        return LEMON_FALLBACK_SECONDS.get();
-    }
-
-    public static int lemonLingerSeconds() {
-        return LEMON_LINGER_SECONDS.get();
-    }
-
-    public static int lemonThinkSeconds() {
-        return LEMON_THINK_SECONDS.get();
     }
 
     public static double omenDangerScalePerOmen() {

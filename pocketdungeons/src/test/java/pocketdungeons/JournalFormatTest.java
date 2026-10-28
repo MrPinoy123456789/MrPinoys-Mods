@@ -113,20 +113,19 @@ public class JournalFormatTest {
                         new PlayerContext.RoomView("2,0", "pocketdungeons:hold_the_plate", "puzzle", false, 0, 0, false)),
                 2, 5, PlayerContext.livesLeft(5, Omen.LIVES), 2, 3, 5, 6,
                 List.of(new PlayerContext.ToolView("minecraft:stone_pickaxe", 40, 131)), 64, 5, 2, true,
-                new Lemon.View(true, true, "llm", false, false, 1, false, "How was that floor?"),
                 List.of(JournalFormat.parse("{\"ev\":\"door_commit\",\"step\":2}")),
                 JournalFormat.parse("{\"ev\":\"bank\",\"levels_gained\":2,\"key_level\":9}"), null);
         JsonObject o = PlayerContext.toJson(s);
         List<String> keys = List.copyOf(o.keySet());
         checkEquals(String.join(" ", keys), "t player name phase slot floor zone keystone run_level party dimension "
-                + "room room_cell rooms omen spawners inventory lemon recent last_bank");
+                + "room room_cell rooms omen spawners inventory recent last_bank");
         // PD-148: the last bank rides along even when it has scrolled out of the 20 recent events.
         checkEquals(o.get("last_bank").getAsJsonObject().get("key_level").getAsString(), "9");
         check(!PlayerContext.toJson(new PlayerContext.Snapshot(s.t(), s.player(), s.name(), s.phase(), s.slot(),
                         s.floor(), s.zone(), s.keystone(), s.runLevel(), s.party(), s.dimension(), s.room(),
                         s.roomCell(), s.rooms(), s.floorOmen(), s.intervalOmen(), s.lives(), s.floorsCounted(),
                         s.spawnersCleared(), s.spawnersNeeded(), s.spawnersTotal(), s.tools(), s.blocks(), s.food(),
-                        s.freeSlots(), s.nearFull(), s.lemon(), s.recent(), null, null)).has("last_bank"),
+                        s.freeSlots(), s.nearFull(), s.recent(), null, null)).has("last_bank"),
                 "no bank yet, no key");
         check(o.get("rooms").getAsJsonArray().size() == 3, "every room on the floor");
         JsonObject here = o.get("rooms").getAsJsonArray().get(1).getAsJsonObject();
@@ -138,7 +137,7 @@ public class JournalFormatTest {
         check(o.get("omen").getAsJsonObject().get("lives").getAsInt() == Omen.lives(5, Omen.LIVES), "lives left");
         check(o.get("spawners").getAsJsonObject().get("needed").getAsInt() == 5, "the gate");
         check(o.get("inventory").getAsJsonObject().get("near_full").getAsBoolean(), "pack near full");
-        checkEquals(o.get("lemon").getAsJsonObject().get("mode").getAsString(), "llm");
+        check(!o.has("lemon"), "Lemon state belongs to its own context command");
         checkEquals(o.get("recent").getAsJsonArray().get(0).getAsJsonObject().get("ev").getAsString(), "door_commit");
         check(!o.toString().contains("\n"), "one line of JSON");
     }

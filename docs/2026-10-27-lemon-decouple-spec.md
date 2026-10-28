@@ -2,7 +2,17 @@
 
 Status: approved 2026-10-27. Decision 1 is option A, and the amendment is now in
 `docs/DESIGN.md` §4 rule 3. Decisions 2 and 3 are approved as recommended.
-Nothing here is built.
+Implementation status: L1 to L4 code and documentation are implemented. Lemon's
+standalone build passes its pure tests and all 15 gametests. PD's three focused
+bridge gametests pass both with and without the independent Lemon jar. Node event,
+cursor and profile tests pass. The full PD suite is not green: one of 406 gametests,
+`HeistFloorGameTest.anOminousVaultRaisesTheCrewTwice`, fails in the full run while
+the Heist class passes alone. That verification blocker remains unresolved.
+L5 remains separate from this Lemon merge. Charter source is on
+`feature/charter-build` in a separate worktree; the Charter tool profile is
+prepared, but its source-side integration and live verification are still owed.
+L6 is still owed and requires an approved deployment plus participating players.
+No remote server has been deployed or restarted for this implementation.
 
 Lemon lives inside Pocket Dungeons today. This spec moves the companion and the
 playtest interviewer into a mod of their own, `lemon`, so any mod in the suite

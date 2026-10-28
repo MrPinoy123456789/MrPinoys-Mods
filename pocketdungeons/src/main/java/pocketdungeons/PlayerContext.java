@@ -49,7 +49,7 @@ final class PlayerContext {
                     String roomCell, List<RoomView> rooms, int floorOmen, int intervalOmen, int lives, int floorsCounted,
                     int spawnersCleared, int spawnersNeeded, int spawnersTotal,
                     List<ToolView> tools, int blocks, int food, int freeSlots, boolean nearFull,
-                    Lemon.View lemon, List<JsonObject> recent,
+                    List<JsonObject> recent,
                     /** The player's latest {@code bank} event, or null if there is none (PD-148). */
                     JsonObject lastBank,
                     /** The last {@link RoomScan} of the player's safe room, or null before their first exit. */
@@ -128,16 +128,6 @@ final class PlayerContext {
         inventory.addProperty("free_slots", s.freeSlots());
         inventory.addProperty("near_full", s.nearFull());
         o.add("inventory", inventory);
-
-        JsonObject lemon = new JsonObject();
-        Lemon.View view = s.lemon();
-        lemon.addProperty("present", view.present());
-        lemon.addProperty("mode", view.mode());
-        lemon.addProperty("waiting", view.waiting());
-        lemon.addProperty("question", view.question());
-        lemon.addProperty("pending_questions", view.pendingQuestions());
-        lemon.addProperty("quiet", view.quiet());
-        o.add("lemon", lemon);
 
         JsonArray recent = new JsonArray();
         for (JsonObject event : s.recent()) {
@@ -231,7 +221,7 @@ final class PlayerContext {
                 zone, keystone, runLevel, party, player.level().dimension().identifier().toString(), room,
                 roomCell, rooms, floorOmen, intervalOmen, livesLeft(intervalOmen, maxLives), floorsCounted,
                 cleared, DifficultyProfile.spawnersNeeded(total, PocketDungeonsConfig.spawnerClearThreshold()), total,
-                tools, blocks, food, free, free <= NEAR_FULL_SLOTS, Lemon.view(player),
+                tools, blocks, food, free, free <= NEAR_FULL_SLOTS,
                 PlaytestJournal.recent(player.getUUID(), RECENT_EVENTS),
                 PlaytestJournal.lastBank(player.getUUID()),
                 RoomScan.latest(player.getUUID()) == null ? null : RoomScan.toJson(RoomScan.latest(player.getUUID())));

@@ -45,3 +45,23 @@ To find violations in text you just wrote:
 ```bash
 grep -rn -e $'—' -e ' -- ' --include='*.java' --include='*.md' .
 ```
+
+## Lemon and shared playtest tooling
+
+- `lemon/` is an independent server-side Fabric mod. Run `./gradlew.bat build`
+  there for its pure tests, gametests and jar. It has no game-mod dependencies.
+- Pocket Dungeons reaches Lemon only through registered commands and the
+  `lemon.part` scoreboard tag. Its default test suite runs without the Lemon jar.
+  To test with it, build Lemon first and pass
+  `-PlemonTestJar=../lemon/build/libs/MrPinoys_Lemon-0.1.0.jar` to PD's gametest run.
+- Shared RCON, Kinetic, MCP and event-filter tools live in `tools/playtest/`.
+  `playtest.mjs` is canonical; `pdserver.mjs` forwards to it. Node regressions:
+  `node --test tools/playtest/*.test.mjs` from the workspace root.
+- Lemon runtime configuration is `config/lemon/lemon.json`. Its journal is
+  `<world>/lemon/journal/<UTC date>/<uuid>.jsonl`, separate from game journals.
+  The generic interviewer runbook is `lemon/docs/LEMON_AGENT.md`.
+- A PD test-server deployment ships both PD and Lemon jars. Implementation work
+  does not authorize deployment or restart. Follow the deploy skill's approvals.
+- If the Windows ship launcher fails in `JansiLoader.cleanup` with a heap error,
+  use a small dedicated temp directory via `PD_TMP` and a larger launcher heap via
+  `JAVA_OPTS=-Xmx512m`; do not delete shared temp files or change project policies.

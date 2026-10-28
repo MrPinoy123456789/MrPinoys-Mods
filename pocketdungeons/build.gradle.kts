@@ -46,6 +46,12 @@ fabricApi.configureTests {
     enableClientGameTests = false
 }
 
+providers.gradleProperty("lemonTestJar").orNull?.let { jar ->
+    loom.runs.named("gameTest") {
+        property("fabric.addMods", file(jar).absolutePath)
+    }
+}
+
 // M62: a second run configuration, alongside the "gameTest" one above,
 // launching an ordinary dedicated server rather than GameTestServer. That
 // difference is the whole point: GameTestServer bakes an empty LEVEL_STEM
@@ -113,7 +119,7 @@ tasks.register("dungeonIntegrationTest") {
 // fabric-api.gametest is set (DISCOVERIES trap 18); this run has no such
 // mixin (and isn't allowed one, per the one-mixin budget), so the file is
 // written by hand before every launch instead.
-// The real server runs bind a port, and tools/server's test server owns
+// The real server runs bind a port, and the shared playtest tool's test server owns
 // 25565. Each run directory gets its own port, rewritten into
 // server.properties before every launch so a regenerated file cannot drift
 // back to the default. After the run, the log must carry the entrypoint's
@@ -460,7 +466,6 @@ for ((taskName, testClass) in mapOf(
     // Lemon steps 1 and 2: the playtest journal line format, the context
     // snapshot builder, and Lemon's chat routing and bubbles.
     "journalFormatTest" to "JournalFormatTest",
-    "lemonSpeechTest" to "LemonSpeechTest",
     // PD-87: trial keys from every loot source are bare, identical items.
     "trialKeyLootTest" to "TrialKeyLootTest",
     // Playtest 2026-10-03 (A3): the tier 1 chest tables carry oak planks.
@@ -626,7 +631,6 @@ tasks.test {
     dependsOn("zoneRulesTest")
     dependsOn("intervalBankingTest")
     dependsOn("journalFormatTest")
-    dependsOn("lemonSpeechTest")
     dependsOn("bookPagesTest")
     dependsOn("doorAffixesTest")
     dependsOn("boardTextTest")

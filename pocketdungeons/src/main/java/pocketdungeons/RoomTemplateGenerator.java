@@ -637,7 +637,7 @@ final class RoomTemplateGenerator {
     private static void captureAndSave(ServerLevel level, BlockPos origin, Vec3i size, Path outFile)
             throws IOException {
         StructureTemplate template = new StructureTemplate();
-        Lemon.withoutLemon(level, new net.minecraft.world.phys.AABB(origin.getX(), origin.getY(), origin.getZ(),
+        LemonBridge.withoutLemon(level, new net.minecraft.world.phys.AABB(origin.getX(), origin.getY(), origin.getZ(),
                         origin.getX() + size.getX(), origin.getY() + size.getY(), origin.getZ() + size.getZ()),
                 () -> template.fillFromWorld(level, origin, size, true, List.of()));
         CompoundTag nbt = template.save(new CompoundTag());
@@ -668,7 +668,7 @@ final class RoomTemplateGenerator {
                 + "_" + System.currentTimeMillis() + ".nbt");
         try {
             StructureTemplate template = new StructureTemplate();
-            Lemon.withoutLemon(level, new net.minecraft.world.phys.AABB(cellOrigin.getX(), cellOrigin.getY(),
+            LemonBridge.withoutLemon(level, new net.minecraft.world.phys.AABB(cellOrigin.getX(), cellOrigin.getY(),
                             cellOrigin.getZ(), cellOrigin.getX() + TEMPLATE_SIZE.getX(),
                             cellOrigin.getY() + TEMPLATE_SIZE.getY(), cellOrigin.getZ() + TEMPLATE_SIZE.getZ()),
                     () -> template.fillFromWorld(level, cellOrigin, TEMPLATE_SIZE, true, List.of()));

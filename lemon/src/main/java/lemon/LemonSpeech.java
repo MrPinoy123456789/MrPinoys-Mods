@@ -1,4 +1,4 @@
-package pocketdungeons;
+package lemon;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +26,7 @@ final class LemonSpeech {
 
     /**
      * What a chat line says to Lemon, or {@code null} when it is not addressed
-     * to Lemon. Solo, everything is; in a party, only a line that starts with
+     * to Lemon. Alone nearby, everything is; otherwise only a line that starts with
      * "Lemon". The name itself is stripped either way; a bare "Lemon" comes
      * back as an empty string (a summons with no question).
      */

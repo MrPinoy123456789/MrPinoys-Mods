@@ -17,8 +17,10 @@ import { timingSafeEqual } from 'node:crypto'
 import { context, pd } from './pdcall.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const playtests = resolve(here, '..', '..', 'docs', 'playtests')
-const packPath = resolve(here, '..', 'lemon', 'out', 'pack.md')
+const game = process.env.PLAYTEST_GAME || 'pocketdungeons'
+if (!/^[a-z][a-z0-9_-]*$/.test(game)) throw new Error('Invalid PLAYTEST_GAME')
+const playtests = resolve(here, '..', '..', game, 'docs', 'playtests')
+const packPath = resolve(here, '..', '..', game, 'tools', 'lemon', 'out', 'pack.md')
 const args = process.argv.slice(2)
 const httpPort = args.includes('--http') ? Number(args[args.indexOf('--http') + 1]) : null
 const admin = args.includes('--admin')
@@ -71,7 +73,7 @@ const tools = {
     },
   },
   context: {
-    description: 'The player\'s situation as one line of JSON: phase, floor, room, rooms, omen, spawners, inventory, recent events. Trimmed by default; full=true for everything.',
+    description: 'One JSON object with companion state under lemon and available game contexts under their mod ids. Game rooms and recent events are trimmed by default; full=true preserves everything.',
     inputSchema: obj({ player, full: { type: 'boolean' } }, ['player']),
     run: a => context(a.player, { full: !!a.full }),
   },
@@ -163,8 +165,8 @@ async function handle(msg) {
       return ok({
         protocolVersion: params.protocolVersion || '2025-06-18',
         capabilities: { tools: {} },
-        serverInfo: { name: 'pocketdungeons-lemon', version: '0.1.0' },
-        instructions: 'Drives Lemon on the Pocket Dungeons test server (local, or the Kinetic one when kinetic.env is set). Call knowledge_pack once, then sync, then loop on wait_events. Rules: LEMON_AGENT.md.',
+        serverInfo: { name: 'lemon-playtest', version: '0.1.0' },
+        instructions: 'Drives the standalone Lemon companion on the suite test server, locally or through Kinetic. Context is nested by mod id. Read lemon/docs/LEMON_AGENT.md and the selected game briefing, call knowledge_pack when available, then sync and loop on wait_events.',
       })
     case 'ping': return ok({})
     case 'tools/list':

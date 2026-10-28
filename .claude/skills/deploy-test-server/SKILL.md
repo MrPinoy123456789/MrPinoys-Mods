@@ -1,61 +1,79 @@
 ---
 name: deploy-test-server
-description: Build, upload and restart the Pocket Dungeons mod on the Kinetic test server, and check it came up. Encodes the safety rules (test server 714a0605 only, never 365f9682, check kinetic.env first, always --restart, ask before restarting with players online) and the pdserver.mjs commands. Use when asked to deploy, build and restart, check server status, or drive the test server.
+description: Build and deploy Pocket Dungeons plus the standalone Lemon companion to the Kinetic test server. Enforces target 714a0605, fresh jars, restart, and approval with players online. Use when asked to deploy, restart, or check the test server.
 ---
 
 # Deploying to the test server
 
-House rule for everything you write: no em dashes and no spaced double hyphens as punctuation
-(`A:\MrPinoys Mods\CLAUDE.md`). Tools are in `A:\MrPinoys Mods\pocketdungeons\tools\server`
-(`pdserver.mjs`, README.md there has every command).
+Follow the workspace punctuation rules. Tools live at
+`A:\MrPinoys Mods\tools\playtest`; read its README. Commands below run from the
+workspace root. The canonical CLI is `playtest.mjs`; `pdserver.mjs` forwards to it.
 
 ## Hard rules
 
-1. **Target:** the Kinetic test server `714a0605` on kineticpanel.net. **Never touch `365f9682`.** It is not a
-   test target.
-2. **Check `tools/server/kinetic.env` before any start, stop or deploy.** It redirects every command to the
-   panel server named there (`KINETIC_SERVER_ID`). Every start/stop/upload prints which server it is about to
-   act on; read that line. If the id is not `714a0605`, stop and tell the owner.
-3. **Always deploy with `--restart`.** A jar uploaded without a restart leaves the running server on the old jar,
-   and lazy class loading then throws (it broke `/dungeon map` with a ZipException once).
-4. **Players online:** check `status` first. If anyone is online, ask the owner before restarting; a restart
-   boots them. Zero players means go ahead.
-5. Deploy only when asked. Committing, deploying and restarting are separate decisions the owner makes.
-6. Never kill the server process; `stop` saves the world first.
-7. **`deploy` uploads whatever is already in `dist/`; it never builds.** Skipping `gradlew dist` silently ships the
-   previous jar (it happened twice on 2026-10-09: the owner saw the old menu and the new content was never live,
-   and a passing `validate` on that stale jar proved nothing). Run `gradlew dist` in the same command chain as the
-   deploy, and check the jar in `dist/` is newer than your last edit before uploading.
+1. Only target Kinetic test server `714a0605`. Never touch `365f9682`.
+2. Before a start, stop or deploy, verify the selected `KINETIC_SERVER_ID` without
+   printing the API key. Configuration comes from environment variables or
+   `tools/playtest/kinetic.env`. The previous local credential file is accepted
+   only as a migration fallback. Read the target announcement; stop if it differs.
+3. Deploy only when the owner asks. Commits, deployments and restarts are separate
+   decisions. A request to implement code does not authorize a remote restart.
+4. Check status first. If any player is online, ask the owner before restarting.
+5. Always use `deploy --restart`. Uploading a replacement under a running server
+   leaves old classes active and can break lazy class loading.
+6. Never kill the process. `stop` saves the world before shutting down.
+7. Deploy never builds. Build fresh **both** `MrPinoys_Pocket_Dungeons-*.jar` and
+   `MrPinoys_Lemon-*.jar` into `dist/`, with no sources jars or ambiguous versions.
+   Ask before deleting old artifacts. Verify both timestamps after the last edit.
+8. Back up the deployed jars before uploading. Never print or commit credentials.
 
-## Steps
+## Verify and build
 
-1. Be on a clean, tested tree: `gradlew test runGameTest` green (see `add-tests`). Commit first if the owner
-   asked to "commit and deploy" (commit message ends with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`).
-2. Shortcut: `tools/ship.sh --deploy` (from `pocketdungeons`) does steps 1 to 5 in one call: lock, `clean test runGameTest dist`, refuses a dirty tree, a stale jar or players online, deploys with `--restart`, runs `validate`. The manual steps follow.
-2. Build the jar into `A:\MrPinoys Mods\dist`: `.\gradlew.bat dist --console=plain` (from `pocketdungeons`).
-   `deploy` needs exactly one `MrPinoys_Pocket_Dungeons-*.jar` there (not `-sources`); delete stale ones first.
-3. Check state: `node tools/server/pdserver.mjs status` (from `pocketdungeons`). Note players online.
-4. Deploy: `node tools/server/pdserver.mjs deploy --restart`. It uploads to `/mods`, stops cleanly, starts, and
-   waits for Ready (about 25 s; a hung start is rare, read the last log lines it prints).
-5. Verify: `node tools/server/pdserver.mjs status` should say `UP. There are 0 of a max of 20 players online`
-   and show recent log lines. Look for `Loaded N cube recipes`, `All N core loot tables verified present`, and
-   no `ERROR`/`Exception`/`Failed to load` lines. Pack problems show here as findings.
-6. Report: the commit, that it is up, the checks you saw, and what you could not check (no player online means no
-   in-game check; say a live check is owed and which one in `docs/playtests/LIVE_CHECKS.md`).
+Run the PD suite from `pocketdungeons` and Lemon's build from `lemon`. Each must be
+green before deploying. PD's default tests run without Lemon; its optional
+`-PlemonTestJar=../lemon/build/libs/MrPinoys_Lemon-0.1.0.jar` gametest run exercises
+the command bridge with the independent jar, never a compile dependency.
 
-## Other commands (from the README)
+From the workspace root, build both jars in the same chain as the approved deploy:
 
-`cmd <command>` runs a console command and prints the reply (`cmd list`, `cmd dungeon admin validate`);
-`context <player>` prints a player's state as JSON; `chat`/`wait`/`sync` read events; `lemon say|ask|reply|think`
-talk through Lemon. On the remote server a command that needs its reply is followed by an unknown marker
-command, so the log shows `Unknown or incomplete command` lines; that is by design (PD-148), not a fault.
-Long waits: run them in the background and let the notification arrive rather than polling in a loop; the owner
-has interrupted long polling waits.
+```text
+pocketdungeons\gradlew.bat -p pocketdungeons dist --console=plain
+lemon\gradlew.bat -p lemon dist --console=plain
+node tools/playtest/playtest.mjs status
+node tools/playtest/playtest.mjs deploy --restart
+```
 
-## If something goes wrong
+The deploy uploads both jars and sets the PD click hooks in
+`config/lemon/lemon.json`, preserving timing values and existing custom hooks.
+`onInteract` opens `dungeon lemonmenu`; the written-book hook runs
+`dungeon lemonarchive`, which validates the diary marker itself. Other games do
+not need PD installed to use Lemon.
 
-- Upload failed or Ready never reached: `status`, read the log tail, retry once; if it still fails, report the
-  exact output instead of trying other hosting routes.
-- Wrong server id printed: stop immediately, change nothing, tell the owner.
-- After a deploy, `node tools/server/pdserver.mjs cmd dungeon admin validate` should answer `Pack validation passed: no findings.` (confirmed 2026-10-08 on 714a0605 with 118 rooms).
-- A new jar loaded but content looks stale: `dungeon admin validate` through `cmd` lists pack findings.
+`pocketdungeons/tools/ship.sh --deploy` also builds Lemon before its upload step;
+it still refuses a dirty tree, stale PD jar, or players online without approval.
+Do not commit just to get around that guard unless the owner requested a commit.
+
+## Acceptance and reporting
+
+After Ready, run:
+
+```text
+node tools/playtest/playtest.mjs status
+node tools/playtest/playtest.mjs cmd dungeon admin validate
+```
+
+Look for `Pack validation passed: no findings.`, expected recipe and loot-table
+startup messages, and no mod errors. Check Lemon is loaded. With a participating
+player, verify a tour, main-hand keystone summon, menu click, diary archive,
+ask/reply delivery through wait, quiet, and merged context. A second Charter
+scenario is required to complete the extraction spec's two-game live check.
+Without a player, say those checks are still owed; do not claim acceptance.
+
+Report the commit if any, both jar names and sizes, target id, backup/rollback
+path, status, validation result and unverified live checks. If upload or Ready
+fails, inspect status and log tail, retry once if appropriate, then report the
+exact failure. Never switch hosting routes or hotfix production.
+
+Remote command replies use marker commands, so `Unknown or incomplete command`
+marker lines are expected. Long waits should run in the background, not a polling
+loop. Use `lemon/docs/LEMON_AGENT.md` for interviewer operation.

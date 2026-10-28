@@ -1692,7 +1692,7 @@ final class RunLifecycle {
         StagingFurniture.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
         HallRoom.dismantle(level, oldStagingOrigin, record.roomDungeonDoor);
         for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
-                e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
+                e -> !(e instanceof ServerPlayer) && !LemonBridge.isPart(e))) {
             leftover.discard();
         }
         Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();

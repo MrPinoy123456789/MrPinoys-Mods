@@ -271,10 +271,11 @@ final class DungeonCommands {
             .then(RoomBuilderCommands.branch())
 
             // A note for the playtest journal (docs/PLAYTEST_EVENTS.md).
-            .then(LemonCommands.reportNode())
+            .then(LemonBridge.reportNode())
 
-            // The agent's console driver for Lemon (docs/LEMON_SPEC.md 5).
-            .then(LemonCommands.driverNode());
+            // Game-owned click hooks for the standalone Lemon companion.
+            .then(LemonBridge.menuNode())
+            .then(LemonBridge.archiveNode());
     }
 
     /** Context snapshot, list and diagnostics. */
@@ -282,7 +283,7 @@ final class DungeonCommands {
         admin
             // The player's context snapshot as one line of JSON
             // (docs/LEMON_SPEC.md 3), for agents over RCON.
-            .then(LemonCommands.contextNode())
+            .then(LemonBridge.contextNode())
 
             .then(Commands.literal("list")
                     .executes(ctx -> list(ctx.getSource())))

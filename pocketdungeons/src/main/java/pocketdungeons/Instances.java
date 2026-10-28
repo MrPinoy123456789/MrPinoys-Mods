@@ -222,7 +222,7 @@ final class Instances {
         // ServerEntityEvents.ENTITY_LOAD instead, a module this mod already
         // depends on for ThemeManifest/RoomManifest's own SERVER_STARTED hook.
         ServerEntityEvents.ENTITY_LOAD.register((entity, entityLevel) -> {
-            if (!(entity instanceof Mob mob) || Lemon.isPart(entity)
+            if (!(entity instanceof Mob mob) || LemonBridge.isPart(entity)
                     || !DungeonWorldRules.inDungeon(entityLevel)) {
                 return;
             }

@@ -36,10 +36,12 @@ import { fileURLToPath } from 'node:url'
 import { freemem, platform, tmpdir } from 'node:os'
 import { dedupeHeard, eventOf, isVanillaNoise, quietVerdict, wakesWait, wholeLines } from './wait-filter.mjs'
 import { cursorOffset, saveCursor } from './chat-cursor.mjs'
+import { mergedContext } from './profiles.mjs'
+import { installLocalLemon, pocketDungeonsHooks } from './runtime.mjs'
 import { Kinetic, remoteConfig } from './kinetic.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const modDir = resolve(here, '..', '..')
+const modDir = resolve(here, '..', '..', 'pocketdungeons')
 const runDir = join(modDir, 'run')
 const propsPath = join(runDir, 'server.properties')
 const logPath = join(runDir, 'logs', 'latest.log')
@@ -52,7 +54,12 @@ const panel = remote ? new Kinetic(remote) : null
 const REMOTE_LOG = '/logs/latest.log'
 // The remote read cursor lives beside this script (gitignored), one per panel server.
 const remoteStateDir = join(here, '.remote')
-const readCursorPath = remote ? join(remoteStateDir, `cursor-${remote.serverId}.json`) : cursorPath
+const legacyRemoteStateDir = join(modDir, 'tools', 'server', '.remote')
+const currentRemoteCursor = remote ? join(remoteStateDir, `cursor-${remote.serverId}.json`) : null
+const legacyRemoteCursor = remote ? join(legacyRemoteStateDir, `cursor-${remote.serverId}.json`) : null
+const readCursorPath = remote
+  ? !existsSync(currentRemoteCursor) && existsSync(legacyRemoteCursor) ? legacyRemoteCursor : currentRemoteCursor
+  : cursorPath
 
 const [verb, ...rest] = process.argv.slice(2)
 const flag = name => { const i = rest.indexOf(name); if (i < 0) return null; rest.splice(i, 1); return true }
@@ -317,6 +324,7 @@ async function startLocal() {
     process.exitCode = 1
     return
   }
+  await installLocalLemon(resolve(modDir, '..'), runDir)
   const freeGb = freemem() / 2 ** 30
   if (freeGb < 3) console.log(`Warning: only ${freeGb.toFixed(1)} GB of RAM free; the build and server need about 3 GB.`)
   mkdirSync(join(runDir, 'logs'), { recursive: true })
@@ -551,7 +559,7 @@ async function waitLoop(timeout, player) {
       lastCheck = Date.now()
     }
     if (player && up && Date.now() - lastRefresh >= 60000) {
-      await send(`dungeon lemon mode ${player} llm`)
+      await send(`lemon mode ${player} llm`)
       lastRefresh = Date.now()
     }
     const events = await readNew(false).catch(() => [])
@@ -559,7 +567,7 @@ async function waitLoop(timeout, player) {
     const external = dedupeHeard(events).filter(wakesWait)
     const joined = player && events.some(e => new RegExp(`^\\S+ join ${player}$`).test(e))
     if (joined && up) {
-      await send(`dungeon lemon mode ${player} llm`)
+      await send(`lemon mode ${player} llm`)
       lastRefresh = Date.now()
     }
     if (external.length) {
@@ -584,9 +592,9 @@ async function waitLoop(timeout, player) {
 async function context() {
   const [player] = rest
   if (!player) throw new Error('usage: context <player>')
-  const reply = await run(`dungeon admin context ${player}`)
+  const snapshot = await mergedContext(player, run)
   // The snapshot is one line of JSON; remotely an unrelated line can share the reply.
-  console.log(reply.split('\n').find(l => l.trimStart().startsWith('{')) ?? reply)
+  console.log(JSON.stringify(snapshot))
 }
 
 async function lemon() {
@@ -594,10 +602,10 @@ async function lemon() {
   const [action, player, ...words] = rest
   const text = words.join(' ')
   let command
-  if ((action === 'say' || action === 'ask' || action === 'reply') && player && text) command = `dungeon lemon ${action} ${player} ${text}`
-  else if (action === 'think' && player) command = `dungeon lemon think ${player}${text ? ' ' + text : ''}`
-  else if (action === 'quiet' && player) command = `dungeon lemon quiet ${player}`
-  else if (action === 'mode' && player && (text === 'guide' || text === 'llm')) command = `dungeon lemon mode ${player} ${text}`
+  if (['say', 'ask', 'reply', 'tour'].includes(action) && player && text) command = `lemon ${action} ${player} ${text}`
+  else if (action === 'think' && player) command = `lemon think ${player}${text ? ' ' + text : ''}`
+  else if (action === 'quiet' && player) command = `lemon quiet ${player}`
+  else if (action === 'mode' && player && (text === 'guide' || text === 'llm')) command = `lemon mode ${player} ${text}`
   else throw new Error('usage: lemon say|ask|reply <player> <text...> | lemon think <player> [text...] | lemon quiet <player> | lemon mode <player> <guide|llm>')
   if (quiet) {
     await fire(command)
@@ -614,16 +622,27 @@ async function lemon() {
  */
 async function deploy() {
   const restart = flag('--restart')
+  if (!restart) throw new Error('deploy requires --restart so the running server never keeps an old jar')
   if (!panel) throw new Error('deploy is for a remote server; the local server builds from source on start')
+  if (remote.serverId !== '714a0605') throw new Error('deploy is restricted to test server 714a0605')
   const distDir = resolve(modDir, '..', 'dist')
-  const jars = existsSync(distDir)
-    ? readdirSync(distDir).filter(f => /^MrPinoys_Pocket_Dungeons-.*\.jar$/.test(f) && !f.endsWith('-sources.jar'))
-    : []
-  if (jars.length !== 1) throw new Error(`expected one Pocket Dungeons jar in ${distDir}, found ${jars.length}; run gradlew dist`)
-  const bytes = readFileSync(join(distDir, jars[0]))
-  announceTarget(`uploading ${jars[0]} to`)
-  await panel.upload('/mods', [{ name: jars[0], bytes }])
-  console.log(`Uploaded ${jars[0]} (${Math.round(bytes.length / 1024)} KB) to /mods on ${remote.serverId}.`)
+  const files = existsSync(distDir) ? readdirSync(distDir) : []
+  const jars = ['Pocket_Dungeons', 'Lemon'].map(mod => {
+    const matches = files.filter(name => name.startsWith(`MrPinoys_${mod}-`) && name.endsWith('.jar') && !name.endsWith('-sources.jar'))
+    if (matches.length !== 1) throw new Error(`expected one ${mod} jar in ${distDir}, found ${matches.length}; run that mod's gradlew dist`)
+    return matches[0]
+  })
+  announceTarget(`uploading ${jars.join(' and ')} to`)
+  const configPath = '/config/lemon/lemon.json'
+  const existing = await panel.stat(configPath)
+  const config = existing ? JSON.parse(Buffer.from(await panel.read(configPath)).toString('utf8')) : {}
+  const configEntries = await panel.request('GET', '/files/list', { query: { directory: '/config' } })
+  if (!(configEntries.data || []).some(entry => entry.attributes.name === 'lemon')) {
+    await panel.request('POST', '/files/create-folder', { json: { root: '/config', name: 'lemon' } })
+  }
+  await panel.upload('/config/lemon', [{ name: 'lemon.json', bytes: Buffer.from(JSON.stringify(pocketDungeonsHooks(config), null, 2) + '\n') }])
+  await panel.upload('/mods', jars.map(name => ({ name, bytes: readFileSync(join(distDir, name)) })))
+  console.log(`Uploaded ${jars.join(' and ')} to /mods on ${remote.serverId}.`)
   if (!restart) {
     console.log('The server loads it on its next start (deploy --restart, or stop then start).')
     return

@@ -6,7 +6,7 @@ Three pieces, all dependency-free Node 22:
 |---|---|
 | `tools/lemon/build-pack.mjs` | Builds `out/pack.md`: Lemon's rules, `GUIDE.md`, `HINTS.md`, the owner decisions log, open agenda items and a room table. It replaces reading the repo during play. |
 | `tools/lemon/brain.mjs` | A live Lemon that costs very little. It runs the `wait` loop itself, handles joins, leaves, quiet and errors with rules, and calls a small model only for player questions, answers, reports and floor clears. It writes the notes file in `docs/playtests/`. |
-| `tools/server/mcp.mjs` | An MCP server over `pdserver.mjs`, so Claude Code or Devin can drive Lemon without a shell. |
+| `../tools/playtest/mcp.mjs` | An MCP server over `pdserver.mjs`, so Claude Code or Devin can drive Lemon without a shell. |
 
 ## 1. Build the pack
 
@@ -57,7 +57,7 @@ investigate no longer drops questions to the guide fallback.
 **Claude Code (local, stdio):**
 
 ```bash
-claude mcp add lemon -- node "A:/MrPinoys Mods/pocketdungeons/tools/server/mcp.mjs" --admin
+claude mcp add lemon -- node "A:/MrPinoys Mods/tools/playtest/mcp.mjs" --admin
 ```
 
 **Devin (remote, HTTP):** Devin runs in the cloud, so it has to reach your PC
@@ -65,7 +65,7 @@ through a tunnel. The server only listens on 127.0.0.1 and refuses every request
 without the bearer token.
 
 1. Set a long random secret in `PD_MCP_TOKEN`, then start the server:
-   `node tools/server/mcp.mjs --http 8787`.
+   `node ../tools/playtest/mcp.mjs --http 8787`.
 2. Tunnel it, for example `cloudflared tunnel --url http://127.0.0.1:8787`.
 3. In Devin, add a custom MCP server (Streamable HTTP) at
    `https://<tunnel-host>/mcp` with the header `Authorization: Bearer <token>`.

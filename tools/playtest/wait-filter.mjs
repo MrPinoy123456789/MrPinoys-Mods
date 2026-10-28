@@ -5,6 +5,8 @@
 // (Loom) names the logger, "(PocketDungeons)"; a production server such as the Kinetic
 // one writes vanilla's ": " instead, so there a mod line and a Minecraft line look
 // alike and the body alone decides. Thread names can hold "/" ("RCON Client /127.0.0.1").
+import { profiles, profileEvent } from './profiles.mjs'
+
 const PREFIX = /^\[(\d\d:\d\d:\d\d)\] \[(.*)\/(INFO|WARN|ERROR|DEBUG|TRACE|FATAL)\](?: \(([^)]+)\))?:? /
 // Lemon's lines: chat routed to Lemon is not broadcast, so the mod logs it (and Lemon's own lines) itself.
 // Matched against the body after the prefix, so chat that quotes one ("<name> Lemon says ...") cannot pass for one.
@@ -39,17 +41,18 @@ export function eventOf(line) {
   if (!p || NOISE.test(line)) return null
   const [prefix, time, , level, logger] = p
   const body = line.slice(prefix.length)
-  const modLine = !logger || logger === 'PocketDungeons'
+  const modLine = !logger || ['Lemon', 'lemon', ...profiles.flatMap(profile => profile.loggers)].includes(logger)
   let m
   if (modLine && level === 'INFO' && (m = body.match(LEMON))) return `${time} lemon ${m[1]} <${m[2]}>${m[3] ? ' ' + m[3] : ''}`
   if (modLine && level === 'INFO' && (m = body.match(REPORT))) return `${time} report <${m[1]}> ${m[2]}`
   if ((m = body.match(CHAT))) return `${time} chat <${m[1]}> ${m[2]}`
   if ((m = line.match(/(\S+) (joined|left) the game/))) return `${time} ${m[2] === 'joined' ? 'join' : 'leave'} ${m[1]}`
-  if (line.includes('completed floor')) return `${time} floor ${body}`
+  const gameEvent = level === 'INFO' ? profileEvent(body, logger) : null
+  if (gameEvent) return `${time} ${gameEvent}`
   if (line.includes('Done (')) return `${time} server ready`
   if (line.includes('Stopping server')) return `${time} server stopping`
   const problem = (level === 'WARN' || level === 'ERROR')
-    && (logger ? logger === 'PocketDungeons' : !VANILLA_WARN_NOISE.test(body))
+    && (logger ? modLine : !VANILLA_WARN_NOISE.test(body))
   if (problem || line.includes('Exception')) return `${time} error ${logger ? `(${logger}) ` : ''}${body}`
   return null
 }

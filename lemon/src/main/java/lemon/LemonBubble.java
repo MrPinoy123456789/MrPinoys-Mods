@@ -1,12 +1,10 @@
-package pocketdungeons;
+package lemon;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.Level;
-import pocketdungeons.mixin.DisplayAccessor;
-import pocketdungeons.mixin.TextDisplayAccessor;
 
 import java.util.UUID;
 
@@ -27,19 +25,17 @@ final class LemonBubble extends Display.TextDisplay {
         this.owner = owner;
         this.noPhysics = true;
         addTag(Lemon.TAG);
-        DisplayAccessor display = (DisplayAccessor) (Object) this;
-        display.pocketdungeons$setBillboardConstraints(Display.BillboardConstraints.CENTER);
-        display.pocketdungeons$setPosRotInterpolationDuration(3);
+        setBillboardConstraints(Display.BillboardConstraints.CENTER);
+        setPosRotInterpolationDuration(3);
         // Half size: at full scale the bubble filled the view at conversation distance.
-        display.pocketdungeons$setTransformation(new com.mojang.math.Transformation(
+        setTransformation(new com.mojang.math.Transformation(
                 null, null, new org.joml.Vector3f(SCALE, SCALE, SCALE), null));
-        TextDisplayAccessor text = (TextDisplayAccessor) (Object) this;
-        text.pocketdungeons$setLineWidth(160);
-        text.pocketdungeons$setBackgroundColor(0xB0202020);
+        setLineWidth(160);
+        setBackgroundColor(0xB0202020);
     }
 
     void show(Component line) {
-        ((TextDisplayAccessor) (Object) this).pocketdungeons$setText(line);
+        setText(line);
     }
 
     @Override

@@ -36,6 +36,8 @@ nul
 # Lemon remote mode: the Kinetic API key and the remote read cursor
 pocketdungeons/tools/server/kinetic.env
 pocketdungeons/tools/server/.remote/
+tools/playtest/kinetic.env
+tools/playtest/.remote/
 
 # Python generator bytecode
 pocketdungeons/tools/__pycache__/

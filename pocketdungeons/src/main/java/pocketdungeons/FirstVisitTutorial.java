@@ -323,9 +323,9 @@ final class FirstVisitTutorial {
             for (ServerPlayer player : audience) {
                 boolean first = true;
                 for (String line : step.lines()) {
-                    Lemon.Delivery delivery = Lemon.tour(player, line);
+                    int delivery = LemonBridge.tour(player, line);
                     if (first) {
-                        said |= delivery == Lemon.Delivery.SHOWN || delivery == Lemon.Delivery.DEFERRED_FIGHT;
+                        said |= delivery == 1 || delivery == 2;
                         first = false;
                     }
                 }
