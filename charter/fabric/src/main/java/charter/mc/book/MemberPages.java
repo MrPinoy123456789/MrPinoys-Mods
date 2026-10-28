@@ -298,6 +298,15 @@ public final class MemberPages {
                 buttons.add(go(player, Text.get("book.button.reject", "player", name), p -> confirmReject(p, org, applicant)));
             }
         }
+        for (Currency c : Currency.values()) {
+            int carried = charter.mc.cmd.CharterCommands.carried(player, c);
+            if (carried <= 0) continue;
+            buttons.add(go(player, Text.get("book.button.pay", "amount", carried, "currency", Describe.currency(c, carried)), p -> {
+                int paid = charter.mc.cmd.CharterCommands.depositAll(p, c);
+                faction(p, paid > 0 ? Text.get("book.faction.paid", "amount", paid, "currency", Describe.currency(c, paid))
+                        : Text.get("book.faction.not_paid"));
+            }));
+        }
         if (rt.engine.eligibleVoters(org, now).contains(me)) {
             buttons.add(go(player, Text.get("book.faction.who_decides"), p -> whoDecides(p, null)));
             Office deciders = deciders(org);

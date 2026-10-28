@@ -848,13 +848,15 @@ style of `ballot`) for reading and voting.
 | **Rails** | Minecart lines carry food to granaries and camp stores; cut them to cut supply |
 | **Vault** | In the core chunk. Deposit and withdraw currency |
 | **Charter lectern** | In the core chunk. Faction page, open votes, the faction's Chronicle |
+| **Charter book** | Paper shown as a book and quill, handed to every joiner. Using it opens the `/charter` menu: Rights, Freedoms, your situation, your faction; Join or Found for a player with no faction |
+| **Named Nexus** | Crafted from a lodestone and a named banner. Placed with no faction, it founds the faction under that name and raises its keep, paid in diamonds from the inventory |
 | **War banner** | Raises a camp. Pick up, replant, capture, hang as a trophy |
 | **Camp store** | At the banner. Feed the camp |
 | **Contract board** | Post and take jobs |
 | **Realm Chronicle** | At spawn. The server's history |
 | **Borders** | Particles along chunk edges while holding a war banner or a compass |
 
-Commands kept to a handful: `/charter` (your faction page), `/charter found`,
+Commands kept to a handful: `/charter` (the Charter menu), `/charter page` (the chat faction page), `/charter found`,
 `/charter map`, `/charter vote`.
 
 ## 20. Persistence
@@ -996,6 +998,10 @@ They are folded into the sections above; this table is the index.
 | Gaps | The eighteen gaps in PLAN.md §15 | Resolved as PLAN.md assumes: test J within 7% for spoilage; assault multiplies on top of presence to 8 times; starvation is 25% of the storage limit; camps use a sally hold; camp claims count toward the member cap; overworld only; pack animals ignored; banishment does not count toward the weekly cap; prisoners add mouths, not storage; arrest by lead, cells marked by the faction |
 
 ### Settled in conversation, 2026-10-27
+
+Built on `feature/charter-build`: every row below, the Charter book, the named Nexus,
+seats for every office and asking to join (S1 and B0 to B7 of
+`docs/2026-10-27-charter-book-implementation.md`). The B7 live checks are with the owner.
 
 From a look at Imperial Refuge, a kingdom server run mostly through Discord:
 staff host wars, rule on reports backed by video clips, and kingdom leaders post

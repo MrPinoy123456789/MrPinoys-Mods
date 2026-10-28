@@ -82,9 +82,20 @@ final class ScenarioFilesTest {
         Scenario tutorial = shipped("tutorial");
         check("tutorial: one player, an outsider who founds their own faction", tutorial.outsiders.equals(List.of("YOU")));
         check("tutorial: the first player named is the newcomer, not Brinewatch's Lord", tutorial.castOrder().getFirst().equals("YOU"));
-        check("tutorial: you are given a nexus and a war banner", tutorial.give.getFirst().items.containsKey("charter:nexus")
-                && tutorial.give.getFirst().items.containsKey("charter:war_banner"));
-        check("tutorial: two pillars mark where the keep and the banner go", tutorial.markers.size() == 2);
+        var gift = tutorial.give.getFirst();
+        check("tutorial: you are given what founding by placement needs, not a ready Nexus",
+                gift.items.containsKey("minecraft:white_banner") && gift.items.containsKey("minecraft:lodestone")
+                        && gift.items.getOrDefault("minecraft:diamond", 0) == 64 && !gift.items.containsKey("charter:nexus")
+                        && gift.levels >= 1);
+        check("tutorial: and a war banner for the camp", gift.items.containsKey("charter:war_banner"));
+        check("tutorial: two pillars and an anvil", tutorial.markers.size() == 3
+                && tutorial.markers.stream().anyMatch(m -> m.block.equals("minecraft:anvil")));
+        // The one page that may still name a command is the claiming page, found by its title "Claim land".
+        for (String page : tutorial.books.getFirst().pages) {
+            boolean claiming = page.lines().findFirst().orElse("").contains("Claim land");
+            check("tutorial: " + page.lines().findFirst().orElse("") + (claiming ? " may name /charter map" : " names no command"),
+                    claiming || !page.contains("/charter"));
+        }
         check("tutorial: the guide is handed over as a book", tutorial.books.size() == 1 && tutorial.books.getFirst().role.equals("YOU"));
         for (String name : ScenarioFiles.DEFAULTS) {
             for (Scenario.Book book : shipped(name).books) {

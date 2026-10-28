@@ -240,6 +240,43 @@ so nothing an earlier test left behind leaks into a later one.
 - **Left out on purpose:** core has no action to take diamonds back out of a personal safe,
   so `/charter safe` can only deposit.
 
+## The Charter book (`charter.mc.book`)
+
+Built from `docs/2026-10-27-charter-book-implementation.md`; the owner's decisions
+are in DESIGN.md §23, 2026-10-27.
+
+- **The item** is paper with `ITEM_MODEL` `minecraft:writable_book`, so a vanilla
+  client draws a book and quill and needs no pack. Custom data `charter: book`.
+  Nothing is stored on it and it belongs to nobody. Using it (`UseItemCallback`, main
+  hand, and `UseBlockCallback` unless the block has a menu or is a door) runs
+  `/charter` as the player, so the book and the command can never differ (C2).
+- **What the live check found (B0, 2026-10-27, owner on a vanilla client):** the client
+  connects with the custom recipe serializer registered; the book looks like a book
+  and quill in the hotbar, in hand and in a chest; using it opens the dialog and its
+  button works; a lodestone and a named banner show and craft the named Nexus in a
+  crafting table and in a crafter.
+- **C1, no Mixin.** A dialog button is a `StaticAction` running a vanilla
+  `run_command` click on `/charter act <token>`; the token is one-shot and bound to
+  the player the screen was built for (`BookDialogs.act`). A token pressed by anyone
+  else does nothing. The suite allows a Mixin only when nothing else works.
+- **C2.** Every join hands a book to a player who carries none (`BookMod.onJoin`).
+  Nothing is recorded: a player who loses theirs gets another next join.
+- **Dialog house rules** (from Pocket Dungeons' dialog-screens skill): a list with no
+  buttons cannot be encoded, so `BookDialogs.list` becomes a notice; every screen has
+  an exit that Esc runs (Close, or Back on a screen opened from another); there is no
+  history stack, Back rebuilds the parent from live state; every press ends by
+  showing a page again with the result above it (`BookRouter.run`).
+- **Standing** (`charter.gov.Standing`) is computed from grants at the moment of
+  reading and never stored. Lines that share a holder are joined into one sentence
+  (C4, `StandingText.joined`).
+- **Seats (S1):** every faction has a decision makers office; 0 seats is a Commune, 1 a
+  Lordship, more a council that acts alone or together. `proposeToSeats` opens a vote
+  among the seats; a council vote can never run what only the members may.
+- **Gametest traps:** a mock player joins like a real one, so it already carries a
+  book; it starts in creative, where an inventory is never full (`setGameMode`
+  SURVIVAL first); it stands at the world origin; `placeOn` puts the item in the
+  selected hotbar slot, so keep other items in a different slot.
+
 ## The playtest kit (`charter.mc.scenario`, M14)
 
 - A scenario is data (`Scenario`), never code: a new one is a JSON file. The shipped

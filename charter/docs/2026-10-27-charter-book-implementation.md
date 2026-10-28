@@ -1080,13 +1080,74 @@ notes":
 (The builder writes here: B0's live answers, anything in this plan that was wrong
 and what was done instead, and the final counts.)
 
-### B0 (built 2026-10-27)
+### Builder's notes (2026-10-27 to 2026-10-28)
 
-- Counts after B0: core 1322, fabric 418, gametests 81 (including vanilla's `always_pass`). The starting counts quoted above (fabric 362, gametests 73) were stale: the run before B0 was not re-measured, so only core is a clean before and after. The four new `BookGameTest` tests all appear in the report.
-- `LandItems.stamp` is private to `charter.mc.land`; "package private" would not reach `charter.mc.book`, so `CharterBook.create` copies its four lines.
-- `CharterCommands.TOKENS` stays package private; a public `issue(player, label, run)` wrapper was added instead.
-- `BookDialogs.LAST` is public (the gametests live in another package) and is cleared on disconnect from `BookMod`.
-- `NexusRecipe` refuses a lodestone or banner that already carries custom data, so a Nexus or War Banner is never consumed by it. The recipe JSON is only `{"type": "charter:nexus"}`: the serializer is a unit codec and `category()` is the vanilla default.
-- `NexusItems.bannerJson` takes null registries (a recipe has no level; `NexusRecipe` passes the server's registry access when the server is running) and then writes an empty patterns list.
-- `NexusItems.bannerOf(stack)` was added (B6 calls it).
-- Live check: NOT deployed (this build was told never to deploy). Waiting for the owner.
+Counts after each step (core / fabric plain / gametests including vanilla's
+`always_pass`). The starting counts in section 0 (fabric 362, gametests 73) were
+stale: the first full run, after B0, already showed fabric 418 and 81 gametests (core
+was 1322 as stated), so the B0 row is the first true baseline.
+
+| Step | Core | Fabric | Gametests |
+|---|---|---|---|
+| B0 | 1322 | 418 | 81 |
+| S1 | 1411 | 425 | 81 |
+| B3 | 1468 | 426 | 81 |
+| B1 | 1635 | 426 | 81 |
+| B2 | 1679 | 426 | 81 |
+| B4 | 1679 | 426 | 86 |
+| B5 | 1679 | 426 | 93 |
+| B6 | 1679 | 426 | 101 |
+| B7 | 1679 | 446 | 101 |
+
+**B0 live answers (owner, vanilla client, 2026-10-27):** the client connects; the book
+looks right (book and quill) and opens the dialog; its button works; the named Nexus
+crafts in a table and in a crafter. No fallback was needed. The spike dialog was
+deleted after the gate.
+
+**Things in this plan that were wrong, and what was done instead**
+
+- `LandItems.stamp` is private to `charter.mc.land`; "package private" would not reach
+  `charter.mc.book`, so `CharterBook.create` copies its four lines.
+- `CharterCommands.TOKENS` stays package private; a public `issue(player, label, run)`
+  wrapper was added.
+- `BookDialogs.LAST` is public (the gametests are in another package).
+- `NexusRecipe` also refuses a lodestone or banner that already carries custom data, so
+  a Nexus or a War Banner is never consumed by it.
+- `Commands`: the plan's lang keys `motion.unseat` and `motion.set_seats` are
+  `motion.gov.unseat` and `motion.gov.set_seats`, following the existing `gov.` store names.
+- `Vote` gained a second constructor with `seatsOf`; the old one still passes null.
+- A council vote fails as soon as the Yes ballots can no longer be a majority; when time
+  runs out the same test decides, with undecided seats counting as not Yes.
+- Existing tests changed only where they named removed methods, plus `StoreTest` (the
+  Commune now has a Lord office whose root grants also name SPEND, so the test picks the
+  grant that has a child) and `FullState` (a council with a seat vote in progress).
+- The Chronicle coverage test wants a default template and a golden line for every
+  event, routine or not, so `Asked`, `Rejected` and `RequestLapsed` have templates and
+  a golden of "(hidden)"; `ChronicleRenderer.routine` hides them.
+- `FoundKeep` is in `charter.org.actions` (beside `Found`), so `Found.checkName` did not
+  need to become public; `cooldownProblem` was factored out.
+- `BookDialogs.list` returns a notice when it has no buttons (a list with none cannot be
+  encoded); a screen with text but no buttons does not say "Nothing here yet".
+- The Found page counts a crafted founding Nexus toward steps 1 to 3, because crafting
+  uses the banner and lodestone up.
+- `NexusItems.bannerJson` takes null registries (a crafting recipe has no level); it then
+  writes an empty pattern list. A banner with patterns is stored with them only when the
+  server is running.
+- **Plan gap:** the tutorial paid the treasury with `/charter vault deposit`, which the
+  new book may not name. The Faction page now has a "Pay in N currency" button for each
+  currency the player carries (`CharterCommands.depositAll`). The scenario also gained a
+  `levels` field on `give` (an anvil asks for a level to name a banner) and an anvil
+  marker beside the emerald pillar. The tutorial book is 15 pages.
+- The claiming page is the one tutorial page that still names a command
+  (`/charter map`); `ScenarioFilesTest` finds it by the title "Claim land".
+- The "Join page with no factions" gametest cannot start from an empty world (state
+  persists between tests), so it checks that the page always has a button.
+- The notice for a join request to an online member goes through a new
+  `Notices.Messenger.askedToJoin`, which the live server answers with a chat line and an
+  "Open" link; an offline member gets it by mail (tested).
+- `LoadGameTest` ("twenty players around a siege cost little") failed once on a slow
+  machine (5.6 ms per sim step); it passed on the rerun with no change.
+- No new Mixin: `charter.mixins.json` is unchanged.
+
+**What only a live server can confirm (B7 checks, with the owner):** see the list in
+section B7. Nothing from B1 to B7 has been seen on a vanilla client yet.

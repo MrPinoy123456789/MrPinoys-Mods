@@ -102,6 +102,8 @@ public final class Scenario {
         public String role = "";
         /** Item id to count. {@code charter:nexus} and {@code charter:war_banner} are the mod's own items. */
         public Map<String, Integer> items = new LinkedHashMap<>();
+        /** Experience levels, such as the one an anvil asks for to name a banner. */
+        public int levels;
     }
 
     public static final class Book {

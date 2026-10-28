@@ -42,6 +42,17 @@ Not protected on purpose: mob griefing (endermen, ravagers) follows the vanilla
   `PlaceNexus`. A **war banner** is a red banner tagged `charter: war_banner`;
   placing it runs `PlantCamp` and lights a signal campfire on a hay bale beside it.
   Operators hand them out with `/charter admin give nexus|banner [player]`.
+- The **Charter of Rights and Freedoms** is a paper item drawn as a book and quill
+  (`charter: book`), handed to every player who joins without one. Using it, or
+  typing `/charter`, opens a dialog menu: Rights, Freedoms, your situation, your
+  faction, its Chronicle; a player with no faction sees Join and Found instead.
+  `/charter page` is the old chat page. Buttons run the one-shot
+  `/charter act <token>` links, so there is no Mixin for it. Operators can hand one
+  out with `/charter admin give book [player]`.
+- A **named Nexus** is crafted from a lodestone and a banner that has a name
+  (`charter:nexus` special recipe). Placing it with no faction founds a Lordship
+  named after the banner and raises its keep, paid in diamonds from the
+  player's inventory (`FoundKeep`).
 - `/charter map` draws 11 by 11 chunks in chat; the `+` cells and your own farms are
   links that claim and give up land through `ClaimLand` and `Unclaim`.
 - Holding a war banner or a compass draws the chunk edges around you in dust: green
@@ -61,7 +72,7 @@ them there, and a file already there is never replaced.
 
 | Scenario | Sets up |
 |---|---|
-| `tutorial` | One new player's first hour: they found a faction, raise a keep at an emerald pillar, then plant a banner at a gold pillar beside Brinewatch's nearly empty keep and starve it out. A 13 page book guides them in game; `TUTORIAL.md` is the long version |
+| `tutorial` | One new player's first hour: they name a banner at an anvil, craft a Nexus, place it at an emerald pillar to found a faction and raise its keep, then plant a banner at a gold pillar beside Brinewatch's nearly empty keep and starve it out. A 15 page book guides them in game; `TUTORIAL.md` is the long version |
 | `raid` | Ashfall's keep and three farms with wheat and cows; a raised Brinewatch camp beside the farthest farm |
 | `partial-siege` | Ashfall's keep at half; two Brinewatch camps close the east side; a food chest to the west with rails and a chest cart into the keep |
 | `encirclement` | Ashfall's keep at 30 percent; four camps with two claims each hold all twelve sides (the plan said three camps, but a camp holds three sides, so the ring takes four) |

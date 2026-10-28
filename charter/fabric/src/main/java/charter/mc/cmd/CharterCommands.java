@@ -319,6 +319,24 @@ public final class CharterCommands {
                 "amount", amount, "currency", charter.mc.Describe.currency(currency.get(), amount)));
     }
 
+    /** Everything of this currency the player carries, paid into their faction's treasury. Returns the amount paid, 0 if none or refused. */
+    public static int depositAll(ServerPlayer player, Currency currency) {
+        CharterRuntime rt = CharterServer.runtime();
+        Optional<OrgId> org = orgOf(rt, player);
+        int carried = count(player, currency);
+        if (org.isEmpty() || carried <= 0) return 0;
+        int done = perform(player, new Deposit(org.get(), currency, carried), Text.get("vault.deposited",
+                "amount", carried, "currency", charter.mc.Describe.currency(currency, carried)));
+        if (done != 1) return 0;
+        take(player, currency, carried);
+        return carried;
+    }
+
+    /** How much of this currency the player carries. */
+    public static int carried(ServerPlayer player, Currency currency) {
+        return count(player, currency);
+    }
+
     static int count(ServerPlayer player, Currency currency) {
         int n = 0;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {

@@ -1,46 +1,117 @@
 {
   "name": "tutorial",
-  "setup": "A first hour with Charter for one new player. You found your own faction, raise a keep at the emerald pillar, stock its granary and claim land. Brinewatch, a small rival with a nearly empty granary, holds a keep 12 chunks east; you plant a war banner at the gold pillar beside it and starve it out.",
-  "tries": "Read the book Charter: A First Hour in your inventory and follow it page by page. The longer guide is charter/TUTORIAL.md.",
-  "knobs": {"timeScale": 24, "carryInWindowMinutes": 240, "presenceMinMemberDays": 0, "foundSecedeCooldownDays": 0},
+  "setup": "A first hour with Charter for one new player. You name a banner at an anvil, craft it with a lodestone into a Nexus, and place it at the emerald pillar: that founds your faction and raises its keep. Brinewatch, a small rival with a nearly empty granary, holds a keep 12 chunks east; you plant a war banner at the gold pillar beside it and starve it out.",
+  "tries": "Read the book Charter: A First Hour in your inventory and follow it page by page. Your Charter book shows where you stand. The longer guide is charter/TUTORIAL.md.",
+  "knobs": {
+    "timeScale": 24,
+    "carryInWindowMinutes": 240,
+    "presenceMinMemberDays": 0,
+    "foundSecedeCooldownDays": 0
+  },
   "factions": [
-    {"id": "R", "name": "Brinewatch", "roles": ["R1", "R2"]}
+    {
+      "id": "R",
+      "name": "Brinewatch",
+      "roles": [
+        "R1",
+        "R2"
+      ]
+    }
   ],
-  "outsiders": ["YOU"],
-  "players": ["YOU"],
-  "keeps": [{"faction": "R", "at": [12, 0], "granary": 0.05}],
+  "outsiders": [
+    "YOU"
+  ],
+  "players": [
+    "YOU"
+  ],
+  "keeps": [
+    {
+      "faction": "R",
+      "at": [
+        12,
+        0
+      ],
+      "granary": 0.05
+    }
+  ],
   "give": [
-    {"role": "YOU", "items": {
-      "charter:nexus": 1,
-      "charter:war_banner": 1,
-      "minecraft:diamond": 72,
-      "minecraft:cobblestone": 320,
-      "minecraft:chest": 2,
-      "minecraft:barrel": 1,
-      "minecraft:bread": 96,
-      "minecraft:compass": 1
-    }}
+    {
+      "role": "YOU",
+      "items": {
+        "minecraft:white_banner": 1,
+        "minecraft:lodestone": 1,
+        "minecraft:diamond": 64,
+        "charter:war_banner": 1,
+        "minecraft:cobblestone": 320,
+        "minecraft:chest": 2,
+        "minecraft:barrel": 1,
+        "minecraft:bread": 96,
+        "minecraft:compass": 1
+      },
+      "levels": 3
+    }
   ],
   "books": [
-    {"role": "YOU", "title": "Charter: A First Hour", "author": "Charter", "pages": [
-      "Welcome to Charter\n\nHere factions hold land with keeps, and take land by starving a keep out, not by breaking its walls.\n\nThis book takes you through your first hour. Time runs 24 times fast for it.",
-      "1. Found a faction\n\nType in chat:\n\n/charter found \"My Hold\" lordship\n\nThen type /charter to open your faction page. Anything you may do shows as a link you can click.",
-      "2. Fill the treasury\n\nYour faction pays: a keep is 64 diamonds, a war banner 256 cobblestone.\n\n/charter vault deposit diamond 72\n/charter vault deposit cobblestone 320",
-      "3. Raise your keep\n\nWalk to the emerald pillar. Place the Nexus (a lodestone) on the ground near it.\n\nThe 3 by 3 chunks around it are now your keep. Hold the compass to see the borders.",
-      "4. Stock the granary\n\nPlace a chest in the Nexus's chunk: it is your granary. Put 40 bread in.\n\nA keep under siege eats its granary. When it runs dry, the keep falls.",
-      "5. Claim land\n\nType /charter map. The yellow + squares touch your land: click one to claim it.\n\nOn your land, other factions may walk but not build, break or open anything.",
-      "6. Meet a rival\n\nBrinewatch holds a keep 12 chunks east of you, the way the sun rises. Walk there. Try to break a block on their land: you cannot.\n\nWalls do not take keeps here. Hunger does.",
-      "7. Plant a war banner\n\nAt the gold pillar, just short of their wall, place the War Banner on the ground.\n\nIt raises for 5 minutes under a smoke column. Till then, anyone may pull it down.",
-      "8. Feed the camp\n\nPlace the barrel next to the banner: it is the camp store. Put 48 bread in.\n\nAn empty camp besieges nobody. Cut off from home, it eats twice as fast.",
-      "9. The siege\n\nOnce the camp stands, Brinewatch is besieged and eats from its granary, which was nearly empty.\n\nStand in your camp's chunk: every attacker there makes them eat faster.",
-      "10. Assault\n\nBelow a quarter full, a keep is starving. Walk inside its walls: attackers in a starving keep make it eat four times as fast.",
-      "11. The fall\n\nWhen their granary is empty the keep falls, and chat offers two choices:\n\nRaze: the Nexus breaks and plunder spills out.\nOccupy: you hold their keep a while.",
-      "What next\n\nDefence is the other half: running food in through open sides, and wearing a camp down by standing beside it. Ask for the sally scenario.\n\nThe full guide is charter/TUTORIAL.md."
-    ]}
+    {
+      "role": "YOU",
+      "title": "Charter: A First Hour",
+      "author": "Charter",
+      "pages": [
+        "Welcome to Charter\n\nHere factions hold land with keeps, and take land by starving a keep out, not by breaking its walls.\n\nThis book takes you through your first hour. Time runs 24 times fast for it.",
+        "1. Name a banner\n\nYou carry a white banner. An anvil stands beside the emerald pillar. Rename the banner there: its name will be your faction's name.",
+        "2. Craft the Nexus\n\nPut the lodestone and your named banner in a crafting table, and nothing else. You get a Nexus with your faction's name on it.",
+        "3. Found your faction\n\nWalk to the emerald pillar. Place the Nexus on the ground near it. The 64 diamonds you carry pay for the keep.\n\nThe 3 by 3 chunks around it are now your keep, and you are its Lord.",
+        "Your Charter\n\nThe Charter book in your inventory shows where you stand: your Rights, your Freedoms, your faction and its Chronicle.\n\nUse it any time.",
+        "4. Fill the treasury\n\nOpen your Charter, then your faction. Press Pay in cobblestone.\n\nA war banner costs 256 cobblestone from the treasury.",
+        "5. Stock the granary\n\nPlace a chest in the Nexus's chunk: it is your granary. Put 40 bread in.\n\nA keep under siege eats its granary. When it runs dry, the keep falls.",
+        "6. Claim land\n\nType /charter map. The yellow + squares touch your land: click one to claim it.\n\nOn your land, other factions may walk but not build, break or open anything.",
+        "7. Meet a rival\n\nBrinewatch holds a keep 12 chunks east of you, the way the sun rises. Walk there. Try to break a block on their land: you cannot.\n\nWalls do not take keeps here. Hunger does.",
+        "8. Plant a war banner\n\nAt the gold pillar, just short of their wall, place the War Banner on the ground.\n\nIt raises for 5 minutes under a smoke column. Till then, anyone may pull it down.",
+        "9. Feed the camp\n\nPlace the barrel next to the banner: it is the camp store. Put 48 bread in.\n\nAn empty camp besieges nobody. Cut off from home, it eats twice as fast.",
+        "10. The siege\n\nOnce the camp stands, Brinewatch is besieged and eats from its granary, which was nearly empty.\n\nStand in your camp's chunk: every attacker there makes them eat faster.",
+        "11. Assault\n\nBelow a quarter full, a keep is starving. Walk inside its walls: attackers in a starving keep make it eat four times as fast.",
+        "12. The fall\n\nWhen their granary is empty the keep falls, and chat offers two choices:\n\nRaze: the Nexus breaks and plunder spills out.\nOccupy: you hold their keep a while.",
+        "What next\n\nDefence is the other half: running food in through open sides, and wearing a camp down by standing beside it. Ask for the sally scenario.\n\nThe full guide is charter/TUTORIAL.md."
+      ]
+    }
   ],
   "markers": [
-    {"at": [0, 0], "block": "minecraft:emerald_block", "height": 4},
-    {"at": [10, 0], "block": "minecraft:gold_block", "height": 4}
+    {
+      "at": [
+        0,
+        0
+      ],
+      "block": "minecraft:emerald_block",
+      "height": 4
+    },
+    {
+      "at": [
+        10,
+        0
+      ],
+      "block": "minecraft:gold_block",
+      "height": 4
+    },
+    {
+      "at": [
+        0,
+        0
+      ],
+      "block": "minecraft:anvil",
+      "height": 1,
+      "offset": [
+        -3,
+        3
+      ]
+    }
   ],
-  "stand": [{"role": "YOU", "at": [0, 0]}]
+  "stand": [
+    {
+      "role": "YOU",
+      "at": [
+        0,
+        0
+      ]
+    }
+  ]
 }

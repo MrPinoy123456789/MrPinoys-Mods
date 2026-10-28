@@ -453,6 +453,7 @@ public final class ScenarioRunner {
     private void give(Scenario.Give g) {
         ServerPlayer player = online.get(g.role);
         if (player == null) return;
+        if (g.levels > 0) player.giveExperienceLevels(g.levels);
         for (Map.Entry<String, Integer> e : g.items.entrySet()) {
             for (int i = 0; i < e.getValue(); ) {
                 ItemStack stack = stack(e.getKey());

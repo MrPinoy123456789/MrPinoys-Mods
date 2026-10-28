@@ -79,33 +79,54 @@ public final class TutorialGameTest {
         // and nothing below needs them (the clock is moved by command).
         restore(rt, knobs);
 
-        // What the scenario hands over.
-        helper.assertTrue(count(you, s -> LandItems.NEXUS.equals(LandItems.kindOf(s))) == 1, "You were not given a Nexus");
+        // What the scenario hands over: the makings of a Nexus, not a Nexus.
+        helper.assertTrue(count(you, s -> LandItems.NEXUS.equals(LandItems.kindOf(s))) == 0, "You were given a ready Nexus");
+        helper.assertTrue(count(you, s -> s.is(net.minecraft.tags.ItemTags.BANNERS) && LandItems.kindOf(s) == null) == 1, "You were not given a banner");
+        helper.assertTrue(count(you, s -> s.is(Items.LODESTONE)) == 1, "You were not given a lodestone");
         helper.assertTrue(count(you, s -> LandItems.WAR_BANNER.equals(LandItems.kindOf(s))) == 1, "You were not given a War Banner");
-        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 72, "You were not given 72 diamonds");
+        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 64, "You were not given 64 diamonds");
+        helper.assertTrue(you.experienceLevel >= 1, "You were given no level for the anvil");
         ItemStack book = first(you, s -> s.is(Items.WRITTEN_BOOK));
         helper.assertTrue(book != null, "You were not given the tutorial book");
         var content = book.get(DataComponents.WRITTEN_BOOK_CONTENT);
-        helper.assertTrue(content != null && content.title().raw().equals("Charter: A First Hour") && content.pages().size() == 13,
-                "The tutorial book is not the 13 page guide");
+        helper.assertTrue(content != null && content.title().raw().equals("Charter: A First Hour") && content.pages().size() == 15,
+                "The tutorial book is not the 15 page guide");
         Core rivalKeep = rt.state.cores().stream().filter(c -> c.isKeep() && c.center.x() == CHUNK_X + 12 && c.center.z() == CHUNK_Z)
                 .findFirst().orElseThrow(() -> new AssertionError("Brinewatch has no keep 12 chunks east"));
 
-        // Page 1 and 2: found a faction and fill its vault, typed as the book says.
+        // Pages 1 and 2: name the banner at the anvil, craft it with the lodestone into a Nexus.
         String name = "Tutorial " + Long.toString(you.getUUID().getLeastSignificantBits() & 0xFFFFF, 36);
-        type(server, you, "charter found \"" + name + "\" lordship");
-        OrgId mine = rt.state.membership(me).map(MemberRecord::org).orElse(null);
-        helper.assertTrue(mine != null, "Founding from the book's command did not make a faction");
-        type(server, you, "charter vault deposit diamond 72");
-        type(server, you, "charter vault deposit cobblestone 320");
-        helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND) == 72, "The diamonds did not reach the vault");
+        ItemStack plainBanner = first(you, s -> s.is(net.minecraft.tags.ItemTags.BANNERS) && LandItems.kindOf(s) == null);
+        plainBanner.set(DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal(name));
+        ItemStack lodestone = first(you, s -> s.is(Items.LODESTONE));
+        net.minecraft.world.item.crafting.CraftingInput grid = net.minecraft.world.item.crafting.CraftingInput.of(2, 1, List.of(plainBanner, lodestone));
+        charter.mc.book.NexusRecipe recipe = new charter.mc.book.NexusRecipe();
+        helper.assertTrue(recipe.matches(grid, level), "The banner and the lodestone do not make a Nexus");
+        ItemStack crafted = recipe.assemble(grid);
+        plainBanner.shrink(1);
+        lodestone.shrink(1);
+        you.getInventory().add(crafted);
 
-        // Page 3: the Nexus near the emerald pillar.
+        // Page 3: the Nexus near the emerald pillar founds the faction and raises its keep.
         BlockPos nexus = ground(level, CHUNK_X, CHUNK_Z, 0, 0);
         you.teleportTo(nexus.getX() + 0.5, nexus.getY(), nexus.getZ() - 2.5);
         place(you, level, LandItems.NEXUS, nexus);
+        OrgId mine = rt.state.membership(me).map(MemberRecord::org).orElse(null);
+        helper.assertTrue(mine != null, "Placing the Nexus did not found a faction");
+        helper.assertTrue(rt.state.org(mine).orElseThrow().name().equals(name), "The faction is not named after the banner");
         Core keep = rt.state.coresOf(mine).stream().filter(Core::isKeep).findFirst().orElse(null);
         helper.assertTrue(keep != null, "Placing the Nexus did not raise your keep");
+        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 0, "The keep did not take the diamonds you carried");
+
+        // Page 5: the Pay button on the faction page, not a command.
+        charter.mc.book.MemberPages.faction(you, null);
+        String pay = charter.mc.Text.get("book.button.pay", "amount", 320, "currency",
+                charter.mc.Describe.currency(charter.treasury.Currency.COBBLESTONE, 320));
+        String token = charter.mc.cmd.CharterCommands.tokens().newest(you.getUUID(), pay).orElse(null);
+        helper.assertTrue(token != null, "The faction page offers no [" + pay + "] button");
+        charter.mc.cmd.CharterCommands.tokens().take(token, you.getUUID(), System.currentTimeMillis()).orElseThrow().accept(you);
+        helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.COBBLESTONE) == 320,
+                "The cobblestone did not reach the treasury");
 
         // Page 4: a chest in the Nexus's chunk.
         BlockPos chest = nexus.offset(2, 0, 0);

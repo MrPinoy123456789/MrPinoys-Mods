@@ -1,7 +1,7 @@
 # Charter: your first hour
 
 This is a hands-on tutorial for someone who knows Minecraft well and has never
-seen Charter. You will found a faction, raise a keep, stock it with food, claim
+seen Charter. You will found a faction, raise its keep, stock it with food, claim
 land, then march on a rival and starve their keep out. It takes 30 to 45 minutes.
 
 You don't need to install anything: Charter runs on the server, and your normal
@@ -47,49 +47,50 @@ server, a full granary holds out for 3 to 4 days.
 The book in your inventory has the same steps in short. This guide adds what
 you should see at each step, and why.
 
-## 1. Found a faction
+## 1. Name a banner
 
-Type in chat:
+You carry a white banner and a lodestone, and an **anvil** stands beside the
+emerald pillar. Rename the banner at the anvil (it costs one level, and you were
+given a few). **The name you give it becomes your faction's name.**
 
-```
-/charter found "My Hold" lordship
-```
+## 2. Craft the Nexus
 
-Use any name you like in the quotes. **Lordship** means one person, the Lord,
-decides; the other choice, **commune**, decides by members' votes. You're the
-Lord.
+Put the lodestone and your named banner in a crafting table, and nothing else.
+You get a **Nexus** with a blue name: your faction's. The banner is used up.
 
-Now type `/charter` on its own. This is your **faction page**: members, offices,
-keeps, votes and recent history. **Everything you're allowed to do appears as a
-link you can click.** You'll come back to this page often.
+## 3. Found your faction
 
-## 2. Fill the treasury
+Walk to the **emerald pillar**. Place the Nexus on the ground near it, the way
+you'd place any block. Placing it **founds the faction and raises its keep in one
+step**: the 64 diamonds you carry pay for the keep, and you become the **Lord**.
 
-Things a faction builds are paid for from its **vault**, not from your
-inventory. A keep costs 64 diamonds, and a War Banner costs 256 cobblestone. You
-were given a little more than enough:
-
-```
-/charter vault deposit diamond 72
-/charter vault deposit cobblestone 320
-```
-
-The items leave your inventory and appear in the vault on your faction page.
-
-## 3. Raise your keep
-
-Walk to the **emerald pillar**. Take the **Nexus** (a lodestone with a blue
-name) and place it on the ground near the pillar, the way you'd place any block.
-
-You should see a green message that your keep is raised. The **3 by 3 chunks**
-around the Nexus are now yours: the centre chunk is the **core**, the eight
-around it are the **ring**.
+You should see a green message that your faction is founded. The **3 by 3
+chunks** around the Nexus are now yours: the centre chunk is the **core**, the
+eight around it are the **ring**. A faction needs a second member before it is
+more than a name.
 
 **Hold the compass** in your hand: the chunk borders around you are drawn in
 particles. Green is yours, red is someone else's. (Holding a War Banner does the
 same.)
 
 The Nexus can't be broken by anyone, you included, while the keep stands.
+
+### Your Charter
+
+You were also handed a book and quill called the **Charter of Rights and
+Freedoms**. Use it (right-click) or type `/charter`: it opens a menu showing where
+you stand. **Rights** are what you may do on your own, **Freedoms** are what
+someone else does for the faction, and **Your situation** lists votes waiting for
+you. Open **your faction** from there to see members, the treasury, the keep and
+how long its granary would last. Anything you may do is a button. The older chat
+page is still there as `/charter page`.
+
+### Fill the treasury
+
+Things a faction builds are paid for from its **treasury**, not from your
+inventory. A War Banner costs 256 cobblestone. Open your Charter, then your
+faction, and press **Pay in 320 cobblestone**. The items leave your inventory and
+appear in the treasury line.
 
 ## 4. Stock the granary
 
@@ -227,12 +228,12 @@ restarts, or until an operator types `/charter admin time scale 1`.
 
 | What you see | Why, and what to do |
 |---|---|
-| "You already belong to ..." when starting | You're in a faction already. Run `/charter admin scenario clear`, or leave it from your `/charter` page |
-| The Nexus is refused | Check the vault holds 64 diamonds (`/charter`). A keep also can't go within 4 chunks of another keep |
+| "You already belong to ..." when starting | You're in a faction already. Run `/charter admin scenario clear`, or leave it from your `/charter page` |
+| The Nexus is refused | Check you carry 64 diamonds, and that the Nexus has a name (an unnamed one only works for a faction that already exists). A keep also can't go within 4 chunks of another keep |
 | The chest is just a chest | It must be in the **same chunk** as the Nexus. Press F3 + G to see chunk borders |
 | The barrel is just a barrel | It must touch the banner and be in the banner's chunk |
 | The camp raises but nothing happens | Is there bread in the camp store? A camp with an empty store besieges nobody |
-| A link in chat does nothing | Links run out after a while. Open the page again (`/charter`, `/charter map`) |
+| A link in chat does nothing | Links run out after a while. Open the page again (`/charter`, `/charter page`, `/charter map`) |
 
 ## Words you'll see
 
