@@ -74,7 +74,7 @@ public final class VoteCommandGameTest {
         helper.assertTrue(rt.state.invite(org, bobId).isPresent(), "The invite vote did not pass and invite Bob");
 
         // Join from the page.
-        as(bob, "charter");
+        as(bob, "charter page");
         click(helper, bob, "link.join");
         helper.assertTrue(rt.state.isMember(bobId, org), "Bob did not join from the page link");
         helper.assertTrue(rt.state.org(org).orElseThrow().status() == OrgStatus.ACTIVE, "The second member did not make it active");

@@ -123,6 +123,7 @@ public final class CharterServer {
             for (Mail.Message m : waiting) player.sendSystemMessage(Component.literal("  " + m.text()).withStyle(ChatFormatting.GRAY));
         }
         give(player);
+        charter.mc.book.BookMod.onJoin(player);
     }
 
     /** Hands over whatever the treasury owes this player; what does not fit stays owed. */

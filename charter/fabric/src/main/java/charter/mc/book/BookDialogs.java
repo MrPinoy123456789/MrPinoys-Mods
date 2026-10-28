@@ -1,6 +1,8 @@
 package charter.mc.book;
 
 import charter.mc.cmd.CharterCommands;
+import charter.mc.Text;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -19,6 +21,7 @@ import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.dialog.body.PlainMessage;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,23 +83,64 @@ public final class BookDialogs {
         return button(label, tooltip, new StaticAction(new ClickEvent.RunCommand("/charter act " + token)));
     }
 
-    static NoticeDialog notice(String title, List<DialogBody> body) {
-        return new NoticeDialog(common(title, body), closeButton("Close"));
+    static NoticeDialog notice(String title, List<DialogBody> body, ActionButton exit) {
+        return new NoticeDialog(common(title, body), exit);
     }
 
     static ConfirmationDialog confirm(String title, List<DialogBody> body, ActionButton yes, ActionButton no) {
         return new ConfirmationDialog(common(title, body), yes, no);
     }
 
-    /** A list of buttons in one column, with an explicit exit. */
-    static MultiActionDialog list(String title, List<DialogBody> body, List<ActionButton> actions, ActionButton exit) {
+    /**
+     * A list of buttons in one column, with an explicit exit that Esc also runs. A
+     * dialog is never sent without a button: with no actions the encoder cannot send
+     * a list, so the screen becomes a notice that says there is nothing here and
+     * keeps its exit (the Pocket Dungeons dialog-screens rule 1).
+     */
+    static Dialog list(String title, List<DialogBody> body, List<ActionButton> actions, ActionButton exit) {
+        if (exit == null) throw new IllegalArgumentException("a Charter dialog needs an exit button: " + title);
+        if (actions.isEmpty()) {
+            List<DialogBody> lines = new ArrayList<>(body);
+            lines.add(text(Text.get("book.nothing_here")));
+            return notice(title, lines, exit);
+        }
         return new MultiActionDialog(common(title, body), actions, Optional.of(exit), 1);
     }
 
-    /** B0 only: a list with one "Hello" button whose run sends a chat line. */
-    static void spike(ServerPlayer player) {
-        ActionButton hello = act(player, "Hello", "Say hello",
-                p -> p.sendSystemMessage(Component.literal("Hello from the Charter book.")));
-        show(player, list("Charter spike", List.of(text("Press the button.")), List.of(hello), closeButton("Close")));
+    /** A Back button: runs a screen rebuilt from live state, never a stored one. */
+    static ActionButton back(ServerPlayer player, Consumer<ServerPlayer> parent) {
+        return act(player, Text.get("book.button.back"), null, parent);
+    }
+
+    static ActionButton close() {
+        return closeButton(Text.get("book.button.close"));
+    }
+
+    /** A line shown at the top of a page: the result of the last press, in red for a refusal. */
+    static List<DialogBody> withNotice(String notice, List<DialogBody> body) {
+        if (notice == null || notice.isBlank()) return body;
+        List<DialogBody> out = new ArrayList<>();
+        out.add(text(Component.literal(notice).withStyle(ChatFormatting.RED)));
+        out.addAll(body);
+        return out;
+    }
+
+    /** Every button of a dialog, exit included, for tests. */
+    public static List<ActionButton> buttons(Dialog dialog) {
+        List<ActionButton> out = new ArrayList<>();
+        switch (dialog) {
+            case MultiActionDialog m -> {
+                out.addAll(m.actions());
+                m.exitAction().ifPresent(out::add);
+            }
+            case NoticeDialog n -> out.add(n.action());
+            case ConfirmationDialog c -> {
+                out.add(c.yesButton());
+                out.add(c.noButton());
+            }
+            default -> {
+            }
+        }
+        return out;
     }
 }

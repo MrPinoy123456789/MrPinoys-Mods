@@ -421,5 +421,14 @@
 
   "book.item.name": "Charter of Rights and Freedoms",
   "book.item.lore": "Use it to see where you stand.",
-  "book.nexus.lore": "Place it to found {name}."
+  "book.nexus.lore": "Place it to found {name}.",
+  "book.not_running": "Charter is not running.",
+  "book.given": "You have been given the Charter of Rights and Freedoms. Use it, or type /charter, to see where you stand.",
+  "book.nothing_here": "Nothing here yet.",
+  "book.newcomer.title": "You belong to no faction",
+  "book.newcomer.soon": "Founding and joining are coming to this book.",
+  "book.home.title": "{org}",
+  "book.button.close": "Close",
+  "book.button.back": "Back",
+  "book.seats.proposed": "Put to the {office}. It passes when most of them agree."
 }

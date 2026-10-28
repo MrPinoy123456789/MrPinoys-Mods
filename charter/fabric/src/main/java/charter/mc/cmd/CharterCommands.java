@@ -74,7 +74,8 @@ public final class CharterCommands {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter")
-                        .executes(ctx -> page(ctx, Pages::faction))
+                        .executes(CharterCommands::menu)
+                        .then(Commands.literal("page").executes(ctx -> page(ctx, Pages::faction)))
                         .then(Commands.literal("found")
                                 .then(Commands.argument("name", StringArgumentType.string())
                                         .then(Commands.argument("preset", StringArgumentType.word())
@@ -112,6 +113,12 @@ public final class CharterCommands {
 
     interface PageFn {
         void show(ServerPlayer player, CharterRuntime rt);
+    }
+
+    /** The Charter menu: the book's screens, for a player with or without a faction. */
+    private static int menu(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        charter.mc.book.CharterMenu.open(ctx.getSource().getPlayerOrException());
+        return 1;
     }
 
     private static int page(CommandContext<CommandSourceStack> ctx, PageFn page) throws CommandSyntaxException {

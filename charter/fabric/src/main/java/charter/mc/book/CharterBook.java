@@ -24,7 +24,8 @@ import java.util.List;
 /**
  * The Charter of Rights and Freedoms: a paper item that a vanilla client draws as
  * a book and quill, and that opens the {@code /charter} menu when used. Nothing is
- * stored on it and it belongs to nobody; it is only a shortcut (docs, C2).
+ * stored on it and it belongs to nobody; it is only a shortcut (docs, C2). Using it
+ * runs {@code /charter} as the player, so the book and the command can never differ.
  */
 public final class CharterBook {
 
@@ -56,7 +57,7 @@ public final class CharterBook {
     /** The whole of using the book: main hand only. Public so a gametest can call it. */
     public static InteractionResult use(ServerPlayer player, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND || !isBook(player.getItemInHand(hand))) return InteractionResult.PASS;
-        BookDialogs.spike(player);
+        player.level().getServer().getCommands().performPrefixedCommand(player.createCommandSourceStack(), "charter");
         return InteractionResult.SUCCESS_SERVER;
     }
 
