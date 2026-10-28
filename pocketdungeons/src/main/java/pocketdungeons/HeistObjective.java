@@ -339,11 +339,20 @@ final class HeistObjective extends FloorObjectives.ObjectiveState {
                 continue;
             }
             mob.addTag(CREW_TAG);
+            mob.addTag(scopeTag(record.layout.terminal()));
             mob.addTag(PocketDungeonsMod.OMEN_WAVE_TAG);
             mob.setPersistenceRequired();
             MobScaling.applyMobScale(mob, record.layout.keystoneLevel() + record.floor.levelBonus,
                     Omen.clamp(record.interval.omen), MobScaling.actOf(record));
         }
+    }
+
+    private static String scopeTag(BlockPos terminal) {
+        return CREW_TAG + "@" + terminal.getX() + "," + terminal.getY() + "," + terminal.getZ();
+    }
+
+    static boolean scopedTo(Mob mob, BlockPos terminal) {
+        return mob.entityTags().contains(scopeTag(terminal));
     }
 
     /** The table a strongbox pays: the floor's own tier chest table, resolved the completion-chest way. */

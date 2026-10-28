@@ -65,3 +65,11 @@ grep -rn -e $'—' -e ' -- ' --include='*.java' --include='*.md' .
 - If the Windows ship launcher fails in `JansiLoader.cleanup` with a heap error,
   use a small dedicated temp directory via `PD_TMP` and a larger launcher heap via
   `JAVA_OPTS=-Xmx512m`; do not delete shared temp files or change project policies.
+
+## Gametest entity queries
+
+`ServerLevel.getChunk` loads blocks, not necessarily the chunk's entity sections.
+Before immediately counting spawned mobs, load every touched chunk (including
+spawn-ring overshoot) and call `level.waitForEntities(chunkPos, 0)`. Repeat before
+a delayed spawn if the chunks could unload. Scope entity counts and cleanup to
+the owning floor, not just a shared mob-kind tag.

@@ -5,9 +5,10 @@ Status: approved 2026-10-27. Decision 1 is option A, and the amendment is now in
 Implementation status: L1 to L4 code and documentation are implemented. Lemon's
 standalone build passes its pure tests and all 15 gametests. PD's three focused
 bridge gametests pass both with and without the independent Lemon jar. Node event,
-cursor and profile tests pass. The full PD suite is not green: one of 406 gametests,
-`HeistFloorGameTest.anOminousVaultRaisesTheCrewTwice`, fails in the full run while
-the Heist class passes alone. That verification blocker remains unresolved.
+cursor and profile tests pass. After fixing the Heist harness's entity-section
+readiness and floor ownership isolation, the full PD suite passes all 407 required
+gametests, pure tests and dedicated-server integration. The Heist verification
+blocker is resolved without weakening its wave-count assertion.
 L5 remains separate from this Lemon merge. Charter source is on
 `feature/charter-build` in a separate worktree; the Charter tool profile is
 prepared, but its source-side integration and live verification are still owed.

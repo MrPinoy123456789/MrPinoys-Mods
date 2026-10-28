@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
@@ -42,10 +43,9 @@ public final class HeistFloorGameTest {
     private static final PlanCell BRANCH = new PlanCell(1, 1);
     private static final PlanCell TERMINAL = new PlanCell(2, 0);
 
-    private static InstanceRecord heistRecord(GameTestHelper helper, Set<String> affixes,
+    private static InstanceRecord heistRecord(GameTestHelper helper, BlockPos origin, Set<String> affixes,
                                               Set<BlockPos> spawners) {
         ServerLevel level = helper.getLevel();
-        BlockPos origin = helper.absolutePos(BlockPos.ZERO);
         PlanGeometry geometry = PlanGeometry.of(origin, List.of(ENTRANCE, MID, BRANCH, TERMINAL));
         InstanceLayout layout = new InstanceLayout(origin, geometry, geometry.cellCentre(ENTRANCE),
                 0.0f, geometry.cellCentre(TERMINAL), geometry.bounds(), 1L, 3, geometry.cells().size(),
@@ -64,12 +64,8 @@ public final class HeistFloorGameTest {
 
     /** Loads every chunk a cell touches, lays a stone floor and clears the air so fixtures can stand. */
     private static void prepareCells(ServerLevel level, PlanGeometry geometry) {
+        loadCells(level, geometry);
         for (BlockPos cellOrigin : geometry.cellOrigins()) {
-            level.getChunk(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4);
-            level.getChunk((cellOrigin.getX() + RoomGeometry.CELL - 1) >> 4, cellOrigin.getZ() >> 4);
-            level.getChunk(cellOrigin.getX() >> 4, (cellOrigin.getZ() + RoomGeometry.CELL - 1) >> 4);
-            level.getChunk((cellOrigin.getX() + RoomGeometry.CELL - 1) >> 4,
-                    (cellOrigin.getZ() + RoomGeometry.CELL - 1) >> 4);
             for (int x = 0; x < RoomGeometry.CELL; x++) {
                 for (int z = 0; z < RoomGeometry.CELL; z++) {
                     level.setBlock(cellOrigin.offset(x, 0, z), Blocks.STONE.defaultBlockState(), 3);
@@ -83,11 +79,26 @@ public final class HeistFloorGameTest {
         }
     }
 
+    private static void loadCells(ServerLevel level, PlanGeometry geometry) {
+        Set<ChunkPos> chunks = new HashSet<>();
+        for (BlockPos origin : geometry.cellOrigins()) {
+            for (int x = (origin.getX() - 3) >> 4; x <= (origin.getX() + RoomGeometry.CELL + 2) >> 4; x++) {
+                for (int z = (origin.getZ() - 3) >> 4; z <= (origin.getZ() + RoomGeometry.CELL + 2) >> 4; z++) {
+                    level.getChunk(x, z);
+                    chunks.add(new ChunkPos(x, z));
+                }
+            }
+        }
+        for (ChunkPos chunk : chunks) {
+            level.waitForEntities(chunk, 0);
+        }
+    }
+
     private static List<Mob> crew(ServerLevel level, BlockPos terminalOrigin) {
         AABB bounds = CellGeometry.cellBounds(terminalOrigin).inflate(RoomGeometry.CELL * 2.0);
         List<Mob> out = new ArrayList<>();
         for (Mob mob : level.getEntitiesOfClass(Mob.class, bounds)) {
-            if (mob.entityTags().contains(HeistObjective.CREW_TAG)) {
+            if (mob.entityTags().contains(HeistObjective.CREW_TAG) && HeistObjective.scopedTo(mob, terminalOrigin)) {
                 out.add(mob);
             }
         }
@@ -127,7 +138,7 @@ public final class HeistFloorGameTest {
             expectedTags.put(pos, level.getBlockEntity(pos).saveWithFullMetadata(level.registryAccess()));
         }
 
-        InstanceRecord record = heistRecord(helper, Set.of(), spawners);
+        InstanceRecord record = heistRecord(helper, origin, Set.of(), spawners);
         record.members.put(member.getUUID(), new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0.0f, 0.0f));
         record.members.put(UUID.randomUUID(), new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0.0f, 0.0f));
         FloorObjectives.registerForTesting(record, FloorObjective.HEIST);
@@ -239,6 +250,34 @@ public final class HeistFloorGameTest {
         }
     }
 
+    @GameTest(maxTicks = 20)
+    public void crewScansAndCleanupIgnoreANeighbouringFloor(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 64, 0));
+        BlockPos neighbourOrigin = origin.offset(RoomGeometry.CELL, 0, 0);
+        InstanceRecord own = heistRecord(helper, origin, Set.of(), Set.of());
+        InstanceRecord neighbour = heistRecord(helper, neighbourOrigin, Set.of(), Set.of());
+        neighbour.members.put(UUID.randomUUID(), new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0, 0));
+        prepareCells(level, own.layout.geometry());
+        prepareCells(level, neighbour.layout.geometry());
+        try {
+            HeistObjective state = HeistObjective.arm(level, neighbour, heistPlan());
+            helper.assertTrue(!state.fallback, "the neighbouring floor armed");
+            state.crack(neighbour);
+            int expected = PocketDungeonsConfig.heistCrewBase() + neighbour.members.size();
+            helper.assertValueEqual(crew(level, neighbour.layout.terminal()).size(), expected,
+                    "the neighbouring floor raised its own crew");
+            helper.assertValueEqual(crew(level, own.layout.terminal()).size(), 0,
+                    "a nearby crew does not belong to this floor");
+            discardCrew(level, own.layout.terminal());
+            helper.assertValueEqual(crew(level, neighbour.layout.terminal()).size(), expected,
+                    "cleaning this floor preserves the neighbouring crew");
+            helper.succeed();
+        } finally {
+            discardCrew(level, neighbour.layout.terminal());
+        }
+    }
+
     /** An ominous heist raises the crew twice: once on the crack, once a watch tick later. */
     @GameTest(maxTicks = 80)
     @SuppressWarnings("removal")
@@ -255,7 +294,7 @@ public final class HeistFloorGameTest {
         level.setBlock(spawnerAt, Blocks.TRIAL_SPAWNER.defaultBlockState(), 3);
         spawners.add(spawnerAt);
 
-        InstanceRecord record = heistRecord(helper, Set.of(AffixIds.OMINOUS), spawners);
+        InstanceRecord record = heistRecord(helper, origin, Set.of(AffixIds.OMINOUS), spawners);
         record.members.put(member.getUUID(), new ReturnPoint(Level.OVERWORLD, Vec3.ZERO, 0.0f, 0.0f));
         FloorObjectives.registerForTesting(record, FloorObjective.HEIST);
         try {
@@ -265,15 +304,22 @@ public final class HeistFloorGameTest {
             state.crack(record);
             int firstWave = crew(level, record.layout.terminal()).size();
             helper.assertTrue(firstWave > 0, "the crack raised the crew");
+            helper.assertValueEqual(firstWave, PocketDungeonsConfig.heistCrewBase() + record.members.size(),
+                    "the first wave is complete before comparing the echo");
             helper.assertTrue(state.ominousEchoAt != 0, "an ominous floor owes a second wave");
             discardCrew(level, record.layout.terminal());
             // The finally below runs now, before this callback; the echo wave
             // it counts is cleaned up inside the callback itself.
             helper.runAfterDelay(HeistObjective.OMINOUS_ECHO_TICKS + 2L, () -> {
                 try {
+                    loadCells(level, record.layout.geometry());
                     FloorObjectives.tick(level.getServer(), record);
                     helper.assertValueEqual(crew(level, record.layout.terminal()).size(), firstWave,
                             "the echo wave matches the first");
+                    helper.assertValueEqual(state.ominousEchoAt, 0L, "the echo deadline was consumed");
+                    FloorObjectives.tick(level.getServer(), record);
+                    helper.assertValueEqual(crew(level, record.layout.terminal()).size(), firstWave,
+                            "a later watch does not raise a third wave");
                     helper.succeed();
                 } finally {
                     discardCrew(level, record.layout.terminal());
