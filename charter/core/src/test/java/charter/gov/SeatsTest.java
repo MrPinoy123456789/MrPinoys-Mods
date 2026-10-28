@@ -30,10 +30,11 @@ public final class SeatsTest {
     public static void run() {
         aLordshipFoundsWithOneSeat();
         aCommuneFoundsWithNoSeats();
-        onlyTheMembersCanChangeTheSeats();
+        aLordAbdicatesAndOnlyTheMembersLeaveACommune();
         aCommuneBecomesACouncilThatActsAlone();
         aCouncilDecidingTogetherVotesAmongItsSeats();
         aCouncilVoteCannotDoWhatOnlyTheMembersMay();
+        noBackDoorsIntoTheDecisionOffice();
         aLordChangesHisOwnForm();
         aCouncilChangesItsFormByMajority();
         aCommuneChangeStillNeedsTheMembers();
@@ -69,8 +70,13 @@ public final class SeatsTest {
         return f.as(who, new Withdraw(org(f), Currency.DIAMOND, 10, who)).done();
     }
 
+    /** Setup: a Commune leaves by a vote of the members; any other form is the deciders' own, done here as the operator. */
     private static void setSeats(Fixture f, int seats, Office.Deciding deciding) {
-        f.motion(KRIS, new SetSeats(org(f), lord(f), seats, deciding), GIL, CY);
+        if (f.office(org(f), Preset.LORD).seats() == 0) {
+            f.motion(KRIS, new SetSeats(org(f), lord(f), seats, deciding), GIL, CY);
+        } else {
+            check("setup: seats set", f.admin(new SetSeats(org(f), lord(f), seats, deciding)).done());
+        }
         eq("setup: seats " + seats, seats, f.state.office(lord(f)).orElseThrow().seats());
     }
 
@@ -104,14 +110,18 @@ public final class SeatsTest {
         eq("2: a vote of the members spends", 90L, f.org(org(f)).ledger.balance(Currency.DIAMOND));
     }
 
-    static void onlyTheMembersCanChangeTheSeats() {
+    static void aLordAbdicatesAndOnlyTheMembersLeaveACommune() {
         Fixture f = world(Preset.LORDSHIP);
         fund(f);
-        Outcome direct = f.as(KRIS, new SetSeats(org(f), lord(f), 0, Office.Deciding.ALONE));
-        eq("3: the Lord cannot set seats directly", Reason.RESERVED.key(), direct.reasonKey());
-        setSeats(f, 0, Office.Deciding.ALONE);
+        eq("3: members cannot vote the form of a Lordship", Deciders.NOT_DECIDER.key(),
+                f.engine.propose(GIL, new SetSeats(org(f), lord(f), 3, Office.Deciding.ALONE)).reasonKey());
+        check("3: the Lord abdicates into a Commune by himself", f.as(KRIS, new SetSeats(org(f), lord(f), 0, Office.Deciding.ALONE)).done());
         check("3: the former Lord is unseated", f.office(org(f), Preset.LORD).vacant());
         eq("3: the former Lord's spend now needs a vote", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org(f), Currency.DIAMOND, 10, KRIS)).reasonKey());
+        eq("3: leaving the Commune is reserved to the members", Reason.RESERVED.key(),
+                f.as(KRIS, new SetSeats(org(f), lord(f), 1, Office.Deciding.ALONE)).reasonKey());
+        f.motion(KRIS, new SetSeats(org(f), lord(f), 1, Office.Deciding.ALONE), GIL, CY);
+        eq("3: the members vote it back to a Lordship", 1, f.office(org(f), Preset.LORD).seats());
     }
 
     static void aCommuneBecomesACouncilThatActsAlone() {
@@ -166,10 +176,14 @@ public final class SeatsTest {
         elect(f, KRIS);
         elect(f, GIL);
         elect(f, CY);
-        Outcome seats = f.engine.proposeToSeats(KRIS, lord(f), new SetSeats(org(f), lord(f), 0, Office.Deciding.ALONE));
-        eq("6: the seats cannot make a Commune", Reason.RESERVED.key(), seats.reasonKey());
-        Outcome rename = f.engine.proposeToSeats(KRIS, lord(f), new charter.org.actions.Rename(org(f), "Free Ashfall"));
-        eq("6: nor amend the charter", Reason.RESERVED.key(), rename.reasonKey());
+        check("6: a Treasurer office", f.admin(new charter.gov.actions.CreateOffice(org(f), "Treasurer")).done());
+        OfficeId treasurer = f.office(org(f), "Treasurer").id;
+        check("6: a root grant to it, given by the members", f.admin(new charter.grant.actions.GrantPower(org(f), charter.grant.Power.SPEND,
+                new charter.grant.Holder.OfOffice(treasurer), charter.grant.GrantScope.ANY, false, 0)).done());
+        var root = f.state.grants().stream().filter(g -> g.isRoot() && g.recipient.equals(new charter.grant.Holder.OfOffice(treasurer)))
+                .findFirst().orElseThrow();
+        Outcome revoke = f.engine.proposeToSeats(KRIS, lord(f), new charter.grant.actions.RevokeGrant(org(f), charter.grant.Power.SPEND, root.id));
+        eq("6: the seats cannot take back a root grant that is the members' to give", Reason.RESERVED.key(), revoke.reasonKey());
         eq("6: nothing changed", 3, f.office(org(f), Preset.LORD).seats());
     }
 
@@ -185,6 +199,36 @@ public final class SeatsTest {
         elect(f, GIL);
         elect(f, CY);
         return f;
+    }
+
+    static void noBackDoorsIntoTheDecisionOffice() {
+        Fixture f = world(Preset.LORDSHIP);
+        OfficeId lord = lord(f);
+        var rootGrant = f.state.grants().stream().filter(g -> g.isRoot() && g.recipient.equals(new charter.grant.Holder.OfOffice(lord))
+                && g.power == charter.grant.Power.SPEND).findFirst().orElseThrow();
+        Object[][] doors = {
+                {"Unseat", new charter.gov.actions.Unseat(org(f), lord, KRIS)},
+                {"Vacate", new charter.gov.actions.Vacate(org(f), lord)},
+                {"Appoint", new Appoint(org(f), lord, GIL)},
+                {"Expel", new charter.org.actions.Expel(org(f), KRIS)},
+                {"RevokeGrant", new charter.grant.actions.RevokeGrant(org(f), charter.grant.Power.SPEND, rootGrant.id)},
+                {"Rename", new charter.org.actions.Rename(org(f), "Free Ashfall")},
+                {"SetSeats", new SetSeats(org(f), lord, 3, Office.Deciding.ALONE)}};
+        for (Object[] door : doors) {
+            eq("2: members cannot vote the Lord out by " + door[0], Deciders.NOT_DECIDER.key(),
+                    f.engine.propose(GIL, (charter.engine.Action) door[1]).reasonKey());
+        }
+        check("2: the Lord is still the Lord", KRIS.equals(f.holder(org(f), Preset.LORD)));
+        check("2: the Lord may revoke his own root grant (a self limit)",
+                f.as(KRIS, new charter.grant.actions.RevokeGrant(org(f), charter.grant.Power.SPEND, rootGrant.id)).done());
+
+        Fixture c = council3(Office.Deciding.ALONE);
+        eq("2: one council holder cannot unseat another", Reason.NEEDS_SEATS.key(),
+                c.as(KRIS, new charter.gov.actions.Unseat(org(c), lord(c), GIL)).reasonKey());
+        Outcome out = c.engine.proposeToSeats(KRIS, lord(c), new charter.gov.actions.Unseat(org(c), lord(c), GIL));
+        check("2: a majority of the seats can", out instanceof Outcome.VoteOpened);
+        c.engine.cast(CY, ((Outcome.VoteOpened) out).vote(), Vote.Ballot.YES);
+        check("2: and then the holder is out", !c.office(org(c), Preset.LORD).holds(GIL));
     }
 
     static void aLordChangesHisOwnForm() {
@@ -229,16 +273,15 @@ public final class SeatsTest {
 
     static void aCommuneChangeStillNeedsTheMembers() {
         Fixture lordship = world(Preset.LORDSHIP);
-        eq("8c: a Lord cannot make a Commune", Reason.RESERVED.key(),
-                lordship.as(KRIS, new SetSeats(org(lordship), lord(lordship), 0, Office.Deciding.ALONE)).reasonKey());
+        check("8c: a Lord may make a Commune himself", lordship.as(KRIS, new SetSeats(org(lordship), lord(lordship), 0, Office.Deciding.ALONE)).done());
         Fixture commune = world(Preset.COMMUNE);
         eq("8c: a member cannot leave the Commune alone", Reason.RESERVED.key(),
                 commune.as(KRIS, new SetSeats(org(commune), lord(commune), 3, Office.Deciding.ALONE)).reasonKey());
         commune.motion(KRIS, new SetSeats(org(commune), lord(commune), 3, Office.Deciding.ALONE), GIL, CY);
         eq("8c: a vote of the members does", 3, commune.office(org(commune), Preset.LORD).seats());
         Fixture council = council3(Office.Deciding.ALONE);
-        council.motion(KRIS, new SetSeats(org(council), lord(council), 2, Office.Deciding.TOGETHER), GIL, CY);
-        eq("8c: the members may also change any form", 2, council.office(org(council), Preset.LORD).seats());
+        eq("8c: the members of a council have no vote on its form", Deciders.NOT_DECIDER.key(),
+                council.engine.propose(KRIS, new SetSeats(org(council), lord(council), 2, Office.Deciding.TOGETHER)).reasonKey());
     }
 
     static void onlyTheOfficeItselfMayChangeItsForm() {
@@ -316,7 +359,7 @@ public final class SeatsTest {
     }
 
     private static void f(Fixture f, int seats, Office.Deciding deciding) {
-        f.motion(KRIS, new SetSeats(org(f), lord(f), seats, deciding), GIL, CY);
+        check("setup: seats set", f.admin(new SetSeats(org(f), lord(f), seats, deciding)).done());
     }
 
     static void anAbsentHolderLosesOnlyTheirSeat() {

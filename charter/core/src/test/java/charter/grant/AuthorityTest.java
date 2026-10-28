@@ -81,7 +81,7 @@ public final class AuthorityTest {
         eq("C: the guard cannot withdraw over its limit", Reason.NO_AUTHORITY.key(),
                 f.as(BOB, new Withdraw(k.ashfall(), Currency.DIAMOND, 50, BOB)).reasonKey());
         Office lord = f.office(k.ashfall(), Preset.LORD);
-        eq("C: the guard cannot appoint the monarch", Reason.RESERVED.key(),
+        eq("C: the guard cannot appoint the monarch", Reason.NO_AUTHORITY.key(),
                 f.as(BOB, new Appoint(k.ashfall(), lord.id, BOB)).reasonKey());
         eq("C: the treasury paid only the guard's small spend", 95L, f.org(k.ashfall()).ledger.balance(Currency.DIAMOND));
     }

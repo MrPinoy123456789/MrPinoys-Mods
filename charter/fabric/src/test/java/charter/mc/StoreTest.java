@@ -282,7 +282,7 @@ final class StoreTest {
         CharterState back = store(dir).load(f.knobs, f.clock.now()).state();
         charter.gov.Office council = back.officeNamed(f.ironhold, "Lord").orElseThrow();
         check("seats: a council keeps its seats, its way of deciding and both holders",
-                council.seats() == 2 && council.deciding() == charter.gov.Office.Deciding.TOGETHER && council.holders().size() == 2);
+                council.seats() == 3 && council.deciding() == charter.gov.Office.Deciding.TOGETHER && council.holders().size() == 2);
         check("seats: a vote among the seats keeps its office",
                 back.votes().stream().anyMatch(v -> council.id.equals(v.seatsOf) && v.electorate.size() == 2));
         check("seats: an election among a former council stays restricted", back.votes().stream().anyMatch(v -> v.kind == Vote.Kind.ELECTION && v.restricted()));

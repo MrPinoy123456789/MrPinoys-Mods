@@ -193,7 +193,7 @@ public final class StandingTest {
 
     static void votesWaitingUntilCast() {
         Fixture f = world(Preset.LORDSHIP, 4);
-        Outcome opened = f.engine.propose(KRIS, new Rename(org(f), "Ashfall Free"));
+        Outcome opened = f.engine.propose(KRIS, new CreateOffice(org(f), "Reeve"));
         var id = ((Outcome.VoteOpened) opened).vote();
         eq("10: an open motion waits for Gil", List.of(id), view(f, GIL).votesWaiting());
         eq("10: not for the proposer who voted", 0, view(f, KRIS).votesWaiting().size());

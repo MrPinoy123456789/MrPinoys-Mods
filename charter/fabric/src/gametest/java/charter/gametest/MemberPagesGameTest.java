@@ -114,7 +114,7 @@ public final class MemberPagesGameTest {
             ServerPlayer gil = member(kit, org);
             applicant(kit, org);
             kit.keep(lord);
-            Outcome opened = kit.rt.engine.propose(id(lord), new Rename(org, "Renamed" + System.nanoTime() % 100000));
+            Outcome opened = kit.rt.engine.propose(id(lord), new charter.gov.actions.CreateOffice(org, "Reeve" + System.nanoTime() % 100000));
             VoteId vote = opened instanceof Outcome.VoteOpened v ? v.vote() : null;
             helper.assertTrue(vote != null && kit.rt.state.vote(vote).orElseThrow().open(), "The setup vote is not open");
             everyPage(helper, lord, vote);
@@ -204,8 +204,10 @@ public final class MemberPagesGameTest {
             helper.assertTrue(BookDialogs.buttons(BookDialogs.LAST.get(plain.getUUID())).stream()
                     .noneMatch(b -> b.button().label().getString().equals(Text.get("book.decides.to_lordship"))),
                     "A member who is not a decider was offered the deciders' changes");
-            helper.assertTrue(CharterCommands.tokens().newest(plain.getUUID(), Text.get("book.decides.everyone")).isPresent(),
-                    "A member who is not a decider was not offered the members' list");
+            helper.assertTrue(body(plain).stream().anyMatch(l -> l.contains("you can break away")),
+                    "A member who is not a decider was not told who decides: " + body(plain));
+            helper.assertTrue(CharterCommands.tokens().newest(plain.getUUID(), Text.get("book.decides.everyone")).isEmpty(),
+                    "A member of a council was offered a vote on its form");
             helper.succeed();
         }
     }
@@ -217,7 +219,7 @@ public final class MemberPagesGameTest {
             OrgId org = kit.orgOf(lord);
             asOp(kit, "charter admin age " + lord.getUUID() + " 4");
             ServerPlayer gil = member(kit, org);
-            Outcome opened = kit.rt.engine.propose(id(lord), new Rename(org, "Ballot" + System.nanoTime() % 100000));
+            Outcome opened = kit.rt.engine.propose(id(lord), new charter.gov.actions.CreateOffice(org, "Clerk" + System.nanoTime() % 100000));
             VoteId vote = ((Outcome.VoteOpened) opened).vote();
             MemberPages.vote(gil, vote, null);
             press(helper, gil, Text.get("book.button.yes"));
@@ -257,11 +259,16 @@ public final class MemberPagesGameTest {
             ServerPlayer lord = kit.faction("Choice");
             OrgId org = kit.orgOf(lord);
             asOp(kit, "charter admin age " + lord.getUUID() + " 4");
-            MemberPages.whoDecidesMembers(lord, null);
-            press(helper, lord, Text.get("book.decides.everyone"));
+            MemberPages.whoDecides(lord, null);
+            press(helper, lord, Text.get("book.decides.to_commune"));
+            helper.assertTrue(kit.rt.state.org(org).flatMap(o -> kit.rt.state.office(o.governance.deciders)).orElseThrow().seats() == 0,
+                    "The Lord did not abdicate into a commune from the book");
+            // Now a commune: its members vote on the form.
+            MemberPages.whoDecides(lord, null);
+            press(helper, lord, Text.get("book.decides.one"));
             boolean proposed = kit.rt.state.votes().stream().anyMatch(v -> v.org.equals(org)
-                    && v.motion instanceof SetSeats s && s.seats() == 0);
-            helper.assertTrue(proposed, "Everyone, by vote did not put a SetSeats of 0 to a vote");
+                    && v.motion instanceof SetSeats s && s.seats() == 1);
+            helper.assertTrue(proposed, "One ruler did not put a SetSeats of 1 to a vote of the commune");
 
             ServerPlayer other = kit.faction("Seat");
             OrgId orgTwo = kit.orgOf(other);

@@ -132,20 +132,24 @@ public final class GovernanceTest {
 
         check("B: the Lord spends under the limit", f.as(KRIS, new Withdraw(org, Currency.DIAMOND, limit, KRIS)).done());
         check("B: the Lord is refused over the limit", f.as(KRIS, new Withdraw(org, Currency.DIAMOND, limit + 1, KRIS)).refused());
-        eq("B: the Lord cannot amend the charter", Reason.RESERVED.key(), f.as(KRIS, new Rename(org, "Kris Land")).reasonKey());
+        check("B: the Lord renames the faction himself", f.as(KRIS, new Rename(org, "Kris Land")).done());
         Office lord = f.office(org, Preset.LORD);
-        eq("B: the Lord cannot remove himself from the reserved office alone", Reason.RESERVED.key(), f.as(KRIS, new Vacate(org, lord.id)).reasonKey());
-        eq("B: no member can expel the Lord without a vote", Reason.RESERVED.key(), f.as(GIL, new Expel(org, KRIS)).reasonKey());
+        eq("B: members cannot vote the Lord out", Deciders.NOT_DECIDER.key(), f.engine.propose(GIL, new Vacate(org, lord.id)).reasonKey());
+        eq("B: nor expel him", Deciders.NOT_DECIDER.key(), f.engine.propose(GIL, new Expel(org, KRIS)).reasonKey());
+        eq("B: nor rename the faction", Deciders.NOT_DECIDER.key(), f.engine.propose(GIL, new Rename(org, "Free Ashfall")).reasonKey());
+        check("B: the Lord is still the Lord", KRIS.equals(f.holder(org, Preset.LORD)));
 
-        f.motion(GIL, new Vacate(org, lord.id), CY, DEE);
-        f.closeVotes(KRIS, GIL, CY, DEE);
-        check("B: the members voted the Lord out", f.office(org, Preset.LORD).vacant());
-        eq("B: the Lord's next action is refused", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org, Currency.DIAMOND, 1, KRIS)).reasonKey());
+        check("B: the Lord may abdicate", f.as(KRIS, new Vacate(org, lord.id)).done());
+        check("B: the office is empty", f.office(org, Preset.LORD).vacant());
+        eq("B: the old Lord's next action is refused", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org, Currency.DIAMOND, 1, KRIS)).reasonKey());
         eq("B: the treasury paid only the one spend", 200L - limit, f.org(org).ledger.balance(Currency.DIAMOND));
 
-        f.motion(GIL, new Rename(org, "Free Ashfall"), CY, DEE);
-        f.closeVotes(KRIS, GIL, CY, DEE);
-        eq("B: the members amend the charter by vote", "Free Ashfall", f.org(org).name());
+        var opened = f.engine.openElection(lord.id, GIL);
+        check("B: the members may choose a successor for the empty seat", opened instanceof Outcome.VoteOpened);
+        var vote = ((Outcome.VoteOpened) opened).vote();
+        for (PlayerId voter : new PlayerId[]{KRIS, GIL, CY, DEE}) f.engine.cast(voter, vote, Vote.Ballot.candidate(GIL));
+        eq("B: and the winner is Lord", GIL, f.holder(org, Preset.LORD));
+        eq("B: a sitting Lord cannot be replaced by an election", Appoint.OFFICE_FULL.key(), f.engine.openElection(lord.id, CY).reasonKey());
     }
 
     static void absentLordLosesTheOffice() {

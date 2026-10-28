@@ -3,6 +3,7 @@ package charter.org.actions;
 import charter.engine.Action;
 import charter.engine.ActionContext;
 import charter.engine.Outcome;
+import charter.gov.Deciders;
 import charter.grant.Power;
 import charter.history.HistoryEvent;
 import charter.id.OrgId;
@@ -12,7 +13,7 @@ import charter.org.Organization;
 import java.util.List;
 import java.util.Optional;
 
-/** Renames an organization. Amending the charter is reserved to the members' vote. */
+/** Renames an organization: a vote of the members in a Commune, else the deciders of its decision office. */
 public record Rename(OrgId org, String name) implements Action {
 
     @Override
@@ -22,17 +23,25 @@ public record Rename(OrgId org, String name) implements Action {
 
     @Override
     public Optional<Power> power() {
-        return Optional.of(Power.AMEND);
+        return Optional.of(Power.APPOINT);
     }
 
     @Override
     public boolean reserved(ActionContext ctx) {
-        return true;
+        return Deciders.membersDecide(ctx.state, org);
+    }
+
+    @Override
+    public boolean needsSeatMajority(ActionContext ctx) {
+        return !Deciders.membersDecide(ctx.state, org);
     }
 
     @Override
     public Outcome check(ActionContext ctx) {
-        return Found.checkName(ctx, name);
+        Outcome named = Found.checkName(ctx, name);
+        if (named.refused()) return named;
+        // The name is the deciders' to change: the members of a Lordship or a council cannot vote it.
+        return Deciders.of(ctx.state, org).map(d -> Deciders.gate(ctx, d, false)).orElse(Outcome.OK);
     }
 
     @Override

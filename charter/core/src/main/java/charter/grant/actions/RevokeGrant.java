@@ -43,7 +43,19 @@ public record RevokeGrant(OrgId subject, Power revoked, GrantId grant) implement
 
     @Override
     public boolean reserved(ActionContext ctx) {
-        return ctx.state.grant(grant).map(Grant::isRoot).orElse(false);
+        // A root grant is the members' to give or take back, except the decision office's own: those follow its deciders.
+        return ctx.state.grant(grant).map(g -> g.isRoot() && (toDeciders(ctx, g).isEmpty() || toDeciders(ctx, g).get().seats() == 0)).orElse(false);
+    }
+
+    @Override
+    public boolean needsSeatMajority(ActionContext ctx) {
+        return ctx.state.grant(grant).map(g -> toDeciders(ctx, g).isPresent()).orElse(false);
+    }
+
+    /** The decision office, when this grant's recipient is it. */
+    private static java.util.Optional<charter.gov.Office> toDeciders(ActionContext ctx, Grant g) {
+        if (!(g.recipient instanceof charter.grant.Holder.OfOffice o)) return java.util.Optional.empty();
+        return charter.gov.Deciders.of(ctx.state, g.subject).filter(d -> d.id.equals(o.office()));
     }
 
     @Override
@@ -53,6 +65,9 @@ public record RevokeGrant(OrgId subject, Power revoked, GrantId grant) implement
             return Outcome.refuse(NO_SUCH_GRANT);
         }
         Authority authority = ctx.authority();
+        if (found.get().isRoot() && toDeciders(ctx, found.get()).isPresent()) {
+            return charter.gov.Deciders.gate(ctx, toDeciders(ctx, found.get()).get(), false);
+        }
         if (authority.kind() == Authority.Kind.GRANT) {
             Grant target = found.get();
             Grant parent = target.parent == null ? null : ctx.state.grant(target.parent).orElse(null);

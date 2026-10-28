@@ -4,6 +4,7 @@ import charter.engine.Action;
 import charter.engine.ActionContext;
 import charter.engine.Outcome;
 import charter.engine.Reason;
+import charter.gov.Deciders;
 import charter.gov.GovEvents;
 import charter.gov.Office;
 import charter.grant.Power;
@@ -26,8 +27,7 @@ import java.util.Optional;
 public record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding deciding) implements Action {
 
     public static final Reason BAD_SEATS = new Reason("bad_seats", "That is not a number of seats this faction may have.");
-    public static final Reason NOT_DECIDER = new Reason("not_decider",
-            "Only those who hold this office, or the members by vote, can change how it is run.");
+    public static final Reason NOT_DECIDER = Deciders.NOT_DECIDER;
     public static final Reason NO_CHANGE = new Reason("no_change", "That is how it already is.");
 
     @Override
@@ -41,17 +41,18 @@ public record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding de
     }
 
     /**
-     * Going to or from a Commune (0 seats) is the members' to decide by vote. Any other change of
-     * form is the office's own to make, by its deciders' rule; a vote of the members may still make it.
+     * Leaving a Commune (no seats now) is a vote of the members. Any other change of the decision
+     * office's form is its deciders' own act: a Lord alone (even to a Commune, abdicating), a council by a
+     * majority of its seats. Members of a Lordship or council have no vote on it ({@link Deciders}).
      */
     @Override
     public boolean reserved(ActionContext ctx) {
-        return ctx.state.office(office).map(o -> o.seats() == 0).orElse(true) || seats == 0;
+        return ctx.state.office(office).map(o -> Deciders.isDecisionOffice(ctx.state, o) && o.seats() == 0).orElse(true);
     }
 
     @Override
     public boolean needsSeatMajority(ActionContext ctx) {
-        return true;
+        return ctx.state.office(office).map(o -> Deciders.isDecisionOffice(ctx.state, o)).orElse(false);
     }
 
     @Override
@@ -60,13 +61,8 @@ public record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding de
         if (found.isEmpty() || !found.get().org.equals(org)) return Outcome.refuse(Appoint.NO_SUCH_OFFICE);
         if (seats < 0 || seats > ctx.knobs.maxSeats || deciding == null) return Outcome.refuse(BAD_SEATS);
         if (found.get().seats() == seats && found.get().deciding() == deciding) return Outcome.refuse(NO_CHANGE);
-        // Acting by a grant, the actor must act through this very office. A council of two or more changes
-        // its own form only by a majority of its seats (needsSeatMajority), never one holder alone.
-        var authority = ctx.authority();
-        if (authority.kind() == charter.grant.Authority.Kind.GRANT) {
-            boolean ownOffice = authority.via().recipient instanceof charter.grant.Holder.OfOffice(var id) && id.equals(office);
-            if (!ownOffice) return Outcome.refuse(NOT_DECIDER);
-        }
+        // A council of two or more changes its own form only by a majority of its seats (needsSeatMajority).
+        if (Deciders.isDecisionOffice(ctx.state, found.get())) return Deciders.gate(ctx, found.get(), false);
         return Outcome.OK;
     }
 

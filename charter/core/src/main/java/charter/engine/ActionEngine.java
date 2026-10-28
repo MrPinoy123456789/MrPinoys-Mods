@@ -232,6 +232,8 @@ public final class ActionEngine {
         OrgId org = office.get().org;
         if (office.get().seats() == 0) return Outcome.refuse(Appoint.NO_SEATS);
         if (office.get().full() && office.get().seats() > 1) return Outcome.refuse(Appoint.OFFICE_FULL);
+        // The members choose a ruler for an empty seat; they never replace a sitting one.
+        if (office.get().full() && charter.gov.Deciders.isDecisionOffice(state, office.get())) return Outcome.refuse(Appoint.OFFICE_FULL);
         Set<PlayerId> electorate = council != null ? new LinkedHashSet<>(council) : eligibleVoters(org, now);
         if (electorate.isEmpty()) return Outcome.refuse(Reason.NOT_ELIGIBLE);
         if (proposer != null && !electorate.contains(proposer)) return Outcome.refuse(Reason.NOT_ELIGIBLE);

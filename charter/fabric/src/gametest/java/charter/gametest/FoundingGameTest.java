@@ -179,7 +179,7 @@ public final class FoundingGameTest {
             helper.assertTrue(all.contains(Text.get("book.join.who_decides")), "The faction page does not say who decides: " + all);
             helper.assertTrue(!all.toLowerCase().contains("gives away") && !all.toLowerCase().contains("garrison"),
                     "The faction page still lists what does not touch a member: " + all);
-            helper.assertTrue(all.contains(Text.get("book.holder.vote_newcomer")), "The charter vote is not worded for a newcomer: " + all);
+            helper.assertTrue(all.contains(Text.get("book.join.no_vote")) && !all.contains("charter"), "The page does not say members cannot vote the ruler out: " + all);
             NewcomerPages.home(newcomer, null);
             helper.assertTrue(BookDialogs.LAST.containsKey(newcomer.getUUID()), "The newcomer home sent no dialog");
 
