@@ -11,4 +11,8 @@ public sealed interface Who {
 
     record AsOrg(OrgId org) implements Who {
     }
+
+    /** The holders of an office acting by a majority vote of the seats. Reaches only grants to that office. */
+    record AsSeats(charter.id.OfficeId office) implements Who {
+    }
 }

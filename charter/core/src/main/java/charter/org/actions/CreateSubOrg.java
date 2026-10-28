@@ -43,7 +43,7 @@ public record CreateSubOrg(OrgId parent, String name, Preset preset, PlayerId le
         if (named.refused()) return named;
         if (!ctx.state.isMember(leader, parent)) return Outcome.refuse(OrgReasons.NOT_A_MEMBER);
         for (Office office : ctx.state.offices(parent)) {
-            if (leader.equals(office.holder())) return Outcome.refuse(OrgReasons.HOLDS_OFFICE);
+            if (office.holds(leader)) return Outcome.refuse(OrgReasons.HOLDS_OFFICE);
         }
         return Outcome.OK;
     }

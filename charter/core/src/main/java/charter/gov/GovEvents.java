@@ -31,6 +31,9 @@ public final class GovEvents {
     public record OfficeFilled(long at, OfficeId office, OrgId org, PlayerId holder) implements HistoryEvent {
     }
 
+    public record SeatsChanged(long at, OfficeId office, OrgId org, int seats, Office.Deciding deciding) implements HistoryEvent {
+    }
+
     public record OfficeVacated(long at, OfficeId office, OrgId org, PlayerId formerHolder, String why) implements HistoryEvent {
     }
 }

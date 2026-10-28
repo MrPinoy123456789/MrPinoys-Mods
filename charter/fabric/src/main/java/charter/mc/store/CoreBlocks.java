@@ -214,6 +214,7 @@ public final class CoreBlocks {
             gov.addProperty("preset", org.governance.preset.name());
             gov.addProperty("defaultMethod", org.governance.defaultMethod.name());
             gov.addProperty("quorumShare", org.governance.quorumShare);
+            if (org.governance.deciders != null) gov.add("deciders", gson.toJsonTree(org.governance.deciders));
             gov.add("methods", gson.toJsonTree(org.governance.methods(), METHODS));
             o.add("governance", gov);
 
@@ -237,6 +238,7 @@ public final class CoreBlocks {
             Governance gov = new Governance(Preset.valueOf(str(g, "preset")));
             gov.defaultMethod = VoteMethod.valueOf(str(g, "defaultMethod"));
             gov.quorumShare = dbl(g, "quorumShare");
+            gov.deciders = get(g, "deciders", OfficeId.class, gson);
             Map<Power, VoteMethod> methods = get(g, "methods", METHODS, gson);
             if (methods != null) methods.forEach(gov::setMethod);
 
@@ -314,8 +316,16 @@ public final class CoreBlocks {
             o.addProperty("name", office.name);
             o.addProperty("reserved", office.reserved);
             o.addProperty("vacateWhenAbsent", office.vacateWhenAbsent);
-            if (office.holder() != null) o.add("holder", gson.toJsonTree(office.holder()));
-            o.addProperty("heldSince", office.heldSince());
+            o.addProperty("seats", office.seats());
+            o.addProperty("deciding", office.deciding().name());
+            JsonArray holders = new JsonArray();
+            for (Office.Seat seat : office.holders()) {
+                JsonObject h = new JsonObject();
+                h.add("player", gson.toJsonTree(seat.player()));
+                h.addProperty("since", seat.since());
+                holders.add(h);
+            }
+            o.add("holders", holders);
             offices.add(o);
         }
         JsonObject root = new JsonObject();
@@ -332,9 +342,20 @@ public final class CoreBlocks {
                 repairs.note("office_dropped", "office " + str(o, "name") + " (" + id + ") of " + org + ", which is gone");
                 continue;
             }
-            Office office = new Office(id, org, str(o, "name"), bool(o, "reserved"), bool(o, "vacateWhenAbsent"));
-            PlayerId holder = get(o, "holder", PlayerId.class, gson);
-            if (holder != null) office.fill(holder, num(o, "heldSince"));
+            // Before seats an office had one holder and no "seats": it reads as a one seat office.
+            Office office = new Office(id, org, str(o, "name"), bool(o, "reserved"), bool(o, "vacateWhenAbsent"),
+                    o.has("seats") ? (int) num(o, "seats") : 1);
+            if (o.has("deciding")) office.setDeciding(Office.Deciding.valueOf(str(o, "deciding")));
+            if (o.has("holders")) {
+                for (JsonElement h : o.getAsJsonArray("holders")) {
+                    JsonObject seat = h.getAsJsonObject();
+                    PlayerId player = get(seat, "player", PlayerId.class, gson);
+                    if (player != null) office.seat(player, num(seat, "since"));
+                }
+            } else {
+                PlayerId holder = get(o, "holder", PlayerId.class, gson);
+                if (holder != null) office.seat(holder, num(o, "heldSince"));
+            }
             state.addOffice(office);
         }
     }
@@ -421,6 +442,7 @@ public final class CoreBlocks {
             o.addProperty("kind", v.kind.name());
             if (v.motion != null) o.add("motion", gson.toJsonTree(v.motion, Action.class));
             if (v.office != null) o.add("office", gson.toJsonTree(v.office));
+            if (v.seatsOf != null) o.add("seatsOf", gson.toJsonTree(v.seatsOf));
             if (v.proposer != null) o.add("proposer", gson.toJsonTree(v.proposer));
             if (v.power != null) o.addProperty("power", v.power.name());
             o.addProperty("method", v.method.name());
@@ -459,7 +481,7 @@ public final class CoreBlocks {
                     get(o, "proposer", PlayerId.class, gson), power.isEmpty() ? null : Power.valueOf(power),
                     VoteMethod.valueOf(str(o, "method")), dbl(o, "quorumShare"),
                     orEmpty(get(o, "electorate", PLAYER_SET, gson)), orEmpty(get(o, "activeAtOpen", PLAYER_SET, gson)),
-                    num(o, "openedAt"), num(o, "closesAt"));
+                    num(o, "openedAt"), num(o, "closesAt"), get(o, "seatsOf", OfficeId.class, gson));
             Map<PlayerId, Vote.Ballot> ballots = get(o, "ballots", BALLOTS, gson);
             if (ballots != null) ballots.forEach(vote::cast);
             vote.settle(Vote.State.valueOf(str(o, "state")), str(o, "result"));

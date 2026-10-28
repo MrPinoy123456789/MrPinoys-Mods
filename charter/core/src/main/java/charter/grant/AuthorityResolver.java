@@ -68,9 +68,10 @@ public final class AuthorityResolver {
         return switch (recipient) {
             case Holder.OfPlayer(var player) -> who instanceof Who.AsPlayer(var p) && p.equals(player);
             case Holder.OfOffice(var officeId) -> {
+                if (who instanceof Who.AsSeats(var seats)) yield seats.equals(officeId);
                 if (!(who instanceof Who.AsPlayer(var p))) yield false;
                 Optional<Office> office = state.office(officeId);
-                yield office.isPresent() && p.equals(office.get().holder()) && state.isMember(p, office.get().org);
+                yield office.isPresent() && office.get().holds(p) && state.isMember(p, office.get().org);
             }
             case Holder.OfOrg(var org) -> {
                 if (who instanceof Who.AsOrg(var o)) yield o.equals(org);

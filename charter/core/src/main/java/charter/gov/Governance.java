@@ -13,6 +13,8 @@ import java.util.Map;
 public final class Governance {
 
     public final Preset preset;
+    /** The decision makers office (seats 0 = the members decide); null for an organization saved before seats. */
+    public charter.id.OfficeId deciders;
     public VoteMethod defaultMethod = VoteMethod.MAJORITY;
     /** Share of active members who must cast a ballot for a vote to count. */
     public double quorumShare = 0.5;

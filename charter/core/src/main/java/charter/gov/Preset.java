@@ -40,21 +40,29 @@ public enum Preset {
 
     public List<HistoryEvent> apply(CharterState state, Organization org, PlayerId founder, Knobs knobs, long now) {
         List<HistoryEvent> events = new ArrayList<>();
-        if (this == LORDSHIP) {
-            Office lord = new Office(state.ids.office(), org.id, LORD, true, true);
-            state.addOffice(lord);
-            lord.fill(founder, now);
-            events.add(new GovEvents.OfficeCreated(now, lord.id, org.id, lord.name, true));
+        // Every faction has the decision makers office: one seat for a Lordship, none for a Commune (S1).
+        int seats = this == LORDSHIP ? 1 : 0;
+        Office lord = new Office(state.ids.office(), org.id, LORD, true, true, seats);
+        state.addOffice(lord);
+        org.governance.deciders = lord.id;
+        events.add(new GovEvents.OfficeCreated(now, lord.id, org.id, lord.name, true));
+        if (seats > 0) {
+            lord.seat(founder, now);
             events.add(new GovEvents.OfficeFilled(now, lord.id, org.id, founder));
-            Holder self = new Holder.OfOrg(org.id);
-            for (Power power : LORD_POWERS) {
-                GrantScope scope = power == Power.SPEND
-                        ? GrantScope.spendUpTo(knobs.lordSpendLimitCobblestone, knobs.lordSpendLimitDiamonds)
-                        : GrantScope.ANY;
-                state.addGrant(new Grant(state.ids.grant(), org.id, power, new Holder.OfOffice(lord.id), self,
-                        null, scope, true, now, 0));
-            }
         }
+        addLordGrants(state, org.id, lord.id, knobs, now);
         return events;
+    }
+
+    /** The root grants of the decision makers office: every routine power, the spend limit included. */
+    public static void addLordGrants(CharterState state, charter.id.OrgId org, charter.id.OfficeId lord, Knobs knobs, long now) {
+        Holder self = new Holder.OfOrg(org);
+        for (Power power : LORD_POWERS) {
+            GrantScope scope = power == Power.SPEND
+                    ? GrantScope.spendUpTo(knobs.lordSpendLimitCobblestone, knobs.lordSpendLimitDiamonds)
+                    : GrantScope.ANY;
+            state.addGrant(new Grant(state.ids.grant(), org, power, new Holder.OfOffice(lord), self,
+                    null, scope, true, now, 0));
+        }
     }
 }

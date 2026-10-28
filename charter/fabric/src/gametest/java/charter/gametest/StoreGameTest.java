@@ -54,7 +54,7 @@ public final class StoreGameTest {
         helper.assertTrue(loaded.source() == CharterStore.Source.STATE, "The reload did not come from state.json");
         helper.assertTrue(back.org(org).map(o -> o.name().equals(name)).orElse(false), "The organization did not reload");
         helper.assertTrue(back.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == 7, "The treasury did not reload");
-        helper.assertTrue(back.officeNamed(org, "Lord").map(o -> founder.equals(o.holder())).orElse(false),
+        helper.assertTrue(back.officeNamed(org, "Lord").map(o -> o.holds(founder)).orElse(false),
                 "The Lord office did not reload with its holder");
         helper.assertTrue(back.grants().size() == rt.state.grants().size(), "Grants did not all reload");
         helper.assertTrue(back.siegeClock.now() == rt.state.siegeClock.now(), "The siege clock did not reload");

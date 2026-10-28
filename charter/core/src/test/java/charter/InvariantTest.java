@@ -174,7 +174,7 @@ public final class InvariantTest {
         PlayerId preferred;
 
         PlayerId lordOf(OrgId org) {
-            return f.state.officeNamed(org, Preset.LORD).map(Office::holder).orElse(null);
+            return f.state.officeNamed(org, Preset.LORD).map(o -> o.vacant() ? null : o.holders().get(0).player()).orElse(null);
         }
 
         /** A claimed chunk where one exists (so arrests can happen on someone's land), else any chunk. */
@@ -440,7 +440,9 @@ public final class InvariantTest {
         }
         for (Office office : s.allOffices()) {
             if (s.org(office.org).isEmpty()) continue;
-            if (!office.vacant() && !s.isMember(office.holder(), office.org)) return "5: " + office.name + " is held by a non-member";
+            for (Office.Seat seat : office.holders()) {
+                if (!s.isMember(seat.player(), office.org)) return "5: " + office.name + " is held by a non-member";
+            }
         }
         AuthorityResolver resolver = new AuthorityResolver(s, now);
         for (Grant grant : s.grants()) {
@@ -575,7 +577,7 @@ public final class InvariantTest {
             for (MemberRecord m : s.members(o.id)) b.append("  member ").append(m).append('\n');
         }
         for (var i : s.invites()) b.append("invite ").append(i).append('\n');
-        for (Office o : s.allOffices()) b.append("office ").append(o.id).append(' ').append(o.holder()).append('\n');
+        for (Office o : s.allOffices()) b.append("office ").append(o.id).append(' ').append(o.holders()).append('\n');
         for (Grant g : s.grants()) b.append("grant ").append(g.id).append(' ').append(g.revoked()).append('\n');
         for (Vote v : s.votes()) b.append("vote ").append(v.id).append(' ').append(v.state()).append(' ').append(v.ballots()).append('\n');
         for (Core c : s.cores()) b.append("core ").append(c.id).append(' ').append(c.phase()).append('\n');

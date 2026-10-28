@@ -91,6 +91,12 @@ public final class Fixture {
         return state.officeNamed(org, name).orElseThrow();
     }
 
+    /** The first holder of an office, or null when nobody holds it. */
+    public PlayerId holder(OrgId org, String name) {
+        Office office = office(org, name);
+        return office.vacant() ? null : office.holders().get(0).player();
+    }
+
     /** Proposes, has the listed members vote yes, and returns the vote id. */
     public VoteId motion(PlayerId proposer, Action action, PlayerId... yes) {
         Outcome opened = engine.propose(proposer, action);

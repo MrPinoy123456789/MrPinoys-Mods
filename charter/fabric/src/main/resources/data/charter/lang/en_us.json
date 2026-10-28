@@ -160,6 +160,8 @@
   "motion.gov.create_office": "create the office of {name}",
   "motion.gov.appoint": "appoint {player} as {office}",
   "motion.gov.vacate": "empty the office of {office}",
+  "motion.gov.unseat": "remove {player} from {office}",
+  "motion.gov.set_seats": "give {office} {seats} seats, deciding {deciding}",
   "motion.grant.grant": "let {recipient} {granted}",
   "motion.grant.revoke": "take back a grant to {revoked}",
   "motion.treasury.deposit": "deposit {amount} {currency}",

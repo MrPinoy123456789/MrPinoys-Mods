@@ -34,6 +34,7 @@ public final class DefaultTemplates {
         t.put("GovEvents.VoteRefusedAtExecution", "In {when}, the vote of {org} carried, but could not be carried out, for the world had changed ({reasonKey}).");
         t.put("GovEvents.OfficeCreated", "In {when}, {org} created the office of {name}{reserved?, which only a vote may fill}.");
         t.put("GovEvents.OfficeFilled", "In {when}, {holder} took up the office of {office} in {org}.");
+        t.put("GovEvents.SeatsChanged", "In {when}, {org} changed how it is ruled: {seats} seats, deciding {deciding}.");
         t.put("GovEvents.OfficeVacated", "In {when}, {formerHolder} left the office of {office} in {org}: {why}.");
 
         // ---- grants (GrantEvents) ----

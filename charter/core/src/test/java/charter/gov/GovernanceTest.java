@@ -62,7 +62,7 @@ public final class GovernanceTest {
         f.as(KRIS, new InviteMember(org, GIL));
         f.as(GIL, new AcceptInvite(GIL, org));
         eq("found: the second member makes it active", OrgStatus.ACTIVE, f.org(org).status());
-        eq("found: the founder of a lordship holds the Lord office", KRIS, f.office(org, Preset.LORD).holder());
+        eq("found: the founder of a lordship holds the Lord office", KRIS, f.holder(org, Preset.LORD));
     }
 
     static void foundingRules() {
@@ -100,7 +100,7 @@ public final class GovernanceTest {
         f.motion(GIL, new Appoint(c, treasurer.id, CY), KRIS, DEE);
         f.motion(GIL, new GrantPower(c, Power.SPEND, new Holder.OfOffice(treasurer.id), GrantScope.spendUpTo(0, 20), false, 0), KRIS, DEE);
         f.closeVotes(KRIS, GIL, CY, DEE);
-        eq("A: an officer vote fills the office", CY, f.office(c, "Treasurer").holder());
+        eq("A: an officer vote fills the office", CY, f.holder(c, "Treasurer"));
         check("A: the officer can act within the voted power", f.as(CY, new Withdraw(c, Currency.DIAMOND, 15, CY)).done());
         eq("A: the officer cannot act beyond it", Reason.NEEDS_VOTE.key(), f.as(CY, new Withdraw(c, Currency.DIAMOND, 25, CY)).reasonKey());
         eq("A: another member still cannot spend", Reason.NEEDS_VOTE.key(), f.as(DEE, new Withdraw(c, Currency.DIAMOND, 5, DEE)).reasonKey());
@@ -136,7 +136,7 @@ public final class GovernanceTest {
         Fixture f = new Fixture();
         OrgId org = f.found("Ashfall", Preset.LORDSHIP, KRIS, GIL, CY);
         f.passDays(6, GIL, CY);
-        check("B: a Lord absent 6 days still holds the office", KRIS.equals(f.office(org, Preset.LORD).holder()));
+        check("B: a Lord absent 6 days still holds the office", KRIS.equals(f.holder(org, Preset.LORD)));
         f.passDays(1.5, GIL, CY);
         check("B: a Lord absent past 7 days loses the office", f.office(org, Preset.LORD).vacant());
         Vote election = f.state.votes().stream().filter(v -> v.open() && v.kind == Vote.Kind.ELECTION).findFirst().orElse(null);
@@ -146,7 +146,7 @@ public final class GovernanceTest {
         f.engine.cast(CY, election.id, Vote.Ballot.candidate(CY));
         check("B: the election stays open while the absent Lord could still vote", election.open());
         f.closeVotes(GIL, CY);
-        eq("B: the election fills the office", CY, f.office(org, Preset.LORD).holder());
+        eq("B: the election fills the office", CY, f.holder(org, Preset.LORD));
         check("B: the new Lord holds the Lord's powers", f.as(CY, new InviteMember(org, DEE)).done());
     }
 

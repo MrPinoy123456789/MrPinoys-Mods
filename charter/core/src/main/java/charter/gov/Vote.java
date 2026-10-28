@@ -56,6 +56,8 @@ public final class Vote {
     public final Set<PlayerId> activeAtOpen;
     public final long openedAt;
     public final long closesAt;
+    /** The office whose seats are the electorate (a council vote); null for every vote of the members. */
+    public final OfficeId seatsOf;
 
     private final Map<PlayerId, Ballot> ballots = new LinkedHashMap<>();
     private State state = State.OPEN;
@@ -64,6 +66,13 @@ public final class Vote {
     public Vote(VoteId id, OrgId org, Kind kind, Action motion, OfficeId office, PlayerId proposer, Power power,
                 VoteMethod method, double quorumShare, Set<PlayerId> electorate, Set<PlayerId> activeAtOpen,
                 long openedAt, long closesAt) {
+        this(id, org, kind, motion, office, proposer, power, method, quorumShare, electorate, activeAtOpen, openedAt, closesAt, null);
+    }
+
+    public Vote(VoteId id, OrgId org, Kind kind, Action motion, OfficeId office, PlayerId proposer, Power power,
+                VoteMethod method, double quorumShare, Set<PlayerId> electorate, Set<PlayerId> activeAtOpen,
+                long openedAt, long closesAt, OfficeId seatsOf) {
+        this.seatsOf = seatsOf;
         this.id = id;
         this.org = org;
         this.kind = kind;

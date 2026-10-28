@@ -67,12 +67,12 @@ final class Pages {
 
         List<String> members = new ArrayList<>();
         for (MemberRecord m : rt.state.members(org.id)) {
-            List<String> held = rt.state.offices(org.id).stream().filter(o -> m.player().equals(o.holder())).map(o -> o.name).toList();
+            List<String> held = rt.state.offices(org.id).stream().filter(o -> o.holds(m.player())).map(o -> o.name).toList();
             members.add(held.isEmpty() ? d.player(m.player()) : d.player(m.player()) + " (" + String.join(", ", held) + ")");
         }
         player.sendSystemMessage(Chat.line(Text.get("page.members", "count", members.size(), "list", String.join(", ", members))));
         for (Office office : rt.state.offices(org.id)) {
-            if (office.vacant()) player.sendSystemMessage(Chat.dim(Text.get("page.office_vacant", "office", office.name)));
+            if (office.vacant() && office.seats() > 0) player.sendSystemMessage(Chat.dim(Text.get("page.office_vacant", "office", office.name)));
         }
 
         player.sendSystemMessage(Chat.line(Text.get("page.treasury", "balances", balances(org)))

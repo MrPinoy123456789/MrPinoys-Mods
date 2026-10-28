@@ -2,6 +2,7 @@ package charter.mc;
 
 import charter.config.Knobs;
 import charter.gov.Vote;
+import charter.grant.Holder;
 import charter.grant.Power;
 import charter.id.ChunkKey;
 import charter.land.Claim;
@@ -46,6 +47,7 @@ final class StoreTest {
         repairClosesVotesItCannotRun();
         repairDropsSiegeRecordsOfGoneSites();
         liveRepairRevokesBrokenGrant();
+        seatsRoundTripAndOldSavesRead();
     }
 
     static CharterStore store(Path dir) {
@@ -181,7 +183,8 @@ final class StoreTest {
 
     static void repairDropsGrantWhoseSourceIsGone() throws Exception {
         FullState f = FullState.build();
-        String rootSpend = f.state.grants().stream().filter(g -> g.power == Power.SPEND && g.subject.equals(f.oakvale) && g.isRoot())
+        String rootSpend = f.state.grants().stream().filter(g -> g.power == Power.SPEND && g.subject.equals(f.oakvale) && g.isRoot()
+                        && f.state.grants().stream().anyMatch(c -> g.id.equals(c.parent)))
                 .findFirst().orElseThrow().id.value().toString();
         long before = f.state.grants().size();
         CharterStore.Loaded loaded = edited(f, root -> removeWhere(root.getAsJsonObject("grants").getAsJsonArray("grants"),
@@ -266,6 +269,50 @@ final class StoreTest {
         charter.mc.store.Repair.run(f.state, f.knobs, again);
         check("repair: on the live state a missing parent moves the organization to the top",
                 f.state.org(f.guard).orElseThrow().isTopLevel() && again.count() == 1);
+    }
+
+    /** S1: a council and its seat vote survive a save; a state saved before seats reads as one seat, and a Commune gets its office. */
+    static void seatsRoundTripAndOldSavesRead() throws Exception {
+        FullState f = FullState.build();
+        Path dir = Files.createTempDirectory("charter-seats");
+        store(dir).save(f.state, f.clock.now());
+        CharterState back = store(dir).load(f.knobs, f.clock.now()).state();
+        charter.gov.Office council = back.officeNamed(f.ironhold, "Lord").orElseThrow();
+        check("seats: a council keeps its seats, its way of deciding and both holders",
+                council.seats() == 2 && council.deciding() == charter.gov.Office.Deciding.TOGETHER && council.holders().size() == 2);
+        check("seats: a vote among the seats keeps its office",
+                back.votes().stream().anyMatch(v -> council.id.equals(v.seatsOf) && v.electorate.size() == 2));
+        check("seats: an organization keeps its decision makers", council.id.equals(back.org(f.ironhold).orElseThrow().governance.deciders));
+
+        String ironhold = f.ironhold.value().toString();
+        String oakvale = f.oakvale.value().toString();
+        CharterStore.Loaded old = edited(f, root -> {
+            for (JsonElement e : root.getAsJsonObject("orgs").getAsJsonArray("orgs")) e.getAsJsonObject().getAsJsonObject("governance").remove("deciders");
+            for (JsonElement e : root.getAsJsonObject("votes").getAsJsonArray("votes")) e.getAsJsonObject().remove("seatsOf");
+            JsonArray offices = root.getAsJsonObject("offices").getAsJsonArray("offices");
+            for (JsonElement e : offices) {
+                JsonObject o = e.getAsJsonObject();
+                if (!o.get("org").getAsString().equals(ironhold) || !o.get("name").getAsString().equals("Lord")) continue;
+                JsonObject first = o.getAsJsonArray("holders").get(0).getAsJsonObject();
+                o.add("holder", first.get("player"));
+                o.add("heldSince", first.get("since"));
+                o.remove("holders");
+                o.remove("seats");
+                o.remove("deciding");
+            }
+            removeWhere(offices, o -> o.get("org").getAsString().equals(oakvale) && o.get("name").getAsString().equals("Lord"));
+        });
+        charter.gov.Office lord = old.state().officeNamed(f.ironhold, "Lord").orElseThrow();
+        check("seats: a saved holder and heldSince load as one seat", lord.seats() == 1 && lord.holders().size() == 1
+                && lord.holders().get(0).player().equals(f.cara));
+        check("seats: a pre seats Lordship gets its decision makers from Repair", lord.id.equals(old.state().org(f.ironhold).orElseThrow().governance.deciders)
+                && noted(old, "deciders_set"));
+        charter.gov.Office made = old.state().org(f.oakvale).orElseThrow().governance.deciders == null ? null
+                : old.state().office(old.state().org(f.oakvale).orElseThrow().governance.deciders).orElse(null);
+        check("seats: a pre seats Commune gets a decision office with no seats", made != null && made.seats() == 0 && made.vacant()
+                && noted(old, "deciders_created"));
+        check("seats: and the grants a Commune office carries", old.state().grants().stream().anyMatch(g -> g.subject.equals(f.oakvale)
+                && g.recipient.equals(new Holder.OfOffice(made.id)) && !g.revoked()));
     }
 
     // ---- json helpers ----

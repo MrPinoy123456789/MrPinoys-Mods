@@ -17,12 +17,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Puts a member into an office, replacing whoever held it. Filling a reserved
+ * Puts a member into a seat of an office; a full one seat office replaces its holder. Filling a reserved
  * office (the Lord) is reserved to the members' vote.
  */
 public record Appoint(OrgId org, OfficeId office, PlayerId player) implements Action {
 
     public static final Reason NO_SUCH_OFFICE = new Reason("no_such_office", "There is no such office here.");
+
+    public static final Reason ALREADY_SEATED = new Reason("already_seated", "That player already holds this office.");
+    public static final Reason NO_SEATS = new Reason("no_seats", "This office has no seats.");
+    public static final Reason OFFICE_FULL = new Reason("office_full", "Every seat is taken. Remove someone first.");
 
     @Override
     public OrgId actingFor() {
@@ -44,6 +48,10 @@ public record Appoint(OrgId org, OfficeId office, PlayerId player) implements Ac
         Optional<Office> found = ctx.state.office(office);
         if (found.isEmpty() || !found.get().org.equals(org)) return Outcome.refuse(NO_SUCH_OFFICE);
         if (!ctx.state.isMember(player, org)) return Outcome.refuse(new Reason("not_a_member", "Only a member can hold an office here."));
+        Office o = found.get();
+        if (o.holds(player)) return Outcome.refuse(ALREADY_SEATED);
+        if (o.seats() == 0) return Outcome.refuse(NO_SEATS);
+        if (o.full() && o.seats() > 1) return Outcome.refuse(OFFICE_FULL);
         return Outcome.OK;
     }
 
@@ -51,10 +59,12 @@ public record Appoint(OrgId org, OfficeId office, PlayerId player) implements Ac
     public List<HistoryEvent> apply(ActionContext ctx) {
         Office o = ctx.state.office(office).orElseThrow();
         List<HistoryEvent> events = new ArrayList<>();
-        if (!o.vacant() && !o.holder().equals(player)) {
-            events.add(new GovEvents.OfficeVacated(ctx.now, o.id, org, o.holder(), "replaced"));
+        if (o.full()) {
+            PlayerId replaced = o.holders().get(0).player();
+            o.unseat(replaced);
+            events.add(new GovEvents.OfficeVacated(ctx.now, o.id, org, replaced, "replaced"));
         }
-        o.fill(player, ctx.now);
+        o.seat(player, ctx.now);
         events.add(new GovEvents.OfficeFilled(ctx.now, o.id, org, player));
         return events;
     }

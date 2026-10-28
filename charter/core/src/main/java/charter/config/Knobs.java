@@ -83,6 +83,10 @@ public final class Knobs {
     public int absentLordDays = 7;
     public int voteEligibilityDays = 3;
     public int voteDurationHours = 48;
+    /** Most seats an office may have. */
+    public int maxSeats = 7;
+    /** How long a vote among the seats of a council stays open. */
+    public int seatVoteHours = 24;
     public int activeWindowDays = 14;
     public int foundSecedeCooldownDays = 7;
     public int dormancyDays = 30;

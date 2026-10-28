@@ -13,6 +13,7 @@ public final class CoreSuite {
     public static void main(String[] args) {
         charter.config.KnobsTest.run();
         charter.gov.GovernanceTest.run();
+        charter.gov.SeatsTest.run();
         charter.grant.AuthorityTest.run();
         charter.land.LandTest.run();
         charter.food.FoodTest.run();

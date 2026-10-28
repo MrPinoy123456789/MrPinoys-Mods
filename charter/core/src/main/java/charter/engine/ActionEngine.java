@@ -7,6 +7,7 @@ import charter.gov.Vote;
 import charter.gov.VoteMethod;
 import charter.gov.actions.Appoint;
 import charter.grant.Authority;
+import charter.grant.Holder;
 import charter.grant.Power;
 import charter.grant.Who;
 import charter.history.HistoryEvent;
@@ -94,7 +95,8 @@ public final class ActionEngine {
         } else if (ctx.actor instanceof Actor.Vote v) {
             Optional<Vote> vote = state.vote(v.id());
             if (vote.isEmpty() || vote.get().state() != Vote.State.PASSED) return Authority.NONE;
-            who = new Who.AsOrg(vote.get().org);
+            // A council vote acts only as its seats, never as the members, so reserved actions stay out of reach.
+            who = vote.get().seatsOf != null ? new Who.AsSeats(vote.get().seatsOf) : new Who.AsOrg(vote.get().org);
         } else {
             return Authority.NONE;
         }
@@ -102,12 +104,26 @@ public final class ActionEngine {
         if (action.reserved(ctx)) {
             return who instanceof Who.AsOrg(OrgId voter) && voter.equals(org) ? Authority.SOURCE : Authority.NONE;
         }
-        return ctx.resolver().resolve(who, org, power.get(), action.need(ctx), action.needsRedelegable());
+        Authority found = ctx.resolver().resolve(who, org, power.get(), action.need(ctx), action.needsRedelegable());
+        if (who instanceof Who.AsPlayer && council(found).isPresent()) return Authority.NONE;
+        return found;
+    }
+
+    /** The office, when this authority came through a grant to a council that decides together. */
+    private Optional<Office> council(Authority authority) {
+        if (authority.kind() != Authority.Kind.GRANT || !(authority.via().recipient instanceof Holder.OfOffice o)) return Optional.empty();
+        return state.office(o.office())
+                .filter(office -> office.deciding() == Office.Deciding.TOGETHER && office.holders().size() >= 2);
     }
 
     private Reason refusalFor(ActionContext ctx, Action action) {
         PlayerId player = ctx.player();
         boolean voteCould = player != null && action.actingFor() != null && state.isMember(player, action.actingFor());
+        if (player != null && action.actingFor() != null && action.power().isPresent() && !action.reserved(ctx)) {
+            Authority found = ctx.resolver().resolve(new Who.AsPlayer(player), action.actingFor(), action.power().get(),
+                    action.need(ctx), action.needsRedelegable());
+            if (council(found).isPresent()) return Reason.NEEDS_SEATS;
+        }
         if (action.reserved(ctx)) return voteCould ? Reason.RESERVED.with(Reason.RESERVED.text() + " Propose it as a vote.") : Reason.RESERVED;
         return voteCould ? Reason.NEEDS_VOTE : Reason.NO_AUTHORITY;
     }
@@ -158,7 +174,36 @@ public final class ActionEngine {
         Organization o = state.org(org).orElseThrow();
         Power power = action.power().orElse(null);
         Vote vote = openVote(org, Vote.Kind.MOTION, action, null, proposer, power, o.governance.method(power),
-                o.governance.quorumShare, electorate, now, action.getClass().getSimpleName());
+                o.governance.quorumShare, electorate, now, action.getClass().getSimpleName(), null);
+        vote.cast(proposer, Vote.Ballot.YES);
+        settleIfComplete(vote, now);
+        return new Outcome.VoteOpened(vote.id);
+    }
+
+    /**
+     * A holder of an office asks the other seats to agree to an action the office's
+     * grants cover. The electorate is exactly the holders; it passes as soon as most
+     * of them say yes. The members' reserved actions are out of reach.
+     */
+    public Outcome proposeToSeats(PlayerId proposer, OfficeId officeId, Action action) {
+        long now = clock.now();
+        Optional<Office> found = state.office(officeId);
+        OrgId org = action.actingFor();
+        if (found.isEmpty() || org == null || !found.get().org.equals(org) || state.org(org).isEmpty()) return Outcome.refuse(Reason.NO_SUCH_ORG);
+        Office office = found.get();
+        if (!office.holds(proposer)) return Outcome.refuse(Reason.NOT_ELIGIBLE);
+        ActionContext ctx = new ActionContext(state, knobs, now, new Actor.Player(proposer), this);
+        if (action.power().isEmpty() || action.reserved(ctx)) return Outcome.refuse(Reason.RESERVED);
+        Authority cover = ctx.resolver().resolve(new Who.AsSeats(officeId), org, action.power().get(), action.need(ctx), action.needsRedelegable());
+        if (!cover.ok()) return Outcome.refuse(Reason.NO_AUTHORITY);
+        ctx.setAuthority(cover);
+        Outcome checked = action.check(ctx);
+        if (checked.refused()) return checked;
+
+        Set<PlayerId> electorate = new LinkedHashSet<>();
+        for (Office.Seat seat : office.holders()) electorate.add(seat.player());
+        Vote vote = openVote(org, Vote.Kind.MOTION, action, null, proposer, action.power().get(), VoteMethod.MAJORITY, 0,
+                electorate, now, action.getClass().getSimpleName(), officeId, electorate);
         vote.cast(proposer, Vote.Ballot.YES);
         settleIfComplete(vote, now);
         return new Outcome.VoteOpened(vote.id);
@@ -170,6 +215,8 @@ public final class ActionEngine {
         Optional<Office> office = state.office(officeId);
         if (office.isEmpty()) return Outcome.refuse(Reason.NO_SUCH_ORG);
         OrgId org = office.get().org;
+        if (office.get().seats() == 0) return Outcome.refuse(Appoint.NO_SEATS);
+        if (office.get().full() && office.get().seats() > 1) return Outcome.refuse(Appoint.OFFICE_FULL);
         Set<PlayerId> electorate = eligibleVoters(org, now);
         if (proposer != null && !electorate.contains(proposer)) return Outcome.refuse(Reason.NOT_ELIGIBLE);
         boolean alreadyOpen = state.votes().stream()
@@ -177,19 +224,26 @@ public final class ActionEngine {
         if (alreadyOpen) return Outcome.refuse(new Reason("election_open", "An election for that office is already open."));
         Organization o = state.org(org).orElseThrow();
         Vote vote = openVote(org, Vote.Kind.ELECTION, null, officeId, proposer, null, VoteMethod.MAJORITY,
-                o.governance.quorumShare, electorate, now, "election of " + office.get().name);
+                o.governance.quorumShare, electorate, now, "election of " + office.get().name, null);
         return new Outcome.VoteOpened(vote.id);
     }
 
     private Vote openVote(OrgId org, Vote.Kind kind, Action motion, OfficeId office, PlayerId proposer, Power power,
-                          VoteMethod method, double quorumShare, Set<PlayerId> electorate, long now, String about) {
+                          VoteMethod method, double quorumShare, Set<PlayerId> electorate, long now, String about,
+                          OfficeId seatsOf) {
         Set<PlayerId> active = new LinkedHashSet<>();
         for (PlayerId voter : electorate) {
             if (active(voter, now)) active.add(voter);
         }
-        long closes = now + Durations.hours(knobs.voteDurationHours);
+        return openVote(org, kind, motion, office, proposer, power, method, quorumShare, electorate, now, about, seatsOf, active);
+    }
+
+    private Vote openVote(OrgId org, Vote.Kind kind, Action motion, OfficeId office, PlayerId proposer, Power power,
+                          VoteMethod method, double quorumShare, Set<PlayerId> electorate, long now, String about,
+                          OfficeId seatsOf, Set<PlayerId> active) {
+        long closes = now + Durations.hours(seatsOf != null ? knobs.seatVoteHours : knobs.voteDurationHours);
         Vote vote = new Vote(state.ids.vote(), org, kind, motion, office, proposer, power, method, quorumShare,
-                electorate, active, now, closes);
+                electorate, active, now, closes, seatsOf);
         state.addVote(vote);
         record(proposer == null ? new Actor.System() : new Actor.Player(proposer),
                 List.of(new GovEvents.VoteOpened(now, vote.id, org, kind, about, proposer, closes)));
@@ -218,7 +272,33 @@ public final class ActionEngine {
     }
 
     private void settleIfComplete(Vote vote, long now) {
-        if (vote.open() && vote.everyoneVoted()) settle(vote, now);
+        if (!vote.open()) return;
+        if (vote.seatsOf != null) {
+            settleSeats(vote, now, false);
+        } else if (vote.everyoneVoted()) {
+            settle(vote, now);
+        }
+    }
+
+    /**
+     * A council vote has no quorum: it passes as soon as the Yes ballots are more
+     * than half the seats, fails as soon as that can no longer happen, and when time
+     * runs out ({@code closing}) the same test decides.
+     */
+    private void settleSeats(Vote vote, long now, boolean closing) {
+        int seats = vote.electorate.size();
+        int yes = (int) vote.count(Vote.Choice.YES);
+        int undecided = seats - vote.ballots().size();
+        int no = (int) (vote.ballots().size() - yes);
+        if (yes * 2 > seats) {
+            vote.settle(Vote.State.PASSED, "carried");
+            record(new Actor.System(), List.of(new GovEvents.VotePassed(now, vote.id, vote.org, yes, no, vote.count(Vote.Choice.ABSTAIN))));
+            execute(vote, vote.motion, now);
+        } else if (closing || (yes + undecided) * 2 <= seats) {
+            String why = closing && undecided > 0 ? "not carried in time" : "not carried";
+            vote.settle(Vote.State.FAILED, why);
+            record(new Actor.System(), List.of(new GovEvents.VoteFailed(now, vote.id, vote.org, why)));
+        }
     }
 
     // ---- the governance tick ----
@@ -236,13 +316,16 @@ public final class ActionEngine {
         long absentLimit = now - Durations.days(knobs.absentLordDays);
         for (Office office : new ArrayList<>(state.allOffices())) {
             if (!office.vacateWhenAbsent || office.vacant() || state.org(office.org).isEmpty()) continue;
-            long lastSeen = state.knownPlayer(office.holder()).map(p -> p.lastSeen).orElse(0L);
-            if (lastSeen < absentLimit) {
-                PlayerId former = office.holder();
-                office.vacate();
-                record(new Actor.System(), List.of(new GovEvents.OfficeVacated(now, office.id, office.org, former, "absent")));
-                openElection(office.id, null);
+            boolean lost = false;
+            for (Office.Seat seat : new ArrayList<>(office.holders())) {
+                long lastSeen = state.knownPlayer(seat.player()).map(p -> p.lastSeen).orElse(0L);
+                if (lastSeen < absentLimit) {
+                    office.unseat(seat.player());
+                    record(new Actor.System(), List.of(new GovEvents.OfficeVacated(now, office.id, office.org, seat.player(), "absent")));
+                    lost = true;
+                }
             }
+            if (lost) openElection(office.id, null);
         }
     }
 
@@ -259,6 +342,10 @@ public final class ActionEngine {
     }
 
     private void settle(Vote vote, long now) {
+        if (vote.seatsOf != null) {
+            settleSeats(vote, now, true);
+            return;
+        }
         long cast = vote.ballots().size();
         if (cast < vote.quorumNeeded()) {
             vote.settle(Vote.State.FAILED, "no quorum");

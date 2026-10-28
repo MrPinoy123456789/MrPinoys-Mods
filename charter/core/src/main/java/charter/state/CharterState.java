@@ -198,7 +198,7 @@ public final class CharterState {
         MemberRecord gone = memberships.remove(player);
         if (gone != null) {
             for (Office office : offices(gone.org())) {
-                if (player.equals(office.holder())) office.vacate();
+                office.unseat(player);
             }
             invites.removeIf(i -> i.player().equals(player) && i.org().equals(gone.org()));
             treeVersion++;

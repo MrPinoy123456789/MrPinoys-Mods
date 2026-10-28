@@ -31,11 +31,30 @@ public final class Repair {
     }
 
     public static void run(CharterState state, Knobs knobs, Repairs repairs) {
+        deciders(state, knobs, repairs);
         grants(state, repairs);
         parents(state, repairs);
         votes(state, repairs);
         claims(state, knobs, repairs);
         siege(state, repairs);
+    }
+
+    /** An organization saved before seats gets its decision makers office (S1). */
+    private static void deciders(CharterState state, Knobs knobs, Repairs repairs) {
+        for (Organization org : List.copyOf(state.allOrgs())) {
+            if (org.governance.deciders != null || state.org(org.id).isEmpty()) continue;
+            var lord = state.officeNamed(org.id, charter.gov.Preset.LORD).filter(o -> o.reserved);
+            if (lord.isPresent()) {
+                org.governance.deciders = lord.get().id;
+                repairs.note("deciders_set", org.name() + ": the " + charter.gov.Preset.LORD + " office is its decision makers");
+                continue;
+            }
+            charter.gov.Office office = new charter.gov.Office(state.ids.office(), org.id, charter.gov.Preset.LORD, true, true, 0);
+            state.addOffice(office);
+            org.governance.deciders = office.id;
+            charter.gov.Preset.addLordGrants(state, org.id, office.id, knobs, repairs.now());
+            repairs.note("deciders_created", org.name() + ": a decision makers office with no seats, as a Commune has");
+        }
     }
 
     private static void grants(CharterState state, Repairs repairs) {

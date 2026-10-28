@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Removes whoever holds an office. Removing the Lord is reserved to the members'
+ * Removes everyone who holds an office. Removing the Lord is reserved to the members'
  * vote; the moment it runs, every grant that reached the Lord through the office
  * stops working, because grants follow the office, not the person.
  */
@@ -47,8 +47,11 @@ public record Vacate(OrgId org, OfficeId office) implements Action {
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
         Office o = ctx.state.office(office).orElseThrow();
-        var former = o.holder();
-        o.vacate();
-        return List.of(new GovEvents.OfficeVacated(ctx.now, o.id, org, former, "removed"));
+        List<HistoryEvent> events = new java.util.ArrayList<>();
+        for (Office.Seat seat : o.holders()) {
+            events.add(new GovEvents.OfficeVacated(ctx.now, o.id, org, seat.player(), "removed"));
+        }
+        o.unseatAll();
+        return events;
     }
 }

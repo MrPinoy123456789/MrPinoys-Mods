@@ -33,7 +33,7 @@ public record Expel(OrgId org, PlayerId player) implements Action {
     @Override
     public boolean reserved(ActionContext ctx) {
         for (Office office : ctx.state.offices(org)) {
-            if (office.reserved && player.equals(office.holder())) return true;
+            if (office.reserved && office.holds(player)) return true;
         }
         return false;
     }

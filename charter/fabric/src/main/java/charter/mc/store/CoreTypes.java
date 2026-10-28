@@ -55,6 +55,8 @@ public final class CoreTypes {
                 .register("gov.create_office", CreateOffice.class)
                 .register("gov.appoint", Appoint.class)
                 .register("gov.vacate", Vacate.class)
+                .register("gov.unseat", charter.gov.actions.Unseat.class)
+                .register("gov.set_seats", charter.gov.actions.SetSeats.class)
                 .register("grant.grant", GrantPower.class)
                 .register("grant.revoke", RevokeGrant.class)
                 .register("treasury.deposit", Deposit.class)

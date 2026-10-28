@@ -143,6 +143,12 @@ final class FullState {
         engine.cast(bob, ((Outcome.VoteOpened) renamed).vote(), Vote.Ballot.NO);
         Office lord = state.officeNamed(ironhold, "Lord").orElseThrow();
         engine.openElection(lord.id, null);
+        // A council of two deciding together, with a vote among its seats still open (S1).
+        admin(new charter.gov.actions.SetSeats(ironhold, lord.id, 2, Office.Deciding.TOGETHER));
+        admin(new InviteMember(ironhold, dan));
+        engine.run(new Actor.Player(dan), new AcceptInvite(dan, ironhold));
+        admin(new Appoint(ironhold, lord.id, dan));
+        engine.proposeToSeats(cara, lord.id, new CreateOffice(ironhold, "Scribe"));
 
         // Land, placed directly: placement and its prices are M8's.
         keep = new Core(state.ids.core(), CoreKind.KEEP, oakvale, new ChunkKey(OW, 0, 0), state.takeCoreOrder(),
