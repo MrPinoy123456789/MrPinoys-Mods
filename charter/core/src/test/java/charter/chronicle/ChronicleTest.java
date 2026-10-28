@@ -72,16 +72,16 @@ public final class ChronicleTest {
 
     static void calendarPhrases() {
         Calendar c = new Calendar(0, Durations.DAY);
-        eq("calendar: day 0", "the first week of Seedtime", c.phrase(0));
-        eq("calendar: the last day of a week", "the first week of Seedtime", c.phrase(Durations.days(6)));
-        eq("calendar: the next week", "the second week of Seedtime", c.phrase(Durations.days(7)));
+        eq("calendar: day 0", "the first week of Handicrafts", c.phrase(0));
+        eq("calendar: the last day of a week", "the first week of Handicrafts", c.phrase(Durations.days(6)));
+        eq("calendar: the next week", "the second week of Handicrafts", c.phrase(Durations.days(7)));
         eq("calendar: the next season", "the first week of Highsun", c.phrase(Durations.days(28)));
         eq("calendar: Frostfall", "the second week of Frostfall", c.phrase(Durations.days(91)));
         eq("calendar: the last day of the year", "the fourth week of Frostfall", c.phrase(Durations.days(111)));
-        eq("calendar: the year turns", "the first week of Seedtime, year 2", c.phrase(Durations.days(112)));
-        eq("calendar: before the origin counts as the start", "the first week of Seedtime", c.phrase(-5));
+        eq("calendar: the year turns", "the first week of Handicrafts, year 2", c.phrase(Durations.days(112)));
+        eq("calendar: before the origin counts as the start", "the first week of Handicrafts", c.phrase(-5));
         Calendar fast = new Calendar(1_000, Durations.HOUR);
-        eq("calendar: a short day moves the weeks along", "the second week of Seedtime", fast.phrase(1_000 + 7 * Durations.HOUR));
+        eq("calendar: a short day moves the weeks along", "the second week of Handicrafts", fast.phrase(1_000 + 7 * Durations.HOUR));
     }
 
     /** One known event per default template, with the exact sentence it must produce. */

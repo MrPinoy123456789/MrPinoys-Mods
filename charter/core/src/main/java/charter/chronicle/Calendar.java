@@ -13,7 +13,7 @@ import charter.time.Durations;
  */
 public final class Calendar {
 
-    public static final String[] SEASONS = {"Seedtime", "Highsun", "Harvest", "Frostfall"};
+    public static final String[] SEASONS = {"Handicrafts", "Highsun", "Harvest", "Frostfall"};
     private static final String[] ORDINALS = {"first", "second", "third", "fourth"};
     private static final int DAYS_PER_WEEK = 7;
     private static final int WEEKS_PER_SEASON = 4;
