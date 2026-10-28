@@ -1,6 +1,8 @@
 # Build plan: the Charter of Rights and Freedoms
 
-Status: written 2026-10-27, not started. Builds what
+Status: written 2026-10-27, not started. The file to build from is
+`docs/2026-10-27-charter-book-implementation.md`, which details every milestone
+and wins where the two differ. Builds what
 `docs/2026-10-27-charter-book-proposal.md` approved (DESIGN.md §23, 2026-10-27).
 Conventions are `BUILDING.md`; branch off `feature/charter-build`.
 
