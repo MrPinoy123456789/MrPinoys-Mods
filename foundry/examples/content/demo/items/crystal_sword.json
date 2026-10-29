@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "demo:crystal_sword",
+  "display_name": "Crystal Sword",
+  "lore": ["Hums when monsters are near."],
+  "base_item": "minecraft:diamond_sword",
+  "stack_size": 1,
+  "durability": 800,
+  "glint": true,
+  "rarity": "rare"
+}

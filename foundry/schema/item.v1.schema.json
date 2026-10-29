@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "foundry/item.v1",
+  "title": "Foundry item definition, version 1",
+  "description": "Mirrors foundry.core.ItemDef. The Java parser is authoritative until a schema generated from it replaces this file; ItemSchemaTest (planned, task T2) must keep the two in step.",
+  "type": "object",
+  "required": ["schema_version", "id", "display_name", "base_item"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$" },
+    "display_name": { "type": "string", "minLength": 1 },
+    "lore": { "type": "array", "items": { "type": "string" } },
+    "base_item": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$" },
+    "model": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$" },
+    "stack_size": { "type": "integer", "minimum": 1, "maximum": 99, "default": 64 },
+    "durability": { "type": "integer", "minimum": 0, "default": 0 },
+    "glint": { "type": "boolean", "default": false },
+    "rarity": { "enum": ["common", "uncommon", "rare", "epic"], "default": "common" }
+  }
+}

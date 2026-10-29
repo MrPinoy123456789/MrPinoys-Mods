@@ -1,0 +1,50 @@
+# Foundry architecture
+
+## Principle
+
+Configuration defines content; reusable Java defines behaviour. The runtime holds no per-item or per-furniture code.
+A new sword is a JSON file. A new kind of behaviour is one registered mechanic type (task F3).
+
+## Layers
+
+```
+config/foundry/content/**.json         authoritative, human-readable, versioned (schema_version)
+        |
+        v
+foundry.core.ContentLoader             pure JDK: read, parse, validate, report. Never throws on bad content
+        |   ContentSet (immutable)      items + problems, each problem has a content id, field, message, fix
+        v
+foundry.mc.FoundryMod                  startup: load, log problems, register valid definitions
+        |
+        +--> FoundryItems / FoundryItem   one Polymer item class for every definition
+        +--> Polymer resource pack        Polymer builds the pack; Foundry contributes assets (task F1)
+        +--> FoundryCommands              help, status, validate, give
+```
+
+Rule: `foundry.core` may not import `net.minecraft`, `eu.pb4` or `net.fabricmc`. Environment facts it needs (does a
+vanilla item exist, is an asset present) are passed in as predicates. That is what keeps the validator testable with
+plain `main()` tests and reusable by a future editor.
+
+## What can change at runtime
+
+| Content | Reload without restart | Why |
+|---|---|---|
+| Item registration (new id, changed base item, durability, stack size) | No | Registry entries cannot be removed or re-registered safely while the server runs |
+| Item display name, lore, glint | Not yet | Baked into registered properties today; could move to a per-stack component refresh later |
+| Recipes | Yes (task F2) | Recipe manager reload is supported |
+| Mechanics parameters | Yes (task F3) | Looked up at trigger time from the active ContentSet |
+| Resource pack contents | Yes, players must re-download | Pack is rebuilt and re-sent |
+
+`/foundry validate` re-reads files and reports; it never registers. If it finds new items it says a restart is
+needed. A failed load never replaces a working ContentSet.
+
+## Stable identity
+
+Ids are `namespace:path`, lowercase. Items already in inventories store the registry id, so renaming an id orphans
+them. Renames are an explicit operation (task F6), never an edit. Removing a definition leaves a registry hole at the
+next start; see DECISIONS.md D5 for the orphan policy.
+
+## Not yet designed
+
+Furniture entity model, custom blocks, armor rendering, glyph fonts. Each needs a decision record before code
+(DECISIONS.md D3, D4). Do not start them without it.
