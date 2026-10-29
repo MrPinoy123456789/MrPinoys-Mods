@@ -117,6 +117,22 @@ public final class FurnitureGameTest {
     }
 
     @GameTest
+    public void theRespawnQueueRebuildsAHolderOnALaterTick(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var rel = new BlockPos(7, 1, 1);
+        var pos = helper.absolutePos(rel);
+        placeAt(helper, rel, "demo:desk");
+        level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+        level.setBlockAndUpdate(pos, Blocks.BARRIER.defaultBlockState());
+        helper.assertTrue(BlockBoundAttachment.get(level, pos) == null, "holder missing before the queue runs");
+        Furniture.queueRespawn(level, pos.getX() >> 4, pos.getZ() >> 4);
+        helper.runAfterDelay(3, () -> {
+            helper.assertTrue(BlockBoundAttachment.get(level, pos) != null, "the queue rebuilt the holder");
+            helper.succeed();
+        });
+    }
+
+    @GameTest
     public void aRecordWhoseBlockVanishedIsDroppedOnRecovery(GameTestHelper helper) {
         var level = helper.getLevel();
         var rel = new BlockPos(3, 1, 5);

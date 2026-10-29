@@ -65,6 +65,10 @@ public final class FurnitureStore extends SavedData {
         return out;
     }
 
+    public List<Entry> all() {
+        return new ArrayList<>(entries.values());
+    }
+
     public int size() {
         return entries.size();
     }

@@ -10,6 +10,7 @@ import foundry.core.FurnitureDef;
 import foundry.core.Ident;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -41,12 +42,58 @@ public final class Furniture {
     private Furniture() {}
 
     public static void init() {
-        ServerChunkEvents.CHUNK_LOAD.register((level, chunk, isNew) -> respawn(level, chunk));
+        // Never touch the level from inside the chunk load callback: level.getBlockState waits for this very chunk and
+        // deadlocks the server thread (watchdog crash). Run after the load finishes, and only if still loaded.
+        ServerChunkEvents.CHUNK_LOAD.register((level, chunk, isNew) ->
+                queueRespawn(level, chunk.getPos().x(), chunk.getPos().z()));
+        ServerTickEvents.END_SERVER_TICK.register(server -> drainQueue());
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             if (level instanceof ServerLevel sl && FurnitureStore.of(sl).get(pos) != null) {
                 FurnitureStore.of(sl).remove(pos);
             }
         });
+    }
+
+    private record Pending(ServerLevel level, int chunkX, int chunkZ, int attempts) {}
+
+    private static final java.util.ArrayDeque<Pending> PENDING = new java.util.ArrayDeque<>();
+    private static final int MAX_ATTEMPTS = 200;
+
+    /**
+     * Asks for the holders of one chunk to be rebuilt once it is really available. The chunk is often not published yet
+     * while its load callback runs, so the request waits in a queue that is retried every tick for up to ten seconds.
+     */
+    public static void queueRespawn(ServerLevel level, int chunkX, int chunkZ) {
+        if (!FurnitureStore.of(level).inChunk(chunkX, chunkZ).isEmpty()) PENDING.add(new Pending(level, chunkX, chunkZ, 0));
+    }
+
+    private static void drainQueue() {
+        for (int n = PENDING.size(); n > 0; n--) {
+            Pending p = PENDING.poll();
+            LevelChunk chunk = p.level().getChunkSource().getChunkNow(p.chunkX(), p.chunkZ());
+            if (chunk != null) {
+                respawn(p.level(), chunk);
+            } else if (p.attempts() < MAX_ATTEMPTS) {
+                PENDING.add(new Pending(p.level(), p.chunkX(), p.chunkZ(), p.attempts() + 1));
+            } else {
+                FoundryMod.LOG.warn("Foundry: chunk {},{} never became available; its furniture was not rebuilt. "
+                        + "Run /foundry furniture repair once it is loaded.", p.chunkX(), p.chunkZ());
+            }
+        }
+    }
+
+    /** Rebuilds missing holders in every loaded chunk of every level. Returns how many holders were created. */
+    public static int repairAll(net.minecraft.server.MinecraftServer server) {
+        int created = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            for (FurnitureStore.Entry e : FurnitureStore.of(level).all()) {
+                if (!level.getChunkSource().hasChunk(e.pos().getX() >> 4, e.pos().getZ() >> 4)) continue;
+                FurnitureDef def = FoundryMod.loaded().furniture().get(Ident.parse(e.definition()));
+                if (def == null) continue;
+                if (level.getBlockState(e.pos()).is(blockFor(def).getBlock()) && spawn(level, e.pos(), def, e.facing())) created++;
+            }
+        }
+        return created;
     }
 
     /** The furniture the given placing item creates, or null. */
