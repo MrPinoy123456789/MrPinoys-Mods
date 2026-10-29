@@ -26,7 +26,10 @@ public final class FoundryMod implements ModInitializer {
         return loaded;
     }
 
+    /** The content folder; the {@code foundry.content} system property overrides it (used by gametests). */
     static Path contentRoot() {
+        String override = System.getProperty("foundry.content");
+        if (override != null && !override.isBlank()) return Path.of(override);
         return FabricLoader.getInstance().getConfigDir().resolve(ID).resolve("content");
     }
 
@@ -45,6 +48,7 @@ public final class FoundryMod implements ModInitializer {
         PolymerResourcePackUtils.markAsRequired();
         ContentSet set = loadContent();
         set.items().values().forEach(FoundryItems::register);
+        FoundryItems.applyNames();
         loaded = set;
         FoundryCommands.register();
         LOG.info("Foundry: {} items registered, {} problems", FoundryItems.all().size(), set.problems().size());

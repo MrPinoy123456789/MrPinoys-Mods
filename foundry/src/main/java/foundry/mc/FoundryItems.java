@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import net.fabricmc.fabric.api.item.v1.DefaultItemComponentEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -22,6 +23,7 @@ import net.minecraft.world.item.component.ItemLore;
  */
 final class FoundryItems {
     private static final Map<foundry.core.Ident, Item> REGISTERED = new ConcurrentHashMap<>();
+    private static final Map<foundry.core.Ident, String> NAMES = new ConcurrentHashMap<>();
 
     private FoundryItems() {}
 
@@ -31,8 +33,7 @@ final class FoundryItems {
         Item.Properties props = new Item.Properties()
                 .setId(ResourceKey.create(Registries.ITEM, id))
                 .stacksTo(def.stackSize())
-                .rarity(Rarity.valueOf(def.rarity().toUpperCase(Locale.ROOT)))
-                .component(DataComponents.ITEM_NAME, Component.literal(def.displayName()));
+                .rarity(Rarity.valueOf(def.rarity().toUpperCase(Locale.ROOT)));
         if (def.durability() > 0) props.durability(def.durability());
         if (def.glint()) props.component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
         if (!def.lore().isEmpty()) {
@@ -42,6 +43,16 @@ final class FoundryItems {
         Identifier model = def.model() == null ? null : Identifier.parse(def.model().toString());
         Item item = Registry.register(BuiltInRegistries.ITEM, id, new FoundryItem(props, base, model));
         REGISTERED.put(def.id(), item);
+        NAMES.put(def.id(), def.displayName());
+    }
+
+    /**
+     * Item.Properties cannot carry a custom name: the Item constructor replaces ITEM_NAME with the translation key.
+     * Fabric's default-component event runs after construction, so the name is applied there.
+     */
+    static void applyNames() {
+        DefaultItemComponentEvents.MODIFY.register(context -> REGISTERED.forEach((id, item) ->
+                context.modify(item, builder -> builder.set(DataComponents.ITEM_NAME, Component.literal(NAMES.get(id))))));
     }
 
     static Item get(foundry.core.Ident id) {
