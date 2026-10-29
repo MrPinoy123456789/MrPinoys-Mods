@@ -48,6 +48,7 @@ final class StoreTest {
         repairDropsSiegeRecordsOfGoneSites();
         liveRepairRevokesBrokenGrant();
         seatsRoundTripAndOldSavesRead();
+        raiderWavesRoundTripAndOldSavesRead();
     }
 
     static CharterStore store(Path dir) {
@@ -321,6 +322,52 @@ final class StoreTest {
                 && noted(old, "deciders_created"));
         check("seats: and the grants a Commune office carries", old.state().grants().stream().anyMatch(g -> g.subject.equals(f.oakvale)
                 && g.recipient.equals(new Holder.OfOffice(made.id)) && !g.revoked()));
+    }
+
+    /** Protected keeps, N: a site's supply, raiders and snapshot survive a save; a save from before waves has none and loads. */
+    static void raiderWavesRoundTripAndOldSavesRead() throws Exception {
+        FullState f = FullState.build();
+        var site = new charter.npc.NpcBook.Site(7, charter.npc.NpcBook.Kind.STRONGHOLD, null, null, new ChunkKey(FullState.OW, 40, 41), 1, 5);
+        f.state.npc.sites.add(site);
+        f.state.npc.nextId = 8;
+        var live = charter.npc.NpcScheduler.live(f.state.npc, site, f.knobs);
+        live.supply = 17;
+        live.hasHome = true;
+        live.homeX = 648;
+        live.homeY = 70;
+        live.homeZ = 664;
+        var raider = java.util.UUID.randomUUID();
+        live.raiders.add(raider);
+        live.snapshot = new charter.npc.NpcBook.Snapshot();
+        live.snapshot.states.add("minecraft:grass_block");
+        live.snapshot.blocks.add(new int[]{648, 69, 664, 0});
+        Path dir = Files.createTempDirectory("charter-npc");
+        store(dir).save(f.state, f.clock.now());
+        var back = store(dir).load(f.knobs, f.clock.now()).state().npc.live.get(7L);
+        check("npc: supply, home and raiders read back", back != null && back.supply == 17 && back.hasHome && back.homeX == 648
+                && back.raiders.size() == 1 && back.raiders.get(0).equals(raider));
+        check("npc: the snapshot reads back", back.snapshot != null && back.snapshot.states.equals(java.util.List.of("minecraft:grass_block"))
+                && back.snapshot.blocks.size() == 1 && java.util.Arrays.equals(back.snapshot.blocks.get(0), new int[]{648, 69, 664, 0}));
+
+        var crumble = new charter.npc.NpcBook.Crumble();
+        crumble.dimension = FullState.OW;
+        crumble.pending.add(new int[]{648, 69, 664});
+        crumble.pending.add(new int[]{649, 72, 664});
+        crumble.restore = live.snapshot;
+        crumble.diamonds = 16;
+        crumble.cobblestone = 128;
+        f.state.npc.crumbles.add(crumble);
+        store(dir).save(f.state, f.clock.now());
+        var crumbling = store(dir).load(f.knobs, f.clock.now()).state().npc.crumbles;
+        check("npc: a crumble in progress survives a restart with its layers, its ground and its loot",
+                crumbling.size() == 1 && crumbling.get(0).pending.size() == 2 && crumbling.get(0).pending.get(1)[1] == 72
+                        && crumbling.get(0).restore.blocks.size() == 1 && crumbling.get(0).diamonds == 16 && crumbling.get(0).cobblestone == 128);
+
+        CharterStore.Loaded old = edited(f, root -> root.getAsJsonObject("npc").remove("live"));
+        check("npc: a save from before waves keeps its site", old.state().npc.sites.size() == 1 && old.state().npc.live.isEmpty());
+        var fresh = charter.npc.NpcScheduler.live(old.state().npc, old.state().npc.sites.get(0), f.knobs);
+        check("npc: such a site gets its tier's supply and pool, a wave due now and no snapshot",
+                fresh.supply == f.knobs.npcSupplyStronghold[1] && fresh.pool == f.knobs.npcPoolByTier[1] && fresh.nextWaveAt == 0 && fresh.snapshot == null);
     }
 
     // ---- json helpers ----

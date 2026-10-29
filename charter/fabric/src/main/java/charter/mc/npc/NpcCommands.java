@@ -7,6 +7,7 @@ import charter.mc.cmd.Chat;
 import charter.mc.land.Protection;
 import charter.npc.NpcBook;
 import charter.npc.NpcPlacement;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -24,6 +25,7 @@ import java.util.Random;
  *   /charter admin npc list                          every site that stands
  *   /charter admin npc clear &lt;id&gt;                    take one down, with its faction and defenders
  *   /charter admin npc respawn                       run the scheduler once
+ *   /charter admin npc clearruins &lt;x&gt; &lt;z&gt;           clear what a fallen site left behind, outside every claim
  * </pre>
  * Operators only. Every use is written to the siege log like the other admin commands.
  */
@@ -44,7 +46,10 @@ public final class NpcCommands {
                                 .then(Commands.literal("list").executes(NpcCommands::list))
                                 .then(Commands.literal("clear")
                                         .then(Commands.argument("id", LongArgumentType.longArg(1)).executes(NpcCommands::clear)))
-                                .then(Commands.literal("respawn").executes(NpcCommands::respawn))))));
+                                .then(Commands.literal("respawn").executes(NpcCommands::respawn))
+                                .then(Commands.literal("clearruins")
+                                        .then(Commands.argument("x", IntegerArgumentType.integer())
+                                                .then(Commands.argument("z", IntegerArgumentType.integer()).executes(NpcCommands::clearRuins))))))));
     }
 
     private static int ok(CommandContext<CommandSourceStack> ctx, String text) {
@@ -84,7 +89,9 @@ public final class NpcCommands {
         for (NpcBook.Site site : book.sites) {
             ctx.getSource().sendSuccess(() -> Chat.line(Text.get("admin.npc_line", "id", site.id(),
                     "kind", site.kind().name().toLowerCase(Locale.ROOT), "org", CharterServer.runtime().describe.org(site.org()),
-                    "x", site.chunk().x() * 16 + 8, "z", site.chunk().z() * 16 + 8, "tier", site.tier())), false);
+                    "x", site.chunk().x() * 16 + 8, "z", site.chunk().z() * 16 + 8, "tier", site.tier(),
+                    "supply", charter.npc.NpcScheduler.live(book, site, CharterServer.runtime().knobs).supply,
+                    "pool", charter.npc.NpcScheduler.live(book, site, CharterServer.runtime().knobs).pool)), false);
         }
         return 1;
     }
@@ -95,6 +102,28 @@ public final class NpcCommands {
         String name = NpcWorld.clear(ctx.getSource().getServer(), id);
         if (name == null) return fail(ctx, Text.get("admin.npc_missing", "id", id));
         return ok(ctx, Text.get("admin.npc_cleared", "org", name));
+    }
+
+    private static final int RUIN_RADIUS = 10;
+
+    /** Clears the raiders' blocks around a point, but never inside a claim. */
+    private static int clearRuins(CommandContext<CommandSourceStack> ctx) {
+        if (!CharterServer.running()) return 0;
+        int x = IntegerArgumentType.getInteger(ctx, "x");
+        int z = IntegerArgumentType.getInteger(ctx, "z");
+        var level = ctx.getSource().getLevel();
+        var rt = CharterServer.runtime();
+        String dimension = Protection.dimension(level);
+        for (int cx = (x - RUIN_RADIUS) >> 4; cx <= (x + RUIN_RADIUS) >> 4; cx++) {
+            for (int cz = (z - RUIN_RADIUS) >> 4; cz <= (z + RUIN_RADIUS) >> 4; cz++) {
+                if (rt.claims.at(dimension, cx, cz) != null) return fail(ctx, Text.get("admin.npc_ruins_claimed", "x", x, "z", z));
+            }
+        }
+        level.getChunk(x >> 4, z >> 4);
+        int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z);
+        int cleared = NpcWorld.clearPalette(level, x, z, RUIN_RADIUS, top - 14, top + 8);
+        if (cleared == 0) return fail(ctx, Text.get("admin.npc_ruins_none", "x", x, "z", z));
+        return ok(ctx, Text.get("admin.npc_ruins_done", "count", cleared, "x", x, "z", z));
     }
 
     private static int respawn(CommandContext<CommandSourceStack> ctx) {

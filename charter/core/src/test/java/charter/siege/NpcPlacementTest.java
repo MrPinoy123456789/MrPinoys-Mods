@@ -92,8 +92,8 @@ public final class NpcPlacementTest {
         var fallen = NpcScheduler.collectFallen(book, f.state, f.knobs, now);
         eq("5: all three sites read as fallen (they have no core)", 3, fallen.size());
         eq("5: three timers wait", 3, book.respawns.size());
-        check("5: nothing before the delay", NpcScheduler.next(book, f.knobs, now + Durations.days(f.knobs.npcRespawnDays) - 1).isEmpty());
-        var due = NpcScheduler.next(book, f.knobs, now + Durations.days(f.knobs.npcRespawnDays)).orElseThrow();
+        check("5: nothing before the delay", NpcScheduler.next(book, f.knobs, now + Durations.minutes(f.knobs.npcWaveMinutes) - 1).isEmpty());
+        var due = NpcScheduler.next(book, f.knobs, now + Durations.minutes(f.knobs.npcWaveMinutes)).orElseThrow();
         check("5: after the delay a replacement is due", due.fromTimer());
     }
 

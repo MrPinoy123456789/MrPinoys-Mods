@@ -88,8 +88,14 @@ public final class Knobs {
     public int npcMaxStrongholds = 4;
     /** Most outposts (NPC camps) standing at once. */
     public int npcMaxOutposts = 4;
-    /** Real days before a fallen site is replaced elsewhere. */
-    public int npcRespawnDays = 3;
+    /** Real minutes between waves, and before a fallen or expired site is replaced elsewhere. */
+    public int npcWaveMinutes = 5;
+    /** A site nobody fought for this many real days is cleaned up and replaced. */
+    public int npcExpireDays = 10;
+    /** Server ticks between the layers of a falling site's crumble, from the top down. */
+    public int npcCrumbleTicksPerLayer = 4;
+    /** Stacks of the treasury's diamonds, then cobblestone, spilled where a site falls. */
+    public int npcFallLoot = 4;
     /** A new site stands at least this many chunks from any player claim and any online player. */
     public int npcPlayerClearChunks = 8;
     /** Tiers by distance from the world spawn, in chunks: near is below the first, middle below the second, else far. */
@@ -97,7 +103,12 @@ public final class Knobs {
     public int npcMiddleChunks = 120;
     /** Granary share at spawn, defenders, treasury diamonds and cobblestone, near, middle, far. */
     public double[] npcGranaryShare = {0.30, 0.50, 0.70};
-    public int[] npcDefenders = {3, 5, 8};
+    /** Raiders a stronghold may have alive at once, near, middle, far, and an outpost. */
+    public int[] npcPoolByTier = {3, 5, 8};
+    public int[] npcOutpostPool = {1, 2, 3};
+    /** Raiders a site can still spawn, over its whole life, near, middle, far. Each raider costs one. */
+    public int[] npcSupplyStronghold = {24, 48, 96};
+    public int[] npcSupplyOutpost = {6, 9, 12};
     public int[] npcDiamonds = {16, 32, 64};
     public int[] npcCobblestone = {128, 256, 512};
     /** How long a faction that voted to break away has to place its Nexus, and a group has to gather, before it lapses. */

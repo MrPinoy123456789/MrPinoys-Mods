@@ -1258,3 +1258,52 @@ from the spawn. The raiders never raid players (N6): the comment is on `NpcWorld
 `Organization.npc`. Not done: a real hostile-mob presence rule so defenders never count as attackers (they are
 mobs, not members, so the siege counts do not see them) was relied on rather than tested; and the outpost
 gametest ends the outpost with `LoseCore` rather than by breaking its banner while exposed.
+
+## Builder's notes: protected keeps, step 1 (raider waves, drain, crumble, restore, failsafe)
+
+Brief: `2026-10-28-protected-keeps-brief.md`, rule N. Built first because it fixes the ruins.
+
+**What a site is now.** `NpcBook.Live` (kept apart from the immutable `Site`, keyed by site id, saved in the `npc`
+block as `live`) holds the supply, the pool, the next wave time, when it was last fought, the UUIDs of its raiders,
+its home and a snapshot of the blocks it replaced. Supply is counted in raiders (one each, a kill is not refunded);
+the owner approved the amounts as knobs: `npcSupplyStronghold` 24/48/96, `npcSupplyOutpost` 6/9/12, pools
+`npcPoolByTier` 3/5/8 and `npcOutpostPool` 1/2/3. The granary chests are decoration only. `npcRespawnDays` and
+`npcDefenders` are gone.
+
+**Waves and falling** (pure rules in `NpcScheduler.step`, world work in `NpcWorld.tend`). Every `npcWaveMinutes`
+(5) a wave tops the living raiders up to the pool, each costing one supply. A site falls when the supply is zero and
+none of its raiders lives. A site nobody fought for `npcExpireDays` (10) is cleaned up the same way, and either way a
+replacement is awaited for `npcWaveMinutes`. "Fought" means a raider of the site died since the last pass, or a
+player is within 48 blocks of its home. Raiders are tracked by UUID, not by searching a box; a site whose chunk is
+not entity ticking is not counted (only the failsafe is judged there). An old save's untracked raiders are adopted
+by their tag the first time the site is tended.
+
+**Crumble and restore.** A fallen site is dismantled in `NpcWorld.dismantle`: raiders removed at the start, then the
+cores, fixtures, granary links, faction and claim, then a `Crumble` is saved in the book. Every
+`npcCrumbleTicksPerLayer` (4) server ticks the top layer of the site's own blocks (only positions its snapshot
+recorded) comes down with block break particles and sounds, containers emptied first; when nothing is left the
+snapshot is put back and the fall loot spills. The crumble is persisted (`crumbles`), so a restart carries on where
+it was. No new site is built while a crumble is in progress. The snapshot is taken as a before/after diff of a box
+around the site, so it also covers the campfire and the granary's air then chest steps. Block entity data of the
+original ground is not kept (natural terrain has none). A site with no snapshot (raised before this) gets a
+synthetic one: its cobblestone, stone bricks, Nexus, chests, campfire and banner within reach come down and stone
+bricks become grass. An admin `npc clear` is instant, without loot.
+
+**Defaults I took (told to the owner).** Supply amounts as above. `npcFallLoot` 4: a quarter of the treasury's
+diamonds, then of its cobblestone, as at most four stacks, spilled where the ground is back. The brief also says
+each raider drops "a small share" of the treasury; only the vanilla table drops from raiders, the share is paid at the
+fall. The old siege route (`SiegeSim` razing an NPC keep, `collectFallen`) now goes through the same dismantle, so no
+walls are left; the old plunder it spills is removed in step 2 with the rest of the siege code.
+
+**`/charter admin npc clearruins <x> <z>`.** Op only; refuses if any chunk within 10 blocks is claimed; clears the
+raiders' palette blocks (cobblestone, stone bricks to grass, Nexus, chests, campfire, banner) in a 21 by 21 footprint
+and prints the count. It does not remove other blocks. `admin npc list` also shows supply and pool.
+
+**Tests.** Core `NpcWaveTest` (supply by tier, waves and cost, fall, expiry, retire), fabric `StoreTest`
+(site state, snapshot and crumble round trip, an old npc block), gametests in `NpcGameTest`: drain and exact restore,
+the failsafe, the outpost via the siege route, the crumble order and the marker block outside the footprint, and
+clearruins. Traps: the automatic NPC pass is switched off while any test site is open (a counter, because tests run
+side by side; a test that closed early re-enabled the real scheduler and it built sites in the test world, which ran
+the server out of memory); entities a pass spawns appear on the next tick, so stages wait; a failed run leaves forced
+chunks saved in `fabric/build/run/gameTest/world`, delete it when a run dies of OutOfMemory (and a run that prints no
+"GAME TESTS COMPLETE" line is not a pass even if Gradle says BUILD SUCCESSFUL).

@@ -133,6 +133,8 @@ public final class CoreTypes {
         com.google.gson.JsonObject root = new com.google.gson.JsonObject();
         root.add("sites", gson.toJsonTree(state.npc.sites));
         root.add("respawns", gson.toJsonTree(state.npc.respawns));
+        root.add("live", gson.toJsonTree(state.npc.live));
+        root.add("crumbles", gson.toJsonTree(state.npc.crumbles));
         root.addProperty("nextId", state.npc.nextId);
         return root;
     }
@@ -152,6 +154,29 @@ public final class CoreTypes {
             java.util.List<charter.npc.NpcBook.Respawn> respawns = gson.fromJson(json.get("respawns"),
                     new com.google.gson.reflect.TypeToken<java.util.List<charter.npc.NpcBook.Respawn>>() { }.getType());
             state.npc.respawns.addAll(respawns);
+        }
+        state.npc.crumbles.clear();
+        if (json.has("crumbles") && json.get("crumbles").isJsonArray()) {
+            java.util.List<charter.npc.NpcBook.Crumble> crumbles = gson.fromJson(json.get("crumbles"),
+                    new com.google.gson.reflect.TypeToken<java.util.List<charter.npc.NpcBook.Crumble>>() { }.getType());
+            for (charter.npc.NpcBook.Crumble c : crumbles) {
+                if (c == null) continue;
+                if (c.pending == null) c.pending = new java.util.ArrayList<>();
+                if (c.restore == null) c.restore = new charter.npc.NpcBook.Snapshot();
+                state.npc.crumbles.add(c);
+            }
+        }
+        // A save from before waves has no "live": each site then gets its tier's supply the first time it is tended.
+        state.npc.live.clear();
+        if (json.has("live") && json.get("live").isJsonObject()) {
+            java.util.Map<Long, charter.npc.NpcBook.Live> live = gson.fromJson(json.get("live"),
+                    new com.google.gson.reflect.TypeToken<java.util.Map<Long, charter.npc.NpcBook.Live>>() { }.getType());
+            for (var e : live.entrySet()) {
+                charter.npc.NpcBook.Live l = e.getValue();
+                if (l == null) continue;
+                if (l.raiders == null) l.raiders = new java.util.ArrayList<>();
+                state.npc.live.put(e.getKey(), l);
+            }
         }
         if (json.has("nextId")) state.npc.nextId = json.get("nextId").getAsLong();
     }
