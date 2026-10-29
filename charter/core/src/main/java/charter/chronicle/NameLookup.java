@@ -22,9 +22,24 @@ public interface NameLookup {
         return "a keep";
     }
 
+    /** True when the core belongs to a faction of the raiders, even a core that has since fallen. */
+    default boolean isNpcCore(CoreId id) {
+        return false;
+    }
+
+    /** True for a faction of the raiders; the Chronicle tells the players' story, not theirs. Default for lookups that do not know. */
+    default boolean isNpc(OrgId id) {
+        return false;
+    }
+
     /** Names read from the live state, including dissolved organizations. */
     static NameLookup from(CharterState state) {
         return new NameLookup() {
+            @Override
+            public boolean isNpc(OrgId id) {
+                return state.orgIncludingDissolved(id).map(o -> o.npc).orElse(false);
+            }
+
             @Override
             public String org(OrgId id) {
                 return state.orgIncludingDissolved(id).map(o -> o.name()).orElse("an unknown organization");
@@ -33,6 +48,23 @@ public interface NameLookup {
             @Override
             public String player(PlayerId id) {
                 return state.knownPlayer(id).map(p -> p.name).filter(n -> !n.isEmpty()).orElse("someone");
+            }
+
+            private java.util.Map<CoreId, OrgId> owners;
+
+            @Override
+            public boolean isNpcCore(CoreId id) {
+                var live = state.core(id);
+                if (live.isPresent()) return isNpc(live.get().owner);
+                if (owners == null) {
+                    owners = new java.util.HashMap<>();
+                    for (var entry : state.history.entries()) {
+                        if (entry.event() instanceof charter.land.LandEvents.NexusPlaced e) owners.put(e.core(), e.org());
+                        else if (entry.event() instanceof charter.land.LandEvents.CampPlanted e) owners.put(e.core(), e.org());
+                    }
+                }
+                OrgId owner = owners.get(id);
+                return owner != null && isNpc(owner);
             }
 
             /** Cores that are gone (razed, lost) are found again through the history that placed them. */

@@ -61,6 +61,7 @@ public final class ChronicleTest {
         goldenTemplates();
         noDashesInTemplates();
         adminEventsAreHiddenUnlessOptedIn();
+        theRaidersAreLeftOutOfTheStory();
         unknownEventsRenderTheFallback();
         serverTemplatesOverlayTheDefaults();
         sampleChronicle();
@@ -207,6 +208,20 @@ public final class ChronicleTest {
         eq("admin: shown when opted in, with the clerk's voice",
                 IN + "Ashfall invited Gil to join them. So it was done by order of the crown's clerk.", shown);
         eq("admin: opted in shows both", 2, renderer(true).render(List.of(admin, player)).size());
+    }
+
+    static void theRaidersAreLeftOutOfTheStory() {
+        NameLookup raiders = new NameLookup() {
+            @Override public String org(OrgId id) { return NAMES.org(id); }
+            @Override public String player(PlayerId id) { return NAMES.player(id); }
+            @Override public String office(OfficeId id) { return NAMES.office(id); }
+            @Override public boolean isNpc(OrgId id) { return id.equals(RIVERSIDE); }
+        };
+        ChronicleRenderer r = new ChronicleRenderer(DefaultTemplates.get(), new Calendar(0, Durations.DAY), raiders, false);
+        History.Entry theirs = new History.Entry(new OrgEvents.Left(AT, RIVERSIDE, GIL), "Gil", false);
+        History.Entry ours = new History.Entry(new OrgEvents.Left(AT, ASHFALL, GIL), "Gil", false);
+        check("raiders: an event that names a raider faction is left out", r.render(theirs).isEmpty());
+        eq("raiders: a player faction still shows", 1, r.render(List.of(theirs, ours)).size());
     }
 
     /** A made-up event kind, as a later milestone would add. */

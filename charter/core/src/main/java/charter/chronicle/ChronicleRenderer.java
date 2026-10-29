@@ -51,6 +51,7 @@ public final class ChronicleRenderer {
         if (entry.admin() && !includeAdmin) return Optional.empty();
         HistoryEvent event = entry.event();
         if (routine(event)) return Optional.empty();
+        if (touchesNpc(event)) return Optional.empty();
         String key = TemplateSet.keyOf(event.getClass());
         String text = templates.get(key).map(Template::text)
                 .or(() -> templates.get(TemplateSet.FALLBACK).map(Template::text))
@@ -78,6 +79,22 @@ public final class ChronicleRenderer {
                 || event instanceof charter.org.OrgEvents.Asked
                 || event instanceof charter.org.OrgEvents.Rejected
                 || event instanceof charter.org.OrgEvents.RequestLapsed;
+    }
+
+    /** An event that names a faction of the raiders (their sites, their sieges) is left out of the story. */
+    private boolean touchesNpc(HistoryEvent event) {
+        for (Object value : fields(event).values()) {
+            if (value instanceof OrgId id && names.isNpc(id)) return true;
+            if (value instanceof Holder.OfOrg h && names.isNpc(h.org())) return true;
+            if (value instanceof CoreId id && names.isNpcCore(id)) return true;
+            if (value instanceof Party p && !p.isPlayer() && names.isNpc(p.org())) return true;
+            if (value instanceof Collection<?> c) {
+                for (Object item : c) {
+                    if (item instanceof OrgId id && names.isNpc(id)) return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static Map<String, Object> fields(HistoryEvent event) {
