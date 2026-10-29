@@ -34,7 +34,7 @@ over about 100 lines). Windows shell; paths contain a space ("MrPinoys Mods"), a
 5. Do not push, deploy, restart or touch any server. Deployment is the owner's call (`deploy-test-server` skill).
 6. Do not rename the mod, change the pinned versions, or approve open decisions D3 and D4 yourself.
 7. Do not report a feature as working unless a test or a run you did proved it. Say "not verified" plainly.
-8. Commit authorship must be `MrPinoys123456789` (noreply email), never any other identity.
+8. Commit authorship must be `MrPinoy123456789` (noreply email, 334378049+MrPinoy123456789@users.noreply.github.com), never any other identity.
 9. New gametest classes only run if listed in `foundry/src/gametest/resources/fabric.mod.json`; confirm the
    gametest count rises after you add one.
 10. Player-facing and operator-facing text follows plain language: say what happened and what to do next. Every
