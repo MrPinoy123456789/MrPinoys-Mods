@@ -33,6 +33,16 @@ public final class ItemGameTest {
     }
 
     @GameTest
+    public void handWrittenModelItemIsRegistered(GameTestHelper helper) {
+        var id = Identifier.parse("demo:wizard_staff");
+        helper.assertTrue(BuiltInRegistries.ITEM.containsKey(id), "demo:wizard_staff is registered");
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(id));
+        helper.assertValueEqual(stack.get(DataComponents.ITEM_NAME).getString(), "Wizard Staff", "display name");
+        helper.assertValueEqual(stack.getMaxStackSize(), 1, "stack size from the definition");
+        helper.succeed();
+    }
+
+    @GameTest
     @SuppressWarnings("removal")
     public void usingTheSwordRunsItsMechanicOnceThenCoolsDown(GameTestHelper helper) {
         var player = helper.makeMockServerPlayerInLevel();
@@ -49,6 +59,60 @@ public final class ItemGameTest {
     }
 
     @GameTest
+    @SuppressWarnings("removal")
+    public void hittingAnEntityAppliesTheEffectToItNotThePlayer(GameTestHelper helper) {
+        var player = helper.makeMockServerPlayerInLevel();
+        var item = BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:crystal_sword"));
+        var stack = new ItemStack(item);
+        var zombie = helper.spawn(net.minecraft.world.entity.EntityTypes.ZOMBIE, 1, 2, 1);
+        helper.assertTrue(!zombie.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING), "no glowing before the hit");
+        helper.assertTrue(!player.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING), "the player is not the target");
+        item.hurtEnemy(stack, zombie, player);
+        helper.assertTrue(zombie.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING), "the hit entity glows");
+        helper.assertTrue(!player.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING), "the player does not glow");
+        helper.succeed();
+    }
+
+    @GameTest
+    public void recipesLoadThroughTheGeneratedDatapack(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var manager = server.getRecipeManager();
+        var gemKey = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.RECIPE,
+                Identifier.parse("demo:glow_gem"));
+        var holder = manager.byKey(gemKey);
+        helper.assertTrue(holder.isPresent(), "demo:glow_gem recipe is live");
+        var vanillaKey = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.RECIPE,
+                Identifier.parse("minecraft:stick"));
+        helper.assertTrue(manager.byKey(vanillaKey).isPresent(), "vanilla recipes are untouched");
+
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(2, 2, java.util.List.of(
+                new ItemStack(Items.AMETHYST_SHARD), new ItemStack(Items.AMETHYST_SHARD),
+                new ItemStack(Items.AMETHYST_SHARD), new ItemStack(Items.GLOW_INK_SAC)));
+        @SuppressWarnings("unchecked")
+        var recipe = (net.minecraft.world.item.crafting.Recipe<net.minecraft.world.item.crafting.CraftingInput>)
+                holder.get().value();
+        var result = recipe.assemble(input);
+        helper.assertValueEqual(result.getItem(), BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:glow_gem")),
+                "the recipe crafts the Foundry item");
+        helper.succeed();
+    }
+
+    /** DECISIONS.md D5 experiment: what the server does with a stack whose id is not in the registry. */
+    @GameTest
+    public void aStackOfAnUnregisteredIdFailsStrictDecode(GameTestHelper helper) {
+        var tag = new net.minecraft.nbt.CompoundTag();
+        tag.putString("id", "foundry:no_such_item");
+        tag.putInt("count", 1);
+        var ops = helper.getLevel().registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+        var strict = ItemStack.CODEC.parse(ops, tag);
+        helper.assertTrue(strict.isError(), "the strict stack codec must reject an unregistered id");
+        var optional = ItemStack.OPTIONAL_CODEC.parse(ops, tag);
+        helper.assertTrue(optional.isError() || optional.result().map(ItemStack::isEmpty).orElse(false),
+                "the optional codec must reject or empty an unregistered id");
+        helper.succeed();
+    }
+
+    @GameTest
     public void aBrokenFileRefusesReloadAndKeepsTheOldContent(GameTestHelper helper) throws Exception {
         var server = helper.getLevel().getServer();
         var original = System.getProperty("foundry.content");
@@ -57,10 +121,10 @@ public final class ItemGameTest {
         for (var name : new String[]{"crystal_sword.json", "glow_gem.json"}) {
             java.nio.file.Files.copy(java.nio.file.Path.of(original, "demo", "items", name), items.resolve(name));
         }
+        var source = server.createCommandSourceStack().withPermission(net.minecraft.server.permissions.PermissionSet.ALL_PERMISSIONS);
+        var dispatcher = server.getCommands().getDispatcher();
         try {
             System.setProperty("foundry.content", dir.toString());
-            var source = server.createCommandSourceStack().withPermission(net.minecraft.server.permissions.PermissionSet.ALL_PERMISSIONS);
-            var dispatcher = server.getCommands().getDispatcher();
             helper.assertValueEqual(dispatcher.execute("foundry reload", source), 1, "an unchanged folder reloads");
 
             java.nio.file.Files.writeString(items.resolve("broken.json"), "{ \"id\": \"demo:broken\" }");
@@ -77,6 +141,7 @@ public final class ItemGameTest {
             helper.assertValueEqual(dispatcher.execute("foundry reload", source), 1, "reload works again once fixed");
         } finally {
             System.setProperty("foundry.content", original);
+            dispatcher.execute("foundry reload", source);  // other tests expect the examples live again
         }
         helper.succeed();
     }
@@ -114,6 +179,8 @@ public final class ItemGameTest {
         for (String sub : new String[]{"help", "status", "validate", "reload", "pack", "give"}) {
             helper.assertTrue(foundry.getChild(sub) != null, "/foundry " + sub);
         }
+        var pack = foundry.getChild("pack");
+        helper.assertTrue(pack.getChild("status") != null && pack.getChild("build") != null, "/foundry pack status and build");
         helper.assertTrue(Items.DIAMOND_SWORD != null, "vanilla untouched");
         helper.succeed();
     }

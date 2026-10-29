@@ -15,7 +15,11 @@ Target: Minecraft 26.2, Fabric Loader 0.19.3, Fabric API 0.156.0+26.2, Java 25, 
 `fabric.mod.json`. Polymer 0.18.x targets 26.3 and is not used. SGUI is not in the bundle; add `sgui` only when
 menus are built (task F8).
 
-## D3 (open): furniture representation
+## D3 (2026-10-29, approved): furniture representation
+
+Approved by the owner: block-bound, solid by default, cardinal facing like vanilla blocks; no extra movement or
+interaction behaviour beyond vanilla unless explicitly requested. Details and the build consequences are in
+`docs/FURNITURE_DECISION.md`. The original proposal follows.
 
 Proposed, not approved: display entities for visuals, an interaction entity for clicks, and a barrier or light block
 where collision is needed. A logical furniture object has its own stable id stored in world persistence; entity UUIDs
@@ -34,12 +38,18 @@ Never delete data silently. If a definition is missing at startup, keep the id i
 log it once with the file it used to come from, and let the server start. Item stacks of a missing id are handled by
 vanilla registry sync behaviour; verify what actually happens before promising recovery (task F6).
 
+Verified 2026-10-29 (gametest `aStackOfAnUnregisteredIdFailsStrictDecode`): `ItemStack.CODEC` rejects an
+unregistered id outright; the stack does not survive a strict decode, so held items of a removed definition are
+dropped, not preserved. The ledger is therefore the only durable trace, and re-adding the definition cannot bring
+dropped stacks back. Implemented: `config/foundry/orphans.json`, updated at startup and after each successful
+`/foundry reload`, logging newly vanished ids once and removing ids that come back.
+
 ## D6 (2026-10-29): no Mixins, no packet interception
 
 Everything so far uses Polymer and Fabric API. A Mixin needs a written justification, a flag in the handoff report,
 and owner approval. The same applies to NMS-style internals.
 
-## D8 (2026-10-29, open): how Foundry recipes reach the recipe manager
+## D8 (2026-10-29): how Foundry recipes reach the recipe manager
 
 Finding: in 26.2 `RecipeManager` fills itself from data pack JSON during reload, and its `apply` and `prepare` are
 protected; there is no public call to add a recipe, and Fabric's recipe API only adds ingredient types. Without a
@@ -49,8 +59,15 @@ Mixin the only paths found are data-pack based:
 2. Ship recipes inside a built-in pack via `ResourceLoader.registerBuiltinPack`, which reads from the mod jar, so it
    is static, not generated from `config/foundry`.
 3. A Mixin or accessor on `RecipeManager` (forbidden by D6 without owner approval).
-Not yet tried: supplying a pack from memory through the `fabric-resource-loader-v1` internals; read its sources
-before choosing. Next step for whoever takes F2: try that, record the result, and ask the owner before using a Mixin.
+The untried option, in-memory packs through `fabric-resource-loader-v1`, works: `registerBuiltinPack` only asks for a
+`ModContainer`, an api interface, and resolves `<rootPaths[0]>/<namespace>/<pack id>` as an NIO folder pack that is
+re-read on every data reload. Resolution (2026-10-29): a small fake `ModContainer` whose root is
+`config/foundry/datapack` gives Foundry an always-enabled builtin pack at
+`config/foundry/datapack/resourcepacks/recipes/` (`registerBuiltinPack` resolves `resourcepacks/<id path>` inside each
+container root) with a `pack.mcmeta` and generated recipe JSON. Content is regenerated on `/foundry reload`, then applied with the
+same `server.reloadResources` call vanilla `/reload` uses. No Mixin, no access widener, no NMS internals; the fake
+container implements only `fabric-loader` api interfaces, and if Fabric ever tightens this, the datapacks route in
+option 1 is the fallback.
 
 ## D7 (2026-10-29): name
 

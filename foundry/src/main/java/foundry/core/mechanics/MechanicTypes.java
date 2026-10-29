@@ -12,25 +12,30 @@ import java.util.TreeMap;
 public final class MechanicTypes {
     private MechanicTypes() {}
 
-    public enum Kind { ID, INT, DECIMAL }
+    public enum Kind { ID, INT, DECIMAL, TARGET }
 
     public record Param(String name, Kind kind, boolean required, double min, double max) {
         static Param id(String n) { return new Param(n, Kind.ID, true, 0, 0); }
         static Param integer(String n, boolean req, int min, int max) { return new Param(n, Kind.INT, req, min, max); }
         static Param decimal(String n, boolean req, double min, double max) { return new Param(n, Kind.DECIMAL, req, min, max); }
+        static Param target() { return new Param("target", Kind.TARGET, false, 0, 0); }
     }
 
     public record Spec(String name, List<Param> params) {}
+
+    /** Valid values for the {@code target} parameter; absent means the acting player. */
+    public static final List<String> TARGETS = List.of("self", "hit");
 
     public static final Map<String, Spec> ACTIONS = new TreeMap<>();
     public static final Map<String, Spec> CONDITIONS = new TreeMap<>();
 
     static {
-        action("play_sound", Param.id("sound"), Param.decimal("volume", false, 0, 10), Param.decimal("pitch", false, 0.5, 2));
+        action("play_sound", Param.id("sound"), Param.decimal("volume", false, 0, 10), Param.decimal("pitch", false, 0.5, 2),
+                Param.target());
         action("apply_effect", Param.id("effect"), Param.integer("duration", true, 1, 72000),
-                Param.integer("amplifier", false, 0, 255));
-        action("give_item", Param.id("item"), Param.integer("count", false, 1, 99));
-        condition("has_permission", Param.integer("level", true, 0, 4));
+                Param.integer("amplifier", false, 0, 255), Param.target());
+        action("give_item", Param.id("item"), Param.integer("count", false, 1, 99), Param.target());
+        condition("has_permission", Param.integer("level", true, 0, 4), Param.target());
     }
 
     private static void action(String name, Param... p) {
@@ -68,6 +73,12 @@ public final class MechanicTypes {
                 case ID -> {
                     if (foundry.core.Ident.parse(v) == null) {
                         out.add(p.name() + " \"" + v + "\" is not a valid identifier such as minecraft:speed.");
+                    }
+                }
+                case TARGET -> {
+                    if (!TARGETS.contains(v)) {
+                        out.add("target \"" + v + "\" is not valid. Use self (the acting player) or hit "
+                                + "(the entity hit by an on_hit_entity trigger).");
                     }
                 }
                 case INT, DECIMAL -> {

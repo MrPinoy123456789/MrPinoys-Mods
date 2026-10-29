@@ -27,7 +27,8 @@ public final class FoundryMod implements ModInitializer {
     public static final String ID = "foundry";
     public static final Logger LOG = LoggerFactory.getLogger(ID);
 
-    private static volatile ContentSet loaded = new ContentSet(java.util.Map.of(), java.util.List.of());
+    private static volatile ContentSet loaded = new ContentSet(java.util.Map.of(), java.util.Map.of(),
+            java.util.List.of(), java.util.Map.of());
 
     static ContentSet loaded() {
         return loaded;
@@ -67,7 +68,14 @@ public final class FoundryMod implements ModInitializer {
     static ContentSet loadContent() {
         ContentSet set = ContentLoader.load(contentRoot(),
                 id -> BuiltInRegistries.ITEM.containsKey(Identifier.parse(id.toString())),
-                path -> Files.isRegularFile(assetsRoot().resolve(path)));
+                path -> Files.isRegularFile(assetsRoot().resolve(path)),
+                path -> {
+                    try {
+                        return Files.readString(assetsRoot().resolve(path));
+                    } catch (IOException e) {
+                        return null;
+                    }
+                });
         set = MechanicHost.checkReferences(set);
         set.problems().forEach(p -> LOG.warn("{}", p));
         return set;
@@ -81,7 +89,7 @@ public final class FoundryMod implements ModInitializer {
      * Registry-bound changes (new items, changed base item, stack size, durability, rarity, glint, lore, name,
      * model) cannot apply to registered items, so they are listed as restart needed.
      */
-    static synchronized ReloadReport reload() {
+    static synchronized ReloadReport reload(net.minecraft.server.MinecraftServer server) {
         ContentSet candidate = loadContent();
         long errors = candidate.problems().stream().filter(foundry.core.Problem::blocking).count();
         if (errors > 0) return new ReloadReport(false, (int) errors, List.of(), List.of());
@@ -98,7 +106,32 @@ public final class FoundryMod implements ModInitializer {
         }
         for (var id : old.items().keySet()) if (!candidate.items().containsKey(id)) restart.add(id + " (removed)");
         loaded = candidate;
+        updateOrphans(candidate);
+        FoundryDatapack.apply(candidate, server);
         return new ReloadReport(true, 0, List.copyOf(restart), List.copyOf(updated));
+    }
+
+    /** The orphan ledger, {@code config/foundry/orphans.json}: ids that vanished, with the file they came from. */
+    static Path orphansPath() {
+        return FabricLoader.getInstance().getConfigDir().resolve(ID).resolve("orphans.json");
+    }
+
+    /** DECISIONS.md D5: record ids that disappeared since the last run; heal ones that came back. Never throws. */
+    static void updateOrphans(ContentSet set) {
+        try {
+            Path ledger = orphansPath();
+            String previous = Files.isRegularFile(ledger) ? Files.readString(ledger) : null;
+            var update = foundry.core.Orphans.update(previous, set.sources(),
+                    java.time.Instant.now().toString());
+            Files.createDirectories(ledger.getParent());
+            Files.writeString(ledger, update.json());
+            update.added().forEach(e -> LOG.warn("Foundry: {} is no longer defined (was {}). Recorded in {}.",
+                    e.id(), e.file(), ledger.getFileName()));
+            update.healed().forEach(e -> LOG.info("Foundry: {} is defined again; removed from the orphan ledger.",
+                    e.id()));
+        } catch (Exception e) {
+            LOG.warn("Foundry: could not update the orphan ledger: {}", e.toString());
+        }
     }
 
     private static boolean sameRegistration(foundry.core.ItemDef a, foundry.core.ItemDef b) {
@@ -114,7 +147,10 @@ public final class FoundryMod implements ModInitializer {
         set.items().values().forEach(FoundryItems::register);
         FoundryItems.applyNames();
         loaded = set;
+        updateOrphans(set);
+        FoundryDatapack.init(set);
         FoundryCommands.register();
+        PackBuilds.markBaseline();
         LOG.info("Foundry: {} items registered, {} problems", FoundryItems.all().size(), set.problems().size());
     }
 }

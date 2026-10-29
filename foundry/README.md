@@ -5,8 +5,9 @@ sounds and more) in JSON files; the mod registers them through Polymer so vanill
 resource pack. No client mod, no Java per item. There is no editor UI: Claude Code skills and a validator are the
 authoring interface.
 
-Status: Phase 0 plus tasks F0, F1, F3 and F5 of the handoff. Items with textures, models and mechanics work on a
-dev server and in gametests; nothing has been seen by a vanilla client yet (see "What is not verified").
+Status: Phase 0 plus tasks F0, F1, F2, F3 and F5 of the handoff. Items with textures, models and mechanics work on a
+dev server and in gametests; crafting recipes load through a generated datapack. A local vanilla client has used the
+pack and items once; broader client and remote verification is open (see "What is not verified").
 
 ## Layout
 
@@ -21,11 +22,15 @@ dev server and in gametests; nothing has been seen by a vanilla client yet (see 
 
 ## Content on disk
 
-`config/foundry/content/<namespace>/items/<name>.json`. One file per definition. Field list: `schema/item.v1.schema.json`.
+`config/foundry/content/<namespace>/items/<name>.json` for items, `config/foundry/content/<namespace>/recipes/<name>.json`
+for crafting recipes. One file per definition. Field lists: `schema/item.v1.schema.json`, `schema/recipe.v1.schema.json`.
+Recipes are written to a generated datapack at `config/foundry/datapack/` and reach the recipe book through a server
+data reload (see `docs/DECISIONS.md` D8).
 
 ## Commands (operators)
 
-`/foundry help`, `status`, `validate`, `reload`, `pack status`, `give <player> <id> [count]`.
+`/foundry help`, `status`, `validate`, `reload`, `pack status`, `pack build`, `rename <old> <new>`,
+`give <player> <id> [count]`.
 
 ## Build and test
 
@@ -40,10 +45,13 @@ Foundry never shades it.
 
 ## What works (verified 2026-10-29)
 
-- `coreTest`: 50 checks pass (ids, parsing, validation, pack generation, every mechanics limit).
-- `runGameTest`: 6 gametests pass (registration, name, rarity, stack size, durability, a texture item, the sword
-  mechanic through `Item.use` with its cooldown, a broken file refusing `/foundry reload` and keeping the old content).
-- Dev server: `Foundry: 2 items registered, 0 problems`; `polymer/resource_pack.zip` holds the generated client item
+- `coreTest`: 92 checks pass (ids, parsing, validation, pack generation, every mechanics limit, recipes, renames,
+  the orphan ledger, pack-input hashing).
+- `runGameTest`: 11 gametests pass (registration, name, rarity, stack size, durability, texture and hand-written
+  model items, mechanics through `use` and `hurtEnemy` including the hit-entity target, recipes served through the
+  generated datapack and assembling to a Foundry item, an unregistered-id stack failing strict decode, a broken file
+  refusing `/foundry reload` and keeping the old content).
+- Dev server: `Foundry: 3 items registered, 0 problems`; `polymer/resource_pack.zip` holds the generated client item
   definition, the generated model and the texture; `/foundry pack status` and `/foundry reload` answer.
 
 ## Verified by the owner in a vanilla client (2026-10-29)
@@ -55,6 +63,7 @@ the public address, or an upgrade over an existing world.
 
 ## What is not verified
 
-- Recipes (F2) are blocked on a decision, see DECISIONS.md D8. Furniture (F4) waits for D3.
-- Effects and sounds apply to the acting player only; there is no target selector, so "slow the enemy you hit" is not
-  possible yet. The pack is built at server start; there is no runtime rebuild.
+- Furniture (F4) waits for decision D3. Rename/orphan handling (F6) is not built.
+- The pack is still only rebuilt on demand: `/foundry pack build` or `/polymer generate-pack`. Nothing watches the
+  files. Whether a client that is already connected picks up the rebuilt pack without a command depends on the
+  Polymer autohost provider and is not verified.

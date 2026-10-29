@@ -16,25 +16,31 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Carries out validated mechanic steps for one player. Effects and sounds apply to the acting player; there is no
- * target selector yet (see docs/devin/01-TASKS.md, F3 follow-ups). Server thread only.
+ * Carries out validated mechanic steps. {@code target "self"} (the default) is the acting player;
+ * {@code target "hit"} is the entity an on_hit_entity mechanic struck, and is null for every other trigger.
+ * Server thread only.
  */
 final class MechanicHost implements MechanicRunner.Host {
     private static final MechanicRunner RUNNER = new MechanicRunner();
 
     private final ServerPlayer player;
+    private final LivingEntity hit;
 
-    private MechanicHost(ServerPlayer player) {
+    private MechanicHost(ServerPlayer player, LivingEntity hit) {
         this.player = player;
+        this.hit = hit;
     }
 
     /** Fires every mechanic of {@code trigger}. Returns true when at least one ran. */
-    static boolean fire(Trigger trigger, String contentId, List<MechanicDef> mechanics, ServerPlayer player) {
+    static boolean fire(Trigger trigger, String contentId, List<MechanicDef> mechanics, ServerPlayer player,
+            LivingEntity hit) {
         boolean any = false;
-        MechanicHost host = new MechanicHost(player);
+        MechanicHost host = new MechanicHost(player, hit);
         for (int i = 0; i < mechanics.size(); i++) {
             MechanicDef m = mechanics.get(i);
             if (m.trigger() != trigger) continue;
@@ -54,8 +60,14 @@ final class MechanicHost implements MechanicRunner.Host {
     }
 
     @Override
-    public boolean hasPermission(int level) {
-        return level <= 0 || player.permissions().hasPermission(new net.minecraft.server.permissions.Permission.HasCommandLevel(
+    public boolean hasPermission(int level, boolean onHit) {
+        if (level <= 0) return true;
+        if (onHit) {
+            return hit instanceof ServerPlayer p && p.permissions().hasPermission(
+                    new net.minecraft.server.permissions.Permission.HasCommandLevel(
+                            net.minecraft.server.permissions.PermissionLevel.byId(level)));
+        }
+        return player.permissions().hasPermission(new net.minecraft.server.permissions.Permission.HasCommandLevel(
                 net.minecraft.server.permissions.PermissionLevel.byId(level)));
     }
 
@@ -64,23 +76,33 @@ final class MechanicHost implements MechanicRunner.Host {
         return player.getRandom().nextDouble() < probability;
     }
 
+    /** The entity a step acts on: the hit entity for {@code target "hit"}, the acting player otherwise. */
+    private LivingEntity targetOf(Step step) {
+        return "hit".equals(step.param("target", "self")) && hit != null ? hit : player;
+    }
+
     @Override
     public void perform(Step action) {
         ServerLevel level = player.level();
+        LivingEntity target = targetOf(action);
         switch (action.type()) {
             case "play_sound" -> {
                 var sound = BuiltInRegistries.SOUND_EVENT.getValue(Identifier.parse(action.param("sound", "")));
                 if (sound != null) {
-                    level.playSound(null, player.getX(), player.getY(), player.getZ(), sound, SoundSource.PLAYERS,
+                    level.playSound(null, target.getX(), target.getY(), target.getZ(), sound, SoundSource.PLAYERS,
                             (float) action.decimalParam("volume", 1.0), (float) action.decimalParam("pitch", 1.0));
                 }
             }
             case "apply_effect" -> BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(action.param("effect", "")))
-                    .ifPresent(effect -> player.addEffect(new MobEffectInstance(effect, action.intParam("duration", 100),
+                    .ifPresent(effect -> target.addEffect(new MobEffectInstance(effect, action.intParam("duration", 100),
                             action.intParam("amplifier", 0))));
             case "give_item" -> {
-                var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(action.param("item", "")));
-                player.getInventory().placeItemBackInInventory(new ItemStack(item, action.intParam("count", 1)));
+                if (target instanceof Player p) {
+                    var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(action.param("item", "")));
+                    p.getInventory().placeItemBackInInventory(new ItemStack(item, action.intParam("count", 1)));
+                } else {
+                    FoundryMod.LOG.warn("Foundry: give_item skipped; the target is not a player.");
+                }
             }
             default -> FoundryMod.LOG.warn("Foundry: no handler for action type {}; the registry and host are out of step.",
                     action.type());
@@ -109,7 +131,10 @@ final class MechanicHost implements MechanicRunner.Host {
         problems.stream().skip(set.problems().size()).filter(Problem::blocking).forEach(p -> bad.add(p.content()));
         var kept = new java.util.LinkedHashMap<>(set.items());
         kept.keySet().removeIf(id -> bad.contains(id.toString()));
-        return new ContentSet(java.util.Map.copyOf(kept), List.copyOf(problems));
+        var sources = new java.util.LinkedHashMap<>(set.sources());
+        sources.keySet().removeIf(id -> bad.contains(id.toString()));
+        return new ContentSet(java.util.Map.copyOf(kept), set.recipes(), List.copyOf(problems),
+                java.util.Map.copyOf(sources));
     }
 
     private static void missing(List<Problem> problems, Ident id, String what, String value, boolean exists) {

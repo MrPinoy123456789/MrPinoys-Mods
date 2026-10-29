@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import foundry.core.ContentSet;
 import foundry.core.Ident;
 import foundry.core.Problem;
+import java.util.Map;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -27,7 +28,15 @@ final class FoundryCommands {
                         .then(Commands.literal("validate").executes(ctx -> validate(ctx.getSource())))
                         .then(Commands.literal("reload").executes(ctx -> reload(ctx.getSource())))
                         .then(Commands.literal("pack").then(Commands.literal("status")
-                                .executes(ctx -> packStatus(ctx.getSource()))))
+                                .executes(ctx -> packStatus(ctx.getSource())))
+                                .then(Commands.literal("build")
+                                .executes(ctx -> packBuild(ctx.getSource()))))
+                        .then(Commands.literal("rename")
+                                .then(Commands.argument("old", IdentifierArgument.id())
+                                        .then(Commands.argument("new", IdentifierArgument.id())
+                                                .executes(ctx -> rename(ctx.getSource(),
+                                                        IdentifierArgument.getId(ctx, "old").toString(),
+                                                        IdentifierArgument.getId(ctx, "new").toString())))))
                         .then(Commands.literal("give")
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .then(Commands.argument("id", IdentifierArgument.id())
@@ -42,7 +51,8 @@ final class FoundryCommands {
 
     private static int help(CommandSourceStack src) {
         src.sendSuccess(() -> Component.literal(
-                "Foundry: /foundry status, validate, reload, pack status, give <player> <id> [count]"), false);
+                "Foundry: /foundry status, validate, reload, pack status, pack build, rename <old> <new>,"
+                        + " give <player> <id> [count]"), false);
         return 1;
     }
 
@@ -50,6 +60,7 @@ final class FoundryCommands {
         ContentSet set = FoundryMod.loaded();
         long errors = set.problems().stream().filter(Problem::blocking).count();
         src.sendSuccess(() -> Component.literal("Foundry: " + FoundryItems.all().size() + " items registered, "
+                + set.recipes().size() + " recipes, "
                 + errors + " errors, " + (set.problems().size() - errors) + " warnings at last load."), false);
         return 1;
     }
@@ -71,7 +82,7 @@ final class FoundryCommands {
     }
 
     private static int reload(CommandSourceStack src) {
-        FoundryMod.ReloadReport r = FoundryMod.reload();
+        FoundryMod.ReloadReport r = FoundryMod.reload(src.getServer());
         if (!r.swapped()) {
             src.sendFailure(Component.literal("Foundry: reload refused, " + r.errors()
                     + " error(s). The previous content is still live. Run /foundry validate for details."));
@@ -93,11 +104,66 @@ final class FoundryCommands {
             String sha1 = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-1").digest(bytes));
             src.sendSuccess(() -> Component.literal("Foundry pack: " + bytes.length + " bytes, sha1 " + sha1
                     + ", required=" + eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils.isRequired()), false);
+            long last = PackBuilds.lastSuccessMs();
+            src.sendSuccess(() -> Component.literal("Foundry pack: "
+                    + (PackBuilds.isBuilding() ? "a build is running; " : "")
+                    + (last == 0 ? "no runtime build yet" : "last build " + java.time.Instant.ofEpochMilli(last))
+                    + (PackBuilds.lastFailure() == null ? "" : ", last failure: " + PackBuilds.lastFailure())
+                    + (PackBuilds.inputsChanged() ? ", inputs changed since last build" : ", inputs unchanged")), false);
             return 1;
         } catch (Exception e) {
             src.sendFailure(Component.literal("Foundry: could not read the pack: " + e.getMessage()));
             return 0;
         }
+    }
+
+    /** Rebuilds on a worker thread; a failure keeps the previous zip. Online players fetch it on rejoin. */
+    private static int packBuild(CommandSourceStack src) {
+        PackBuilds.build(src.getServer(), msg -> src.sendSuccess(() -> Component.literal(msg), false));
+        return 1;
+    }
+
+    /**
+     * {@code /foundry rename <old> <new>}: rewrites the definition file and every quoted reference, with backups,
+     * then reloads. Renaming a registered item still needs a restart; its registry id cannot change at runtime.
+     */
+    private static int rename(CommandSourceStack src, String oldId, String newId) {
+        Ident oldIdent = Ident.parse(oldId);
+        Ident newIdent = Ident.parse(newId);
+        if (oldIdent == null || newIdent == null) {
+            src.sendFailure(Component.literal("Foundry: ids look like namespace:name, lowercase."));
+            return 0;
+        }
+        java.nio.file.Path root = FoundryMod.contentRoot();
+        Map<String, String> files;
+        try {
+            files = ContentFiles.readAll(root);
+        } catch (java.io.IOException e) {
+            src.sendFailure(Component.literal("Foundry: could not read the content folder: " + e.getMessage()));
+            return 0;
+        }
+        ContentSet set = FoundryMod.loaded();
+        java.util.Set<Ident> taken = new java.util.HashSet<>(set.items().keySet());
+        taken.addAll(set.recipes().keySet());
+        foundry.core.Rename.Result result = foundry.core.Rename.plan(oldIdent, newIdent, taken, files,
+                rel -> ContentFiles.exists(root, rel));
+        if (result.refused()) {
+            for (String why : result.refusals()) src.sendFailure(Component.literal("Foundry: " + why));
+            return 0;
+        }
+        try {
+            String summary = ContentFiles.apply(root, result.plan());
+            src.sendSuccess(() -> Component.literal("Foundry: renamed " + oldId + " to " + newId + ": " + summary), true);
+        } catch (java.io.IOException e) {
+            src.sendFailure(Component.literal("Foundry: rename failed mid-write: " + e.getMessage()
+                    + ". Backups are next to the files as *.bak-*."));
+            return 0;
+        }
+        FoundryMod.ReloadReport r = FoundryMod.reload(src.getServer());
+        src.sendSuccess(() -> Component.literal(r.swapped()
+                ? "Foundry: reloaded. Restart needed for: " + r.restartNeeded()
+                : "Foundry: reload refused after rename; check /foundry validate."), false);
+        return 1;
     }
 
     private static int give(CommandSourceStack src, ServerPlayer target, String id, int count) {

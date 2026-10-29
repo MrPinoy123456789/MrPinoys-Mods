@@ -4,13 +4,15 @@
 
 | Task | State |
 |---|---|
-| F0 | Done except one check: boot with an empty content folder to see whether `No key layers` still prints. Gametests exist (6 pass) |
-| F1 | Done for pack contents and validation. NOT verified in a vanilla client. Still to do: document the autohost settings the owner needs, and a second demo with a hand-written `model` |
-| F2 | Blocked on DECISIONS.md D8. Read it first; do not use a Mixin without asking |
-| F3 | Done for on_use, on_hit_entity, play_sound, apply_effect, give_item, has_permission. Follow-ups: a target selector (hit entity vs self), the cooldown_ready condition is not needed (cooldown is a mechanic field), a `mechanics` skill |
-| F4 | Not started. Decision record first, then stop |
-| F5 | Done: `/foundry reload` (swap only when clean) and `/foundry pack status`. Not done: runtime pack rebuild, incremental builds |
-| F6, F7, F8 | Not started |
+| F0 | Done. Empty-folder boot confirmed `No key layers` is vanilla world-gen noise (COMPATIBILITY.md). 11 gametests pass |
+| F1 | Done. Autohost settings in docs/PACK_HOSTING.md; `demo:wizard_staff` is the hand-written `model` demo; missing model-referenced textures are errors |
+| F2 | Done. D8 resolved without a Mixin: generated datapack under `config/foundry/datapack` served through a builtin pack; recipes reload live |
+| F3 | Done. Target selector `self`/`hit` ships; `add-foundry-mechanic` skill written |
+| F4 | Decision record approved by the owner 2026-10-29 (block-bound, solid by default, cardinal facing). Phase B is open, see below |
+| F5 | Done. `/foundry pack build` on a worker thread, last-good retention, incremental skip on unchanged input hashes |
+| F6 | Done. `/foundry rename` rewrites references with backups and refuses collisions; orphan ledger live; decode experiment recorded in D5 |
+| F7 | Done. `add-foundry-item`, `add-foundry-mechanic`, `add-foundry-recipe` skills; examples cover items, recipes and both asset kinds |
+| F8 | Not started (needs its own decision records) |
 
 The sections below are the original task text; where the table says done, treat the section as the acceptance list to
 re-check, not as work to repeat.
@@ -82,6 +84,23 @@ Goal: an item with a `model` field shows a custom model to a vanilla client.
 - Skill: `.claude/skills/add-foundry-mechanic/SKILL.md` covering when Java is needed (a new type) versus JSON only.
 - Acceptance: pure tests for every limit and every validator error; a gametest where using the demo sword plays the
   sound and applies the effect; the cooldown blocks a second use.
+
+## F4 Phase B: build furniture (approved, start here)
+
+Read the "Owner decisions" section of `docs/FURNITURE_DECISION.md` first. Build a `furniture` definition type
+(schema, parser, validator, skill, example) and the runtime for it:
+- Definition: id, display name, item or block model reference (reuse the `texture` and `model` rules), interaction box
+  size, `solid` (default true), optional mechanic ids on click, drops. Rotation is a cardinal facing only.
+- Runtime: placement through an item (a placeable Foundry item), a real block underneath for collision, an
+  `ElementHolder` with display and interaction elements, `BlockBoundAttachment` for cleanup, a level `SavedData`
+  store as the single source of truth, respawn on chunk load with the duplicate check from the record.
+- Breaking removes the block, the holder and the record; drops follow the definition. Anything vanilla blocks do
+  (pistons, water, explosions) stays whatever vanilla does; do not add behaviour.
+- Tests: pure parser and validator checks; gametests for place, break, restart recovery (reload the store and rebuild
+  holders), no duplicates after a double chunk load. Owner client check procedure written in the report.
+- Do not add free-floating placement, arbitrary rotation, or special cases such as stairs or armor stands.
+
+Original phase text (kept for reference):
 
 ## F4: furniture (decision record first, then stop)
 

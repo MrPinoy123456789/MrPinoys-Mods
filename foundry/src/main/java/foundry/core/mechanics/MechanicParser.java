@@ -58,18 +58,22 @@ public final class MechanicParser {
             if (actions.size() > MechanicDef.MAX_ACTIONS) {
                 out.add(Problem.error(source, where + ".actions", "At most " + MechanicDef.MAX_ACTIONS + " actions, found " + actions.size() + ".", "Remove some."));
             }
-            for (Step c : conditions) check(c, false, source, where + ".conditions", out);
-            for (Step a : actions) check(a, true, source, where + ".actions", out);
+            for (Step c : conditions) check(c, false, source, where + ".conditions", out, trigger);
+            for (Step a : actions) check(a, true, source, where + ".actions", out, trigger);
             if (trigger != null) result.add(new MechanicDef(trigger, conditions, actions, cooldown, chance));
         }
         return result;
     }
 
-    private static void check(Step step, boolean action, String source, String where, List<Problem> out) {
+    private static void check(Step step, boolean action, String source, String where, List<Problem> out, Trigger trigger) {
         for (String message : MechanicTypes.check(step, action)) {
             out.add(Problem.error(source, where, message, action
                     ? "See the action list in the add-foundry-item skill, or ask for a new action type."
                     : "See the condition list in the add-foundry-item skill."));
+        }
+        if ("hit".equals(step.params().get("target")) && trigger != Trigger.ON_HIT_ENTITY) {
+            out.add(Problem.error(source, where, "target \"hit\" only works with an on_hit_entity trigger.",
+                    "Use target \"self\", or change the trigger to on_hit_entity."));
         }
     }
 

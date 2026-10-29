@@ -17,7 +17,8 @@ public final class MechanicRunner {
 
     public interface Host {
         long nowTick();
-        boolean hasPermission(int level);
+        /** True when the actor ({@code hit} false) or the hit entity ({@code hit} true) holds the command level. */
+        boolean hasPermission(int level, boolean hit);
         boolean roll(double probability);
         /** Performs one validated action. Must not fire mechanics. */
         void perform(Step action);
@@ -39,7 +40,8 @@ public final class MechanicRunner {
         String key = actor + "|" + contentId + "|" + mechanicIndex;
         if (m.cooldownTicks() > 0 && readyAt.getOrDefault(key, 0L) > now) return Outcome.ON_COOLDOWN;
         for (Step c : m.conditions()) {
-            if (c.type().equals("has_permission") && !host.hasPermission(c.intParam("level", 4))) {
+            if (c.type().equals("has_permission") && !host.hasPermission(c.intParam("level", 4),
+                    "hit".equals(c.param("target", "self")))) {
                 return Outcome.CONDITION_FAILED;
             }
         }

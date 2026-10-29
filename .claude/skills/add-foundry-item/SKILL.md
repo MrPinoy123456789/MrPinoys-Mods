@@ -51,10 +51,11 @@ textures change the pack, so players re-download it; restart the server to rebui
 
 `mechanics` is a list; each has `trigger` (`on_use`, `on_hit_entity`), optional `cooldown_ticks` (20 per second),
 `chance` (0 to 1), `conditions` and `actions`. Actions: `play_sound` (sound, volume, pitch), `apply_effect` (effect,
-duration, amplifier), `give_item` (item, count). Conditions: `has_permission` (level 0 to 4). Effects and sounds apply
-to the player using the item. Limits: 8 mechanics per item, 16 actions, 8 conditions. Anything else (a new action
-type, a target selector) needs Java in `foundry.core.mechanics.MechanicTypes` and `foundry.mc.MechanicHost`; say so
-instead of improvising. Mechanics change with `/foundry reload`, no restart.
+duration, amplifier), `give_item` (item, count). Conditions: `has_permission` (level 0 to 4). Actions and conditions
+take an optional `target`: `self` (default) or `hit` (the entity struck; only on `on_hit_entity`). Limits: 8
+mechanics per item, 16 actions, 8 conditions. The `add-foundry-mechanic` skill has the full type list. Anything else
+needs Java in `foundry.core.mechanics.MechanicTypes` and `foundry.mc.MechanicHost`; say so instead of improvising.
+Mechanics change with `/foundry reload`, no restart.
 
 ## 5. Report
 

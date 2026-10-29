@@ -37,6 +37,7 @@ Do not move a row to "Verified" until a test or a vanilla client run proves it.
 
 ## Known runtime notes
 
-- The dev server prints `No key layers in MapLike[{}]` while creating a fresh flat world. Seen only with Foundry
-  loaded. It looks like vanilla world creation noise but was not checked without Foundry (still open from F0).
+- The dev server prints `No key layers in MapLike[{}]` on a worker thread while creating a fresh flat world.
+  Checked on 2026-10-29 with an empty content folder (0 items, 0 problems): the line still appears, so it is
+  vanilla world generation noise, not Foundry content. It does not appear on later boots that reuse the world.
 - The Windows ship launcher heap workaround in the root `CLAUDE.md` applies to Foundry too.
