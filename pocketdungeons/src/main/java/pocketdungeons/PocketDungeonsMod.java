@@ -47,7 +47,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         // instance before Instances' own handlers detach them.
         PlaytestJournal.register();
         PlaytestBias.register();
-        Lemon.register();
+        LemonBridge.register();
         FirstVisitTutorial.register();
         Instances.register();
         RitualListener.register();

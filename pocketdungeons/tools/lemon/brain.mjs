@@ -12,7 +12,7 @@
 import { appendFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { context, pd } from '../server/pdcall.mjs'
+import { context, pd } from '../../../tools/playtest/pdcall.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const mod = resolve(here, '..', '..')

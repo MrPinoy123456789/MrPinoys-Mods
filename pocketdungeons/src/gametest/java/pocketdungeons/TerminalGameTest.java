@@ -14,9 +14,12 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 
 /**
- * The staging-room terminal (spec 7): the wall is stamped and cleared whole, a
- * guest's tab click moves the shared state the leader sees too, the page arrow
- * at the last act refuses, and the window backlight only burns for an open act.
+ * The staging-room terminal (spec 7, tabs per decision 2026-10-23): the wall is
+ * stamped and cleared whole, a guest's tab click moves the shared state the leader
+ * sees too, the page arrow at the last act refuses, the window backlight only burns
+ * for an open act and a locked act shows a dark silhouette, a newly stamped hall
+ * opens on Objectives, the rewards row runs in spec order, and the Crew tab's away
+ * clock is one display that repaints alone.
  */
 public final class TerminalGameTest {
 
@@ -51,7 +54,7 @@ public final class TerminalGameTest {
         helper.succeed();
     }
 
-    /** A guest's click on PROGRESS writes the record's shared tab, the same state the leader sees. */
+    /** A guest's click on MAP writes the record's shared tab, the same state the leader sees. */
     @GameTest(maxTicks = 40)
     @SuppressWarnings("removal")
     public void aGuestClickSwitchesTheSharedTab(GameTestHelper helper) {
@@ -63,13 +66,13 @@ public final class TerminalGameTest {
         InstanceRecord record = recordAt(o, owner.getUUID(), server);
         try {
             Terminal.summon(level, o, record.roomDungeonDoor, record, record.owner);
-            Glyph progress = tabGlyph(level, o, "progress");
-            helper.assertTrue(progress != null, "the PROGRESS tab glyph is up");
+            Glyph map = tabGlyph(level, o, "map");
+            helper.assertTrue(map != null, "the MAP tab glyph is up");
             GlyphHandlers.dispatch(new GlyphContext(guest, level, ItemStack.EMPTY, false, record,
-                    progress, progress.data().copy()));
-            helper.assertValueEqual("progress", record.terminalTab,
+                    map, map.data().copy()));
+            helper.assertValueEqual("map", record.terminalTab,
                     "a guest's click moves the shared tab");
-            helper.assertTrue(tabGlyph(level, o, "history") != null, "the redraw stands again");
+            helper.assertTrue(tabGlyph(level, o, "crew") != null, "the redraw stands again");
         } finally {
             release(record, server);
         }
@@ -130,6 +133,111 @@ public final class TerminalGameTest {
             release(record, server);
         }
         helper.succeed();
+    }
+
+    /** A locked act's window is all 48 pixels in gray and black glass. */
+    @GameTest(maxTicks = 40)
+    @SuppressWarnings("removal")
+    public void aLockedActShowsASilhouetteWindow(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        ServerPlayer owner = helper.makeMockServerPlayerInLevel();
+        BlockPos o = helper.absolutePos(new BlockPos(0, 1, 0));
+        InstanceRecord record = recordAt(o, owner.getUUID(), server);
+        try {
+            record.terminalAct = 2; // never unlocked for this leader
+            Terminal.summon(level, o, record.roomDungeonDoor, record, record.owner);
+            AABB box = new AABB(o).inflate(RoomGeometry.CELL, 12, RoomGeometry.CELL);
+            var pixels = level.getEntitiesOfClass(net.minecraft.world.entity.Display.BlockDisplay.class, box,
+                    e -> e.entityTags().contains(Terminal.TAG));
+            helper.assertValueEqual(48, pixels.size(), "a locked act still draws its 8 by 6 window");
+            for (var pixel : pixels) {
+                String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                        .getKey(pixel.getBlockState().getBlock()).toString();
+                helper.assertTrue(id.equals("minecraft:gray_stained_glass")
+                                || id.equals("minecraft:black_stained_glass"),
+                        "a locked pixel is gray or black glass, got " + id);
+            }
+        } finally {
+            release(record, server);
+        }
+        helper.succeed();
+    }
+
+    /** A newly stamped hall opens on Objectives whatever tab the party left showing. */
+    @GameTest(maxTicks = 40)
+    @SuppressWarnings("removal")
+    public void aNewHallOpensOnObjectives(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        ServerPlayer owner = helper.makeMockServerPlayerInLevel();
+        BlockPos o = helper.absolutePos(new BlockPos(0, 1, 0));
+        InstanceRecord record = recordAt(o, owner.getUUID(), server);
+        try {
+            record.terminalTab = "crew";
+            Terminal.redraw(level, record);
+            helper.assertValueEqual("crew", record.terminalTab, "a repaint keeps the shared tab");
+            Terminal.summon(level, o, record.roomDungeonDoor, record, record.owner);
+            helper.assertValueEqual("objectives", record.terminalTab, "a stamped hall opens on Objectives");
+            record.terminalTab = "history"; // a tab from before the 2026-10-23 decision
+            Terminal.redraw(level, record);
+            helper.assertTrue(tabGlyph(level, o, "map") != null, "a retired tab paints as Map");
+        } finally {
+            release(record, server);
+        }
+        helper.succeed();
+    }
+
+    /** Act 1's rewards row: shell, title, disc, window, decor, each with its own inspect line. */
+    @GameTest
+    public void theRewardsRowRunsInSpecOrder(GameTestHelper helper) {
+        ActReward.Act act1 = ActRewardManifest.byAct(1);
+        helper.assertTrue(act1 != null, "act 1 reward data is loaded");
+        var icons = Terminal.rewardIcons(act1, 1);
+        helper.assertValueEqual(java.util.List.of("minecraft:cobblestone", "minecraft:name_tag",
+                        "minecraft:music_disc_13", "minecraft:gray_stained_glass", "minecraft:lantern"),
+                icons.stream().map(Terminal.RewardIcon::item).toList(), "icons in spec order");
+        helper.assertValueEqual("Room shell: Old Mine", icons.get(0).inspect().getString(), "shell line");
+        helper.assertValueEqual("Title: ◆ Delver", icons.get(1).inspect().getString(), "title line");
+        helper.assertValueEqual("8:12", Terminal.awayClock(492), "the away clock pads seconds");
+        helper.assertValueEqual(1, BoardText.wrapRows("◆ Next: Lush Caves", Terminal.STORY_WIDTH),
+                "a short line keeps one row");
+        helper.assertValueEqual(2, BoardText.wrapRows("◆ " + act1.story().get(0), Terminal.STORY_WIDTH),
+                "a story line wraps to two rows");
+        helper.succeed();
+    }
+
+    /** The Crew tab draws the leader-away clock once, and the watch tick repaints only that display. */
+    @GameTest(maxTicks = 40)
+    @SuppressWarnings("removal")
+    public void theCrewAwayClockRepaintsAlone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        ServerPlayer owner = helper.makeMockServerPlayerInLevel();
+        BlockPos o = helper.absolutePos(new BlockPos(0, 1, 0));
+        InstanceRecord record = recordAt(o, owner.getUUID(), server);
+        AABB box = new AABB(o).inflate(RoomGeometry.CELL, 12, RoomGeometry.CELL);
+        try {
+            long now = server.overworld().getGameTime();
+            record.ownerAbsentUntilTick = now + 600 * 20L;
+            record.terminalTab = "crew";
+            Terminal.redraw(level, record);
+            int all = live(level, box, Terminal.TAG);
+            helper.assertValueEqual(1, live(level, box, Terminal.AWAY_TAG), "one away clock");
+            Terminal.tickAway(level, record, now + 20);
+            helper.assertValueEqual(1, live(level, box, Terminal.AWAY_TAG),
+                    "the tick replaces the clock, never adds one");
+            helper.assertValueEqual(all, live(level, box, Terminal.TAG), "nothing else on the wall changes");
+        } finally {
+            record.ownerAbsentUntilTick = 0;
+            release(record, server);
+        }
+        helper.succeed();
+    }
+
+    private static int live(ServerLevel level, AABB box, String tag) {
+        return level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, box,
+                e -> e.entityTags().contains(tag) && !e.isRemoved()).size();
     }
 
     // ---- scaffolding -----------------------------------------------------------------

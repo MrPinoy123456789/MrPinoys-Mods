@@ -145,7 +145,9 @@ final class InstanceRegistry {
      */
     static AABB maximalBounds(BlockPos origin) {
         int span = PocketDungeonsConfig.maxGridSpan() * RoomGeometry.CELL;
-        int floorOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y);
+        // Vertical floors phase 2: a layout can also reach two stories below its entrance story.
+        int floorOffset = RoomGeometry.storyOffset(RoomGeometry.MAX_SPAN_Y)
+                + (LayoutGraphGenerator.MAX_STORIES - 1) * RoomGeometry.STORY_HEIGHT;
         return new AABB(
                 origin.getX(), origin.getY() - floorOffset, origin.getZ(),
                 origin.getX() + span,

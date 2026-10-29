@@ -166,6 +166,23 @@ public final class HauntFloorGameTest {
         }
     }
 
+    @GameTest(maxTicks = 40)
+    public void finishingOneRigPreservesAnotherRigsPinnedHaunt(GameTestHelper helper) {
+        Rig first = new Rig(helper, 10610, 10000, List.of(ENTRANCE, MID, BRANCH, TERMINAL), ENTRANCE, TERMINAL);
+        Rig second = new Rig(helper, 10611, 10300, List.of(ENTRANCE, MID, BRANCH, TERMINAL), ENTRANCE, TERMINAL);
+        try {
+            helper.assertTrue(Haunts.hauntOf(second.record) == KEEPER, "the second rig uses its pinned haunt");
+            first.finish();
+            helper.assertTrue(Haunts.hauntOf(second.record) == KEEPER,
+                    "finishing another rig does not erase the active rig's haunt definition");
+            helper.assertTrue(Haunts.levelForTesting == helper.getLevel(), "the active rig keeps the test level");
+            helper.succeed();
+        } finally {
+            first.finish();
+            second.finish();
+        }
+    }
+
     /**
      * The whole keeper beat: beacons arm in the branch and mid cells, the pad counts them down, the keeper
      * wakes only after the grace, it advances whether the member looks or not, a hit staggers instead of

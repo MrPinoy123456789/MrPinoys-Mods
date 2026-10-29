@@ -84,7 +84,7 @@ final class LemonArchive {
         MinecraftServer server = player.level().getServer();
         DungeonLog log = DungeonLog.forServer(server);
         if (log.get(player.getUUID()).diaryBandsSeen().contains(band + HANDED)) {
-            Lemon.say(player, "I already have that one. Keep the copy if you like, or read it from my menu.");
+            LemonBridge.say(player, "I already have that one. Keep the copy if you like, or read it from my menu.");
             return true;
         }
         held.shrink(1);
@@ -96,7 +96,7 @@ final class LemonArchive {
         if (count >= total) {
             line += " That is all of them. I will put extra emeralds aside for you each time you finish a dungeon.";
         }
-        Lemon.say(player, line);
+        LemonBridge.say(player, line);
         PlaytestJournal.diaryHanded(player, band, count);
         return true;
     }

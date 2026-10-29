@@ -330,6 +330,9 @@ loads for acts 0 to 5 and every window has 6 rows of 8 valid letters.
 
 ## 7. The terminal (full UI spec)
 
+> **Amended 2026-10-23** (`docs/DECISIONS.md`, "Terminal tabs: Objectives, Map, Crew"): the tabs are now
+> Objectives, Map and Crew. 7.5 and 7.6 are superseded, and the reward ticks in 7.4 move to the Crew tab.
+
 The terminal replaces the floor history board on the same wall: `RoomGeometry.leftOf(selectorWall)`, in every staging
 room that has the board today. New class `Terminal`. `FloorHistory.board` stays and becomes the History tab.
 

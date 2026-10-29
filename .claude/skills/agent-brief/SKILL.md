@@ -14,7 +14,7 @@ An agent reading this file should treat everything below as its standing orders.
   `feature/rm-<id>-<topic>` off the base and prints the path. If you were handed a worktree instead, first merge
   the base branch, then create your branch (named in the task). Merge the base again before your
   final run. Never push, never touch `master` or another agent's branch, never deploy, never run
-  `tools/server/pdserver.mjs`, never use the Lemon tools or any server.
+  `../tools/playtest/pdserver.mjs`, never use the Lemon tools or any server.
 - Read `CLAUDE.md` at the repo root and the docs the task names. `docs/CODEMAP.md` says which class does what; grep it
   before reading source. `docs/DECISIONS.md` has the settled owner decisions and workshop specs.
 
@@ -77,3 +77,14 @@ outside your worktree to free space; if a write fails with ENOSPC, stop and say 
   thing a stop can lose.
 - If you are told to wrap up, commit, stop at a clean break that compiles, and add a "Handoff" section to your report
   (done, unfinished, exact next commands, latest test counts).
+
+## Added 2026-10-19
+
+- Do not run a baseline full suite at the start; the orchestrator takes counts. Start with `--only` and `--pure-fast`.
+- Heap errors in Gradle usually mean a huge temp directory. `ship.sh` keeps temp in `A:/tmp-ci`; for a direct call
+  export `TMP=TEMP=A:/tmp-ci`, and for a lone pure test add `--no-daemon -Dorg.gradle.jvmargs=-Xmx3g`. Never run
+  `gradlew --stop`. After one retry, stop and report.
+- A shared class that another agent depends on (a spine such as `BossFight`) is changed in your first commit, alone,
+  and you stop and report so the orchestrator can merge it.
+- A fingerprint test (`LayoutFingerprintTest`, its stairs sibling) guards layout. Never loosen it; regenerate only on
+  unchanged code or with `PD_FINGERPRINT_WRITE=1` and say why.

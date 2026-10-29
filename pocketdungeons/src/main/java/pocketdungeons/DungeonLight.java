@@ -75,7 +75,7 @@ final class DungeonLight {
                 eligible.add(cell);
             }
         }
-        eligible.sort(Comparator.comparingInt(PlanCell::x).thenComparingInt(PlanCell::z));
+        eligible.sort(PlanCell.ORDER);
         if (eligible.isEmpty()) {
             return Set.of();
         }

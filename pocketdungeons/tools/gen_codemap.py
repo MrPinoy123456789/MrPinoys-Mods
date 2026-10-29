@@ -31,7 +31,7 @@ def first_sentence(text):
         if len(sentence) >= 70:
             break
         sentence += ' ' + more
-    return m.group(2), sentence[:190]
+    return m.group(2), sentence[:190].rstrip()
 
 
 def entry(path, sub=''):

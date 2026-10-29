@@ -27,6 +27,7 @@ public final class PartyScreensGameTest {
         check(helper, DialogScreens.partyPerson(server, owner, UUID.randomUUID()), "person");
         check(helper, DialogScreens.manageRoom(server, owner), "room");
         check(helper, DialogScreens.lobbiesHub(owner), "lobbies");
+        check(helper, DialogScreens.floorHistory(server, owner), "floor history");
         helper.succeed();
     }
 

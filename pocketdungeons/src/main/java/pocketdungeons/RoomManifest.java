@@ -362,8 +362,15 @@ final class RoomManifest {
         // check has to read at that same offset or it sees empty wall and
         // rejects the room as doorless (trap 20: the doorway plane belongs to
         // the manifest, and its y shifts with the template's anchor).
-        int doorYOffset = RoomGeometry.storyOffset(meta.spanY);
-        Set<Direction> edges = EnumSet.noneOf(Direction.class);
+        //
+        // Vertical floors phase 2: a stair room also carries door jigsaws on its lower story, one
+        // STORY_HEIGHT lower each. Each door lands in the mask nibble of the story it sits on
+        // (RoomGeometry.doorStoryOfTemplateY); a room with no lower jigsaw reads exactly as before.
+        int stories = Math.max(1, meta.spanY);
+        List<Set<Direction>> edgesByStory = new ArrayList<>();
+        for (int s = 0; s < stories; s++) {
+            edgesByStory.add(EnumSet.noneOf(Direction.class));
+        }
         List<JigsawBlockInfo> doorJigsaws = new ArrayList<>();
 
         for (JigsawBlockInfo info : template.getJigsaws(BlockPos.ZERO, Rotation.NONE)) {
@@ -383,7 +390,7 @@ final class RoomManifest {
                         + " faces " + facing + " but sits on " + edge + " wall");
             }
             doorJigsaws.add(info);
-            edges.add(edge);
+            edgesByStory.get(RoomGeometry.doorStoryOfTemplateY(pos.getY(), stories)).add(edge);
         }
 
         // Validate every canonical slot on each edge that has any door jigsaw.
@@ -391,22 +398,26 @@ final class RoomManifest {
         for (JigsawBlockInfo info : doorJigsaws) {
             byPos.put(info.info().pos(), info);
         }
-        for (Direction edge : edges) {
-            for (BlockPos pos : canonicalDoorSlots(edge, doorYOffset)) {
-                JigsawBlockInfo info = byPos.get(pos);
-                if (info == null) {
-                    throw new IllegalStateException("partial door on " + edge
-                            + " wall: missing jigsaw at " + pos.toShortString());
-                }
-                Direction facing = JigsawBlock.getFrontFacing(info.info().state());
-                if (facing != edge) {
-                    throw new IllegalStateException("partial door on " + edge
-                            + " wall: jigsaw at " + pos.toShortString() + " faces " + facing);
+        int mask = 0;
+        for (int story = 0; story < stories; story++) {
+            int doorYOffset = (stories - 1 - story) * RoomGeometry.STORY_HEIGHT;
+            Set<Direction> edges = edgesByStory.get(story);
+            for (Direction edge : edges) {
+                for (BlockPos pos : canonicalDoorSlots(edge, doorYOffset)) {
+                    JigsawBlockInfo info = byPos.get(pos);
+                    if (info == null) {
+                        throw new IllegalStateException("partial door on " + edge
+                                + " wall: missing jigsaw at " + pos.toShortString());
+                    }
+                    Direction facing = JigsawBlock.getFrontFacing(info.info().state());
+                    if (facing != edge) {
+                        throw new IllegalStateException("partial door on " + edge
+                                + " wall: jigsaw at " + pos.toShortString() + " faces " + facing);
+                    }
                 }
             }
+            mask |= DoorMask.fromEdges(toDoorMaskDirections(edges)) << (DoorMask.LOWER_SHIFT * story);
         }
-
-        int mask = DoorMask.fromEdges(toDoorMaskDirections(edges));
         return new Entry(name, meta, mask);
     }
 

@@ -1,6 +1,6 @@
 ﻿# Pocket Dungeons: Bug and Design Ledger
 
-Active and awaiting-live-check entries are in full below; closed entries are indexed in the table at the bottom. Continue `PD-n` numbering when filing new entries (highest used: `PD-210`).
+Active and awaiting-live-check entries are in full below; closed entries are indexed in the table at the bottom. Continue `PD-n` numbering when filing new entries (highest used: `PD-219`).
 
 ## Open, partial and awaiting live check
 
@@ -316,6 +316,14 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 **Reported:** 2026-10-17, live, right after the PD-216 fix: "the acts reset but the dungeon storage is still not reset". `resetCampaign` cleared the bag, orphan, stash and kit chest but never the per-player Dungeon Storage, which was designed to survive runs and logouts.
 **Status:** Fixed 2026-10-17, owner-ruled (a reset is back to a new player). `resetCampaign` now empties the storage and the Reset Compass dialog says so. Covered by `CustodyGameTest.aCampaignResetReturnsThePlayerToActOne`. Unverified live; not yet deployed.
 
+### PD-218: Window bands dropped on room edges where rooms disagree on window `none` (Medium)
+**Reported:** 2026-10-19, playtest 2026-10-19-1 server log (06:15 and 06:22): six edges dropped their band because the two rooms disagree on window `none`: `black_seam_fork`/`hall_cross_rotunda`, `stone_rise_fork`/`exit_hall`, `black_seam_nook`/`hall_cross_rotunda`, `rust_ravine_run`/`exit_hall`, `rotation_lock`/`black_seam_bend`, `rust_ravine_bend`/`rotation_lock`. Five of the six involve the Act 0 rooms.
+**Status:** Fixed 2026-10-19 at the data (the band rule is unchanged). Cause: all 18 Act 0 rooms of `first_night` shipped window `none` while the shared rooms they can neighbour (`hall_cross_rotunda`, `exit_hall`, `rotation_lock` and the rest of the halls) use bars, so any such edge lost its band. The 18 Act 0 manifests now say `bars`; `rotation_lock` already did and needed no edit. New pure test `WindowBandAgreementTest` builds each dungeon's eligible room pool and fails on any `none` against a material. Still open under this entry: `admirals_vault` and `seam_heart` (final floor vaults, `none` beside the shared halls) are listed in the test's KNOWN_OPEN set; give them bars or make their neighbours agree, then delete the entries. Unverified live: how bars read on the Act 0 outdoor rooms.
+
+### PD-219: A block-attached entity at an invalid position (Medium)
+**Reported:** 2026-10-19, playtest 2026-10-19-1 server log (06:22): `BlockPos{x=9, y=65, z=1000710}`. A z of a million suggests a slot origin or an offset applied twice. Act 0 rooms are the first suspect.
+**Status:** Fixed 2026-10-19 (task W0b), not yet confirmed live. Traced: the same position (9, 65, 1000710) was logged on 2026-10-03, 2026-10-04 and 2026-10-19, so it is not a per-run offset. z=1000000 is the template generator's scratch region (`RoomTemplateGenerator.SCRATCH_Z`), 1000710 is the 23rd room row, and `rotation_lock` is the only room whose decor spawns an item frame (at local 9,1,6). `/dungeon admin generate` captured the room with `fillFromWorld` and then cleared only the blocks, so the original frame stayed behind with no support block, far outside the world border, and logged the error whenever that chunk loaded. No stamp path applies an offset twice (live rooms place template entities relative to the cell). Fix: `RoomTemplateGenerator.clear` now discards the box's non-player entities, and a build discards stale ones first. Gametest `ScratchEntityGameTest` stamps `rotation_lock`, asserts every block-attached entity is inside the cell, and asserts cleanup leaves none (verified red without the fix). A frame already saved in an old test world stays until `/dungeon admin generate rotation_lock` is run once, or the chunk at z=1000710 is wiped. Live: the error should no longer appear in the log.
+
 ## Closed ledger
 
 | ID | Summary | Resolution |
@@ -536,3 +544,11 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 ### PD-224: The old history board's right-click-to-map fired across the whole terminal wall (Medium)
 **Reported:** 2026-10-23-1 (07:09): "dungeon map on right click from the old Floor History needs to be removed". `Instances.isHistoryBoard`/`StagingFurniture.isHistoryPanel` were widened with the panel, so any wall click opened the dungeon map over the terminal.
 **Status:** Fixed and deployed live mid-session 2026-10-23 (same commit as PD-223): the RitualListener branch and both predicates are gone, the tutorial line now says `/dungeon map`. Live confirm owed: wall clicks should do nothing outside the tab words.
+
+## 2026-10-28 (session 2026-10-28-1)
+
+### PD-225: Remote event transport dies when latest.log outgrows the panel file limit (High, harness)
+**Reported:** 2026-10-28-1 (~21:08 UTC). Once the remote `logs/latest.log` passes the panel's file editor limit (observed at ~5.2 MB, reached fast during heightmap WARN floods from overworld flight), every `GET /files/contents` returns HTTP 400 FileSizeTooLargeException. `chat`, `chat --follow`, `wait`, `sync`, `context` and every `cmd` reply all break at once, while `panel.command` still lands. The agent went blind for ~10 minutes and missed the player's `session_leave` (21:10:29).
+**Repro:** on a Kinetic remote, let latest.log grow past the editor limit, then run `node tools/playtest/playtest.mjs chat` or `cmd list`.
+**Found workarounds:** the daemon's `/websocket` client endpoint is 404 on this panel, and the signed `/files/download` URL ignores Range headers (always returns the whole file). Working: POST `/files/compress` on `latest.log`, read the small archive via `/files/contents`, then POST `/files/delete` (a scratch poller doing this is in `tools/playtest/.remote/ws-tail.mjs`).
+**Status:** Open. Give playtest.mjs a compress-and-diff fallback (or another tail path) when `panel.read` fails on size, so `wait`/`chat`/`cmd` keep working on long remote sessions.

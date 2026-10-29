@@ -29,6 +29,11 @@ import java.util.UUID;
  * brazier, stamped into the room on a plinth) thaws fast. The party moves between fire and cover while the Frost
  * Warden shoots. The decisions are in {@link FrostFinaleRules}; this class only does them to the world.
  *
+ * <p>Phased on the {@link BossFight} spine (backlog F2). The elite is "Jack Frost" in the dungeon JSON (the
+ * plan table calls it the Frost Warden). Phase one is the plain fight, with no cold. At two thirds the cold
+ * arms (the stagger plus the wind tell come first); at one third the warm spots shrink to
+ * {@link FrostFinaleRules#SHRUNK_RADIUS_PERCENT} percent of {@code frostBrazierRadius}.
+ *
  * <p>The cold is never lethal: vanilla freeze damage is 1 health every 2 seconds, and a member at 2 health or
  * under is held below the freeze line ({@link FrostFinaleRules#ceilingFor}). The Warden's own arrows already
  * slow (a stray's arrow carries slowness), so there is no extra effect.
@@ -52,6 +57,21 @@ final class FrostFinale implements FinaleScript {
     private static final float WIND_VOLUME = 1.5f;
     private static final float WIND_PITCH = 0.5f;
 
+    /** Jack Frost's three phases. Bounds are elite health fractions. */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0,
+                    List.of("Jack Frost staggers.", "The cold is coming."),
+                    (ctx, boss) -> armCold(ctx)),
+            new BossFight.Step(1.0 / 3.0,
+                    List.of("Jack Frost is cornered.", "The warm spots shrink."),
+                    (ctx, boss) -> ctx.scriptState(Run.class, Run::new).shrunk = true));
+
+    private static BossFight fight(FinaleContext ctx) {
+        return ctx.scriptState(BossFight.class, () -> new BossFight(PHASES));
+    }
+
     /** Set once, when the first cold starts, so a pure test that builds the script never loads Fabric events. */
     private static boolean tickHooked;
 
@@ -65,6 +85,8 @@ final class FrostFinale implements FinaleScript {
         /** Per member: the freeze meter, a decimal so a rate under one tick per tick still moves. */
         final Map<UUID, Double> meter = new HashMap<>();
         final Set<UUID> warned = new HashSet<>();
+        /** The last phase: braziers warm only {@link FrostFinaleRules#SHRUNK_RADIUS_PERCENT} percent as far. */
+        boolean shrunk;
     }
 
     /** A running cold: the slot's record and level (the listener needs both) and its state. */
@@ -74,7 +96,12 @@ final class FrostFinale implements FinaleScript {
     private static final Map<Integer, Active> ACTIVE = SessionState.clearedAtStop(new HashMap<>());
 
     @Override
-    public void onWaveSpawned(FinaleContext ctx) {
+    public void onTick(FinaleContext ctx) {
+        fight(ctx).tick(ctx);
+    }
+
+    /** Phase two: scan the braziers and start the cold, after the wind tell. */
+    private static void armCold(FinaleContext ctx) {
         Run run = ctx.scriptState(Run.class, Run::new);
         run.room.clear();
         run.room.addAll(roomBoxes(ctx.record()));
@@ -142,7 +169,7 @@ final class FrostFinale implements FinaleScript {
             wind(level, members);
         }
         double rise = FrostFinaleRules.risePerTick(PocketDungeonsConfig.frostColdTicksPerSecond());
-        double radius = PocketDungeonsConfig.frostBrazierRadius();
+        double radius = FrostFinaleRules.warmRadius(PocketDungeonsConfig.frostBrazierRadius(), run.shrunk);
         List<BlockPos> lit = litBraziers(level, run.braziers);
         for (ServerPlayer member : members) {
             UUID id = member.getUUID();

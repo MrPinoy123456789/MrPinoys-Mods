@@ -355,3 +355,20 @@ in a shared tree.
   stuff (diamond, ancient debris).
 - Dungeons that give little (Infestation, Ossuary, Lush Caves) should get rooms whose point is a
   resource their palette lacks.
+
+## Stair rooms and stories (built 2026-10-19)
+
+Vertical floors Phase 2: `StairSpecs` holds four generic two-story rooms (straight, gallery, turn north, turn south).
+A dungeon node opts in with a `stories` field (default 1, flat); Mineshaft's Main Drift, Side Gallery and Deep Face use 2.
+
+- A stair room is entered on the top story and left by a door on the lower story, with real stairs two wide and no
+  ladders, so mobs follow. It sits on the spine and requires nothing.
+- A walking mob needs three clear rows over each next step; with two the first tunnel was unwalkable.
+- Stairs are stone brick stairs and do not re-skin: theme processors only remap four full-block placeholders.
+- Door masks carry 4 bits per story (`DoorMask`); the journal cell key is `x,z` on story 0 and `x,z,y` below, with a
+  golden fixture (`floor_room_cell_keys.txt`).
+- Flat dungeons must keep matching `layout_fingerprint.txt`; opted-in layouts are pinned in
+  `layout_fingerprint_stairs.txt`.
+- Window bands: the band rule drops a band when exactly one room on an edge has window `none`. Act 0 rooms set
+  `bars`; `WindowBandAgreementTest` fails on a mixed pool (final-floor vaults `admirals_vault` and `seam_heart` are the
+  known open exceptions).

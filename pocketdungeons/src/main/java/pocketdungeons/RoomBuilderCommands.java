@@ -271,7 +271,7 @@ final class RoomBuilderCommands {
         try {
             StructureTemplate template = new StructureTemplate();
             Vec3i size = new Vec3i(RoomGeometry.CELL, RoomGeometry.CEILING_Y + 1, RoomGeometry.CELL);
-            Lemon.withoutLemon(level, new net.minecraft.world.phys.AABB(record.origin.getX(), record.origin.getY(),
+            LemonBridge.withoutLemon(level, new net.minecraft.world.phys.AABB(record.origin.getX(), record.origin.getY(),
                             record.origin.getZ(), record.origin.getX() + size.getX(),
                             record.origin.getY() + size.getY(), record.origin.getZ() + size.getZ()),
                     () -> template.fillFromWorld(level, record.origin, size, true, List.of()));

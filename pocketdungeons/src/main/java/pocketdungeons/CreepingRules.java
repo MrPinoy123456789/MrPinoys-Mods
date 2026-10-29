@@ -52,6 +52,19 @@ final class CreepingRules {
         return mossyTicks + stoneTicks + infestedTicks;
     }
 
+    /**
+     * Ticks between one live-tell sparkle and the next on a brick at {@code stage} (PD-222). The cadence
+     * tightens as the brick ripens, so the countdown reads without watching textures: an easy mossy shimmer,
+     * a quicker pulse once it sets, a fast twinkle while it squirms.
+     */
+    static int tellTicks(int stage) {
+        return switch (stage) {
+            case MOSSY -> 30;
+            case STONE -> 15;
+            default -> 10;
+        };
+    }
+
     /** How many more bricks may be planted given what grows in the room and on the floor (never negative). */
     static int slots(int activeInRoom, int roomCap, int activeOnFloor, int floorCap) {
         return Math.max(0, Math.min(roomCap - activeInRoom, floorCap - activeOnFloor));

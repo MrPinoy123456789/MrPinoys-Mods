@@ -99,3 +99,18 @@ final class MossCryptFinale implements FinaleScript {
 
 The tell (the chat line) comes 60 ticks before the strike, the extras count toward `alive` so the pad stays shut, and
 nothing in the world changed, so `onFloorEnded` has nothing to undo.
+
+## Phased bosses (built 2026-10-19)
+
+Every ordinary finale now fights a boss under `BossFight` (three phases at 2/3 and 1/3 health, a stagger with title,
+particles and sound between them). Copy `CopperFinale`; the Act 1 and Act 2 finales (`MineshaftFinale`, `LushFinale`,
+`InfestationFinale`, `KennelsFinale`, `OssuaryFinale`, `CowPitsFinale`, `DeepslateFinale`, `FrostFinale`) follow it.
+
+- Arm each mechanic at its phase, not at `onHalfDead`. Phase one is the plain fight.
+- `BossFight` clamps a lethal blow at the next bound, so burst damage cannot skip a phase; the last phase can still
+  die. Do not edit the spine for a dungeon; if it needs a change, make it alone and first.
+- A finale with no elite builds one from the wave's strongest mob in the script. Never add a mob type.
+- A boss that goes missing (killed by anything else) must release the floor: wake the sleepers, open the pad. The
+  Ossuary does this; a test that loses its boss mid run will see it.
+- Tests: hold the boss still and invulnerable between the test's own blows, so a stray hazard cannot end a phase early
+  (`OssuaryFinaleGameTest`). One gametest per dungeon: three phases in order, mechanic armed, pad opens on the kill.

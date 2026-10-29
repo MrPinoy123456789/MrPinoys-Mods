@@ -136,12 +136,20 @@ final class DungeonCommands {
                         return 0;
                     }))
 
-            // The staging room's dungeon map, typed (also opened by clicking
-            // the floor history board). Read only.
+            // The player's own floor history (decision 2026-10-23: off the
+            // shared terminal). Also on the lodestone menu. Read only.
+            .then(Commands.literal("history")
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayerOrException();
+                        DialogKit.show(player, DialogScreens.floorHistory(player.level().getServer(),
+                                player.getUUID()));
+                        return 1;
+                    }))
             // Re-deals the first staging room's dungeons (the owner, before a door is taken).
             .then(Commands.literal("reroll")
                     .executes(ctx -> rerollDoors(ctx.getSource().getPlayerOrException())))
 
+            // The staging room's dungeon map, typed; the terminal's Map tab is the wall's. Read only.
             .then(Commands.literal("map")
                     .executes(ctx -> showMap(ctx.getSource().getPlayerOrException())))
 
@@ -271,10 +279,11 @@ final class DungeonCommands {
             .then(RoomBuilderCommands.branch())
 
             // A note for the playtest journal (docs/PLAYTEST_EVENTS.md).
-            .then(LemonCommands.reportNode())
+            .then(LemonBridge.reportNode())
 
-            // The agent's console driver for Lemon (docs/LEMON_SPEC.md 5).
-            .then(LemonCommands.driverNode());
+            // Game-owned click hooks for the standalone Lemon companion.
+            .then(LemonBridge.menuNode())
+            .then(LemonBridge.archiveNode());
     }
 
     /** Context snapshot, list and diagnostics. */
@@ -282,7 +291,7 @@ final class DungeonCommands {
         admin
             // The player's context snapshot as one line of JSON
             // (docs/LEMON_SPEC.md 3), for agents over RCON.
-            .then(LemonCommands.contextNode())
+            .then(LemonBridge.contextNode())
 
             .then(Commands.literal("list")
                     .executes(ctx -> list(ctx.getSource())))

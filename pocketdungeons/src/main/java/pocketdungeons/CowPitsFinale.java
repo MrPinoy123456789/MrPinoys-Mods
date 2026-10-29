@@ -16,7 +16,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import pocketdungeons.mixin.MobGoalsAccessor;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * The Cow Pits' optional last stand (roadmap T30, the "Specimen 0" beat). The dungeon has no data
@@ -29,6 +32,11 @@ import java.util.List;
  * while every tagged cow on the floor (bounded by {@link CowPits#FLOOR_CAP}) turns on the party.
  * The pad stays shut until they are all dead; winning pays the finale reward chest a data finale
  * would have paid.
+ *
+ * <p>Phased on the {@link BossFight} spine (backlog F2): phase one is Specimen 0 alone, the herd
+ * grazing; at two thirds the herd charges with it (the stagger is the tell); at one third every cow
+ * of the herd scales to {@link #HERD_SCALE}. A Specimen 0 that dies early turns the rest of the herd on
+ * the party at once, so a placid cow never has to be hunted down to open the pad.
  */
 final class CowPitsFinale implements FinaleScript {
 
@@ -36,6 +44,28 @@ final class CowPitsFinale implements FinaleScript {
     static final String TELL_TITLE = "Specimen 0 wakes.";
     /** The elite the pedestal cow becomes: a named cow whose health is the {@code cowSpecimenZeroHealth} knob. */
     private static final String ELITE_NAME = "Specimen 0";
+    /** The scale the herd grows to in the last phase (Specimen 0 keeps its own knob). */
+    static final double HERD_SCALE = 1.5;
+
+    /** The three phases: Specimen 0 alone, the herd charges, the herd scales. Bounds are elite health. */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0,
+                    List.of("Specimen 0 staggers.", "The herd charges with it."),
+                    (ctx, boss) -> angerHerd(ctx)),
+            new BossFight.Step(1.0 / 3.0,
+                    List.of("Specimen 0 bellows.", "The herd swells."),
+                    (ctx, boss) -> scaleHerd(ctx)));
+
+    /** One run's herd bookkeeping: who already charges, so a goal is never added twice. */
+    static final class Herd {
+        final Set<UUID> angry = new HashSet<>();
+    }
+
+    private static BossFight fight(FinaleContext ctx) {
+        return ctx.scriptState(BossFight.class, () -> new BossFight(PHASES));
+    }
 
     /**
      * The cleared-spawner trigger does not apply here: the barn's spawners open nothing. Only a
@@ -84,18 +114,26 @@ final class CowPitsFinale implements FinaleScript {
                     PocketDungeonsConfig.cowSpecimenZeroHealth(), ""));
         }
         if (zero instanceof PathfinderMob angry) {
-            anger(angry);
+            anger(ctx, angry);
         }
         int added = 0;
         for (Cow cow : herd(ctx)) {
             if (cow == zero || added >= CowPits.FLOOR_CAP - 1) {
                 continue;
             }
-            anger(cow);
             ctx.addMob(cow);
             added++;
         }
         return true;
+    }
+
+    @Override
+    public void onTick(FinaleContext ctx) {
+        fight(ctx).tick(ctx);
+        Mob boss = ctx.elite();
+        if (boss == null || !boss.isAlive()) {
+            angerHerd(ctx);
+        }
     }
 
     @Override
@@ -120,8 +158,31 @@ final class CowPitsFinale implements FinaleScript {
                 cow -> cow.entityTags().contains(CowPits.TAG));
     }
 
+    /** Every living herd cow charges the party (once each). */
+    private static void angerHerd(FinaleContext ctx) {
+        for (Cow cow : herd(ctx)) {
+            if (!CowPits.isSpecimenZero(cow)) {
+                anger(ctx, cow);
+            }
+        }
+    }
+
+    /** Every living herd cow, Specimen 0 aside, grows to {@link #HERD_SCALE}. */
+    private static void scaleHerd(FinaleContext ctx) {
+        for (Cow cow : herd(ctx)) {
+            AttributeInstance scale = cow.getAttribute(Attributes.SCALE);
+            if (scale != null && !CowPits.isSpecimenZero(cow)) {
+                scale.setBaseValue(HERD_SCALE);
+                cow.refreshDimensions();
+            }
+        }
+    }
+
     /** Turns a placid cow on the party: melee, and it picks the nearest player it can see. */
-    private static void anger(PathfinderMob cow) {
+    private static void anger(FinaleContext ctx, PathfinderMob cow) {
+        if (!ctx.scriptState(Herd.class, Herd::new).angry.add(cow.getUUID())) {
+            return;
+        }
         ((MobGoalsAccessor) cow).pocketdungeons$goalSelector().addGoal(0, new MeleeAttackGoal(cow, 1.2, true));
         ((MobGoalsAccessor) cow).pocketdungeons$targetSelector().addGoal(0,
                 new NearestAttackableTargetGoal<>(cow, Player.class, true));

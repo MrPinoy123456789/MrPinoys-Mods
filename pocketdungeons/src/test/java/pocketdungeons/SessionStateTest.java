@@ -55,9 +55,6 @@ public class SessionStateTest {
         ELSEWHERE.put("PartyService.java:invites", "cleared per player by PartyService.clearFor on disconnect");
         ELSEWHERE.put("PartyService.java:pendingParty", "cleared per player by PartyService.clearFor on disconnect");
         ELSEWHERE.put("PartyService.java:pendingKicks", "cleared per player by PartyService.clearFor on disconnect");
-        ELSEWHERE.put("Lemon.java:STATES", "Lemon clears it at disconnect and at stop");
-        ELSEWHERE.put("Lemon.java:LAST_COMBAT", "Lemon clears it at disconnect and at stop");
-        ELSEWHERE.put("Lemon.java:LLM_UNTIL", "Lemon clears it at disconnect and at stop");
         ELSEWHERE.put("PlaytestJournal.java:ENTER_HINTS", "PlaytestJournal clears it at disconnect");
         ELSEWHERE.put("PlaytestJournal.java:LEAVE_HINTS", "PlaytestJournal clears it at disconnect");
         ELSEWHERE.put("PlaytestJournal.java:TALLIES", "PlaytestJournal clears it at disconnect");

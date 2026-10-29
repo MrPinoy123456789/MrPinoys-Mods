@@ -30,10 +30,12 @@ set -u
 cd "$(dirname "$0")/.." || exit 2
 # Drive C: filled up during the 2026-10-12 build (many parallel gradle runs). Keep Gradle's cache and all temp
 # writes on A: when it exists; the cache was copied there once. Harmless where A:/gradle-home is absent.
+# Temp defaults to A:/tmp-ci, not A:/tmp: A:/tmp grew past 700,000 entries and the Jansi cleanup in Gradle lists the
+# whole directory, which ran out of heap and killed full runs (2026-10-19). Logs and lock slots stay in A:/tmp.
 if [ -d "A:/gradle-home" ]; then
   export GRADLE_USER_HOME="A:/gradle-home"
-  mkdir -p "${PD_TMP:-A:/tmp}"
-  export TMP="${PD_TMP:-A:/tmp}" TEMP="${PD_TMP:-A:/tmp}" TMPDIR="${PD_TMP:-A:/tmp}"
+  mkdir -p "${PD_TMP:-A:/tmp-ci}"
+  export TMP="${PD_TMP:-A:/tmp-ci}" TEMP="${PD_TMP:-A:/tmp-ci}" TMPDIR="${PD_TMP:-A:/tmp-ci}"
 fi
 START=$(date +%s)
 SLOTS="${PD_SHIP_SLOTS:-3}"
@@ -152,13 +154,14 @@ echo "SUITE GREEN (${REQ:-no required-test line found})"
 [ "$DEPLOY" -eq 1 ] || exit 0
 
 if [ -n "$(git status --porcelain)" ]; then echo "REFUSING TO DEPLOY: uncommitted changes"; exit 4; fi
+../lemon/gradlew.bat -p ../lemon build dist --console=plain || exit 4
 JAR=$(ls ../dist/MrPinoys_Pocket_Dungeons-*.jar 2>/dev/null | grep -v sources | head -1)
 if [ -z "$JAR" ]; then echo "REFUSING TO DEPLOY: no jar in dist/"; exit 4; fi
 if [ "$(stat -c %Y "$JAR")" -lt "$(git log -1 --format=%ct)" ]; then echo "REFUSING TO DEPLOY: dist jar is older than the last commit"; exit 4; fi
-STATUS=$(node tools/server/pdserver.mjs status 2>&1 | head -3)
+STATUS=$(node ../tools/playtest/pdserver.mjs status 2>&1 | head -3)
 echo "$STATUS" | head -2
 if ! echo "$STATUS" | grep -q "There are 0 of" && [ "$FORCE" -ne 1 ]; then
   echo "REFUSING TO DEPLOY: players are online (use --force-players after asking the owner)"; exit 5
 fi
-node tools/server/pdserver.mjs deploy --restart 2>&1 | tail -3
-node tools/server/pdserver.mjs cmd dungeon admin validate 2>&1 | tail -3
+node ../tools/playtest/pdserver.mjs deploy --restart 2>&1 | tail -3
+node ../tools/playtest/pdserver.mjs cmd dungeon admin validate 2>&1 | tail -3

@@ -333,7 +333,7 @@ final class InstanceTeardown {
         // Sweep after clearing, not before: anything the clear itself shakes
         // loose has to be caught too, or it outlives the instance.
         for (Entity entity : level.getEntitiesOfClass(
-                Entity.class, clear.bounds, e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
+                Entity.class, clear.bounds, e -> !(e instanceof ServerPlayer) && !LemonBridge.isPart(e))) {
             entity.discard();
         }
         for (BlockPos cellOrigin : clear.cellOrigins) {
@@ -484,7 +484,7 @@ final class InstanceTeardown {
                 origin.getX() + RoomGeometry.CELL + 1, origin.getY() + RoomGeometry.CEILING_Y + 2,
                 origin.getZ() + RoomGeometry.CELL + 1);
         for (Entity entity : level.getEntitiesOfClass(Entity.class, bounds,
-                e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e)
+                e -> !(e instanceof ServerPlayer) && !LemonBridge.isPart(e)
                         && !CellGeometry.insideAnyCell(e.blockPosition(), keepCells))) {
             entity.discard();
         }

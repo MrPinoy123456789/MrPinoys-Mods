@@ -1,0 +1,6 @@
+# Journal cell keys exactly as FloorRooms.Room.cellKey() wrote them before vertical floors (x,z). Never edit.
+0,0
+3,-7
+-12,5
+-1,-1
+40,0

@@ -120,8 +120,8 @@ final class Haunts {
         TEST_RECORDS.remove(record.slot);
         STATES.remove(record.slot);
         TAUGHT.remove(record.slot);
-        TEST_HAUNTS.clear();
         if (TEST_RECORDS.isEmpty()) {
+            TEST_HAUNTS.clear();
             levelForTesting = null;
         }
     }

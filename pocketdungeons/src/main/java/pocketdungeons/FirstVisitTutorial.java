@@ -98,8 +98,8 @@ final class FirstVisitTutorial {
             List<String> lines() {
                 return List.of("Every dungeon has its own name and a last floor. Finish it and you are paid emeralds "
                         + "and a vault. Go home sooner and you keep the charts and the chests, but not the finish.",
-                        "Read the dungeon map in the Doors with /dungeon map: where you are, "
-                        + "the final floor, and which branches cost a life.");
+                        "The terminal's MAP tab shows the dungeon: where you are and the last floor. "
+                        + "/dungeon map adds which branches cost a life.");
             }
         },
         FURNACE("furnace", Trigger.PROLOGUE_THIRD_CLEARED) {
@@ -323,9 +323,9 @@ final class FirstVisitTutorial {
             for (ServerPlayer player : audience) {
                 boolean first = true;
                 for (String line : step.lines()) {
-                    Lemon.Delivery delivery = Lemon.tour(player, line);
+                    int delivery = LemonBridge.tour(player, line);
                     if (first) {
-                        said |= delivery == Lemon.Delivery.SHOWN || delivery == Lemon.Delivery.DEFERRED_FIGHT;
+                        said |= delivery == 1 || delivery == 2;
                         first = false;
                     }
                 }

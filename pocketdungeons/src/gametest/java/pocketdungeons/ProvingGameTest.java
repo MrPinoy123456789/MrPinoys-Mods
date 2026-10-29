@@ -39,11 +39,12 @@ public final class ProvingGameTest {
     }
 
     private static void loadCell(ServerLevel level, BlockPos cellOrigin) {
-        level.getChunk(cellOrigin.getX() >> 4, cellOrigin.getZ() >> 4);
-        level.getChunk((cellOrigin.getX() + RoomGeometry.CELL - 1) >> 4, cellOrigin.getZ() >> 4);
-        level.getChunk(cellOrigin.getX() >> 4, (cellOrigin.getZ() + RoomGeometry.CELL - 1) >> 4);
-        level.getChunk((cellOrigin.getX() + RoomGeometry.CELL - 1) >> 4,
-                (cellOrigin.getZ() + RoomGeometry.CELL - 1) >> 4);
+        for (int x = cellOrigin.getX() >> 4; x <= (cellOrigin.getX() + RoomGeometry.CELL - 1) >> 4; x++) {
+            for (int z = cellOrigin.getZ() >> 4; z <= (cellOrigin.getZ() + RoomGeometry.CELL - 1) >> 4; z++) {
+                level.getChunk(x, z);
+                level.waitForEntities(new net.minecraft.world.level.ChunkPos(x, z), 0);
+            }
+        }
     }
 
     /** Lays a solid floor under the cell so the wave can stand on it. */

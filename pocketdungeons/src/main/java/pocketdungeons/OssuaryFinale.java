@@ -28,7 +28,12 @@ import java.util.UUID;
  * The Ossuary finale (roadmap T21, boss workshop row 5): coffins. The Last Rest holds sealed sarcophagi; the
  * wave lies in them and rises one at a time as the party crosses the hall. A coffin cracks when a member comes
  * within {@link OssuaryRules#WAKE_RADIUS} blocks, or when {@link OssuaryRules#SKIP_DELAY_TICKS} have passed
- * since the last one cracked, so a coffin the party walked past always opens behind them. Each coffin gives a
+ * since the last one cracked, so a coffin the party walked past always opens behind them.
+ *
+ * <p>On the phased spine (roadmap T03) the wave's lead (the first group's mob) is The Sexton, who fights in the
+ * open under a {@link BossFight} while every coffin stays sealed. His two thirds bound lets a member's approach
+ * crack coffins; his one third bound adds the skip rule. A Sexton who is gone any other way wakes everything at
+ * once, so the pad can never stay shut behind a sealed coffin. Each coffin gives a
  * tell (a stone crack sound and dust, {@link OssuaryRules#CRACK_TICKS} ticks) before its lid breaks, and no more
  * than {@link OssuaryRules#AWAKE_CAP} coffin mobs stand awake at once.
  *
@@ -43,6 +48,25 @@ import java.util.UUID;
 final class OssuaryFinale implements FinaleScript {
 
     private enum Phase { SEALED, CRACKING, OPEN }
+
+    /** The boss: the wave's lead (its first group's type), named and given an elite's health. */
+    static final String BOSS_NAME = "The Sexton";
+    static final int BOSS_HEALTH = 40;
+
+    /**
+     * The Sexton's three phases (2026-10-15 arena floors). One: he fights in the open with every coffin sealed.
+     * Two: the coffins open as a member passes. Three: a coffin skipped for too long opens behind a turned back.
+     */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0, List.of("The Sexton staggers.", "The coffins stir."), (ctx, boss) -> {
+                Run run = ctx.scriptState(Run.class, Run::new);
+                run.wake = true;
+                run.lastCrack = ctx.tickCount();
+            }),
+            new BossFight.Step(1.0 / 3.0, List.of("The Sexton is cornered.", "Nothing stays shut."),
+                    (ctx, boss) -> ctx.scriptState(Run.class, Run::new).skip = true));
 
     /** One coffin: the cap cell at the head, the two lid cells (middle and foot) that break, and who lies in it. */
     private static final class Coffin {
@@ -64,6 +88,10 @@ final class OssuaryFinale implements FinaleScript {
     private static final class Run {
         final List<Coffin> coffins = new ArrayList<>();
         long lastCrack;
+        /** Phase two: a member's approach cracks a coffin. */
+        boolean wake;
+        /** Phase three: a coffin left shut too long cracks on its own. */
+        boolean skip;
     }
 
     private static BlockState lid() {
@@ -84,6 +112,12 @@ final class OssuaryFinale implements FinaleScript {
             bases[i] = finale.mobs().get(i).count();
         }
         int[] counts = OssuaryRules.waveCounts(bases, ctx.party(), finale.perMemberPercent());
+        // The lead of the first group is the boss, out in the open; the wave keeps its size.
+        DungeonDef.Elite boss = finale.elite();
+        if (boss == null && counts.length > 0 && counts[0] > 0) {
+            counts[0]--;
+            boss = new DungeonDef.Elite(finale.mobs().get(0).type(), BOSS_NAME, BOSS_HEALTH, "");
+        }
         int[] sequence = OssuaryRules.sequence(counts);
         int used = OssuaryRules.coffinsUsed(found.size(), sequence.length);
         int[] occupants = OssuaryRules.occupants(sequence.length, used);
@@ -101,8 +135,8 @@ final class OssuaryFinale implements FinaleScript {
                 run.coffins.add(coffin);
             }
         }
-        if (finale.elite() != null) {
-            ctx.spawnElite(finale.elite());
+        if (boss != null) {
+            ctx.spawnElite(boss);
         }
         run.lastCrack = ctx.tickCount();
         return ctx.total() > 0;
@@ -123,6 +157,12 @@ final class OssuaryFinale implements FinaleScript {
         }
         ServerLevel level = ctx.level();
         long now = ctx.tickCount();
+        ctx.scriptState(BossFight.class, () -> new BossFight(PHASES)).tick(ctx);
+        // A boss that is gone (any way but the spine) must never leave a coffin shut: the rest of the rules apply at once.
+        Mob sexton = ctx.elite();
+        boolean bossGone = sexton == null || !sexton.isAlive();
+        boolean mayWake = run.wake || bossGone;
+        boolean skipRule = run.skip || bossGone;
         for (Coffin coffin : run.coffins) {
             if (coffin.phase == Phase.SEALED && !lidIntact(level, coffin)) {
                 open(ctx, coffin, false);
@@ -149,7 +189,7 @@ final class OssuaryFinale implements FinaleScript {
             distSq[i] = nearestMemberSq(ctx.members(), coffin);
         }
         long since = now - run.lastCrack;
-        int next = OssuaryRules.choose(distSq, sealed, since);
+        int next = mayWake ? OssuaryRules.choose(distSq, sealed, since, skipRule) : -1;
         if (next >= 0 && OssuaryRules.mayStart(awake, cracking, run.coffins.get(next).occupants.size(), since)) {
             Coffin coffin = run.coffins.get(next);
             coffin.phase = Phase.CRACKING;

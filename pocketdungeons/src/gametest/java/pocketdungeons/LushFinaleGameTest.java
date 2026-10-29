@@ -35,7 +35,7 @@ public final class LushFinaleGameTest {
 
     @GameTest(maxTicks = 60)
     public void theBossTakesTheWaveAndSplitsIntoDouble(GameTestHelper helper) {
-        Run run = new Run(helper, 9981, false);
+        Run run = new Run(helper, 10011, false);
         try {
             run.step(true);
             run.state().spawnTick = 0;
@@ -44,10 +44,28 @@ public final class LushFinaleGameTest {
             Slime boss = run.slime(0);
             helper.assertValueEqual(boss.getSize(), PocketDungeonsConfig.lushSlimeSize(), "the boss is the knob size");
             helper.assertTrue(run.state().bar != null && run.state().elite != null, "it leads the boss bar");
-            helper.assertTrue(PotionDrip.isBoss(run.record), "the drip is on its boss rate");
+            helper.assertTrue(!PotionDrip.isBoss(run.record), "phase one drips at the floor's normal rate");
+            run.step(false);
 
-            // The boss dies. Its body is still in the world; the wave must not read as won.
-            boss.setHealth(0.0f);
+            // Burst damage cannot skip a phase: each killing blow holds the boss at the next bound.
+            run.burst(boss);
+            helper.assertTrue(boss.isAlive(), "a killing blow in phase one does not kill");
+            run.step(false);
+            helper.assertTrue(run.fight().phase() == 1 && boss.isInvulnerable(), "the boss staggers into phase two");
+            helper.assertTrue(!PotionDrip.isBoss(run.record), "the drip waits for the stagger to end");
+            run.fight().staggerEnd = 0;
+            run.step(false);
+            helper.assertTrue(PotionDrip.isBoss(run.record), "phase two quickens the drip");
+            run.burst(boss);
+            helper.assertTrue(boss.isAlive(), "a killing blow in phase two does not kill");
+            run.step(false);
+            run.fight().staggerEnd = 0;
+            run.step(false);
+            helper.assertTrue(run.fight().phase() == 2, "phase three begins");
+
+            // The last phase dies to a killing blow. Its body is still in the world; the wave must not read as won.
+            run.burst(boss);
+            helper.assertTrue(!boss.isAlive(), "the last phase dies");
             run.step(false);
             helper.assertTrue(!run.state().done, "a dying boss whose children are not out yet does not win the finale");
             // Vanilla now removes the body and has spawned three children of half the size.
@@ -88,9 +106,31 @@ public final class LushFinaleGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 60)
+    public void aSplitBeforePhaseThreeIsVanilla(GameTestHelper helper) {
+        Run run = new Run(helper, 10012, false);
+        try {
+            run.step(true);
+            run.state().spawnTick = 0;
+            run.step(false);
+            Slime boss = run.slime(0);
+            // Killed outside the spine (a command, the void): the doubling was never armed.
+            boss.setHealth(0.0f);
+            run.step(false);
+            List<Slime> vanilla = run.spawnChildren(3, LushFinaleRules.childSize(boss.getSize()), boss.blockPosition());
+            boss.discard();
+            run.clearStrangers(boss.blockPosition(), vanilla);
+            run.step(false);
+            helper.assertValueEqual(run.countTagged(), 3, "an unarmed first split stays vanilla");
+        } finally {
+            run.close();
+        }
+        helper.succeed();
+    }
+
     @GameTest(maxTicks = 40)
     public void aBossThatLeavesNoChildrenEndsTheFinale(GameTestHelper helper) {
-        Run run = new Run(helper, 9982, false);
+        Run run = new Run(helper, 10013, false);
         try {
             run.step(true);
             run.state().spawnTick = 0;
@@ -112,8 +152,8 @@ public final class LushFinaleGameTest {
 
     @GameTest(maxTicks = 40)
     public void theDripNeverFallsInTheEntranceRoomAndFallsElsewhere(GameTestHelper helper) {
-        Run entrance = new Run(helper, 9983, true);
-        Run elsewhere = new Run(helper, 9984, false);
+        Run entrance = new Run(helper, 10014, true);
+        Run elsewhere = new Run(helper, 10015, false);
         try {
             helper.assertTrue(PotionDrip.release(entrance.level, entrance.record, entrance.member,
                     PotionDripRules.Brew.POISON) == null, "no drip in the entrance room");
@@ -174,6 +214,16 @@ public final class LushFinaleGameTest {
 
         void step(boolean due) {
             FinaleWave.step(server, level, record, FINALE, List.of(member), due, "Test Room");
+        }
+
+        BossFight fight() {
+            return (BossFight) state().scriptState.get(BossFight.class);
+        }
+
+        /** A killing blow: the spine's clamp holds the boss at its next bound, or lets the last phase die. */
+        void burst(Mob boss) {
+            boss.invulnerableTime = 0;
+            boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
         }
 
         FinaleWave.State state() {

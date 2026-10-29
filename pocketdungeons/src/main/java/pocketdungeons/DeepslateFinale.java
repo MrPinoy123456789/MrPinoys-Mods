@@ -40,6 +40,11 @@ import java.util.UUID;
  * world, so the pad is never covered. Noise is sampled once per watch tick (a second by default), so a
  * second with two hits counts as one.
  *
+ * <p>Phased on the {@link BossFight} spine (backlog F2): the Deep Sentry fights alone in phase one and the
+ * meter is not counted. At two thirds the meter starts to fill on noise (the stagger is the tell, and the
+ * count starts clean when it ends). At one third a full meter answers with the tell, the dark and a whelp. A
+ * meter that fills during phase two is held full and answers the moment the last phase begins, tell first.
+ *
  * <p>If the final floor drew no Silent Deep room (it is weighted, not guaranteed) the script does nothing and
  * the finale is the plain data wave.
  */
@@ -48,6 +53,21 @@ final class DeepslateFinale implements FinaleScript {
     private static final float TELL_VOLUME = 2.0f;
     /** The tell clock when no tell is running (a real tick can be any small number in a test). */
     static final long NO_TELL = Long.MIN_VALUE;
+
+    /** The Deep Sentry's three phases. Bounds are elite health fractions. */
+    private static final List<BossFight.Step> PHASES = List.of(
+            new BossFight.Step(1.0, List.of(), (ctx, boss) -> {
+            }),
+            new BossFight.Step(2.0 / 3.0,
+                    List.of("The Deep Sentry staggers.", "The sculk is listening."),
+                    (ctx, boss) -> beginListening(ctx)),
+            new BossFight.Step(1.0 / 3.0,
+                    List.of("The Deep Sentry is cornered.", "The deep will answer."),
+                    (ctx, boss) -> ctx.scriptState(Run.class, Run::new).answering = true));
+
+    private static BossFight fight(FinaleContext ctx) {
+        return ctx.scriptState(BossFight.class, () -> new BossFight(PHASES));
+    }
 
     /** One run's state (package-visible so the gametest can read the story). */
     static final class Run {
@@ -60,6 +80,10 @@ final class DeepslateFinale implements FinaleScript {
         /** The tick the tell began, or NO_TELL when the room is listening. */
         long tellTick = NO_TELL;
         boolean warned;
+        /** Phase two: the meter counts noise. */
+        boolean hearing;
+        /** Phase three: a full meter answers. */
+        boolean answering;
         int answers;
         /** Per member: health, and the bow and crossbow shots on their statistics, at the last look. */
         final Map<UUID, Float> health = new HashMap<>();
@@ -83,15 +107,20 @@ final class DeepslateFinale implements FinaleScript {
 
     @Override
     public void onWaveSpawned(FinaleContext ctx) {
+        // Nothing is counted until the Sentry's second phase; the meter stays handed over and empty.
+    }
+
+    /** Phase two begins: the meter starts empty with fresh baselines, so the first phase's noise is forgiven. */
+    private static void beginListening(FinaleContext ctx) {
         Run run = ctx.scriptState(Run.class, Run::new);
         if (run.room == null) {
             return;
         }
-        // The fight starts with an empty meter and fresh baselines: noise from the countdown is forgiven.
         PressureSources.resetHeard(run.room);
         PressureSources.takePulses(run.room);
         run.waveTick = ctx.tickCount();
         run.lastSecond = 0;
+        run.hearing = true;
         look(ctx, run);
     }
 
@@ -106,7 +135,8 @@ final class DeepslateFinale implements FinaleScript {
     @Override
     public void onTick(FinaleContext ctx) {
         Run run = ctx.scriptState(Run.class, Run::new);
-        if (run.room == null) {
+        fight(ctx).tick(ctx);
+        if (run.room == null || !run.hearing) {
             return;
         }
         tendExtras(ctx, run);
@@ -135,9 +165,15 @@ final class DeepslateFinale implements FinaleScript {
         run.lastSecond = Math.max(run.lastSecond, second);
         int heard = units > 0 ? PressureSources.addHeard(run.room, units) : PressureSources.heardOf(run.room);
         if (DeepslateFinaleRules.full(heard, run.ceiling)) {
-            run.tellTick = ctx.tickCount();
-            run.warned = true;
-            tellBeat(ctx);
+            if (run.answering) {
+                run.tellTick = ctx.tickCount();
+                run.warned = true;
+                tellBeat(ctx);
+            } else if (!run.warned) {
+                // Full before the last phase: held, and the room says so. It answers once the last phase begins.
+                run.warned = true;
+                overlay(ctx, "The sculk stirs.", ChatFormatting.GRAY);
+            }
         } else if (!run.warned && DeepslateFinaleRules.nearlyFull(heard, run.ceiling)) {
             run.warned = true;
             overlay(ctx, "The sculk stirs.", ChatFormatting.GRAY);
@@ -170,7 +206,7 @@ final class DeepslateFinale implements FinaleScript {
 
     /** Whether the room is listening: its script holds the meter, no tell is running, no whelp is out. */
     private static boolean listening(FinaleContext ctx, Run run) {
-        return run.room != null && run.waveTick >= 0 && run.tellTick == NO_TELL && !whelpOut(ctx, run);
+        return run.room != null && run.hearing && run.waveTick >= 0 && run.tellTick == NO_TELL && !whelpOut(ctx, run);
     }
 
     private static boolean whelpOut(FinaleContext ctx, Run run) {

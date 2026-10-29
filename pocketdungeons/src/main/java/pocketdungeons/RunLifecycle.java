@@ -1692,7 +1692,7 @@ final class RunLifecycle {
         StagingFurniture.clearFurniture(level, oldStagingOrigin, record.roomDungeonDoor);
         HallRoom.dismantle(level, oldStagingOrigin, record.roomDungeonDoor);
         for (Entity leftover : level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(oldStagingOrigin),
-                e -> !(e instanceof ServerPlayer) && !Lemon.isPart(e))) {
+                e -> !(e instanceof ServerPlayer) && !LemonBridge.isPart(e))) {
             leftover.discard();
         }
         Set<net.minecraft.core.Direction> backDoors = new LinkedHashSet<>();
@@ -2541,6 +2541,7 @@ final class RunLifecycle {
             PocketDungeonsMod.LOG.info("Holding slot {} for its owner {} for {}s after a disconnect",
                     record.slot, record.owner, grace);
             PlaytestJournal.ownerHold(server, record, "start");
+            Terminal.crewChanged(server, record);
         }
         return true;
     }
@@ -2563,9 +2564,11 @@ final class RunLifecycle {
             record.ownerAbsentUntilTick = 0;
             record.ownerGraceWarned5 = false;
             record.ownerGraceWarned1 = false;
+            Terminal.crewChanged(server, record);
             return false;
         }
         long remaining = record.ownerAbsentUntilTick - now;
+        Terminal.tickAway(server, record, now);
         if (!record.ownerGraceWarned5 && remaining > 0 && remaining <= 5 * 60 * 20L) {
             record.ownerGraceWarned5 = true;
             actionBarToMembers(server, record, ownerDisplayName(server, record, null)

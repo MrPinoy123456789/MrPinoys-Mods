@@ -213,10 +213,10 @@ final class CellGeometry {
     /** The plan cell one step over in {@code dir}, independent of the room manifest. */
     static PlanCell neighbourCell(PlanCell cell, DoorMask.Direction dir) {
         return switch (dir) {
-            case NORTH -> new PlanCell(cell.x(), cell.z() - 1);
-            case SOUTH -> new PlanCell(cell.x(), cell.z() + 1);
-            case WEST -> new PlanCell(cell.x() - 1, cell.z());
-            case EAST -> new PlanCell(cell.x() + 1, cell.z());
+            case NORTH -> new PlanCell(cell.x(), cell.y(), cell.z() - 1);
+            case SOUTH -> new PlanCell(cell.x(), cell.y(), cell.z() + 1);
+            case WEST -> new PlanCell(cell.x() - 1, cell.y(), cell.z());
+            case EAST -> new PlanCell(cell.x() + 1, cell.y(), cell.z());
         };
     }
 

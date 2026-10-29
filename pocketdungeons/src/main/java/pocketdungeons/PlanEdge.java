@@ -20,7 +20,7 @@ record PlanEdge(PlanCell a, PlanCell b) {
     }
 
     private static int compare(PlanCell p, PlanCell q) {
-        return p.x() != q.x() ? Integer.compare(p.x(), q.x()) : Integer.compare(p.z(), q.z());
+        return PlanCell.ORDER.compare(p, q);
     }
 
     /** True if this edge touches the given cell. */

@@ -222,7 +222,7 @@ final class Instances {
         // ServerEntityEvents.ENTITY_LOAD instead, a module this mod already
         // depends on for ThemeManifest/RoomManifest's own SERVER_STARTED hook.
         ServerEntityEvents.ENTITY_LOAD.register((entity, entityLevel) -> {
-            if (!(entity instanceof Mob mob) || Lemon.isPart(entity)
+            if (!(entity instanceof Mob mob) || LemonBridge.isPart(entity)
                     || !DungeonWorldRules.inDungeon(entityLevel)) {
                 return;
             }
@@ -531,6 +531,8 @@ final class Instances {
             announce(server, record, player.getName().getString() + " is back. The run goes on.",
                     player.getUUID());
         }
+
+        Terminal.crewChanged(server, record);
 
         boolean toStaging = admitsToStaging(record);
         teleport(server, player, PocketDungeonsMod.DUNGEON_LEVEL, admitPosition(record),
@@ -1091,6 +1093,20 @@ final class Instances {
         return ordinary;
     }
 
+    /**
+     * Vertical floors phase 2: how many stories the floor behind {@code offer} may use, from its dungeon node
+     * ({@code stories}, default 1). Anything that is not a node of a loaded dungeon is flat.
+     */
+    static int nodeStories(Keystone.Offer offer) {
+        if (offer == null || offer.door() == null) {
+            return DungeonDef.Node.FLAT;
+        }
+        DungeonDefs defs = DungeonDefs.current();
+        DungeonDef def = defs == null ? null : defs.byId(offer.dungeonId());
+        DungeonDef.Node node = def == null ? null : def.node(offer.nodeId());
+        return node == null ? DungeonDef.Node.FLAT : node.stories();
+    }
+
     static List<String> nodeRoomBias(Keystone.Offer offer) {
         if (offer == null || offer.door() == null) {
             return List.of();
@@ -1302,7 +1318,8 @@ final class Instances {
                             new LayoutPlanner.PathProfile(minPath, maxPath,
                                     PocketDungeonsConfig.branchProbability(),
                                     PocketDungeonsConfig.loopProbability(),
-                                    PocketDungeonsConfig.maxGridSpan()),
+                                    PocketDungeonsConfig.maxGridSpan(),
+                                    proving ? 1 : nodeStories(offer)),
                             roomTheme, dungeonDoor, bagTags, recipePlan,
                             encounterCap(offer, record.interval.floorIndex == 0
                                     ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0),
@@ -2394,6 +2411,7 @@ final class Instances {
         ReturnPoint point = record.members.remove(member);
         record.guests.remove(member);
         InstanceRegistry.byMember.remove(member);
+        Terminal.crewChanged(server, record);
         record.floor.onPad.remove(member);
         if (player != null) {
             clearTrialOmen(player);

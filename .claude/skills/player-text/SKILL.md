@@ -12,6 +12,8 @@ The test the owner uses: **what would Steve Jobs put on it?** Fewer words, the t
 nothing that explains the system. Players do not read chat live (playtest 2026-10-08-1), so anything that must
 be seen goes on a title, the sidebar, the action bar, a sign or a board; chat is only the log.
 
+Where the words sit on a wall board (sizes, wrapping, icons in place of words) is the `wall-boards` skill.
+
 ## The rules
 
 1. **Say what to do, not what happened.** A verdict ("Finished", "Cleared", "Locked") closes a door in the
