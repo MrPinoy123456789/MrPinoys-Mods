@@ -70,11 +70,9 @@ public final class DefaultTemplates {
         t.put("LandEvents.Lapsed", "On {when}, {count#claim} of {org} were lost for good.");
 
         // ---- sieges (SiegeEvents) ----
-        t.put("SiegeEvents.CampActive", "On {when}, {owner} finished raising a camp.");
+        t.put("SiegeEvents.CampActive", "On {when}, {owner} finished raising an outpost.");
         t.put("SiegeEvents.KeepRunningLow", "On {when}, the granary of {keep} was down to {daysLeft} days of food. {owner} was told to feed it.");
         t.put("SiegeEvents.KeepLapsed", "On {when}, the granary of {keep} ran dry and its claim lapsed. The land lay open again, though every block stood where it was.");
-        t.put("SiegeEvents.CampStoreEmpty", "On {when}, the stores of {camp} ran out.");
-        t.put("SiegeEvents.CampCutOff", "On {when}, {camp} was cut off from supply, and its stores began to burn faster.");
         t.put("SiegeEvents.FoodDeposited", "On {when}, food was carried into {site}.");
 
         // ---- contracts and justice (ContractEvents) ----

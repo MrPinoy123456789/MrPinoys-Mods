@@ -105,15 +105,11 @@ public final class Notices {
                         "amount", e.amount(), "currency", Describe.currency(e.currency(), e.amount())));
                 messenger.deliver(e.to());
             }
-            // ---- camps: to the whole faction, subordinates included, as alerts ----
+            // ---- keep upkeep: to the whole faction, subordinates included, as alerts ----
             case SiegeEvents.KeepRunningLow e -> alert(e.at(), faction(e.owner()), Text.get("notice.keep_low",
                     "site", describe.core(e.keep()), "days", e.daysLeft()));
             case SiegeEvents.KeepLapsed e -> alert(e.at(), faction(e.owner()), Text.get("notice.keep_lapsed",
                     "site", describe.core(e.keep())));
-            case SiegeEvents.CampCutOff e -> state.core(e.camp()).ifPresent(camp ->
-                    alert(e.at(), faction(camp.owner), Text.get("notice.cut_off", "site", describe.core(e.camp()))));
-            case SiegeEvents.CampStoreEmpty e -> state.core(e.camp()).ifPresent(camp ->
-                    alert(e.at(), faction(camp.owner), Text.get("notice.camp_empty", "site", describe.core(e.camp()))));
             case charter.land.LandEvents.Contested e -> alert(e.at(), faction(e.org()), Text.get("notice.contested", "count", e.count()));
             case charter.land.LandEvents.Lapsed e -> alert(e.at(), faction(e.org()), Text.get("notice.lapsed", "count", e.count()));
             // ---- justice (M12): to the prisoner, and to the judge or officer who acted ----

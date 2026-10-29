@@ -49,8 +49,6 @@ public final class SiegeLog implements AutoCloseable {
     static {
         name(LandEvents.CampPlanted.class, "camp_planted");
         name(SiegeEvents.CampActive.class, "camp_active");
-        name(SiegeEvents.CampCutOff.class, "camp_cut_off");
-        name(SiegeEvents.CampStoreEmpty.class, "camp_empty");
         name(SiegeEvents.FoodDeposited.class, "deposit");
         name(LandEvents.Reassigned.class, "claim_reassigned");
         name(LandEvents.Contested.class, "claim_orphaned");

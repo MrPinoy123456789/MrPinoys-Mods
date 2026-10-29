@@ -23,11 +23,6 @@ public final class SiegeBook {
         public long graceUntilSiege;
     }
 
-    /** A camp's record. */
-    public static final class CampSite {
-        public CampSupply supply = CampSupply.IDLE;
-    }
-
     /** No camps of {@code attacker} count against {@code keep} until the siege clock passes {@code untilSiege}. */
     public record Truce(CoreId keep, OrgId attacker, long untilSiege) {
     }
@@ -37,8 +32,6 @@ public final class SiegeBook {
 
     public final Map<CoreId, Store> stores = new LinkedHashMap<>();
     public final Map<CoreId, KeepSite> keeps = new LinkedHashMap<>();
-    public final Map<CoreId, CampSite> camps = new LinkedHashMap<>();
-    public final List<Allowance> allowances = new ArrayList<>();
     public final List<Truce> truces = new ArrayList<>();
 
     public Store store(CoreId core) {
@@ -47,10 +40,6 @@ public final class SiegeBook {
 
     public KeepSite keep(CoreId core) {
         return keeps.computeIfAbsent(core, c -> new KeepSite());
-    }
-
-    public CampSite camp(CoreId core) {
-        return camps.computeIfAbsent(core, c -> new CampSite());
     }
 
     public boolean truce(CoreId keep, OrgId attacker, long siegeNow) {

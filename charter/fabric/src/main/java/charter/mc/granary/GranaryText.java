@@ -5,7 +5,6 @@ import charter.food.Provisions;
 import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.Text;
-import charter.siege.CampSupply;
 import charter.time.Durations;
 
 /**
@@ -62,10 +61,6 @@ public final class GranaryText {
         if (core.isKeep()) {
             double nourishment = rt.state.siege.store(core.id).provisions.nourishment(rt.sim.food());
             if (nourishment > rt.sim.rules().storageLimit(core)) out.append('\n').append(Text.get("granary.overstocked"));
-        } else {
-            CampSupply supply = rt.state.siege.camp(core.id).supply;
-            if (supply == CampSupply.CUT_OFF) out.append('\n').append(Text.get("granary.cut_off"));
-            if (supply == CampSupply.EMPTY) out.append('\n').append(Text.get("granary.camp_empty"));
         }
         return out.toString();
     }

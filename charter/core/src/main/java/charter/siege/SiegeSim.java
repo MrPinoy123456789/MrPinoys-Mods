@@ -115,8 +115,6 @@ public final class SiegeSim {
         SiegeBook book = state.siege;
         book.stores.keySet().removeIf(id -> state.core(id).isEmpty());
         book.keeps.keySet().removeIf(id -> state.core(id).isEmpty());
-        book.camps.keySet().removeIf(id -> state.core(id).isEmpty());
-        book.allowances.removeIf(a -> state.core(a.site).isEmpty());
     }
 
     // ---- camps raising ----
@@ -126,7 +124,6 @@ public final class SiegeSim {
         for (Core camp : camps()) {
             if (camp.phase() != CampPhase.RAISING || now - camp.phaseSince() < raising) continue;
             camp.setPhase(CampPhase.ACTIVE, now);
-            state.siege.camp(camp.id);
             events.add(new SiegeEvents.CampActive(wall, now, camp.id, camp.owner));
         }
     }
@@ -202,7 +199,6 @@ public final class SiegeSim {
 
     private void timers(SiegeRules rules, long wall, long now, List<HistoryEvent> events) {
         SiegeBook book = state.siege;
-        book.allowances.removeIf(a -> now >= a.expiresSiege);
         book.truces.removeIf(t -> now >= t.untilSiege());
         events.addAll(rules.land().expireGrace(wall));
     }

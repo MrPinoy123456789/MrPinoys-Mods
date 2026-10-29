@@ -123,9 +123,6 @@ public final class GranaryScreen extends SimpleGui {
         GuiElementBuilder b = new GuiElementBuilder(Items.CLOCK)
                 .setName(Component.literal(GranaryText.timeLine(rt, core)).withStyle(ChatFormatting.GOLD));
         b.addLoreLine(Component.literal(Text.get(access == Access.FULL ? "granary.may_take" : "granary.may_not_take")).withStyle(ChatFormatting.GRAY));
-        if (rt.sim.supply().underSiege(core)) {
-            b.addLoreLine(Component.literal(Text.get("granary.carry_rule")).withStyle(ChatFormatting.GRAY));
-        }
         return b.build();
     }
 

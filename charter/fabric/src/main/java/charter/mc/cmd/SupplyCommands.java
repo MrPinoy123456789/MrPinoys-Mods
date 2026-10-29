@@ -4,7 +4,6 @@ import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.CharterServer;
 import charter.mc.Text;
-import charter.siege.Allowance;
 import charter.siege.Supply;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -40,19 +39,9 @@ public final class SupplyCommands {
             return 0;
         }
         Supply supply = rt.sim.supply();
-        String state = core.isKeep() ? "keep" : rt.state.siege.camp(core.id).supply.name().toLowerCase();
+        String state = core.isKeep() ? "keep" : "outpost";
         ctx.getSource().sendSuccess(() -> Chat.header(Text.get("supply.show", "core", rt.describe.core(core.id),
                 "state", state, "siege", Text.get("supply.at_peace"))), false);
-        Map<String, Integer> pool = new TreeMap<>();
-        for (Allowance a : supply.cartPool(core.id)) a.items().forEach((id, n) -> pool.merge(id, n, Integer::sum));
-        ctx.getSource().sendSuccess(() -> Chat.line(Text.get("supply.pool", "items", pool.isEmpty() ? Text.get("supply.nothing") : pool.toString())), false);
-        long now = rt.state.siegeClock.now();
-        for (Allowance a : rt.state.siege.allowances) {
-            if (!a.site.equals(core.id) || a.carrier.startsWith(Supply.CART) || now >= a.expiresSiege) continue;
-            long minutes = (a.expiresSiege - now) / 60_000L;
-            ctx.getSource().sendSuccess(() -> Chat.line(Text.get("supply.allowance", "carrier", a.carrier,
-                    "items", a.items().toString(), "minutes", minutes)), false);
-        }
         return 1;
     }
 

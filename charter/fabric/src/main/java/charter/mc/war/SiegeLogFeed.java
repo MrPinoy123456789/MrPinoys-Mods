@@ -5,7 +5,6 @@ import charter.id.CoreId;
 import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.CharterServer;
-import charter.mc.supply.Crossings;
 import charter.siege.SiegeBook;
 import charter.siege.Store;
 import charter.time.Durations;
@@ -61,32 +60,6 @@ public final class SiegeLogFeed {
             line.addProperty("daysLeft", perHour <= 0 ? -1 : round(have / perHour / 24));
             rt.siegeLog.write(line, wall);
         }
-    }
-
-    /** A carrier's observation: written only when it entered a besieged site or was turned back. */
-    public static void crossing(String carrier, String dimension, double x, double z, Crossings.Result result) {
-        if (result != Crossings.Result.ENTERED && result != Crossings.Result.CLOSED) return;
-        if (!CharterServer.running()) return;
-        CharterRuntime rt = CharterServer.runtime();
-        ChunkKey chunk = new ChunkKey(dimension, (int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4);
-        var ref = rt.claims.at(chunk);
-        long wall = rt.clock.now();
-        JsonObject line = new JsonObject();
-        line.addProperty("t", Instant.ofEpochMilli(wall).toString());
-        line.addProperty("siegeT", rt.state.siegeClock.now());
-        line.addProperty("ev", "crossing");
-        if (ref != null) {
-            rt.state.claim(ref.claim()).ifPresent(claim -> {
-                if (claim.core() != null) line.addProperty("site", claim.core().value().toString());
-            });
-            line.addProperty("owner", ref.owner().value().toString());
-        }
-        line.addProperty("carrier", carrier);
-        line.addProperty("result", result == Crossings.Result.ENTERED ? "counted" : "refused");
-        if (result == Crossings.Result.CLOSED) line.addProperty("reason", "not_open");
-        line.addProperty("x", chunk.x());
-        line.addProperty("z", chunk.z());
-        rt.siegeLog.write(line, wall);
     }
 
     private static JsonObject line(CharterRuntime rt, String ev, Core keep, long wall, long siegeNow) {

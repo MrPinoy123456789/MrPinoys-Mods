@@ -266,6 +266,14 @@ claim. There is no partial protection. What runs out depends on the claim:
 
 ## 10. Siege: supply lines
 
+> **Superseded, 2026-10-28 (protected keeps).** The owner's team does not want griefing, so a keep can no
+> longer be besieged, damaged or taken by another player. The war moves to the outpost (the old camp) and
+> its deposit, and to the raiders. Read this section with that in mind: §10.1 to 10.7 (encirclement, presence,
+> starvation, assault), §10.8 (the fall), §10.9 (after a siege), the carry-in rules of §10.4, the supply lines
+> of §10.10 and the rails of §10.12 describe a system that was removed, kept here only as history. What
+> stays: §10.11 (food and the granary), now the keep's **upkeep**; §10.2 (raising) for outposts. The rules in force are in
+> §23 under "Protected keeps".
+
 ### 10.1 The idea
 
 Nobody breaks a keep. A keep under siege **eats**: its garrison consumes the
@@ -399,7 +407,13 @@ a gate left open. That is when the walls and the people on them matter most.
 
 Above 25% there is no assault. A healthy keep cannot be stormed overnight.
 
-### 10.8 The fall
+### 10.8 The fall (removed; a keep never falls to a player)
+
+*Replaced 2026-10-28.* When a keep's granary runs dry its claim **lapses**: the land goes back to the
+wilderness, the blocks stand, the nation keeps its members, treasury and sub-factions, and may put a new Nexus
+down for the founding price again. Nobody razes or occupies a keep, and no treasury is plundered. Only the
+raiders' strongholds can fall, and they fall to their own supply running out, not to players' camps (§23).
+The text below is the old design.
 
 When the granary is empty, the keep falls. The besieger chooses:
 
@@ -414,7 +428,9 @@ When the granary is empty, the keep falls. The besieger chooses:
   returns to the owner unless a treaty ceded the keep. Recognized claim and
   physical control, separated, exactly as spec rule 6 wants.
 
-### 10.9 After a siege
+### 10.9 After a siege (removed)
+
+*Replaced 2026-10-28.* The truce now follows a captured outpost (§23). The text below is the old design.
 
 A keep whose siege is lifted (every camp gone or starved) gets a **truce** from the
 same attacker for 3 days. No chain sieges against one target. An occupation that runs
@@ -765,6 +781,9 @@ same caps for everyone.
 2. The members and subordinates that leave move with it.
 3. **Cores owned by the seceding organization go with it,** with their claims and
    granaries. This is the strongest consequence in the mod and is intended.
+   *Changed 2026-10-28 (protected keeps): a sub-faction can never hold a keep (only a nation does), so a
+   breakaway always founds a new one, paying the founding price from its own treasury. Existing keeps of
+   sub-factions in old saves are left as they are.*
 4. People is forked if they want.
 5. Open contracts and grants with the old parent are ended and recorded.
 
@@ -782,7 +801,7 @@ found or secede more than once every 7 days (unless unrest waives it, §14).
 ### 16.2 Rebellion and defection
 
 All allowed: leaving, leadership changes, a subordinate breaking away, breaching a
-contract, besieging your former parent. Holding command never moves a treasury or
+contract, declaring war on your former parent. Holding command never moves a treasury or
 members on its own.
 
 ### 16.3 Merger and dissolution
@@ -1027,7 +1046,23 @@ their own currency counts by hand.
 | Founding | Craft a Nexus from a lodestone and a banner named at an anvil. Placing it founds the faction under that name, with the banner's design as its banner, then raises the keep. The recipe cost is open |
 | Governance at founding | Every new faction starts as a Lordship. Its Lord may make his own office a council or a Commune; members of a Lordship cannot vote the ruler out (see Who decides and Breaking away) |
 | Who decides | Every faction has one office of decision makers holding the routine powers, with a number of seats and a way of deciding: 0 seats is a Commune (the members vote on everything), 1 a Lordship, 2 or more a council whose holders either each act alone or decide together by a majority of the seats. **Only the deciders change their own form:** a Commune by a vote of its members, a Lord alone (he may make himself a council or abdicate into a Commune), a council by a majority of its seats (dropping to one seat opens an election among the former holders). Members of a Lordship or council have no vote on form, and no other members vote can remove the Lord (Unseat, Vacate, Appoint, Expel, root grant revocation and Rename on the decision office follow the same rule). Decided 2026-10-28; `docs/2026-10-28-government-forms-brief.md` |
-| Breaking away | The only way out of a ruler you do not control. A sub-faction secedes as a whole by a vote of its members: more than half of ALL eligible members must vote Yes, and not voting or abstaining counts as No. It takes any keeps it owns; with none it places a Nexus outside every keep's protection within 24 hours and pays the diamonds from its own treasury, or the break lapses. A faction with no sub-factions lets a group of at least 2 leave together with no vote. A player belongs to one organization, so a member who disagrees can only Leave. Then the new faction may go to war with the old one like any rival; there is no separate coup. Sieges do not change: a castle changes hands only by occupation and a treaty that cedes it. Dead accounts are a separate problem. Decided 2026-10-28 |
+| Breaking away | The only way out of a ruler you do not control. A sub-faction secedes as a whole by a vote of its members: more than half of ALL eligible members must vote Yes, and not voting or abstaining counts as No. It takes any keeps it owns; with none it places a Nexus outside every keep's protection within 24 hours and pays the diamonds from its own treasury, or the break lapses. A faction with no sub-factions lets a group of at least 2 leave together with no vote. A player belongs to one organization, so a member who disagrees can only Leave. Then the new faction may go to war with the old one like any rival; there is no separate coup. A keep is never taken, so nothing about a keep changes hands in a war. Dead accounts are a separate problem. Decided 2026-10-28 |
+
+### Protected keeps, outposts as war prizes and raider waves, 2026-10-28
+
+Built on `feature/charter-build` (steps 1 to 4 of `docs/2026-10-28-protected-keeps-brief.md`). This reverses the
+siege design of §10 and §11: players who build a home must never lose it to another player's blocks, so the thing
+at stake in a war moves from the keep to the outpost and its deposit.
+
+| Decision | Outcome |
+|---|---|
+| Keeps | A keep cannot be damaged, burned, exploded, flooded, pushed into or opened by anyone who is not a member of the nation, and its Nexus is unbreakable by everyone. Wilderness outside every claim stays vanilla. Only dissolving the nation or a lapse removes a Nexus |
+| Upkeep | The granary is the keep's upkeep. A full one drains an even share each hour for `keepUpkeepDays` (14); members are warned at 7, 3 and 1 days left, once each, on login, in chat and on the faction page. At zero the claim lapses: the land is released, the blocks stand, the nation keeps its members, treasury and sub-factions, and may put a new Nexus down for the founding price. Nothing else changes the drain (members, prisoners, camps, war). A keep gets one upkeep period of grace from its first pass so a new unstocked keep does not lapse at once (builder's addition, to confirm) |
+| One of each | A nation has one keep (`/keep` goes to it); each organization has one outpost (`/outpost` goes to it, costing food from its store); a player has one bed (`/home`). Each trip waits `teleportWarmupSeconds` (5), cancelled by moving or being hurt, then cools down `teleportCooldownSeconds` (30), within one dimension |
+| Sub-factions | A sub-faction never holds a keep; it needs `outpostMinMembers` (2) members before it may place an outpost |
+| Outpost deposit | The Nth outpost a nation holds in all (nation plus sub-factions) costs `outpostDeposit` (8) diamonds plus `outpostDepositStep` (4) for each already held. The outpost holds the deposit, not the treasury; anyone who uses the banner is told what it holds. Lost without a capture, it is given back |
+| Raiders | Strongholds and outposts of the raiders have a supply of raiders and a pool; a wave every `npcWaveMinutes` (5) tops the living ones up to the pool, each costing one supply. A site falls when its supply is spent and none of its raiders lives, or when nobody fought it for `npcExpireDays` (10). A fallen site crumbles from the top layer down, then the ground it replaced is put back, and a share of its treasury spills. No ruins remain |
+| Removed | Raze and occupy, falls, plunder, notoriety, new-faction protection, raids on outlying claims, encirclement, starvation, presence and assault, the carry-in rules, carts and rails as a siege tool |
 
 ### Considered and rejected
 

@@ -29,12 +29,6 @@ public final class SiegeEvents {
     public record KeepLapsed(long at, long siegeAt, CoreId keep, OrgId owner, ChunkKey center) implements HistoryEvent {
     }
 
-    public record CampStoreEmpty(long at, long siegeAt, CoreId camp) implements HistoryEvent {
-    }
-
-    public record CampCutOff(long at, long siegeAt, CoreId camp) implements HistoryEvent {
-    }
-
     /** Food went into a store; {@code underSiege} says whether an allowance was needed. */
     public record FoodDeposited(long at, long siegeAt, CoreId site, String carrier, Map<String, Integer> accepted, double nourishment, boolean underSiege) implements HistoryEvent {
     }

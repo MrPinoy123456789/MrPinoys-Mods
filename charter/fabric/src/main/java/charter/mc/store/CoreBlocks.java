@@ -29,7 +29,6 @@ import charter.org.Organization;
 import charter.org.OrgStatus;
 import charter.org.People;
 import charter.org.PlayerRecord;
-import charter.siege.Allowance;
 import charter.siege.SiegeBook;
 import charter.siege.Store;
 import charter.food.Provisions;
@@ -73,7 +72,6 @@ public final class CoreBlocks {
     private static final Type ITEMS = new TypeToken<Map<String, Integer>>() { }.getType();
     private static final Type DEBTS = new TypeToken<Map<String, Double>>() { }.getType();
     private static final Type KEEPS = new TypeToken<Map<CoreId, SiegeBook.KeepSite>>() { }.getType();
-    private static final Type CAMPS = new TypeToken<Map<CoreId, SiegeBook.CampSite>>() { }.getType();
     private static final Type TRUCES = new TypeToken<List<SiegeBook.Truce>>() { }.getType();
 
     static void register(StateCodec codec) {
@@ -595,20 +593,9 @@ public final class CoreBlocks {
             s.add("spoilDebts", gson.toJsonTree(e.getValue().spoilDebts, DEBTS));
             stores.add(e.getKey().value().toString(), s);
         }
-        JsonArray allowances = new JsonArray();
-        for (Allowance a : book.allowances) {
-            JsonObject o = new JsonObject();
-            o.addProperty("carrier", a.carrier);
-            o.add("site", gson.toJsonTree(a.site));
-            o.add("items", gson.toJsonTree(a.items(), ITEMS));
-            o.addProperty("expiresSiege", a.expiresSiege);
-            allowances.add(o);
-        }
         JsonObject root = new JsonObject();
         root.add("stores", stores);
         root.add("keeps", gson.toJsonTree(book.keeps, KEEPS));
-        root.add("camps", gson.toJsonTree(book.camps, CAMPS));
-        root.add("allowances", allowances);
         root.add("truces", gson.toJsonTree(book.truces, TRUCES));
         return root;
     }
@@ -626,13 +613,6 @@ public final class CoreBlocks {
             if (debts != null) store.spoilDebts.putAll(new TreeMap<>(debts));
         }
         putAll(book.keeps, get(root, "keeps", KEEPS, gson));
-        putAll(book.camps, get(root, "camps", CAMPS, gson));
-        for (JsonElement e : array(root, "allowances")) {
-            JsonObject o = e.getAsJsonObject();
-            Map<String, Integer> items = get(o, "items", ITEMS, gson);
-            book.allowances.add(new Allowance(str(o, "carrier"), get(o, "site", CoreId.class, gson),
-                    items == null ? Map.of() : items, num(o, "expiresSiege")));
-        }
         List<SiegeBook.Truce> truces = get(root, "truces", TRUCES, gson);
         if (truces != null) book.truces.addAll(truces);
         // A save from before protected keeps may still carry falls, occupations, holds, notoriety and

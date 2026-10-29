@@ -87,7 +87,6 @@ final class StoreTest {
         check("store: the siege clock reads back", back.siegeClock.now() == 123_456);
         check("store: granary debts read back", back.siege.stores.get(f.keep.id).eatDebt == 0.4
                 && back.siege.stores.get(f.keep.id).spoilDebts.get("minecraft:bread") == 0.25);
-        check("store: allowances keep their items", back.siege.allowances.getFirst().left("minecraft:bread") == 5);
         check("store: new ids never repeat a saved one", back.ids.peek() == f.state.ids.peek());
         check("store: the core order counter reads back", back.nextCoreOrder() == f.state.nextCoreOrder());
         check("store: a backup is kept", Files.list(dir.resolve("backups")).count() == 1);
@@ -225,7 +224,7 @@ final class StoreTest {
         check("repair: the orphaned claim is noted and the rules record the contest",
                 noted(loaded, "claim_orphaned") && loaded.repairs().found().stream().anyMatch(e -> e instanceof charter.land.LandEvents.Contested));
         check("repair: siege records of the gone keep go with it", !s.siege.stores.containsKey(f.keep.id)
-                && s.siege.allowances.isEmpty() && noted(loaded, "allowance_dropped"));
+                && noted(loaded, "store_dropped"));
     }
 
     static void repairClosesVotesItCannotRun() throws Exception {
@@ -259,8 +258,8 @@ final class StoreTest {
         });
         CharterState s = loaded.state();
         check("repair: the camp store and site of a gone camp are dropped",
-                !s.siege.stores.containsKey(f.camp.id) && !s.siege.camps.containsKey(f.camp.id) && noted(loaded, "store_dropped"));
-        check("repair: the keep's own siege records are kept", s.siege.stores.containsKey(f.keep.id) && s.siege.allowances.size() == 1);
+                !s.siege.stores.containsKey(f.camp.id) && noted(loaded, "store_dropped"));
+        check("repair: the keep's own siege records are kept", s.siege.stores.containsKey(f.keep.id));
     }
 
     static void liveRepairRevokesBrokenGrant() {
@@ -390,7 +389,7 @@ final class StoreTest {
                 back.contracts.live().stream().noneMatch(c -> c.basis == charter.contract.Basis.OCCUPATION));
         check("old save: its grants load without the power that no longer exists",
                 back.grants().stream().allMatch(g -> g.power != null));
-        check("old save: the other siege state survives", !back.siege.stores.isEmpty() && !back.siege.camps.isEmpty());
+        check("old save: the other siege state survives", !back.siege.stores.isEmpty());
         charter.history.History history = new charter.history.History();
         int skipped = new charter.mc.store.HistoryFile(dir, Persistence.json(), m -> { }).readInto(history);
         check("old save: the fall events are skipped, not fatal (" + skipped + ")", skipped == 4 && history.size() == 0);

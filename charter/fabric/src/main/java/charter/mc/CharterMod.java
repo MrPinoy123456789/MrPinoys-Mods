@@ -39,8 +39,6 @@ public final class CharterMod implements ModInitializer {
         charter.mc.land.LandMod.register();
         // M9: granary and camp store chests, the screen, the food table.
         charter.mc.granary.Granaries.register();
-        // M10: supply lines: player and cart crossings, transit, ender chests, supply show.
-        charter.mc.supply.SupplyLines.register();
         // M11: the siege in the world: presence, the fall, plunder, occupation, alerts.
         charter.mc.war.SiegeWorld.register();
         // M12: justice in the world: arrest, cells, sentences, execution, banishment.

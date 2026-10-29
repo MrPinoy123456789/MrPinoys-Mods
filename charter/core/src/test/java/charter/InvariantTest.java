@@ -37,7 +37,6 @@ import charter.org.actions.Found;
 import charter.org.actions.InviteMember;
 import charter.org.actions.Leave;
 import charter.org.actions.Rename;
-import charter.siege.Allowance;
 import charter.siege.SiegeBook;
 import charter.siege.SiegeSim;
 import charter.siege.Store;
@@ -328,13 +327,6 @@ public final class InvariantTest {
                         : w.rng.nextBoolean() ? Vote.Ballot.YES : Vote.Ballot.NO;
                 what = "cast " + ballot + " on " + vote.id;
                 outcome = w.f.engine.cast(w.player(), vote.id, ballot);
-            } else if (roll < 18) {
-                Core site = w.pick(new ArrayList<>(w.f.state.cores()));
-                if (site == null) continue;
-                ChunkKey from = site.center.offset(w.rng.nextInt(5) - 2, w.rng.nextInt(5) - 2);
-                ChunkKey to = site.center.offset(w.rng.nextInt(3) - 1, w.rng.nextInt(3) - 1);
-                what = "enter " + from + " to " + to;
-                w.sim.supply().enter("player:" + w.player(), from, to, w.food());
             } else {
                 long wall = Durations.minutes(w.rng.nextInt(240));
                 long siege = Durations.minutes(w.rng.nextInt(180));
@@ -449,11 +441,6 @@ public final class InvariantTest {
                 if (count.getValue() < 0) return "14: negative " + count.getKey() + " in a store";
             }
         }
-        for (Allowance a : book.allowances) {
-            for (var item : a.items().entrySet()) {
-                if (item.getValue() < 0) return "14: an allowance allows negative " + item.getKey();
-            }
-        }
         return justice(s, now, KNOBS.get());
     }
 
@@ -539,8 +526,6 @@ public final class InvariantTest {
         for (var e : book.stores.entrySet()) b.append("store ").append(e.getKey()).append(' ').append(e.getValue().provisions.counts())
                 .append(' ').append(e.getValue().eatDebt).append('\n');
         for (var e : book.keeps.entrySet()) b.append("keepsite ").append(e.getKey()).append(' ').append(e.getValue().warned).append('\n');
-        for (var e : book.camps.entrySet()) b.append("campsite ").append(e.getKey()).append(' ').append(e.getValue().supply).append('\n');
-        for (Allowance a : book.allowances) b.append("allowance ").append(a.carrier).append(' ').append(a.items()).append('\n');
         b.append("truces ").append(book.truces).append('\n');
         for (int i = 0; i < 8; i++) {
             PlayerId p = Fixture.player("chaos" + i);

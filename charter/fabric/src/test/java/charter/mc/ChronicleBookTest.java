@@ -95,13 +95,13 @@ final class ChronicleBookTest {
         long at = f.clock.now() + 1000;
         f.state.history.record(new LandEvents.Rescued(at, f.oakvale, 7), "sim", false);
         f.state.history.record(new LandEvents.Lapsed(at + 1, f.ironhold, 9), "sim", false);
-        f.state.history.record(new SiegeEvents.CampCutOff(at + 2, 0, f.camp.id), "sim", false);
+        f.state.history.record(new SiegeEvents.CampActive(at + 2, 0, f.camp.id, f.ironhold), "sim", false);
         String oak = String.join("\n", ChronicleBooks.faction(f.state, DefaultTemplates.get(), false, f.oakvale, 1).pages());
         check("faction: its own event is told", oak.contains("7 claims"));
         check("faction: a rival's event is not", !oak.contains("9 claims"));
         charter.id.OrgId owner = f.state.core(f.camp.id).orElseThrow().owner;
         String keepBook = String.join("\n", ChronicleBooks.faction(f.state, DefaultTemplates.get(), false, owner, 1).pages());
-        check("faction: an event that names only its camp reaches the camp's owner", keepBook.contains("cut off"));
+        check("faction: an event that names only its camp reaches the camp's owner", keepBook.contains("raising an outpost"));
     }
 
     static void adminEventsAreHiddenUnlessTheServerOptsIn() {

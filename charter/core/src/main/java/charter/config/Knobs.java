@@ -71,7 +71,6 @@ public final class Knobs {
 
     // ---- siege timers (S) ----
     public double campRaisingHours = 2;
-    public int carryInWindowMinutes = 10;
     public int truceDays = 3;
     public int bannerMoveCooldownMinutes = 30;
     public int orphanGraceMinutes = 30;
@@ -148,7 +147,6 @@ public final class Knobs {
     public boolean siegeLog = true;
     public int siegeLogRetentionDays = 30;
     public int simStepTicks = 100;
-    public int cartScanTicks = 5;
 
     // ---- the Chronicle in the world (M13) ----
     /** Whether books also tell admin events, with the clerk's voice (PLAN.md section 3). Off keeps test scenarios out of the story. */
@@ -168,7 +166,7 @@ public final class Knobs {
         if (!(drainPerMouthPerHour > 0)) out.add("drainPerMouthPerHour must be above 0.");
         if (granaryMaxChests < 1) out.add("granaryMaxChests must be at least 1.");
         if (confinementMinMinutes > confinementMaxHours * 60) out.add("confinementMinMinutes is longer than confinementMaxHours.");
-        if (simStepTicks < 1 || cartScanTicks < 1) out.add("simStepTicks and cartScanTicks must be at least 1.");
+        if (simStepTicks < 1) out.add("simStepTicks must be at least 1.");
         if (voteDurationHours < 1) out.add("voteDurationHours must be at least 1.");
         return out;
     }

@@ -29,8 +29,6 @@ import charter.org.actions.CreateSubOrg;
 import charter.org.actions.Found;
 import charter.org.actions.InviteMember;
 import charter.org.actions.Rename;
-import charter.siege.Allowance;
-import charter.siege.CampSupply;
 import charter.siege.SiegeBook;
 import charter.siege.Store;
 import charter.state.CharterState;
@@ -177,9 +175,6 @@ final class FullState {
         book.store(camp.id).eatDebt = 1.75;
         SiegeBook.KeepSite site = book.keep(keep.id);
         site.warned = 3;
-        SiegeBook.CampSite campSite = book.camp(camp.id);
-        campSite.supply = CampSupply.CUT_OFF;
-        book.allowances.add(new Allowance("player:" + bob.value(), keep.id, Map.of("minecraft:bread", 5), 99_999));
         book.truces.add(new SiegeBook.Truce(keep.id, guard, 555));
 
         state.siegeClock.advanceSiege(123_456);

@@ -95,13 +95,11 @@ public final class ChronicleStoryTest {
         golden(new LandEvents.Rescued(AT, ASHFALL, 2), IN + "2 claims of Ashfall were taken up again and held.");
         golden(new LandEvents.Lapsed(AT, ASHFALL, 4), IN + "4 claims of Ashfall were lost for good.");
         // sieges
-        golden(new SiegeEvents.CampActive(AT, 0, CAMP, EASTERN), IN + "the Eastern Guard finished raising a camp.");
+        golden(new SiegeEvents.CampActive(AT, 0, CAMP, EASTERN), IN + "the Eastern Guard finished raising an outpost.");
         golden(new SiegeEvents.KeepRunningLow(AT, 0, KEEP, ASHFALL, 7),
                 IN + "the granary of the keep of Ashfall was down to 7 days of food. Ashfall was told to feed it.");
         golden(new SiegeEvents.KeepLapsed(AT, 0, KEEP, ASHFALL, CHUNK),
                 IN + "the granary of the keep of Ashfall ran dry and its claim lapsed. The land lay open again, though every block stood where it was.");
-        golden(new SiegeEvents.CampStoreEmpty(AT, 0, CAMP), IN + "the stores of the camp of the Eastern Guard ran out.");
-        golden(new SiegeEvents.CampCutOff(AT, 0, CAMP), IN + "the camp of the Eastern Guard was cut off from supply, and its stores began to burn faster.");
         golden(new SiegeEvents.FoodDeposited(AT, 0, KEEP, "cart:x", Map.of("minecraft:bread", 4), 12, true),
                 IN + "food was carried into the keep of Ashfall.");
         // contracts

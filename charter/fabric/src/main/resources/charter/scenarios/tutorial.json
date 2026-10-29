@@ -4,7 +4,6 @@
   "tries": "Read the book Charter: A First Hour in your inventory and follow it page by page. Your Charter book shows where you stand. The longer guide is charter/TUTORIAL.md.",
   "knobs": {
     "timeScale": 24,
-    "carryInWindowMinutes": 240,
     "presenceMinMemberDays": 0,
     "foundSecedeCooldownDays": 0
   },
