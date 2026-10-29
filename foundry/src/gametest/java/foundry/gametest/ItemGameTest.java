@@ -33,6 +33,22 @@ public final class ItemGameTest {
     }
 
     @GameTest
+    @SuppressWarnings("removal")
+    public void usingTheSwordRunsItsMechanicOnceThenCoolsDown(GameTestHelper helper) {
+        var player = helper.makeMockServerPlayerInLevel();
+        var item = BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:crystal_sword"));
+        var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+        helper.assertTrue(!player.hasEffect(net.minecraft.world.effect.MobEffects.SPEED), "no speed before use");
+        var first = item.use(helper.getLevel(), player, hand);
+        helper.assertTrue(first == net.minecraft.world.InteractionResult.SUCCESS, "first use succeeds");
+        helper.assertTrue(player.hasEffect(net.minecraft.world.effect.MobEffects.SPEED), "speed applied by the mechanic");
+        player.removeAllEffects();
+        item.use(helper.getLevel(), player, hand);
+        helper.assertTrue(!player.hasEffect(net.minecraft.world.effect.MobEffects.SPEED), "second use is on cooldown");
+        helper.succeed();
+    }
+
+    @GameTest
     public void commandsAreRegistered(GameTestHelper helper) {
         var foundry = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild("foundry");
         helper.assertTrue(foundry != null, "/foundry exists");

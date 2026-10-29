@@ -22,6 +22,7 @@ public final class CoreSuite {
         parsing();
         loading();
         packFiles();
+        mechanics();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -56,6 +57,101 @@ public final class CoreSuite {
         check(missing.def() == null && missing.problems().size() >= 3, "empty object reports every missing field");
         var badId = ItemParser.parse("b.json", GOOD.replace("t:sword", "Bad Id"));
         check(badId.def() == null, "invalid id blocks the def");
+    }
+
+    private static String withMechanics(String mechanics) {
+        return GOOD.replace("\"durability\": 500", "\"durability\": 500, \"mechanics\": " + mechanics);
+    }
+
+    private static final String ONE = "[{\"trigger\":\"on_use\",\"cooldown_ticks\":40,\"conditions\":[{\"type\":\"has_permission\",\"level\":0}],"
+            + "\"actions\":[{\"type\":\"play_sound\",\"sound\":\"minecraft:block.amethyst_block.chime\"},"
+            + "{\"type\":\"apply_effect\",\"effect\":\"minecraft:speed\",\"duration\":100,\"amplifier\":1}]}]";
+
+    private static void mechanics() {
+        var ok = ItemParser.parse("m.json", withMechanics(ONE));
+        check(ok.def() != null && ok.def().mechanics().size() == 1, "valid mechanic parses");
+        var m = ok.def().mechanics().get(0);
+        check(m.trigger() == foundry.core.mechanics.Trigger.ON_USE && m.actions().size() == 2 && m.cooldownTicks() == 40,
+                "mechanic fields");
+
+        check(hasError(withMechanics("[{\"trigger\":\"on_sneeze\",\"actions\":[]}]"), "trigger"), "unknown trigger");
+        check(hasError(withMechanics("[{\"trigger\":\"on_use\",\"actions\":[{\"type\":\"run_command\"}]}]"), "Unknown action type"),
+                "unregistered action type is refused, no commands");
+        check(hasError(withMechanics("[{\"trigger\":\"on_use\",\"actions\":[{\"type\":\"apply_effect\",\"effect\":\"minecraft:speed\"}]}]"), "needs the parameter"),
+                "missing required parameter");
+        check(hasError(withMechanics("[{\"trigger\":\"on_use\",\"actions\":[{\"type\":\"apply_effect\",\"effect\":\"minecraft:speed\",\"duration\":999999}]}]"), "between"),
+                "out of range parameter");
+        check(hasError(withMechanics("[{\"trigger\":\"on_use\",\"actions\":[{\"type\":\"play_sound\",\"sound\":\"minecraft:x\",\"bogus\":1}]}]"), "no parameter"),
+                "unknown parameter");
+        check(hasError(withMechanics("[{\"trigger\":\"on_use\",\"actions\":[]}]"), "at least one action"), "empty actions");
+        check(hasError(withMechanics("[{\"trigger\":\"on_use\",\"chance\":2,\"actions\":[{\"type\":\"give_item\",\"item\":\"minecraft:stick\"}]}]"), "chance"),
+                "chance range");
+
+        StringBuilder many = new StringBuilder("[{\"trigger\":\"on_use\",\"actions\":[");
+        for (int i = 0; i < 17; i++) many.append(i > 0 ? "," : "").append("{\"type\":\"give_item\",\"item\":\"minecraft:stick\"}");
+        many.append("]}]");
+        check(hasError(withMechanics(many.toString()), "At most 16 actions"), "action count limit");
+        StringBuilder lots = new StringBuilder("[");
+        for (int i = 0; i < 9; i++) lots.append(i > 0 ? "," : "").append("{\"trigger\":\"on_use\",\"actions\":[{\"type\":\"give_item\",\"item\":\"minecraft:stick\"}]}");
+        lots.append("]");
+        check(hasError(withMechanics(lots.toString()), "at most 8 mechanics"), "mechanics per item limit");
+
+        runner();
+    }
+
+    private static boolean hasError(String json, String fragment) {
+        var r = ItemParser.parse("e.json", json);
+        return r.def() == null && r.problems().stream().anyMatch(p -> p.blocking() && p.message().contains(fragment)
+                && !p.fix().isBlank());
+    }
+
+    private static void runner() {
+        var def = ItemParser.parse("r.json", withMechanics(ONE)).def().mechanics().get(0);
+        var run = new foundry.core.mechanics.MechanicRunner();
+        long[] tick = {0};
+        int[] performed = {0};
+        boolean[] allowed = {true};
+        boolean[] chance = {true};
+        foundry.core.mechanics.MechanicRunner.Host host = new foundry.core.mechanics.MechanicRunner.Host() {
+            public long nowTick() { return tick[0]; }
+            public boolean hasPermission(int level) { return allowed[0]; }
+            public boolean roll(double p) { return chance[0]; }
+            public void perform(foundry.core.mechanics.Step a) { performed[0]++; }
+        };
+        var O = foundry.core.mechanics.MechanicRunner.Outcome.class;
+        check(run.fire("a", "t:sword", 0, def, host) == foundry.core.mechanics.MechanicRunner.Outcome.RAN && performed[0] == 2, "runs both actions");
+        check(run.fire("a", "t:sword", 0, def, host) == foundry.core.mechanics.MechanicRunner.Outcome.ON_COOLDOWN, "second use is on cooldown");
+        check(run.fire("b", "t:sword", 0, def, host) == foundry.core.mechanics.MechanicRunner.Outcome.RAN, "cooldown is per actor");
+        tick[0] = 40;
+        check(run.fire("a", "t:sword", 0, def, host) == foundry.core.mechanics.MechanicRunner.Outcome.RAN, "cooldown expires");
+        allowed[0] = false;
+        tick[0] = 100;
+        check(run.fire("a", "t:sword", 0, def, host) == foundry.core.mechanics.MechanicRunner.Outcome.CONDITION_FAILED, "permission condition blocks");
+        allowed[0] = true;
+        var gamble = new foundry.core.mechanics.MechanicDef(def.trigger(), java.util.List.of(), def.actions(), 0, 0.5);
+        chance[0] = false;
+        check(run.fire("a", "t:g", 0, gamble, host) == foundry.core.mechanics.MechanicRunner.Outcome.CHANCE_FAILED, "failed roll skips");
+
+        // Rate limit: 20 firings per 20 ticks per actor, then refused until the window moves on.
+        var free = new foundry.core.mechanics.MechanicDef(def.trigger(), java.util.List.of(), def.actions(), 0, 1.0);
+        tick[0] = 1000;
+        int ran = 0;
+        for (int i = 0; i < 30; i++) if (run.fire("spam", "t:s", 0, free, host) == foundry.core.mechanics.MechanicRunner.Outcome.RAN) ran++;
+        check(ran == foundry.core.mechanics.MechanicRunner.MAX_FIRES_PER_WINDOW, "rate limit stops a burst at 20");
+        tick[0] = 1020;
+        check(run.fire("spam", "t:s", 0, free, host) == foundry.core.mechanics.MechanicRunner.Outcome.RAN, "rate limit recovers");
+
+        // Re-entrancy: an action that tries to fire another mechanic is refused.
+        var nested = new foundry.core.mechanics.MechanicRunner.Outcome[1];
+        var inner = new foundry.core.mechanics.MechanicRunner();
+        foundry.core.mechanics.MechanicRunner.Host loop = new foundry.core.mechanics.MechanicRunner.Host() {
+            public long nowTick() { return 0; }
+            public boolean hasPermission(int level) { return true; }
+            public boolean roll(double p) { return true; }
+            public void perform(foundry.core.mechanics.Step a) { nested[0] = inner.fire("x", "t:loop", 0, free, this); }
+        };
+        inner.fire("x", "t:loop", 0, free, loop);
+        check(nested[0] == foundry.core.mechanics.MechanicRunner.Outcome.REENTERED, "a mechanic cannot trigger itself");
     }
 
     private static void packFiles() {
@@ -98,6 +194,9 @@ public final class CoreSuite {
         check(set.problems().stream().anyMatch(p -> p.where().equals("stack_size") && p.blocking()), "durability with stack > 1 blocks");
         check(set.problems().stream().anyMatch(p -> p.where().equals("base_item")), "unknown base item reported");
         check(set.hasErrors(), "set reports errors");
+        check(!set.items().containsKey(Ident.parse("t:fake")), "an item with an unknown base item is not loaded");
+        check(!set.items().containsKey(Ident.parse("t:both")), "an item with a blocking problem is not loaded");
+        check(set.items().size() == 1, "only the one valid item is loaded");
         check(set.problems().stream().allMatch(p -> !p.fix().isBlank()), "every problem carries a fix");
 
         ContentSet empty = ContentLoader.load(root.resolve("missing"), i -> true, p -> true);

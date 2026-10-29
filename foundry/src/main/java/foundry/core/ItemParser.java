@@ -62,8 +62,11 @@ public final class ItemParser {
         boolean glint = o.has("glint") && o.get("glint").getAsBoolean();
         String rarity = stringField(o, "rarity", "common", source, problems);
 
+        var mechanics = foundry.core.mechanics.MechanicParser.parse(source, id == null ? source : id.toString(),
+                o.get("mechanics"), problems);
+
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
-        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity),
+        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, List.copyOf(mechanics)),
                 problems);
     }
 

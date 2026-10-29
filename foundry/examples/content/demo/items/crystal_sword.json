@@ -7,5 +7,15 @@
   "stack_size": 1,
   "durability": 800,
   "glint": true,
-  "rarity": "rare"
+  "rarity": "rare",
+  "mechanics": [
+    {
+      "trigger": "on_use",
+      "cooldown_ticks": 100,
+      "actions": [
+        { "type": "play_sound", "sound": "minecraft:block.amethyst_block.chime", "volume": 1.0, "pitch": 1.2 },
+        { "type": "apply_effect", "effect": "minecraft:speed", "duration": 100, "amplifier": 1 }
+      ]
+    }
+  ]
 }

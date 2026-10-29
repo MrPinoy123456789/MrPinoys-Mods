@@ -34,6 +34,7 @@ public final class Validator {
                 continue;
             }
             origin.put(d.id(), s.source());
+            int before = problems.size();
             if (!itemExists.test(d.baseItem())) {
                 problems.add(Problem.error(id, "base_item", d.baseItem() + " is not a Minecraft item.",
                         "Pick a real item such as minecraft:diamond_sword."));
@@ -62,7 +63,8 @@ public final class Validator {
                 problems.add(Problem.error(id, "texture", "No texture found at assets/" + PackFiles.texturePath(d.texture()) + ".",
                         "Add a 16 by 16 PNG at that path, or fix the texture id."));
             }
-            items.put(d.id(), d);
+            // A definition with any blocking problem is dropped whole; it is never registered half valid.
+            if (problems.subList(before, problems.size()).stream().noneMatch(Problem::blocking)) items.put(d.id(), d);
         }
         return new ContentSet(Map.copyOf(items), List.copyOf(problems));
     }

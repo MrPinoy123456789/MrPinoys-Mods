@@ -66,6 +66,7 @@ public final class FoundryMod implements ModInitializer {
         ContentSet set = ContentLoader.load(contentRoot(),
                 id -> BuiltInRegistries.ITEM.containsKey(Identifier.parse(id.toString())),
                 path -> Files.isRegularFile(assetsRoot().resolve(path)));
+        set = MechanicHost.checkReferences(set);
         set.problems().forEach(p -> LOG.warn("{}", p));
         return set;
     }

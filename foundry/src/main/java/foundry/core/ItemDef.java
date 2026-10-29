@@ -17,7 +17,8 @@ public record ItemDef(
         int stackSize,
         int durability,
         boolean glint,
-        String rarity) {
+        String rarity,
+        List<foundry.core.mechanics.MechanicDef> mechanics) {
 
     public static final int SCHEMA_VERSION = 1;
     public static final List<String> RARITIES = List.of("common", "uncommon", "rare", "epic");
