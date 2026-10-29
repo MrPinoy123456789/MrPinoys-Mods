@@ -104,6 +104,14 @@ export class Kinetic {
       data = await this.request('GET', '/files/list', { query: { directory: dir } })
     } catch (e) {
       if (/HTTP 404/.test(e.message)) return null
+      // Kinetic answers a listing of a missing directory with a 500 DaemonConnectionException, not a 404.
+      // Treat it as absent only when the parent listing proves the folder is not there.
+      if (/HTTP 500/.test(e.message) && dir !== '/') {
+        const up = dir.slice(0, dir.lastIndexOf('/')) || '/'
+        const folder = dir.slice(dir.lastIndexOf('/') + 1)
+        const sibling = await this.request('GET', '/files/list', { query: { directory: up } })
+        if (!(sibling.data || []).some(d => d.attributes.name === folder)) return null
+      }
       throw e
     }
     const entry = (data.data || []).map(d => d.attributes).find(a => a.name === name && a.is_file !== false)
