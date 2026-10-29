@@ -18,8 +18,8 @@ resource-pack-extras, sound-patcher and virtual-entity. It does not contain SGUI
 
 | Feature | State | Notes |
 |---|---|---|
-| Custom item, base item look | Verified in gametests and on a dev server | Registers with name, rarity, stack size, durability. Not yet seen by a vanilla client |
-| Custom item model and texture | Pack contents verified; client rendering not verified | `RESOURCE_PACK_CREATION_EVENT` plus `ResourcePackBuilder.addData` and `addStringData` (checked with javap); `getPolymerItemModel` returns the item id, whose client item definition Foundry generates |
+| Custom item, base item look | Verified in gametests and on a dev server | Registers with name, rarity, stack size, durability. Owner confirmed in a vanilla client on a local dev server |
+| Custom item model and texture | Pack contents verified; owner reported it works in a vanilla client on a local dev server (2026-10-29) | `RESOURCE_PACK_CREATION_EVENT` plus `ResourcePackBuilder.addData` and `addStringData` (checked with javap); `getPolymerItemModel` returns the item id, whose client item definition Foundry generates |
 | Item mechanics (on_use, on_hit_entity) | Verified in gametest | `Item.use` and `Item.hurtEnemy` overrides on `FoundryItem`; effects and sounds target the acting player only |
 | Recipes | Blocked | No public add path found without a Mixin; DECISIONS.md D8 |
 | Furniture | Not verified | Needs D3 |

@@ -46,11 +46,15 @@ Foundry never shades it.
 - Dev server: `Foundry: 2 items registered, 0 problems`; `polymer/resource_pack.zip` holds the generated client item
   definition, the generated model and the texture; `/foundry pack status` and `/foundry reload` answer.
 
+## Verified by the owner in a vanilla client (2026-10-29)
+
+On a local dev server (`runServer`, offline mode) with an unmodded 26.2 client: the pack loaded, `/foundry give` of
+`demo:glow_gem` and `demo:crystal_sword` worked, and the owner reported that it works. The report was a single "it works";
+the exact look of each item and the sound were not itemised. Not tried: the Kinetic test server, a remote client over
+the public address, or an upgrade over an existing world.
+
 ## What is not verified
 
-- No vanilla client has loaded the pack: whether the glow gem texture and the sword show correctly is unconfirmed.
-  Manual check: join the test server, `/foundry give @s demo:glow_gem`, look at the item; use the crystal sword and
-  watch for the chime and speed effect.
 - Recipes (F2) are blocked on a decision, see DECISIONS.md D8. Furniture (F4) waits for D3.
 - Effects and sounds apply to the acting player only; there is no target selector, so "slow the enemy you hit" is not
   possible yet. The pack is built at server start; there is no runtime rebuild.
