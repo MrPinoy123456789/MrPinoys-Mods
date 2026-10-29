@@ -82,6 +82,32 @@ public final class ItemGameTest {
     }
 
     @GameTest
+    @SuppressWarnings("removal")
+    public void giveCommandAcceptsNamespacedIdsAndCounts(GameTestHelper helper) throws Exception {
+        var server = helper.getLevel().getServer();
+        var player = helper.makeMockServerPlayerInLevel();
+        var source = server.createCommandSourceStack().withPermission(net.minecraft.server.permissions.PermissionSet.ALL_PERMISSIONS);
+        var dispatcher = server.getCommands().getDispatcher();
+        var gem = BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:glow_gem"));
+        // Mock players from different tests share one name, so count gems across every player before and after.
+        int before = gemsHeld(server, gem);
+        helper.assertValueEqual(dispatcher.execute("foundry give " + player.getGameProfile().name() + " demo:glow_gem 4", source), 1,
+                "give with a namespaced id and a count");
+        helper.assertValueEqual(dispatcher.execute("foundry give " + player.getGameProfile().name() + " demo:crystal_sword", source), 1,
+                "give without a count");
+        helper.assertValueEqual(gemsHeld(server, gem) - before, 4, "four glow gems were given");
+        helper.succeed();
+    }
+
+    private static int gemsHeld(net.minecraft.server.MinecraftServer server, net.minecraft.world.item.Item gem) {
+        int total = 0;
+        for (var p : server.getPlayerList().getPlayers()) {
+            for (var stack : p.getInventory().getNonEquipmentItems()) if (stack.getItem() == gem) total += stack.getCount();
+        }
+        return total;
+    }
+
+    @GameTest
     public void commandsAreRegistered(GameTestHelper helper) {
         var foundry = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild("foundry");
         helper.assertTrue(foundry != null, "/foundry exists");

@@ -1,7 +1,6 @@
 package foundry.mc;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import foundry.core.ContentSet;
 import foundry.core.Ident;
 import foundry.core.Problem;
@@ -9,6 +8,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
@@ -30,13 +30,13 @@ final class FoundryCommands {
                                 .executes(ctx -> packStatus(ctx.getSource()))))
                         .then(Commands.literal("give")
                                 .then(Commands.argument("target", EntityArgument.player())
-                                        .then(Commands.argument("id", StringArgumentType.string())
+                                        .then(Commands.argument("id", IdentifierArgument.id())
                                                 .executes(ctx -> give(ctx.getSource(), EntityArgument.getPlayer(ctx, "target"),
-                                                        StringArgumentType.getString(ctx, "id"), 1))
+                                                        IdentifierArgument.getId(ctx, "id").toString(), 1))
                                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 99))
                                                         .executes(ctx -> give(ctx.getSource(),
                                                                 EntityArgument.getPlayer(ctx, "target"),
-                                                                StringArgumentType.getString(ctx, "id"),
+                                                                IdentifierArgument.getId(ctx, "id").toString(),
                                                                 IntegerArgumentType.getInteger(ctx, "count")))))))));
     }
 
