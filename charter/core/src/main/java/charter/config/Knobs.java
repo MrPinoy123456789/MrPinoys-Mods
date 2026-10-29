@@ -32,26 +32,21 @@ public final class Knobs {
         return new Knobs();
     }
 
-    /** Every timer short, so a feature can be tried in minutes. Not for a real server. */
+    /**
+     * The shipped values, with the waits of the raiders and of the slow governance clocks short, so a feature can be
+     * tried in minutes. Siege time, a trip's wait, votes and presence stay as shipped, since they are the part of the
+     * balance a test must not change. Not for a real server.
+     */
     public static Knobs test() {
         Knobs k = new Knobs();
         k.profile = TEST;
-        // Siege time runs 600 times fast: a keep's two weeks of food last 35 minutes, a 12 hour notice 72 seconds,
-        // the 10 minute hold of an outpost one second, a truce of three days 7 minutes.
-        k.timeScale = 600;
-        k.teleportWarmupSeconds = 1;
-        k.teleportCooldownSeconds = 2;
         k.npcWaveMinutes = 1;
         k.npcExpireDays = 1;
         k.npcCrumbleTicksPerLayer = 1;
-        k.presenceMinMemberSeconds = 3;
-        k.voteEligibilityDays = 0;
-        k.voteDurationHours = 1;
         k.settleDays = 0;
         k.absentLordDays = 1;
         k.joinRequestDays = 1;
         k.breakawayHours = 1;
-        k.seatVoteHours = 1;
         k.foundSecedeCooldownDays = 0;
         return k;
     }

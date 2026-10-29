@@ -53,15 +53,19 @@ final class ConfigTest {
         Knobs test = Knobs.test();
         check("config: shipped keeps the balance values", shipped.profile.equals("shipped") && shipped.timeScale == 1.0
                 && shipped.presenceMinMemberSeconds == 3 * 86_400 && shipped.teleportWarmupSeconds == 5 && shipped.npcWaveMinutes == 5);
-        check("config: test makes the timers short", test.profile.equals("test") && test.timeScale > 100
-                && test.presenceMinMemberSeconds == 3 && test.teleportWarmupSeconds == 1 && test.npcWaveMinutes == 1);
+        check("config: test makes the raiders' and slow governance timers short", test.profile.equals("test")
+                && test.npcWaveMinutes == 1 && test.npcCrumbleTicksPerLayer == 1 && test.joinRequestDays == 1 && test.foundSecedeCooldownDays == 0);
+        check("config: test keeps siege time, a trip's wait, votes and presence as shipped", test.timeScale == shipped.timeScale
+                && test.teleportWarmupSeconds == shipped.teleportWarmupSeconds && test.teleportCooldownSeconds == shipped.teleportCooldownSeconds
+                && test.voteDurationHours == shipped.voteDurationHours && test.voteEligibilityDays == shipped.voteEligibilityDays
+                && test.seatVoteHours == shipped.seatVoteHours && test.presenceMinMemberSeconds == shipped.presenceMinMemberSeconds);
         check("config: the test values are still usable", test.problems().isEmpty());
 
         Path dir = Files.createTempDirectory("charter-config");
-        Files.writeString(dir.resolve(CharterConfig.FILE_NAME), "{ \"profile\": \"test\", \"teleportWarmupSeconds\": 4 }");
+        Files.writeString(dir.resolve(CharterConfig.FILE_NAME), "{ \"profile\": \"test\", \"npcWaveMinutes\": 4 }");
         Knobs read = CharterConfig.readOrCreate(dir, s -> { }, s -> { });
-        check("config: a file naming the test profile starts from the test values", read.profile.equals("test") && read.npcWaveMinutes == 1);
-        check("config: and a key in the file wins over them", read.teleportWarmupSeconds == 4);
+        check("config: a file naming the test profile starts from the test values", read.profile.equals("test") && read.npcCrumbleTicksPerLayer == 1);
+        check("config: and a key in the file wins over them", read.npcWaveMinutes == 4);
 
         Path other = Files.createTempDirectory("charter-config");
         Files.writeString(other.resolve(CharterConfig.FILE_NAME), "{ \"profile\": \"nonsense\" }");

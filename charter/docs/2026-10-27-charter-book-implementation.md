@@ -1445,10 +1445,12 @@ keys are removed. In player text a camp is an outpost (internal ids keep `camp`)
 superseded, 10.8 and 10.9, 16.1 and 16.2 are corrected and section 23 records the decisions. The new keep grace is a
 knob, `keepNewGraceDays` (14).
 
-**Two sets of values.** `Knobs.shipped()` is the balance set and the default; `Knobs.test()` makes every timer short (siege
-time 600 times fast, a 1 second trip wait, a wave a minute, votes of an hour, presence after 3 seconds). The config
+**Two sets of values.** `Knobs.shipped()` is the balance set and the default; `Knobs.test()` is the shipped set with the raiders'
+timers (a wave a minute, a one day expiry, a layer a tick) and the slow governance clocks (join requests, absent Lords,
+breaking away, the founding cooldown) made short; by the owner's word siege time, a trip's wait, votes and presence stay
+as shipped. The config
 file names a `profile`; the loader starts from that set and any other key wins over it (`CharterConfig`,
-`ConfigTest.profilesGiveShippedAndTestValues`). `presenceMinMemberSeconds` is 3 days when shipped, 3 seconds in test. The
+`ConfigTest.profilesGiveShippedAndTestValues`). `presenceMinMemberSeconds` is 3 days (259200) in both sets. The
 gametests still run on the shipped set and set the few values they need by hand.
 
 **Tests added in step 4.** Core `WarTest` (declaring, the notice, the hold, a defender resetting it, a lapse and its
