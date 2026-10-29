@@ -11,6 +11,7 @@ public final class Durations {
     private Durations() {
     }
 
+    public static long seconds(double n) { return Math.round(n * SECOND); }
     public static long minutes(double n) { return Math.round(n * MINUTE); }
     public static long hours(double n) { return Math.round(n * HOUR); }
     public static long days(double n) { return Math.round(n * DAY); }

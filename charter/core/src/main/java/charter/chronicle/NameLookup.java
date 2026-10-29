@@ -86,7 +86,7 @@ public interface NameLookup {
                 java.util.Map<CoreId, String> out = new java.util.HashMap<>();
                 for (var entry : s.history.entries()) {
                     if (entry.event() instanceof charter.land.LandEvents.NexusPlaced e) out.put(e.core(), "the keep of " + org(e.org()));
-                    else if (entry.event() instanceof charter.land.LandEvents.CampPlanted e) out.put(e.core(), "the camp of " + org(e.org()));
+                    else if (entry.event() instanceof charter.land.LandEvents.CampPlanted e) out.put(e.core(), "the outpost of " + org(e.org()));
                 }
                 return out;
             }

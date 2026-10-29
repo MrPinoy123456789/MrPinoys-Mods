@@ -93,7 +93,7 @@ clear` afterwards also takes down the faction that player founded in it.
 Players are named for the scenario's roles in order (`scenario list` shows them:
 `A1 A2 A3 B1 B2` for the raid); a role nobody is named for is an offline
 stand-in. Every scenario sets `timeScale` 24, `carryInWindowMinutes` 240 and
-`presenceMinMemberDays` 0, waives new-faction protection for its factions, and
+`presenceMinMemberSeconds` 0, waives new-faction protection for its factions, and
 backdates their membership 30 days. Each step runs through the engine as the
 admin, so a refused step stops the run and says why. Named players must not
 already belong to an organization; `scenario clear` frees them.

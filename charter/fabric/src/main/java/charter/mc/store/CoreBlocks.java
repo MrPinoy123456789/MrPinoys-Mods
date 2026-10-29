@@ -72,7 +72,6 @@ public final class CoreBlocks {
     private static final Type ITEMS = new TypeToken<Map<String, Integer>>() { }.getType();
     private static final Type DEBTS = new TypeToken<Map<String, Double>>() { }.getType();
     private static final Type KEEPS = new TypeToken<Map<CoreId, SiegeBook.KeepSite>>() { }.getType();
-    private static final Type TRUCES = new TypeToken<List<SiegeBook.Truce>>() { }.getType();
 
     static void register(StateCodec codec) {
         codec.register(block("clocks", CoreBlocks::writeClocks, CoreBlocks::readClocks))
@@ -596,7 +595,6 @@ public final class CoreBlocks {
         JsonObject root = new JsonObject();
         root.add("stores", stores);
         root.add("keeps", gson.toJsonTree(book.keeps, KEEPS));
-        root.add("truces", gson.toJsonTree(book.truces, TRUCES));
         return root;
     }
 
@@ -613,8 +611,6 @@ public final class CoreBlocks {
             if (debts != null) store.spoilDebts.putAll(new TreeMap<>(debts));
         }
         putAll(book.keeps, get(root, "keeps", KEEPS, gson));
-        List<SiegeBook.Truce> truces = get(root, "truces", TRUCES, gson);
-        if (truces != null) book.truces.addAll(truces);
         // A save from before protected keeps may still carry falls, occupations, holds, notoriety and
         // waived protection. They are not read: the keeps they describe are back with their owners.
     }

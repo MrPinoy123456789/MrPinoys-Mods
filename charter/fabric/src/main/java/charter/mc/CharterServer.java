@@ -96,6 +96,7 @@ public final class CharterServer {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             runtime.state.touch(new PlayerId(player.getUUID()), player.getPlainTextName(), now);
         }
+        charter.mc.war.SiegeWorld.beforeStep(server, runtime);
         charter.mc.granary.Granaries.around(() -> runtime.sim.step(elapsed));
         LoadMeter.step(System.nanoTime() - started);
     }

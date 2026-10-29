@@ -17,6 +17,50 @@ import java.util.List;
  */
 public final class Knobs {
 
+    /** The two sets of values: {@link #shipped()} is for balance, {@link #test()} makes every timer short to test faster. */
+    public static final String SHIPPED = "shipped";
+    public static final String TEST = "test";
+
+    /**
+     * Which set the values started from. The config file names it; the loader starts from that set and then applies
+     * whatever else the file says, so a key in the file always wins.
+     */
+    public String profile = SHIPPED;
+
+    /** The balance values: what a real server runs on. */
+    public static Knobs shipped() {
+        return new Knobs();
+    }
+
+    /** Every timer short, so a feature can be tried in minutes. Not for a real server. */
+    public static Knobs test() {
+        Knobs k = new Knobs();
+        k.profile = TEST;
+        // Siege time runs 600 times fast: a keep's two weeks of food last 35 minutes, a 12 hour notice 72 seconds,
+        // the 10 minute hold of an outpost one second, a truce of three days 7 minutes.
+        k.timeScale = 600;
+        k.teleportWarmupSeconds = 1;
+        k.teleportCooldownSeconds = 2;
+        k.npcWaveMinutes = 1;
+        k.npcExpireDays = 1;
+        k.npcCrumbleTicksPerLayer = 1;
+        k.presenceMinMemberSeconds = 3;
+        k.voteEligibilityDays = 0;
+        k.voteDurationHours = 1;
+        k.settleDays = 0;
+        k.absentLordDays = 1;
+        k.joinRequestDays = 1;
+        k.breakawayHours = 1;
+        k.seatVoteHours = 1;
+        k.foundSecedeCooldownDays = 0;
+        return k;
+    }
+
+    /** The values of the named set; an unknown name is the shipped set. */
+    public static Knobs forProfile(String name) {
+        return TEST.equals(name) ? test() : shipped();
+    }
+
     // ---- time ----
     /** Compresses every siege, spoilage, raising, grace and carry-in timer. */
     public double timeScale = 1.0;
@@ -66,11 +110,13 @@ public final class Knobs {
 
     // ---- presence ----
     public int presenceAfkMinutes = 5;
-    public int presenceMinMemberDays = 3;
+    /** How long a member must have belonged before they count as present in a war: three days when shipped. */
+    public int presenceMinMemberSeconds = 259_200;
     public int teleportDetectBlocks = 16;
 
     // ---- siege timers (S) ----
     public double campRaisingHours = 2;
+    /** Days after a war ends, by capture or lapse, before the same two nations may fight again. */
     public int truceDays = 3;
     public int bannerMoveCooldownMinutes = 30;
     public int orphanGraceMinutes = 30;
@@ -139,7 +185,18 @@ public final class Knobs {
     public boolean scaleSentencesWithTimeScale = false;
     public boolean labourTerms = false;
     public int indentureCapDays = 7;
+    /** Wars a nation may hold at once. */
     public int warGoalsPerWar = 2;
+    /** Hours of siege time between a declaration and the first moment capture may begin. */
+    public int warGoalNoticeHours = 12;
+    /** Hours of siege time a goal lasts from its declaration before it lapses. */
+    public int warGoalHours = 48;
+    /** Minutes the attackers must hold an outpost's chunk, with no defender in it, to capture it. */
+    public int outpostCaptureMinutes = 10;
+    /** Minutes after a capture in which only the captors may plant an outpost in that chunk. */
+    public int outpostWinnerWindowMinutes = 30;
+    /** Days a new keep's empty granary cannot lapse it. */
+    public int keepNewGraceDays = 14;
 
     // ---- signals, logging, ticking ----
     public int smokeColumnRangeBlocks = 256;

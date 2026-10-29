@@ -52,7 +52,7 @@ public final class ChronicleStoryTest {
         @Override public String org(OrgId id) { return id.equals(ASHFALL) ? "Ashfall" : id.equals(EASTERN) ? "the Eastern Guard" : id.equals(RIVERSIDE) ? "Riverside" : "an unknown organization"; }
         @Override public String player(PlayerId id) { return id.equals(KRIS) ? "Kris" : id.equals(GIL) ? "Gil" : "someone"; }
         @Override public String office(OfficeId id) { return "an unknown office"; }
-        @Override public String core(CoreId id) { return id.equals(KEEP) ? "the keep of Ashfall" : id.equals(CAMP) ? "the camp of the Eastern Guard" : "the keep of Riverside"; }
+        @Override public String core(CoreId id) { return id.equals(KEEP) ? "the keep of Ashfall" : id.equals(CAMP) ? "the outpost of the Eastern Guard" : "the keep of Riverside"; }
     };
 
     private static final Map<String, HistoryEvent> EVENTS = new LinkedHashMap<>();
@@ -96,6 +96,14 @@ public final class ChronicleStoryTest {
         golden(new LandEvents.Lapsed(AT, ASHFALL, 4), IN + "4 claims of Ashfall were lost for good.");
         // sieges
         golden(new SiegeEvents.CampActive(AT, 0, CAMP, EASTERN), IN + "the Eastern Guard finished raising an outpost.");
+        golden(new SiegeEvents.WarDeclared(AT, 0, 1, ASHFALL, EASTERN, CAMP, 99),
+                IN + "Ashfall declared war on the Eastern Guard and named the outpost of the Eastern Guard. Nothing may be done to it until the notice has run out.");
+        golden(new SiegeEvents.WarOpened(AT, 0, 1, ASHFALL, EASTERN, CAMP),
+                IN + "the notice was over: Ashfall may now try to take the outpost of the Eastern Guard, if they hold it with none of its people there.");
+        golden(new SiegeEvents.OutpostCaptured(AT, 0, 1, ASHFALL, EASTERN, CAMP, CHUNK, 8),
+                IN + "Ashfall took the outpost of the Eastern Guard, banner and land, and its deposit of 8 diamonds with it.");
+        golden(new SiegeEvents.WarLapsed(AT, 0, 1, ASHFALL, EASTERN, CAMP),
+                IN + "the war of Ashfall on the outpost of the Eastern Guard ran out and nothing was taken. They may not fight again for a while.");
         golden(new SiegeEvents.KeepRunningLow(AT, 0, KEEP, ASHFALL, 7),
                 IN + "the granary of the keep of Ashfall was down to 7 days of food. Ashfall was told to feed it.");
         golden(new SiegeEvents.KeepLapsed(AT, 0, KEEP, ASHFALL, CHUNK),

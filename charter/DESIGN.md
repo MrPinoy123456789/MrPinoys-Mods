@@ -1088,6 +1088,13 @@ at stake in a war moves from the keep to the outpost and its deposit.
 
 All in `config/charter/charter.json`. Starting values, to be tuned in play.
 
+**Two sets of values (2026-10-29).** The file names a `profile`. `shipped` (the default) is the balance set, the
+values in the table below. `test` makes every timer short so a feature can be tried in minutes: siege time runs 600
+times fast (a keep's two weeks of food last 35 minutes, a 12 hour notice 72 seconds, the 10 minute hold of an
+outpost one second), a trip waits 1 second, a raiders' wave comes every minute, votes last an hour, and a member
+counts as present in a war after 3 seconds instead of 3 days. The loader starts from the named set and any other key in
+the file wins over it. The sets live in `Knobs.shipped()` and `Knobs.test()`; a test set is never for a real server.
+
 | Knob | Default |
 |---|---|
 | Keep price | 64 diamonds |

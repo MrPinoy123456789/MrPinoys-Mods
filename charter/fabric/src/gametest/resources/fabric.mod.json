@@ -26,7 +26,8 @@
       "charter.gametest.DissolveGameTest",
       "charter.gametest.NpcGameTest",
       "charter.gametest.KeepUpkeepGameTest",
-      "charter.gametest.TeleportGameTest"
+      "charter.gametest.TeleportGameTest",
+      "charter.gametest.WarGameTest"
     ]
   },
   "mixins": [

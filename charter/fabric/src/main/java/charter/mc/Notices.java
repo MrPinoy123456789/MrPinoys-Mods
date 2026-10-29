@@ -106,6 +106,31 @@ public final class Notices {
                 messenger.deliver(e.to());
             }
             // ---- keep upkeep: to the whole faction, subordinates included, as alerts ----
+            case SiegeEvents.WarDeclared e -> {
+                String time = charter.mc.cmd.Chat.duration(e.opensAt() - e.siegeAt());
+                alert(e.at(), faction(e.defender()), Text.get("notice.war_declared_on_you", "org", describe.org(e.attacker()),
+                        "site", describe.core(e.outpost()), "time", time));
+                alert(e.at(), faction(e.attacker()), Text.get("notice.war_declared_by_you", "org", describe.org(e.defender()),
+                        "site", describe.core(e.outpost()), "time", time));
+            }
+            case SiegeEvents.WarOpened e -> {
+                alert(e.at(), faction(e.defender()), Text.get("notice.war_opened_on_you", "org", describe.org(e.attacker()),
+                        "site", describe.core(e.outpost())));
+                alert(e.at(), faction(e.attacker()), Text.get("notice.war_opened_by_you", "org", describe.org(e.defender()),
+                        "site", describe.core(e.outpost())));
+            }
+            case SiegeEvents.OutpostCaptured e -> {
+                alert(e.at(), faction(e.defender()), Text.get("notice.outpost_lost", "org", describe.org(e.attacker()),
+                        "site", describe.core(e.outpost()), "deposit", e.deposit()));
+                alert(e.at(), faction(e.attacker()), Text.get("notice.outpost_taken", "org", describe.org(e.defender()),
+                        "site", describe.core(e.outpost()), "deposit", e.deposit()));
+            }
+            case SiegeEvents.WarLapsed e -> {
+                alert(e.at(), faction(e.defender()), Text.get("notice.war_lapsed", "org", describe.org(e.attacker()),
+                        "site", describe.core(e.outpost())));
+                alert(e.at(), faction(e.attacker()), Text.get("notice.war_lapsed", "org", describe.org(e.defender()),
+                        "site", describe.core(e.outpost())));
+            }
             case SiegeEvents.KeepRunningLow e -> alert(e.at(), faction(e.owner()), Text.get("notice.keep_low",
                     "site", describe.core(e.keep()), "days", e.daysLeft()));
             case SiegeEvents.KeepLapsed e -> alert(e.at(), faction(e.owner()), Text.get("notice.keep_lapsed",

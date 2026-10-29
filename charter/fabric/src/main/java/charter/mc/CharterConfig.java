@@ -3,7 +3,9 @@ package charter.mc;
 import charter.config.Knobs;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.InstanceCreator;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +35,16 @@ public final class CharterConfig {
     private CharterConfig() {
     }
 
+    private static String profileOf(String text) {
+        try {
+            var root = JsonParser.parseString(text);
+            if (root.isJsonObject() && root.getAsJsonObject().has("profile")) return root.getAsJsonObject().get("profile").getAsString();
+        } catch (RuntimeException unreadable) {
+            // The real parse reports it.
+        }
+        return Knobs.SHIPPED;
+    }
+
     public static Knobs readOrCreate(Path dir, Consumer<String> info, Consumer<String> warn) {
         Path file = dir.resolve(FILE_NAME);
         if (!Files.exists(file)) {
@@ -49,7 +61,11 @@ public final class CharterConfig {
 
         Knobs read;
         try {
-            read = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), Knobs.class);
+            String text = Files.readString(file, StandardCharsets.UTF_8);
+            // The file names its profile; the values start from that set and the file's own keys win over it.
+            Knobs base = Knobs.forProfile(profileOf(text));
+            Gson merge = new GsonBuilder().registerTypeAdapter(Knobs.class, (InstanceCreator<Knobs>) type -> base).create();
+            read = merge.fromJson(text, Knobs.class);
         } catch (IOException | JsonParseException e) {
             warn.accept("Could not read " + file + " (" + e.getMessage() + "); running on defaults. The file was left as it is.");
             return new Knobs();

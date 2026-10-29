@@ -71,6 +71,10 @@ public final class DefaultTemplates {
 
         // ---- sieges (SiegeEvents) ----
         t.put("SiegeEvents.CampActive", "On {when}, {owner} finished raising an outpost.");
+        t.put("SiegeEvents.WarDeclared", "On {when}, {attacker} declared war on {defender} and named {outpost}. Nothing may be done to it until the notice has run out.");
+        t.put("SiegeEvents.WarOpened", "On {when}, the notice was over: {attacker} may now try to take {outpost}, if they hold it with none of its people there.");
+        t.put("SiegeEvents.OutpostCaptured", "On {when}, {attacker} took {outpost}, banner and land, and its deposit of {deposit} diamonds with it.");
+        t.put("SiegeEvents.WarLapsed", "On {when}, the war of {attacker} on {outpost} ran out and nothing was taken. They may not fight again for a while.");
         t.put("SiegeEvents.KeepRunningLow", "On {when}, the granary of {keep} was down to {daysLeft} days of food. {owner} was told to feed it.");
         t.put("SiegeEvents.KeepLapsed", "On {when}, the granary of {keep} ran dry and its claim lapsed. The land lay open again, though every block stood where it was.");
         t.put("SiegeEvents.FoodDeposited", "On {when}, food was carried into {site}.");

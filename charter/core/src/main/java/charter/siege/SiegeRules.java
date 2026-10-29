@@ -91,14 +91,14 @@ public final class SiegeRules {
     // ---- claims ----
 
     /**
-     * Whether a claim is protected right now: a keep's claims always are (protected keeps, K1); a camp's only once
-     * it has finished raising.
+     * Whether a claim is protected right now: a keep's claims always are (protected keeps, K1); an outpost's only once it has finished raising and while no open war names it.
      */
     public boolean protectedClaim(Claim claim) {
         if (claim.core() == null) return true;
         Optional<Core> core = state.core(claim.core());
         if (core.isEmpty()) return true;
         if (core.get().isKeep()) return true;
-        return core.get().activeCamp();
+        // An outpost is protected once raised, unless a war that names it has opened for capture.
+        return core.get().activeCamp() && !state.wars.opened(core.get().id);
     }
 }

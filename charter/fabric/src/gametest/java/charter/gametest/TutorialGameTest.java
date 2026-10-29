@@ -41,7 +41,7 @@ import java.util.Map;
  * real commands and the real item placements: found a faction, fill the vault,
  * place the Nexus, make a granary from a chest, find the rival's land protected,
  * plant the War Banner at the gold pillar, make a camp store from the barrel, and
- * starve Brinewatch out until the fall's choice razes its keep.
+ * declare war on Brinewatch's outpost and take it.
  *
  * <p>Granary and camp store chests are linked on the tick after they are placed, so
  * this test runs over a few ticks. It runs in a batch of its own ({@code
@@ -87,8 +87,8 @@ public final class TutorialGameTest {
         ItemStack book = first(you, s -> s.is(Items.WRITTEN_BOOK));
         helper.assertTrue(book != null, "You were not given the tutorial book");
         var content = book.get(DataComponents.WRITTEN_BOOK_CONTENT);
-        helper.assertTrue(content != null && content.title().raw().equals("Charter: A First Hour") && content.pages().size() == 15,
-                "The tutorial book is not the 15 page guide");
+        helper.assertTrue(content != null && content.title().raw().equals("Charter: A First Hour") && content.pages().size() == 14,
+                "The tutorial book is not the 14 page guide");
         Core rivalKeep = rt.state.cores().stream().filter(c -> c.isKeep() && c.center.x() == CHUNK_X + 12 && c.center.z() == CHUNK_Z)
                 .findFirst().orElseThrow(() -> new AssertionError("Brinewatch has no keep 12 chunks east"));
 
@@ -168,12 +168,51 @@ public final class TutorialGameTest {
             granaries.reconcile(store, null);
             helper.assertTrue(rt.state.siege.store(camp.id).provisions.count("minecraft:bread") == 48, "The camp store does not hold the 48 bread");
 
-            // Page 9 to 11: the camp raises. (Keeps are never besieged now: the pages that taught a siege
-            // are rewritten with the outposts.)
+            // Page 8 to 9: the outposts raise. Brinewatch has one too, beyond its keep.
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "charter admin time advance 2h");
             Core raised = rt.state.core(camp.id).orElseThrow();
-            helper.assertTrue(raised.phase() == CampPhase.ACTIVE, "Your camp did not finish raising");
+            helper.assertTrue(raised.phase() == CampPhase.ACTIVE, "Your outpost did not finish raising");
             helper.assertTrue(rt.state.core(rivalKeep.id).isPresent(), "Brinewatch's keep is gone though keeps cannot fall");
+            Core rivalOutpost = rt.state.cores().stream().filter(c -> !c.isKeep() && c.center.x() == CHUNK_X + 16 && c.center.z() == CHUNK_Z)
+                    .findFirst().orElse(null);
+            helper.assertTrue(rivalOutpost != null && rivalOutpost.activeCamp(), "Brinewatch has no raised outpost 16 chunks east");
+
+            // Page 10: War, from the Charter, names their outpost and confirms.
+            charter.mc.book.WarPages.page(you, null);
+            String named = charter.mc.Text.get("book.war.declare_button", "org", rt.describe.org(rt.state.root(rivalOutpost.owner)),
+                    "x", rivalOutpost.center.x() * 16 + 8, "z", rivalOutpost.center.z() * 16 + 8);
+            String named1 = charter.mc.cmd.CharterCommands.tokens().newest(you.getUUID(), named).orElse(null);
+            helper.assertTrue(named1 != null, "The War page offers no [" + named + "] button; the page says: " + warPageText(you));
+            charter.mc.cmd.CharterCommands.tokens().take(named1, you.getUUID(), System.currentTimeMillis()).orElseThrow().accept(you);
+            String yes = charter.mc.Text.get("book.war.declare_yes");
+            String yes1 = charter.mc.cmd.CharterCommands.tokens().newest(you.getUUID(), yes).orElse(null);
+            helper.assertTrue(yes1 != null, "The confirm page offers no [" + yes + "] button");
+            charter.mc.cmd.CharterCommands.tokens().take(yes1, you.getUUID(), System.currentTimeMillis()).orElseThrow().accept(you);
+            var goal = rt.state.wars.against(rivalOutpost.id).orElse(null);
+            helper.assertTrue(goal != null, "Declaring war from the book made no goal");
+
+            // Page 11: the notice is over (set by hand, the clock is shared), you hold their chunk and take it.
+            goal.opensAt = rt.state.siegeClock.now();
+            BlockPos theirBanner = new BlockPos((CHUNK_X + 16) * 16 + 8, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    (CHUNK_X + 16) * 16 + 8, CHUNK_Z * 16 + 8), CHUNK_Z * 16 + 8);
+            you.teleportTo(theirBanner.getX() + 0.5, theirBanner.getY(), theirBanner.getZ() + 3.5);
+            int savedMinSeconds = rt.knobs.presenceMinMemberSeconds;
+            rt.knobs.presenceMinMemberSeconds = 0;
+            charter.mc.war.SiegeWorld.beforeStep(server, rt);
+            rt.sim.advance(charter.time.Durations.MINUTE);
+            helper.assertTrue(goal.opened, "Capture did not open");
+            goal.progress = charter.time.Durations.minutes(rt.knobs.outpostCaptureMinutes) - charter.time.Durations.MINUTE / 2;
+            long diamonds = rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND);
+            charter.mc.war.SiegeWorld.beforeStep(server, rt);
+            rt.sim.advance(charter.time.Durations.MINUTE);
+            helper.assertTrue(rt.state.core(rivalOutpost.id).isEmpty(), "Holding their chunk did not capture the outpost: attackers "
+                    + charter.mc.war.SiegeWorld.presence().attackers(goal, rivalOutpost) + ", defenders " + charter.mc.war.SiegeWorld.presence().defenders(rivalOutpost)
+                    + ", progress " + goal.progress + ", you at " + you.position() + " chunk " + (you.getBlockX() >> 4) + "," + (you.getBlockZ() >> 4)
+                    + ", outpost chunk " + rivalOutpost.center.x() + "," + rivalOutpost.center.z() + ", minDays " + rt.knobs.presenceMinMemberSeconds
+                    + ", alive " + you.isAlive() + ", spectator " + you.isSpectator());
+            helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND) > diamonds,
+                    "Their deposit did not reach your treasury");
+            rt.knobs.presenceMinMemberSeconds = savedMinSeconds;
 
             // scenario clear resets the tutorial whole: Brinewatch, and the faction you founded in it.
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "charter admin scenario clear");
@@ -185,6 +224,18 @@ public final class TutorialGameTest {
             }
             helper.succeed();
         });
+    }
+
+    private static String warPageText(ServerPlayer player) {
+        var dialog = charter.mc.book.BookDialogs.LAST.get(player.getUUID());
+        StringBuilder out = new StringBuilder();
+        if (dialog == null) return "(no dialog)";
+        for (var b : dialog.common().body()) {
+            if (b instanceof net.minecraft.server.dialog.body.PlainMessage m) out.append(m.contents().getString()).append(" | ");
+        }
+        out.append("buttons: ");
+        for (var button : charter.mc.book.BookDialogs.buttons(dialog)) out.append("[").append(button.button().label().getString()).append("] ");
+        return out.toString();
     }
 
     private static void restore(CharterRuntime rt, Map<Field, Object> knobs) {

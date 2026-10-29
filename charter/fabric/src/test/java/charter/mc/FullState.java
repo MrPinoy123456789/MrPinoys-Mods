@@ -175,7 +175,19 @@ final class FullState {
         book.store(camp.id).eatDebt = 1.75;
         SiegeBook.KeepSite site = book.keep(keep.id);
         site.warned = 3;
-        book.truces.add(new SiegeBook.Truce(keep.id, guard, 555));
+        var goal = new charter.siege.WarBook.Goal();
+        goal.id = state.wars.nextId++;
+        goal.attacker = ironhold;
+        goal.defender = oakvale;
+        goal.outpost = camp.id;
+        goal.declaredAt = 100;
+        goal.opensAt = 200;
+        goal.expiresAt = 900;
+        goal.opened = true;
+        goal.progress = 321;
+        state.wars.goals.add(goal);
+        state.wars.truces.add(new charter.siege.WarBook.Truce(guard, oakvale, 555));
+        state.wars.windows.add(new charter.siege.WarBook.Window(camp.center, ironhold, 777));
 
         state.siegeClock.advanceSiege(123_456);
 

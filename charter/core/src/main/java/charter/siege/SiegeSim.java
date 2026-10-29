@@ -37,6 +37,7 @@ public final class SiegeSim {
     private final Knobs knobs;
     private final FoodTable food;
     private Runnable afterPass = () -> { };
+    private WarInputs warInputs = WarInputs.NONE;
 
     public SiegeSim(ActionEngine engine, FoodTable food) {
         this.engine = engine;
@@ -44,6 +45,12 @@ public final class SiegeSim {
         this.knobs = engine.knobs();
         this.food = food;
         state.siege.food = food;
+    }
+
+    /** Who stands where, for captures. */
+    public SiegeSim inputs(WarInputs newInputs) {
+        warInputs = newInputs == null ? WarInputs.NONE : newInputs;
+        return this;
     }
 
     /** Runs after every pass, step and admin advance alike (the debrief log's hourly snapshots). */
@@ -95,6 +102,7 @@ public final class SiegeSim {
         events.addAll(charter.contract.Justice.tick(state, knobs, wall));
         raiseCamps(wall, now, events);
         upkeepPass(rules, dt / (double) Durations.HOUR, wall, now, events);
+        warPass(rules, dt, wall, now, events);
 
         spoilPass(rules, dt / (double) Durations.HOUR);
         timers(rules, wall, now, events);
@@ -140,7 +148,7 @@ public final class SiegeSim {
         for (Core keep : keeps()) {
             if (state.org(keep.owner).map(o -> o.npc).orElse(false)) continue;
             SiegeBook.KeepSite site = state.siege.keep(keep.id);
-            long period = Durations.days(knobs.keepUpkeepDays);
+            long period = Durations.days(knobs.keepNewGraceDays);
             if (site.graceUntilSiege == 0) site.graceUntilSiege = now + period;
             Store store = state.siege.store(keep.id);
             double perHour = rules.upkeepPerHour(keep);
@@ -179,6 +187,50 @@ public final class SiegeSim {
         state.siege.stores.remove(keep.id);
     }
 
+    // ---- war: capture an outpost (protected keeps, O1) ----
+
+    private void warPass(SiegeRules rules, long dt, long wall, long now, List<HistoryEvent> events) {
+        WarBook wars = state.wars;
+        for (WarBook.Goal goal : new ArrayList<>(wars.goals)) {
+            Core outpost = state.core(goal.outpost).orElse(null);
+            if (outpost == null) {
+                wars.goals.remove(goal);
+                continue;
+            }
+            if (now >= goal.expiresAt) {
+                events.add(new SiegeEvents.WarLapsed(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
+                wars.truces.add(new WarBook.Truce(goal.attacker, goal.defender, now + Durations.days(knobs.truceDays)));
+                wars.goals.remove(goal);
+                continue;
+            }
+            if (!goal.opened && now >= goal.opensAt) {
+                goal.opened = true;
+                events.add(new SiegeEvents.WarOpened(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
+            }
+            if (!goal.opened) continue;
+            // A defender in the chunk resets the hold; with none, attackers in it add to it.
+            if (warInputs.defenders(outpost) > 0) goal.progress = 0;
+            else if (warInputs.attackers(goal, outpost) > 0) goal.progress += dt;
+            if (goal.progress >= Durations.minutes(knobs.outpostCaptureMinutes)) capture(rules, goal, outpost, wall, now, events);
+        }
+    }
+
+    /** The banner goes, the land is released, the deposit is the attackers', and they alone may plant there for a while. */
+    private void capture(SiegeRules rules, WarBook.Goal goal, Core outpost, long wall, long now, List<HistoryEvent> events) {
+        long deposit = outpost.deposit;
+        outpost.deposit = 0;
+        state.org(goal.attacker).ifPresent(o -> o.ledger.add(charter.treasury.Currency.DIAMOND, deposit));
+        events.add(new SiegeEvents.OutpostCaptured(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost, outpost.center, deposit));
+        for (var claim : List.copyOf(state.claimsOf(outpost.owner))) {
+            if (goal.outpost.equals(claim.core())) state.removeClaim(claim.id);
+        }
+        events.addAll(rules.land().loseCore(goal.outpost, wall));
+        state.siege.stores.remove(goal.outpost);
+        state.wars.goals.remove(goal);
+        state.wars.truces.add(new WarBook.Truce(goal.attacker, goal.defender, now + Durations.days(knobs.truceDays)));
+        state.wars.windows.add(new WarBook.Window(outpost.center, goal.attacker, now + Durations.minutes(knobs.outpostWinnerWindowMinutes)));
+    }
+
     // ---- spoilage ----
 
     private void spoilPass(SiegeRules rules, double hours) {
@@ -199,7 +251,8 @@ public final class SiegeSim {
 
     private void timers(SiegeRules rules, long wall, long now, List<HistoryEvent> events) {
         SiegeBook book = state.siege;
-        book.truces.removeIf(t -> now >= t.untilSiege());
+        state.wars.truces.removeIf(t -> now >= t.untilSiege());
+        state.wars.windows.removeIf(w -> now >= w.untilSiege());
         events.addAll(rules.land().expireGrace(wall));
     }
 

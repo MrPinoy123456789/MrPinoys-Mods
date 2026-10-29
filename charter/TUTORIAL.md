@@ -2,7 +2,8 @@
 
 This is a hands-on tutorial for someone who knows Minecraft well and has never
 seen Charter. You will found a faction, raise its keep, stock it with food, claim
-land, then march on a rival and starve their keep out. It takes 30 to 45 minutes.
+land, then raise an outpost, declare war on a rival and capture theirs. It
+takes 30 to 45 minutes.
 
 You don't need to install anything: Charter runs on the server, and your normal
 Minecraft 26.2 client works as it is.
@@ -10,20 +11,22 @@ Minecraft 26.2 client works as it is.
 ## The idea in one minute
 
 On most faction servers you take land by breaking through walls. In Charter you
-can't break anything on someone else's land, ever. Land is taken the way real
-castles were: **by siege and hunger**.
+can't break anything on someone else's land, ever, and **a keep can never be
+taken at all**. What is at stake in a war is smaller, and it is yours to defend.
 
 - A faction holds land with a **keep**: a block called the **Nexus** with the
-  3 by 3 chunks around it.
-- Every keep has a **granary**, a chest of food. When an enemy camps next to
-  your keep, you are **besieged**, and your keep starts eating its granary.
-- Food only gets in if someone carries it in through a side the enemy hasn't
-  closed off. If the granary runs dry, the keep **falls**.
-- To besiege someone, you plant a **War Banner** next to their keep. It becomes a
-  **camp**, which needs its own food store to keep going.
+  3 by 3 chunks around it. A nation has one keep.
+- Every keep has a **granary**, a chest of food. The granary is the keep's
+  **upkeep**: a full one lasts 14 days. You are warned at 7, 3 and 1 days left.
+  If it runs dry the claim lapses and you must put a Nexus down again.
+- Every organization may raise one **outpost**: plant a **War Banner**. An
+  outpost holds a **deposit** of diamonds. It is protected, unless another
+  nation **declares war** to capture it.
+- To capture it, they wait out a notice (12 hours), then hold its chunk for 10
+  minutes with none of your people in it. You defend by standing in it, or by
+  using `/outpost` to be there. If they win, they take the banner and the deposit.
 
-So the game is about supply: keeping your own food coming in, and cutting off
-theirs.
+So the game is about showing up, and about what you are willing to put at risk.
 
 ## Starting the tutorial
 
@@ -40,9 +43,10 @@ pillars: an **emerald** one beside you, where your keep goes, and a **gold** one
 holds a keep just past the gold pillar. Its members are offline stand-ins, so
 nobody will fight back.
 
-The tutorial makes siege time run **24 times faster**, so a camp raises in 5
-minutes instead of 2 hours and a siege lasts minutes instead of days. On a normal
-server, a full granary holds out for 3 to 4 days.
+The tutorial makes siege time run **24 times faster**, so an outpost raises in 5
+minutes instead of 2 hours. The notice before a capture still counts in siege
+time, so an operator can move the clock on for you with `/charter admin time
+advance 12h`. On a normal server, a full granary lasts 14 days.
 
 The book in your inventory has the same steps in short. This guide adds what
 you should see at each step, and why.
@@ -99,13 +103,13 @@ message says it's now part of your keep's granary. Chests placed touching it
 join it, up to 8.
 
 Right-click it. Instead of a normal chest screen, you get the **granary
-screen**, with your provisions and how long they'd last under siege. Put **40
+screen**, with your provisions and how many days they'd last. Put **40
 bread** in.
 
-Why it matters: while nobody is besieging you, nobody eats from your granary
-(food still spoils slowly, fresh food fastest, and quickly if you overfill it).
-Under siege, your keep eats from it every hour; the more members you have, the
-faster. When it's empty, the keep falls.
+Why it matters: the granary is your keep's upkeep. A full one drains evenly over
+14 days, and nothing else changes that (food also spoils slowly, fresh food
+fastest). Warnings come at 7, 3 and 1 days left. When it's empty the claim
+lapses: your blocks stay, but the land is open until you put a Nexus down again.
 
 ## 5. Claim land
 
@@ -126,84 +130,68 @@ pistons.
 
 Walk **east** (the way the sun rises) past the gold pillar. With the compass in
 hand you'll see Brinewatch's borders in red. Their keep is 12 chunks east of
-yours.
+yours, and they have an outpost beyond it.
 
 Try to break a block on their land. You can't, and you get a message saying the
-land is protected. That's the core rule of Charter: **walls don't take keeps.
-Hunger does.**
+land is protected. That's the core rule of Charter: **a keep is never taken.**
 
-## 7. Plant a war banner
+## 7. Plant an outpost
 
-Go back to the **gold pillar**. It stands in an empty chunk just outside
-Brinewatch's wall. Place the **War Banner** on the ground in that chunk.
+Go back to the **gold pillar**. Place the **War Banner** on the ground in that
+chunk. Your treasury keeps **8 diamonds** of its own as a deposit (the second
+outpost of a nation costs 4 more, and so on).
 
 You'll see:
 
 - a hay bale with a lit campfire beside the banner, sending up a **smoke
   column** that can be seen from far away
-- a message that your camp is **raising**
+- a message that your outpost is **raising**
 
-A camp takes 2 hours of siege time to raise, which is **5 minutes** in the
+An outpost takes 2 hours of siege time to raise, which is **5 minutes** in the
 tutorial. While it raises, **anyone can pull the banner down**, which ends the
-camp. That's the defenders' window: a camp raised in the open can be stopped
-before it's finished, if someone's watching the walls.
+outpost and gives you the deposit back.
 
-Raising a camp against someone also gives up your own new-faction protection,
-the three days of shelter every new faction gets.
-
-## 8. Feed the camp
+## 8. Stock the outpost
 
 Place the **barrel right next to the banner**. A message says it's now your
-camp's **store**. Open it and put **48 bread** in.
+outpost's **store**. Open it and put **48 bread** in.
 
-A camp eats too. **A camp with an empty store besieges nobody.** And if the
-enemy claims every chunk around your camp, it's **cut off** from home: nothing
-can be carried in, and it eats twice as fast. That's how raids end.
+The store is your supply: `/outpost` takes you to your outpost from anywhere in
+the same dimension and costs it 1 food. It refuses if the store is empty.
 
-## 9. The siege
+## 9. Declare war
 
-When the camp has raised (watch for the message), Brinewatch's keep is
-**besieged**: its granary starts going down every hour. Brinewatch's granary was
-nearly empty to begin with, so this won't take long.
+Once your outpost has raised, open your Charter and press **War**. It lists
+the outposts of other nations. Press the one of Brinewatch, then **Declare war**.
+The page tells you what it takes: you may declare because you hold a raised
+outpost of your own, nothing can be done to theirs for 12 hours, and if the war
+runs out with nothing taken neither nation may declare on the other for 3 days.
 
-**Stand in your camp's chunk.** Each attacker standing in the camp makes the
-keep eat faster, and each defender standing in their keep slows it down. Being
-there helps, but it's never required: a siege also runs while everyone is
-offline.
+Both nations are told, now and again when capture opens. Brinewatch's War page
+says when.
 
-## 10. Assault
+## 10. Take it
 
-Once a keep's granary is below a quarter full, its garrison is **starving**.
-Then attackers who walk **inside the keep's walls** make it eat **four times as
-fast**. You still can't break anything there: you're just standing in their
-hall.
+When the notice is over, walk to Brinewatch's outpost and **stand in its
+chunk**. If any member of Brinewatch stands in it too, the hold starts over. With
+none of them there for **10 minutes**, the banner comes down, the land is
+released, and the 8 diamonds of their deposit go to your treasury. For 30
+minutes only you may plant an outpost on that chunk.
 
-## 11. The fall
-
-When the granary runs dry, the keep **falls**. Chat gives you two clickable
-choices:
-
-- **Raze**: the Nexus breaks, the keep is gone, and **plunder** (a share of
-  their vault's diamonds and cobblestone) spills out on the ground at the Nexus.
-  Go and pick it up.
-- **Occupy**: you hold their keep and its land for a while; they still own it on
-  paper. When the occupation ends, you leave under a truce.
-
-Pick Raze the first time. You've played the whole loop of attack.
+You've played the whole loop of attack.
 
 ## What next
 
-Attack is half the game. The other half is defence, and it's where most of the
-play is:
+Defence is the other half of the game, and it's most of the play:
 
-- **Running supplies.** A besieged keep has twelve sides (the chunks touching its
-  wall). The enemy closes the ones its camps stand on; the rest stay open. Food
-  carried in on foot or by minecart through an open side counts; food that comes
-  in through a closed side, or by ender pearl or teleport, doesn't.
-- **Breaking a camp.** Each camp has a **sally hold**. Defenders standing beside
-  the camp in their own land wear it down; attackers standing in the camp hold it
-  up. When it runs out, the camp is exposed, and anyone can break its banner,
-  which ends the camp.
+- **Showing up.** An outpost is only taken when its chunk is held with none of
+  its people in it. Stand in it, or use `/outpost` to arrive in time.
+- **Feeding the keep.** The granary is the keep's upkeep. Warnings go to every
+  member when it gets low. Let it run dry and the claim lapses; your blocks
+  stay, but the land is open to everyone until you put a Nexus down again.
+- **Your own travel.** `/home` takes you to your bed, `/keep` to your nation's
+  keep, `/outpost` to your outpost. Each waits 5 seconds (don't move, don't get
+  hurt) and then needs 30 seconds before the next.
 - **Justice.** A faction can arrest trespassers with a lead, hold them in a
   marked cell, fine them, or execute them (a short respawn wait, then banishment
   from that land for a while). Every punishment has hard caps, so nobody can be
@@ -211,9 +199,7 @@ play is:
 - **The Chronicle.** Everything that happens is written up as a story. Put a
   lectern in your keep's core chunk to read your faction's.
 
-Ask your operator for the other scenarios, preferably with friends: `sally`
-(break a camp, then run food in), `partial-siege` (runners on foot and by cart),
-`encirclement` (a full ring), `raid` (farms), and `jail` (arrest and sentencing).
+Ask your operator for the `jail` scenario (arrest and sentencing).
 
 ## Resetting
 
@@ -221,7 +207,7 @@ Ask your operator for the other scenarios, preferably with friends: `sally`
 the faction you founded during it. Then you can start over. Blocks you placed,
 and the pillars, stay in the world.
 
-The faster siege time and the other tutorial settings last until the server
+The faster time and the other tutorial settings last until the server
 restarts, or until an operator types `/charter admin time scale 1`.
 
 ## If something goes wrong
@@ -229,25 +215,24 @@ restarts, or until an operator types `/charter admin time scale 1`.
 | What you see | Why, and what to do |
 |---|---|
 | "You already belong to ..." when starting | You're in a faction already. Run `/charter admin scenario clear`, or leave it from your `/charter page` |
-| The Nexus is refused | Check you carry 64 diamonds, and that the Nexus has a name (an unnamed one only works for a faction that already exists). A keep also can't go within 4 chunks of another keep |
+| The Nexus is refused | Check you carry 64 diamonds, and that the Nexus has a name (an unnamed one only works for a faction that already exists). A keep also can't go within 4 chunks of another keep, and a nation has only one |
 | The chest is just a chest | It must be in the **same chunk** as the Nexus. Press F3 + G to see chunk borders |
 | The barrel is just a barrel | It must touch the banner and be in the banner's chunk |
-| The camp raises but nothing happens | Is there bread in the camp store? A camp with an empty store besieges nobody |
+| The banner is refused | The treasury needs 8 diamonds for its deposit (press Pay in on the faction page), and an organization has only one outpost |
+| You cannot declare war | You need a raised outpost of your own, the target must be raised, and there is no truce with that nation |
 | A link in chat does nothing | Links run out after a while. Open the page again (`/charter`, `/charter page`, `/charter map`) |
 
 ## Words you'll see
 
 | Word | Meaning |
 |---|---|
-| Keep | A permanent base: the Nexus and its 3 by 3 chunks |
+| Keep | A permanent base: the Nexus and its 3 by 3 chunks. Nobody can take it |
 | Nexus | The block at a keep's centre. It can't be broken while the keep stands |
 | Core, ring | The Nexus's chunk, and the eight chunks around it |
 | Farm claim | Extra land you claim next to your own, for fields and animals |
-| Granary | The chests in a keep's core chunk that hold its food |
-| Camp | A temporary base raised by planting a War Banner |
-| Camp store | The barrel or chest beside a camp's banner that holds its food |
-| Besieged | An enemy camp stands beside your keep; your keep eats its granary |
-| Encircled | Every side is closed: nothing can be carried in |
-| Starving | The granary is below a quarter full; assault becomes possible |
-| Sally | Defenders standing beside a camp to wear down its protection |
-| Fall | A besieged keep whose granary ran dry; the besieger chooses Raze or Occupy |
+| Granary | The chests in a keep's core chunk that hold its food: the keep's upkeep |
+| Lapse | A keep whose granary ran dry loses its claim; blocks stay |
+| Outpost | A smaller base raised by planting a War Banner, with a deposit of diamonds |
+| Outpost store | The barrel or chest beside an outpost's banner that holds its food |
+| Deposit | The diamonds an outpost holds; the captors take them |
+| War | A declared goal to capture one outpost, with a notice, a hold and a cooldown |

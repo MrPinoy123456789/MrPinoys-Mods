@@ -22,8 +22,6 @@ import java.util.Optional;
 public record PlantCamp(OrgId org, ChunkKey center) implements Action {
 
     public static final charter.engine.Reason NPC_NO_CAMPS = new charter.engine.Reason("npc_no_camps", "The raiders do not plant camps.");
-    public static final charter.engine.Reason TRUCE = new charter.engine.Reason("truce",
-            "You lifted your siege of that keep too recently. The truce has not run out.");
 
     @Override
     public OrgId actingFor() {
@@ -41,14 +39,8 @@ public record PlantCamp(OrgId org, ChunkKey center) implements Action {
         if (ctx.state.org(org).map(o -> o.npc).orElse(false)) return Outcome.refuse(NPC_NO_CAMPS);
         var problem = new LandGraph(ctx.state, ctx.knobs).campProblem(center);
         if (problem.isPresent()) return Outcome.refuse(problem.get());
-        // A lifted siege bars the same attacker from planting against that keep during the truce (DESIGN.md §10.9).
-        OrgId faction = ctx.state.root(org);
-        for (var keep : ctx.state.cores()) {
-            if (keep.isKeep() && LandGraph.keepPerimeterChunks(keep.center).contains(center)
-                    && ctx.state.siege.truce(keep.id, faction, ctx.state.siegeClock.now())) {
-                return Outcome.refuse(TRUCE);
-            }
-        }
+        var holder = ctx.state.wars.windowHolder(center, ctx.state.siegeClock.now());
+        if (holder.isPresent() && !holder.get().equals(ctx.state.root(org))) return Outcome.refuse(LandReasons.WINDOW_HELD);
         if (ctx.state.coresOf(org).stream().anyMatch(c -> !c.isKeep())) return Outcome.refuse(LandReasons.ONE_OUTPOST);
         var organization = ctx.state.org(org).orElseThrow();
         if (organization.parent() != null && ctx.state.members(org).size() < ctx.knobs.outpostMinMembers) {

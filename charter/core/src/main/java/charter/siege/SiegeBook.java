@@ -23,16 +23,11 @@ public final class SiegeBook {
         public long graceUntilSiege;
     }
 
-    /** No camps of {@code attacker} count against {@code keep} until the siege clock passes {@code untilSiege}. */
-    public record Truce(CoreId keep, OrgId attacker, long untilSiege) {
-    }
-
     /** The food table in use. Configuration, not saved state: the sim sets it, and the fabric side on load. */
     public charter.food.FoodTable food = new charter.food.FoodTable();
 
     public final Map<CoreId, Store> stores = new LinkedHashMap<>();
     public final Map<CoreId, KeepSite> keeps = new LinkedHashMap<>();
-    public final List<Truce> truces = new ArrayList<>();
 
     public Store store(CoreId core) {
         return stores.computeIfAbsent(core, c -> new Store());
@@ -42,7 +37,4 @@ public final class SiegeBook {
         return keeps.computeIfAbsent(core, c -> new KeepSite());
     }
 
-    public boolean truce(CoreId keep, OrgId attacker, long siegeNow) {
-        return truces.stream().anyMatch(t -> t.keep().equals(keep) && t.attacker().equals(attacker) && siegeNow < t.untilSiege());
-    }
 }

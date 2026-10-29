@@ -526,7 +526,7 @@ public final class InvariantTest {
         for (var e : book.stores.entrySet()) b.append("store ").append(e.getKey()).append(' ').append(e.getValue().provisions.counts())
                 .append(' ').append(e.getValue().eatDebt).append('\n');
         for (var e : book.keeps.entrySet()) b.append("keepsite ").append(e.getKey()).append(' ').append(e.getValue().warned).append('\n');
-        b.append("truces ").append(book.truces).append('\n');
+        b.append("wars ").append(s.wars.goals.size()).append(" ").append(s.wars.truces).append(" ").append(s.wars.windows).append(String.valueOf((char) 10));
         for (int i = 0; i < 8; i++) {
             PlayerId p = Fixture.player("chaos" + i);
             s.knownPlayer(p).ifPresent(r -> b.append("player ").append(p).append(' ').append(r.lastSeen).append(' ').append(r.lastFoundedAt).append('\n'));

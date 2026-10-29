@@ -109,4 +109,4 @@ never break, add it here and to that test.
     camp record, falls, occupations, allowances and truces at once. (StoreGameTest:
     repair on load would otherwise drop them and break invariant 21)
 30. **Presence counts only players of standing:** online, not spectators, not AFK,
-    and members for at least `presenceMinMemberDays`. (SiegeWorldGameTest)
+    and members for at least `presenceMinMemberSeconds`. (SiegeWorldGameTest)

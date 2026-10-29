@@ -22,6 +22,22 @@ public final class SiegeEvents {
     }
 
     /** A keep's granary is running low (protected keeps, K2): {@code daysLeft} is the warning threshold just passed. */
+    /** A nation declared war to capture an outpost; capture may begin at {@code opensAt} (siege time). */
+    public record WarDeclared(long at, long siegeAt, long goal, OrgId attacker, OrgId defender, CoreId outpost, long opensAt) implements HistoryEvent {
+    }
+
+    /** The notice is over: the attackers may now begin to capture the outpost. */
+    public record WarOpened(long at, long siegeAt, long goal, OrgId attacker, OrgId defender, CoreId outpost) implements HistoryEvent {
+    }
+
+    /** The attackers held the outpost's chunk long enough: its banner is gone, its land released, its deposit theirs. */
+    public record OutpostCaptured(long at, long siegeAt, long goal, OrgId attacker, OrgId defender, CoreId outpost, ChunkKey center, long deposit) implements HistoryEvent {
+    }
+
+    /** The goal ran out without a capture; the two nations may not fight again for the truce. */
+    public record WarLapsed(long at, long siegeAt, long goal, OrgId attacker, OrgId defender, CoreId outpost) implements HistoryEvent {
+    }
+
     public record KeepRunningLow(long at, long siegeAt, CoreId keep, OrgId owner, int daysLeft) implements HistoryEvent {
     }
 

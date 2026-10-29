@@ -30,7 +30,7 @@ public final class GranaryText {
         double perHour = rt.sim.rules().upkeepPerHour(core);
         double food = perHour <= 0 ? Double.MAX_VALUE : rt.state.siege.store(core.id).provisions.nourishment(rt.sim.food()) / perHour / 24.0;
         long grace = rt.state.siege.keep(core.id).graceUntilSiege;
-        double graceDays = grace == 0 ? rt.knobs.keepUpkeepDays : Math.max(0, (grace - rt.state.siegeClock.now()) / (double) Durations.DAY);
+        double graceDays = grace == 0 ? rt.knobs.keepNewGraceDays : Math.max(0, (grace - rt.state.siegeClock.now()) / (double) Durations.DAY);
         return Math.max(food, graceDays);
     }
 

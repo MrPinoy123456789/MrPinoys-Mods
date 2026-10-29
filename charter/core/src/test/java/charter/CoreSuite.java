@@ -22,6 +22,7 @@ public final class CoreSuite {
         charter.siege.NpcTest.run();
         charter.siege.NpcPlacementTest.run();
         charter.siege.NpcWaveTest.run();
+        charter.siege.WarTest.run();
         charter.grant.AuthorityTest.run();
         charter.land.LandTest.run();
         charter.food.FoodTest.run();

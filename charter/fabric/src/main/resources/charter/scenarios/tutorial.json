@@ -1,10 +1,10 @@
 {
   "name": "tutorial",
-  "setup": "A first hour with Charter for one new player. You name a banner at an anvil, craft it with a lodestone into a Nexus, and place it at the emerald pillar: that founds your faction and raises its keep. Brinewatch, a small rival with a nearly empty granary, holds a keep 12 chunks east; you plant a war banner at the gold pillar beside it and starve it out.",
+  "setup": "A first hour with Charter for one new player. You name a banner at an anvil, craft it with a lodestone into a Nexus, and place it at the emerald pillar: that founds your faction and raises its keep. Brinewatch, a small rival, holds a keep 12 chunks east and an outpost beyond it. You plant an outpost of your own at the gold pillar, declare war on theirs, and take it.",
   "tries": "Read the book Charter: A First Hour in your inventory and follow it page by page. Your Charter book shows where you stand. The longer guide is charter/TUTORIAL.md.",
   "knobs": {
     "timeScale": 24,
-    "presenceMinMemberDays": 0,
+    "presenceMinMemberSeconds": 0,
     "foundSecedeCooldownDays": 0
   },
   "factions": [
@@ -55,21 +55,20 @@
       "title": "Charter: A First Hour",
       "author": "Charter",
       "pages": [
-        "Welcome to Charter\n\nHere factions hold land with keeps, and take land by starving a keep out, not by breaking its walls.\n\nThis book takes you through your first hour. Time runs 24 times fast for it.",
+        "Welcome to Charter\n\nHere factions hold land with keeps that nobody can take, and fight over outposts.\n\nThis book takes you through your first hour. Time runs 24 times fast for it.",
         "1. Name a banner\n\nYou carry a white banner. An anvil stands beside the emerald pillar. Rename the banner there: its name will be your faction's name.",
         "2. Craft the Nexus\n\nPut the lodestone and your named banner in a crafting table, and nothing else. You get a Nexus with your faction's name on it.",
         "3. Found your faction\n\nWalk to the emerald pillar. Place the Nexus on the ground near it. 64 of your diamonds pay for the keep.\n\nThe 3 by 3 chunks around it are now your keep, and you are its Lord.",
         "Your Charter\n\nThe Charter book in your inventory shows where you stand: your Rights, your Freedoms, your faction and its Chronicle.\n\nUse it any time.",
         "4. Fill the treasury\n\nOpen your Charter, then your faction. Press Pay in diamond.\n\nA war banner needs 8 diamonds.",
-        "5. Stock the granary\n\nPlace a chest in the Nexus's chunk: it is your granary. Put 40 bread in.\n\nA keep under siege eats its granary. When it runs dry, the keep falls.",
+        "5. Stock the granary\n\nPlace a chest in the Nexus's chunk: it is your granary. Put 40 bread in.\n\nA keep eats its granary slowly: 14 days from full. When it runs dry the claim lapses.",
         "6. Claim land\n\nType /charter map. The yellow + squares touch your land: click one to claim it.\n\nOn your land, other factions may walk but not build, break or open anything.",
-        "7. Meet a rival\n\nBrinewatch holds a keep 12 chunks east of you, the way the sun rises. Walk there. Try to break a block on their land: you cannot.\n\nWalls do not take keeps here. Hunger does.",
-        "8. Plant a war banner\n\nAt the gold pillar, just short of their wall, place the War Banner on the ground.\n\nIt raises for 5 minutes under a smoke column. Till then, anyone may pull it down.",
-        "9. Feed the camp\n\nPlace the barrel next to the banner: it is the camp store. Put 48 bread in.\n\nAn empty camp besieges nobody. Cut off from home, it eats twice as fast.",
-        "10. The siege\n\nOnce the camp stands, Brinewatch is besieged and eats from its granary, which was nearly empty.\n\nStand in your camp's chunk: every attacker there makes them eat faster.",
-        "11. Assault\n\nBelow a quarter full, a keep is starving. Walk inside its walls: attackers in a starving keep make it eat four times as fast.",
-        "12. The fall\n\nWhen their granary is empty the keep falls, and chat offers two choices:\n\nRaze: the Nexus breaks and plunder spills out.\nOccupy: you hold their keep a while.",
-        "What next\n\nDefence is the other half: running food in through open sides, and wearing a camp down by standing beside it. Ask for the sally scenario.\n\nThe full guide is charter/TUTORIAL.md."
+        "7. Meet a rival\n\nBrinewatch holds a keep 12 chunks east, and an outpost beyond it. Walk there. Try to break a block on their land: you cannot.",
+        "8. Plant an outpost\n\nAt the gold pillar, place the War Banner on the ground. It holds 8 diamonds of yours as a deposit.\n\nIt raises for 5 minutes. Till then, anyone may pull it down.",
+        "9. Stock the outpost\n\nPlace the barrel next to the banner: it is the outpost store. Put 48 bread in.\n\n/outpost takes you to it, at 1 food.",
+        "10. Declare war\n\nOnce your outpost stands, open your Charter, then War. Name Brinewatch's outpost and confirm.\n\nNothing can be done to it for 12 hours.",
+        "11. Take it\n\nWhen the notice is over, stand in their outpost's chunk for 10 minutes with none of them there.\n\nThe banner falls and its deposit is yours.",
+        "What next\n\nA lost outpost costs its owner the deposit, so guard yours: stand in its chunk, or use /outpost to be there.\n\nThe full guide is charter/TUTORIAL.md."
       ]
     }
   ],
@@ -110,6 +109,18 @@
         0,
         0
       ]
+    }
+  ],
+  "camps": [
+    {
+      "faction": "R",
+      "at": [
+        16,
+        0
+      ],
+      "store": {
+        "minecraft:bread": 100
+      }
     }
   ]
 }

@@ -74,7 +74,8 @@ public final class CoreTypes {
                 .register("land.claim", ClaimLand.class)
                 .register("land.unclaim", Unclaim.class)
                 .register("land.lose_core", LoseCore.class)
-                .register("siege.deposit_food", DepositFood.class);
+                .register("siege.deposit_food", DepositFood.class)
+                .register("war.declare", charter.siege.actions.DeclareWar.class);
 
         events.registerNested(OrgEvents.class, HistoryEvent.class)
                 .registerNested(GovEvents.class, HistoryEvent.class)
@@ -87,6 +88,7 @@ public final class CoreTypes {
         Persistence.block(CoreBlocks.block("join_requests", CoreTypes::writeRequests, CoreTypes::readRequests));
         Persistence.block(CoreBlocks.block("breakaways", CoreTypes::writeBreakaways, CoreTypes::readBreakaways));
         Persistence.block(CoreBlocks.block("npc", CoreTypes::writeNpc, CoreTypes::readNpc));
+        Persistence.block(CoreBlocks.block("wars", CoreTypes::writeWars, CoreTypes::readWars));
     }
 
     private static com.google.gson.JsonElement writeRequests(charter.state.CharterState state, com.google.gson.Gson gson) {
@@ -125,6 +127,39 @@ public final class CoreTypes {
             }
             state.addBreakaway(b);
         }
+    }
+
+    private static com.google.gson.JsonElement writeWars(charter.state.CharterState state, com.google.gson.Gson gson) {
+        com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+        root.add("goals", gson.toJsonTree(state.wars.goals));
+        root.add("truces", gson.toJsonTree(state.wars.truces));
+        root.add("windows", gson.toJsonTree(state.wars.windows));
+        root.addProperty("nextId", state.wars.nextId);
+        return root;
+    }
+
+    private static void readWars(com.google.gson.JsonObject json, charter.state.CharterState state, com.google.gson.Gson gson, Repairs repairs) {
+        state.wars.goals.clear();
+        state.wars.truces.clear();
+        state.wars.windows.clear();
+        if (json.has("goals")) {
+            java.util.List<charter.siege.WarBook.Goal> goals = gson.fromJson(json.get("goals"),
+                    new com.google.gson.reflect.TypeToken<java.util.List<charter.siege.WarBook.Goal>>() { }.getType());
+            for (charter.siege.WarBook.Goal g : goals) {
+                // A goal whose outpost is gone is dropped: there is nothing left to capture.
+                if (g != null && g.outpost != null && state.core(g.outpost).isPresent()) state.wars.goals.add(g);
+                else repairs.note("war_goal_dropped", "a war goal on an outpost that is gone");
+            }
+        }
+        if (json.has("truces")) {
+            state.wars.truces.addAll(gson.<java.util.List<charter.siege.WarBook.Truce>>fromJson(json.get("truces"),
+                    new com.google.gson.reflect.TypeToken<java.util.List<charter.siege.WarBook.Truce>>() { }.getType()));
+        }
+        if (json.has("windows")) {
+            state.wars.windows.addAll(gson.<java.util.List<charter.siege.WarBook.Window>>fromJson(json.get("windows"),
+                    new com.google.gson.reflect.TypeToken<java.util.List<charter.siege.WarBook.Window>>() { }.getType()));
+        }
+        if (json.has("nextId")) state.wars.nextId = json.get("nextId").getAsLong();
     }
 
     private static com.google.gson.JsonElement writeNpc(charter.state.CharterState state, com.google.gson.Gson gson) {

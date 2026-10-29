@@ -21,6 +21,7 @@ final class ConfigTest {
         missingKeysKeepTheirDefaults();
         brokenFileRunsOnDefaultsAndIsLeftAlone();
         unusableValuesRunOnDefaultsAndAreLeftAlone();
+        profilesGiveShippedAndTestValues();
     }
 
     static void missingFileIsWrittenWithDefaults() throws Exception {
@@ -44,6 +45,28 @@ final class ConfigTest {
         check("config: a value in the file is used", knobs.timeScale == 24 && knobs.keepPriceDiamonds == 10);
         check("config: a key missing from the file keeps its default", knobs.storageLimitHours == 84 && knobs.drainPerMouthPerHour == 10);
         check("config: a missing list keeps its default", knobs.claimDimensions.equals(List.of("minecraft:overworld")));
+    }
+
+    /** Shipped is for balance, test makes every timer short; the file names one and its own keys still win. */
+    static void profilesGiveShippedAndTestValues() throws Exception {
+        Knobs shipped = Knobs.shipped();
+        Knobs test = Knobs.test();
+        check("config: shipped keeps the balance values", shipped.profile.equals("shipped") && shipped.timeScale == 1.0
+                && shipped.presenceMinMemberSeconds == 3 * 86_400 && shipped.teleportWarmupSeconds == 5 && shipped.npcWaveMinutes == 5);
+        check("config: test makes the timers short", test.profile.equals("test") && test.timeScale > 100
+                && test.presenceMinMemberSeconds == 3 && test.teleportWarmupSeconds == 1 && test.npcWaveMinutes == 1);
+        check("config: the test values are still usable", test.problems().isEmpty());
+
+        Path dir = Files.createTempDirectory("charter-config");
+        Files.writeString(dir.resolve(CharterConfig.FILE_NAME), "{ \"profile\": \"test\", \"teleportWarmupSeconds\": 4 }");
+        Knobs read = CharterConfig.readOrCreate(dir, s -> { }, s -> { });
+        check("config: a file naming the test profile starts from the test values", read.profile.equals("test") && read.npcWaveMinutes == 1);
+        check("config: and a key in the file wins over them", read.teleportWarmupSeconds == 4);
+
+        Path other = Files.createTempDirectory("charter-config");
+        Files.writeString(other.resolve(CharterConfig.FILE_NAME), "{ \"profile\": \"nonsense\" }");
+        Knobs unknown = CharterConfig.readOrCreate(other, s -> { }, s -> { });
+        check("config: an unknown profile is the shipped values", unknown.timeScale == 1.0 && unknown.npcWaveMinutes == 5);
     }
 
     static void brokenFileRunsOnDefaultsAndIsLeftAlone() throws Exception {

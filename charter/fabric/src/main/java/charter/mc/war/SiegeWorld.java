@@ -53,6 +53,8 @@ public final class SiegeWorld {
     /** Chunks with waiting work that loaded since the last tick. */
     private static final java.util.Set<ChunkKey> LOADED = new java.util.LinkedHashSet<>();
 
+    private static final WarPresence PRESENCE = new WarPresence();
+
     private SiegeWorld() {
     }
 
@@ -60,6 +62,8 @@ public final class SiegeWorld {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             if (!CharterServer.running()) return;
             CharterRuntime rt = CharterServer.runtime();
+            rt.sim.inputs(PRESENCE);
+            rt.state.history.listen(SiegeWorld::onHistory);
             SiegeLogFeed.attach(rt);
             WAITING.clear();
             LOADED.clear();
@@ -81,6 +85,40 @@ public final class SiegeWorld {
                 if (due != null) for (Work work : due) apply(level, work);
             }
         });
+    }
+
+    /** Counts presence; called by the server just before each sim step. */
+    public static void beforeStep(MinecraftServer server, CharterRuntime rt) {
+        PRESENCE.refresh(server, rt);
+    }
+
+    /** The presence counter, for tests. */
+    public static WarPresence presence() {
+        return PRESENCE;
+    }
+
+    static void onHistory(charter.history.History.Entry entry) {
+        if (!CharterServer.running()) return;
+        if (entry.event() instanceof charter.siege.SiegeEvents.OutpostCaptured e) takeDownOutpost(e.outpost());
+    }
+
+    /** The banner and the signal fire of a captured outpost come down, and its fixtures and store link go. */
+    static void takeDownOutpost(CoreId outpost) {
+        CharterRuntime rt = CharterServer.runtime();
+        MinecraftServer server = CharterServer.server();
+        Fixtures fixtures = Fixtures.of(rt.state);
+        for (Fixtures.Fixture fixture : List.copyOf(fixtures.ofCore(outpost))) {
+            ServerLevel level = server == null ? null : levelOf(server, fixture.dimension());
+            if (level != null) {
+                level.getChunk(fixture.x() >> 4, fixture.z() >> 4);
+                BlockPos at = new BlockPos(fixture.x(), fixture.y(), fixture.z());
+                level.levelEvent(2001, at, net.minecraft.world.level.block.Block.getId(level.getBlockState(at)));
+                level.setBlock(at, Blocks.AIR.defaultBlockState(), 3);
+            }
+        }
+        fixtures.removeCore(outpost);
+        var granaries = charter.mc.granary.Granaries.service();
+        if (granaries != null) granaries.book().remove(outpost);
     }
 
     // ---- the physical work ----

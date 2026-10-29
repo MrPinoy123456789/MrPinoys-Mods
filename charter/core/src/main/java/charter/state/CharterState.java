@@ -55,6 +55,8 @@ public final class CharterState {
 
     /** The raiders' strongholds and outposts that stand, and the replacements waiting (NPC strongholds). */
     public final charter.npc.NpcBook npc = new charter.npc.NpcBook();
+    /** Declared wars: goals to capture outposts, truces after them, windows after a capture. */
+    public final charter.siege.WarBook wars = new charter.siege.WarBook();
 
     /** Contracts block (M6): contracts, custody, the punishment ledger, players' own deposits, breach marks. */
     public final charter.contract.ContractBook contracts = new charter.contract.ContractBook();
@@ -368,7 +370,7 @@ public final class CharterState {
         cores.remove(id);
         siege.stores.remove(id);
         siege.keeps.remove(id);
-        siege.truces.removeIf(t -> t.keep().equals(id));
+        wars.goals.removeIf(g -> g.outpost.equals(id));
     }
 
     public Optional<Claim> claim(ClaimId id) {

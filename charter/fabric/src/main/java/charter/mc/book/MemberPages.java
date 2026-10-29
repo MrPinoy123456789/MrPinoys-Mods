@@ -109,6 +109,7 @@ public final class MemberPages {
                 go(player, Text.get("book.button.freedoms"), p -> freedoms(p, null)),
                 go(player, Text.get("book.button.situation"), p -> situation(p, null)),
                 go(player, v.orgName(), p -> faction(p, null)),
+                go(player, Text.get("book.button.war"), p -> WarPages.page(p, null)),
                 go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.home.title", "org", v.orgName()),
                 lines(notice, List.of(Text.get("book.home.form", "form", form, "offices", offices),

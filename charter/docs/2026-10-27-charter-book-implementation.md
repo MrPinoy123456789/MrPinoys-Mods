@@ -1412,3 +1412,46 @@ on and is rewritten with the outposts (step 4).
 `TeleportGameTest`: keep trip and cooldown, outpost cost and refusals, moving or being hurt cancels. Changed:
 `LandTest` second keep and camp cases, `LandProtectionGameTest`/`LandPlacementGameTest` banner funding,
 `TutorialGameTest`, `ScenarioFilesTest`.
+
+## Builder's notes: protected keeps, step 4 (outposts as war prizes, the War page, the clean up) and the two value sets
+
+**War model** (approved by the owner's session, with three additions). `DeclareWar(nation, outpost)`, power
+`DECLARE_WAR`: a nation only (not a sub-faction), another nation's raised outpost that is not the raiders', not already
+named, no truce between the two nations, at most `warGoalsPerWar` (2) open goals, and the declarer must hold a raised
+outpost of its own. State is `state.wars` (`WarBook`: goals, truces, windows), saved as a `wars` block; an old save has
+none. Times are siege time. Capture cannot begin until `warGoalNoticeHours` (12) after the declaration; a goal lapses
+after `warGoalHours` (48). Both nations are told at the declaration and when capture opens (`WarDeclared`, `WarOpened`,
+notices and Chronicle lines). From the opening, the outpost's claims are not protected (`SiegeRules.protectedClaim`).
+Capture: `WarInputs` (fabric `WarPresence`, counted before each sim step) says whether members of the attacking nation
+stand in the outpost's chunk and whether any member of the owning organization (or beneath it) does; with no defender,
+attackers add to the hold, a defender resets it; at `outpostCaptureMinutes` (10) the outpost is captured
+(`OutpostCaptured`): its deposit goes to the attackers' treasury, every claim of it is released, the banner and signal
+fire come down (`SiegeWorld.takeDownOutpost`), a truce of `truceDays` (3) starts, and for
+`outpostWinnerWindowMinutes` (30) only the captors may plant an outpost on that chunk (`LandReasons.WINDOW_HELD`). A goal
+that lapses also starts the truce (`WarLapsed`). A goal whose outpost is lost another way is dropped quietly (and the
+deposit is returned, `LandGraph.loseCore`). A player counts as present when online, alive, not a spectator, active
+within `presenceAfkMinutes` (on Minecraft's clock, not the wall clock) and a member for `presenceMinMemberSeconds`.
+
+**Book.** A War button on the Charter home opens the War page: the wars against the nation (with the time capture
+opens, in plain words), the wars it declared, the truces, and the other nations' raised outposts with a button each;
+the confirm page says why the declarer may (it holds a raised outpost of its own), the notice, the hold, and the cooldown
+after a lapse. The Join, Freedoms and Who decides pages held no siege wording. The tutorial book is 14 pages around an
+outpost and a war goal (Brinewatch has an outpost), `TUTORIAL.md` follows, and the tutorial gametest plays the loop to a
+capture.
+
+**Clean up.** The carry-in rule is gone entirely: `Allowance`, the cart pool, crossings, `SupplyLines`, the hopper gate,
+the camp burn state (`CampSupply`, `CampSite`), the camp cut-off and empty-store events, ender chest rules. Dead lang
+keys are removed. In player text a camp is an outpost (internal ids keep `camp`). `DESIGN.md` section 10 is marked
+superseded, 10.8 and 10.9, 16.1 and 16.2 are corrected and section 23 records the decisions. The new keep grace is a
+knob, `keepNewGraceDays` (14).
+
+**Two sets of values.** `Knobs.shipped()` is the balance set and the default; `Knobs.test()` makes every timer short (siege
+time 600 times fast, a 1 second trip wait, a wave a minute, votes of an hour, presence after 3 seconds). The config
+file names a `profile`; the loader starts from that set and any other key wins over it (`CharterConfig`,
+`ConfigTest.profilesGiveShippedAndTestValues`). `presenceMinMemberSeconds` is 3 days when shipped, 3 seconds in test. The
+gametests still run on the shipped set and set the few values they need by hand.
+
+**Tests added in step 4.** Core `WarTest` (declaring, the notice, the hold, a defender resetting it, a lapse and its
+cooldown, the window), goldens for the four war events; gametest `WarGameTest` (the book flow and a real capture by a
+player in the chunk); the tutorial gametest now declares and captures. Deleted in 4a: the allowance and cart tests went
+with step 2's `SupplyGameTest`; nothing else.
