@@ -1,5 +1,20 @@
 # Tasks
 
+## Status (updated 2026-10-29, after Claude built part of the list on branch feature/foundry-phase0)
+
+| Task | State |
+|---|---|
+| F0 | Done except one check: boot with an empty content folder to see whether `No key layers` still prints. Gametests exist (6 pass) |
+| F1 | Done for pack contents and validation. NOT verified in a vanilla client. Still to do: document the autohost settings the owner needs, and a second demo with a hand-written `model` |
+| F2 | Blocked on DECISIONS.md D8. Read it first; do not use a Mixin without asking |
+| F3 | Done for on_use, on_hit_entity, play_sound, apply_effect, give_item, has_permission. Follow-ups: a target selector (hit entity vs self), the cooldown_ready condition is not needed (cooldown is a mechanic field), a `mechanics` skill |
+| F4 | Not started. Decision record first, then stop |
+| F5 | Done: `/foundry reload` (swap only when clean) and `/foundry pack status`. Not done: runtime pack rebuild, incremental builds |
+| F6, F7, F8 | Not started |
+
+The sections below are the original task text; where the table says done, treat the section as the acceptance list to
+re-check, not as work to repeat.
+
 Each task: goal, exact behaviour, files, tests, acceptance. Branch `devin/<id>-<topic>` from the integration tip.
 Later tasks may depend on earlier ones; say which branch you stacked on in the report. Every task ends with
 `./gradlew.bat build` green and the numbers quoted.

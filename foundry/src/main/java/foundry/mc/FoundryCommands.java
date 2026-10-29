@@ -25,6 +25,9 @@ final class FoundryCommands {
                         .then(Commands.literal("help").executes(ctx -> help(ctx.getSource())))
                         .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
                         .then(Commands.literal("validate").executes(ctx -> validate(ctx.getSource())))
+                        .then(Commands.literal("reload").executes(ctx -> reload(ctx.getSource())))
+                        .then(Commands.literal("pack").then(Commands.literal("status")
+                                .executes(ctx -> packStatus(ctx.getSource()))))
                         .then(Commands.literal("give")
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .then(Commands.argument("id", StringArgumentType.string())
@@ -39,7 +42,7 @@ final class FoundryCommands {
 
     private static int help(CommandSourceStack src) {
         src.sendSuccess(() -> Component.literal(
-                "Foundry: /foundry status, /foundry validate, /foundry give <player> <id> [count]"), false);
+                "Foundry: /foundry status, validate, reload, pack status, give <player> <id> [count]"), false);
         return 1;
     }
 
@@ -65,6 +68,36 @@ final class FoundryCommands {
                     + " item(s) are new since startup. Restart the server to register them."), false);
         }
         return set.hasErrors() ? 0 : 1;
+    }
+
+    private static int reload(CommandSourceStack src) {
+        FoundryMod.ReloadReport r = FoundryMod.reload();
+        if (!r.swapped()) {
+            src.sendFailure(Component.literal("Foundry: reload refused, " + r.errors()
+                    + " error(s). The previous content is still live. Run /foundry validate for details."));
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal("Foundry: reloaded. Mechanics updated: " + r.updated()
+                + (r.restartNeeded().isEmpty() ? "" : ". Restart needed for: " + r.restartNeeded())), false);
+        return 1;
+    }
+
+    private static int packStatus(CommandSourceStack src) {
+        var path = eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils.getMainPath();
+        if (path == null || !java.nio.file.Files.isRegularFile(path)) {
+            src.sendFailure(Component.literal("Foundry: no resource pack has been built yet. It is built at server start."));
+            return 0;
+        }
+        try {
+            byte[] bytes = java.nio.file.Files.readAllBytes(path);
+            String sha1 = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-1").digest(bytes));
+            src.sendSuccess(() -> Component.literal("Foundry pack: " + bytes.length + " bytes, sha1 " + sha1
+                    + ", required=" + eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils.isRequired()), false);
+            return 1;
+        } catch (Exception e) {
+            src.sendFailure(Component.literal("Foundry: could not read the pack: " + e.getMessage()));
+            return 0;
+        }
     }
 
     private static int give(CommandSourceStack src, ServerPlayer target, String id, int count) {

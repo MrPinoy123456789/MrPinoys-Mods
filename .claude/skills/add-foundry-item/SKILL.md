@@ -31,17 +31,30 @@ cd "A:/MrPinoys Mods/foundry" && ./gradlew.bat coreTest
 ```
 
 For a real server: `/foundry validate` prints every problem with the content id, the field and a fix. Fix all
-ERRORs; read WARNINGs (a missing model is a warning).
+ERRORs; an item with any ERROR is not loaded at all.
 
 ## 3. Try it
 
 Registering a new item needs a server restart; `/foundry validate` says so. After restart:
-`/foundry give <player> <namespace:name> [count]`. Changing only a definition that already exists still needs a
-restart today (see `docs/ARCHITECTURE.md`, "What can change at runtime").
+`/foundry give <player> <namespace:name> [count]`. Changing an existing item's look or stats also needs a restart; changing its mechanics only needs `/foundry reload`
+(see `docs/ARCHITECTURE.md`, "What can change at runtime").
 
-## 4. Models and textures
+## 4. Textures and models
 
-Not available until task F1 lands. Until then leave out `model` and the item looks like its base item.
+Easiest: a flat texture. Put a 16 by 16 PNG at `config/foundry/assets/<ns>/textures/item/<name>.png` (samples in
+`foundry/examples/assets/`) and set `"texture": "<ns>:item/<name>"`. Foundry generates the model and the client item
+definition. For a hand-made model use `"model": "<ns>:item/<name>"` with the file at
+`assets/<ns>/models/item/<name>.json`. Never both. A missing file is an ERROR (the item is not loaded). New
+textures change the pack, so players re-download it; restart the server to rebuild.
+
+## 4b. Mechanics
+
+`mechanics` is a list; each has `trigger` (`on_use`, `on_hit_entity`), optional `cooldown_ticks` (20 per second),
+`chance` (0 to 1), `conditions` and `actions`. Actions: `play_sound` (sound, volume, pitch), `apply_effect` (effect,
+duration, amplifier), `give_item` (item, count). Conditions: `has_permission` (level 0 to 4). Effects and sounds apply
+to the player using the item. Limits: 8 mechanics per item, 16 actions, 8 conditions. Anything else (a new action
+type, a target selector) needs Java in `foundry.core.mechanics.MechanicTypes` and `foundry.mc.MechanicHost`; say so
+instead of improvising. Mechanics change with `/foundry reload`, no restart.
 
 ## 5. Report
 

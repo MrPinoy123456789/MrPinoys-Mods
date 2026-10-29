@@ -30,12 +30,12 @@ plain `main()` tests and reusable by a future editor.
 | Content | Reload without restart | Why |
 |---|---|---|
 | Item registration (new id, changed base item, durability, stack size) | No | Registry entries cannot be removed or re-registered safely while the server runs |
-| Item display name, lore, glint | Not yet | Baked into registered properties today; could move to a per-stack component refresh later |
-| Recipes | Yes (task F2) | Recipe manager reload is supported |
-| Mechanics parameters | Yes (task F3) | Looked up at trigger time from the active ContentSet |
+| Item display name, lore, glint, texture, model | No | Baked into registered properties and the built pack; `/foundry reload` lists them as restart needed |
+| Recipes | Blocked | See DECISIONS.md D8 |
+| Mechanics (parameters, cooldown, chance, actions) | Yes | Read from the live ContentSet at trigger time; `/foundry reload` swaps it |
 | Resource pack contents | Yes, players must re-download | Pack is rebuilt and re-sent |
 
-`/foundry validate` re-reads files and reports; it never registers. If it finds new items it says a restart is
+`/foundry validate` re-reads files and reports; it never registers. `/foundry reload` swaps the candidate set in only when it has no errors and lists what needs a restart. If it finds new items it says a restart is
 needed. A failed load never replaces a working ContentSet.
 
 ## Stable identity

@@ -49,10 +49,43 @@ public final class ItemGameTest {
     }
 
     @GameTest
+    public void aBrokenFileRefusesReloadAndKeepsTheOldContent(GameTestHelper helper) throws Exception {
+        var server = helper.getLevel().getServer();
+        var original = System.getProperty("foundry.content");
+        var dir = java.nio.file.Files.createTempDirectory("foundry-reload");
+        var items = java.nio.file.Files.createDirectories(dir.resolve("demo").resolve("items"));
+        for (var name : new String[]{"crystal_sword.json", "glow_gem.json"}) {
+            java.nio.file.Files.copy(java.nio.file.Path.of(original, "demo", "items", name), items.resolve(name));
+        }
+        try {
+            System.setProperty("foundry.content", dir.toString());
+            var source = server.createCommandSourceStack().withPermission(net.minecraft.server.permissions.PermissionSet.ALL_PERMISSIONS);
+            var dispatcher = server.getCommands().getDispatcher();
+            helper.assertValueEqual(dispatcher.execute("foundry reload", source), 1, "an unchanged folder reloads");
+
+            java.nio.file.Files.writeString(items.resolve("broken.json"), "{ \"id\": \"demo:broken\" }");
+            helper.assertValueEqual(dispatcher.execute("foundry reload", source), 0, "a broken file refuses the reload");
+
+            @SuppressWarnings("removal")
+            var player = helper.makeMockServerPlayerInLevel();
+            var sword = BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:crystal_sword"));
+            sword.use(helper.getLevel(), player, net.minecraft.world.InteractionHand.MAIN_HAND);
+            helper.assertTrue(player.hasEffect(net.minecraft.world.effect.MobEffects.SPEED),
+                    "the previous mechanics are still live after the refused reload");
+
+            java.nio.file.Files.delete(items.resolve("broken.json"));
+            helper.assertValueEqual(dispatcher.execute("foundry reload", source), 1, "reload works again once fixed");
+        } finally {
+            System.setProperty("foundry.content", original);
+        }
+        helper.succeed();
+    }
+
+    @GameTest
     public void commandsAreRegistered(GameTestHelper helper) {
         var foundry = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild("foundry");
         helper.assertTrue(foundry != null, "/foundry exists");
-        for (String sub : new String[]{"help", "status", "validate", "give"}) {
+        for (String sub : new String[]{"help", "status", "validate", "reload", "pack", "give"}) {
             helper.assertTrue(foundry.getChild(sub) != null, "/foundry " + sub);
         }
         helper.assertTrue(Items.DIAMOND_SWORD != null, "vanilla untouched");

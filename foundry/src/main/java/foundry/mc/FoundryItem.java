@@ -24,19 +24,24 @@ final class FoundryItem extends SimplePolymerItem {
     private final Identifier clientModel;
 
     private final String contentId;
-    private final List<MechanicDef> mechanics;
+    private final foundry.core.Ident ident;
 
-    FoundryItem(Item.Properties properties, Item base, Identifier clientModel, String contentId,
-            List<MechanicDef> mechanics) {
+    FoundryItem(Item.Properties properties, Item base, Identifier clientModel, foundry.core.Ident ident) {
         super(properties, base);
         this.clientModel = clientModel;
-        this.contentId = contentId;
-        this.mechanics = mechanics;
+        this.ident = ident;
+        this.contentId = ident.toString();
+    }
+
+    /** Read from the live content set each time, so a successful /foundry reload changes mechanics without a restart. */
+    private List<MechanicDef> mechanics() {
+        var def = FoundryMod.loaded().items().get(ident);
+        return def == null ? List.of() : def.mechanics();
     }
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        if (player instanceof ServerPlayer sp && MechanicHost.fire(Trigger.ON_USE, contentId, mechanics, sp)) {
+        if (player instanceof ServerPlayer sp && MechanicHost.fire(Trigger.ON_USE, contentId, mechanics(), sp)) {
             return InteractionResult.SUCCESS;
         }
         return super.use(level, player, hand);
@@ -45,7 +50,7 @@ final class FoundryItem extends SimplePolymerItem {
     @Override
     public void hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
         super.hurtEnemy(stack, target, attacker);
-        if (attacker instanceof ServerPlayer sp) MechanicHost.fire(Trigger.ON_HIT_ENTITY, contentId, mechanics, sp);
+        if (attacker instanceof ServerPlayer sp) MechanicHost.fire(Trigger.ON_HIT_ENTITY, contentId, mechanics(), sp);
     }
 
     @Override

@@ -20,6 +20,11 @@ public record ItemDef(
         String rarity,
         List<foundry.core.mechanics.MechanicDef> mechanics) {
 
+    public ItemDef withMechanics(List<foundry.core.mechanics.MechanicDef> replacement) {
+        return new ItemDef(schemaVersion, id, displayName, lore, baseItem, model, texture, stackSize, durability, glint,
+                rarity, replacement);
+    }
+
     public static final int SCHEMA_VERSION = 1;
     public static final List<String> RARITIES = List.of("common", "uncommon", "rare", "epic");
 }

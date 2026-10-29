@@ -5,7 +5,8 @@ sounds and more) in JSON files; the mod registers them through Polymer so vanill
 resource pack. No client mod, no Java per item. There is no editor UI: Claude Code skills and a validator are the
 authoring interface.
 
-Status: Phase 0 scaffold. One item type works end to end on a dev server (see "What works").
+Status: Phase 0 plus tasks F0, F1, F3 and F5 of the handoff. Items with textures, models and mechanics work on a
+dev server and in gametests; nothing has been seen by a vanilla client yet (see "What is not verified").
 
 ## Layout
 
@@ -24,7 +25,7 @@ Status: Phase 0 scaffold. One item type works end to end on a dev server (see "W
 
 ## Commands (operators)
 
-`/foundry help`, `/foundry status`, `/foundry validate`, `/foundry give <player> <id> [count]`.
+`/foundry help`, `status`, `validate`, `reload`, `pack status`, `give <player> <id> [count]`.
 
 ## Build and test
 
@@ -39,12 +40,17 @@ Foundry never shades it.
 
 ## What works (verified 2026-10-29)
 
-- `coreTest`: 18 checks pass.
-- Dev server boots with the demo item, logs `Foundry: 1 items registered, 0 problems`, Polymer builds
-  `polymer/resource_pack.zip`, and `/foundry status` answers.
+- `coreTest`: 50 checks pass (ids, parsing, validation, pack generation, every mechanics limit).
+- `runGameTest`: 6 gametests pass (registration, name, rarity, stack size, durability, a texture item, the sword
+  mechanic through `Item.use` with its cooldown, a broken file refusing `/foundry reload` and keeping the old content).
+- Dev server: `Foundry: 2 items registered, 0 problems`; `polymer/resource_pack.zip` holds the generated client item
+  definition, the generated model and the texture; `/foundry pack status` and `/foundry reload` answer.
 
 ## What is not verified
 
-- Nothing has been tested with a vanilla client yet: whether the demo item shows, whether `/foundry give` yields a
-  usable stack, whether a custom `model` renders. First job for the handoff (task F1).
-- No custom models, textures, recipes, furniture or mechanics exist yet.
+- No vanilla client has loaded the pack: whether the glow gem texture and the sword show correctly is unconfirmed.
+  Manual check: join the test server, `/foundry give @s demo:glow_gem`, look at the item; use the crystal sword and
+  watch for the chime and speed effect.
+- Recipes (F2) are blocked on a decision, see DECISIONS.md D8. Furniture (F4) waits for D3.
+- Effects and sounds apply to the acting player only; there is no target selector, so "slow the enemy you hit" is not
+  possible yet. The pack is built at server start; there is no runtime rebuild.

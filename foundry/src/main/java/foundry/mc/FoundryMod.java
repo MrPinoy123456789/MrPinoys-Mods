@@ -7,6 +7,8 @@ import foundry.core.ContentLoader;
 import foundry.core.ContentSet;
 import foundry.core.Ident;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
@@ -69,6 +71,38 @@ public final class FoundryMod implements ModInitializer {
         set = MechanicHost.checkReferences(set);
         set.problems().forEach(p -> LOG.warn("{}", p));
         return set;
+    }
+
+    /** Result of {@link #reload()}: what was swapped in and what still needs a restart. */
+    record ReloadReport(boolean swapped, int errors, List<String> restartNeeded, List<String> updated) {}
+
+    /**
+     * Loads a candidate set and swaps it in only when it has no errors; otherwise the previous set stays live.
+     * Registry-bound changes (new items, changed base item, stack size, durability, rarity, glint, lore, name,
+     * model) cannot apply to registered items, so they are listed as restart needed.
+     */
+    static synchronized ReloadReport reload() {
+        ContentSet candidate = loadContent();
+        long errors = candidate.problems().stream().filter(foundry.core.Problem::blocking).count();
+        if (errors > 0) return new ReloadReport(false, (int) errors, List.of(), List.of());
+        ContentSet old = loaded;
+        List<String> restart = new ArrayList<>();
+        List<String> updated = new ArrayList<>();
+        for (var e : candidate.items().entrySet()) {
+            var prev = old.items().get(e.getKey());
+            if (FoundryItems.get(e.getKey()) == null) restart.add(e.getKey() + " (new)");
+            else if (prev != null && !prev.equals(e.getValue())) {
+                if (sameRegistration(prev, e.getValue())) updated.add(e.getKey() + " (mechanics)");
+                else restart.add(e.getKey() + " (changed)");
+            }
+        }
+        for (var id : old.items().keySet()) if (!candidate.items().containsKey(id)) restart.add(id + " (removed)");
+        loaded = candidate;
+        return new ReloadReport(true, 0, List.copyOf(restart), List.copyOf(updated));
+    }
+
+    private static boolean sameRegistration(foundry.core.ItemDef a, foundry.core.ItemDef b) {
+        return a.withMechanics(List.of()).equals(b.withMechanics(List.of()));
     }
 
     @Override
