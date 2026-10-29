@@ -20,6 +20,7 @@ public final class NpcWaveTest {
         wavesTopUpToThePoolAndCostSupply();
         aSiteFallsWhenTheSupplyIsSpentAndNoRaiderLives();
         aSiteNobodyFoughtExpires();
+        aDefeatedWaveIsReplacedShortly();
         retiringAwaitsAReplacement();
     }
 
@@ -81,6 +82,24 @@ public final class NpcWaveTest {
         check("4: expired at ten days", NpcScheduler.step(live, 3, 0, k, tenDays).expired());
         check("4: a death resets the clock", !NpcScheduler.step(live, 2, 1, k, tenDays + 5).expired());
         check("4: and it runs from then", NpcScheduler.step(live, 2, 0, k, tenDays + 5 + tenDays).expired());
+    }
+
+    static void aDefeatedWaveIsReplacedShortly() {
+        Knobs k = new Knobs();
+        NpcBook book = new NpcBook();
+        NpcBook.Live live = NpcScheduler.live(book, site(book, NpcBook.Kind.STRONGHOLD, 0, 0), k);
+        long now = 10_000;
+        long interval = Durations.minutes(k.npcWaveMinutes);
+        eq("6: the first wave fills the pool", 3, NpcScheduler.step(live, 0, 0, k, now).spawn());
+        eq("6: the next wave waits out the interval", now + interval, live.nextWaveAt);
+        eq("6: a wave partly beaten waits", 0, NpcScheduler.step(live, 2, 1, k, now + 10_000).spawn());
+        eq("6: and the due time is not moved", now + interval, live.nextWaveAt);
+        NpcScheduler.step(live, 0, 2, k, now + 10_000);
+        long soon = now + 10_000 + Durations.seconds(k.npcWaveAfterClearSeconds);
+        eq("6: a wiped wave is replaced shortly", soon, live.nextWaveAt);
+        eq("6: not at once", 0, NpcScheduler.step(live, 0, 0, k, soon - 1).spawn());
+        eq("6: but on time", 3, NpcScheduler.step(live, 0, 0, k, soon).spawn());
+        eq("6: then the interval rules again", soon + interval, live.nextWaveAt);
     }
 
     static void retiringAwaitsAReplacement() {

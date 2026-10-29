@@ -285,6 +285,7 @@
   "granary.no_drain": "no one to feed",
   "granary.empty": "Empty",
   "granary.overstocked": "Overstocked: food is spoiling",
+  "granary.raiders": "Raiders left: {count}",
   "granary.prev": "Previous page",
   "granary.next": "Next page",
   "granary.may_take": "You may put food in and take it out.",

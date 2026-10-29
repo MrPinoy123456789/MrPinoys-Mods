@@ -1,16 +1,27 @@
 package charter.mc;
 
+import charter.config.Knobs;
+import charter.engine.Actor;
+import charter.engine.Outcome;
 import charter.food.FoodTable;
 import charter.food.ShelfClass;
+import charter.id.ChunkKey;
 import charter.id.CoreId;
+import charter.id.OrgId;
+import charter.land.Core;
 import charter.mc.granary.FoodConfig;
 import charter.mc.granary.GranaryBook;
 import charter.mc.granary.GranaryBook.Pos;
 import charter.mc.granary.GranaryBook.Site;
+import charter.mc.granary.GranaryText;
 import charter.mc.store.CharterJson;
 import charter.mc.store.CharterStore;
 import charter.mc.store.Persistence;
+import charter.npc.NpcBook;
+import charter.npc.NpcScheduler;
+import charter.npc.SpawnNpc;
 import charter.state.CharterState;
+import charter.time.Clock;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.UUID;
 
 import static charter.mc.FabricSuite.check;
 
@@ -39,6 +51,7 @@ final class GranaryTest {
         foodTableSkipsWhatIsNotFood();
         shippedFoodTableIsComplete();
         foodFileIsCreatedThenRead();
+        npcGranaryShowsRaidersLeft();
     }
 
     static CharterStore store(Path dir) {
@@ -183,5 +196,31 @@ final class GranaryTest {
         FoodConfig.load(dir, third, id -> OptionalDouble.of(3), s -> { }, warnings::add);
         check("food: a broken file falls back to the jar table", third.isFood("minecraft:bread") && !warnings.isEmpty());
         check("food: a broken file is left as the operator wrote it", Files.readString(dir.resolve(FoodConfig.FILE_NAME)).equals("this is not json"));
+    }
+
+    /** A raider granary has no upkeep drain, so its line is the raiders left, not a countdown (owner, 2026-10-29). */
+    static void npcGranaryShowsRaidersLeft() throws Exception {
+        Path dir = Files.createTempDirectory("charter-granary-npc");
+        Knobs knobs = new Knobs();
+        Clock.Manual clock = new Clock.Manual(1_800_000_000_000L);
+        try (CharterRuntime rt = RuntimeTest.open(dir, knobs, clock, new RuntimeTest.FakeMessenger())) {
+            Outcome out = rt.engine.run(new Actor.System(), new SpawnNpc("Gnashers", "{}",
+                    NpcBook.Kind.STRONGHOLD, new ChunkKey(FullState.OW, 40, 40), 16, 128, false));
+            check("granary npc: the raiders founded", !out.refused());
+            OrgId org = rt.state.orgNamed("Gnashers").orElseThrow().id;
+            Core keep = rt.state.coresOf(org).getFirst();
+            NpcBook.Site site = new NpcBook.Site(rt.state.npc.nextId++, NpcBook.Kind.STRONGHOLD, org, keep.id,
+                    keep.center, 2, clock.now());
+            NpcScheduler.built(rt.state.npc, site, false);
+            NpcBook.Live live = NpcScheduler.live(rt.state.npc, site, knobs);
+            int spawned = NpcScheduler.wave(live, 0, knobs, clock.now());
+            for (int i = 0; i < spawned; i++) live.raiders.add(UUID.randomUUID());
+            rt.state.siege.store(keep.id).provisions.add("minecraft:bread", 30);
+
+            // Far tier: 96 supply, the first wave spends 8 and 8 stand, so 96 raiders are left to beat.
+            String shown = GranaryText.timeLine(rt, keep);
+            check("granary npc: the line is the raiders left, not a countdown",
+                    shown.contains("Raiders left: 96") && !shown.contains("day") && !shown.contains("Provisions"));
+        }
     }
 }
