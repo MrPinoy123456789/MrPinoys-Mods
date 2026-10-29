@@ -133,8 +133,10 @@ final class MechanicHost implements MechanicRunner.Host {
         kept.keySet().removeIf(id -> bad.contains(id.toString()));
         var sources = new java.util.LinkedHashMap<>(set.sources());
         sources.keySet().removeIf(id -> bad.contains(id.toString()));
+        var furniture = new java.util.LinkedHashMap<>(set.furniture());
+        furniture.values().removeIf(f -> !kept.containsKey(f.placedBy()));
         return new ContentSet(java.util.Map.copyOf(kept), set.recipes(), List.copyOf(problems),
-                java.util.Map.copyOf(sources));
+                java.util.Map.copyOf(sources), java.util.Map.copyOf(furniture));
     }
 
     private static void missing(List<Problem> problems, Ident id, String what, String value, boolean exists) {

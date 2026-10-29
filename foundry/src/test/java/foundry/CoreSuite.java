@@ -22,6 +22,7 @@ public final class CoreSuite {
         parsing();
         loading();
         packFiles();
+        furniture();
         mechanics();
         recipes();
         renames();
@@ -174,6 +175,40 @@ public final class CoreSuite {
                         + "\"actions\":[{\"type\":\"give_item\",\"item\":\"minecraft:stick\"}]}]")).def().mechanics().get(0);
         check(run.fire("a", "t:g", 0, guarded, host) == foundry.core.mechanics.MechanicRunner.Outcome.CONDITION_FAILED,
                 "hit permission condition asks about the hit entity");
+    }
+
+    private static final String DESK = """
+            { "id": "t:desk", "placed_by": "t:deskitem", "display": { "block": "minecraft:crafting_table" },
+              "scale": 1.0, "interaction": { "width": 1.0, "height": 1.0 } }
+            """;
+
+    private static void furniture() {
+        var ok = foundry.core.FurnitureParser.parse("desk.json", DESK);
+        check(ok.def() != null && ok.def().solid(), "furniture parses and is solid by default");
+        check(foundry.core.FurnitureParser.parse("x", DESK.replace("\"block\": \"minecraft:crafting_table\"",
+                "\"block\": \"minecraft:crafting_table\", \"item\": \"minecraft:stick\"")).def() == null,
+                "block and item together is an error");
+        check(foundry.core.FurnitureParser.parse("x", DESK.replace("\"display\": { \"block\": \"minecraft:crafting_table\" },", "")).def() == null,
+                "missing display is an error");
+        check(foundry.core.FurnitureParser.parse("x", DESK.replace("\"scale\": 1.0", "\"scale\": 9")).def() == null,
+                "scale out of range is an error");
+        var item = ItemParser.parse("i.json", GOOD.replace("t:sword", "t:deskitem")).def();
+        var items = java.util.Map.of(item.id(), item);
+        var problems = new java.util.ArrayList<Problem>();
+        var good = foundry.core.FurnitureParser.validate(java.util.List.of(new foundry.core.FurnitureParser.Sourced("a", ok.def())),
+                items, b -> true, i -> true, problems);
+        check(good.size() == 1 && problems.isEmpty(), "furniture with a loaded placing item is accepted");
+        var noItem = foundry.core.FurnitureParser.validate(java.util.List.of(new foundry.core.FurnitureParser.Sourced("a", ok.def())),
+                java.util.Map.of(), b -> true, i -> true, problems);
+        check(noItem.isEmpty() && problems.stream().anyMatch(p -> p.where().equals("placed_by") && p.blocking()),
+                "furniture whose placing item is not loaded is dropped with a fix");
+        var other = foundry.core.FurnitureParser.parse("b", DESK.replace("t:desk\"", "t:desk2\"")).def();
+        var twice = foundry.core.FurnitureParser.validate(java.util.List.of(new foundry.core.FurnitureParser.Sourced("a", ok.def()),
+                new foundry.core.FurnitureParser.Sourced("b", other)), items, b -> true, i -> true, new java.util.ArrayList<>());
+        check(twice.size() == 1, "one placing item cannot place two pieces");
+        var badBlock = foundry.core.FurnitureParser.validate(java.util.List.of(new foundry.core.FurnitureParser.Sourced("a", ok.def())),
+                items, b -> false, i -> true, new java.util.ArrayList<>());
+        check(badBlock.isEmpty(), "an unknown display block drops the piece");
     }
 
     private static void packFiles() {

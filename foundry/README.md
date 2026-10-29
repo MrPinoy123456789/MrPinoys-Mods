@@ -22,6 +22,9 @@ pack and items once; broader client and remote verification is open (see "What i
 
 ## Content on disk
 
+Furniture lives in `<namespace>/furniture/<name>.json` beside items; see `schema/furniture.v1.schema.json` and the
+`add-foundry-furniture` skill. A placing item plus a furniture file is all a new piece needs.
+
 `config/foundry/content/<namespace>/items/<name>.json` for items, `config/foundry/content/<namespace>/recipes/<name>.json`
 for crafting recipes. One file per definition. Field lists: `schema/item.v1.schema.json`, `schema/recipe.v1.schema.json`.
 Recipes are written to a generated datapack at `config/foundry/datapack/` and reach the recipe book through a server

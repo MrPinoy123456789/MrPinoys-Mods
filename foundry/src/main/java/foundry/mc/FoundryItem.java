@@ -13,6 +13,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.item.ItemStack;
 
@@ -37,6 +38,13 @@ final class FoundryItem extends SimplePolymerItem {
     private List<MechanicDef> mechanics() {
         var def = FoundryMod.loaded().items().get(ident);
         return def == null ? List.of() : def.mechanics();
+    }
+
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        var furniture = Furniture.forItem(ident);
+        if (furniture != null && Furniture.place(context, furniture)) return InteractionResult.SUCCESS;
+        return super.useOn(context);
     }
 
     @Override

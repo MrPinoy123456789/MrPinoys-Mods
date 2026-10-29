@@ -30,7 +30,7 @@ public final class FoundryMod implements ModInitializer {
     private static volatile ContentSet loaded = new ContentSet(java.util.Map.of(), java.util.Map.of(),
             java.util.List.of(), java.util.Map.of());
 
-    static ContentSet loaded() {
+    public static ContentSet loaded() {
         return loaded;
     }
 
@@ -68,6 +68,7 @@ public final class FoundryMod implements ModInitializer {
     static ContentSet loadContent() {
         ContentSet set = ContentLoader.load(contentRoot(),
                 id -> BuiltInRegistries.ITEM.containsKey(Identifier.parse(id.toString())),
+                id -> BuiltInRegistries.BLOCK.containsKey(Identifier.parse(id.toString())),
                 path -> Files.isRegularFile(assetsRoot().resolve(path)),
                 path -> {
                     try {
@@ -149,6 +150,7 @@ public final class FoundryMod implements ModInitializer {
         loaded = set;
         updateOrphans(set);
         FoundryDatapack.init(set);
+        Furniture.init();
         FoundryCommands.register();
         PackBuilds.markBaseline();
         LOG.info("Foundry: {} items registered, {} problems", FoundryItems.all().size(), set.problems().size());

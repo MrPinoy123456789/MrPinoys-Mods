@@ -8,7 +8,7 @@
 | F1 | Done. Autohost settings in docs/PACK_HOSTING.md; `demo:wizard_staff` is the hand-written `model` demo; missing model-referenced textures are errors |
 | F2 | Done. D8 resolved without a Mixin: generated datapack under `config/foundry/datapack` served through a builtin pack; recipes reload live |
 | F3 | Done. Target selector `self`/`hit` ships; `add-foundry-mechanic` skill written |
-| F4 | Decision record approved by the owner 2026-10-29 (block-bound, solid by default, cardinal facing). Phase B is open, see below |
+| F4 | Phase B built by Claude 2026-10-29: `furniture` definitions, placement, punch to break, saved records, chunk-load recovery, 8 gametests. Not yet checked in a client. Follow-ups: click mechanics, drops other than the placing item, `/foundry rename` support for furniture files, runtime rebuild of holders after `/foundry reload` |
 | F5 | Done. `/foundry pack build` on a worker thread, last-good retention, incremental skip on unchanged input hashes |
 | F6 | Done. `/foundry rename` rewrites references with backups and refuses collisions; orphan ledger live; decode experiment recorded in D5 |
 | F7 | Done. `add-foundry-item`, `add-foundry-mechanic`, `add-foundry-recipe` skills; examples cover items, recipes and both asset kinds |

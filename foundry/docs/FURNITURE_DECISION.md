@@ -3,6 +3,16 @@
 Date: 2026-10-29. Status: **approved by the owner 2026-10-29**. No furniture code exists; this record only
 verifies the D3 proposal against `polymer-virtual-entity 0.17.5+26.2` (the resolved jar, inspected with `javap`).
 
+## Correction found while building (2026-10-29)
+
+`BlockBoundAttachment.of(...)` returns null unless the block implements Polymer's `BlockWithElementHolder`, so it does
+nothing for a vanilla barrier. Foundry uses the public constructor
+`new BlockBoundAttachment(holder, chunk, state, pos, Vec3.atCenterOf(pos), false)`, which attaches to any block and
+still tears the holder down when the block state changes. Verified by gametest. Also: a barrier cannot be mined in
+survival, so punching the interaction entity is how a player picks a piece up; creative breaking and commands are
+caught by a cleanup hook and by the check on chunk load. The `of(...)` lines below describe the proposal, not what is
+built.
+
 ## The proposal, verified
 
 D3 proposed: display entities for visuals, an interaction entity for clicks, a barrier or light block where collision
