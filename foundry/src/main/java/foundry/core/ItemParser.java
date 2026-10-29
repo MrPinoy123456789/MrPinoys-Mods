@@ -38,6 +38,11 @@ public final class ItemParser {
         Ident id = identField(o, "id", true, source, problems);
         Ident base = identField(o, "base_item", true, source, problems);
         Ident model = identField(o, "model", false, source, problems);
+        Ident texture = identField(o, "texture", false, source, problems);
+        if (model != null && texture != null) {
+            problems.add(Problem.error(source, "texture", "An item cannot have both model and texture.",
+                    "Keep texture to let Foundry build a flat model, or keep model to use your own."));
+        }
         String name = stringField(o, "display_name", null, source, problems);
         if (name == null || name.isBlank()) {
             problems.add(Problem.error(source, "display_name", "The item has no display name.",
@@ -58,7 +63,7 @@ public final class ItemParser {
         String rarity = stringField(o, "rarity", "common", source, problems);
 
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
-        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, stack, durability, glint, rarity),
+        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity),
                 problems);
     }
 

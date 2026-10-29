@@ -39,6 +39,7 @@ fabricApi.configureTests {
 // Gametests load the sample content so they can assert on real registrations.
 loom.runs.named("gameTest") {
     property("foundry.content", file("examples/content").absolutePath)
+    property("foundry.assets", file("examples/assets").absolutePath)
 }
 // Pure JDK tests: foundry.core has no Minecraft imports, so these run without a server.
 tasks.register<JavaExec>("coreTest") {

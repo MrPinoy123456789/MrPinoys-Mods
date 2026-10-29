@@ -13,6 +13,7 @@ public record ItemDef(
         List<String> lore,
         Ident baseItem,
         Ident model,
+        Ident texture,
         int stackSize,
         int durability,
         boolean glint,

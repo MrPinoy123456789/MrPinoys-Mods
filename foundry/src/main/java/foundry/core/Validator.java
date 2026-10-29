@@ -16,11 +16,11 @@ public final class Validator {
     /**
      * @param parsed      definitions in load order
      * @param itemExists  whether a vanilla item id is real (injected so this class has no Minecraft types)
-     * @param assetExists whether a model asset id is present in the pack inputs
+     * @param assetExists whether an asset file (path under assets/, such as demo/textures/item/x.png) exists
      * @param carried     problems already found while parsing
      */
     public static ContentSet validate(List<Sourced> parsed, Predicate<Ident> itemExists,
-            Predicate<Ident> assetExists, List<Problem> carried) {
+            Predicate<String> assetExists, List<Problem> carried) {
         List<Problem> problems = new ArrayList<>(carried);
         Map<Ident, ItemDef> items = new LinkedHashMap<>();
         Map<Ident, String> origin = new LinkedHashMap<>();
@@ -54,9 +54,13 @@ public final class Validator {
                 problems.add(Problem.error(id, "rarity", "Unknown rarity \"" + d.rarity() + "\".",
                         "Use one of " + ItemDef.RARITIES + "."));
             }
-            if (d.model() != null && !assetExists.test(d.model())) {
-                problems.add(Problem.warning(id, "model", "No model asset found for " + d.model() + ".",
-                        "Add the model under assets/ or remove the field to keep the base item look."));
+            if (d.model() != null && !assetExists.test(PackFiles.modelPath(d.model()))) {
+                problems.add(Problem.error(id, "model", "No model file found at assets/" + PackFiles.modelPath(d.model()) + ".",
+                        "Add that file, or use texture instead, or remove the field to keep the base item look."));
+            }
+            if (d.texture() != null && !assetExists.test(PackFiles.texturePath(d.texture()))) {
+                problems.add(Problem.error(id, "texture", "No texture found at assets/" + PackFiles.texturePath(d.texture()) + ".",
+                        "Add a 16 by 16 PNG at that path, or fix the texture id."));
             }
             items.put(d.id(), d);
         }

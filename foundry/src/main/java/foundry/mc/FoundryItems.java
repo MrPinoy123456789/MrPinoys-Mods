@@ -40,7 +40,8 @@ final class FoundryItems {
             List<Component> lines = def.lore().stream().<Component>map(Component::literal).toList();
             props.component(DataComponents.LORE, new ItemLore(lines));
         }
-        Identifier model = def.model() == null ? null : Identifier.parse(def.model().toString());
+        // The client item definition shares the item id; foundry.core.PackFiles generates it.
+        Identifier model = foundry.core.PackFiles.hasCustomLook(def) ? id : null;
         Item item = Registry.register(BuiltInRegistries.ITEM, id, new FoundryItem(props, base, model));
         REGISTERED.put(def.id(), item);
         NAMES.put(def.id(), def.displayName());

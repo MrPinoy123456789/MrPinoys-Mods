@@ -13,6 +13,7 @@
     "lore": { "type": "array", "items": { "type": "string" } },
     "base_item": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$" },
     "model": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$" },
+    "texture": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$", "description": "Flat item texture; Foundry generates the model. Exclusive with model." },
     "stack_size": { "type": "integer", "minimum": 1, "maximum": 99, "default": 64 },
     "durability": { "type": "integer", "minimum": 0, "default": 0 },
     "glint": { "type": "boolean", "default": false },

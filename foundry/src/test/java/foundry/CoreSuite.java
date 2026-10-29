@@ -4,7 +4,9 @@ import foundry.core.ContentLoader;
 import foundry.core.ContentSet;
 import foundry.core.Ident;
 import foundry.core.ItemParser;
+import foundry.core.PackFiles;
 import foundry.core.Problem;
+import foundry.core.Validator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
@@ -19,6 +21,7 @@ public final class CoreSuite {
         identifiers();
         parsing();
         loading();
+        packFiles();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -55,6 +58,32 @@ public final class CoreSuite {
         check(badId.def() == null, "invalid id blocks the def");
     }
 
+    private static void packFiles() {
+        String withTexture = GOOD.replace("t:sword", "t:gem").replace("\"stack_size\": 1, \"durability\": 500",
+                "\"texture\": \"t:item/gem\"");
+        var parsed = ItemParser.parse("gem.json", withTexture);
+        check(parsed.def() != null && parsed.def().texture().toString().equals("t:item/gem"), "texture field parses");
+        var both = ItemParser.parse("both.json", withTexture.replace("\"texture\"", "\"model\": \"t:item/m\", \"texture\""));
+        check(both.def() == null, "model and texture together is an error");
+
+        var good = Validator.validate(java.util.List.of(new Validator.Sourced("gem.json", parsed.def())),
+                i -> true, p -> p.equals("t/textures/item/gem.png"), java.util.List.of());
+        check(!good.hasErrors(), "present texture validates");
+        var missing = Validator.validate(java.util.List.of(new Validator.Sourced("gem.json", parsed.def())),
+                i -> true, p -> false, java.util.List.of());
+        check(missing.problems().stream().anyMatch(p -> p.where().equals("texture") && p.blocking()
+                && p.message().contains("t/textures/item/gem.png")), "missing texture is an error naming the path");
+
+        var files = PackFiles.generate(good);
+        check(files.keySet().equals(java.util.Set.of("t/models/item/gem.json", "t/items/gem.json")), "generated paths");
+        check(files.get("t/items/gem.json").contains("\"model\":\"t:item/gem\""), "client item points at the model");
+        check(files.get("t/models/item/gem.json").contains("\"layer0\":\"t:item/gem\""), "model uses the texture");
+        check(PackFiles.generate(good).toString().equals(files.toString()), "generation is deterministic");
+        var plain = ItemParser.parse("p.json", GOOD);
+        var plainSet = Validator.validate(java.util.List.of(new Validator.Sourced("p.json", plain.def())), i -> true, p -> false, java.util.List.of());
+        check(PackFiles.generate(plainSet).isEmpty(), "an item with no custom look generates nothing");
+    }
+
     private static void loading() throws Exception {
         Path root = Files.createTempDirectory("foundry-core");
         Path items = Files.createDirectories(root.resolve("t").resolve("items"));
@@ -63,7 +92,7 @@ public final class CoreSuite {
         Files.writeString(items.resolve("stackable.json"), GOOD.replace("t:sword", "t:both").replace("\"stack_size\": 1", "\"stack_size\": 16"));
         Files.writeString(items.resolve("fake.json"), GOOD.replace("t:sword", "t:fake").replace("minecraft:diamond_sword", "minecraft:nope"));
 
-        ContentSet set = ContentLoader.load(root, i -> VANILLA.contains(i.toString()), i -> false);
+        ContentSet set = ContentLoader.load(root, i -> VANILLA.contains(i.toString()), p -> false);
         check(set.items().containsKey(Ident.parse("t:sword")), "first definition of a duplicated id is kept");
         check(set.problems().stream().anyMatch(p -> p.message().contains("Another file already defines")), "duplicate reported");
         check(set.problems().stream().anyMatch(p -> p.where().equals("stack_size") && p.blocking()), "durability with stack > 1 blocks");
@@ -71,7 +100,7 @@ public final class CoreSuite {
         check(set.hasErrors(), "set reports errors");
         check(set.problems().stream().allMatch(p -> !p.fix().isBlank()), "every problem carries a fix");
 
-        ContentSet empty = ContentLoader.load(root.resolve("missing"), i -> true, i -> true);
+        ContentSet empty = ContentLoader.load(root.resolve("missing"), i -> true, p -> true);
         check(empty.items().isEmpty() && !empty.hasErrors() && empty.problems().get(0).severity() == Problem.Severity.WARNING,
                 "missing folder is a warning, not an error");
     }

@@ -23,6 +23,16 @@ public final class ItemGameTest {
     }
 
     @GameTest
+    public void textureItemIsRegisteredWithItsOwnClientModel(GameTestHelper helper) {
+        var id = Identifier.parse("demo:glow_gem");
+        helper.assertTrue(BuiltInRegistries.ITEM.containsKey(id), "demo:glow_gem is registered");
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(id));
+        helper.assertValueEqual(stack.getMaxStackSize(), 16, "stack size from the definition");
+        helper.assertValueEqual(stack.get(DataComponents.ITEM_NAME).getString(), "Glow Gem", "display name");
+        helper.succeed();
+    }
+
+    @GameTest
     public void commandsAreRegistered(GameTestHelper helper) {
         var foundry = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild("foundry");
         helper.assertTrue(foundry != null, "/foundry exists");

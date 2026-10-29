@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 public final class ContentLoader {
     private ContentLoader() {}
 
-    public static ContentSet load(Path root, Predicate<Ident> itemExists, Predicate<Ident> assetExists) {
+    public static ContentSet load(Path root, Predicate<Ident> itemExists, Predicate<String> assetExists) {
         List<Problem> problems = new ArrayList<>();
         List<Validator.Sourced> parsed = new ArrayList<>();
         if (!Files.isDirectory(root)) {

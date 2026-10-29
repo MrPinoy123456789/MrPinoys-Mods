@@ -1,10 +1,15 @@
 package foundry.mc;
 
 import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
+import eu.pb4.polymer.resourcepack.api.ResourcePackBuilder;
+import foundry.core.PackFiles;
 import foundry.core.ContentLoader;
 import foundry.core.ContentSet;
 import foundry.core.Ident;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -33,11 +38,34 @@ public final class FoundryMod implements ModInitializer {
         return FabricLoader.getInstance().getConfigDir().resolve(ID).resolve("content");
     }
 
+    /** Authored assets (textures, models): {@code config/foundry/assets/<namespace>/...}, overridable for gametests. */
+    static Path assetsRoot() {
+        String override = System.getProperty("foundry.assets");
+        if (override != null && !override.isBlank()) return Path.of(override);
+        return contentRoot().resolveSibling("assets");
+    }
+
+    /** Adds authored and generated files to the Polymer pack, in sorted order so the output is deterministic. */
+    private static void contributeToPack(ResourcePackBuilder builder) {
+        Path root = assetsRoot();
+        if (Files.isDirectory(root)) {
+            try (Stream<Path> files = Files.walk(root)) {
+                for (Path p : files.filter(Files::isRegularFile).sorted().toList()) {
+                    String rel = root.relativize(p).toString().replace('\\', '/');
+                    builder.addData("assets/" + rel, Files.readAllBytes(p));
+                }
+            } catch (IOException e) {
+                LOG.error("Foundry: could not read assets from {}: {}. Check the folder permissions.", root, e.toString());
+            }
+        }
+        PackFiles.generate(loaded).forEach((path, text) -> builder.addStringData("assets/" + path, text));
+    }
+
     /** Parses and validates the content folder without registering anything. */
     static ContentSet loadContent() {
         ContentSet set = ContentLoader.load(contentRoot(),
                 id -> BuiltInRegistries.ITEM.containsKey(Identifier.parse(id.toString())),
-                id -> true); // TODO(phase 2): check model ids against the pack inputs
+                path -> Files.isRegularFile(assetsRoot().resolve(path)));
         set.problems().forEach(p -> LOG.warn("{}", p));
         return set;
     }
@@ -46,6 +74,7 @@ public final class FoundryMod implements ModInitializer {
     public void onInitialize() {
         PolymerResourcePackUtils.addModAssets(ID);
         PolymerResourcePackUtils.markAsRequired();
+        PolymerResourcePackUtils.RESOURCE_PACK_CREATION_EVENT.register(FoundryMod::contributeToPack);
         ContentSet set = loadContent();
         set.items().values().forEach(FoundryItems::register);
         FoundryItems.applyNames();
