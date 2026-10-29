@@ -134,7 +134,7 @@ public final class Signals {
         int cx = player.chunkPosition().x();
         int cz = player.chunkPosition().z();
         OrgId home = rt.state.membership(new PlayerId(player.getUUID())).map(MemberRecord::org).map(rt.state::root).orElse(null);
-        Set<ChunkKey> open = openPerimeters(rt, dimension, cx, cz);
+        Set<ChunkKey> open = Set.of();
         double y = player.getY() + 1.5;
         for (int dx = -BORDER_CHUNKS; dx <= BORDER_CHUNKS; dx++) {
             for (int dz = -BORDER_CHUNKS; dz <= BORDER_CHUNKS; dz++) {
@@ -157,20 +157,6 @@ public final class Signals {
         var ref = rt.claims.at(chunk);
         if (ref == null) return open.contains(chunk) ? "yellow" : null;
         return home != null && rt.state.root(ref.owner()).equals(home) ? "green" : "red";
-    }
-
-    /** Open perimeter chunks of every keep near the player whose siege is on. */
-    private static Set<ChunkKey> openPerimeters(CharterRuntime rt, String dimension, int cx, int cz) {
-        Set<ChunkKey> out = new HashSet<>();
-        SiegeRules rules = rt.sim.rules();
-        for (Core keep : rt.state.cores()) {
-            if (!keep.isKeep() || !keep.center.dimension().equals(dimension)) continue;
-            if (Math.abs(keep.center.x() - cx) > BORDER_CHUNKS + 3 || Math.abs(keep.center.z() - cz) > BORDER_CHUNKS + 3) continue;
-            var counting = rules.countingCamps(keep);
-            if (counting.isEmpty()) continue;
-            out.addAll(rules.keepPerimeter(keep, counting).open());
-        }
-        return out;
     }
 
     /** One edge of a chunk (0 west, 1 east, 2 north, 3 south) as dust every 2 blocks. */

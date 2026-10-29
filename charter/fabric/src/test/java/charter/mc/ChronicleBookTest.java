@@ -42,7 +42,7 @@ final class ChronicleBookTest {
         TemplateSet first = ChronicleVoice.readOrCreate(dir, s -> { }, warned::add);
         check("voice: the first boot writes the file", Files.exists(dir.resolve(ChronicleVoice.FILE_NAME)));
         check("voice: the first boot uses the built in lines", first.get("OrgEvents.Left").orElseThrow().text().equals(DefaultTemplates.get().get("OrgEvents.Left").orElseThrow().text()));
-        check("voice: the file holds the siege lines too", Files.readString(dir.resolve(ChronicleVoice.FILE_NAME)).contains("SiegeEvents.KeepFell"));
+        check("voice: the file holds the camp lines too", Files.readString(dir.resolve(ChronicleVoice.FILE_NAME)).contains("SiegeEvents.CampActive"));
 
         Files.writeString(dir.resolve(ChronicleVoice.FILE_NAME), "{ \"OrgEvents.Left\": \"{player} walked out of {org}.\", \"LandEvents.Claimed\": \"\" }");
         TemplateSet edited = ChronicleVoice.readOrCreate(dir, s -> { }, warned::add);
@@ -95,13 +95,13 @@ final class ChronicleBookTest {
         long at = f.clock.now() + 1000;
         f.state.history.record(new LandEvents.Rescued(at, f.oakvale, 7), "sim", false);
         f.state.history.record(new LandEvents.Lapsed(at + 1, f.ironhold, 9), "sim", false);
-        f.state.history.record(new SiegeEvents.Starving(at + 2, 0, f.keep.id), "sim", false);
+        f.state.history.record(new SiegeEvents.CampCutOff(at + 2, 0, f.camp.id), "sim", false);
         String oak = String.join("\n", ChronicleBooks.faction(f.state, DefaultTemplates.get(), false, f.oakvale, 1).pages());
         check("faction: its own event is told", oak.contains("7 claims"));
         check("faction: a rival's event is not", !oak.contains("9 claims"));
-        charter.id.OrgId owner = f.state.core(f.keep.id).orElseThrow().owner;
+        charter.id.OrgId owner = f.state.core(f.camp.id).orElseThrow().owner;
         String keepBook = String.join("\n", ChronicleBooks.faction(f.state, DefaultTemplates.get(), false, owner, 1).pages());
-        check("faction: an event that names only its keep reaches the keep's owner", keepBook.contains("starve"));
+        check("faction: an event that names only its camp reaches the camp's owner", keepBook.contains("cut off"));
     }
 
     static void adminEventsAreHiddenUnlessTheServerOptsIn() {

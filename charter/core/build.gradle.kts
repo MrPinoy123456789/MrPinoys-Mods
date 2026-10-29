@@ -35,12 +35,3 @@ tasks.register<JavaExec>("coreTest") {
 tasks.named("check") {
     dependsOn("coreTest")
 }
-
-// The load check (PLAN.md risk R1): timed, so it is run by hand, not by check.
-tasks.register<JavaExec>("loadCheck") {
-    group = "verification"
-    description = "Times the rules model at playtest size: 10 sieges, 100 claims, 40 players."
-    mainClass = "charter.LoadCheck"
-    classpath = sourceSets["test"].runtimeClasspath
-    workingDir = projectDir
-}

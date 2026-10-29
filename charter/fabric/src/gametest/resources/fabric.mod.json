@@ -15,20 +15,17 @@
       "charter.gametest.LandProtectionGameTest",
       "charter.gametest.LandHazardsGameTest",
       "charter.gametest.GranaryGameTest",
-      "charter.gametest.SupplyGameTest",
-      "charter.gametest.SiegeWorldGameTest",
       "charter.gametest.JusticeGameTest",
-      "charter.gametest.JusticeSiegeGameTest",
       "charter.gametest.ChronicleGameTest",
       "charter.gametest.ScenarioGameTest",
-      "charter.gametest.LoadGameTest",
       "charter.gametest.TutorialGameTest",
       "charter.gametest.BookGameTest",
       "charter.gametest.MemberPagesGameTest",
       "charter.gametest.FoundingGameTest",
       "charter.gametest.BreakawayGameTest",
       "charter.gametest.DissolveGameTest",
-      "charter.gametest.NpcGameTest"
+      "charter.gametest.NpcGameTest",
+      "charter.gametest.KeepUpkeepGameTest"
     ]
   },
   "mixins": [

@@ -13,8 +13,6 @@ import charter.mc.land.LandItems;
 import charter.mc.scenario.ScenarioCommands;
 import charter.mc.scenario.ScenarioFiles;
 import charter.org.MemberRecord;
-import charter.siege.FallChoice;
-import charter.siege.KeepSupply;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -170,18 +168,12 @@ public final class TutorialGameTest {
             granaries.reconcile(store, null);
             helper.assertTrue(rt.state.siege.store(camp.id).provisions.count("minecraft:bread") == 48, "The camp store does not hold the 48 bread");
 
-            // Page 9 to 11: the camp raises, Brinewatch starves, the keep falls and you raze it.
+            // Page 9 to 11: the camp raises. (Keeps are never besieged now: the pages that taught a siege
+            // are rewritten with the outposts.)
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "charter admin time advance 2h");
             Core raised = rt.state.core(camp.id).orElseThrow();
             helper.assertTrue(raised.phase() == CampPhase.ACTIVE, "Your camp did not finish raising");
-            helper.assertTrue(rt.state.siege.keep(rivalKeep.id).supply != KeepSupply.SUPPLIED, "Brinewatch is not besieged by your camp");
-            for (int i = 0; i < 60 && !rt.state.siege.falls.containsKey(rivalKeep.id); i++) {
-                server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "charter admin time advance 10m");
-            }
-            var fall = rt.state.siege.falls.get(rivalKeep.id);
-            helper.assertTrue(fall != null && rt.state.root(fall.besieger()).equals(rt.state.root(mine)), "Brinewatch's keep did not fall to you");
-            SiegeWorldTestHooks.choose(you, mine, rivalKeep, FallChoice.RAZE);
-            helper.assertTrue(rt.state.core(rivalKeep.id).isEmpty(), "Razing did not take Brinewatch's keep down");
+            helper.assertTrue(rt.state.core(rivalKeep.id).isPresent(), "Brinewatch's keep is gone though keeps cannot fall");
 
             // scenario clear resets the tutorial whole: Brinewatch, and the faction you founded in it.
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "charter admin scenario clear");

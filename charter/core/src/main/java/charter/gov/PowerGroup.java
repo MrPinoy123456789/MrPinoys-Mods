@@ -19,7 +19,7 @@ public enum PowerGroup {
     GARRISON(Power.GARRISON),
     JUSTICE(Power.ARREST, Power.JUDGE),
     PARDON(Power.PARDON),
-    WAR(Power.RAISE_CAMP, Power.DECLARE_WAR, Power.CHOOSE_FALL),
+    WAR(Power.RAISE_CAMP, Power.DECLARE_WAR),
     DIPLOMACY(Power.NEGOTIATE),
     SUBORGS(Power.CREATE_SUBORG),
     CHARTER(Power.AMEND, Power.DISSOLVE);

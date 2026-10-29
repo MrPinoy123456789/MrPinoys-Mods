@@ -24,7 +24,6 @@ import charter.org.actions.InviteMember;
 import charter.org.actions.Leave;
 import charter.org.actions.Rename;
 import charter.siege.SiegeEvents;
-import charter.siege.actions.ChooseFall;
 import charter.siege.actions.DepositFood;
 import charter.treasury.TreasuryEvents;
 import charter.treasury.actions.Deposit;
@@ -75,8 +74,7 @@ public final class CoreTypes {
                 .register("land.claim", ClaimLand.class)
                 .register("land.unclaim", Unclaim.class)
                 .register("land.lose_core", LoseCore.class)
-                .register("siege.deposit_food", DepositFood.class)
-                .register("siege.choose_fall", ChooseFall.class);
+                .register("siege.deposit_food", DepositFood.class);
 
         events.registerNested(OrgEvents.class, HistoryEvent.class)
                 .registerNested(GovEvents.class, HistoryEvent.class)

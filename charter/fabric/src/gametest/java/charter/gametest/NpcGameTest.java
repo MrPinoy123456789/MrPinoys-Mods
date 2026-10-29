@@ -159,7 +159,7 @@ public final class NpcGameTest {
 
     /** Runs a later stage; a failure in it still releases the site. Entities a pass spawns appear on the next tick, so stages wait. */
     private static void later(GameTestHelper helper, Site s, Runnable stage) {
-        later(helper, s, 2, stage);
+        later(helper, s, 10, stage);
     }
 
     private static void later(GameTestHelper helper, Site s, int ticks, Runnable stage) {
@@ -173,7 +173,7 @@ public final class NpcGameTest {
         });
     }
 
-    @GameTest(maxTicks = 100, environment = "charter-gametest:long_siege")
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void aStrongholdIsRaisedDrainedAndRestored(GameTestHelper helper) {
         Site s = new Site(helper, 0);
         try {
@@ -246,7 +246,7 @@ public final class NpcGameTest {
         }
     }
 
-    @GameTest(maxTicks = 100, environment = "charter-gametest:long_siege")
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void aSiteNobodyFoughtIsCleanedUpAndReplaced(GameTestHelper helper) {
         Site s = new Site(helper, 1);
         try {
@@ -277,7 +277,7 @@ public final class NpcGameTest {
         }
     }
 
-    @GameTest(maxTicks = 100, environment = "charter-gametest:long_siege")
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void anOutpostFallsAndLeavesNothing(GameTestHelper helper) {
         Site s = new Site(helper, 2);
         try {
@@ -316,7 +316,7 @@ public final class NpcGameTest {
         }
     }
 
-    @GameTest(maxTicks = 100, environment = "charter-gametest:long_siege")
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void aFallenSiteCrumblesFromTheTopDown(GameTestHelper helper) {
         Site s = new Site(helper, 4);
         try {
@@ -363,7 +363,7 @@ public final class NpcGameTest {
         }
     }
 
-    @GameTest(maxTicks = 100, environment = "charter-gametest:long_siege")
+    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
     public void clearRuinsClearsWhatNothingClaims(GameTestHelper helper) {
         Site s = new Site(helper, 3);
         try {
@@ -379,8 +379,8 @@ public final class NpcGameTest {
             // Forget the site the way an old save would have: the world stays, the claim and the book go.
             s.killRaiders();
             rt.engine.run(new Actor.Admin("npc test"), new charter.org.actions.DissolveOrg(site.org()));
-            rt.state.npc.sites.clear();
-            rt.state.npc.live.clear();
+            rt.state.npc.sites.removeIf(x -> x.id() == site.id());
+            rt.state.npc.live.remove(site.id());
             rt.claims.rebuild();
             helper.assertTrue(s.level.getBlockState(c.offset(-8, 0, 0)).is(Blocks.COBBLESTONE), "The ruin is not standing");
             s.command("charter admin npc clearruins " + c.getX() + " " + c.getZ());

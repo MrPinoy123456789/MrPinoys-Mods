@@ -70,22 +70,22 @@ public final class ChronicleGameTest {
         return new Duel(defender, attacker, keep, lord);
     }
 
-    private static void shortSiege(LandKit kit, Duel d) {
+    /** A keep's granary running down: two warnings, then the lapse. */
+    private static void shortUpkeep(LandKit kit, Duel d) {
         CharterRuntime rt = kit.rt;
         long now = rt.clock.now();
         long siege = rt.state.siegeClock.now();
-        rt.state.history.record(new SiegeEvents.SiegeBegan(now, siege, d.keep().id, d.defender(), Set.of(d.attacker())), "sim", false);
-        rt.state.history.record(new SiegeEvents.Encircled(now + 1, siege, d.keep().id), "sim", false);
-        rt.state.history.record(new SiegeEvents.Starving(now + 2, siege, d.keep().id), "sim", false);
-        rt.state.history.record(new SiegeEvents.KeepFell(now + 3, siege, d.keep().id, d.defender(), d.attacker(), d.keep().center), "sim", false);
+        rt.state.history.record(new SiegeEvents.KeepRunningLow(now, siege, d.keep().id, d.defender(), 7), "sim", false);
+        rt.state.history.record(new SiegeEvents.KeepRunningLow(now + 1, siege, d.keep().id, d.defender(), 3), "sim", false);
+        rt.state.history.record(new SiegeEvents.KeepLapsed(now + 2, siege, d.keep().id, d.defender(), d.keep().center), "sim", false);
     }
 
     @GameTest(maxTicks = 100)
-    public void aLecternInTheCoreChunkShowsASiegeAsAStory(GameTestHelper helper) {
+    public void aLecternInTheCoreChunkShowsAGranaryRunningDownAsAStory(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             Duel d = duel(kit);
             BlockPos lectern = lecternAt(kit);
-            shortSiege(kit, d);
+            shortUpkeep(kit, d);
             refresh(kit);
 
             List<String> pages = pagesOf(kit, lectern);
@@ -94,14 +94,14 @@ public final class ChronicleGameTest {
             String text = String.join("\n", pages);
             CharterMod.LOG.info("Chronicle sample (lectern):\n{}", String.join("\n---\n", pages));
             helper.assertTrue(pages.getFirst().startsWith("Chronicle of "), "The first page should name the Chronicle: " + pages.getFirst());
-            helper.assertTrue(text.contains("laid siege to the keep of"), "The siege is not told: " + text);
-            helper.assertTrue(text.contains("every road to the keep of"), "The encirclement is not told");
-            helper.assertTrue(text.contains("fell to"), "The fall is not told");
-            helper.assertTrue(text.contains("ran dry before any relief arrived"), "The cause of the fall is not told");
+            helper.assertTrue(text.contains("was down to 7 days of food"), "The first warning is not told: " + text);
+            helper.assertTrue(text.contains("was down to 3 days of food"), "The second warning is not told");
+            helper.assertTrue(text.contains("its claim lapsed"), "The lapse is not told");
+            helper.assertTrue(text.contains("every block stood where it was"), "The blocks standing is not told");
             helper.assertTrue(!text.contains("unknown") && !text.contains("{"), "A name or hole is missing: " + text);
-            int fell = text.indexOf("fell to");
-            int began = text.indexOf("laid siege");
-            helper.assertTrue(fell >= 0 && began >= 0 && fell < began, "The newest tale should come first");
+            int lapsed = text.indexOf("its claim lapsed");
+            int warned = text.indexOf("7 days of food");
+            helper.assertTrue(lapsed >= 0 && warned >= 0 && lapsed < warned, "The newest tale should come first");
 
             ItemStack book = ((LecternBlockEntity) kit.level.getBlockEntity(lectern)).getBook();
             helper.assertTrue(book.is(Items.WRITTEN_BOOK), "The lectern's book is not a written book");
@@ -118,14 +118,14 @@ public final class ChronicleGameTest {
             refresh(kit);
             List<String> before = pagesOf(kit, lectern);
             helper.assertTrue(!before.isEmpty(), "The first book was not written");
-            helper.assertTrue(!String.join("\n", before).contains("laid siege"), "The siege was told before it began");
+            helper.assertTrue(!String.join("\n", before).contains("days of food"), "The upkeep was told before it began");
 
             // The real tick path: the event arrives and nothing calls refresh.
-            shortSiege(kit, d);
+            shortUpkeep(kit, d);
             helper.runAfterDelay(Chronicles.CHANGE_CHECK_TICKS + 10, () -> {
                 try {
                     String after = String.join("\n", pagesOf(kit, lectern));
-                    helper.assertTrue(after.contains("laid siege to the keep of"), "The book did not change when the event arrived");
+                    helper.assertTrue(after.contains("days of food"), "The book did not change when the event arrived");
                     helper.assertTrue(!after.equals(String.join("\n", before)), "The book is the same as before");
                     helper.succeed();
                 } finally {
@@ -205,7 +205,7 @@ public final class ChronicleGameTest {
     public void theRealmChronicleLecternHoldsTheServersStory(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             Duel d = duel(kit);
-            shortSiege(kit, d);
+            shortUpkeep(kit, d);
             BlockPos pos = kit.pos(-10, 0);
             kit.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
             RealmLecterns realms = RealmLecterns.of(kit.rt.state);
@@ -220,7 +220,7 @@ public final class ChronicleGameTest {
                 helper.assertTrue(!pages.isEmpty(), "The Realm lectern holds no book");
                 helper.assertTrue(pages.getFirst().startsWith("The Realm Chronicle"), "Wrong title page: " + pages.getFirst());
                 String text = String.join("\n", pages);
-                helper.assertTrue(text.contains("fell to") && text.contains("laid siege"), "The realm book does not tell the siege");
+                helper.assertTrue(text.contains("its claim lapsed") && text.contains("days of food"), "The realm book does not tell the granary running down");
                 helper.assertTrue(pages.size() <= ChronicleBooks.VOLUME_PAGES, "The realm book is too long");
                 helper.succeed();
             } finally {

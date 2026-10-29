@@ -25,7 +25,7 @@ public final class KnobsTest {
     static void unusableValuesAreNamed() {
         Knobs k = new Knobs();
         k.timeScale = 0;
-        k.multiplierMax = 0.1;
+        k.drainPerMouthPerHour = 0;
         k.confinementMinMinutes = 25 * 60;
         eq("knobs: three problems are reported", 3, k.problems().size());
     }

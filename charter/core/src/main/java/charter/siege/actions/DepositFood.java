@@ -50,12 +50,10 @@ public record DepositFood(OrgId owner, CoreId site, String carrier, Map<String, 
         if (ctx.state.core(site).map(c -> !c.owner.equals(owner)).orElse(true)) return Outcome.refuse(NO_SITE);
         PlayerId player = ctx.player();
         if (player != null) {
-            // The occupier holds the keep (and its granary) while an occupation lasts; the owner does not.
-            OrgId holder = ctx.state.siege.occupations.containsKey(site)
-                    ? ctx.state.siege.occupations.get(site).occupier() : ctx.state.root(owner);
+            OrgId holder = ctx.state.root(owner);
             boolean member = ctx.state.membership(player)
                     .map(m -> ctx.state.root(m.org()).equals(holder)).orElse(false);
-            boolean granted = !ctx.state.siege.occupations.containsKey(site) && ctx.resolver().resolve(new Who.AsPlayer(player), owner, Power.GRANARY_DEPOSIT,
+            boolean granted = ctx.resolver().resolve(new Who.AsPlayer(player), owner, Power.GRANARY_DEPOSIT,
                     ScopeNeed.NONE, false).ok();
             if (!member && !granted) return Outcome.refuse(NOT_YOURS);
         }

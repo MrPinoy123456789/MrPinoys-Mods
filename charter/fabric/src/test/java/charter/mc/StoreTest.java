@@ -49,6 +49,7 @@ final class StoreTest {
         liveRepairRevokesBrokenGrant();
         seatsRoundTripAndOldSavesRead();
         raiderWavesRoundTripAndOldSavesRead();
+        aSaveFromBeforeProtectedKeepsLoads();
     }
 
     static CharterStore store(Path dir) {
@@ -59,7 +60,7 @@ final class StoreTest {
         FullState f = FullState.build();
         Path dir = Files.createTempDirectory("charter-store");
         store(dir).save(f.state, f.clock.now());
-        CharterStore.Loaded loaded = store(dir).load(f.knobs, f.clock.now());
+        CharterStore.Loaded loaded = new CharterStore(dir, Persistence.codec(Persistence.json()), s -> System.out.println("INFO " + s), s -> System.out.println("WARN " + s)).load(f.knobs, f.clock.now());
         CharterState back = loaded.state();
 
         check("store: a written state loads from state.json", loaded.source() == CharterStore.Source.STATE);
@@ -92,7 +93,7 @@ final class StoreTest {
         check("store: a backup is kept", Files.list(dir.resolve("backups")).count() == 1);
 
         // The comparator itself must see a one-field change deep in the graph.
-        back.siege.keep(f.keep.id).starving = false;
+        back.siege.keep(f.keep.id).warned = 1;
         check("store: the field comparison notices a changed field", !DeepCompare.diff(f.state, back).isEmpty());
     }
 
@@ -368,6 +369,31 @@ final class StoreTest {
         var fresh = charter.npc.NpcScheduler.live(old.state().npc, old.state().npc.sites.get(0), f.knobs);
         check("npc: such a site gets its tier's supply and pool, a wave due now and no snapshot",
                 fresh.supply == f.knobs.npcSupplyStronghold[1] && fresh.pool == f.knobs.npcPoolByTier[1] && fresh.nextWaveAt == 0 && fresh.snapshot == null);
+    }
+
+    /**
+     * Protected keeps: a real save written by the old code (a pending fall, an occupation and its contract, notoriety,
+     * waived protection, an outlying hold, a besieged keep site, CHOOSE_FALL grants) and a history file with the
+     * fall events loads, the dead state is gone and the keep is back with its owner.
+     */
+    static void aSaveFromBeforeProtectedKeepsLoads() throws Exception {
+        Path source = Path.of("src/test/resources/charter/old-protected-keeps");
+        Path dir = Files.createTempDirectory("charter-old-save");
+        Files.copy(source.resolve("state.json"), dir.resolve("state.json"));
+        Files.copy(source.resolve("history.jsonl"), dir.resolve("history.jsonl"));
+        FullState f = FullState.build();
+        CharterStore.Loaded loaded = new CharterStore(dir, Persistence.codec(Persistence.json()), x -> System.out.println("INFO " + x), x -> System.out.println("WARN " + x)).load(f.knobs, f.clock.now());
+        CharterState back = loaded.state();
+        check("old save: it loads from the state file itself", loaded.source() == CharterStore.Source.STATE);
+        check("old save: the keep is still there, with its owner", back.cores().stream().anyMatch(c -> c.isKeep() && c.owner.equals(f.oakvale)));
+        check("old save: no live occupation contract is left",
+                back.contracts.live().stream().noneMatch(c -> c.basis == charter.contract.Basis.OCCUPATION));
+        check("old save: its grants load without the power that no longer exists",
+                back.grants().stream().allMatch(g -> g.power != null));
+        check("old save: the other siege state survives", !back.siege.stores.isEmpty() && !back.siege.camps.isEmpty());
+        charter.history.History history = new charter.history.History();
+        int skipped = new charter.mc.store.HistoryFile(dir, Persistence.json(), m -> { }).readInto(history);
+        check("old save: the fall events are skipped, not fatal (" + skipped + ")", skipped == 4 && history.size() == 0);
     }
 
     // ---- json helpers ----

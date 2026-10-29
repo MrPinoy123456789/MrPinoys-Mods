@@ -67,7 +67,6 @@ public final class ChronicleStoryTest {
         holesNameRealFields();
         noDashesAnywhere();
         quietEventsStayOutOfTheBooks();
-        aSiegeReadsAsAStory();
     }
 
     private static ChronicleRenderer renderer() {
@@ -96,36 +95,15 @@ public final class ChronicleStoryTest {
         golden(new LandEvents.Rescued(AT, ASHFALL, 2), IN + "2 claims of Ashfall were taken up again and held.");
         golden(new LandEvents.Lapsed(AT, ASHFALL, 4), IN + "4 claims of Ashfall were lost for good.");
         // sieges
-        golden(new SiegeEvents.CampActive(AT, 0, CAMP, EASTERN, Set.of(ASHFALL, RIVERSIDE)),
-                IN + "the Eastern Guard finished raising a war camp against Ashfall and Riverside. The defenders were warned.");
-        golden(new SiegeEvents.SiegeBegan(AT, 0, KEEP, ASHFALL, Set.of(EASTERN)),
-                IN + "the Eastern Guard laid siege to the keep of Ashfall. Ashfall had only its granary to hold out on.");
-        golden(new SiegeEvents.Encircled(AT, 0, KEEP), IN + "every road to the keep of Ashfall was cut. No food could reach its granary now.");
-        golden(new SiegeEvents.RingBroken(AT, 0, KEEP), IN + "the ring around the keep of Ashfall was broken, and a road lay open again.");
-        golden(new SiegeEvents.SiegeLifted(AT, 0, KEEP, Set.of(EASTERN)), IN + "the Eastern Guard gave up the siege of the keep of Ashfall, and it stood free.");
-        golden(new SiegeEvents.Starving(AT, 0, KEEP), IN + "the granary of the keep of Ashfall ran low, and its people began to starve.");
-        golden(new SiegeEvents.KeepFell(AT, 0, KEEP, ASHFALL, EASTERN, CHUNK),
-                IN + "the keep of Ashfall fell to the Eastern Guard: the granary of Ashfall ran dry before any relief arrived.");
-        golden(new SiegeEvents.Razed(AT, 0, KEEP, ASHFALL, EASTERN), IN + "the Eastern Guard razed the keep of Ashfall and left nothing standing.");
-        golden(new SiegeEvents.Occupied(AT, 0, KEEP, ASHFALL, EASTERN, 99),
-                IN + "the Eastern Guard chose to hold the keep of Ashfall rather than burn it. For a time it would answer to them.");
-        golden(new SiegeEvents.OccupationEnded(AT, 0, KEEP, EASTERN, "the occupation ran its course"),
-                IN + "the hold of the Eastern Guard on the keep of Ashfall ended: the occupation ran its course.");
-        Map<Currency, Long> loot = new TreeMap<>();
-        loot.put(Currency.DIAMOND, 25L);
-        loot.put(Currency.COBBLESTONE, 1250L);
-        golden(new SiegeEvents.Plundered(AT, KEEP, ASHFALL, CHUNK, loot),
-                IN + "the treasury of Ashfall was broken open, and 1250 cobblestone and 25 diamond lay spilled where the keep fell.");
+        golden(new SiegeEvents.CampActive(AT, 0, CAMP, EASTERN), IN + "the Eastern Guard finished raising a camp.");
+        golden(new SiegeEvents.KeepRunningLow(AT, 0, KEEP, ASHFALL, 7),
+                IN + "the granary of the keep of Ashfall was down to 7 days of food. Ashfall was told to feed it.");
+        golden(new SiegeEvents.KeepLapsed(AT, 0, KEEP, ASHFALL, CHUNK),
+                IN + "the granary of the keep of Ashfall ran dry and its claim lapsed. The land lay open again, though every block stood where it was.");
         golden(new SiegeEvents.CampStoreEmpty(AT, 0, CAMP), IN + "the stores of the camp of the Eastern Guard ran out.");
         golden(new SiegeEvents.CampCutOff(AT, 0, CAMP), IN + "the camp of the Eastern Guard was cut off from supply, and its stores began to burn faster.");
-        golden(new SiegeEvents.CampExposed(AT, 0, CAMP),
-                IN + "a sally emptied the hold beside the camp of the Eastern Guard. Its claims lost their guard, and its banner could be broken.");
-        golden(new SiegeEvents.HoldEmptied(AT, 0, CHUNK, ASHFALL, EASTERN), IN + "the Eastern Guard raided a hold of Ashfall at 200, -56 and emptied it.");
-        golden(new SiegeEvents.TruceBegan(AT, 0, KEEP, EASTERN, 99),
-                IN + "a truce fell between the keep of Ashfall and the Eastern Guard, so that the war could not begin again at once.");
         golden(new SiegeEvents.FoodDeposited(AT, 0, KEEP, "cart:x", Map.of("minecraft:bread", 4), 12, true),
-                IN + "food was carried into the keep of Ashfall past the besiegers.");
-        golden(new SiegeEvents.ProtectionWaived(AT, RIVERSIDE), IN + "Riverside gave up the shelter owed to a new faction.");
+                IN + "food was carried into the keep of Ashfall.");
         // contracts
         golden(new ContractEvents.Arrested(AT, ASHFALL, GIL, KRIS), IN + "Kris of Ashfall arrested Gil on their land.");
         golden(new ContractEvents.CustodyLapsed(AT, ASHFALL, GIL), IN + "Ashfall let Gil go, for no sentence was passed.");
@@ -205,23 +183,5 @@ public final class ChronicleStoryTest {
         check("quiet: a server silences an event by emptying its template",
                 new ChronicleRenderer(silenced, new Calendar(0, Durations.DAY), NAMES, false)
                         .render(new History.Entry(new LandEvents.Claimed(AT, ASHFALL, CHUNK, KEEP), "x", false)).isEmpty());
-    }
-
-    /** A short siege, printed, in the order it happened. */
-    static void aSiegeReadsAsAStory() {
-        List<HistoryEvent> siege = List.of(
-                new SiegeEvents.CampActive(AT, 0, CAMP, EASTERN, Set.of(ASHFALL)),
-                new SiegeEvents.SiegeBegan(AT + 1, 0, KEEP, ASHFALL, Set.of(EASTERN)),
-                new SiegeEvents.Encircled(AT + 2, 0, KEEP),
-                new SiegeEvents.Starving(AT + 3, 0, KEEP),
-                new SiegeEvents.KeepFell(AT + 4, 0, KEEP, ASHFALL, EASTERN, CHUNK),
-                new SiegeEvents.Occupied(AT + 5, 0, KEEP, ASHFALL, EASTERN, 99));
-        System.out.println("---- sample siege ----");
-        for (HistoryEvent e : siege) {
-            String line = told(e);
-            System.out.println(line);
-            check("siege story: no hole is left open or unknown", !line.contains("{") && !line.contains("unknown"));
-        }
-        System.out.println("---- end of sample ----");
     }
 }

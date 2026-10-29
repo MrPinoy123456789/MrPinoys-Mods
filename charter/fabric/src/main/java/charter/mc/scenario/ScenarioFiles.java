@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  */
 public final class ScenarioFiles {
 
-    public static final List<String> DEFAULTS = List.of("tutorial", "raid", "partial-siege", "encirclement", "sally", "jail");
+    public static final List<String> DEFAULTS = List.of("tutorial", "jail");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private ScenarioFiles() {

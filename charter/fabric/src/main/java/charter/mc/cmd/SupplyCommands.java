@@ -40,12 +40,9 @@ public final class SupplyCommands {
             return 0;
         }
         Supply supply = rt.sim.supply();
-        var rules = rt.sim.rules();
-        var perimeter = core.isKeep() ? rules.keepPerimeter(core, rules.countingCamps(core)) : rules.campPerimeter(core);
-        String state = core.isKeep() ? rt.state.siege.keep(core.id).supply.name() : rt.state.siege.camp(core.id).supply.name();
+        String state = core.isKeep() ? "keep" : rt.state.siege.camp(core.id).supply.name().toLowerCase();
         ctx.getSource().sendSuccess(() -> Chat.header(Text.get("supply.show", "core", rt.describe.core(core.id),
-                "state", state.toLowerCase(), "siege", supply.underSiege(core) ? Text.get("supply.under_siege") : Text.get("supply.at_peace"),
-                "open", perimeter.open().size(), "total", perimeter.chunks().size())), false);
+                "state", state, "siege", Text.get("supply.at_peace"))), false);
         Map<String, Integer> pool = new TreeMap<>();
         for (Allowance a : supply.cartPool(core.id)) a.items().forEach((id, n) -> pool.merge(id, n, Integer::sum));
         ctx.getSource().sendSuccess(() -> Chat.line(Text.get("supply.pool", "items", pool.isEmpty() ? Text.get("supply.nothing") : pool.toString())), false);

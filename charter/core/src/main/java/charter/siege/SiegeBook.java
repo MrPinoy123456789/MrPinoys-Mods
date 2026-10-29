@@ -1,16 +1,12 @@
 package charter.siege;
 
-import charter.id.ClaimId;
 import charter.id.CoreId;
 import charter.id.OrgId;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Every piece of siege state, kept in one block of {@code CharterState} and
@@ -19,35 +15,17 @@ import java.util.Set;
  */
 public final class SiegeBook {
 
-    /** A keep's siege record. */
+    /** A keep's upkeep record (protected keeps, K2): the smallest warning already given, in days left. Saved. */
     public static final class KeepSite {
-        public KeepSupply supply = KeepSupply.SUPPLIED;
-        public boolean starving;
-        /** Factions whose camps counted against this keep on the last step. */
-        public Set<OrgId> besiegers = new LinkedHashSet<>();
-        /** The last pass's drain, for the debrief log. Recomputed every pass, never saved. */
-        public transient double multiplier = 1;
-        public transient int mouths;
-        public transient double perHour;
+        /** 0 until the first warning; then the threshold (in days left) last announced. A refill above a threshold re-arms it. */
+        public int warned;
+        /** Siege time before which an empty granary cannot lapse the keep: one upkeep period from its first pass (0 = not set yet). */
+        public long graceUntilSiege;
     }
 
-    /** A camp's siege record. */
+    /** A camp's record. */
     public static final class CampSite {
         public CampSupply supply = CampSupply.IDLE;
-        /** Siege milliseconds of sally protection left (DESIGN.md §10.6). */
-        public long sallyLeft = -1;
-        /** True once the sally hold ran out; protection returns only when it refills. */
-        public boolean exposed;
-        /** Factions this camp besieges or raids, as of the last step. */
-        public Set<OrgId> targets = new LinkedHashSet<>();
-    }
-
-    /** A keep that fell and waits for the besieger's choice. */
-    public record PendingFall(CoreId keep, OrgId besieger, long decideBySiege) {
-    }
-
-    /** A keep held by another faction without owning it (DESIGN.md §10.8). */
-    public record Occupation(CoreId keep, OrgId occupier, long untilSiege) {
     }
 
     /** No camps of {@code attacker} count against {@code keep} until the siege clock passes {@code untilSiege}. */
@@ -60,15 +38,8 @@ public final class SiegeBook {
     public final Map<CoreId, Store> stores = new LinkedHashMap<>();
     public final Map<CoreId, KeepSite> keeps = new LinkedHashMap<>();
     public final Map<CoreId, CampSite> camps = new LinkedHashMap<>();
-    /** Siege milliseconds of hold left per outlying claim. Missing means full. */
-    public final Map<ClaimId, Long> holds = new LinkedHashMap<>();
     public final List<Allowance> allowances = new ArrayList<>();
     public final List<Truce> truces = new ArrayList<>();
-    public final Map<CoreId, PendingFall> falls = new LinkedHashMap<>();
-    public final Map<CoreId, Occupation> occupations = new LinkedHashMap<>();
-    public final Map<OrgId, Double> notoriety = new LinkedHashMap<>();
-    /** Factions that gave up their new-faction protection by raising a camp against someone. */
-    public final Set<OrgId> protectionWaived = new HashSet<>();
 
     public Store store(CoreId core) {
         return stores.computeIfAbsent(core, c -> new Store());
@@ -80,10 +51,6 @@ public final class SiegeBook {
 
     public CampSite camp(CoreId core) {
         return camps.computeIfAbsent(core, c -> new CampSite());
-    }
-
-    public double notorietyOf(OrgId faction) {
-        return notoriety.getOrDefault(faction, 0.0);
     }
 
     public boolean truce(CoreId keep, OrgId attacker, long siegeNow) {

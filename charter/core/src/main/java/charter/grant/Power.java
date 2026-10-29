@@ -21,7 +21,6 @@ public enum Power {
     PLACE_CORE,
     CLAIM,
     RAISE_CAMP,
-    CHOOSE_FALL,
     GRANARY_DEPOSIT,
     GRANARY_WITHDRAW,
     GARRISON,

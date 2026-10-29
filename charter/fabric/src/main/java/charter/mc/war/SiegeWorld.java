@@ -1,6 +1,5 @@
 package charter.mc.war;
 
-import charter.contract.JusticeInputs;
 import charter.engine.Actor;
 import charter.engine.Outcome;
 import charter.grant.AuthorityResolver;
@@ -18,9 +17,6 @@ import charter.mc.Text;
 import charter.mc.cmd.Chat;
 import charter.mc.land.Fixtures;
 import charter.mc.land.Protection;
-import charter.siege.FallChoice;
-import charter.siege.SiegeEvents;
-import charter.siege.actions.ChooseFall;
 import charter.treasury.Currency;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -41,16 +37,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * M11: the siege in the world. Feeds presence and prisoners into the sim before
- * each step; when a keep falls, asks the besieger to raze or occupy with two
- * clickable choices; spills the plunder as real items at the nexus; and breaks the
- * nexus when a keep is razed. The granary becomes loot by itself, since the keep's
- * claims are gone and its chests are ordinary chests again.
+ * The mod's physical work on a core: spills items at a Nexus or breaks it, now if the chunk is loaded, else when
+ * it loads (protected keeps: a keep no longer falls, so only the raiders' strongholds use this).
  *
- * <p>A keep can fall with nobody near. Its physical consequences then wait for the
- * chunk to load (PLAN.md §4.5): the fall is recorded at once, the spill and the
- * broken nexus happen when someone comes. The wait list is not saved; a restart in
- * between leaves the nexus standing, as an ordinary lodestone with no keep behind it.
+ * <p>A core can be taken down with nobody near. Its physical consequences then wait for the chunk to load and
+ * run on the tick after, never inside the load itself.
  */
 public final class SiegeWorld {
 
@@ -58,7 +49,6 @@ public final class SiegeWorld {
     private record Work(ChunkKey chunk, BlockPos at, boolean breakNexus, Map<Currency, Long> spill) {
     }
 
-    private static final WorldInputs PRESENCE = new WorldInputs();
     private static final Map<ChunkKey, List<Work>> WAITING = new LinkedHashMap<>();
     /** Chunks with waiting work that loaded since the last tick. */
     private static final java.util.Set<ChunkKey> LOADED = new java.util.LinkedHashSet<>();
@@ -70,8 +60,6 @@ public final class SiegeWorld {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             if (!CharterServer.running()) return;
             CharterRuntime rt = CharterServer.runtime();
-            rt.sim.inputs(JusticeInputs.wrap(PRESENCE, rt.state, rt.knobs, rt.clock::now));
-            rt.state.history.listen(SiegeWorld::onHistory);
             SiegeLogFeed.attach(rt);
             WAITING.clear();
             LOADED.clear();
@@ -95,66 +83,9 @@ public final class SiegeWorld {
         });
     }
 
-    /** Counts presence; called by the server just before each sim step. */
-    public static void beforeStep(MinecraftServer server, CharterRuntime rt) {
-        PRESENCE.refresh(server, rt);
-    }
+    // ---- the physical work ----
 
-    /** The presence counter, for tests. */
-    public static WorldInputs presence() {
-        return PRESENCE;
-    }
-
-    // ---- history ----
-
-    static void onHistory(History.Entry entry) {
-        if (!CharterServer.running()) return;
-        switch (entry.event()) {
-            case SiegeEvents.KeepFell e -> offerChoice(e.keep(), e.besieger());
-            case SiegeEvents.Plundered e -> {
-                if (!e.amounts().isEmpty()) physical(e.keep(), e.at_chunk(), false, e.amounts());
-            }
-            case SiegeEvents.Razed e -> physical(e.keep(), null, true, Map.of());
-            default -> {
-            }
-        }
-    }
-
-    /** Sends every online member of the besieging faction who may choose two clickable choices. */
-    static void offerChoice(CoreId keep, OrgId besieger) {
-        CharterRuntime rt = CharterServer.runtime();
-        MinecraftServer server = CharterServer.server();
-        if (server == null) return;
-        // A stronghold of the raiders is razed at once, so there is nothing to choose.
-        if (!rt.state.siege.falls.containsKey(keep)) return;
-        OrgId faction = rt.state.root(besieger);
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            PlayerId id = new PlayerId(player.getUUID());
-            boolean ours = rt.state.membership(id).map(m -> rt.state.root(m.org()).equals(faction)).orElse(false);
-            if (!ours) continue;
-            boolean may = new AuthorityResolver(rt.state, rt.clock.now())
-                    .resolve(new Who.AsPlayer(id), besieger, Power.CHOOSE_FALL, ScopeNeed.NONE, false).ok();
-            if (!may) continue;
-            Component line = Chat.line(Text.get("war.fall_choose", "site", rt.describe.core(keep)) + " ")
-                    .append(Chat.act(player, Text.get("war.raze"), Text.get("war.raze_hover"), p -> choose(p, besieger, keep, FallChoice.RAZE)))
-                    .append(Component.literal("  "))
-                    .append(Chat.act(player, Text.get("war.occupy"), Text.get("war.occupy_hover"), p -> choose(p, besieger, keep, FallChoice.OCCUPY)));
-            player.sendSystemMessage(line);
-        }
-    }
-
-    public static void choose(ServerPlayer player, OrgId besieger, CoreId keep, FallChoice choice) {
-        CharterRuntime rt = CharterServer.runtime();
-        Outcome outcome = rt.engine.run(new Actor.Player(new PlayerId(player.getUUID())), new ChooseFall(besieger, keep, choice));
-        String text = outcome.done()
-                ? Text.get(choice == FallChoice.RAZE ? "war.razed_you" : "war.occupied_you", "site", rt.describe.core(keep))
-                : Text.get("war.choice_refused");
-        player.sendSystemMessage(Component.literal(text).withStyle(outcome.done() ? ChatFormatting.GREEN : ChatFormatting.RED));
-    }
-
-    // ---- the physical fall ----
-
-    /** Spills plunder at the nexus, or breaks it, now if the chunk is loaded, else when it loads. */
+    /** Spills items at the nexus, or breaks it, now if the chunk is loaded, else when it loads. */
     public static void physical(CoreId keep, ChunkKey chunk, boolean breakNexus, Map<Currency, Long> spill) {
         CharterRuntime rt = CharterServer.runtime();
         Fixtures.Fixture nexus = Fixtures.of(rt.state).first(keep, Fixtures.Kind.NEXUS);

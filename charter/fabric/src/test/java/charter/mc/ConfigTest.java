@@ -61,12 +61,12 @@ final class ConfigTest {
     static void unusableValuesRunOnDefaultsAndAreLeftAlone() throws Exception {
         Path dir = Files.createTempDirectory("charter-config");
         Path file = dir.resolve(CharterConfig.FILE_NAME);
-        String bad = "{ \"timeScale\": 0, \"starvationThreshold\": 2 }";
+        String bad = "{ \"timeScale\": 0, \"granaryMaxChests\": 0 }";
         Files.writeString(file, bad);
         List<String> warn = new ArrayList<>();
         Knobs knobs = CharterConfig.readOrCreate(dir, s -> { }, warn::add);
-        check("config: unusable values fall back to defaults", knobs.timeScale == 1.0 && knobs.starvationThreshold == 0.25);
-        check("config: each unusable value is named", warn.stream().anyMatch(s -> s.contains("timeScale")) && warn.stream().anyMatch(s -> s.contains("starvationThreshold")));
+        check("config: unusable values fall back to defaults", knobs.timeScale == 1.0 && knobs.granaryMaxChests == 8);
+        check("config: each unusable value is named", warn.stream().anyMatch(s -> s.contains("timeScale")) && warn.stream().anyMatch(s -> s.contains("granaryMaxChests")));
         check("config: a file with unusable values is not overwritten", Files.readString(file).equals(bad));
     }
 }

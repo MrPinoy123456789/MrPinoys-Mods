@@ -38,13 +38,9 @@ import charter.org.actions.InviteMember;
 import charter.org.actions.Leave;
 import charter.org.actions.Rename;
 import charter.siege.Allowance;
-import charter.siege.FallChoice;
-import charter.siege.KeepSupply;
 import charter.siege.SiegeBook;
-import charter.siege.SiegeInputs;
 import charter.siege.SiegeSim;
 import charter.siege.Store;
-import charter.siege.actions.ChooseFall;
 import charter.siege.actions.DepositFood;
 import charter.state.CharterState;
 import charter.time.Durations;
@@ -110,21 +106,17 @@ public final class InvariantTest {
     static final class World {
         final Random rng;
         final Fixture f = new Fixture();
-        final RandomInputs inputs;
         final SiegeSim sim;
         final List<PlayerId> players = new ArrayList<>();
 
         World(long seed) {
             rng = new Random(seed);
-            inputs = new RandomInputs(rng);
             sim = new SiegeSim(f.engine, new FoodTable()
                     .put("minecraft:bread", 5, ShelfClass.PRESERVED)
                     .put("minecraft:cooked_beef", 8, ShelfClass.COOKED)
-                    .put("minecraft:carrot", 3, ShelfClass.FRESH))
-                    .inputs(charter.contract.JusticeInputs.wrap(inputs, f.state, f.knobs, f.engine::now));
+                    .put("minecraft:carrot", 3, ShelfClass.FRESH));
             for (int i = 0; i < 8; i++) players.add(Fixture.player("chaos" + i));
             f.knobs.campRaisingHours = 0.25;
-            f.knobs.newFactionProtectionDays = 0;
             // A weekly cap above the per-sentence caps, so each cap can be broken (and caught) on its own.
             f.knobs.weeklyPunishmentCapHours = 48;
         }
@@ -298,32 +290,9 @@ public final class InvariantTest {
                     yield c == null ? new charter.contract.actions.DepositPersonal(p, Currency.DIAMOND, 3)
                             : new charter.contract.actions.Breach(c.id, rng.nextBoolean() ? c.imposer : c.subject);
                 }
-                default -> {
-                    SiegeBook.PendingFall fall = pick(new ArrayList<>(f.state.siege.falls.values()));
-                    yield fall == null ? new ClaimLand(org, chunk())
-                            : new ChooseFall(rng.nextBoolean() ? fall.besieger() : org, fall.keep(), rng.nextBoolean() ? FallChoice.RAZE : FallChoice.OCCUPY);
-                }
+                default -> new ClaimLand(org, chunk());
             };
         }
-    }
-
-    /** Presence and prisoners drawn at random each time the sim asks. */
-    static final class RandomInputs implements SiegeInputs {
-        final Random rng;
-
-        RandomInputs(Random rng) {
-            this.rng = rng;
-        }
-
-        int small() {
-            return rng.nextInt(4) == 0 ? rng.nextInt(4) : 0;
-        }
-
-        public int attackersInCamp(charter.id.CoreId camp) { return small(); }
-        public int defendersInKeep(charter.id.CoreId keep) { return small(); }
-        public int attackersInsideKeep(charter.id.CoreId keep) { return small(); }
-        public int defendersBesideCamp(charter.id.CoreId camp) { return small(); }
-        public int prisoners(charter.id.CoreId keep) { return 0; }
     }
 
     // ---- the run ----
@@ -543,23 +512,6 @@ public final class InvariantTest {
     /** Invariants that hold after a siege step (15, 16). */
     static String afterStep(CharterState s, SiegeSim sim, long now) {
         String basic = invariants(s, now);
-        for (Core keep : s.cores()) {
-            if (!keep.isKeep()) continue;
-            SiegeBook.KeepSite site = s.siege.keeps.get(keep.id);
-            if (site == null || site.supply == KeepSupply.SUPPLIED) continue;
-            Store store = s.siege.stores.get(keep.id);
-            boolean empty = store == null || store.provisions.nourishment(sim.food()) <= 0;
-            if (empty && !s.siege.falls.containsKey(keep.id) && !s.siege.occupations.containsKey(keep.id)) {
-                return "15: keep " + keep.id + " is " + site.supply + " with an empty granary but has not fallen";
-            }
-        }
-        for (var id : s.siege.falls.keySet()) if (s.core(id).isEmpty()) return "16: a fall names a missing keep";
-        for (var id : s.siege.occupations.keySet()) if (s.core(id).isEmpty()) return "16: an occupation names a missing keep";
-        for (var id : s.siege.holds.keySet()) if (s.claim(id).isEmpty()) return "16: a hold names a missing claim";
-        for (var claimId : s.siege.holds.keySet()) {
-            Claim c = s.claim(claimId).orElse(null);
-            if (c != null && c.kind() != ClaimKind.OUTLYING) return "16: a hold on a claim that is not outlying";
-        }
         return basic;
     }
 
@@ -586,16 +538,10 @@ public final class InvariantTest {
         SiegeBook book = s.siege;
         for (var e : book.stores.entrySet()) b.append("store ").append(e.getKey()).append(' ').append(e.getValue().provisions.counts())
                 .append(' ').append(e.getValue().eatDebt).append('\n');
-        for (var e : book.keeps.entrySet()) b.append("keepsite ").append(e.getKey()).append(' ').append(e.getValue().supply).append('\n');
-        for (var e : book.camps.entrySet()) b.append("campsite ").append(e.getKey()).append(' ').append(e.getValue().supply)
-                .append(' ').append(e.getValue().sallyLeft).append('\n');
+        for (var e : book.keeps.entrySet()) b.append("keepsite ").append(e.getKey()).append(' ').append(e.getValue().warned).append('\n');
+        for (var e : book.camps.entrySet()) b.append("campsite ").append(e.getKey()).append(' ').append(e.getValue().supply).append('\n');
         for (Allowance a : book.allowances) b.append("allowance ").append(a.carrier).append(' ').append(a.items()).append('\n');
-        b.append("holds ").append(book.holds).append('\n');
-        b.append("falls ").append(book.falls).append('\n');
-        b.append("occupations ").append(book.occupations).append('\n');
         b.append("truces ").append(book.truces).append('\n');
-        b.append("notoriety ").append(book.notoriety).append('\n');
-        b.append("waived ").append(new java.util.TreeSet<>(book.protectionWaived.stream().map(Object::toString).toList())).append('\n');
         for (int i = 0; i < 8; i++) {
             PlayerId p = Fixture.player("chaos" + i);
             s.knownPlayer(p).ifPresent(r -> b.append("player ").append(p).append(' ').append(r.lastSeen).append(' ').append(r.lastFoundedAt).append('\n'));

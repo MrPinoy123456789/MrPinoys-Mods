@@ -177,7 +177,7 @@ public final class Granaries {
             if (GranaryService.containerAt(p.level(), null, new Pos(at.getX(), at.getY(), at.getZ())) == null) continue;
             ChunkKey chunk = new ChunkKey(p.level().dimension().identifier().toString(), at.getX() >> 4, at.getZ() >> 4);
             Core core = service.coreAtChunk(chunk).orElse(null);
-            if (core == null || service.fallen(core)) continue;
+            if (core == null) continue;
             if (service.access(new PlayerId(player.getUUID()), core) == Access.NONE) continue;
             String problem = service.link(core, p.level(), at, true, true);
             if (problem == null) {

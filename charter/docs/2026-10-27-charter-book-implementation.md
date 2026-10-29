@@ -1307,3 +1307,73 @@ side by side; a test that closed early re-enabled the real scheduler and it buil
 the server out of memory); entities a pass spawns appear on the next tick, so stages wait; a failed run leaves forced
 chunks saved in `fabric/build/run/gameTest/world`, delete it when a run dies of OutOfMemory (and a run that prints no
 "GAME TESTS COMPLETE" line is not a pass even if Gradle says BUILD SUCCESSFUL).
+
+## Builder's notes: protected keeps, step 2 (K1, K2, and the removals)
+
+Brief: `2026-10-28-protected-keeps-brief.md`. Built as one commit for removals and K2 (the removed tests and the new
+upkeep tests depend on each other); K1 needed almost no code.
+
+**Removed.** Keep sieges (`countingCamps`, perimeter, starvation, presence, assault, notoriety multiplier), raze and
+occupy (`Falls`, `FallChoice`, `ChooseFall`, `PendingFall`, `Occupation`, `contract.Occupations`), plunder, raids and holds
+on outlying claims, notoriety, new-faction protection, `SiegeInputs`, `JusticeInputs`, `WorldInputs`, the
+`CHOOSE_FALL` power, the admin `perimeter` command, four siege scenarios (raid, partial-siege, encirclement,
+sally), the manual `loadCheck` task. Events removed: SiegeBegan, Encircled, RingBroken, SiegeLifted, Starving, KeepFell,
+Razed, Occupied, OccupationEnded, Plundered, CampExposed, HoldEmptied, TruceBegan, ProtectionWaived. The old history
+lines for them are skipped when `history.jsonl` is read (the file keeps them), so the Chronicle no longer tells old
+falls. Knobs removed: plunderShare, fallChoiceMinutes, notoriety*, newFactionProtectionDays, outlying hold and
+refill, camp sally, presence and assault multipliers, starvationThreshold, imposedNotorietyPerSeverity.
+`occupationCapDays` stays as the treaty cap on `Term.Access` (`BasisCaps`); `Basis.OCCUPATION` stays so old contracts
+read, and a live one ends on load. Left inert on purpose for step 4 (outposts): the food allowance bookkeeping in
+`Supply` (nothing is ever under siege, so nothing is ever needed), `Crossings`, the camp store burn state, `Truce`.
+
+**Old saves.** The fixture `fabric/src/test/resources/charter/old-protected-keeps` is a real save written by the
+old code (pending fall, occupation and its contract, notoriety, waived protection, a hold, a besieged keep site,
+CHOOSE_FALL grants) with a history file of fall events; `StoreTest.aSaveFromBeforeProtectedKeepsLoads` proves it loads.
+It found two real faults, now fixed: a save naming the removed power failed to load at all (grants and votes of an
+unknown power are now dropped with a repair note), and a live occupation contract survived the load (now ended).
+
+**K2.** `SiegeSim.upkeepPass`: the granary of every keep that is not a raiders' keep drains
+`storageLimit / (keepUpkeepDays * 24)` an hour on the siege clock and nothing else changes the drain (members,
+prisoners, camps, presence). Warnings at `keepWarnDays` (7, 3, 1) are the `SiegeEvents.KeepRunningLow` event, once per
+threshold, the smallest announced is saved (`KeepSite.warned`); feeding above a threshold re-arms it. They reach every
+member through the notices (so also on login) and the Chronicle, and the faction page shows the days left. At zero
+the keep lapses through `loseCore`: `KeepLapsed`, prisoners freed, claims released (a farm claim goes contested and
+lapses after the usual orphan grace), blocks and the Nexus block stand, members, treasury and sub-factions stay, and
+a new Nexus may be placed for the price again. Day counts are siege-clock days (`timeScale` is 1 by default).
+
+**Decision for the owner: grace.** A keep placed with an empty granary (every new keep) would lapse on its first
+pass. I gave each keep one upkeep period (`keepUpkeepDays`) of grace from its first pass (`KeepSite.graceUntilSiege`),
+so an unstocked keep warns at 7, 3 and 1 days and lapses at 14; old saves get the same grace on load. Not in the brief.
+
+**K1.** `SiegeRules.protectedClaim` is true for every keep claim at all times (a camp's only once raised); the
+Nexus was already unbreakable by everyone. The break, use, container, entity, explosion, piston, fire, lava,
+water, dispenser and farmland cases already had gametests in `LandProtectionGameTest` and `LandHazardsGameTest` and
+needed no new Mixin. `PlaceNexus` refuses a sub-faction (`LandReasons.SUB_NO_KEEP`) unless it is breaking away;
+existing sub-faction keeps in saves are left alone.
+
+**Deleted tests, by name, and what replaces them.**
+Gametests: `SiegeWorldGameTest` (aFullSiegeEndsRazed, anOccupiedKeepIsHeldByTheOccupierUntilTheCap,
+presenceCountsPlayersOfStandingWhereTheyStand); `SupplyGameTest` (aRunnerWalksFoodInThroughAnOpenSide,
+crossingTheCampTeleportsAndPearlsCarryNothing, anEnderChestCannotBeOpenedInABesiegedKeep, aCartLineFeedsABesiegedGranary,
+anEncircledKeepTakesNoFoodFromAnySide); `JusticeSiegeGameTest` (aPrisonerIsAMouthWhileHeldAndWalksFreeWhenTheKeepFalls,
+starvingOutAnOccupationLeavesNoBreachMark); `LoadGameTest` (twentyPlayersAroundASiegeCostLittle); `ScenarioGameTest`
+(theRaidPutsACampBesideTheFarthestFarm, thePartialSiegeLeavesSidesOpenAndARailLine, theEncirclementClosesEverySide,
+theSallyIsTheRingWithFoodBeyondTheEastCamp, anExposedCampsBannerBreaksAndEndsTheCamp); `GranaryGameTest`
+(afterTheKeepFallsAnOutsiderCanOpenIt, depositsGoThroughTheCarryInRule, aHopperCannotFillABesiegedGranary).
+`LandPlacementGameTest` lost the perimeter command from its admin test. Replaced by `KeepUpkeepGameTest`
+(aKeepRunsDryLapsesAndCanBeClaimedAgain: closed to a stranger and its chest, the 7 day warning once, the lapse, blocks
+and Nexus block standing, open ground after, treasury untouched, a new Nexus for the price). Prisoners freed on
+lapse use the same `freeKeep` path and are not gametested.
+Core: in `SiegeTest` testJEndurance (3 and 30), testJPresenceFloor, timeScaleAgrees, testKCarryIn, cartPool,
+testLEncirclement, testMStarvationGate, testNCampSupply, testORaid, testQNewFaction, testRTruce, theFall, testXSally,
+notorietyRisesAndDecays; in `ContractTest` testNotoriety, testVPrisonersEat, testWOccupation, testD7Deposit and the
+occupation tail of testTResistance; `NpcTest.aFallenStrongholdIsRazedAtOnceAndPlundered`; `ChronicleStoryTest`
+aSiegeReadsAsAStory and the goldens of the removed events; `LoadCheck`. Replaced by the K2 tests in `SiegeTest`
+(upkeepDrainsAFullGranaryOverFourteenDays, upkeepWarnsOncePerThresholdAndRearms, aNewKeepHasOnePeriodOfGrace,
+aLapseReleasesTheLandAndKeepsTheNation, theRaidersKeepsAreNotKeptUp, onlyANationHoldsAKeep) and goldens for
+KeepRunningLow and KeepLapsed. The `BreakawayTest` and `DissolveOrgTest` sub-faction keeps are now placed through
+`LandGraph.placeKeep` (an old save may hold one).
+
+**Still to do (steps 3 and 4).** The tutorial scenario and `TUTORIAL.md` still teach besieging a rival keep; the
+`TutorialGameTest` now stops once the camp is raised. The Join, Freedoms and Who decides pages, `DESIGN.md` 10.8,
+16 and 23, and the word "camp" for players are for step 4.

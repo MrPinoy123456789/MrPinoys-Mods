@@ -6,7 +6,6 @@ import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.CharterServer;
 import charter.mc.supply.Crossings;
-import charter.siege.KeepSupply;
 import charter.siege.SiegeBook;
 import charter.siege.Store;
 import charter.time.Durations;
@@ -31,7 +30,6 @@ public final class SiegeLogFeed {
     /** Keep to the last siege hour a snapshot was written for. */
     private static final Map<CoreId, Long> LAST_HOUR = new HashMap<>();
     /** Keep to the multiplier last written, rounded to hundredths. */
-    private static final Map<CoreId, Long> LAST_MULTIPLIER = new HashMap<>();
 
     private SiegeLogFeed() {
     }
@@ -39,7 +37,6 @@ public final class SiegeLogFeed {
     /** Hooks the sim's after-pass listener. Called when the runtime starts. */
     public static void attach(CharterRuntime rt) {
         LAST_HOUR.clear();
-        LAST_MULTIPLIER.clear();
         rt.sim.afterPass(() -> afterPass(rt));
     }
 
@@ -49,35 +46,19 @@ public final class SiegeLogFeed {
         long hour = siegeNow / Durations.HOUR;
         for (Core keep : rt.state.cores()) {
             if (!keep.isKeep()) continue;
-            SiegeBook.KeepSite site = rt.state.siege.keeps.get(keep.id);
-            if (site == null || site.supply == KeepSupply.SUPPLIED) {
-                LAST_HOUR.remove(keep.id);
-                LAST_MULTIPLIER.remove(keep.id);
-                continue;
-            }
-            long multiplier = Math.round(site.multiplier * 100);
-            Long was = LAST_MULTIPLIER.put(keep.id, multiplier);
-            if (was == null || was != multiplier) {
-                JsonObject line = line(rt, "presence", keep, wall, siegeNow);
-                line.addProperty("multiplier", multiplier / 100.0);
-                line.addProperty("supply", site.supply.name());
-                rt.siegeLog.write(line, wall);
-            }
             Long last = LAST_HOUR.put(keep.id, hour);
             if (last != null && last == hour) continue;
             Store store = rt.state.siege.store(keep.id);
             double limit = rt.sim.rules().storageLimit(keep);
             double have = store.provisions.nourishment(rt.sim.food());
+            double perHour = rt.sim.rules().upkeepPerHour(keep);
             JsonObject line = line(rt, "drain_hour", keep, wall, siegeNow);
             line.addProperty("provisions", round(have));
             line.addProperty("limit", round(limit));
             line.addProperty("percent", limit <= 0 ? 0 : round(100 * have / limit));
             line.addProperty("debt", round(store.eatDebt));
-            line.addProperty("perHour", round(site.perHour));
-            line.addProperty("multiplier", multiplier / 100.0);
-            line.addProperty("mouths", site.mouths);
-            line.addProperty("supply", site.supply.name());
-            line.addProperty("starving", site.starving);
+            line.addProperty("perHour", round(perHour));
+            line.addProperty("daysLeft", perHour <= 0 ? -1 : round(have / perHour / 24));
             rt.siegeLog.write(line, wall);
         }
     }

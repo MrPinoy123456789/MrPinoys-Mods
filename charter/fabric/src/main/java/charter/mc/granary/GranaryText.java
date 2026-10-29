@@ -6,7 +6,6 @@ import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.Text;
 import charter.siege.CampSupply;
-import charter.siege.KeepSupply;
 import charter.time.Durations;
 
 /**
@@ -23,10 +22,17 @@ public final class GranaryText {
     static double hoursLeft(CharterRuntime rt, Core core) {
         Provisions provisions = rt.state.siege.store(core.id).provisions;
         double nourishment = provisions.nourishment(rt.sim.food());
-        double perHour = core.isKeep()
-                ? Mouths.drainPerHour(rt.knobs, rt.sim.rules().mouths(core, 0))
-                : (rt.state.siege.camp(core.id).supply == CampSupply.CUT_OFF ? rt.knobs.campBurnCutOffPerHour : rt.knobs.campBurnPerHour);
+        double perHour = core.isKeep() ? rt.sim.rules().upkeepPerHour(core) : 0;
         return perHour <= 0 ? -1 : nourishment / perHour;
+    }
+
+    /** Days before the keep's claim lapses: the food it holds, or the grace of a new keep if that is longer. */
+    public static double daysLeft(CharterRuntime rt, Core core) {
+        double perHour = rt.sim.rules().upkeepPerHour(core);
+        double food = perHour <= 0 ? Double.MAX_VALUE : rt.state.siege.store(core.id).provisions.nourishment(rt.sim.food()) / perHour / 24.0;
+        long grace = rt.state.siege.keep(core.id).graceUntilSiege;
+        double graceDays = grace == 0 ? rt.knobs.keepUpkeepDays : Math.max(0, (grace - rt.state.siegeClock.now()) / (double) Durations.DAY);
+        return Math.max(food, graceDays);
     }
 
     /** "2 days, 3 hours", "47 hours", "12 minutes". */
@@ -52,15 +58,8 @@ public final class GranaryText {
     static String display(CharterRuntime rt, Core core) {
         StringBuilder out = new StringBuilder();
         out.append(Text.get(core.isKeep() ? "granary.title" : "granary.camp_title")).append('\n');
-        if (rt.state.siege.falls.containsKey(core.id)) {
-            out.append(Text.get("granary.fallen"));
-            return out.toString();
-        }
         out.append(timeLine(rt, core));
         if (core.isKeep()) {
-            KeepSupply supply = rt.state.siege.keep(core.id).supply;
-            if (supply == KeepSupply.BESIEGED) out.append('\n').append(Text.get("granary.besieged"));
-            if (supply == KeepSupply.ENCIRCLED) out.append('\n').append(Text.get("granary.encircled"));
             double nourishment = rt.state.siege.store(core.id).provisions.nourishment(rt.sim.food());
             if (nourishment > rt.sim.rules().storageLimit(core)) out.append('\n').append(Text.get("granary.overstocked"));
         } else {

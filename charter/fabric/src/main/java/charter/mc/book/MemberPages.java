@@ -311,6 +311,12 @@ public final class MemberPages {
             if (!core.isKeep()) continue;
             body.add(Text.get("book.faction.keep", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8,
                     "granary", GranaryText.timeLine(rt, core)));
+            double daysLeft = GranaryText.daysLeft(rt, core);
+            int warnAt = java.util.Arrays.stream(rt.knobs.keepWarnDays).max().orElse(0);
+            if (daysLeft <= warnAt) body.add(Text.get("book.faction.keep_low", "days", Math.max(0, (int) Math.ceil(daysLeft))));
+        }
+        if (rt.state.coresOf(org).stream().noneMatch(Core::isKeep) && organization.parent() == null) {
+            body.add(Text.get("book.faction.no_keep"));
         }
 
         List<ActionButton> buttons = new ArrayList<>();

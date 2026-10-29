@@ -31,6 +31,10 @@ public record PlaceNexus(OrgId org, ChunkKey center) implements Action {
     public Outcome check(ActionContext ctx) {
         // A sub-faction that voted to break away places its Nexus as a faction of its own would: outside every keep's protection.
         LandGraph land = new LandGraph(ctx.state, ctx.knobs);
+        // Only a nation holds a keep (protected keeps): a sub-faction uses its nation's, unless it is breaking away.
+        if (ctx.state.org(org).orElseThrow().parent() != null && ctx.state.pendingSecession(org).isEmpty()) {
+            return Outcome.refuse(LandReasons.SUB_NO_KEEP);
+        }
         var problem = ctx.state.pendingSecession(org).isPresent() ? land.keepProblemForNew(center) : land.keepProblem(org, center);
         if (problem.isPresent()) return Outcome.refuse(problem.get());
         if (ctx.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) < ctx.knobs.keepPriceDiamonds) {

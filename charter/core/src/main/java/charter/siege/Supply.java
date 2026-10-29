@@ -10,7 +10,6 @@ import charter.land.Claim;
 import charter.land.ClaimKind;
 import charter.land.Core;
 import charter.land.LandGraph;
-import charter.land.Perimeter;
 import charter.state.CharterState;
 import charter.time.Durations;
 
@@ -68,11 +67,13 @@ public final class Supply {
         return core;
     }
 
-    /** True if food going into this site's store needs an allowance right now. */
+    /**
+     * True if food going into this site's store needs an allowance right now. Nothing is ever under siege
+     * (protected keeps: keeps are never besieged and a camp has no targets), so this is always false; the
+     * allowance bookkeeping goes with the outpost rework.
+     */
     public boolean underSiege(Core site) {
-        SiegeRules rules = rules();
-        if (site.isKeep()) return !rules.countingCamps(site).isEmpty();
-        return site.activeCamp() && !rules.targets(site).isEmpty();
+        return false;
     }
 
     /**
@@ -84,21 +85,7 @@ public final class Supply {
         Optional<Core> site = siteAt(to);
         if (site.isEmpty()) return Entry.NOT_A_SITE;
         if (siteAt(from).map(s -> s.id.equals(site.get().id)).orElse(false)) return Entry.NOT_A_SITE;
-        if (!underSiege(site.get())) return Entry.NOT_NEEDED;
-        SiegeRules rules = rules();
-        Perimeter perimeter = site.get().isKeep()
-                ? rules.keepPerimeter(site.get(), rules.countingCamps(site.get()))
-                : rules.campPerimeter(site.get());
-        if (!perimeter.chunks().contains(from) || perimeter.isClosed(from)) return Entry.CLOSED;
-
-        Map<String, Integer> noted = new TreeMap<>();
-        carried.forEach((id, n) -> {
-            if (n > 0 && food.isFood(id)) noted.merge(id, n, Integer::sum);
-        });
-        long expires = state.siegeClock.now() + Durations.minutes(engine.knobs().carryInWindowMinutes);
-        state.siege.allowances.removeIf(a -> a.carrier.equals(carrier) && a.site.equals(site.get().id));
-        state.siege.allowances.add(new Allowance(carrier, site.get().id, noted, expires));
-        return Entry.GRANTED;
+        return Entry.NOT_NEEDED;
     }
 
     public Optional<Allowance> allowance(String carrier, CoreId site) {
@@ -153,7 +140,7 @@ public final class Supply {
     public Map<String, Integer> preview(String carrier, CoreId siteId, Map<String, Integer> offered) {
         Map<String, Integer> accepted = new LinkedHashMap<>();
         Optional<Core> site = state.core(siteId);
-        if (site.isEmpty() || state.siege.falls.containsKey(siteId)) return accepted;
+        if (site.isEmpty()) return accepted;
         boolean siege = underSiege(site.get());
         List<Allowance> sources = siege ? sources(carrier, siteId) : List.of();
         if (siege && sources.isEmpty()) return accepted;

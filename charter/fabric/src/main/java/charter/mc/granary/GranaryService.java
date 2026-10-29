@@ -258,24 +258,16 @@ public final class GranaryService {
         return rt.state.core(site.core);
     }
 
-    /** True once the keep has fallen (or the core is gone): the store is loot. */
-    public boolean fallen(Core core) {
-        return rt.state.siege.falls.containsKey(core.id);
-    }
-
     public Access access(PlayerId player, Core core) {
-        if (fallen(core)) return Access.FULL;
         SiegeRules rules = rt.sim.rules();
-        var holder = core.isKeep() ? rules.holder(core) : rules.faction(core.owner);
-        boolean occupied = rt.state.siege.occupations.containsKey(core.id);
+        var holder = rules.faction(core.owner);
         boolean member = rt.state.membership(player).map(m -> rt.state.root(m.org()).equals(holder)).orElse(false);
-        if (member && occupied) return Access.FULL;
         AuthorityResolver resolver = new AuthorityResolver(rt.state, rt.clock.now());
-        if (!occupied && resolver.resolve(new Who.AsPlayer(player), core.owner, Power.GRANARY_WITHDRAW, ScopeNeed.NONE, false).ok()) {
+        if (resolver.resolve(new Who.AsPlayer(player), core.owner, Power.GRANARY_WITHDRAW, ScopeNeed.NONE, false).ok()) {
             return Access.FULL;
         }
         if (member) return Access.DEPOSIT;
-        if (!occupied && resolver.resolve(new Who.AsPlayer(player), core.owner, Power.GRANARY_DEPOSIT, ScopeNeed.NONE, false).ok()) {
+        if (resolver.resolve(new Who.AsPlayer(player), core.owner, Power.GRANARY_DEPOSIT, ScopeNeed.NONE, false).ok()) {
             return Access.DEPOSIT;
         }
         return Access.NONE;

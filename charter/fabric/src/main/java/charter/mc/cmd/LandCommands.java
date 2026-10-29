@@ -51,7 +51,6 @@ import java.util.Optional;
  *   /charter map                          11 by 11 chunks around you; click to claim or unclaim
  *   /charter admin faction spawn &lt;name&gt; &lt;player&gt;   a ready lordship, funded, with a nexus and a banner for the player
  *   /charter admin camp raise-now         finish raising the nearest raising camp
- *   /charter admin perimeter show         the sides of the nearest keep or camp, open and closed
  *   /charter admin give nexus|banner|book [player]
  * </pre>
  */
@@ -80,8 +79,6 @@ public final class LandCommands {
                                                 .executes(LandCommands::spawn)))))
                 .then(Commands.literal("camp")
                         .then(Commands.literal("raise-now").executes(LandCommands::raiseNow)))
-                .then(Commands.literal("perimeter")
-                        .then(Commands.literal("show").executes(LandCommands::perimeter)))
                 .then(Commands.literal("give")
                         .then(Commands.argument("what", StringArgumentType.word())
                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"nexus", "banner", "book"}, b))
@@ -194,10 +191,6 @@ public final class LandCommands {
     /** The hold left on a farm, the phase of a camp, or nothing. */
     private static String detail(CharterRuntime rt, Claim claim) {
         if (claim.contested()) return Text.get("map.contested");
-        if (claim.kind() == ClaimKind.OUTLYING) {
-            Long left = rt.state.siege.holds.get(claim.id);
-            if (left != null) return Text.get("map.hold", "time", Chat.duration(left));
-        }
         if (claim.kind() == ClaimKind.CAMP && claim.core() != null) {
             return rt.state.core(claim.core()).map(c -> c.phase() == CampPhase.RAISING ? Text.get("map.raising") : "").orElse("");
         }
@@ -271,23 +264,6 @@ public final class LandCommands {
         // The camp finishes in a normal sim pass, so everything else moves on by the same time.
         rt.sim.advance(left);
         return ok(ctx, Text.get("land.admin.raised", "camp", rt.describe.core(camp.id), "by", Chat.duration(left)));
-    }
-
-    private static int perimeter(CommandContext<CommandSourceStack> ctx) {
-        CharterRuntime rt = rt();
-        Core core = nearest(ctx, true);
-        if (core == null) return fail(ctx, Text.get("land.admin.no_core"));
-        SiegeRules rules = rt.sim.rules();
-        var perimeter = core.isKeep() ? rules.keepPerimeter(core, rules.countingCamps(core)) : rules.campPerimeter(core);
-        List<ChunkKey> chunks = perimeter.chunks();
-        ctx.getSource().sendSuccess(() -> Chat.header(Text.get("land.admin.perimeter", "core", rt.describe.core(core.id),
-                "open", perimeter.open().size(), "total", chunks.size())), false);
-        for (ChunkKey chunk : chunks) {
-            String owner = rt.claims.at(chunk) == null ? Text.get("land.admin.unclaimed") : rt.describe.org(rt.claims.at(chunk).owner());
-            String state = perimeter.isClosed(chunk) ? Text.get("land.admin.closed") : Text.get("land.admin.open");
-            ctx.getSource().sendSuccess(() -> Chat.line("  " + chunk.x() + ", " + chunk.z() + ": " + state + " (" + owner + ")"), false);
-        }
-        return ok(ctx, Text.get("land.admin.perimeter_done"));
     }
 
     private static int give(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {

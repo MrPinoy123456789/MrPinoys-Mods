@@ -1,0 +1,1742 @@
+{
+  "formatVersion": 1,
+  "clocks": {
+    "nextId": 72,
+    "siegeClock": 123456
+  },
+  "players": {
+    "players": [
+      {
+        "id": "00000000-0000-abcd-0000-000000000001",
+        "name": "Alice",
+        "lastSeen": 1800345600000,
+        "lastFoundedAt": 1800000000000
+      },
+      {
+        "id": "00000000-0000-abcd-0000-000000000002",
+        "name": "Bob",
+        "lastSeen": 1800345600000,
+        "lastFoundedAt": 0
+      },
+      {
+        "id": "00000000-0000-abcd-0000-000000000003",
+        "name": "Cara",
+        "lastSeen": 1800000000000,
+        "lastFoundedAt": 1800000000000
+      },
+      {
+        "id": "00000000-0000-abcd-0000-000000000004",
+        "name": "Dan",
+        "lastSeen": 1800000000000,
+        "lastFoundedAt": 0
+      },
+      {
+        "id": "00000000-0000-abcd-0000-000000000005",
+        "name": "Eve",
+        "lastSeen": 1800000000000,
+        "lastFoundedAt": 0
+      }
+    ]
+  },
+  "orgs": {
+    "orgs": [
+      {
+        "id": "43484152-5445-5200-0000-000000000001",
+        "name": "Oakvale",
+        "description": "A village by the river.",
+        "status": "ACTIVE",
+        "foundedAt": 1800000000000,
+        "governance": {
+          "preset": "COMMUNE",
+          "defaultMethod": "MAJORITY",
+          "quorumShare": 0.6,
+          "deciders": "43484152-5445-5200-0000-000000000002",
+          "methods": {
+            "SPEND": "SUPERMAJORITY"
+          }
+        },
+        "ledger": {
+          "COBBLESTONE": 500,
+          "DIAMOND": 50
+        },
+        "people": {
+          "name": "Oak folk",
+          "originStory": "They came down from the hills.",
+          "description": "",
+          "traditions": "",
+          "beliefs": "",
+          "banner": "{pattern:stripes}",
+          "revision": 2,
+          "derivedFrom": ""
+        }
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000013",
+        "name": "Ironhold",
+        "description": "",
+        "status": "ACTIVE",
+        "foundedAt": 1800000000000,
+        "governance": {
+          "preset": "LORDSHIP",
+          "defaultMethod": "MAJORITY",
+          "quorumShare": 0.5,
+          "deciders": "43484152-5445-5200-0000-000000000014",
+          "methods": {}
+        },
+        "ledger": {},
+        "people": {
+          "name": "",
+          "originStory": "",
+          "description": "",
+          "traditions": "",
+          "beliefs": "",
+          "banner": "",
+          "revision": 0,
+          "derivedFrom": ""
+        }
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000025",
+        "name": "Ironhold Guard",
+        "description": "",
+        "parent": "43484152-5445-5200-0000-000000000013",
+        "status": "ACTIVE",
+        "foundedAt": 1800000000000,
+        "governance": {
+          "preset": "COMMUNE",
+          "defaultMethod": "MAJORITY",
+          "quorumShare": 0.5,
+          "deciders": "43484152-5445-5200-0000-000000000026",
+          "methods": {}
+        },
+        "ledger": {},
+        "people": {
+          "name": "",
+          "originStory": "",
+          "description": "",
+          "traditions": "",
+          "beliefs": "",
+          "banner": "",
+          "revision": 0,
+          "derivedFrom": ""
+        }
+      }
+    ],
+    "memberships": [
+      {
+        "player": "00000000-0000-abcd-0000-000000000001",
+        "org": "43484152-5445-5200-0000-000000000001",
+        "joinedAt": 1800000000000,
+        "roles": []
+      },
+      {
+        "player": "00000000-0000-abcd-0000-000000000003",
+        "org": "43484152-5445-5200-0000-000000000013",
+        "joinedAt": 1800000000000,
+        "roles": []
+      },
+      {
+        "player": "00000000-0000-abcd-0000-000000000002",
+        "org": "43484152-5445-5200-0000-000000000001",
+        "joinedAt": 1800000000000,
+        "roles": [
+          "scout",
+          "smith"
+        ]
+      },
+      {
+        "player": "00000000-0000-abcd-0000-000000000005",
+        "org": "43484152-5445-5200-0000-000000000025",
+        "joinedAt": 1800000000000,
+        "roles": []
+      },
+      {
+        "player": "00000000-0000-abcd-0000-000000000004",
+        "org": "43484152-5445-5200-0000-000000000013",
+        "joinedAt": 1800345600000,
+        "roles": []
+      }
+    ],
+    "invites": [
+      {
+        "org": "43484152-5445-5200-0000-000000000001",
+        "player": "00000000-0000-abcd-0000-000000000004",
+        "at": 1800000000000
+      }
+    ]
+  },
+  "offices": {
+    "offices": [
+      {
+        "id": "43484152-5445-5200-0000-000000000002",
+        "org": "43484152-5445-5200-0000-000000000001",
+        "name": "Lord",
+        "reserved": true,
+        "vacateWhenAbsent": true,
+        "seats": 0,
+        "deciding": "ALONE",
+        "holders": []
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000014",
+        "org": "43484152-5445-5200-0000-000000000013",
+        "name": "Lord",
+        "reserved": true,
+        "vacateWhenAbsent": true,
+        "seats": 3,
+        "deciding": "TOGETHER",
+        "holders": [
+          {
+            "player": "00000000-0000-abcd-0000-000000000003",
+            "since": 1800000000000
+          },
+          {
+            "player": "00000000-0000-abcd-0000-000000000004",
+            "since": 1800345600000
+          }
+        ]
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000026",
+        "org": "43484152-5445-5200-0000-000000000025",
+        "name": "Lord",
+        "reserved": true,
+        "vacateWhenAbsent": true,
+        "seats": 0,
+        "deciding": "ALONE",
+        "holders": []
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000037",
+        "org": "43484152-5445-5200-0000-000000000001",
+        "name": "Treasurer",
+        "reserved": false,
+        "vacateWhenAbsent": false,
+        "seats": 1,
+        "deciding": "ALONE",
+        "holders": [
+          {
+            "player": "00000000-0000-abcd-0000-000000000001",
+            "since": 1800000000000
+          }
+        ]
+      }
+    ]
+  },
+  "grants": {
+    "grants": [
+      {
+        "id": "43484152-5445-5200-0000-000000000003",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "MANAGE_MEMBERS",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000004",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "APPOINT",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000005",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "SPEND",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {
+            "COBBLESTONE": 2048,
+            "DIAMOND": 32
+          }
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000006",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "CREATE_SUBORG",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000007",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "PLACE_CORE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000008",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "CLAIM",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": true,
+        "revokedAt": 1800000000005
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000009",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "RAISE_CAMP",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000000a",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "CHOOSE_FALL",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000000b",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "GRANARY_DEPOSIT",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000000c",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "GRANARY_WITHDRAW",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000000d",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "GARRISON",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000000e",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "ARREST",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000000f",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "JUDGE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000010",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "PARDON",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000011",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "NEGOTIATE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000012",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "DECLARE_WAR",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000002"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000015",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "MANAGE_MEMBERS",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000016",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "APPOINT",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000017",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "SPEND",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {
+            "COBBLESTONE": 2048,
+            "DIAMOND": 32
+          }
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000018",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "CREATE_SUBORG",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000019",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "PLACE_CORE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000001a",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "CLAIM",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000001b",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "RAISE_CAMP",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000001c",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "CHOOSE_FALL",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000001d",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "GRANARY_DEPOSIT",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000001e",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "GRANARY_WITHDRAW",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000001f",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "GARRISON",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000020",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "ARREST",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000021",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "JUDGE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000022",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "PARDON",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000023",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "NEGOTIATE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000024",
+        "subject": "43484152-5445-5200-0000-000000000013",
+        "power": "DECLARE_WAR",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000014"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000027",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "MANAGE_MEMBERS",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000028",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "APPOINT",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000029",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "SPEND",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {
+            "COBBLESTONE": 2048,
+            "DIAMOND": 32
+          }
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000002a",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "CREATE_SUBORG",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000002b",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "PLACE_CORE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000002c",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "CLAIM",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000002d",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "RAISE_CAMP",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000002e",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "CHOOSE_FALL",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000002f",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "GRANARY_DEPOSIT",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000030",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "GRANARY_WITHDRAW",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000031",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "GARRISON",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000032",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "ARREST",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000033",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "JUDGE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000034",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "PARDON",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000035",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "NEGOTIATE",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000036",
+        "subject": "43484152-5445-5200-0000-000000000025",
+        "power": "DECLARE_WAR",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000026"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000038",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "SPEND",
+        "recipient": {
+          "office": "43484152-5445-5200-0000-000000000037"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {
+            "COBBLESTONE": 100,
+            "DIAMOND": 5
+          }
+        },
+        "redelegable": true,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000039",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "SPEND",
+        "recipient": {
+          "player": "00000000-0000-abcd-0000-000000000002"
+        },
+        "grantor": {
+          "office": "43484152-5445-5200-0000-000000000037"
+        },
+        "parent": "43484152-5445-5200-0000-000000000038",
+        "scope": {
+          "spendLimitPerAction": {
+            "COBBLESTONE": 10,
+            "DIAMOND": 1
+          }
+        },
+        "redelegable": false,
+        "createdAt": 1800000000000,
+        "expiresAt": 1802592000000,
+        "revoked": false,
+        "revokedAt": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000003a",
+        "subject": "43484152-5445-5200-0000-000000000001",
+        "power": "CLAIM",
+        "recipient": {
+          "org": "43484152-5445-5200-0000-000000000025"
+        },
+        "grantor": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "scope": {
+          "spendLimitPerAction": {}
+        },
+        "redelegable": false,
+        "createdAt": 1800000000000,
+        "expiresAt": 0,
+        "revoked": false,
+        "revokedAt": 0
+      }
+    ]
+  },
+  "votes": {
+    "votes": [
+      {
+        "id": "43484152-5445-5200-0000-00000000003b",
+        "org": "43484152-5445-5200-0000-000000000001",
+        "kind": "MOTION",
+        "motion": {
+          "type": "treasury.withdraw",
+          "org": "43484152-5445-5200-0000-000000000001",
+          "currency": "DIAMOND",
+          "amount": 5,
+          "to": "00000000-0000-abcd-0000-000000000002"
+        },
+        "proposer": "00000000-0000-abcd-0000-000000000001",
+        "power": "SPEND",
+        "method": "SUPERMAJORITY",
+        "quorumShare": 0.6,
+        "electorate": [
+          "00000000-0000-abcd-0000-000000000001",
+          "00000000-0000-abcd-0000-000000000002"
+        ],
+        "activeAtOpen": [
+          "00000000-0000-abcd-0000-000000000001",
+          "00000000-0000-abcd-0000-000000000002"
+        ],
+        "openedAt": 1800345600000,
+        "closesAt": 1800518400000,
+        "ballots": {
+          "00000000-0000-abcd-0000-000000000001": {
+            "choice": "YES"
+          }
+        },
+        "state": "OPEN",
+        "result": ""
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000003c",
+        "org": "43484152-5445-5200-0000-000000000001",
+        "kind": "MOTION",
+        "motion": {
+          "type": "org.rename",
+          "org": "43484152-5445-5200-0000-000000000001",
+          "name": "Oakvale Commons"
+        },
+        "proposer": "00000000-0000-abcd-0000-000000000001",
+        "power": "APPOINT",
+        "method": "MAJORITY",
+        "quorumShare": 0.6,
+        "electorate": [
+          "00000000-0000-abcd-0000-000000000001",
+          "00000000-0000-abcd-0000-000000000002"
+        ],
+        "activeAtOpen": [
+          "00000000-0000-abcd-0000-000000000001",
+          "00000000-0000-abcd-0000-000000000002"
+        ],
+        "openedAt": 1800345600000,
+        "closesAt": 1800518400000,
+        "ballots": {
+          "00000000-0000-abcd-0000-000000000001": {
+            "choice": "YES"
+          },
+          "00000000-0000-abcd-0000-000000000002": {
+            "choice": "NO"
+          }
+        },
+        "state": "FAILED",
+        "result": "tie"
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000003d",
+        "org": "43484152-5445-5200-0000-000000000013",
+        "kind": "MOTION",
+        "motion": {
+          "type": "gov.create_office",
+          "org": "43484152-5445-5200-0000-000000000013",
+          "name": "Scribe"
+        },
+        "seatsOf": "43484152-5445-5200-0000-000000000014",
+        "proposer": "00000000-0000-abcd-0000-000000000003",
+        "power": "APPOINT",
+        "method": "MAJORITY",
+        "quorumShare": 0.0,
+        "electorate": [
+          "00000000-0000-abcd-0000-000000000003",
+          "00000000-0000-abcd-0000-000000000004"
+        ],
+        "activeAtOpen": [
+          "00000000-0000-abcd-0000-000000000003",
+          "00000000-0000-abcd-0000-000000000004"
+        ],
+        "openedAt": 1800345600000,
+        "closesAt": 1800432000000,
+        "ballots": {
+          "00000000-0000-abcd-0000-000000000003": {
+            "choice": "YES"
+          }
+        },
+        "state": "OPEN",
+        "result": ""
+      },
+      {
+        "id": "43484152-5445-5200-0000-00000000003e",
+        "org": "43484152-5445-5200-0000-000000000013",
+        "kind": "ELECTION",
+        "office": "43484152-5445-5200-0000-000000000014",
+        "method": "MAJORITY",
+        "quorumShare": 0.5,
+        "electorate": [
+          "00000000-0000-abcd-0000-000000000003"
+        ],
+        "activeAtOpen": [
+          "00000000-0000-abcd-0000-000000000003"
+        ],
+        "openedAt": 1800345600000,
+        "closesAt": 1800518400000,
+        "ballots": {},
+        "state": "OPEN",
+        "result": ""
+      }
+    ]
+  },
+  "land": {
+    "nextCoreOrder": 3,
+    "cores": [
+      {
+        "id": "43484152-5445-5200-0000-00000000003f",
+        "kind": "KEEP",
+        "owner": "43484152-5445-5200-0000-000000000001",
+        "center": {
+          "dimension": "minecraft:overworld",
+          "x": 0,
+          "z": 0
+        },
+        "order": 1,
+        "placedAt": 1800345600000,
+        "phase": "ACTIVE",
+        "phaseSince": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000040",
+        "kind": "CAMP",
+        "owner": "43484152-5445-5200-0000-000000000013",
+        "center": {
+          "dimension": "minecraft:overworld",
+          "x": 6,
+          "z": 0
+        },
+        "order": 2,
+        "placedAt": 1800345600000,
+        "phase": "RAISING",
+        "phaseSince": 1234
+      }
+    ],
+    "claims": [
+      {
+        "id": "43484152-5445-5200-0000-000000000041",
+        "chunk": {
+          "dimension": "minecraft:overworld",
+          "x": 0,
+          "z": 0
+        },
+        "owner": "43484152-5445-5200-0000-000000000001",
+        "kind": "KEEP_CORE",
+        "core": "43484152-5445-5200-0000-00000000003f",
+        "hops": 0,
+        "claimedAt": 1800345600000,
+        "contestedUntil": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000042",
+        "chunk": {
+          "dimension": "minecraft:overworld",
+          "x": 2,
+          "z": 0
+        },
+        "owner": "43484152-5445-5200-0000-000000000001",
+        "kind": "OUTLYING",
+        "core": "43484152-5445-5200-0000-00000000003f",
+        "hops": 2,
+        "claimedAt": 1800345600000,
+        "contestedUntil": 0
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000043",
+        "chunk": {
+          "dimension": "minecraft:overworld",
+          "x": 3,
+          "z": 3
+        },
+        "owner": "43484152-5445-5200-0000-000000000001",
+        "kind": "OUTLYING",
+        "hops": 3,
+        "claimedAt": 1800345600000,
+        "contestedUntil": 9999999
+      },
+      {
+        "id": "43484152-5445-5200-0000-000000000044",
+        "chunk": {
+          "dimension": "minecraft:overworld",
+          "x": 6,
+          "z": 0
+        },
+        "owner": "43484152-5445-5200-0000-000000000013",
+        "kind": "CAMP",
+        "core": "43484152-5445-5200-0000-000000000040",
+        "hops": 0,
+        "claimedAt": 1800345600000,
+        "contestedUntil": 0
+      }
+    ]
+  },
+  "siege": {
+    "stores": {
+      "43484152-5445-5200-0000-00000000003f": {
+        "provisions": {
+          "minecraft:baked_potato": 12,
+          "minecraft:bread": 30
+        },
+        "eatDebt": 0.4,
+        "spoilDebts": {
+          "minecraft:bread": 0.25
+        }
+      },
+      "43484152-5445-5200-0000-000000000040": {
+        "provisions": {
+          "minecraft:cooked_beef": 64
+        },
+        "eatDebt": 1.75,
+        "spoilDebts": {}
+      }
+    },
+    "keeps": {
+      "43484152-5445-5200-0000-00000000003f": {
+        "supply": "BESIEGED",
+        "starving": true,
+        "besiegers": [
+          "43484152-5445-5200-0000-000000000013"
+        ]
+      }
+    },
+    "camps": {
+      "43484152-5445-5200-0000-000000000040": {
+        "supply": "CUT_OFF",
+        "sallyLeft": 5000,
+        "exposed": true,
+        "targets": [
+          "43484152-5445-5200-0000-000000000001"
+        ]
+      }
+    },
+    "holds": {
+      "43484152-5445-5200-0000-000000000042": 7200000
+    },
+    "allowances": [
+      {
+        "carrier": "player:00000000-0000-abcd-0000-000000000002",
+        "site": "43484152-5445-5200-0000-00000000003f",
+        "items": {
+          "minecraft:bread": 5
+        },
+        "expiresSiege": 99999
+      }
+    ],
+    "truces": [
+      {
+        "keep": "43484152-5445-5200-0000-00000000003f",
+        "attacker": "43484152-5445-5200-0000-000000000025",
+        "untilSiege": 555
+      }
+    ],
+    "falls": {
+      "43484152-5445-5200-0000-00000000003f": {
+        "keep": "43484152-5445-5200-0000-00000000003f",
+        "besieger": "43484152-5445-5200-0000-000000000013",
+        "decideBySiege": 777
+      }
+    },
+    "occupations": {
+      "43484152-5445-5200-0000-00000000003f": {
+        "keep": "43484152-5445-5200-0000-00000000003f",
+        "occupier": "43484152-5445-5200-0000-000000000013",
+        "untilSiege": 888
+      }
+    },
+    "notoriety": {
+      "43484152-5445-5200-0000-000000000013": 2.5,
+      "43484152-5445-5200-0000-000000000001": 0.16666666666666666
+    },
+    "protectionWaived": [
+      "43484152-5445-5200-0000-000000000013"
+    ]
+  },
+  "join_requests": {
+    "requests": [
+      {
+        "org": "43484152-5445-5200-0000-000000000001",
+        "player": "00000000-0000-abcd-0000-000000000005",
+        "at": 1800345600000
+      }
+    ]
+  },
+  "breakaways": {
+    "breakaways": [
+      {
+        "kind": "SUBFACTION",
+        "org": "43484152-5445-5200-0000-000000000025",
+        "members": [],
+        "startedAt": 1800000000000,
+        "deadline": 1800000001000
+      },
+      {
+        "kind": "GROUP",
+        "org": "43484152-5445-5200-0000-000000000001",
+        "starter": "00000000-0000-abcd-0000-000000000001",
+        "members": [
+          "00000000-0000-abcd-0000-000000000001",
+          "00000000-0000-abcd-0000-000000000002"
+        ],
+        "startedAt": 1800000000000,
+        "deadline": 1800000002000
+      }
+    ]
+  },
+  "npc": {
+    "sites": [],
+    "respawns": [],
+    "live": {},
+    "crumbles": [],
+    "nextId": 1
+  },
+  "contracts": {
+    "contracts": {
+      "43484152-5445-5200-0000-000000000045": {
+        "id": "43484152-5445-5200-0000-000000000045",
+        "consent": "IMPOSED",
+        "basis": "CUSTODY",
+        "imposer": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "subject": {
+          "player": "00000000-0000-abcd-0000-000000000005"
+        },
+        "terms": [
+          {
+            "type": "Confinement",
+            "durationMillis": 7200000,
+            "keep": "43484152-5445-5200-0000-00000000003f",
+            "cell": "cell"
+          }
+        ],
+        "createdAt": 1800345600000,
+        "keep": "43484152-5445-5200-0000-00000000003f",
+        "siegeTimed": false,
+        "endsAt": 1800352800000,
+        "state": "ACTIVE",
+        "accepted": [
+          {
+            "org": "43484152-5445-5200-0000-000000000001"
+          },
+          {
+            "player": "00000000-0000-abcd-0000-000000000005"
+          }
+        ],
+        "endedAt": 0,
+        "endReason": ""
+      },
+      "43484152-5445-5200-0000-000000000046": {
+        "id": "43484152-5445-5200-0000-000000000046",
+        "consent": "SIGNED",
+        "imposer": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "subject": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "terms": [
+          {
+            "type": "Payment",
+            "currency": "COBBLESTONE",
+            "amount": 64
+          },
+          {
+            "type": "Fine",
+            "diamonds": 3
+          },
+          {
+            "type": "Delivery",
+            "itemId": "minecraft:bread",
+            "count": 100,
+            "deadlineMillis": 86400000
+          },
+          {
+            "type": "GrantTerm",
+            "power": "GRANARY_DEPOSIT",
+            "subject": "43484152-5445-5200-0000-000000000001",
+            "durationMillis": 3600000
+          },
+          {
+            "type": "Access",
+            "keep": "43484152-5445-5200-0000-00000000003f",
+            "durationMillis": 7200000
+          },
+          {
+            "type": "Confinement",
+            "durationMillis": 3600000,
+            "keep": "43484152-5445-5200-0000-00000000003f",
+            "cell": "north cell"
+          },
+          {
+            "type": "Tether",
+            "durationMillis": 3600000,
+            "keep": "43484152-5445-5200-0000-00000000003f"
+          },
+          {
+            "type": "Banishment",
+            "from": "43484152-5445-5200-0000-000000000001",
+            "durationMillis": 3600000
+          },
+          {
+            "type": "RespawnDelay",
+            "durationMillis": 600000
+          },
+          {
+            "type": "RelationLock",
+            "against": [
+              "43484152-5445-5200-0000-000000000025"
+            ],
+            "durationMillis": 86400000
+          },
+          {
+            "type": "ClaimLimit",
+            "max": 12,
+            "durationMillis": 86400000
+          },
+          {
+            "type": "Cede",
+            "claims": [
+              "43484152-5445-5200-0000-000000000042"
+            ]
+          },
+          {
+            "type": "Release",
+            "what": "vassals"
+          }
+        ],
+        "createdAt": 1800345600000,
+        "keep": "43484152-5445-5200-0000-00000000003f",
+        "siegeTimed": false,
+        "endsAt": 1800777600000,
+        "state": "PROPOSED",
+        "accepted": [
+          {
+            "org": "43484152-5445-5200-0000-000000000001"
+          }
+        ],
+        "endedAt": 0,
+        "endReason": ""
+      },
+      "43484152-5445-5200-0000-000000000047": {
+        "id": "43484152-5445-5200-0000-000000000047",
+        "consent": "IMPOSED",
+        "basis": "OCCUPATION",
+        "imposer": {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        "subject": {
+          "org": "43484152-5445-5200-0000-000000000001"
+        },
+        "terms": [
+          {
+            "type": "Access",
+            "keep": "43484152-5445-5200-0000-00000000003f",
+            "durationMillis": 883
+          }
+        ],
+        "createdAt": 1800345600000,
+        "keep": "43484152-5445-5200-0000-00000000003f",
+        "siegeTimed": true,
+        "endsAt": 888,
+        "state": "ACTIVE",
+        "accepted": [
+          {
+            "org": "43484152-5445-5200-0000-000000000013"
+          },
+          {
+            "org": "43484152-5445-5200-0000-000000000001"
+          }
+        ],
+        "endedAt": 0,
+        "endReason": ""
+      }
+    },
+    "punishments": {
+      "entries": [
+        {
+          "contract": "43484152-5445-5200-0000-000000000045",
+          "player": "00000000-0000-abcd-0000-000000000005",
+          "faction": "43484152-5445-5200-0000-000000000001",
+          "at": 1800345600000,
+          "counted": 7200000
+        }
+      ]
+    },
+    "custody": {},
+    "vault": {
+      "00000000-0000-abcd-0000-000000000004": {
+        "balances": {
+          "DIAMOND": 7
+        }
+      }
+    },
+    "breachMarks": [
+      [
+        {
+          "org": "43484152-5445-5200-0000-000000000013"
+        },
+        1
+      ]
+    ]
+  },
+  "granary": {
+    "sites": []
+  },
+  "cells": {
+    "cells": []
+  }
+}

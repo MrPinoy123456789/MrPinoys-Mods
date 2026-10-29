@@ -30,13 +30,9 @@ import charter.land.actions.ClaimLand;
 import charter.land.actions.PlaceNexus;
 import charter.land.actions.PlantCamp;
 import charter.org.actions.CreateSubOrg;
-import charter.siege.FallChoice;
-import charter.siege.KeepSupply;
 import charter.siege.SiegeEvents;
-import charter.siege.SiegeInputs;
 import charter.siege.SiegeRules;
 import charter.siege.SiegeSim;
-import charter.siege.actions.ChooseFall;
 import charter.siege.actions.DepositFood;
 import charter.time.Durations;
 import charter.treasury.Currency;
@@ -89,10 +85,6 @@ public final class ContractTest {
         testSignedBreach();
         testUWeeklyCap();
         testPardonAndRelease();
-        testNotoriety();
-        testVPrisonersEat();
-        testWOccupation();
-        testD7Deposit();
         testBond();
     }
 
@@ -109,7 +101,6 @@ public final class ContractTest {
     static final class World {
         final Fixture f = new Fixture();
         final SiegeSim sim = new SiegeSim(f.engine, table());
-        final SiegeInputs inputs = JusticeInputs.wrap(SiegeInputs.NONE, f.state, f.knobs, f.engine::now);
         OrgId ashfall;
         OrgId brine;
         OrgId cinder;
@@ -118,7 +109,6 @@ public final class ContractTest {
         Core keepC;
 
         World() {
-            sim.inputs(inputs);
         }
 
         /** Advances wall time and runs a siege pass so the contracts see it. */
@@ -179,9 +169,6 @@ public final class ContractTest {
             adv(Durations.hours(f.knobs.campRaisingHours));
         }
 
-        void untilFall(Core keep) {
-            for (int i = 0; i < 20_000 && !f.state.siege.falls.containsKey(keep.id); i++) adv(Durations.MINUTE);
-        }
     }
 
     static World world() {
@@ -368,18 +355,6 @@ public final class ContractTest {
         check("T: the week counts only the time served (about 2 hours, not 12)",
                 w.f.state.contracts.punishments.counted(TAM, w.f.engine.now()) <= 2 * H + Durations.MINUTE * 2);
         eq("T: an imposed contract cannot be breached", false, cell.breach(Party.of(TAM), now));
-
-        // starving out an occupation by the siege rules
-        World o = occupiedWorld();
-        Contract occupation = o.contracts(Basis.OCCUPATION).getFirst();
-        Core camp = o.camp(o.ashfall, KRIS, -2, 0, 2000);
-        o.raise();
-        o.adv(Durations.hours(1));
-        eq("T: starving the occupiers out resists the occupation", ContractState.RESISTED, occupation.state());
-        eq("T: no mark on the occupier", 0, o.f.state.contracts.breachMarks(Party.of(o.brine)));
-        eq("T: no mark on the owner", 0, o.f.state.contracts.breachMarks(Party.of(o.ashfall)));
-        check("T: the Chronicle records it was resisted", o.f.state.history.has(ContractEvents.Resisted.class));
-        check("T: the camp that did it is still ours", camp != null);
     }
 
     static void testSignedBreach() {
@@ -469,160 +444,6 @@ public final class ContractTest {
         eq("pardon: nothing left to pardon", ContractReasons.NOT_HELD.key(), w.f.as(KRIS, new Pardon(w.ashfall, SAM)).reasonKey());
     }
 
-    static void testNotoriety() {
-        World w = world();
-        double start = w.f.state.siege.notorietyOf(w.ashfall);
-        w.jail(KRIS, w.ashfall, w.keepA, TAM, H);
-        double light = w.f.state.siege.notorietyOf(w.ashfall) - start;
-        w.jail(KRIS, w.ashfall, w.keepA, PAT, Durations.hours(24));
-        double heavy = w.f.state.siege.notorietyOf(w.ashfall) - start - light;
-        check("notoriety: an imposed sentence costs the imposer notoriety (" + light + ")", light > 0);
-        check("notoriety: a harsher sentence costs more (" + light + " then " + heavy + ")", heavy > light * 5);
-        eq("notoriety: charged to the faction, not to anyone else", 0.0, w.f.state.siege.notorietyOf(w.brine));
-        var event = w.f.state.history.of(ContractEvents.Imposed.class).getLast();
-        check("notoriety: the record carries it", Math.abs(event.notoriety() - heavy) < 1e-9);
-        double before = w.f.state.siege.notorietyOf(w.cinder);
-        w.f.knobs.imposedNotorietyPerSeverity = 3.0;
-        w.jail(VAL, w.cinder, w.keepC, ROB, H);
-        check("notoriety: the knob scales it", w.f.state.siege.notorietyOf(w.cinder) - before > light * 2.9);
-    }
-
-    // ---- V: prisoners eat ----
-
-    static void testVPrisonersEat() {
-        World w = world();
-        w.f.knobs.imposedNotorietyPerSeverity = 0;
-        int base = w.sim.rules().mouths(w.keepA, w.inputs.prisoners(w.keepA.id));
-        w.jail(KRIS, w.ashfall, w.keepA, TAM, Durations.hours(20));
-        eq("V: one prisoner is one more mouth", base + 1, w.sim.rules().mouths(w.keepA, w.inputs.prisoners(w.keepA.id)));
-        w.jail(KRIS, w.ashfall, w.keepA, PAT, Durations.hours(20));
-        eq("V: two prisoners, two more mouths", base + 2, w.sim.rules().mouths(w.keepA, w.inputs.prisoners(w.keepA.id)));
-        eq("V: the count is per keep", 0, w.inputs.prisoners(w.keepB.id));
-        double limitWith = w.sim.rules().storageLimit(w.keepA);
-        World none = world();
-        eq("V: prisoners do not raise the storage limit", none.sim.rules().storageLimit(none.keepA), limitWith);
-
-        // the real drain, through the sim
-        none.f.knobs.imposedNotorietyPerSeverity = 0;
-        for (World world : List.of(w, none)) {
-            world.fill(world.keepA, 400);
-            world.camp(world.brine, ZED, 2, 0, 3000);
-            world.raise();
-        }
-        double wStart = w.granary(w.keepA);
-        double nStart = none.granary(none.keepA);
-        w.adv(H);
-        none.adv(H);
-        double withPrisoners = wStart - w.granary(w.keepA);
-        double without = nStart - none.granary(none.keepA);
-        check("V: the keep is besieged", w.f.state.siege.keep(w.keepA.id).supply == KeepSupply.BESIEGED);
-        check("V: an hour with 2 prisoners costs about 5/3 of an hour without (" + withPrisoners + " vs " + without + ")",
-                without > 0 && Math.abs(withPrisoners / without - 5.0 / 3.0) < 0.05);
-
-        // when the keep falls the prisoners walk free
-        w.untilFall(w.keepA);
-        check("V: the keep falls", w.f.state.siege.falls.containsKey(w.keepA.id));
-        eq("V: no prisoners are left in it", 0, w.inputs.prisoners(w.keepA.id));
-        check("V: the prisoners are released and recorded", w.f.state.history.has(ContractEvents.PrisonersFreed.class));
-        check("V: Tam walks free", Justice.holding(w.f.state, w.f.knobs, TAM, w.f.engine.now()).isEmpty());
-        eq("V: the sentences ended, not escaped", ContractState.ENDED, w.contracts(Basis.CUSTODY).getFirst().state());
-        eq("V: no breach mark for being freed", 0, w.f.state.contracts.breachMarks(Party.of(TAM)));
-        check("V: the week counts only the time served", w.f.state.contracts.punishments.counted(TAM, w.f.engine.now()) < Durations.hours(20));
-    }
-
-    // ---- W: occupation ----
-
-    static World occupiedWorld() {
-        World w = world();
-        w.fill(w.keepA, 12);
-        w.camp(w.brine, ZED, 2, 0, 2000);
-        w.raise();
-        w.untilFall(w.keepA);
-        require(w.f.as(ZED, new ChooseFall(w.brine, w.keepA.id, FallChoice.OCCUPY)), "occupy");
-        return w;
-    }
-
-    static void testWOccupation() {
-        World w = occupiedWorld();
-        Contract occupation = w.contracts(Basis.OCCUPATION).getFirst();
-        check("W: the keep stays recorded to its owner", w.f.state.core(w.keepA.id).map(c -> c.owner.equals(w.ashfall)).orElse(false));
-        eq("W: the occupier holds it", w.brine, w.sim.rules().holder(w.keepA));
-        eq("W: the occupation is an imposed contract", Consent.IMPOSED, occupation.consent);
-        eq("W: on the occupation basis", Basis.OCCUPATION, occupation.basis);
-        eq("W: imposed by the occupier", Party.of(w.brine), occupation.imposer);
-        eq("W: on the owner", Party.of(w.ashfall), occupation.subject);
-        eq("W: it is running", ContractState.ACTIVE, occupation.state());
-        check("W: it carries an access term for the keep", occupation.term(Term.Access.class) != null
-                && occupation.term(Term.Access.class).keep().equals(w.keepA.id));
-        check("W: the occupier holds access", Occupations.holdsAccess(w.f.state, w.keepA.id, w.brine));
-        check("W: the owner does not", !Occupations.holdsAccess(w.f.state, w.keepA.id, w.ashfall));
-        check("W: the occupation was recorded in the Chronicle", w.f.state.history.has(ContractEvents.Imposed.class));
-
-        // the granary is the occupier's
-        long mine = w.f.engine.now();
-        Outcome owner = w.f.as(KRIS, new DepositFood(w.ashfall, w.keepA.id, "player:" + KRIS, Map.of(BREAD, 50)));
-        eq("W: the owner can no longer feed it", DepositFood.NOT_YOURS.key(), owner.reasonKey());
-        double before = w.granary(w.keepA);
-        Outcome occupier = w.f.as(ZED, new DepositFood(w.ashfall, w.keepA.id, "player:" + ZED, Map.of(BREAD, 50)));
-        check("W: the occupier can put food in the granary (" + mine + ")", occupier.done());
-        eq("W: and it gained what they put in", 250.0, w.granary(w.keepA) - before);
-        SiegeRules rules = w.sim.rules();
-        eq("W: its mouths are the occupier's members", 3, rules.mouths(w.keepA, 0));
-
-        // the cap runs out
-        World c = occupiedWorld();
-        Contract capped = c.contracts(Basis.OCCUPATION).getFirst();
-        c.adv(Durations.days(c.f.knobs.occupationCapDays) - Durations.MINUTE);
-        eq("W: still running just before the cap", ContractState.ACTIVE, capped.state());
-        c.adv(Durations.MINUTE * 2);
-        eq("W: the cap runs out, the contract is fulfilled", ContractState.FULFILLED, capped.state());
-        eq("W: control returns to the owner", c.ashfall, c.sim.rules().holder(c.keepA));
-        check("W: the owner holds access again", !Occupations.holdsAccess(c.f.state, c.keepA.id, c.brine));
-        check("W: still recorded to the owner", c.f.state.core(c.keepA.id).map(k -> k.owner.equals(c.ashfall)).orElse(false));
-        eq("W: no breach marks", 0, c.f.state.contracts.breachMarks(Party.of(c.brine)));
-
-        // the defenders starve the occupiers out
-        World s = occupiedWorld();
-        Contract starved = s.contracts(Basis.OCCUPATION).getFirst();
-        s.f.as(ZED, new DepositFood(s.ashfall, s.keepA.id, "player:" + ZED, Map.of(BREAD, 20)));
-        s.camp(s.ashfall, KRIS, -2, 0, 2000);
-        s.raise();
-        check("W: the owner's camp besieges the occupier", s.f.state.siege.keep(s.keepA.id).supply != KeepSupply.SUPPLIED
-                || starved.state() != ContractState.ACTIVE);
-        for (int i = 0; i < 600 && starved.state() == ContractState.ACTIVE; i++) s.adv(Durations.MINUTE);
-        eq("W: starved out, control returns", s.ashfall, s.sim.rules().holder(s.keepA));
-        eq("W: the contract is resisted", ContractState.RESISTED, starved.state());
-        check("W: the keep is still recorded to its owner", s.f.state.core(s.keepA.id).map(k -> k.owner.equals(s.ashfall)).orElse(false));
-        check("W: the starving-out is recorded by the siege too", s.f.state.history.of(SiegeEvents.OccupationEnded.class).stream()
-                .anyMatch(e -> e.why().equals("starved")));
-    }
-
-    // ---- D7: the deposit grant ----
-
-    static void testD7Deposit() {
-        World w = world();
-        w.fill(w.keepA, 300);
-        w.camp(w.brine, ZED, 2, 0, 2000);
-        w.raise();
-        check("D7: the keep is besieged", w.sim.rules().supplyOf(w.keepA) != KeepSupply.SUPPLIED);
-        String carrier = "player:" + VAL;
-        DepositFood deposit = new DepositFood(w.ashfall, w.keepA.id, carrier, Map.of(BREAD, 60));
-        w.sim.supply().enter(carrier, ch(0, 2), ch(0, 1), Map.of(BREAD, 40));
-        eq("D7: an outsider with no grant is refused", DepositFood.NOT_YOURS.key(), w.f.as(VAL, deposit).reasonKey());
-
-        require(w.f.as(KRIS, new GrantPower(w.ashfall, Power.GRANARY_DEPOSIT, new Holder.OfPlayer(VAL), GrantScope.ANY, false, 0)), "grant");
-        var grant = w.f.state.grants().stream().filter(g -> g.power == Power.GRANARY_DEPOSIT && g.recipient.equals(new Holder.OfPlayer(VAL))).findFirst().orElseThrow();
-        double before = w.granary(w.keepA);
-        check("D7: with a deposit grant the outsider deposits into the besieged granary", w.f.as(VAL, deposit).done());
-        eq("D7: but only the 40 they carried in, not the 60 they offered", 40 * 5.0, w.granary(w.keepA) - before);
-        eq("D7: nothing more on the same allowance", DepositFood.NOTHING_IN.key(), w.f.as(VAL, deposit).reasonKey());
-
-        w.sim.supply().enter(carrier, ch(0, 2), ch(0, 1), Map.of(BREAD, 30));
-        require(w.f.as(KRIS, new RevokeGrant(w.ashfall, Power.GRANARY_DEPOSIT, grant.id)), "revoke");
-        eq("D7: the moment the grant is revoked the allowance is no good", DepositFood.NOT_YOURS.key(),
-                w.f.as(VAL, new DepositFood(w.ashfall, w.keepA.id, carrier, Map.of(BREAD, 30))).reasonKey());
-    }
-
     // ---- the bond (D12) ----
 
     static void testBond() {
@@ -635,14 +456,12 @@ public final class ContractTest {
 
         World on = world();
         on.f.knobs.labourTerms = true;
-        on.f.knobs.imposedNotorietyPerSeverity = 0;
         on.arrest(KRIS, on.ashfall, TAM, ch(0, 0));
         check("bond: with the knob on a bond is accepted", on.f.as(KRIS,
                 new Sentence(on.ashfall, TAM, List.of(new Term.Tether(Durations.hours(30), on.keepA.id)))).done());
         Contract bond = on.latest();
         eq("bond: capped like confinement, 30 hours cut to a day", Durations.DAY, bond.term(Term.Tether.class).durationMillis());
         check("bond: the bonded player is held", Justice.holding(on.f.state, on.f.knobs, TAM, on.f.engine.now()).isPresent());
-        eq("bond: and is a mouth on the granary", 1, on.inputs.prisoners(on.keepA.id));
         eq("bond: counted exactly like confinement", Durations.DAY, on.f.state.contracts.punishments.counted(TAM, on.f.engine.now()));
         on.arrest(KRIS, on.ashfall, PAT, ch(0, 0));
         eq("bond: only one place to hold a player", ContractReasons.ONE_HOLD.key(), on.f.as(KRIS, new Sentence(on.ashfall, PAT,
@@ -651,6 +470,5 @@ public final class ContractTest {
         check("bond: walking out by force is escape", on.f.as(TAM, new Escape(TAM)).done());
         eq("bond: resistance, not breach", ContractState.RESISTED, bond.state());
         eq("bond: no mark", 0, on.f.state.contracts.breachMarks(Party.of(TAM)));
-        eq("bond: no longer a mouth", 0, on.inputs.prisoners(on.keepA.id));
     }
 }

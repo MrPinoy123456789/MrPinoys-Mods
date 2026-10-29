@@ -244,7 +244,7 @@ public final class LandPlacementGameTest {
     }
 
     @GameTest(maxTicks = 200)
-    public void adminCommandsRaiseACampNowAndShowThePerimeter(GameTestHelper helper) {
+    public void adminCommandsRaiseACampNow(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Admin");
             var org = kit.orgOf(lord);
@@ -255,8 +255,6 @@ public final class LandPlacementGameTest {
             var source = kit.server.createCommandSourceStack().withPosition(net.minecraft.world.phys.Vec3.atCenterOf(kit.pos(-8, 0)));
             var dispatcher = kit.server.getCommands().getDispatcher();
             try {
-                int shown = dispatcher.execute("charter admin perimeter show", source);
-                helper.assertTrue(shown == 1, "perimeter show did not run");
                 int done = dispatcher.execute("charter admin camp raise-now", source);
                 helper.assertTrue(done == 1, "camp raise-now did not run");
             } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {

@@ -7,32 +7,23 @@ import charter.food.FoodTable;
 import charter.food.Provisions;
 import charter.food.SpoilagePlan;
 import charter.history.HistoryEvent;
-import charter.id.ClaimId;
 import charter.id.CoreId;
-import charter.id.OrgId;
 import charter.land.CampPhase;
-import charter.land.Claim;
-import charter.land.ClaimKind;
 import charter.land.Core;
-import charter.land.Perimeter;
 import charter.state.CharterState;
 import charter.time.Durations;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * The siege (PLAN.md §4.3): one {@link #step} advances the siege clock and every
  * drain, timer and transition, and records what happened. Nobody chooses these
  * changes, so they are recorded as the system's, outside any action.
  *
- * <p>Order within a step: camps finish raising; which camps count and against
- * whom; each keep's supply; keep drains with presence, notoriety and assault;
- * camp burn; raids and hold refills; sallies; spoilage; timers; falls. Drains
+ * <p>Order within a step: camps finish raising; spoilage; timers. (Protected keeps:
+ * a keep is never besieged, and its upkeep drain is the next step's work.) Drains
  * carry fractional debts, so the result does not depend on how the time is cut
  * into steps (the time scale and {@code advance} agree with real time).
  */
@@ -45,7 +36,6 @@ public final class SiegeSim {
     private final CharterState state;
     private final Knobs knobs;
     private final FoodTable food;
-    private SiegeInputs inputs = SiegeInputs.NONE;
     private Runnable afterPass = () -> { };
 
     public SiegeSim(ActionEngine engine, FoodTable food) {
@@ -54,11 +44,6 @@ public final class SiegeSim {
         this.knobs = engine.knobs();
         this.food = food;
         state.siege.food = food;
-    }
-
-    public SiegeSim inputs(SiegeInputs newInputs) {
-        inputs = newInputs == null ? SiegeInputs.NONE : newInputs;
-        return this;
     }
 
     /** Runs after every pass, step and admin advance alike (the debrief log's hourly snapshots). */
@@ -104,22 +89,15 @@ public final class SiegeSim {
         long wall = engine.now();
         long now = state.siegeClock.now();
         SiegeRules rules = new SiegeRules(state, knobs, food, wall);
-        double hours = dt / (double) Durations.HOUR;
 
         forgetGone();
         events.addAll(charter.contract.Justice.freeOrphans(state, knobs, wall));
         events.addAll(charter.contract.Justice.tick(state, knobs, wall));
-        raiseCamps(rules, wall, now, events);
-        settleFalls(rules, wall, now, events);
+        raiseCamps(wall, now, events);
+        upkeepPass(rules, dt / (double) Durations.HOUR, wall, now, events);
 
-        Map<CoreId, List<Core>> counting = new LinkedHashMap<>();
-        for (Core keep : keeps()) counting.put(keep.id, rules.countingCamps(keep));
-
-        for (Core keep : keeps()) keepPass(rules, keep, counting.get(keep.id), hours, wall, now, events);
-        for (Core camp : camps()) campPass(rules, camp, hours, dt, wall, now, events);
-        holdPass(rules, dt, wall, now, events);
-        spoilPass(rules, hours);
-        timers(rules, dt, wall, now, events);
+        spoilPass(rules, dt / (double) Durations.HOUR);
+        timers(rules, wall, now, events);
 
         engine.recordSystem(events);
         afterPass.run();
@@ -138,242 +116,70 @@ public final class SiegeSim {
         book.stores.keySet().removeIf(id -> state.core(id).isEmpty());
         book.keeps.keySet().removeIf(id -> state.core(id).isEmpty());
         book.camps.keySet().removeIf(id -> state.core(id).isEmpty());
-        book.falls.keySet().removeIf(id -> state.core(id).isEmpty());
-        book.occupations.keySet().removeIf(id -> state.core(id).isEmpty());
-        book.holds.keySet().removeIf(id -> state.claim(id).isEmpty());
         book.allowances.removeIf(a -> state.core(a.site).isEmpty());
     }
 
     // ---- camps raising ----
 
-    private void raiseCamps(SiegeRules rules, long wall, long now, List<HistoryEvent> events) {
+    private void raiseCamps(long wall, long now, List<HistoryEvent> events) {
         long raising = Durations.hours(knobs.campRaisingHours);
         for (Core camp : camps()) {
             if (camp.phase() != CampPhase.RAISING || now - camp.phaseSince() < raising) continue;
             camp.setPhase(CampPhase.ACTIVE, now);
-            SiegeBook.CampSite site = state.siege.camp(camp.id);
-            site.sallyLeft = Durations.hours(knobs.campSallyProtectionHours);
-            Set<OrgId> targets = rules.targets(camp);
-            site.targets = new LinkedHashSet<>(targets);
-            events.add(new SiegeEvents.CampActive(wall, now, camp.id, camp.owner, targets));
-            if (!targets.isEmpty()) {
-                OrgId home = rules.faction(camp.owner);
-                addNotoriety(home, knobs.notorietyPerCamp);
-                if (rules.protectedFaction(home) && state.siege.protectionWaived.add(home)) {
-                    events.add(new SiegeEvents.ProtectionWaived(wall, home));
-                }
-                state.siege.protectionWaived.add(home);
-            }
+            state.siege.camp(camp.id);
+            events.add(new SiegeEvents.CampActive(wall, now, camp.id, camp.owner));
         }
     }
 
-    // ---- keeps ----
-
-    private void keepPass(SiegeRules rules, Core keep, List<Core> counting, double hours, long wall, long now,
-                          List<HistoryEvent> events) {
-        if (state.siege.falls.containsKey(keep.id)) return;
-        SiegeBook.KeepSite site = state.siege.keep(keep.id);
-        Set<OrgId> besiegers = new LinkedHashSet<>();
-        for (Core camp : counting) besiegers.add(rules.faction(camp.owner));
-
-        KeepSupply supply;
-        if (counting.isEmpty()) {
-            supply = KeepSupply.SUPPLIED;
-        } else {
-            Perimeter perimeter = rules.keepPerimeter(keep, counting);
-            supply = perimeter.fullyClosed() ? KeepSupply.ENCIRCLED : KeepSupply.BESIEGED;
-        }
-        transition(rules, keep, site, supply, besiegers, wall, now, events);
-        site.supply = supply;
-        if (supply == KeepSupply.SUPPLIED) {
-            site.besiegers = new LinkedHashSet<>();
-            site.starving = false;
-            return;
-        }
-        site.besiegers = besiegers;
-
-        Store store = state.siege.store(keep.id);
-        double limit = rules.storageLimit(keep);
-        double perHour = charter.food.Mouths.drainPerHour(knobs, rules.mouths(keep, inputs.prisoners(keep.id)));
-        double presence = 1 + knobs.presencePerPlayer * (attackersAt(counting) - inputs.defendersInKeep(keep.id));
-        double multiplier = clamp(presence * rules.notorietyMultiplier(rules.holder(keep)), knobs.multiplierMin, knobs.multiplierMax);
-        boolean starving = store.provisions.nourishment(food) < knobs.starvationThreshold * limit;
-        if (starving && inputs.attackersInsideKeep(keep.id) > 0) multiplier *= knobs.assaultMultiplier;
-        site.multiplier = multiplier;
-        site.mouths = rules.mouths(keep, inputs.prisoners(keep.id));
-        site.perHour = perHour;
-        if (starving && !site.starving) events.add(new SiegeEvents.Starving(wall, now, keep.id));
-        site.starving = starving;
-
-        store.eatDebt += perHour * multiplier * hours;
-        EatPlan.Result eaten = EatPlan.plan(store.provisions, store.eatDebt, food);
-        store.provisions.apply(eaten.eaten());
-        store.eatDebt = eaten.debt();
-        if (eaten.unmet() > 0 || store.provisions.nourishment(food) <= 0) fall(rules, keep, counting, wall, now, events);
-    }
-
-    private int attackersAt(List<Core> camps) {
-        int n = 0;
-        for (Core camp : camps) n += inputs.attackersInCamp(camp.id);
-        return n;
-    }
-
-    private void transition(SiegeRules rules, Core keep, SiegeBook.KeepSite site, KeepSupply supply, Set<OrgId> besiegers,
-                            long wall, long now, List<HistoryEvent> events) {
-        KeepSupply was = site.supply;
-        if (was == KeepSupply.SUPPLIED && supply != KeepSupply.SUPPLIED) {
-            events.add(new SiegeEvents.SiegeBegan(wall, now, keep.id, rules.holder(keep), besiegers));
-        }
-        if (supply == KeepSupply.ENCIRCLED && was != KeepSupply.ENCIRCLED) events.add(new SiegeEvents.Encircled(wall, now, keep.id));
-        if (was == KeepSupply.ENCIRCLED && supply == KeepSupply.BESIEGED) events.add(new SiegeEvents.RingBroken(wall, now, keep.id));
-        if (was != KeepSupply.SUPPLIED && supply == KeepSupply.SUPPLIED) {
-            events.add(new SiegeEvents.SiegeLifted(wall, now, keep.id, site.besiegers));
-            long until = now + Durations.days(knobs.truceDays);
-            for (OrgId attacker : site.besiegers) {
-                state.siege.truces.add(new SiegeBook.Truce(keep.id, attacker, until));
-                events.add(new SiegeEvents.TruceBegan(wall, now, keep.id, attacker, until));
-            }
-        }
-    }
-
-    // ---- the fall ----
-
-    private void fall(SiegeRules rules, Core keep, List<Core> counting, long wall, long now, List<HistoryEvent> events) {
-        SiegeBook.KeepSite site = state.siege.keep(keep.id);
-        SiegeBook.Occupation occupation = state.siege.occupations.remove(keep.id);
-        if (occupation != null) {
-            site.supply = KeepSupply.SUPPLIED;
-            site.besiegers = new LinkedHashSet<>();
-            site.starving = false;
-            events.add(new SiegeEvents.OccupationEnded(wall, now, keep.id, occupation.occupier(), "starved"));
-            events.addAll(charter.contract.Occupations.end(state, keep.id, "starved", wall));
-            return;
-        }
-        OrgId besieger = mainBesieger(rules, keep, counting);
-        state.siege.falls.put(keep.id, new SiegeBook.PendingFall(keep.id, besieger, now + Durations.minutes(knobs.fallChoiceMinutes)));
-        addNotoriety(rules.faction(besieger), knobs.notorietyPerClaimTaken);
-        events.add(new SiegeEvents.KeepFell(wall, now, keep.id, keep.owner, besieger, keep.center));
-        events.addAll(charter.contract.Justice.freeKeep(state, knobs, keep.id, wall, "keep fell"));
-        // A stronghold of the raiders is razed at once: nobody chooses (NPC strongholds, N3).
-        if (state.org(keep.owner).map(o -> o.npc).orElse(false)) {
-            events.addAll(Falls.resolve(state, knobs, keep.id, FallChoice.RAZE, wall));
-        }
-    }
-
-    /** The besieging organization holding the most closed sides; the older camp wins a tie. */
-    private OrgId mainBesieger(SiegeRules rules, Core keep, List<Core> counting) {
-        Perimeter perimeter = rules.keepPerimeter(keep, counting);
-        Map<OrgId, Integer> sides = new LinkedHashMap<>();
-        for (Core camp : counting) sides.putIfAbsent(camp.owner, 0);
-        for (var chunk : perimeter.closed()) {
-            state.claimAt(chunk).ifPresent(c -> sides.merge(c.owner, 1, Integer::sum));
-        }
-        OrgId best = counting.getFirst().owner;
-        int most = -1;
-        for (Core camp : counting) {
-            int n = sides.getOrDefault(camp.owner, 0);
-            if (n > most) {
-                most = n;
-                best = camp.owner;
-            }
-        }
-        return best;
-    }
-
-    /** Resolves falls whose choice time has run out: they are razed. */
-    private void settleFalls(SiegeRules rules, long wall, long now, List<HistoryEvent> events) {
-        for (SiegeBook.PendingFall pending : new ArrayList<>(state.siege.falls.values())) {
-            if (now >= pending.decideBySiege()) events.addAll(Falls.resolve(state, knobs, pending.keep(), FallChoice.RAZE, wall));
-        }
-    }
-
-    // ---- camps ----
-
-    private void campPass(SiegeRules rules, Core camp, double hours, long dt, long wall,
-                          long now, List<HistoryEvent> events) {
-        SiegeBook.CampSite site = state.siege.camp(camp.id);
-        if (!camp.activeCamp()) {
-            site.supply = CampSupply.IDLE;
-            return;
-        }
-        Set<OrgId> targets = rules.targets(camp);
-        site.targets = new LinkedHashSet<>(targets);
-        sally(camp, site, dt, wall, now, events);
-        if (targets.isEmpty()) {
-            site.supply = CampSupply.IDLE;
-            return;
-        }
-        Store store = state.siege.store(camp.id);
-        if (store.provisions.nourishment(food) <= 0) {
-            if (site.supply != CampSupply.EMPTY) events.add(new SiegeEvents.CampStoreEmpty(wall, now, camp.id));
-            site.supply = CampSupply.EMPTY;
-            return;
-        }
-        boolean cutOff = rules.campPerimeter(camp).fullyClosed();
-        if (cutOff && site.supply != CampSupply.CUT_OFF) events.add(new SiegeEvents.CampCutOff(wall, now, camp.id));
-        site.supply = cutOff ? CampSupply.CUT_OFF : CampSupply.OPEN;
-        double burn = cutOff ? knobs.campBurnCutOffPerHour : knobs.campBurnPerHour;
-        store.eatDebt += burn * hours;
-        EatPlan.Result eaten = EatPlan.plan(store.provisions, store.eatDebt, food);
-        store.provisions.apply(eaten.eaten());
-        store.eatDebt = eaten.debt();
-        if (store.provisions.nourishment(food) <= 0) {
-            site.supply = CampSupply.EMPTY;
-            events.add(new SiegeEvents.CampStoreEmpty(wall, now, camp.id));
-        }
-    }
+    // ---- upkeep: the granary is the keep's upkeep (protected keeps, K2) ----
 
     /**
-     * The sally hold: defenders standing beside the camp drain it, one unit each,
-     * attackers in the camp cancel one each; it refills when nobody contests it.
-     * Empty, the camp is exposed until it has refilled completely.
+     * Each keep's granary drains an even share every hour, so a full one lasts {@code keepUpkeepDays}, and nothing else
+     * changes the drain. Members are warned at {@code keepWarnDays} left (once per threshold; feeding the keep above it
+     * re-arms it). At zero the claim lapses. The raiders' strongholds are not kept up this way: they fall to their waves.
+     * A keep gets one upkeep period of grace from its first pass, so a new, unstocked keep does not lapse at once.
      */
-    private void sally(Core camp, SiegeBook.CampSite site, long dt, long wall, long now, List<HistoryEvent> events) {
-        long full = Durations.hours(knobs.campSallyProtectionHours);
-        if (site.sallyLeft < 0) site.sallyLeft = full;
-        int defenders = inputs.defendersBesideCamp(camp.id);
-        int net = defenders - inputs.attackersInCamp(camp.id);
-        if (net > 0) {
-            site.sallyLeft = Math.max(0, site.sallyLeft - net * dt);
-            if (site.sallyLeft == 0 && !site.exposed) {
-                site.exposed = true;
-                events.add(new SiegeEvents.CampExposed(wall, now, camp.id));
+    private void upkeepPass(SiegeRules rules, double hours, long wall, long now, List<HistoryEvent> events) {
+        for (Core keep : keeps()) {
+            if (state.org(keep.owner).map(o -> o.npc).orElse(false)) continue;
+            SiegeBook.KeepSite site = state.siege.keep(keep.id);
+            long period = Durations.days(knobs.keepUpkeepDays);
+            if (site.graceUntilSiege == 0) site.graceUntilSiege = now + period;
+            Store store = state.siege.store(keep.id);
+            double perHour = rules.upkeepPerHour(keep);
+            store.eatDebt += perHour * hours;
+            EatPlan.Result eaten = EatPlan.plan(store.provisions, store.eatDebt, food);
+            store.provisions.apply(eaten.eaten());
+            store.eatDebt = eaten.debt();
+
+            double have = store.provisions.nourishment(food);
+            long foodMillis = perHour <= 0 ? Long.MAX_VALUE / 4 : Math.round(have / perHour * Durations.HOUR);
+            long lapseAt = Math.max(site.graceUntilSiege, now + Math.min(foodMillis, Long.MAX_VALUE / 4));
+            if (have <= 0 && now >= site.graceUntilSiege) {
+                lapse(rules, keep, wall, now, events);
+                continue;
             }
-        } else if (defenders == 0) {
-            site.sallyLeft = Math.min(full, site.sallyLeft + dt);
-            if (site.sallyLeft >= full) site.exposed = false;
+            double daysLeft = (lapseAt - now) / (double) Durations.DAY;
+            int current = 0;
+            for (int threshold : knobs.keepWarnDays) {
+                if (daysLeft <= threshold && (current == 0 || threshold < current)) current = threshold;
+            }
+            if (current == 0) site.warned = 0;
+            else if (site.warned == 0 || current < site.warned) {
+                events.add(new SiegeEvents.KeepRunningLow(wall, now, keep.id, keep.owner, current));
+                site.warned = current;
+            } else if (current > site.warned) {
+                site.warned = current;
+            }
         }
     }
 
-    // ---- raids and holds ----
-
-    private void holdPass(SiegeRules rules, long dt, long wall, long now, List<HistoryEvent> events) {
-        long full = Durations.hours(knobs.outlyingHoldHours);
-        double refillPerMilli = full / (double) Durations.hours(knobs.outlyingRefillHours);
-        Map<ClaimId, OrgId> raided = new LinkedHashMap<>();
-        for (Core camp : camps()) {
-            if (!camp.activeCamp() || !rules.hasFood(camp.id)) continue;
-            for (Claim claim : rules.raidable(camp, rules.campChunks(camp))) raided.putIfAbsent(claim.id, camp.owner);
-        }
-        for (Claim claim : new ArrayList<>(state.claims())) {
-            if (claim.kind() != ClaimKind.OUTLYING) continue;
-            long left = state.siege.holds.getOrDefault(claim.id, full);
-            if (raided.containsKey(claim.id)) {
-                left -= dt;
-                if (left <= 0) {
-                    state.siege.holds.remove(claim.id);
-                    OrgId raider = raided.get(claim.id);
-                    addNotoriety(rules.faction(raider), knobs.notorietyPerClaimTaken);
-                    events.add(new SiegeEvents.HoldEmptied(wall, now, claim.chunk, claim.owner, raider));
-                    events.addAll(rules.land().unclaim(claim.owner, claim.chunk, wall));
-                    continue;
-                }
-            } else if (claim.core() != null && left < full) {
-                left = Math.min(full, left + Math.round(dt * refillPerMilli));
-            }
-            if (left >= full) state.siege.holds.remove(claim.id);
-            else state.siege.holds.put(claim.id, left);
-        }
+    /** The claim lapses: the land goes back to the wilderness, the blocks stay, the nation keeps its members and treasury. */
+    private void lapse(SiegeRules rules, Core keep, long wall, long now, List<HistoryEvent> events) {
+        events.add(new SiegeEvents.KeepLapsed(wall, now, keep.id, keep.owner, keep.center));
+        events.addAll(charter.contract.Justice.freeKeep(state, knobs, keep.id, wall, "keep lapsed"));
+        events.addAll(rules.land().loseCore(keep.id, wall));
+        state.siege.stores.remove(keep.id);
     }
 
     // ---- spoilage ----
@@ -394,34 +200,11 @@ public final class SiegeSim {
 
     // ---- timers ----
 
-    private void timers(SiegeRules rules, long dt, long wall, long now, List<HistoryEvent> events) {
+    private void timers(SiegeRules rules, long wall, long now, List<HistoryEvent> events) {
         SiegeBook book = state.siege;
         book.allowances.removeIf(a -> now >= a.expiresSiege);
         book.truces.removeIf(t -> now >= t.untilSiege());
-        for (SiegeBook.Occupation occupation : new ArrayList<>(book.occupations.values())) {
-            if (now >= occupation.untilSiege()) {
-                book.occupations.remove(occupation.keep());
-                events.add(new SiegeEvents.OccupationEnded(wall, now, occupation.keep(), occupation.occupier(), "cap"));
-                events.addAll(charter.contract.Occupations.end(state, occupation.keep(), "cap", wall));
-                // The occupier leaves under the same truce as a lifted siege, or a keep handed back
-                // with an empty granary would fall to the camp still beside it at once, again and again.
-                long until = now + Durations.days(knobs.truceDays);
-                book.truces.add(new SiegeBook.Truce(occupation.keep(), occupation.occupier(), until));
-                events.add(new SiegeEvents.TruceBegan(wall, now, occupation.keep(), occupation.occupier(), until));
-            }
-        }
-        double decay = knobs.notorietyDecayPerDay * dt / (double) Durations.DAY;
-        book.notoriety.replaceAll((faction, n) -> Math.max(0, n - decay));
-        book.notoriety.values().removeIf(n -> n <= 0);
         events.addAll(rules.land().expireGrace(wall));
-    }
-
-    private void addNotoriety(OrgId faction, double amount) {
-        if (amount > 0) state.siege.notoriety.merge(faction, amount, Double::sum);
-    }
-
-    private static double clamp(double v, double lo, double hi) {
-        return Math.max(lo, Math.min(hi, v));
     }
 
     /** For tests and the debrief: the provisions a site holds now. */

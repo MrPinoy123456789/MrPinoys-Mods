@@ -52,7 +52,9 @@ public final class DissolveOrgTest {
         f.as(KRIS, new Deposit(realm, Currency.DIAMOND, 70));
         check("setup: the realm raises a keep", f.as(KRIS, new PlaceNexus(realm, new ChunkKey(DIM, 10, 10))).done());
         f.as(GIL, new Deposit(guard, Currency.DIAMOND, 70));
-        check("setup: the guard raises a keep", f.as(GIL, new PlaceNexus(guard, new ChunkKey(DIM, 90, 90))).done());
+        // A sub-faction cannot place a keep any more; an old save may still hold one.
+        new charter.land.LandGraph(f.state, f.knobs).placeKeep(guard, new ChunkKey(DIM, 90, 90), f.clock.now());
+        check("setup: the guard holds a keep", f.state.coresOf(guard).size() == 1);
         f.admin(new GrantPower(realm, Power.CLAIM, new Holder.OfOrg(guard), GrantScope.ANY, false, 0));
         Outcome open = f.engine.propose(KRIS, new charter.gov.actions.CreateOffice(realm, "Reeve"));
         Vote vote = f.vote(((Outcome.VoteOpened) open).vote());

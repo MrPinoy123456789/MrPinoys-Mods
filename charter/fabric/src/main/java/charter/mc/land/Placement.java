@@ -165,9 +165,7 @@ public final class Placement {
      * A break of one of the mod's objects. Returns false to stop the break.
      * The nexus stands while its keep does. A raising camp's banner and campfire
      * come down for anyone, and taking the banner down ends the camp. A finished
-     * camp's banner stays while the camp is protected; once a sally has emptied its
-     * hold and left it exposed (DESIGN.md §10.6), anyone may break it, and that ends
-     * the camp too.
+     * camp's banner stays: only a captured outpost loses it.
      */
     public static boolean allowBreak(ServerPlayer player, Level level, BlockPos pos, Fixtures.Fixture fixture) {
         CharterRuntime rt = CharterServer.runtime();
@@ -184,12 +182,6 @@ public final class Placement {
             }
             case BANNER -> {
                 if (core.phase() != CampPhase.RAISING) {
-                    var site = rt.state.siege.camps.get(core.id);
-                    if (site != null && site.exposed) {
-                        rt.engine.run(new Actor.System(), new LoseCore(core.id));
-                        player.sendSystemMessage(Component.literal(Text.get("land.camp_broken")).withStyle(ChatFormatting.YELLOW));
-                        return true;
-                    }
                     if (!Protection.mayAct(player, level, pos)) Protection.deny(player, level, pos);
                     else player.sendSystemMessage(Component.literal(Text.get("land.banner_stays")).withStyle(ChatFormatting.RED), true);
                     return false;

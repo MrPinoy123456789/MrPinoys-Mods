@@ -109,8 +109,6 @@ public final class NpcPlacementTest {
         check("6: its Lord is the raiders' own", f.holder(org.id, charter.gov.Preset.LORD).equals(NpcBook.LORD));
         eq("6: a player cannot spawn one", charter.land.LandReasons.OPERATOR_ONLY.key(),
                 f.as(Fixture.player("Kris"), new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 90, 90), 1, 1)).reasonKey());
-        check("6: and a new faction of the raiders is not protected from sieges",
-                !new SiegeRules(f.state, f.knobs, new charter.food.FoodTable(), f.clock.now()).protectedFaction(org.id));
         var outpost = f.admin(new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.OUTPOST, new ChunkKey(DIM, 90, 90), 0, 0));
         check("6: an outpost is a raised camp", outpost.done() && f.state.cores().stream().anyMatch(c -> !c.isKeep()
                 && c.phase() == charter.land.CampPhase.ACTIVE));

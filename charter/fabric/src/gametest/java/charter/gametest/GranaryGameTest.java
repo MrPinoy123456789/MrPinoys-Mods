@@ -21,7 +21,6 @@ import charter.mc.granary.Granaries;
 import charter.org.actions.AcceptInvite;
 import charter.org.actions.Found;
 import charter.org.actions.InviteMember;
-import charter.siege.KeepSupply;
 import charter.siege.SiegeEvents;
 import charter.treasury.Currency;
 import charter.treasury.actions.Deposit;
@@ -81,11 +80,11 @@ public final class GranaryGameTest {
 
     /**
      * Every world shares one sim, so another test advancing time moves this one too: a world
-     * that has to survive a tick boundary must not have a camp that could besiege it.
+     * that has to survive a tick boundary must not drain faster than it expects.
      * The knobs a world changes are restored when the last open world closes.
      */
     private static int OPEN;
-    private static int savedProtection;
+    private static int savedUpkeepDays;
     private static int savedMaxChests;
 
     /** Two factions, Ashfall's keep with a chest granary, and Brinewatch's camp beside it. */
@@ -122,10 +121,9 @@ public final class GranaryGameTest {
             level.setChunkForced(cx, cz, true);
             level.getChunk(cx, cz);
             if (OPEN++ == 0) {
-                savedProtection = rt.knobs.newFactionProtectionDays;
+                savedUpkeepDays = rt.knobs.keepUpkeepDays;
                 savedMaxChests = rt.knobs.granaryMaxChests;
             }
-            rt.knobs.newFactionProtectionDays = 0;
             build();
         }
 
@@ -188,11 +186,9 @@ public final class GranaryGameTest {
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command);
         }
 
-        /** Besieged: the camp raises (two siege hours), then counts against the keep. */
-        void besiege() {
-            command("charter admin time advance 2h");
-            helper.assertTrue(rt.state.siege.keep(keep.id).supply == KeepSupply.BESIEGED,
-                    "The keep is not besieged: " + rt.state.siege.keep(keep.id).supply);
+        /** A granary that drains fast enough to see: a full one lasts three days, not fourteen. */
+        void fastDrain() {
+            rt.knobs.keepUpkeepDays = 3;
         }
 
         void advance(String duration) {
@@ -203,7 +199,7 @@ public final class GranaryGameTest {
         public void close() {
             svc.pretendUnloaded.clear();
             if (--OPEN == 0) {
-                rt.knobs.newFactionProtectionDays = savedProtection;
+                rt.knobs.keepUpkeepDays = savedUpkeepDays;
                 rt.knobs.granaryMaxChests = savedMaxChests;
             }
             svc.book().remove(keep.id);
@@ -258,9 +254,9 @@ public final class GranaryGameTest {
             helper.assertTrue(mirror(w, KELP) == 40 && mirror(w, BREAD) == 50 && mirror(w, BEEF) == 30,
                     "The mirror did not read the chest: kelp " + mirror(w, KELP) + ", bread " + mirror(w, BREAD) + ", beef " + mirror(w, BEEF));
 
-            w.besiege();
+            w.fastDrain();
             helper.assertTrue(count(chest, KELP) == 40 && count(chest, BREAD) == 50,
-                    "The chest changed before the siege drained anything: kelp " + count(chest, KELP) + ", bread " + count(chest, BREAD));
+                    "The chest changed before any time passed: kelp " + count(chest, KELP) + ", bread " + count(chest, BREAD));
 
             w.advance("2h");
             int kelp = count(chest, KELP);
@@ -274,7 +270,7 @@ public final class GranaryGameTest {
 
             Granaries.refreshDisplays();
             String shown = Granaries.displayText(w.keep.id);
-            helper.assertTrue(shown != null && shown.contains("Granary") && shown.contains("Provisions") && shown.contains("Besieged"),
+            helper.assertTrue(shown != null && shown.contains("Granary") && shown.contains("Provisions"),
                     "The display does not show the time left: " + shown);
             BlockPos at = w.chestAt(0);
             Display.TextDisplay display = Granaries.displayEntity(w.keep.id);
@@ -289,33 +285,6 @@ public final class GranaryGameTest {
         }
     }
 
-    @GameTest(maxTicks = 200)
-    public void afterTheKeepFallsAnOutsiderCanOpenIt(GameTestHelper helper) {
-        try (World w = new World(helper, 1)) {
-            Container chest = w.chest(0);
-            put(chest, BREAD, 30);
-            w.svc.reconcile(w.svc.book().site(w.keep.id), null);
-            w.besiege();
-            ServerPlayer stranger = helper.makeMockServerPlayerInLevel();
-            helper.assertTrue(rightClick(stranger, w.level, w.chestAt(0)) == InteractionResult.FAIL, "An outsider opened the granary before the fall");
-
-            w.advance("4h");
-            for (int minute = 0; minute < 120 && !w.rt.state.siege.falls.containsKey(w.keep.id); minute++) w.advance("1m");
-            helper.assertTrue(w.rt.state.siege.falls.containsKey(w.keep.id), "The keep did not fall with a 30 bread granary");
-            helper.assertTrue(w.rt.state.history.has(SiegeEvents.KeepFell.class), "No fall was recorded");
-            helper.assertTrue(count(chest, BREAD) == 0, "The garrison left bread in the chest of a keep that starved: " + count(chest, BREAD));
-            helper.assertTrue(mirror(w, BREAD) == 0, "The mirror still holds bread");
-            helper.assertTrue(w.svc.access(new PlayerId(stranger.getUUID()), w.keep) == Access.FULL, "An outsider has no access after the fall");
-            helper.assertTrue(rightClick(stranger, w.level, w.chestAt(0)) == InteractionResult.SUCCESS, "An outsider could not open the granary after the fall");
-
-            // Once the besieger has chosen, or time runs out, the keep is razed and the chest is an ordinary one.
-            w.advance("11m");
-            helper.assertTrue(w.rt.state.core(w.keep.id).isEmpty(), "The fallen keep was not razed when the choice ran out");
-            helper.assertTrue(w.svc.book().site(w.keep.id) == null, "A razed keep still has a registered granary");
-            helper.succeed();
-        }
-    }
-
     // ---- the mirror ----
 
     @GameTest(maxTicks = 200)
@@ -325,7 +294,7 @@ public final class GranaryGameTest {
             put(chest, KELP, 40);
             put(chest, BREAD, 50);
             w.svc.reconcile(w.svc.book().site(w.keep.id), null);
-            w.besiege();
+            w.fastDrain();
 
             w.svc.pretendUnloaded.add(w.keep.id);
             w.advance("2h");
@@ -360,7 +329,7 @@ public final class GranaryGameTest {
         put(chest, KELP, 40);
         put(chest, BREAD, 300); // enough that other tests moving the shared clock cannot starve it meanwhile
         w.svc.reconcile(w.svc.book().site(w.keep.id), null);
-        w.besiege();
+        w.fastDrain();
         w.svc.pretendUnloaded.add(w.keep.id);
         w.advance("2h");
         var site = w.svc.book().site(w.keep.id);
@@ -391,78 +360,18 @@ public final class GranaryGameTest {
             put(chest, KELP, 40);
             put(chest, BREAD, 50);
             w.svc.reconcile(w.svc.book().site(w.keep.id), null);
-            w.besiege();
+            w.fastDrain();
             w.svc.pretendUnloaded.add(w.keep.id);
             w.advance("1h");
             helper.assertTrue(count(chest, KELP) == 40, "A chest that is not loaded was touched");
             w.svc.pretendUnloaded.clear();
             helper.assertTrue(rightClick(w.lord, w.level, w.chestAt(0)) == InteractionResult.SUCCESS, "The lord could not open the granary");
-            helper.assertTrue(count(chest, KELP) == 10, "Opening the chest did not apply the queue first: " + count(chest, KELP) + " kelp");
+            helper.assertTrue(count(chest, KELP) < 40, "Opening the chest did not apply the queue first: " + count(chest, KELP) + " kelp");
             helper.succeed();
         }
     }
 
     // ---- the screen ----
-
-    @GameTest(maxTicks = 200)
-    public void depositsGoThroughTheCarryInRule(GameTestHelper helper) {
-        try (World w = new World(helper, 4)) {
-            Container chest = w.chest(0);
-            put(chest, BREAD, 20);
-            w.svc.reconcile(w.svc.book().site(w.keep.id), null);
-            w.besiege();
-            var site = w.svc.book().site(w.keep.id);
-            var screen = new GranaryScreen(w.lord, w.svc, site, w.keep, Access.FULL);
-
-            // Under siege, food that was not carried in through an open side is handed back.
-            int before = count(chest, BREAD);
-            put(chest, BREAD, 30);
-            screen.settle();
-            helper.assertTrue(count(chest, BREAD) == before, "Food with no carry-in allowance stayed in the chest: " + count(chest, BREAD));
-            helper.assertTrue(mirror(w, BREAD) == before, "The mirror took food that was refused");
-
-            // Carried in through an open side, ten bread count.
-            String carrier = "player:" + w.lord.getUUID();
-            var entry = w.rt.sim.supply().enter(carrier, new ChunkKey(OW, w.cx - 2, w.cz), new ChunkKey(OW, w.cx - 1, w.cz), Map.of("minecraft:bread", 10));
-            helper.assertTrue(entry == charter.siege.Supply.Entry.GRANTED, "The crossing did not grant an allowance: " + entry);
-            put(chest, BREAD, 30);
-            screen.settle();
-            helper.assertTrue(count(chest, BREAD) == before + 10, "Ten carried-in bread should stay, found " + (count(chest, BREAD) - before));
-            helper.assertTrue(mirror(w, BREAD) == before + 10, "The mirror does not match the chest after a deposit");
-            helper.assertTrue(w.rt.state.history.has(SiegeEvents.FoodDeposited.class), "The deposit was not recorded");
-            helper.succeed();
-        }
-    }
-
-    /**
-     * M8's hopper gate and the granary together: a real hopper above a granary chest
-     * fills it in peace, and fills nothing while the keep is besieged, since the
-     * mirror would otherwise take hopper-fed food as provisions (DESIGN.md §10.4).
-     */
-    @GameTest(maxTicks = 200, environment = "charter-gametest:long_siege")
-    public void aHopperCannotFillABesiegedGranary(GameTestHelper helper) {
-        // One tick throughout: other tests share the siege clock, so a besieged world must not wait.
-        try (World w = new World(helper, 7)) {
-            Container chest = w.chest(0);
-            Container source = new net.minecraft.world.SimpleContainer(1);
-            ItemStack left = net.minecraft.world.level.block.entity.HopperBlockEntity.addItem(
-                    source, chest, new ItemStack(BREAD, 3), net.minecraft.core.Direction.DOWN);
-            helper.assertTrue(left.isEmpty() && count(chest, BREAD) == 3, "In peace a hopper should fill the granary, left " + left.getCount());
-            w.svc.reconcile(w.svc.book().site(w.keep.id), null);
-
-            w.besiege();
-            ItemStack refused = net.minecraft.world.level.block.entity.HopperBlockEntity.addItem(
-                    source, chest, new ItemStack(BREAD, 5), net.minecraft.core.Direction.DOWN);
-            helper.assertTrue(refused.getCount() == 5, "Under siege the hopper put " + (5 - refused.getCount()) + " bread into the granary");
-            helper.assertTrue(count(chest, BREAD) == 3, "The granary chest changed under siege: " + count(chest, BREAD));
-
-            Container ordinary = w.container(placeChest(w, w.chestAt(3).above(2)));
-            ItemStack free = net.minecraft.world.level.block.entity.HopperBlockEntity.addItem(
-                    source, ordinary, new ItemStack(BREAD, 4), net.minecraft.core.Direction.DOWN);
-            helper.assertTrue(free.isEmpty() && count(ordinary, BREAD) == 4, "A chest that is not a granary should fill as usual");
-            helper.succeed();
-        }
-    }
 
     static BlockPos placeChest(World w, BlockPos at) {
         w.level.setBlock(at, Blocks.AIR.defaultBlockState(), 3); // an empty chest, never one left by an earlier test

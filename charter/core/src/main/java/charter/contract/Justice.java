@@ -240,8 +240,7 @@ public final class Justice {
         state.contracts.punishments.record(contract.id, prisoner, root, ctx.now, counted);
         state.contracts.releaseCustody(prisoner);
 
-        double notoriety = severity * knobs.imposedNotorietyPerSeverity;
-        if (notoriety > 0) state.siege.notoriety.merge(root, notoriety, Double::sum);
+        double notoriety = 0;
         boolean outsider = state.membership(prisoner).map(m -> !state.root(m.org()).equals(root)).orElse(true);
         events.add(new ContractEvents.Imposed(ctx.now, contract.id, Basis.CUSTODY, contract.imposer, contract.subject,
                 contract.terms, plan.cut(), outsider, notoriety));

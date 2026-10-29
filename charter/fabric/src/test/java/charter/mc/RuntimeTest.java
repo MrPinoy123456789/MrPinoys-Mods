@@ -175,16 +175,16 @@ final class RuntimeTest {
         charter.mc.store.SiegeLog log = new charter.mc.store.SiegeLog(dir, charter.mc.store.Persistence.json(),
                 f.state.siegeClock::now, true, s -> { });
         long at = 1_800_000_000_000L;
-        log.onEntry(new History.Entry(new SiegeEvents.SiegeBegan(at, 42_000, f.keep.id, f.oakvale, Set.of(f.ironhold)), "system", false));
+        log.onEntry(new History.Entry(new SiegeEvents.CampCutOff(at, 42_000, f.camp.id), "system", false));
         log.onEntry(new History.Entry(new charter.org.OrgEvents.Activated(at, f.oakvale), "system", false));
         log.admin(at, "Op", "/charter admin time advance 2h");
         Path day = dir.resolve(java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneOffset.UTC).toLocalDate() + ".jsonl");
         List<String> lines = Files.readAllLines(day, StandardCharsets.UTF_8);
         check("siege log: one line per followed event plus the admin line", lines.size() == 2);
         JsonObject first = com.google.gson.JsonParser.parseString(lines.getFirst()).getAsJsonObject();
-        check("siege log: the common fields are filled", first.get("ev").getAsString().equals("keep_besieged")
-                && first.get("siegeT").getAsLong() == 42_000 && first.get("site").getAsString().equals(f.keep.id.value().toString())
-                && first.get("owner").getAsString().equals(f.oakvale.value().toString()) && first.has("t"));
+        check("siege log: the common fields are filled", first.get("ev").getAsString().equals("camp_cut_off")
+                && first.get("siegeT").getAsLong() == 42_000 && first.get("site").getAsString().equals(f.camp.id.value().toString())
+                && first.has("t"));
         check("siege log: admin commands are written with their arguments", lines.get(1).contains("\"ev\":\"admin\"") && lines.get(1).contains("advance 2h"));
         log.close();
         Files.writeString(dir.resolve("2000-01-01.jsonl"), "{}\n");

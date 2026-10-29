@@ -369,8 +369,6 @@ public final class CharterState {
         siege.stores.remove(id);
         siege.keeps.remove(id);
         siege.camps.remove(id);
-        siege.falls.remove(id);
-        siege.occupations.remove(id);
         siege.allowances.removeIf(a -> a.site.equals(id));
         siege.truces.removeIf(t -> t.keep().equals(id));
     }

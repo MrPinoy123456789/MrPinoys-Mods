@@ -151,7 +151,10 @@ public final class BreakawayTest {
     static void aSubFactionWithAKeepSecedesAtOnce() {
         Fixture f = kingdom();
         fundGuard(f);
-        check("6: the sub-faction raises a keep", f.as(GIL, new PlaceNexus(guard(f), new ChunkKey(DIM, 80, 80))).done());
+        // Keeps of sub-factions can no longer be placed, but an old save may still hold one.
+        eq("6: a sub-faction cannot raise a keep now", charter.land.LandReasons.SUB_NO_KEEP.key(),
+                f.as(GIL, new PlaceNexus(guard(f), new ChunkKey(DIM, 80, 80))).reasonKey());
+        new charter.land.LandGraph(f.state, f.knobs).placeKeep(guard(f), new ChunkKey(DIM, 80, 80), f.clock.now());
         Vote vote = proposeSecession(f);
         f.engine.cast(CY, vote.id, Vote.Ballot.YES);
         check("6: it is a faction of its own as soon as the vote passes", f.state.org(guard(f)).orElseThrow().isTopLevel()

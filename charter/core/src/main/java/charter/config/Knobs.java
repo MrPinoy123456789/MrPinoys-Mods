@@ -42,41 +42,29 @@ public final class Knobs {
     public double spoilagePerDayPastLimit = 0.50;
     public int granaryMaxChests = 8;
 
-    // ---- camps and holds (S) ----
+    // ---- keep upkeep (wall days; the granary is the upkeep) ----
+    /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
+    public int keepUpkeepDays = 14;
+    /** Days of food left at which every member is warned, largest first. */
+    public int[] keepWarnDays = {7, 3, 1};
+
+    // ---- camps (S) ----
     public double campBurnPerHour = 30;
     public double campBurnCutOffPerHour = 60;
-    public double outlyingHoldHours = 6;
-    public double outlyingRefillHours = 24;
-    public double campSallyProtectionHours = 1;
 
-    // ---- presence and assault ----
-    public double presencePerPlayer = 0.25;
-    public double multiplierMin = 0.5;
-    public double multiplierMax = 2.0;
-    public double notorietyMaxMultiplier = 1.5;
+    // ---- presence ----
     public int presenceAfkMinutes = 5;
     public int presenceMinMemberDays = 3;
-    public double starvationThreshold = 0.25;
-    public double assaultMultiplier = 4.0;
     public int teleportDetectBlocks = 16;
 
     // ---- siege timers (S) ----
     public double campRaisingHours = 2;
     public int carryInWindowMinutes = 10;
     public int truceDays = 3;
-    public int newFactionProtectionDays = 3;
     public int bannerMoveCooldownMinutes = 30;
     public int orphanGraceMinutes = 30;
-    public double plunderShare = 0.25;
+    /** The longest a treaty may grant access to a keep (BasisCaps). */
     public int occupationCapDays = 7;
-    /** How long the besieger has to choose raze or occupy before the keep is razed. */
-    public int fallChoiceMinutes = 10;
-    /** Notoriety gained per camp raised against someone, and per claim or keep taken. */
-    public double notorietyPerCamp = 1;
-    public double notorietyPerClaimTaken = 1;
-    public double notorietyDecayPerDay = 1;
-    /** Notoriety at which a faction's keeps reach notorietyMaxMultiplier. */
-    public double notorietyForMax = 10;
 
     // ---- governance (wall time) ----
     public int settleDays = 3;
@@ -137,7 +125,6 @@ public final class Knobs {
     public int custodyFineCapDiamonds = 16;
     public int custodyLapseMinutes = 5;
     public int imposedVassalageCapDays = 14;
-    public double imposedNotorietyPerSeverity = 1.0;
     public boolean scaleSentencesWithTimeScale = false;
     public boolean labourTerms = false;
     public int indentureCapDays = 7;
@@ -167,11 +154,8 @@ public final class Knobs {
         if (minMouthsPerKeep < 1) out.add("minMouthsPerKeep must be at least 1.");
         if (!(storageLimitHours > 0)) out.add("storageLimitHours must be above 0.");
         if (!(drainPerMouthPerHour > 0)) out.add("drainPerMouthPerHour must be above 0.");
-        if (multiplierMin <= 0 || multiplierMax < multiplierMin) out.add("multiplierMin must be above 0 and no more than multiplierMax.");
-        if (starvationThreshold <= 0 || starvationThreshold >= 1) out.add("starvationThreshold must be between 0 and 1.");
         if (granaryMaxChests < 1) out.add("granaryMaxChests must be at least 1.");
         if (confinementMinMinutes > confinementMaxHours * 60) out.add("confinementMinMinutes is longer than confinementMaxHours.");
-        if (plunderShare < 0 || plunderShare > 1) out.add("plunderShare must be between 0 and 1.");
         if (simStepTicks < 1 || cartScanTicks < 1) out.add("simStepTicks and cartScanTicks must be at least 1.");
         if (voteDurationHours < 1) out.add("voteDurationHours must be at least 1.");
         return out;

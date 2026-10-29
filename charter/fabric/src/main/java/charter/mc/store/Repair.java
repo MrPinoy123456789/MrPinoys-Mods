@@ -121,9 +121,12 @@ public final class Repair {
         drop(book.stores.keySet(), id -> state.core(id).isEmpty(), "store_dropped", repairs);
         drop(book.keeps.keySet(), id -> state.core(id).isEmpty(), "siege_site_dropped", repairs);
         drop(book.camps.keySet(), id -> state.core(id).isEmpty(), "siege_site_dropped", repairs);
-        drop(book.falls.keySet(), id -> state.core(id).isEmpty(), "fall_dropped", repairs);
-        drop(book.occupations.keySet(), id -> state.core(id).isEmpty(), "occupation_dropped", repairs);
-        drop(book.holds.keySet(), id -> state.claim(id).isEmpty(), "hold_dropped", repairs);
+        // Occupations are gone with the falls (protected keeps): a live one from an old save ends, the keep stays its owner's.
+        for (var contract : List.copyOf(state.contracts.live())) {
+            if (contract.basis != charter.contract.Basis.OCCUPATION) continue;
+            contract.end(repairs.now(), "occupations no longer exist");
+            repairs.note("occupation_dropped", "an occupation of " + contract.keep + ", which no longer exists");
+        }
         book.allowances.removeIf(a -> {
             if (state.core(a.site).isPresent()) return false;
             repairs.note("allowance_dropped", "allowance of " + a.carrier + " at " + a.site + ", which is gone");

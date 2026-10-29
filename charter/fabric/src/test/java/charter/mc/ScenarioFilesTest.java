@@ -38,8 +38,8 @@ final class ScenarioFilesTest {
     }
 
     static void everyDefaultIsWholeAndConsistent() throws Exception {
-        check("the tutorial and the plan's five scenarios are the defaults",
-                ScenarioFiles.DEFAULTS.equals(List.of("tutorial", "raid", "partial-siege", "encirclement", "sally", "jail")));
+        check("the tutorial and the jail are the defaults",
+                ScenarioFiles.DEFAULTS.equals(List.of("tutorial", "jail")));
         for (String name : ScenarioFiles.DEFAULTS) {
             Scenario s = shipped(name);
             check(name + ": its name matches its file", name.equals(s.name));
@@ -77,7 +77,6 @@ final class ScenarioFilesTest {
                 check(name + ": knob " + knob + " exists", found);
             }
         }
-        check("encirclement: four camps hold the twelve sides", shipped("encirclement").camps.size() == 4);
         check("jail: the keep has a cell", !shipped("jail").keeps.getFirst().cell.isBlank());
         Scenario tutorial = shipped("tutorial");
         check("tutorial: one player, an outsider who founds their own faction", tutorial.outsiders.equals(List.of("YOU")));
@@ -145,14 +144,14 @@ final class ScenarioFilesTest {
 
     static void defaultsAreWrittenOnceAndNeverOverwritten() throws Exception {
         Path dir = Files.createTempDirectory("charter-scenarios");
-        Files.writeString(dir.resolve("raid.json"), "{\"name\": \"raid\", \"setup\": \"mine\"}");
+        Files.writeString(dir.resolve("jail.json"), "{\"name\": \"jail\", \"setup\": \"mine\"}");
         int written = ScenarioFiles.writeDefaults(dir, w -> { });
-        check("the five missing defaults are written", written == 5);
-        check("an operator's own raid is kept", "mine".equals(ScenarioFiles.all(dir, w -> { }).get("raid").setup));
+        check("the missing default is written", written == 1);
+        check("an operator's own jail is kept", "mine".equals(ScenarioFiles.all(dir, w -> { }).get("jail").setup));
         check("a second start writes nothing", ScenarioFiles.writeDefaults(dir, w -> { }) == 0);
         Files.writeString(dir.resolve("broken.json"), "{ not json");
         List<String> warnings = new java.util.ArrayList<>();
-        check("a broken file is skipped and the rest still read", ScenarioFiles.all(dir, warnings::add).size() == 6);
+        check("a broken file is skipped and the rest still read", ScenarioFiles.all(dir, warnings::add).size() == 2);
         check("and the broken file is named in a warning", warnings.stream().anyMatch(w -> w.contains("broken.json")));
     }
 }

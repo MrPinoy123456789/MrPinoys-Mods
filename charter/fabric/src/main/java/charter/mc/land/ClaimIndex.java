@@ -39,8 +39,7 @@ public final class ClaimIndex {
 
     /** Siege events that add, remove or reassign claims. */
     private static final Set<Class<?>> REBUILD_ON = Set.of(
-            SiegeEvents.Razed.class, SiegeEvents.Occupied.class, SiegeEvents.OccupationEnded.class,
-            SiegeEvents.HoldEmptied.class, SiegeEvents.KeepFell.class, StoreEvents.Repaired.class);
+            StoreEvents.Repaired.class);
 
     private final CharterState state;
     private final Map<String, Long2ObjectOpenHashMap<ClaimRef>> byDimension = new HashMap<>();

@@ -105,44 +105,15 @@ public final class Notices {
                         "amount", e.amount(), "currency", Describe.currency(e.currency(), e.amount())));
                 messenger.deliver(e.to());
             }
-            // ---- the siege (M11): to the whole faction, subordinates included, as alerts ----
-            case SiegeEvents.CampActive e -> {
-                for (OrgId target : e.targets()) alert(e.at(), faction(target), Text.get("notice.camp_raised",
-                        "org", describe.org(e.owner()), "site", describe.core(e.camp())));
-            }
-            case SiegeEvents.SiegeBegan e -> alert(e.at(), faction(e.defender()),
-                    Text.get("notice.besieged", "site", describe.core(e.keep())));
-            case SiegeEvents.Encircled e -> state.core(e.keep()).ifPresent(keep ->
-                    alert(e.at(), faction(holder(keep)), Text.get("notice.encircled", "site", describe.core(e.keep()))));
-            case SiegeEvents.Starving e -> state.core(e.keep()).ifPresent(keep ->
-                    alert(e.at(), faction(holder(keep)), Text.get("notice.starving", "site", describe.core(e.keep()))));
+            // ---- camps: to the whole faction, subordinates included, as alerts ----
+            case SiegeEvents.KeepRunningLow e -> alert(e.at(), faction(e.owner()), Text.get("notice.keep_low",
+                    "site", describe.core(e.keep()), "days", e.daysLeft()));
+            case SiegeEvents.KeepLapsed e -> alert(e.at(), faction(e.owner()), Text.get("notice.keep_lapsed",
+                    "site", describe.core(e.keep())));
             case SiegeEvents.CampCutOff e -> state.core(e.camp()).ifPresent(camp ->
                     alert(e.at(), faction(camp.owner), Text.get("notice.cut_off", "site", describe.core(e.camp()))));
             case SiegeEvents.CampStoreEmpty e -> state.core(e.camp()).ifPresent(camp ->
                     alert(e.at(), faction(camp.owner), Text.get("notice.camp_empty", "site", describe.core(e.camp()))));
-            case SiegeEvents.CampExposed e -> state.core(e.camp()).ifPresent(camp ->
-                    alert(e.at(), faction(camp.owner), Text.get("notice.camp_exposed", "site", describe.core(e.camp()))));
-            case SiegeEvents.HoldEmptied e -> alert(e.at(), faction(e.owner()), Text.get("notice.hold_emptied",
-                    "x", e.chunk().x(), "z", e.chunk().z(), "org", describe.org(e.raider())));
-            case SiegeEvents.KeepFell e -> {
-                alert(e.at(), faction(e.owner()), Text.get("notice.keep_fell", "site", describe.core(e.keep()), "org", describe.org(e.besieger())));
-                alert(e.at(), faction(e.besieger()), Text.get("notice.keep_fell_ours", "site", describe.core(e.keep())));
-            }
-            case SiegeEvents.Razed e -> alert(e.at(), faction(e.owner()), Text.get("notice.razed",
-                    "site", describe.core(e.keep()), "org", describe.org(e.by())));
-            case SiegeEvents.Occupied e -> {
-                alert(e.at(), faction(e.owner()), Text.get("notice.occupied", "site", describe.core(e.keep()), "org", describe.org(e.by())));
-                alert(e.at(), faction(e.by()), Text.get("notice.occupying", "site", describe.core(e.keep())));
-            }
-            case SiegeEvents.OccupationEnded e -> {
-                alert(e.at(), faction(e.occupier()), Text.get("notice.occupation_ended", "site", describe.core(e.keep()), "why", e.why()));
-                state.core(e.keep()).ifPresent(keep -> alert(e.at(), faction(keep.owner),
-                        Text.get("notice.keep_returned", "site", describe.core(e.keep()))));
-            }
-            case SiegeEvents.TruceBegan e -> alert(e.at(), faction(e.attacker()), Text.get("notice.truce",
-                    "site", describe.core(e.keep())));
-            case SiegeEvents.SiegeLifted e -> state.core(e.keep()).ifPresent(keep ->
-                    alert(e.at(), faction(holder(keep)), Text.get("notice.lifted", "site", describe.core(e.keep()))));
             case charter.land.LandEvents.Contested e -> alert(e.at(), faction(e.org()), Text.get("notice.contested", "count", e.count()));
             case charter.land.LandEvents.Lapsed e -> alert(e.at(), faction(e.org()), Text.get("notice.lapsed", "count", e.count()));
             // ---- justice (M12): to the prisoner, and to the judge or officer who acted ----
@@ -209,12 +180,6 @@ public final class Notices {
         out.addAll(members(root));
         for (OrgId below : state.descendants(root)) out.addAll(members(below));
         return out;
-    }
-
-    /** Who holds a keep now: the occupier while it is occupied, else the owner. */
-    private OrgId holder(charter.land.Core keep) {
-        var occupation = state.siege.occupations.get(keep.id);
-        return occupation != null ? occupation.occupier() : keep.owner;
     }
 
     private void alert(long at, Set<PlayerId> players, String text) {

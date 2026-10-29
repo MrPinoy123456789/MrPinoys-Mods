@@ -72,12 +72,8 @@ public final class CoreBlocks {
     private static final Type BALANCES = new TypeToken<Map<Currency, Long>>() { }.getType();
     private static final Type ITEMS = new TypeToken<Map<String, Integer>>() { }.getType();
     private static final Type DEBTS = new TypeToken<Map<String, Double>>() { }.getType();
-    private static final Type HOLDS = new TypeToken<Map<ClaimId, Long>>() { }.getType();
-    private static final Type NOTORIETY = new TypeToken<Map<OrgId, Double>>() { }.getType();
     private static final Type KEEPS = new TypeToken<Map<CoreId, SiegeBook.KeepSite>>() { }.getType();
     private static final Type CAMPS = new TypeToken<Map<CoreId, SiegeBook.CampSite>>() { }.getType();
-    private static final Type FALLS = new TypeToken<Map<CoreId, SiegeBook.PendingFall>>() { }.getType();
-    private static final Type OCCUPATIONS = new TypeToken<Map<CoreId, SiegeBook.Occupation>>() { }.getType();
     private static final Type TRUCES = new TypeToken<List<SiegeBook.Truce>>() { }.getType();
 
     static void register(StateCodec codec) {
@@ -391,6 +387,11 @@ public final class CoreBlocks {
         Map<GrantId, Grant> read = new LinkedHashMap<>();
         for (JsonElement e : array(root, "grants")) {
             JsonObject o = e.getAsJsonObject();
+            // A power this version no longer has (CHOOSE_FALL, removed with the falls): the grant goes.
+            if (powerOrNull(str(o, "power")) == null) {
+                repairs.note("grant_dropped", "a grant of " + str(o, "power") + ", a power that no longer exists");
+                continue;
+            }
             Grant g = new Grant(get(o, "id", GrantId.class, gson), get(o, "subject", OrgId.class, gson),
                     Power.valueOf(str(o, "power")), get(o, "recipient", Holder.class, gson), get(o, "grantor", Holder.class, gson),
                     get(o, "parent", GrantId.class, gson), get(o, "scope", GrantScope.class, gson),
@@ -412,6 +413,14 @@ public final class CoreBlocks {
             }
         }
         read.values().forEach(state::addGrant);
+    }
+
+    private static Power powerOrNull(String name) {
+        try {
+            return Power.valueOf(name);
+        } catch (IllegalArgumentException unknown) {
+            return null;
+        }
     }
 
     /** Why a grant cannot stand, or null if its subject, holders and parent all still exist. */
@@ -481,7 +490,7 @@ public final class CoreBlocks {
             }
             String power = str(o, "power");
             Vote vote = new Vote(id, org, kind, motion, get(o, "office", OfficeId.class, gson),
-                    get(o, "proposer", PlayerId.class, gson), power.isEmpty() ? null : Power.valueOf(power),
+                    get(o, "proposer", PlayerId.class, gson), power.isEmpty() ? null : powerOrNull(power),
                     VoteMethod.valueOf(str(o, "method")), dbl(o, "quorumShare"),
                     orEmpty(get(o, "electorate", PLAYER_SET, gson)), orEmpty(get(o, "activeAtOpen", PLAYER_SET, gson)),
                     num(o, "openedAt"), num(o, "closesAt"), get(o, "seatsOf", OfficeId.class, gson));
@@ -596,13 +605,8 @@ public final class CoreBlocks {
         root.add("stores", stores);
         root.add("keeps", gson.toJsonTree(book.keeps, KEEPS));
         root.add("camps", gson.toJsonTree(book.camps, CAMPS));
-        root.add("holds", gson.toJsonTree(book.holds, HOLDS));
         root.add("allowances", allowances);
         root.add("truces", gson.toJsonTree(book.truces, TRUCES));
-        root.add("falls", gson.toJsonTree(book.falls, FALLS));
-        root.add("occupations", gson.toJsonTree(book.occupations, OCCUPATIONS));
-        root.add("notoriety", gson.toJsonTree(book.notoriety, NOTORIETY));
-        root.add("protectionWaived", gson.toJsonTree(book.protectionWaived, ORG_SET));
         return root;
     }
 
@@ -620,7 +624,6 @@ public final class CoreBlocks {
         }
         putAll(book.keeps, get(root, "keeps", KEEPS, gson));
         putAll(book.camps, get(root, "camps", CAMPS, gson));
-        putAll(book.holds, get(root, "holds", HOLDS, gson));
         for (JsonElement e : array(root, "allowances")) {
             JsonObject o = e.getAsJsonObject();
             Map<String, Integer> items = get(o, "items", ITEMS, gson);
@@ -629,11 +632,8 @@ public final class CoreBlocks {
         }
         List<SiegeBook.Truce> truces = get(root, "truces", TRUCES, gson);
         if (truces != null) book.truces.addAll(truces);
-        putAll(book.falls, get(root, "falls", FALLS, gson));
-        putAll(book.occupations, get(root, "occupations", OCCUPATIONS, gson));
-        putAll(book.notoriety, get(root, "notoriety", NOTORIETY, gson));
-        Set<OrgId> waived = get(root, "protectionWaived", ORG_SET, gson);
-        if (waived != null) book.protectionWaived.addAll(waived);
+        // A save from before protected keeps may still carry falls, occupations, holds, notoriety and
+        // waived protection. They are not read: the keeps they describe are back with their owners.
     }
 
     private static <K, V> void putAll(Map<K, V> into, Map<K, V> from) {

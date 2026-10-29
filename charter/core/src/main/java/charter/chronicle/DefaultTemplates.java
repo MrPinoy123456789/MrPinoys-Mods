@@ -70,24 +70,12 @@ public final class DefaultTemplates {
         t.put("LandEvents.Lapsed", "On {when}, {count#claim} of {org} were lost for good.");
 
         // ---- sieges (SiegeEvents) ----
-        t.put("SiegeEvents.CampActive", "On {when}, {owner} finished raising a war camp against {targets}. The defenders were warned.");
-        t.put("SiegeEvents.SiegeBegan", "On {when}, {besiegers} laid siege to {keep}. {defender} had only its granary to hold out on.");
-        t.put("SiegeEvents.Encircled", "On {when}, every road to {keep} was cut. No food could reach its granary now.");
-        t.put("SiegeEvents.RingBroken", "On {when}, the ring around {keep} was broken, and a road lay open again.");
-        t.put("SiegeEvents.SiegeLifted", "On {when}, {besiegers} gave up the siege of {keep}, and it stood free.");
-        t.put("SiegeEvents.Starving", "On {when}, the granary of {keep} ran low, and its people began to starve.");
-        t.put("SiegeEvents.KeepFell", "On {when}, {keep} fell to {besieger}: the granary of {owner} ran dry before any relief arrived.");
-        t.put("SiegeEvents.Razed", "On {when}, {by} razed {keep} and left nothing standing.");
-        t.put("SiegeEvents.Occupied", "On {when}, {by} chose to hold {keep} rather than burn it. For a time it would answer to them.");
-        t.put("SiegeEvents.OccupationEnded", "On {when}, the hold of {occupier} on {keep} ended: {why}.");
-        t.put("SiegeEvents.Plundered", "On {when}, the treasury of {from} was broken open, and {amounts} lay spilled where the keep fell.");
+        t.put("SiegeEvents.CampActive", "On {when}, {owner} finished raising a camp.");
+        t.put("SiegeEvents.KeepRunningLow", "On {when}, the granary of {keep} was down to {daysLeft} days of food. {owner} was told to feed it.");
+        t.put("SiegeEvents.KeepLapsed", "On {when}, the granary of {keep} ran dry and its claim lapsed. The land lay open again, though every block stood where it was.");
         t.put("SiegeEvents.CampStoreEmpty", "On {when}, the stores of {camp} ran out.");
         t.put("SiegeEvents.CampCutOff", "On {when}, {camp} was cut off from supply, and its stores began to burn faster.");
-        t.put("SiegeEvents.CampExposed", "On {when}, a sally emptied the hold beside {camp}. Its claims lost their guard, and its banner could be broken.");
-        t.put("SiegeEvents.HoldEmptied", "On {when}, {raider} raided a hold of {owner} at {chunk} and emptied it.");
-        t.put("SiegeEvents.TruceBegan", "On {when}, a truce fell between {keep} and {attacker}, so that the war could not begin again at once.");
-        t.put("SiegeEvents.FoodDeposited", "On {when}, food was carried into {site} past the besiegers.");
-        t.put("SiegeEvents.ProtectionWaived", "On {when}, {faction} gave up the shelter owed to a new faction.");
+        t.put("SiegeEvents.FoodDeposited", "On {when}, food was carried into {site}.");
 
         // ---- contracts and justice (ContractEvents) ----
         t.put("ContractEvents.Arrested", "On {when}, {officer} of {faction} arrested {prisoner} on their land.");

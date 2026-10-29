@@ -31,7 +31,6 @@ import charter.org.actions.InviteMember;
 import charter.org.actions.Rename;
 import charter.siege.Allowance;
 import charter.siege.CampSupply;
-import charter.siege.KeepSupply;
 import charter.siege.SiegeBook;
 import charter.siege.Store;
 import charter.state.CharterState;
@@ -49,7 +48,7 @@ import java.util.UUID;
  * tree, members with roles, offices, root, derived and revoked grants, an open vote
  * with a pending motion and a settled one, an election, treasuries, People, keeps,
  * camps and claims (one contested), granary and camp stores with debts, holds,
- * allowances, truces, a pending fall, an occupation, notoriety and the siege clock.
+ * allowances, truces and the siege clock.
  * Built through the real engine where an action exists, directly where none does yet.
  */
 final class FullState {
@@ -177,21 +176,11 @@ final class FullState {
         book.store(camp.id).provisions.add("minecraft:cooked_beef", 64);
         book.store(camp.id).eatDebt = 1.75;
         SiegeBook.KeepSite site = book.keep(keep.id);
-        site.supply = KeepSupply.BESIEGED;
-        site.starving = true;
-        site.besiegers.add(ironhold);
+        site.warned = 3;
         SiegeBook.CampSite campSite = book.camp(camp.id);
         campSite.supply = CampSupply.CUT_OFF;
-        campSite.sallyLeft = 5_000;
-        campSite.exposed = true;
-        campSite.targets.add(oakvale);
-        book.holds.put(farm.id, 7_200_000L);
         book.allowances.add(new Allowance("player:" + bob.value(), keep.id, Map.of("minecraft:bread", 5), 99_999));
         book.truces.add(new SiegeBook.Truce(keep.id, guard, 555));
-        book.falls.put(keep.id, new SiegeBook.PendingFall(keep.id, ironhold, 777));
-        book.occupations.put(keep.id, new SiegeBook.Occupation(keep.id, ironhold, 888));
-        book.notoriety.put(ironhold, 2.5);
-        book.protectionWaived.add(ironhold);
 
         state.siegeClock.advanceSiege(123_456);
 
