@@ -63,6 +63,17 @@ public class CreepingRulesTest {
         eq(CreepingRules.pickSpread(1L, new int[]{1, 2}, new int[]{1, 1}, 5, 3).length, 1); // two adjacent spots: only one fits
         eq(CreepingRules.pickSpread(1L, new int[0], new int[0], 3, 3).length, 0);
 
+        // The live tell (PD-222): the sparkle cadence tightens with the stage so the countdown reads,
+        // and every period is a positive multiple of the 5-tick poll so a beat is never skipped.
+        check(CreepingRules.tellTicks(CreepingRules.MOSSY) > CreepingRules.tellTicks(CreepingRules.STONE),
+                "mossy shimmers slower than stone");
+        check(CreepingRules.tellTicks(CreepingRules.STONE) > CreepingRules.tellTicks(CreepingRules.INFESTED),
+                "stone pulses slower than infested");
+        for (int stage : new int[]{CreepingRules.MOSSY, CreepingRules.STONE, CreepingRules.INFESTED}) {
+            check(CreepingRules.tellTicks(stage) > 0 && CreepingRules.tellTicks(stage) % 5 == 0,
+                    "tell period is a positive multiple of the poll, stage " + stage);
+        }
+
         // Seed start delays: deterministic, staggered by index, jitter under the bound.
         for (int n = 0; n < 4; n++) {
             long d = CreepingRules.startDelay(7L, n);

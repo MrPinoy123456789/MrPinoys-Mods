@@ -41,6 +41,9 @@ import java.util.Map;
  *
  * <p>Breaking a brick is vanilla mining under the dungeon tool rule ({@link RoomProtection#verdict}); this
  * class only takes over the result, so nothing drops and an infested brick does not wake a silverfish.
+ *
+ * <p>PD-222: a standing brick also puffs a small sparkle on a stage-keyed cadence
+ * ({@link CreepingRules#tellTicks}), faster as it ripens, so the live clock reads between the swap beats.
  */
 final class CreepingBricks {
 
@@ -56,6 +59,7 @@ final class CreepingBricks {
         final long plantedAt;
         int stage = CreepingRules.MOSSY;
         long lastShake;
+        long lastTell;
 
         Brick(BlockPos pos, BlockState original, long plantedAt) {
             this.pos = pos;
@@ -101,6 +105,7 @@ final class CreepingBricks {
             BlockPos at = pos.immutable();
             Brick brick = new Brick(at, level.getBlockState(at), now);
             brick.lastShake = now;
+            brick.lastTell = now;
             level.setBlock(at, Blocks.MOSSY_STONE_BRICKS.defaultBlockState(), Block.UPDATE_ALL);
             bricks.put(at, brick);
             crack(level, at, Blocks.MOSSY_STONE_BRICKS.defaultBlockState(), 6);
@@ -150,6 +155,10 @@ final class CreepingBricks {
                     brick.lastShake = now;
                     crack(level, brick.pos, blockFor(brick.stage), 3);
                     level.playSound(null, brick.pos, SoundEvents.SILVERFISH_HURT, SoundSource.HOSTILE, 0.5f, 1.4f);
+                }
+                if (now - brick.lastTell >= CreepingRules.tellTicks(brick.stage)) {
+                    brick.lastTell = now;
+                    sparkle(level, brick.pos);
                 }
             }
             if (!collecting) {
@@ -415,6 +424,12 @@ final class CreepingBricks {
             case CreepingRules.STONE -> Blocks.STONE_BRICKS.defaultBlockState();
             default -> Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
         };
+    }
+
+    /** The live tell (PD-222): a soft sparkle so an armed brick reads before any swap beat lands. */
+    private static void sparkle(ServerLevel level, BlockPos pos) {
+        level.sendParticles(ParticleTypes.END_ROD, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                2, 0.3, 0.3, 0.3, 0.02);
     }
 
     /** Crack particles: bits of {@code state} flying off the block. */
