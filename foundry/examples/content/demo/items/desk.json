@@ -5,7 +5,8 @@
   "lore": [
     "Place it like a block. Punch it to pick it up."
   ],
-  "base_item": "minecraft:crafting_table",
+  "base_item": "minecraft:paper",
   "stack_size": 16,
-  "rarity": "common"
+  "rarity": "common",
+  "texture": "demo:item/desk"
 }

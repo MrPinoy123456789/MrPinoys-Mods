@@ -33,6 +33,16 @@ No art is needed: draw a vanilla block scaled up or down, or reuse an item that 
 `/foundry validate`, restart the server (new items need one), `/foundry give @s <ns>:<item>`, right-click a block to
 place. Mine it like a block to get the item back. Solid pieces block movement; walk-through ones do not.
 
+## Known behaviour (found in a client on 2026-10-29)
+
+- Mining works and takes the definition's hardness, but there is no crack animation. The client draws cracks onto a
+  block's model, and the visible part here is a display entity over a model-less stand-in. Cracks would need real block
+  models with a pack model per piece; not built, not a bug.
+- Give the placing item a base item that is NOT a block (`minecraft:paper`, `minecraft:glowstone_dust`) and a
+  `texture`. A block base item makes the client predict its own placement and play a second place sound; the loader
+  warns about it. Placement still works either way.
+- Break particles and sound follow the displayed block (planks for an item display), not the stand-in.
+
 ## Limits to say out loud
 
 Each piece is a registry entry, so adding or changing one needs a server restart. There are no click actions yet.

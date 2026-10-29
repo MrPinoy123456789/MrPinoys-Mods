@@ -65,6 +65,15 @@ public final class FurnitureBlock extends SimplePolymerBlock implements BlockWit
         return (def.solid() ? Blocks.BARRIER : Blocks.STRUCTURE_VOID).defaultBlockState();
     }
 
+    /** Break particles and sound follow the visible block (or planks for an item display), not the stand-in. */
+    @Override
+    public BlockState getPolymerBreakEventBlockState(BlockState state, PacketContext context) {
+        if (def.block() != null) {
+            return BuiltInRegistries.BLOCK.getValue(Identifier.parse(def.block().toString())).defaultBlockState();
+        }
+        return Blocks.OAK_PLANKS.defaultBlockState();
+    }
+
     /** The stand-in looks different from this block's real hardness, so let Polymer drive mining on the server. */
     @Override
     public boolean handleMiningOnServer(ItemStack tool, BlockState state, BlockPos pos, ServerPlayer player) {

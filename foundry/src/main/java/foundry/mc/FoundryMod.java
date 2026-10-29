@@ -78,6 +78,7 @@ public final class FoundryMod implements ModInitializer {
                     }
                 });
         set = MechanicHost.checkReferences(set);
+        set = Furniture.checkPlacers(set);
         set.problems().forEach(p -> LOG.warn("{}", p));
         return set;
     }

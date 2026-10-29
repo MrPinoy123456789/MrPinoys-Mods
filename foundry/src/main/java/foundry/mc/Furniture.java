@@ -50,6 +50,24 @@ public final class Furniture {
         return Map.copyOf(BLOCKS);
     }
 
+    /**
+     * A placing item whose base item is itself a block item makes the client predict its own placement (a second place
+     * sound and a flicker). Warn, with the fix, instead of failing: the piece still works.
+     */
+    static foundry.core.ContentSet checkPlacers(foundry.core.ContentSet set) {
+        var problems = new java.util.ArrayList<>(set.problems());
+        for (FurnitureDef f : set.furniture().values()) {
+            var item = set.items().get(f.placedBy());
+            if (item != null && BuiltInRegistries.BLOCK.containsKey(Identifier.parse(item.baseItem().toString()))) {
+                problems.add(foundry.core.Problem.warning(f.placedBy().toString(), "base_item",
+                        item.baseItem() + " is a block item, so the client predicts placing it and plays a second place sound.",
+                        "Use a base item that is not a block, such as minecraft:paper, and give it a texture for its look."));
+            }
+        }
+        return new foundry.core.ContentSet(set.items(), set.recipes(), java.util.List.copyOf(problems), set.sources(),
+                set.furniture());
+    }
+
     /** The furniture the given placing item creates, or null. */
     public static FurnitureDef forItem(Ident itemId) {
         for (FurnitureDef d : FoundryMod.loaded().furniture().values()) {

@@ -21,6 +21,9 @@ normal path, records had to be rebuilt by hand and deadlocked a chunk load once)
   Whether that feels right in a client is the first thing to check by hand.
 - No interaction entity: it would intercept left clicks and stop real mining. Click behaviour, when added, belongs on
   the block (`useWithoutItem`).
+- Verified by the owner in a client (2026-10-29): pieces persist across a server restart exactly as left; mining
+  breaks the piece. Not working like vanilla: no crack animation (cracks need a block model, the visual here is a
+  display entity). Cosmetic: a block based placing item double plays its place sound.
 - Costs: one registry entry per piece, so new or changed pieces need a restart; pieces placed with the first (barrier)
   build stay as plain barrier blocks and must be removed by hand.
 
