@@ -167,7 +167,7 @@ public final class LandPlacementGameTest {
             ServerPlayer lord = kit.faction("Poor");
             var org = kit.orgOf(lord);
             var ledger = kit.rt.state.org(org).orElseThrow().ledger;
-            ledger.take(Currency.COBBLESTONE, ledger.balance(Currency.COBBLESTONE));
+            ledger.take(Currency.DIAMOND, ledger.balance(Currency.DIAMOND));
             BlockPos spot = kit.pos(-8, 0);
             kit.placeOn(lord, kit.hold(lord, LandItems.WAR_BANNER), spot);
             helper.assertTrue(kit.level.getBlockState(spot).isAir(), "A refused banner stayed in the world");

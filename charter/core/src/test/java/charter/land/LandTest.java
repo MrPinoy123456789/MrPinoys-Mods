@@ -81,6 +81,18 @@ public final class LandTest {
         return w.f.as(KRIS, new PlaceNexus(w.ashfall, ch(x, z)));
     }
 
+    /**
+     * A second keep for one nation, which PlaceNexus no longer allows (protected keeps, K3) but old saves may hold:
+     * placed straight through the land graph, for the tests of the hop assignment.
+     */
+    static void legacyCamp(World w, OrgId org, int x, int z) {
+        new LandGraph(w.f.state, w.f.knobs).plantCamp(org, ch(x, z), w.f.clock.now());
+    }
+
+    static void legacyKeep(World w, int x, int z) {
+        new LandGraph(w.f.state, w.f.knobs).placeKeep(w.ashfall, ch(x, z), w.f.clock.now());
+    }
+
     static Outcome claim(World w, int x, int z) {
         return w.f.as(KRIS, new ClaimLand(w.ashfall, ch(x, z)));
     }
@@ -150,7 +162,7 @@ public final class LandTest {
         eq("inside a claim: nor can a rival's camp", "claimed", w.f.as(ZED, new PlantCamp(w.brine, ch(-1, 1))).reasonKey());
         check("inside a claim: beside it is fine for a rival's camp", w.f.as(ZED, new PlantCamp(w.brine, ch(-2, 0))).done());
         eq("inside a claim: the rival camp is raising", CampPhase.RAISING, coreOf(w, w.brine, ch(-2, 0)).phase());
-        eq("inside a claim: a camp costs its price", 5000L - w.f.knobs.warBannerPriceCobblestone, w.f.org(w.brine).ledger.balance(Currency.COBBLESTONE));
+                eq("inside a claim: and the outpost holds it", (long) w.f.knobs.outpostDeposit, coreOf(w, w.brine, ch(-2, 0)).deposit);
 
         // not adjacent
         eq("not adjacent: a claim away from your land is refused", "not_adjacent", claim(w, 10, 10).reasonKey());
@@ -162,7 +174,7 @@ public final class LandTest {
         eq("keep gap: three chunks is still too close", "keep_gap", w.f.as(ZED, new PlaceNexus(w.brine, ch(6, 0))).reasonKey());
         eq("keep gap: diagonal counts the same", "keep_gap", w.f.as(ZED, new PlaceNexus(w.brine, ch(6, 6))).reasonKey());
         check("keep gap: four free chunks is enough", w.f.as(ZED, new PlaceNexus(w.brine, ch(7, 0))).done());
-        check("keep gap: the same faction needs no gap", keep(w, 0, 3).done());
+        eq("one keep: a second keep for the same nation is refused, gap or no gap", "one_keep", keep(w, 0, 3).reasonKey());
 
         // paying
         World poor = world();
@@ -209,7 +221,8 @@ public final class LandTest {
         claimRow(cap, 2, 4);
         eq("capacity: a full keep takes no more", "core_full", claim(cap, 5, 0).reasonKey());
         check("capacity: the refusal changed nothing", at(cap, 5, 0) == null && cap.f.state.claimsOf(cap.ashfall).size() == 12);
-        check("capacity: a second keep in reach takes the overflow", cap.f.as(KRIS, new PlaceNexus(cap.ashfall, ch(8, 0))).done());
+        legacyKeep(cap, 8, 0);
+        check("capacity: a second keep in reach takes the overflow", cap.f.state.coresOf(cap.ashfall).size() == 2);
         check("capacity: its side of the gap is claimable", claim(cap, 6, 0).done());
         check("capacity: and so is the chunk the first keep could not take", claim(cap, 5, 0).done());
 
@@ -248,7 +261,7 @@ public final class LandTest {
         World w = world();
         w.f.knobs.keepCapacityClaims = 40;
         keep(w, 0, 0);
-        keep(w, 10, 0);
+        legacyKeep(w, 10, 0);
         claimRow(w, 2, 8);
         CoreId a = coreOf(w, w.ashfall, ch(0, 0)).id;
         CoreId b = coreOf(w, w.ashfall, ch(10, 0)).id;
@@ -265,7 +278,7 @@ public final class LandTest {
         World w = world();
         w.f.knobs.keepCapacityClaims = 5;
         keep(w, 0, 0);
-        keep(w, 10, 0);
+        legacyKeep(w, 10, 0);
         // land is built from both ends so each chunk is linked to a keep with room when it is claimed
         for (int x : new int[]{2, 3, 4, 5, 8, 7, 6}) {
             Outcome out = claim(w, x, 0);
@@ -350,7 +363,8 @@ public final class LandTest {
                 {{2, 2}, {1, 2}, {2, 1}},
         };
         for (int[][] camp : camps) {
-            check("L: a camp is planted at " + camp[0][0] + "," + camp[0][1], w.f.as(ZED, new PlantCamp(w.brine, ch(camp[0][0], camp[0][1]))).done());
+            legacyCamp(w, w.brine, camp[0][0], camp[0][1]);
+            check("L: a camp is planted at " + camp[0][0] + "," + camp[0][1], coreOf(w, w.brine, ch(camp[0][0], camp[0][1])) != null);
             for (int i = 1; i < camp.length; i++) {
                 Outcome out = w.f.as(ZED, new ClaimLand(w.brine, ch(camp[i][0], camp[i][1])));
                 if (!out.done()) check("L: claim " + camp[i][0] + "," + camp[i][1] + " failed: " + out, false);
@@ -387,7 +401,7 @@ public final class LandTest {
         World w = world();
         w.f.as(KRIS, new PlantCamp(w.ashfall, ch(50, 50)));
         int[][] around = {{51, 50}, {49, 50}, {50, 51}, {50, 49}};
-        for (int[] p : around) w.f.as(ZED, new PlantCamp(w.brine, ch(p[0], p[1])));
+        for (int[] p : around) legacyCamp(w, w.brine, p[0], p[1]);
         Core mine = coreOf(w, w.ashfall, ch(50, 50));
         LandGraph graph = new LandGraph(w.f.state, w.f.knobs);
 

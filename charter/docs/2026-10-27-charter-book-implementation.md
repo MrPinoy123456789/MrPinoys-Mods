@@ -1377,3 +1377,38 @@ KeepRunningLow and KeepLapsed. The `BreakawayTest` and `DissolveOrgTest` sub-fac
 **Still to do (steps 3 and 4).** The tutorial scenario and `TUTORIAL.md` still teach besieging a rival keep; the
 `TutorialGameTest` now stops once the camp is raised. The Join, Freedoms and Who decides pages, `DESIGN.md` 10.8,
 16 and 23, and the word "camp" for players are for step 4.
+
+## Builder's notes: protected keeps, step 3 (K3: one of each, teleports, the deposit)
+
+**One of each.** `PlaceNexus` refuses a second keep for a nation (`LandReasons.ONE_KEEP`, checked after the
+placement problems so their reasons still win; a sub-faction breaking away is exempt). `PlantCamp` refuses a second
+outpost for an organization (`ONE_OUTPOST`) and an outpost for a sub-faction of fewer than `outpostMinMembers` (2)
+members (`OUTPOST_TOO_SMALL`). Existing saves with several keeps or camps per organization are left as they are; tests
+that need them place them through `LandGraph` (`legacyKeep`, `legacyCamp` in `LandTest`).
+
+**The deposit.** The Nth outpost a nation holds in all, nation and sub-factions together, costs `outpostDeposit` (8)
+plus `outpostDepositStep` (4) for each already held, paid in diamonds from the placing organization's treasury. It
+replaces the 256 cobblestone war banner price (`warBannerPriceCobblestone` is gone). The deposit is held on the
+`Core` (`deposit`, saved when above zero), not in the treasury; anyone who uses the banner is told whose outpost it is
+and what it holds. An outpost lost any way but capture (a raising banner pulled down, an admin `LoseCore`) gives its
+deposit back to the owner in `LandGraph.loseCore`. Step 4's capture must take the deposit before it calls `loseCore`.
+`/charter admin faction spawn` now funds the keep price plus one deposit in diamonds.
+
+**Teleports.** `charter.mc.cmd.Teleports`: `/home`, `/keep`, `/outpost`, and `/charter home|keep|outpost` for a
+server where another mod owns a name. Warmup `teleportWarmupSeconds` (5), cancelled by moving (more than 0.2 blocks)
+or by the health dropping (so it does not depend on a damage event); cooldown `teleportCooldownSeconds` (30) from the
+arrival; same dimension only. `/home` reads the vanilla spawn point and needs the bed block to still be there (Charter
+owns no beds). `/keep` goes to the Nexus of the member's nation (a sub-faction member too). `/outpost` goes to the banner of
+the member's own organization's outpost, only once raised, costs `outpostTeleportFood` (1) from the outpost's store
+(least nourishing first, taken through the granary so a barrel follows) and is refused when the store is empty. Not done:
+a bed that is not clear to stand on is not looked for (the player lands on the bed block); no teleport from or to the
+nether.
+
+**Tutorial.** The banner now needs diamonds, so the tutorial gift is 72 diamonds (64 for the keep, 8 for the deposit),
+the cobblestone is gone, page 4 pays in diamond; `TUTORIAL.md` follows. The tutorial still teaches the siege from page 8
+on and is rewritten with the outposts (step 4).
+
+**Tests.** Core (`SiegeTest`): oneKeepAndOneOutpostEach, anOutpostCostsADepositThatGrowsWithTheNation. Gametest
+`TeleportGameTest`: keep trip and cooldown, outpost cost and refusals, moving or being hurt cancels. Changed:
+`LandTest` second keep and camp cases, `LandProtectionGameTest`/`LandPlacementGameTest` banner funding,
+`TutorialGameTest`, `ScenarioFilesTest`.

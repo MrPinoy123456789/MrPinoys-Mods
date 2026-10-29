@@ -88,9 +88,9 @@ page is still there as `/charter page`.
 ### Fill the treasury
 
 Things a faction builds are paid for from its **treasury**, not from your
-inventory. A War Banner costs 256 cobblestone. Open your Charter, then your
-faction, and press **Pay in 320 cobblestone**. The items leave your inventory and
-appear in the treasury line.
+inventory. An outpost (the War Banner) needs a deposit of 8 diamonds from the
+treasury. Open your Charter, then your faction, and press **Pay in 8 diamond**.
+The items leave your inventory and appear in the treasury line.
 
 ## 4. Stock the granary
 

@@ -22,6 +22,9 @@ public final class Core {
     public final long placedAt;
 
     private CampPhase phase;
+    /** Diamonds the owner paid to place this outpost; held by the outpost, not the treasury. Zero for a keep. */
+    public long deposit;
+
     /** Siege time the current phase began. */
     private long phaseSince;
 

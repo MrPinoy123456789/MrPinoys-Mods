@@ -25,7 +25,8 @@
       "charter.gametest.BreakawayGameTest",
       "charter.gametest.DissolveGameTest",
       "charter.gametest.NpcGameTest",
-      "charter.gametest.KeepUpkeepGameTest"
+      "charter.gametest.KeepUpkeepGameTest",
+      "charter.gametest.TeleportGameTest"
     ]
   },
   "mixins": [

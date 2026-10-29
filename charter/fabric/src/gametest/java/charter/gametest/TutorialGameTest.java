@@ -82,7 +82,7 @@ public final class TutorialGameTest {
         helper.assertTrue(count(you, s -> s.is(net.minecraft.tags.ItemTags.BANNERS) && LandItems.kindOf(s) == null) == 1, "You were not given a banner");
         helper.assertTrue(count(you, s -> s.is(Items.LODESTONE)) == 1, "You were not given a lodestone");
         helper.assertTrue(count(you, s -> LandItems.WAR_BANNER.equals(LandItems.kindOf(s))) == 1, "You were not given a War Banner");
-        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 64, "You were not given 64 diamonds");
+        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 72, "You were not given 72 diamonds");
         helper.assertTrue(you.experienceLevel >= 1, "You were given no level for the anvil");
         ItemStack book = first(you, s -> s.is(Items.WRITTEN_BOOK));
         helper.assertTrue(book != null, "You were not given the tutorial book");
@@ -114,17 +114,17 @@ public final class TutorialGameTest {
         helper.assertTrue(rt.state.org(mine).orElseThrow().name().equals(name), "The faction is not named after the banner");
         Core keep = rt.state.coresOf(mine).stream().filter(Core::isKeep).findFirst().orElse(null);
         helper.assertTrue(keep != null, "Placing the Nexus did not raise your keep");
-        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 0, "The keep did not take the diamonds you carried");
+        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 8, "The keep did not take exactly its price from the diamonds you carried");
 
         // Page 5: the Pay button on the faction page, not a command.
         charter.mc.book.MemberPages.faction(you, null);
-        String pay = charter.mc.Text.get("book.button.pay", "amount", 320, "currency",
-                charter.mc.Describe.currency(charter.treasury.Currency.COBBLESTONE, 320));
+        String pay = charter.mc.Text.get("book.button.pay", "amount", 8, "currency",
+                charter.mc.Describe.currency(charter.treasury.Currency.DIAMOND, 8));
         String token = charter.mc.cmd.CharterCommands.tokens().newest(you.getUUID(), pay).orElse(null);
         helper.assertTrue(token != null, "The faction page offers no [" + pay + "] button");
         charter.mc.cmd.CharterCommands.tokens().take(token, you.getUUID(), System.currentTimeMillis()).orElseThrow().accept(you);
-        helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.COBBLESTONE) == 320,
-                "The cobblestone did not reach the treasury");
+        helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND) == 8,
+                "The diamonds did not reach the treasury");
 
         // Page 4: a chest in the Nexus's chunk.
         BlockPos chest = nexus.offset(2, 0, 0);

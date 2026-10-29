@@ -44,6 +44,7 @@ public final class Guard {
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (!(player instanceof ServerPlayer) || !CharterServer.running()) return InteractionResult.PASS;
             BlockPos pos = hit.getBlockPos();
+            if (hand == net.minecraft.world.InteractionHand.MAIN_HAND) Placement.inspectBanner((ServerPlayer) player, level, pos);
             if (Protection.mayAct(player, level, pos)) return InteractionResult.PASS;
             Protection.deny(player, level, pos);
             return InteractionResult.FAIL;

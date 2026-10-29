@@ -161,7 +161,6 @@ public final class LandProtectionGameTest {
             helper.assertTrue(kit.rt.state.coresOf(org).isEmpty(), "Breaking a raising banner did not end the camp");
 
             // Raise again and let it finish: the same break is refused.
-            kit.rt.state.org(org).orElseThrow().ledger.add(Currency.COBBLESTONE, kit.rt.knobs.warBannerPriceCobblestone);
             lord.getInventory().add(LandItems.warBanner());
             kit.placeOn(lord, kit.hold(lord, LandItems.WAR_BANNER), spot);
             Core camp = kit.rt.state.coresOf(org).get(0);

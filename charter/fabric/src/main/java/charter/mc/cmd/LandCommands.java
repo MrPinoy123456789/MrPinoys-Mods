@@ -234,7 +234,7 @@ public final class LandCommands {
         rt.state.setStatus(org, OrgStatus.ACTIVE);
         var ledger = rt.state.org(org).orElseThrow().ledger;
         ledger.add(Currency.DIAMOND, rt.knobs.keepPriceDiamonds);
-        ledger.add(Currency.COBBLESTONE, rt.knobs.warBannerPriceCobblestone);
+        ledger.add(Currency.DIAMOND, rt.knobs.outpostDeposit);
         founder.getInventory().add(LandItems.nexus());
         founder.getInventory().add(LandItems.warBanner());
         return ok(ctx, Text.get("land.admin.spawned", "name", name.strip(), "player", founder.getPlainTextName()));

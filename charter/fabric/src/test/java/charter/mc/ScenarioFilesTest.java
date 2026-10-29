@@ -84,7 +84,7 @@ final class ScenarioFilesTest {
         var gift = tutorial.give.getFirst();
         check("tutorial: you are given what founding by placement needs, not a ready Nexus",
                 gift.items.containsKey("minecraft:white_banner") && gift.items.containsKey("minecraft:lodestone")
-                        && gift.items.getOrDefault("minecraft:diamond", 0) == 64 && !gift.items.containsKey("charter:nexus")
+                        && gift.items.getOrDefault("minecraft:diamond", 0) == 72 && !gift.items.containsKey("charter:nexus")
                         && gift.levels >= 1);
         check("tutorial: and a war banner for the camp", gift.items.containsKey("charter:war_banner"));
         check("tutorial: two pillars and an anvil", tutorial.markers.size() == 3

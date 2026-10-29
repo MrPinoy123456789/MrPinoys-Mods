@@ -524,6 +524,7 @@ public final class CoreBlocks {
             o.addProperty("placedAt", c.placedAt);
             if (c.phase() != null) o.addProperty("phase", c.phase().name());
             o.addProperty("phaseSince", c.phaseSince());
+            if (c.deposit > 0) o.addProperty("deposit", c.deposit);
             cores.add(o);
         }
         JsonArray claims = new JsonArray();
@@ -556,8 +557,10 @@ public final class CoreBlocks {
                 continue;
             }
             String phase = str(o, "phase");
-            state.addCore(new Core(id, CoreKind.valueOf(str(o, "kind")), owner, get(o, "center", ChunkKey.class, gson),
-                    num(o, "order"), num(o, "placedAt"), phase.isEmpty() ? null : CampPhase.valueOf(phase), num(o, "phaseSince")));
+            Core read = new Core(id, CoreKind.valueOf(str(o, "kind")), owner, get(o, "center", ChunkKey.class, gson),
+                    num(o, "order"), num(o, "placedAt"), phase.isEmpty() ? null : CampPhase.valueOf(phase), num(o, "phaseSince"));
+            read.deposit = o.has("deposit") ? num(o, "deposit") : 0;
+            state.addCore(read);
         }
         for (JsonElement e : array(root, "claims")) {
             JsonObject o = e.getAsJsonObject();

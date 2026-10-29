@@ -161,6 +161,17 @@ public final class Placement {
         return new ChunkKey(Protection.dimension(level), pos.getX() >> 4, pos.getZ() >> 4);
     }
 
+    /** Anyone who uses an outpost's banner is told whose it is and the deposit it holds (protected keeps, O1). */
+    public static void inspectBanner(ServerPlayer player, Level level, BlockPos pos) {
+        Fixtures.Fixture fixture = Protection.fixtureAt(level, pos);
+        if (fixture == null || fixture.kind() != Fixtures.Kind.BANNER) return;
+        CharterRuntime rt = CharterServer.runtime();
+        Core core = rt.state.core(fixture.core()).orElse(null);
+        if (core == null || core.isKeep()) return;
+        player.sendSystemMessage(Component.literal(Text.get("outpost.inspect", "org", rt.describe.org(core.owner),
+                "deposit", core.deposit)).withStyle(ChatFormatting.YELLOW));
+    }
+
     /**
      * A break of one of the mod's objects. Returns false to stop the break.
      * The nexus stands while its keep does. A raising camp's banner and campfire

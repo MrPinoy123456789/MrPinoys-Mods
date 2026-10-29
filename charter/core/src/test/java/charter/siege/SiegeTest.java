@@ -66,6 +66,8 @@ public final class SiegeTest {
         aLapseReleasesTheLandAndKeepsTheNation();
         theRaidersKeepsAreNotKeptUp();
         onlyANationHoldsAKeep();
+        oneKeepAndOneOutpostEach();
+        anOutpostCostsADepositThatGrowsWithTheNation();
     }
 
     // ---- the world ----
@@ -289,5 +291,39 @@ public final class SiegeTest {
         OrgId guard = w.f.state.orgNamed("Guard").orElseThrow().id;
         eq("K1: a sub-faction cannot place a Nexus", charter.land.LandReasons.SUB_NO_KEEP.key(),
                 w.f.as(GIL, new PlaceNexus(guard, ch(30, 0))).reasonKey());
+    }
+
+    // ---- K3: one of each, and the deposit ----
+
+    static void oneKeepAndOneOutpostEach() {
+        World w = world();
+        eq("K3: a nation has one keep", charter.land.LandReasons.ONE_KEEP.key(), w.f.as(KRIS, new PlaceNexus(w.ashfall, ch(30, 0))).reasonKey());
+        check("K3: an organization may plant an outpost", w.f.as(KRIS, new PlantCamp(w.ashfall, ch(40, 0))).done());
+        eq("K3: but only one", charter.land.LandReasons.ONE_OUTPOST.key(), w.f.as(KRIS, new PlantCamp(w.ashfall, ch(50, 0))).reasonKey());
+        w.f.as(KRIS, new charter.org.actions.CreateSubOrg(w.ashfall, "Guard", Preset.LORDSHIP, GIL));
+        OrgId guard = w.f.state.orgNamed("Guard").orElseThrow().id;
+        w.f.as(KRIS, new Deposit(guard, Currency.DIAMOND, 100));
+        eq("K3: a sub-faction of one is too small for an outpost", charter.land.LandReasons.OUTPOST_TOO_SMALL.key(),
+                w.f.as(GIL, new PlantCamp(guard, ch(60, 0))).reasonKey());
+        PlayerId newbie = player("Newbie");
+        w.f.seen(newbie);
+        w.f.admin(new charter.org.actions.InviteMember(guard, newbie));
+        w.f.as(newbie, new charter.org.actions.AcceptInvite(newbie, guard));
+        check("K3: with two members it may: " + w.f.as(GIL, new PlantCamp(guard, ch(60, 0))), w.f.state.coresOf(guard).size() == 1);
+    }
+
+    static void anOutpostCostsADepositThatGrowsWithTheNation() {
+        World w = world();
+        long start = w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND);
+        w.f.as(KRIS, new PlantCamp(w.ashfall, ch(40, 0)));
+        Core first = w.f.state.coresOf(w.ashfall).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
+        eq("K3: the first outpost of a nation holds the base deposit", (long) w.f.knobs.outpostDeposit, first.deposit);
+        eq("K3: the treasury paid it", start - w.f.knobs.outpostDeposit, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
+        w.f.as(KRIS, new charter.org.actions.CreateSubOrg(w.ashfall, "Guard", Preset.LORDSHIP, GIL));
+        OrgId guard = w.f.state.orgNamed("Guard").orElseThrow().id;
+        eq("K3: the next one costs a step more", (long) (w.f.knobs.outpostDeposit + w.f.knobs.outpostDepositStep),
+                charter.land.actions.PlantCamp.deposit(w.f.state, w.f.knobs, guard));
+        w.f.admin(new LoseCore(first.id));
+        eq("K3: an outpost lost without a capture gives its deposit back", start, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
     }
 }

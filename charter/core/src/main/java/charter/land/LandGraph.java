@@ -257,6 +257,11 @@ public final class LandGraph {
         List<Claim> mine = state.claimsOf(core.owner).stream().filter(c -> id.equals(c.core())).toList();
         List<HistoryEvent> events = new ArrayList<>();
         events.add(new LandEvents.CoreLost(wallNow, core.owner, id, core.kind, core.center));
+        // An outpost lost any way but capture gives its deposit back (a capture takes it first, then calls this).
+        if (!core.isKeep() && core.deposit > 0) {
+            state.org(core.owner).ifPresent(o -> o.ledger.add(charter.treasury.Currency.DIAMOND, core.deposit));
+            core.deposit = 0;
+        }
         for (Claim claim : mine) {
             if (claim.fixed()) state.removeClaim(claim.id);
         }

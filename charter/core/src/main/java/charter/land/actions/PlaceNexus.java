@@ -37,6 +37,12 @@ public record PlaceNexus(OrgId org, ChunkKey center) implements Action {
         }
         var problem = ctx.state.pendingSecession(org).isPresent() ? land.keepProblemForNew(center) : land.keepProblem(org, center);
         if (problem.isPresent()) return Outcome.refuse(problem.get());
+        // One keep for a nation (protected keeps, K3). A sub-faction breaking away is not a nation yet and has none.
+        OrgId root = ctx.state.root(org);
+        if (ctx.state.pendingSecession(org).isEmpty()
+                && ctx.state.cores().stream().anyMatch(c -> c.isKeep() && ctx.state.root(c.owner).equals(root))) {
+            return Outcome.refuse(LandReasons.ONE_KEEP);
+        }
         if (ctx.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) < ctx.knobs.keepPriceDiamonds) {
             return Outcome.refuse(LandReasons.NO_FUNDS.with("A keep costs " + ctx.knobs.keepPriceDiamonds + " diamonds and the treasury holds fewer."));
         }

@@ -24,7 +24,6 @@ public final class Knobs {
 
     // ---- land and prices ----
     public int keepPriceDiamonds = 64;
-    public int warBannerPriceCobblestone = 256;
     public int keepCapacityClaims = 40;
     public int keepRangeHops = 8;
     public int campCapacityClaims = 4;
@@ -41,6 +40,19 @@ public final class Knobs {
     public double spoilagePerDayFresh = 0.30;
     public double spoilagePerDayPastLimit = 0.50;
     public int granaryMaxChests = 8;
+
+    // ---- one of each, and teleports (protected keeps, K3) ----
+    /** Seconds a teleport waits, cancelled by moving or taking damage. */
+    public int teleportWarmupSeconds = 5;
+    /** Seconds before the same player may teleport again. */
+    public int teleportCooldownSeconds = 30;
+    /** Food taken from an outpost's supply by each /outpost. */
+    public int outpostTeleportFood = 1;
+    /** Members a sub-faction needs before it may place an outpost. */
+    public int outpostMinMembers = 2;
+    /** Diamonds the first outpost of a nation holds as its deposit; each outpost held already adds the step. */
+    public int outpostDeposit = 8;
+    public int outpostDepositStep = 4;
 
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
