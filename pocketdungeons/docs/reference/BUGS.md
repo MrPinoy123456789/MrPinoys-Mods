@@ -544,3 +544,11 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 ### PD-224: The old history board's right-click-to-map fired across the whole terminal wall (Medium)
 **Reported:** 2026-10-23-1 (07:09): "dungeon map on right click from the old Floor History needs to be removed". `Instances.isHistoryBoard`/`StagingFurniture.isHistoryPanel` were widened with the panel, so any wall click opened the dungeon map over the terminal.
 **Status:** Fixed and deployed live mid-session 2026-10-23 (same commit as PD-223): the RitualListener branch and both predicates are gone, the tutorial line now says `/dungeon map`. Live confirm owed: wall clicks should do nothing outside the tab words.
+
+## 2026-10-28 (session 2026-10-28-1)
+
+### PD-225: Remote event transport dies when latest.log outgrows the panel file limit (High, harness)
+**Reported:** 2026-10-28-1 (~21:08 UTC). Once the remote `logs/latest.log` passes the panel's file editor limit (observed at ~5.2 MB, reached fast during heightmap WARN floods from overworld flight), every `GET /files/contents` returns HTTP 400 FileSizeTooLargeException. `chat`, `chat --follow`, `wait`, `sync`, `context` and every `cmd` reply all break at once, while `panel.command` still lands. The agent went blind for ~10 minutes and missed the player's `session_leave` (21:10:29).
+**Repro:** on a Kinetic remote, let latest.log grow past the editor limit, then run `node tools/playtest/playtest.mjs chat` or `cmd list`.
+**Found workarounds:** the daemon's `/websocket` client endpoint is 404 on this panel, and the signed `/files/download` URL ignores Range headers (always returns the whole file). Working: POST `/files/compress` on `latest.log`, read the small archive via `/files/contents`, then POST `/files/delete` (a scratch poller doing this is in `tools/playtest/.remote/ws-tail.mjs`).
+**Status:** Open. Give playtest.mjs a compress-and-diff fallback (or another tail path) when `panel.read` fails on size, so `wait`/`chat`/`cmd` keep working on long remote sessions.
