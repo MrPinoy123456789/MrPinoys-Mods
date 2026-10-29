@@ -55,6 +55,7 @@ public final class FurnitureParser {
         }
         double scale = decimal(o, "scale", 1.0, source, out);
         double offsetY = decimal(o, "offset_y", 0.0, source, out);
+        double hardness = decimal(o, "hardness", 2.0, source, out);
         boolean solid = !o.has("solid") || o.get("solid").getAsBoolean();
         double width = 1.0;
         double height = 1.0;
@@ -65,10 +66,11 @@ public final class FurnitureParser {
         }
         range(scale, 0.1, 4.0, "scale", source, out);
         range(offsetY, -2.0, 2.0, "offset_y", source, out);
+        range(hardness, 0.0, 50.0, "hardness", source, out);
         range(width, 0.1, 4.0, "interaction.width", source, out);
         range(height, 0.1, 4.0, "interaction.height", source, out);
         if (out.stream().anyMatch(Problem::blocking)) return new Result(null, out);
-        return new Result(new FurnitureDef(version, id, placedBy, block, item, scale, offsetY, solid, width, height), out);
+        return new Result(new FurnitureDef(version, id, placedBy, block, item, scale, offsetY, solid, width, height, hardness), out);
     }
 
     /**

@@ -26,9 +26,6 @@ final class FoundryCommands {
                         .then(Commands.literal("help").executes(ctx -> help(ctx.getSource())))
                         .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
                         .then(Commands.literal("validate").executes(ctx -> validate(ctx.getSource())))
-                        .then(Commands.literal("furniture")
-                                .then(Commands.literal("status").executes(ctx -> furnitureStatus(ctx.getSource())))
-                                .then(Commands.literal("repair").executes(ctx -> furnitureRepair(ctx.getSource()))))
                         .then(Commands.literal("reload").executes(ctx -> reload(ctx.getSource())))
                         .then(Commands.literal("pack").then(Commands.literal("status")
                                 .executes(ctx -> packStatus(ctx.getSource())))
@@ -82,32 +79,6 @@ final class FoundryCommands {
                     + " item(s) are new since startup. Restart the server to register them."), false);
         }
         return set.hasErrors() ? 0 : 1;
-    }
-
-    private static int furnitureStatus(CommandSourceStack src) {
-        int records = 0;
-        int withHolder = 0;
-        int loadedChunks = 0;
-        for (var level : src.getServer().getAllLevels()) {
-            for (var e : FurnitureStore.of(level).all()) {
-                records++;
-                if (!level.getChunkSource().hasChunk(e.pos().getX() >> 4, e.pos().getZ() >> 4)) continue;
-                loadedChunks++;
-                if (eu.pb4.polymer.virtualentity.api.attachment.BlockBoundAttachment.get(level, e.pos()) != null) withHolder++;
-            }
-        }
-        int fRecords = records;
-        int fLoaded = loadedChunks;
-        int fHolders = withHolder;
-        src.sendSuccess(() -> Component.literal("Foundry furniture: " + fRecords + " saved, " + fLoaded
-                + " in loaded chunks, " + fHolders + " of those have a visible display. If fewer than loaded, run /foundry furniture repair."), false);
-        return 1;
-    }
-
-    private static int furnitureRepair(CommandSourceStack src) {
-        int created = Furniture.repairAll(src.getServer());
-        src.sendSuccess(() -> Component.literal("Foundry furniture: rebuilt " + created + " display(s)."), true);
-        return 1;
     }
 
     private static int reload(CommandSourceStack src) {

@@ -7,8 +7,5 @@
   },
   "scale": 1.0,
   "solid": true,
-  "interaction": {
-    "width": 1.0,
-    "height": 1.0
-  }
+  "hardness": 2.0
 }

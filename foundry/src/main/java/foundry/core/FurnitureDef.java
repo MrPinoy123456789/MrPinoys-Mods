@@ -16,7 +16,8 @@ public record FurnitureDef(
         double offsetY,
         boolean solid,
         double width,
-        double height) {
+        double height,
+        double hardness) {
 
     public static final int SCHEMA_VERSION = 1;
 }

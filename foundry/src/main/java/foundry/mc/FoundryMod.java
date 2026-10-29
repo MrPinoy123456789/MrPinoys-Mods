@@ -146,11 +146,11 @@ public final class FoundryMod implements ModInitializer {
         PolymerResourcePackUtils.RESOURCE_PACK_CREATION_EVENT.register(FoundryMod::contributeToPack);
         ContentSet set = loadContent();
         set.items().values().forEach(FoundryItems::register);
+        set.furniture().values().forEach(Furniture::register);
         FoundryItems.applyNames();
         loaded = set;
         updateOrphans(set);
         FoundryDatapack.init(set);
-        Furniture.init();
         FoundryCommands.register();
         PackBuilds.markBaseline();
         LOG.info("Foundry: {} items registered, {} problems", FoundryItems.all().size(), set.problems().size());

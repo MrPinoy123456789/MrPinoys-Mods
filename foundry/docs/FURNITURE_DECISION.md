@@ -3,15 +3,28 @@
 Date: 2026-10-29. Status: **approved by the owner 2026-10-29**. No furniture code exists; this record only
 verifies the D3 proposal against `polymer-virtual-entity 0.17.5+26.2` (the resolved jar, inspected with `javap`).
 
-## Correction found while building (2026-10-29)
+## What was actually built (2026-10-29, supersedes the barrier design below)
 
-`BlockBoundAttachment.of(...)` returns null unless the block implements Polymer's `BlockWithElementHolder`, so it does
-nothing for a vanilla barrier. Foundry uses the public constructor
-`new BlockBoundAttachment(holder, chunk, state, pos, Vec3.atCenterOf(pos), false)`, which attaches to any block and
-still tears the holder down when the block state changes. Verified by gametest. Also: a barrier cannot be mined in
-survival, so punching the interaction entity is how a player picks a piece up; creative breaking and commands are
-caught by a cleanup hook and by the check on chunk load. The `of(...)` lines below describe the proposal, not what is
-built.
+The first build used a barrier block plus a record store and punch-to-break. The owner said furniture must behave like
+any vanilla block, and that design could not (a barrier cannot be mined in survival, drops did not go through the
+normal path, records had to be rebuilt by hand and deadlocked a chunk load once). It was replaced:
+
+- Each furniture definition registers **one real block**, `FurnitureBlock` (a `SimplePolymerBlock` that also implements
+  `BlockWithElementHolder`), in the block registry. It has a `FACING` property (cardinal, set from the player), the
+  definition's hardness, wood sounds, and drops its placing item through the normal `getDrops` path.
+- Clients see a vanilla stand-in (barrier when solid, structure void when walk-through). The visual is a display
+  entity that Polymer creates from `createElementHolder` when the block is placed or its chunk loads, and removes when
+  the block goes. Verified by gametest: placing attaches a holder, destroying removes it.
+- Placement copies `BlockItem`: replaceable check, collision check, state for placement, placed sound, consumption.
+- Persistence is ordinary chunk saving of the block state, so there is no record store, no queue and no repair command.
+- Mining is driven on the server (`handleMiningOnServer` returns true) because the client sees the stand-in block.
+  Whether that feels right in a client is the first thing to check by hand.
+- No interaction entity: it would intercept left clicks and stop real mining. Click behaviour, when added, belongs on
+  the block (`useWithoutItem`).
+- Costs: one registry entry per piece, so new or changed pieces need a restart; pieces placed with the first (barrier)
+  build stay as plain barrier blocks and must be removed by hand.
+
+Everything below is the original proposal, kept for history.
 
 ## The proposal, verified
 

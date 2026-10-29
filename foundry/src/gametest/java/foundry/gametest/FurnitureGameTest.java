@@ -2,25 +2,23 @@ package foundry.gametest;
 
 import eu.pb4.polymer.virtualentity.api.attachment.BlockBoundAttachment;
 import foundry.core.Ident;
+import foundry.mc.FoundryMod;
 import foundry.mc.Furniture;
-import foundry.mc.FurnitureStore;
+import foundry.mc.FurnitureBlock;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LightBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** Furniture placement, breaking, persistence and recovery against the demo desk and lamp in examples/content. */
+/** Furniture is a real registered block: placement, hardness, collision, drops and the display that follows it. */
 public final class FurnitureGameTest {
     private static ItemStack stack(String id) {
         return new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(id)));
@@ -38,137 +36,85 @@ public final class FurnitureGameTest {
     }
 
     @GameTest
-    public void placingASolidDeskMakesABarrierARecordAndAHolder(GameTestHelper helper) {
-        var level = helper.getLevel();
-        var pos = helper.absolutePos(new BlockPos(1, 1, 1));
-        helper.assertTrue(placeAt(helper, new BlockPos(1, 1, 1), "demo:desk"), "placing the desk succeeds");
-        helper.assertTrue(level.getBlockState(pos).is(Blocks.BARRIER), "a solid desk is a barrier block");
-        helper.assertTrue(FurnitureStore.of(level).get(pos) != null, "a record exists");
-        helper.assertValueEqual(FurnitureStore.of(level).get(pos).definition(), "demo:desk", "record names the definition");
-        helper.assertTrue(BlockBoundAttachment.get(level, pos) != null, "a holder is attached");
+    public void furnitureIsRegisteredAsRealBlocks(GameTestHelper helper) {
+        helper.assertTrue(BuiltInRegistries.BLOCK.containsKey(Identifier.parse("demo:desk")), "demo:desk is a registered block");
+        helper.assertTrue(BuiltInRegistries.BLOCK.containsKey(Identifier.parse("demo:lamp")), "demo:lamp is a registered block");
+        helper.assertTrue(Furniture.block(Ident.parse("demo:desk")) != null, "the desk block is tracked");
+        helper.assertTrue(FoundryMod.loaded().furniture().containsKey(Ident.parse("demo:desk")), "the desk definition loaded");
         helper.succeed();
     }
 
     @GameTest
-    public void aWalkThroughLampIsAnInvisibleLightBlockWithNoLight(GameTestHelper helper) {
+    public void aSolidDeskIsARealBlockWithFacingCollisionAndHardness(GameTestHelper helper) {
         var level = helper.getLevel();
-        var pos = helper.absolutePos(new BlockPos(3, 1, 1));
-        helper.assertTrue(placeAt(helper, new BlockPos(3, 1, 1), "demo:lamp"), "placing the lamp succeeds");
+        var rel = new BlockPos(1, 1, 1);
+        var pos = helper.absolutePos(rel);
+        helper.assertTrue(placeAt(helper, rel, "demo:desk"), "placing the desk succeeds");
         var state = level.getBlockState(pos);
-        helper.assertTrue(state.is(Blocks.LIGHT), "a non-solid lamp is a light block");
-        helper.assertValueEqual(state.getValue(LightBlock.LEVEL), 0, "the light block emits no light");
-        helper.assertTrue(state.getCollisionShape(level, pos).isEmpty(), "it has no collision");
+        helper.assertTrue(state.getBlock() instanceof FurnitureBlock, "the placed block is the furniture block");
+        helper.assertTrue(state.getValue(FurnitureBlock.FACING).getAxis().isHorizontal(), "it faces a cardinal direction");
+        helper.assertTrue(!state.getCollisionShape(level, pos).isEmpty(), "a solid desk has collision");
+        helper.assertTrue(state.getDestroySpeed(level, pos) == 2.0f, "it has the definition's hardness, so it mines like a block");
+        helper.assertTrue(BlockBoundAttachment.get(level, pos) != null, "Polymer attached the display holder");
         helper.succeed();
     }
 
     @GameTest
-    public void clickingAPlacedDeskPlacesTheNextOneOnTopLikeAnyBlock(GameTestHelper helper) {
+    public void aWalkThroughLampHasNoCollision(GameTestHelper helper) {
         var level = helper.getLevel();
-        var rel = new BlockPos(1, 1, 3);
-        helper.assertTrue(placeAt(helper, rel, "demo:desk"), "first placement works");
-        helper.assertTrue(placeAt(helper, rel, "demo:desk"), "clicking the placed desk places beside or above it, as a block would");
-        var first = helper.absolutePos(rel);
-        helper.assertTrue(FurnitureStore.of(level).get(first) != null, "the first record is untouched");
-        helper.assertTrue(FurnitureStore.of(level).get(first.above()) != null, "the second sits on top, in its own block");
-        helper.assertTrue(BlockBoundAttachment.get(level, first.above()) != null, "and has its own holder");
+        var rel = new BlockPos(3, 1, 1);
+        var pos = helper.absolutePos(rel);
+        helper.assertTrue(placeAt(helper, rel, "demo:lamp"), "placing the lamp succeeds");
+        var state = level.getBlockState(pos);
+        helper.assertTrue(state.getBlock() instanceof FurnitureBlock, "the lamp is a furniture block");
+        helper.assertTrue(state.getCollisionShape(level, pos).isEmpty(), "a non-solid piece has no collision");
+        helper.assertTrue(BlockBoundAttachment.get(level, pos) != null, "and still has its display");
         helper.succeed();
     }
 
     @GameTest
-    @SuppressWarnings("removal")
-    public void punchingBreaksTheDeskAndDropsItsItem(GameTestHelper helper) {
+    public void breakingItDropsThePlacingItemThroughTheNormalDropPath(GameTestHelper helper) {
         var level = helper.getLevel();
         var rel = new BlockPos(5, 1, 1);
         var pos = helper.absolutePos(rel);
         placeAt(helper, rel, "demo:desk");
-        var player = helper.makeMockServerPlayerInLevel();
-        Furniture.breakAt(level, pos, player, true);
-        helper.assertTrue(level.getBlockState(pos).isAir(), "the block is gone");
-        helper.assertTrue(FurnitureStore.of(level).get(pos) == null, "the record is gone");
-        helper.assertTrue(BlockBoundAttachment.get(level, pos) == null, "the holder is gone");
-        helper.runAfterDelay(5, () -> {
-            boolean dropped = !level.getEntitiesOfClass(ItemEntity.class, new net.minecraft.world.phys.AABB(pos).inflate(2)).isEmpty();
-            helper.assertTrue(dropped, "the placing item dropped");
-            helper.succeed();
-        });
-    }
-
-    @GameTest
-    public void recoveryRebuildsTheHolderOnceEvenIfTriggeredTwice(GameTestHelper helper) {
-        var level = helper.getLevel();
-        var rel = new BlockPos(1, 1, 5);
-        var pos = helper.absolutePos(rel);
-        placeAt(helper, rel, "demo:desk");
-        var first = BlockBoundAttachment.get(level, pos);
-        helper.assertTrue(first != null, "holder exists after placing");
-        // Simulated restart: the block and the record survive, the runtime holder does not. Changing the block state
-        // away and back tears the holder down exactly as chunk unload would, without touching the record.
-        level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-        level.setBlockAndUpdate(pos, Blocks.BARRIER.defaultBlockState());
-        helper.assertTrue(BlockBoundAttachment.get(level, pos) == null, "simulated restart: the holder is gone");
-        helper.assertTrue(FurnitureStore.of(level).get(pos) != null, "the record survived");
-        var chunk = level.getChunkAt(pos);
-        Furniture.respawn(level, chunk);
-        var rebuilt = BlockBoundAttachment.get(level, pos);
-        helper.assertTrue(rebuilt != null, "the holder is rebuilt from the record");
-        Furniture.respawn(level, chunk);
-        helper.assertTrue(BlockBoundAttachment.get(level, pos) == rebuilt, "a second chunk load does not stack a second holder");
+        var state = level.getBlockState(pos);
+        var drops = Block.getDrops(state, level, pos, null);
+        helper.assertValueEqual(drops.size(), 1, "one drop");
+        helper.assertTrue(drops.get(0).getItem() == BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:desk")),
+                "the drop is the placing item");
+        helper.assertTrue(level.destroyBlock(pos, true), "the block can be destroyed like any block");
+        helper.assertTrue(level.getBlockState(pos).isAir(), "it is gone");
+        helper.assertTrue(BlockBoundAttachment.get(level, pos) == null, "its display went with it");
         helper.succeed();
     }
 
     @GameTest
-    public void theRespawnQueueRebuildsAHolderOnALaterTick(GameTestHelper helper) {
+    public void clickingAPlacedDeskPlacesTheNextOnTopLikeAnyBlock(GameTestHelper helper) {
         var level = helper.getLevel();
-        var rel = new BlockPos(7, 1, 1);
-        var pos = helper.absolutePos(rel);
-        placeAt(helper, rel, "demo:desk");
-        level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-        level.setBlockAndUpdate(pos, Blocks.BARRIER.defaultBlockState());
-        helper.assertTrue(BlockBoundAttachment.get(level, pos) == null, "holder missing before the queue runs");
-        Furniture.queueRespawn(level, pos.getX() >> 4, pos.getZ() >> 4);
-        helper.runAfterDelay(3, () -> {
-            helper.assertTrue(BlockBoundAttachment.get(level, pos) != null, "the queue rebuilt the holder");
-            helper.succeed();
-        });
-    }
-
-    @GameTest
-    public void aRecordWhoseBlockVanishedIsDroppedOnRecovery(GameTestHelper helper) {
-        var level = helper.getLevel();
-        var rel = new BlockPos(3, 1, 5);
-        var pos = helper.absolutePos(rel);
-        placeAt(helper, rel, "demo:desk");
-        BlockBoundAttachment.get(level, pos).destroy();
-        level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-        Furniture.respawn(level, level.getChunkAt(pos));
-        helper.assertTrue(FurnitureStore.of(level).get(pos) == null, "the stale record is removed, never describing air");
-        helper.assertTrue(BlockBoundAttachment.get(level, pos) == null, "no holder is created for air");
+        var rel = new BlockPos(1, 1, 3);
+        helper.assertTrue(placeAt(helper, rel, "demo:desk"), "first placement works");
+        helper.assertTrue(placeAt(helper, rel, "demo:desk"), "clicking the placed desk places beside or above it");
+        var first = helper.absolutePos(rel);
+        helper.assertTrue(level.getBlockState(first).getBlock() instanceof FurnitureBlock, "the first desk is untouched");
+        helper.assertTrue(level.getBlockState(first.above()).getBlock() instanceof FurnitureBlock, "the second sits on top");
+        helper.assertTrue(BlockBoundAttachment.get(level, first.above()) != null, "with its own display");
         helper.succeed();
     }
 
     @GameTest
-    public void recordsSurviveASaveAndLoadRoundTrip(GameTestHelper helper) {
+    public void aPlacedPieceSurvivesChunkSaveBecauseItIsJustABlockState(GameTestHelper helper) {
         var level = helper.getLevel();
-        var rel = new BlockPos(5, 1, 5);
+        var rel = new BlockPos(3, 1, 3);
         var pos = helper.absolutePos(rel);
         placeAt(helper, rel, "demo:desk");
-        var codec = FurnitureStore.TYPE.codec();
-        var ops = level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
-        var encoded = codec.encodeStart(ops, FurnitureStore.of(level));
-        helper.assertTrue(encoded.result().isPresent(), "the store encodes");
-        var decoded = codec.parse(ops, encoded.result().get());
-        helper.assertTrue(decoded.result().isPresent(), "the store decodes");
-        var entry = decoded.result().get().get(pos);
-        helper.assertTrue(entry != null && entry.definition().equals("demo:desk") && entry.facing().getAxis().isHorizontal(),
-                "the record, with a cardinal facing, comes back");
-        helper.succeed();
-    }
-
-    @GameTest
-    public void furnitureDefinitionsLoaded(GameTestHelper helper) {
-        var set = foundry.mc.FoundryMod.loaded();
-        helper.assertTrue(set.furniture().containsKey(Ident.parse("demo:desk")), "desk loaded");
-        helper.assertTrue(set.furniture().containsKey(Ident.parse("demo:lamp")), "lamp loaded");
+        var state = level.getBlockState(pos);
+        var codec = net.minecraft.world.level.block.state.BlockState.CODEC;
+        var ops = level.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+        var encoded = codec.encodeStart(ops, state).result();
+        helper.assertTrue(encoded.isPresent(), "the state encodes, as chunks do");
+        var decoded = codec.parse(ops, encoded.get()).result();
+        helper.assertTrue(decoded.isPresent() && decoded.get() == state, "the same state, facing included, comes back");
         helper.succeed();
     }
 }
