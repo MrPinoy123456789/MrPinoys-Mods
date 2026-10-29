@@ -1446,9 +1446,9 @@ superseded, 10.8 and 10.9, 16.1 and 16.2 are corrected and section 23 records th
 knob, `keepNewGraceDays` (14).
 
 **Two sets of values.** `Knobs.shipped()` is the balance set and the default; `Knobs.test()` is the shipped set with the raiders'
-timers (a wave a minute, a one day expiry, a layer a tick) and the slow governance clocks (join requests, absent Lords,
-breaking away, the founding cooldown) made short; by the owner's word siege time, a trip's wait, votes and presence stay
-as shipped. The config
+expiry (a day) and a few slow governance clocks (settling, join requests, breaking away, the founding cooldown) made
+short; by the owner's word siege time, a trip's wait, votes, presence, the raiders' waves and crumble and the absent
+Lord's clock stay as shipped. The config
 file names a `profile`; the loader starts from that set and any other key wins over it (`CharterConfig`,
 `ConfigTest.profilesGiveShippedAndTestValues`). `presenceMinMemberSeconds` is 3 days (259200) in both sets. The
 gametests still run on the shipped set and set the few values they need by hand.

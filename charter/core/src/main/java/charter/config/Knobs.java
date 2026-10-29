@@ -33,18 +33,16 @@ public final class Knobs {
     }
 
     /**
-     * The shipped values, with the waits of the raiders and of the slow governance clocks short, so a feature can be
-     * tried in minutes. Siege time, a trip's wait, votes and presence stay as shipped, since they are the part of the
+     * The shipped values, with the raiders' expiry and a few slow governance clocks (settling, join requests, breaking
+     * away, the founding cooldown) short, so a feature can be tried in minutes. Siege time, a trip's wait, votes,
+     * presence, the raiders' waves and crumble and the absent Lord's clock stay as shipped, since they are the part of the
      * balance a test must not change. Not for a real server.
      */
     public static Knobs test() {
         Knobs k = new Knobs();
         k.profile = TEST;
-        k.npcWaveMinutes = 1;
         k.npcExpireDays = 1;
-        k.npcCrumbleTicksPerLayer = 1;
         k.settleDays = 0;
-        k.absentLordDays = 1;
         k.joinRequestDays = 1;
         k.breakawayHours = 1;
         k.foundSecedeCooldownDays = 0;

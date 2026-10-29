@@ -53,9 +53,11 @@ final class ConfigTest {
         Knobs test = Knobs.test();
         check("config: shipped keeps the balance values", shipped.profile.equals("shipped") && shipped.timeScale == 1.0
                 && shipped.presenceMinMemberSeconds == 3 * 86_400 && shipped.teleportWarmupSeconds == 5 && shipped.npcWaveMinutes == 5);
-        check("config: test makes the raiders' and slow governance timers short", test.profile.equals("test")
-                && test.npcWaveMinutes == 1 && test.npcCrumbleTicksPerLayer == 1 && test.joinRequestDays == 1 && test.foundSecedeCooldownDays == 0);
-        check("config: test keeps siege time, a trip's wait, votes and presence as shipped", test.timeScale == shipped.timeScale
+        check("config: test makes the raiders' expiry and a few slow governance timers short", test.profile.equals("test")
+                && test.npcExpireDays == 1 && test.joinRequestDays == 1 && test.breakawayHours == 1 && test.foundSecedeCooldownDays == 0);
+        check("config: test keeps siege time, a trip's wait, votes, presence, the raiders' waves and crumble and the absent Lord as shipped",
+                test.timeScale == shipped.timeScale && test.npcWaveMinutes == shipped.npcWaveMinutes
+                && test.npcCrumbleTicksPerLayer == shipped.npcCrumbleTicksPerLayer && test.absentLordDays == shipped.absentLordDays
                 && test.teleportWarmupSeconds == shipped.teleportWarmupSeconds && test.teleportCooldownSeconds == shipped.teleportCooldownSeconds
                 && test.voteDurationHours == shipped.voteDurationHours && test.voteEligibilityDays == shipped.voteEligibilityDays
                 && test.seatVoteHours == shipped.seatVoteHours && test.presenceMinMemberSeconds == shipped.presenceMinMemberSeconds);
@@ -64,13 +66,13 @@ final class ConfigTest {
         Path dir = Files.createTempDirectory("charter-config");
         Files.writeString(dir.resolve(CharterConfig.FILE_NAME), "{ \"profile\": \"test\", \"npcWaveMinutes\": 4 }");
         Knobs read = CharterConfig.readOrCreate(dir, s -> { }, s -> { });
-        check("config: a file naming the test profile starts from the test values", read.profile.equals("test") && read.npcCrumbleTicksPerLayer == 1);
+        check("config: a file naming the test profile starts from the test values", read.profile.equals("test") && read.joinRequestDays == 1);
         check("config: and a key in the file wins over them", read.npcWaveMinutes == 4);
 
         Path other = Files.createTempDirectory("charter-config");
         Files.writeString(other.resolve(CharterConfig.FILE_NAME), "{ \"profile\": \"nonsense\" }");
         Knobs unknown = CharterConfig.readOrCreate(other, s -> { }, s -> { });
-        check("config: an unknown profile is the shipped values", unknown.timeScale == 1.0 && unknown.npcWaveMinutes == 5);
+        check("config: an unknown profile is the shipped values", unknown.timeScale == 1.0 && unknown.joinRequestDays == 7);
     }
 
     static void brokenFileRunsOnDefaultsAndIsLeftAlone() throws Exception {

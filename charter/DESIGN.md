@@ -1089,10 +1089,10 @@ at stake in a war moves from the keep to the outpost and its deposit.
 All in `config/charter/charter.json`. Starting values, to be tuned in play.
 
 **Two sets of values (2026-10-29).** The file names a `profile`. `shipped` (the default) is the balance set, the
-values in the table below. `test` is the shipped set with the raiders' waves (a minute), their crumble and expiry, and
-the slow governance clocks (join requests, absent Lords, breaking away, the founding cooldown) made short, so a feature
-can be tried in minutes. Siege time, a trip's wait, votes and presence stay as shipped, since they are the part of the
-balance a test must not change. The loader starts from the named set and any other key in
+values in the table below. `test` is the shipped set with the raiders' expiry (a day) and a few slow governance clocks
+(settling, join requests, breaking away, the founding cooldown) made short, so a feature can be tried in minutes.
+Siege time, a trip's wait, votes, presence, the raiders' waves and crumble and the absent Lord's clock stay as shipped,
+since they are the part of the balance a test must not change. The loader starts from the named set and any other key in
 the file wins over it. The sets live in `Knobs.shipped()` and `Knobs.test()`; a test set is never for a real server.
 
 | Knob | Default |
