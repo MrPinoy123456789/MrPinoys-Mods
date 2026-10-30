@@ -252,7 +252,13 @@ public final class LandTest {
         m.f.state.org(m.ashfall).orElseThrow().claimBonus = 0;
         m.f.state.org(m.ashfall).orElseThrow().adminKingdom = true;
         eq("member cap: an admin kingdom has no cap", LandGraph.UNLIMITED, new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now()));
+        Core ashKeep = m.f.state.coresOf(m.ashfall).stream().filter(Core::isKeep).findFirst().orElseThrow();
+        eq("admin kingdom: no range limit", LandGraph.UNLIMITED, new LandGraph(m.f.state, m.f.knobs).range(ashKeep));
+        PlayerId walker = player("Walker");
+        eq("admin kingdom: nobody can ask to join", charter.org.OrgReasons.CLOSED.key(), m.f.as(walker, new charter.org.actions.Apply(walker, m.ashfall)).reasonKey());
+        eq("admin kingdom: nobody is invited", charter.org.OrgReasons.CLOSED.key(), m.f.admin(new charter.org.actions.InviteMember(m.ashfall, walker)).reasonKey());
         m.f.state.org(m.ashfall).orElseThrow().adminKingdom = false;
+        check("admin kingdom: an ordinary kingdom takes applications again", m.f.as(walker, new charter.org.actions.Apply(walker, m.ashfall)).done());
 
         // camp claims count toward the cap, the banner chunk does not
         World cm = world();

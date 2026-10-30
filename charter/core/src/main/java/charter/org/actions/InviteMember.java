@@ -31,6 +31,7 @@ public record InviteMember(OrgId org, PlayerId player) implements Action {
     @Override
     public Outcome check(ActionContext ctx) {
         if (ctx.state.org(org).map(o -> o.npc).orElse(false)) return Outcome.refuse(OrgReasons.NOT_JOINABLE);
+        if (Joining.closed(ctx, org)) return Outcome.refuse(OrgReasons.CLOSED);
         if (ctx.state.isMember(player, org)) return Outcome.refuse(new Reason("already_here", "That player is already a member."));
         return Outcome.OK;
     }

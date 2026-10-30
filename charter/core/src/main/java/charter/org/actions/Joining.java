@@ -18,6 +18,11 @@ final class Joining {
     private Joining() {
     }
 
+    /** An admin kingdom takes no new members, however they come: asking, an invite, or being admitted. */
+    static boolean closed(ActionContext ctx, OrgId org) {
+        return ctx.state.org(ctx.state.root(org)).map(o -> o.adminKingdom).orElse(false);
+    }
+
     static List<HistoryEvent> join(ActionContext ctx, PlayerId player, OrgId org) {
         OrgId from = ctx.state.membership(player).map(MemberRecord::org).orElse(null);
         ctx.state.leave(player);

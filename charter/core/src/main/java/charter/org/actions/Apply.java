@@ -35,6 +35,7 @@ public record Apply(PlayerId player, OrgId org) implements Action {
         Optional<Organization> found = ctx.state.org(org);
         if (found.isEmpty()) return Outcome.refuse(Reason.NO_SUCH_ORG);
         if (!found.get().isTopLevel() || !found.get().exists() || found.get().npc) return Outcome.refuse(OrgReasons.NOT_JOINABLE);
+        if (Joining.closed(ctx, org)) return Outcome.refuse(OrgReasons.CLOSED);
         if (ctx.state.membership(player).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
         if (ctx.state.joinRequestOf(player).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_ASKING);
         return Outcome.OK;

@@ -30,6 +30,7 @@ public record Admit(OrgId org, PlayerId player) implements Action {
     @Override
     public Outcome check(ActionContext ctx) {
         if (ctx.state.joinRequest(org, player).isEmpty()) return Outcome.refuse(OrgReasons.NO_REQUEST);
+        if (Joining.closed(ctx, org)) return Outcome.refuse(OrgReasons.CLOSED);
         if (ctx.state.membership(player).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
         return Outcome.OK;
     }

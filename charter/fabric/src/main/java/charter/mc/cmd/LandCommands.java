@@ -51,7 +51,7 @@ import java.util.Optional;
  *   /charter map                          11 by 11 chunks around you; click to claim or unclaim
  *   /charter admin faction spawn &lt;name&gt; &lt;player&gt;   a ready lordship, funded, with a nexus and a banner for the player
  *   /charter admin faction claims &lt;faction&gt; &lt;bonus&gt;   extra claims on top of the member allowance (0 clears it)
- *   /charter admin faction admin &lt;faction&gt; &lt;true|false&gt;   mark a kingdom as an admin kingdom (no claim cap, no upkeep, no wars on it)
+ *   /charter admin faction admin &lt;faction&gt; &lt;true|false&gt;   mark a kingdom as an admin kingdom (closed to new members, no claim cap or range limit, no upkeep, no wars on it)
  *   /charter admin camp raise-now         finish raising the nearest raising camp
  *   /charter admin give nexus|banner|book [player]
  * </pre>

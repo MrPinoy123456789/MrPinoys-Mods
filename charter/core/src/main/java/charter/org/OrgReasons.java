@@ -18,6 +18,7 @@ public final class OrgReasons {
     public static final Reason HOLDS_OFFICE = new Reason("holds_office", "Someone holding an office here cannot be moved out of it this way.");
     public static final Reason ALREADY_ASKING = new Reason("already_asking", "You have already asked to join a faction. Wait for an answer first.");
     public static final Reason NO_REQUEST = new Reason("no_request", "That player has not asked to join.");
+    public static final Reason CLOSED = new Reason("closed_kingdom", "That kingdom is closed to new members.");
     public static final Reason NOT_JOINABLE = new Reason("not_joinable", "That faction cannot be asked to take new members.");
     public static final Reason NOT_A_SUBFACTION = new Reason("not_a_subfaction", "Only a sub-faction can secede as a whole.");
     public static final Reason ALREADY_BREAKING = new Reason("already_breaking", "That faction is already breaking away.");

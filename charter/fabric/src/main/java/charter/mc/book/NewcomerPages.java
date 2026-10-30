@@ -87,7 +87,7 @@ public final class NewcomerPages {
     public static void join(ServerPlayer player, String notice) {
         if (!alone(player)) return;
         CharterRuntime rt = rt();
-        List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc)
+        List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
                 .sorted(Comparator.comparingInt((Organization o) -> rt.state.members(o.id).size()).reversed()).toList();
         List<DialogBody> body = new ArrayList<>();
         List<ActionButton> buttons = new ArrayList<>();

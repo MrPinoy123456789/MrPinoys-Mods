@@ -261,7 +261,7 @@
   "land.admin.gave": "Gave {item} to {player}.",
   "land.admin.no_faction": "There is no faction called {name}.",
   "land.admin.claims_not_top": "{name} is not a faction; set the bonus on the top level organization.",
-  "land.admin.kingdom_on": "{name} is now an admin kingdom: no claim cap, no keep upkeep, and its outposts cannot be warred on.",
+  "land.admin.kingdom_on": "{name} is now an admin kingdom: closed to new members, no claim cap, no keep upkeep, and its outposts cannot be warred on.",
   "land.admin.kingdom_off": "{name} is an ordinary kingdom again.",
   "land.admin.claims_set": "{name} now has a bonus of {bonus} claims, so it may hold {cap} in all.",
   "map.header": "Land map around chunk {x}, {z}",

@@ -28,7 +28,7 @@ public final class Organization {
     public int claimBonus;
 
     /**
-     * An operator's own kingdom (for example the one that guards spawn): no claim cap, no keep upkeep, and its outposts
+     * An operator's own kingdom (for example the one that guards spawn): closed to new members, no claim cap, no keep upkeep, and its outposts
      * cannot be named in a war. Set with {@code /charter admin faction admin}; top level organizations only.
      */
     public boolean adminKingdom;

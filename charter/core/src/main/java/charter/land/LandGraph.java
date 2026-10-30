@@ -99,6 +99,7 @@ public final class LandGraph {
     }
 
     public int range(Core core) {
+        if (state.org(state.root(core.owner)).map(o -> o.adminKingdom).orElse(false)) return UNLIMITED;
         return core.isKeep() ? knobs.keepRangeHops : knobs.campRangeHops;
     }
 
