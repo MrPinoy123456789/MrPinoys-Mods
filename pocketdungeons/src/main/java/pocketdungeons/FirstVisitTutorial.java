@@ -260,6 +260,9 @@ final class FirstVisitTutorial {
      */
     static void register() {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (WildMode.active()) {
+                return;
+            }
             if (server.getTickCount() % 10 != 0) {
                 return;
             }

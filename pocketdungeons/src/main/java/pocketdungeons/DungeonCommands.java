@@ -47,6 +47,10 @@ final class DungeonCommands {
     /** Registers player-facing dungeon commands and the operator diagnostics subtree. */
     static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
+            if (WildMode.active()) {
+                dispatcher.register(wildRoot());
+                return;
+            }
             LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("dungeon")
                     .executes(ctx -> enter(ctx.getSource().getPlayerOrException()));
             registerPlayerVerbs(root);
@@ -55,6 +59,31 @@ final class DungeonCommands {
             registerAdmin(root);
             dispatcher.register(root);
         });
+    }
+
+    /**
+     * The whole {@code /dungeon} tree in wild mode (decision 2026-10-30): every campaign verb is absent, so a forged or
+     * habitual command never reaches the compass, rooms, parties or keystones. Bare {@code /dungeon} points at the
+     * lodestones, {@code exit} is blocked inside a dungeon, and the operator subtree stays. The mode is read once at
+     * registration, so switching it takes a restart.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> wildRoot() {
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("dungeon")
+                .executes(ctx -> {
+                    ctx.getSource().getPlayerOrException().sendSystemMessage(
+                            Component.literal(WildText.FIND_A_LODESTONE).withStyle(ChatFormatting.GRAY));
+                    return 0;
+                })
+                .then(Commands.literal("exit")
+                        .executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            String line = DungeonWorldRules.inDungeon(player.level())
+                                    ? WildText.USE_THE_EXIT_BLOCK : WildText.NOT_INSIDE;
+                            player.sendSystemMessage(Component.literal(line).withStyle(ChatFormatting.GRAY));
+                            return 0;
+                        }));
+        registerAdmin(root);
+        return root;
     }
 
     /** The operator subtree, built whole before it is attached (Brigadier snapshots a child when it is added). */
