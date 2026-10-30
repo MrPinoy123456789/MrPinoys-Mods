@@ -1274,7 +1274,7 @@ Nothing. This is a separate mode; the campaign decisions stay as they are for se
 ### Knobs
 
 `mode` (`campaign` or `wild`), the grid spacing, the lifespan (days), the base cooldown and the cooldown per promise tier,
-the reset warning (seconds), the spawn protection (seconds), the exit window after a clear (seconds).
+the reset warning (seconds), the spawn protection (seconds).
 
 ### Open until played
 

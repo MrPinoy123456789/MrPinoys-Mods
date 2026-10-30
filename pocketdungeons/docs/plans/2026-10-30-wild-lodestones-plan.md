@@ -1,4 +1,4 @@
-# Wild lodestones: implementation plan (2026-10-30, revision 2)
+# Wild lodestones: implementation plan (2026-10-30, revision 3)
 
 Builds the record `docs/DECISIONS.md` "2026-10-30: Wild lodestones (overworld dungeon mode)". The record wins where this plan
 disagrees; the builder notes any deviation in the record.
@@ -9,6 +9,11 @@ disagrees; the builder notes any deviation in the record.
 snapshot plugin does not resolve there), so **no Minecraft-touching code has been compiled**. The only code that has run is the
 pure phase 0 set, verified with plain `javac` against Gson 2.10 and a one line stub of `PocketDungeonsConfig`. It is saved in
 `docs/plans/2026-10-30-wild-lodestones-reference/` as `.java.txt` files (so Gradle ignores them) plus the knob diff.
+
+**Revision 3.** An adversarial review (a separate agent that read the code against revision 2) found 7 blocking problems, 12
+serious risks and 9 table rows that were only partly true. I re-checked the four most serious in the code (cursor item, watcher
+cadence, phase gates, dialog forgery) and all four hold. Revision 3 fixes the body in place and lists every finding in
+section 15 so nothing is lost. Where section 15 and an earlier section disagree, section 15 wins.
 
 **Tags used below.**
 - **[V file:line]** I read it in the code and it says what the plan claims. Line numbers are as read on 2026-10-30 and may drift
@@ -48,11 +53,11 @@ this mod only reads where kingdoms are so it does not place lodestones inside th
 | F6 | `inFloorLoop()` is `!untimed && !adminBuild && !visitInstance && !isChild()`; `isKeystoneRun()` is `layout.keystoneLevel() > 0` | `InstanceRecord.java:314, 328` | A wild record is `untimed = true` (not in the floor loop) but keeps `keystoneLevel > 0` (mob scaling reads it), so `isKeystoneRun()` is **true**. Every call site must be audited (task 2.2) |
 | F7 | `isKeystoneRun()` is called in `InstanceRecord` 1, `Instances` 4, `PackPots` 1, `PartyService` 1, `Pocket2` 1, `RunLifecycle` 13, `RunStorage` 1, `SidebarDisplay` 1: 23 sites | grep | The audit list for task 2.2 |
 | F8 | `stagingCellOrigin` is referenced about 96 times (`Instances` 48, `RunLifecycle` 19, `HallRoom` 9, `DungeonScreen` 5, `RitualListener` 3 and others); `advanceFloor` returns at once when it is null | `RunLifecycle.java:1389-1392` | A wild record has `stagingCellOrigin == null`; the audit checks each site tolerates that |
-| F9 | `InstanceTeardown.purge` ejects every member through `Instances.eject`, calls `returnKeystone(... NO_CHANGE)`, `RunStorage.migrateLegacy`, `OmenBar.close`, removes the slot, then `teardown` | `InstanceTeardown.java:95-135` | Wild teardown = sweep items, then `purge`. Members go to their stored `ReturnPoint` |
+| F9 | `InstanceTeardown.purge` ejects every member through `Instances.eject`, calls `returnKeystone(... NO_CHANGE)`, `RunStorage.migrateLegacy`, `OmenBar.close`, removes the slot, then `teardown` | `InstanceTeardown.java:95-135` | Wild teardown = sweep items, then `purge`. It also calls `purgeChildren` and `saveRoomIfOwnerSync` (safe: a null `roomCellOrigin` returns true, `RunLifecycle.java:928`). `Instances.eject` teleports to the **raw** stored `ReturnPoint` with no safe spot search (`Instances.java:2200-2213`), so resolve a safe spot first (task 3.6b) |
 | F10 | `teardown` sends any `ServerPlayer` still inside the bounds to **world spawn**, and `finishClear` discards **every non player entity** in the bounds, item entities included | `InstanceTeardown.java:266-270, 335-338` | Eject people to the lodestone and sweep items into chests **before** `purge` |
 | F11 | `Instances.admit` records a `ReturnPoint` (dimension, position, yaw, pitch) of where the player stood and indexes them in `InstanceRegistry.byMember` | `Instances.java` near 517 | Entering from beside the lodestone gives the right return point for free |
 | F12 | `RunLifecycle.enter(... untimed=true)` is the keystone free full build: `InstanceRegistry.allocateSlot`, `originForSlot`, `Instances.buildLayout`, `registerUntimedRun` (new `InstanceRecord`, `InstanceRegistry.bySlot.put`), `Instances.admit` | `RunLifecycle.java:226-300, 348-380` | The template for `WildRun.build` |
-| F13 | `Instances.buildLayout` plans with `LayoutPlanner.plan(seed, RoomManifest.current(), ...)`, force loads chunks, calls `LayoutStamper.stamp(...)`, and tears the slot down on a stamp exception | `Instances.java:476-520` | Reuse; add a wild overload that passes theme, loot band and node context |
+| F13 | `Instances.buildLayout` plans with `LayoutPlanner.plan(seed, RoomManifest.current(), ...)`, force loads chunks, calls `LayoutStamper.stamp(...)`, and tears the slot down on a stamp exception | `Instances.java:476-520` | `buildLayout` is the admin path. **Real floors plan through `planFloor` (`Instances.java:1288-1340`)**, which passes a `PlanRequest` with the theme's `roomTheme`, room floor eligibility, node `roomBias`, an encounter cap and a 4 round retry. Wild must plan through `planFloor` with a synthetic `Keystone.Offer` (task 2.3), not copy `buildLayout` |
 | F14 | `LayoutStamper.stamp(StampParams)` is private. Public entry points: `stamp(level, origin, plan, keystoneLevel, affixes[, owner])` (theme null, no node context) and `stampBehindLobby(...)` (`entranceAlreadyStamped = true`, so it skips the entrance cell). `StampParams(level, origin, plan, keystoneLevel, affixes, owner, entranceAlreadyStamped, theme, standingCells, lootBand, nodeCtx)` | `LayoutStamper.java:60-125, 218-222, 291` | Add a package private `stampWild(...)` (task 2.12) |
 | F15 | `NodeStamper.contextFor(dungeonId, nodeId, mine, floorNumber, mineId)` builds the node palette and light from a `DungeonDef` node | `NodeStamper.java:79-107` | Pass `contextFor(dungeonId, nodeId, false, 1)` |
 | F16 | `placeFloorRewards` is private; it places a barrel and a copper chest through `TrialContent.placeRewardContainers(level, terminalOrigin, entranceDir, rolls, loot, promised)` and calls `bankFloorOmen`, `FinaleWave.rewardChests`, `FloorObjectives.bonusRolls`, `Wager.*`, `ProvingWaves.payingTable`, `MineGuardians.payingTable`, `promisedItems` | `RunLifecycle.java:1474-1519` | Make it package private and call it with `finishedNow = false`; check each helper tolerates a wild record (task 3.3) |
@@ -60,17 +65,17 @@ this mod only reads where kingdoms are so it does not place lodestones inside th
 | F18 | `padGatesRefuse(server, record, player)` is the whole clear check: objective refusal, spawner threshold, boss alive, brood, mine guardian, proving wave; it returns whether to refuse and messages the player | `RunLifecycle.java:1247-1303` | Extract a player free `padRefusal(server, record, level)` returning the message or `null` (task 3.1) |
 | F19 | `DialogRouter.handle` rejects any payload whose `pd_owner` is not the clicking player, then switches on the action path | `DialogRouter.java:60-72` | Wild screens set `pd_owner` to the viewer and carry the lodestone id in a new `pd_wild` key; add cases to the switch |
 | F20 | `DialogKit` offers `common`, `text`, `button`, `closeButton`, `command`, `submit(path, context)`, `notice`, `confirm`, `list`; `show(player, dialog)` sends it; `goHomeConfirm` is a good small example | `DialogKit.java:70-200`, `DialogScreens.java:229-262` | Build wild screens in the `confirm`/`notice` shape |
-| F21 | `UseBlockCallback` is registered in `RitualListener.register()` and its `onUseBlock` is an ordered chain of claims that return `null` when not theirs; `RitualListener.register()` is called from `PocketDungeonsMod.onInitialize` after `Instances.register()` | `RitualListener.java:55-135`, `PocketDungeonsMod.java:52-53` | Register the wild callback **before** `RitualListener.register()` so it answers first |
+| F21 | `UseBlockCallback` is registered in `RitualListener.register()` and its `onUseBlock` is an ordered chain of claims that return `null` when not theirs; `RitualListener.register()` is called from `PocketDungeonsMod.onInitialize` after `Instances.register()` | `RitualListener.java:56`, `IronDoorLatch.java:75`, `TrappedCache.java:111`, `PocketDungeonsMod.java:51-52` | There are **three** `UseBlockCallback` registrations; the other two register after RitualListener. Register the wild callback before `RitualListener.register()` and it still answers first |
 | F22 | `DungeonWorldRules.inDungeon(level)` is the only allowed way to ask "is this the dungeon dimension"; `DimensionCheckTest` fails on a raw `DUNGEON_LEVEL` comparison elsewhere | `DungeonWorldRules.java` | All new code uses `inDungeon` |
-| F23 | `Instances.teleport(server, player, dimension, pos, yaw, pitch)` lifts the cursor item and sets or clears `lastDeathLocation` when crossing the dimension boundary | `Instances.java:3242-3280` | Use it for leaving. Note it clears the player's recovery compass target on crossing out |
+| F23 | `Instances.teleport(server, player, dimension, pos, yaw, pitch)` lifts the cursor item and sets or clears `lastDeathLocation` when crossing the dimension boundary | `Instances.java:3242-3280`, `InventorySwap.java:982-993` | **Not harmless.** `liftCursorBeforeCrossing` removes the carried cursor stack and parks it in `DungeonLog` orphan storage via `keepForNextEntry`, which only a campaign `enterVoid` restores. Wild never runs `enterVoid`, so the stack would be lost on every exit. Add `if (WildMode.active()) return;` at its top (task 2.6). `teleport` also sets `lastDeathLocation` to the dungeon on entry (`:3268`) and clears it on exit (`:3270`), wiping the player's real death marker; skip both in wild mode |
 | F24 | Trial spawners scale their mob counts by nearby players natively (`total_mobs_added_per_player`) | `docs/INTEGRATION.md` 1.2 | No work for "scale by players inside" |
-| F25 | `InstanceRegistry.liveInstanceCount()` counts every non admin record, and `RunLifecycle.refuseAtInstanceCap` refuses at `maxConcurrentInstances` (default 32) | `InstanceRegistry.java:48-54`, `RunLifecycle.java:335-346` | Wild records count toward that cap. Keep `wildMaxActive` below it |
-| F26 | `InventorySwap.reconcile` holds the invariant "in `pocketdungeons:void` you hold the dungeon inventory, elsewhere your survival one"; `inVoid` is computed from `player.level().dimension().equals(dungeonLevel)` | `InventorySwap.java:685-725` | Wild mode: never run `enterVoid`; still run `leaveVoid` for an already stashed player |
+| F25 | `InstanceRegistry.liveInstanceCount()` counts every non admin record, and `RunLifecycle.refuseAtInstanceCap` refuses at `maxConcurrentInstances` (default 32) | `InstanceRegistry.java:48-54`, `RunLifecycle.java:335-346` | `refuseAtInstanceCap` is called only inside `RunLifecycle.enter` (`:255`), which wild bypasses, so the cap does **not** protect wild unless `WildRun.enter` calls it. Wild records also count toward it; keep `wildMaxActive` below it |
+| F26 | `InventorySwap.reconcile` holds the invariant "in `pocketdungeons:void` you hold the dungeon inventory, elsewhere your survival one"; `inVoid` is computed from `player.level().dimension().equals(dungeonLevel)` | `InventorySwap.java:701-737` | Wild mode: never run `enterVoid`; still run `leaveVoid` for an already stashed player |
 | F27 | Config knobs are `Knob` constants with an accessor named like the key; `tools/new_knob.py` writes both; `ConfigCharacterizationTest` pins six fixtures that must be regenerated after adding knobs | `PocketDungeonsConfig.java`, `tools/new_knob.py` docstring | Task 0.1 |
 | F28 | Pure tests are registered in `build.gradle.kts` as `"name" to "ClassName"` pairs in one map; gametests are registered in `src/gametest/resources/fabric.mod.json` | `build.gradle.kts:383`, `add-tests` skill | Task 0.2 |
 | F29 | `AtomicFiles.writeString(path, text, charset)` writes through a temp file and a move | `AtomicFiles.java:26-42` | Used by `WildState.save` |
-| F30 | Three JOIN handlers in `Instances` queue a recovery teleport for a player whose stored return point differs | `Instances.java:272-300` | Read all three before task 2.10 (relog) |
-| F31 | Teardown clears a slot by `PendingClear` over the layout bounds plus `maxOffset`, and releases force load tickets; the slot number is not saved anywhere on disk | `InstanceTeardown.java:255-345` | Persist the slot number in `WildState` or scan (task 2.10) |
+| F30 | Three JOIN handlers in `Instances`; the first queues a recovery teleport for any player who joins in the dungeon dimension with no `byMember` entry | `Instances.java:272-300` | **Extend** that handler for wild; do not add a fourth (task 2.10) |
+| F31 | Teardown clears a slot by `PendingClear` over `layout.bounds()` (or `maximalBounds`) plus each cell's bounds expanded by the story reach, and releases force load tickets. **`Instances.reconcileAfterUncleanShutdown` (`Instances.java:372-430`) already clears stale slots from persisted force load tickets**, and `SERVER_STOPPING` (`:330-340`) already purges every slot on a clean stop | `InstanceTeardown.java:255-345` | Do not write a second startup clear (task 2.10). Slot persistence is unnecessary |
 
 ## 3. New files and edited files
 
@@ -140,7 +145,7 @@ this mod only reads where kingdoms are so it does not place lodestones inside th
 fixture diffs. Knobs: `mode` "campaign", `wildGridSize` 1500, `wildMinSeparation` 600, `wildTargetActive` 12, `wildMaxActive` 24,
 `wildMinSpawnDistance` 500, `wildLifespanDays` 7, `wildCollapseWarnHours` 24, `wildResetWarnSeconds` 120,
 `wildSpawnProtectionSeconds` 5, `wildLostAndFoundMaxChests` 64, `wildClaimsSource` "", `wildBlockedCommands`
-"tpa,tpahere,home,back,spawn,rtp,unstick". Set `maxConcurrentInstances` above `wildMaxActive` in the wild server's config (F25).
+"tpa,tpahere,home,back,spawn,rtp,unstick", plus `wildMaxRadius` 6000 (used in phase 4; add it now so the fixtures regenerate once). Set `maxConcurrentInstances` above `wildMaxActive` in the wild server's config (F25).
 
 **0.2 Reference code.** Copy `WildMode`, `WildState`, `WildStateTest` from the reference folder, dropping `.txt`. Register
 `"wildStateTest" to "WildStateTest"` after `"atomicFilesTest"` (F28). Run it. It passed under plain `javac` here.
@@ -152,11 +157,13 @@ and null. `save()` after every mutation (the file is tiny). `WildClock.now()` re
 override for tests. If it holds per player data, register it with `SessionState` (read `SessionState` first [A]).
 
 **0.4 Mode gating audit.** In wild mode these must do nothing or refuse politely: `/dungeon` entry, `/dungeon key`, the keystone
-commands, room commands, party commands that start a run. `/dungeon admin ...` and `/dungeon exit` stay. Read
+commands, room commands, party commands that start a run. `/dungeon admin ...` stays. `/dungeon exit` is **blocked inside a wild dungeon** (decision rule 7: the exit block is the only way out; owner to confirm, section 16). Read
 `DungeonCommands.register()` and wrap the player facing branches with `WildMode.active()`. **Also grep every
 `ServerPlayConnectionEvents.JOIN` handler** (`Instances.java:272, 291, 297`, `PlaytestJournal.java:107`, and any in `Lemon`,
 `FirstVisitTutorial`, `ActZero`, `HallRoom`) and confirm each is harmless for a player who has never had a room or compass. Fix
 any that creates a room, starts the prologue or hands out a compass.
+
+**0.5 Dialog gate (blocking).** `CustomClickMixin` forwards every `pocketdungeons:*` click (`CustomClickMixin.java:41`) and `DialogRouter.handle` checks only `pd_owner == clicker` (`:66-72`), so a modified client can send any action. In wild mode `DialogRouter.handle` must reject every action path that does not start with `wild_` as its first line, which also closes the campaign actions (`startDungeon`, manage room, party, visit) that would otherwise stay reachable through forged payloads.
 
 **Acceptance.** With `mode: campaign` the full pure suite and gametests are unchanged in behaviour. With `mode: wild` the server
 starts, `lodestones.json` is created on the first save, and `/dungeon` tells a player to find a lodestone.
@@ -167,7 +174,9 @@ starts, `lodestones.json` is created on the first save, and `/dungeon` tells a p
 cobweb) around a jigsaw at `pos`; the jigsaw's block entity gets name `pocketdungeons:wild_entrance`, `target`
 `minecraft:empty`, `pool` `minecraft:empty`, `final_state` `minecraft:air`, `joint` `aligned` [A: confirm the
 `JigsawBlockEntity` setters or NBT keys in this MC version; set them the way the rest of the mod sets block entities]. The state
-record, not the NBT, is the source of truth for "which lodestone is this" (`WildState.atEntrance`). Arrival exit and clear exit
+record, not the NBT, is the source of truth for "which lodestone is this" (`WildState.atEntrance`). The two exit blocks are inside a
+live dungeon, so `WildRun` keeps an in memory map from exit block position to lodestone id (registered with `SessionState`),
+filled when it places them and cleared at teardown. Arrival exit and clear exit
 use names `wild_exit_arrival` and `wild_exit_clear`. A removal method turns the ruin to rubble (cobblestone with some gravel) and
 removes the jigsaw. The ops `place` command places exactly where told; the placer (phase 4) guarantees an open sky column.
 
@@ -198,10 +207,10 @@ stubs both with a chat line so the menu can be tested before phase 2.
 `floorObjective`, `PackPots.onUse`, `dungeonStorage`, `roomContainerMask`, `roomPlacementMask`, `dungeonShellPlacementMask`,
 `stations`, and whatever follows line 135 [A: I read only to there]). Rule: keep the claims that act on dungeon content
 (`floorObjective`, `armedMineGuard`, any Ordeal lever); skip, in wild mode, the ones that need a room, bag, compass, storage or
-pot. Write the classification in a comment above the chain.
+pot. Write the classification in a comment above the chain. Also: `RitualListener.lodestoneMenu` (`:473-497`) opens the campaign menu for any **vanilla** lodestone when `ritualEnabled` is true (the default), so wild mode forces it off; and `dungeonStorage` (`RunStorage.opensHere` is true for a non floor loop record, `RunStorage.java:116-124`) must be skipped in wild mode or a carried ender chest becomes a persistent stash.
 
 **1.6 Ops.** `/dungeon admin wild place` (at the caller, picks an offering by weight, level 1 or an argument), `list`,
-`tp <id>`, `ready <id>`, `reset <id>`, `collapse <id>`. `list` prints id, coordinates, phase, dungeon, time to reset and to
+`tp <id>`; `ready <id>`, `reset <id>` and `collapse <id>` are added in phases 2 and 3 because they need the run and the sweep. `list` prints id, coordinates, phase, dungeon, time to reset and to
 collapse, and any lost and found chests. `tp` uses `Instances.teleport` (F23) to a block beside the entrance. Follow the
 existing admin subtree shape [V `DungeonCommands.java:319`].
 
@@ -227,23 +236,44 @@ and write one line per site in the PR: *reached by a wild record? what happens? 
 `SidebarDisplay` (decide: show nothing for a wild member). A wild record never goes through `advanceFloor`, `completeRun`,
 `commitDoor` or the safe room; confirm no event path reaches them.
 
-**2.3 Build.** `WildRun.build(server, lodestone)`:
-1. `level = server.getLevel(DUNGEON_LEVEL)`; if null, refuse with a clear message as `RunLifecycle.enter` does (F12).
-2. `slot = InstanceRegistry.allocateSlot()`, `origin = InstanceRegistry.originForSlot(slot)`; save `slot` on the lodestone.
-3. Seed: `level.getRandom().nextLong()` (fresh each reset; owner confirmed).
-4. `LayoutPlanner.plan(seed, RoomManifest.current(), cfg path, branch, loop, maxGridSpan, theme = def.mainTheme, null,
-   BagTags.pilgrim(1))` exactly as `Instances.buildLayout` (F13). Extract that method's planning half into a helper both share,
-   or copy it into `Instances.buildWildLayout`.
-5. Force load, then `LayoutStamper.stampWild(...)` (F14, task 2.12). On `RuntimeException`, `InstanceTeardown.teardown(...)` as
-   `buildLayout` does; the slot is released when the clear completes (F13 comment).
-6. `InstanceRecord.forWild(...)`; `InstanceRegistry.bySlot.put`; `lodestone.markInProgress(); WildStore.save()`.
-7. Place the arrival exit jigsaw one block inside the entrance cell, plus its item display.
-`keystoneLevel` = `WildLevel.of(distanceFromSpawn)`. `affixes` = `AffixMath.effective(owner, level, Set.of(),
-AffixManifest.current().definitions())` as `enterUntimed` does [A: confirm a nil owner is acceptable; `enterUntimed` passes a real
-UUID].
+**2.3 Build and start (blocking; revision 3).** In the campaign, nearly all floor start state is written by `Instances.commitDoor`
+(`:1555-1690`), `newFloorState`, `startCommittedFloor` (`:1745-1770`) and `armCommittedFloor` (`:1773-1810`), not by
+`registerUntimedRun`. A record built the way `enterUntimed` builds it has `phase == HOME`, empty `interval.dungeonId` and
+`interval.nodeId`, null `floor.theme`, and no armed objective. The consequences, all verified: `CapstoneFights.tick`
+(`:200`), `PotionDrip.tick` (`:108`) and `Haunts.tick` (`:225`) return early unless `phase == ACTIVE`; `promisedItems` returns
+nothing because `def.node(record.interval.nodeId)` is null (`RunLifecycle.java:1545`); `LootBands.of(record)` reads
+`interval.dungeonId`; the themed barrel table is lost because `floor.theme` is null (`:1500`); `TripView.def(record)` is null so
+the dungeon uniform and act scaling never apply. `HOME -> ACTIVE` is not an allowed `RunSession` edge, so the field is set
+directly.
 
-**2.4 Enter.** `WildRun.enter(player, id)`: refuse if the server is not wild, the lodestone is gone, the player is already in a
-record (`InstanceRegistry.hasInstance`), or `wildMaxActive` live wild records exist and this one is `READY`. If a live record
+`WildRun.build(server, lodestone)`:
+1. `level = server.getLevel(DUNGEON_LEVEL)`; if null, refuse with a clear message as `RunLifecycle.enter` does (F12). Apply the
+   `refuseAtInstanceCap` logic (F25) and `wildMaxActive`.
+2. `slot = InstanceRegistry.allocateSlot()`, `origin = InstanceRegistry.originForSlot(slot)`.
+3. Seed: `level.getRandom().nextLong()` (fresh each reset; owner confirmed).
+4. Build a synthetic `Keystone.Offer(level, affixes, step = 0, theme, tier, TripDoors.Door(dungeonId, nodeId, 0, 0))` and plan
+   through **`planFloor`** (`Instances.java:1288-1340`), which passes the correct `roomTheme`, room floor eligibility and node
+   `roomBias` and retries four times. `affixes` use `AffixMath.effective(ownerForAffixes, level, Set.of(), definitions)` where
+   `ownerForAffixes` is a UUID **derived from the lodestone id** (`UUID.nameUUIDFromBytes`), not the nil UUID: the seeding is
+   per owner (`AffixMath.java:208-215`) and a nil owner would give every wild dungeon of a level the same affixes.
+5. **If the planner falls back to `StaticLayout`, refuse the build**: tear down, tell the player the place is not ready, leave the
+   lodestone `READY`. The fallback has no trial spawners and a fixed terminal, so the dungeon could never clear.
+6. Force load, then `LayoutStamper.stampWild(...)` (F14, 2.12) with `LootBands.forFloor(record, offer, false)` and
+   `NodeStamper.contextFor(dungeonId, nodeId, false, 1)`. On `RuntimeException`, `InstanceTeardown.teardown(...)`.
+7. `InstanceRecord.forWild(...)`; `InstanceRegistry.bySlot.put`.
+8. **`Instances.startWildFloor(record, def, node, themeId, offer)`**, a new package private method mirroring `newFloorState`,
+   `startCommittedFloor` and `armCommittedFloor`: `record.startFloor(layout, newFloorState(...))` (sets `floor.theme`,
+   `floor.rooms`, `startedAtTick`, node sets); `record.interval.dungeonId/nodeId/path`; `record.phase = ACTIVE` directly;
+   `levelBonus`; the capstone boss; `FloorObjectives.arm(level, record, plan, offer)`. Add a gametest asserting
+   `TripView.def(record) != null` and that the copper chest holds the node's promised rewards.
+9. `lodestone.markInProgress(); WildStore.save()`.
+10. Place the arrival exit jigsaw **on a wall block of the entrance cell, off the door lanes and not on the cell centre**
+    (`layout.entrance()` is the cell centre, where the player lands), plus its item display.
+`keystoneLevel` = `WildLevel.of(distanceFromSpawn)`.
+
+**2.4 Enter.** `WildRun.enter(player, id)`: refuse if the server is not wild, the lodestone is gone, the player is not alive, is in
+a different dimension than the lodestone, or is more than 8 blocks from its entrance block (the payload is forgeable, 0.5), the
+player is already in a record (`InstanceRegistry.hasInstance`), or `wildMaxActive` live wild records exist and this one is `READY`. If a live record
 exists, join it. Else `build`. Then `Instances.admit(server, record, player)` (F11) [A: confirm `admit` teleports to
 `layout.entrance()` for an untimed record and what `admitsToStaging(record)` returns]. Then `WildState.rememberPlayer`, start spawn
 protection, send the entry line.
@@ -253,14 +283,20 @@ protection, send the entry line.
 
 **2.6 Inventory bypass.** In `InventorySwap.reconcile` (F26), after the `InventoryJournal.recoverIfNeeded` call: `if
 (WildMode.active()) { if (stash.stashed() && !inVoid) leaveVoid(server, log, player, stash); return; }`. That keeps recovery for
-anyone stashed by an earlier campaign and never calls `enterVoid`. Check `liftCursorBeforeCrossing` (F23) is harmless [A].
+anyone stashed by an earlier campaign and never calls `enterVoid`. Also add `if (WildMode.active()) return;` at the top of `liftCursorBeforeCrossing` (`InventorySwap.java:982`) and skip the
+`lastDeathLocation` set and clear in `Instances.teleport` in wild mode (F23). Add a gametest that leaves with a stack on the cursor
+and a full pack and loses nothing.
 
 **2.7 Tick.** `Instances.tickRecord`, first lines: `if (record.wild) { WildRun.tick(server, record, now, interval); return; }`
 (F2). `WildRun.tick` runs, in order: (a) its own member sweep (offline or left the dimension: `Instances.detach`; below the void
 guard depth: teleport to the entrance, copying `Instances.java:2871-2878`); (b) the dungeon content ticks that make a floor
 playable: `watchSpawnerClears`, `CapstoneFights.tick`, `PotionDrip.tick`, `Haunts.tick`, `FloorObjectives.tick`,
 `ProvingWaves.tick` [A: decide per tick; skip `CopperClock` and `StarterTools`, which are campaign, and `OmenBar.sync`]; (c) spawn
-protection expiry; (d) the clear check (phase 3). Skip owner grace, homecoming and reward grace.
+protection expiry; (d) the clear check (phase 3). Skip owner grace, homecoming and reward grace. **Cadence:** `tickRecord` runs once per
+`watchIntervalTicks` (`Instances.java:2713`, `++tickCounter % interval`), where `tickCounter` starts at 0 at mod init while
+`now` is the world game time; never test `now % N`. Count calls with a counter on the wild side. **After the clear, stop calling the
+content ticks** (gate on `lodestone.phase == IN_PROGRESS`); do not add a sentinel to `floor.completed`, because that makes
+`betweenFloors` true and `admitsToStaging` would then teleport new entrants to a staging room that does not exist.
 
 **2.8 PvP and spawn protection.** `WildRules`: a `Map<UUID, Long>` of protection expiry ticks, registered with `SessionState`;
 `ServerLivingEntityEvents.ALLOW_DAMAGE` returns `false` while a wild player is protected, and an `AttackEntityCallback` ends the
@@ -274,16 +310,26 @@ inventory is vanilla (drops unless `keepInventory`). The player respawns outside
 `inVoid == false` and, with 2.6, does nothing. The dead player's `InstanceRegistry.byMember` entry is cleared by the next wild
 tick's member sweep ("not in the dungeon dimension", F4).
 
-**2.10 Relog and restart.** On `ServerPlayConnectionEvents.JOIN`: if the player is in the dungeon dimension and has no live wild
-record, send them to the entrance of `WildState.lastLodestoneOf(uuid)`, else `Instances.sendToWorldSpawn`. Read the three
-existing JOIN handlers first (F30) so they do not fight. On `SERVER_STARTED`, after `WildStore` loads, reset every non `READY`
-lodestone: sweep (phase 3 `WildSweep`), clear the slot cells with `InstanceTeardown.teardown(server, slot, origin,
-InstanceLayout.forClearingOnly(origin, geometry), ...)` as `Instances.buildLayout` does on failure [V `Instances.java:508-511`]
-(add `slot` to `WildState.Lodestone`, F31; the reference class does not have it yet), then `markReady`.
+**2.10 Relog and restart (revision 3).**
+- **Relog.** Extend the existing first JOIN handler (`Instances.java:272`), which already queues recovery for a player who joins in
+  the dungeon dimension with no `byMember` entry; do not add a fourth handler. For wild, the destination is the entrance of
+  `WildState.lastLodestoneOf(uuid)`, else `Instances.sendToWorldSpawn`. A disconnect inside runs `handleDisconnect`
+  (`Instances.java:251-290`), which `dropMember`s the player; on rejoin `pendingReturns` (24 hour TTL) sends them to their stored
+  return point. Combat logging therefore works as an escape (section 16, decision b).
+- **Clean stop.** `SERVER_STOPPING` (`Instances.java:330-340`) purges every record and `finishClear` discards every non player
+  entity, which would destroy ground items on every restart. Register a wild `SERVER_STOPPING` hook **before**
+  `Instances.register()` that runs `WildSweep` for each live wild record first (or call the sweep from inside
+  `InstanceTeardown.purge` when `record.wild`).
+- **Unclean stop and stale slots.** Do not write a second startup clear. `reconcileAfterUncleanShutdown` already clears stale
+  slots from persisted force load tickets and adds them to `usedSlots` first (`Instances.java:423`); a plan driven
+  `teardown` without that would let `allocateSlot` hand the same slot to a new build while the clear is pending, and the clear
+  would wipe the new dungeon. On `SERVER_STARTED` just mark every non `READY` lodestone `READY`. No slot is persisted.
 
 **2.11 Travel blocks.** `WildRules.register()`: `UseItemCallback` returning `FAIL` for `minecraft:ender_pearl` and
 `minecraft:chorus_fruit` when `DungeonWorldRules.inDungeon(player.level())` and wild is active; and a check for the
-`wildBlockedCommands` names, ops exempt. Hook: first look for a Fabric API event for command execution
+`wildBlockedCommands` names, ops exempt. Also block, in wild mode and in the dungeon dimension: bed and respawn anchor use (the dimension has `bed_works: false` and
+`respawn_anchor_works: false` in `dimension_type/void.json`, so they explode), end crystals and TNT minecarts (`ServerExplosionMixin`
+stops block damage in cells but not entity damage); with PvP on these are free kill tools. Hook: first look for a Fabric API event for command execution
 (`ServerMessageEvents.ALLOW_COMMAND_MESSAGE` may exist [A]); if none fits, a mixin on `Commands.performCommand` with a crash
 guard per the `minecraft-modding` skill and an entry in the mixin json.
 
@@ -309,10 +355,10 @@ call it, message the player and return the boolean. The body uses `player.level(
 messaging [V `RunLifecycle.java:1247-1303`]. Add `PadRefusalTest` pinning both answers for a record with no spawners and a record
 with a live boss.
 
-**3.2 The watcher.** `WildClear.tick(server, record)` once a second (`now % 20`), only for `IN_PROGRESS` records: if
+**3.2 The watcher.** `WildClear.tick(server, record)` on every wild tick (no `now % 20`, see 2.7), only for `IN_PROGRESS` records: if
 `padRefusal(...) == null` and the record has not cleared, `clear(record)`. **Risk:** the check could pass trivially on a floor
 with zero spawners and no objective. Guard: require the layout to contain at least one trial spawner or an objective or boss;
-otherwise never auto clear and log once [A: read `DifficultyProfile.spawnersCleared` for the zero case].
+otherwise never auto clear and log once [V `DifficultyProfile.java:85-88`: `spawnersCleared` returns true when the total is 0, and `activeSpawners` drops positions whose block entity is missing, so the guard is required].
 
 **3.3 The rewards.** `WildClear.clear`: `placeFloorRewards(server, level, record, tripDef, false, terminalOrigin, entranceDir, 1)`
 after making it package private (F16). `tripDef` is the wild offering's `DungeonDef` (`DungeonDefs.current().byId(...)`) and must
@@ -320,18 +366,21 @@ be non null because `promisedItems` and `LootBands` read it. `bankFloorOmen(reco
 and `record.interval`; with a fresh `FloorState` and `IntervalState` they are zero, giving the base chest count.
 
 **3.4 The exit block.** After the rewards: place the jigsaw `wild_exit_clear` at `terminalOrigin.offset(spots[2])` (widen
-`TrialContent.completionSpots`, F17) and an item display above it (a door item plus a text display reading `Exit`). Seal the far
-wall with `CellGeometry.sealDoorOnWall(level, terminalOrigin, farWall)` as `advanceFloor` does [V `RunLifecycle.java:1429-1430`].
+`TrialContent.completionSpots`, F17) and an item display above it (a door item plus a text display reading `Exit`). Do **not** seal the far
+wall: in the campaign it is solid until `openDoorOnWall` runs in `moveStagingBeyondTerminal` (`RunLifecycle.java:1683`), so there is
+nothing to seal.
 Do not call `advanceFloor`, `summonNextStaging` or `moveStagingBeyondTerminal`.
 
 **3.5 The cooldown.** `lodestone.markCleared(now, offering.cooldownMinutes * 60L)`; `WildStore.save()`. This is the moment the
 exit block is placed. Tell everyone inside once.
 
-**3.6 The reset.** A global tick once a second over `WildState.all()`:
-- at `resetAt - wildResetWarnSeconds`: chat and action bar to members, once;
+**3.6 The reset.** A global wild tick (its own counter, every 20 calls) over `WildState.all()`:
+- at `resetAt - wildResetWarnSeconds`: chat and action bar to members, once; the collapse gets the same 120 second warning as well as the 24 hour and 10 minute ones (decision rule 4);
 - at `resetAt`: `WildSweep.sweep(server, record, chestSite)` first (collect items, fill chests), then `InstanceTeardown.purge`
   (it ejects to each `ReturnPoint`, F9; items had to be collected first, F10), then `markReady`.
 The next enter builds a fresh seed. The collapse (phase 4) reuses the same code with a different trigger.
+
+**3.6b Safe ejection.** Before `purge` ejects anyone, replace each member's `ReturnPoint` with a safe standable spot near the lodestone (scan a small ring for two air blocks above a solid block, away from the outpost wall and the rubble), because `eject` uses the raw stored position (F9) and hours later that point can be inside a wall or the rubble of a collapsed ruin.
 
 **3.7 Sweep.** `WildSweep.sweep(server, record, chestSite)`: force load the slot chunks; collect `ItemEntity` in
 `record.layout.bounds()` extended downward by the story reach `InstanceTeardown` uses (lines 255-259); merge by
@@ -357,8 +406,7 @@ wildTargetActive`, pick a random cell within `wildMaxRadius` (new knob, default 
 its candidate, check `wildMinSeparation` against all active lodestones and `wildMinSpawnDistance` against spawn, then the world
 checks below. A rejected cell gets `generation + 1` next time. Cap attempts per minute.
 
-**4.3 World checks** (main thread, one chunk per attempt): load the chunk with a short ticket (use the repo's `Instances.forceLoad`
-pattern and release after [A: pick the repo consistent way]); surface height via `Heightmap.Types.WORLD_SURFACE`; reject water,
+**4.3 World checks** (main thread, one chunk per attempt): load the chunk with a short ticket (a short ticket released in a `finally`; a crash mid attempt would otherwise leave a persisted forced overworld chunk, which `reconcileAfterUncleanShutdown` ignores); surface height via `Heightmap.Types.WORLD_SURFACE`; reject water,
 lava, a surface below sea level minus 3, a tree top block, no sky above, and a 9 by 9 area containing player built blocks (a tag
 `pocketdungeons:wild_builder_blocks`: planks, torches, chests, doors, glass, wool, beds, furnaces, crafting tables, rails).
 Overworld only.
@@ -386,7 +434,7 @@ ops `list` still shows them; the top up loop fills the gap. The chests are plain
 - `docs/DECISIONS.md`: set "Status" to built and list deviations.
 - `docs/playtests/LIVE_CHECKS.md`: the list in section 13.
 - `python tools/gen_codemap.py`; commit the regenerated `docs/CODEMAP.md`.
-- `docs/reference/BUGS.md`: any `PD-n` filed while building (highest used is PD-210).
+- `docs/reference/BUGS.md`: any `PD-n` filed while building (highest used is PD-222).
 - `docs/INTEGRATION.md`: add `wild_dungeon/*.json` as a datapack surface.
 - Run `tools/ship.sh --pure` (the authoritative pure suite), the gametests, and `tools/check_dashes.sh`.
 
@@ -410,7 +458,7 @@ ops `list` still shows them; the top up loop fills the gap. The chests are plain
 | `WildModeOffTest` | source scan | 0 | every wild hook starts with a `WildMode.active()` or `record.wild` guard |
 | existing suites | all | every | `DimensionCheckTest`, `CellStateForgetTest`, `DisconnectHandlerTest`, config fixtures stay green |
 
-Register pure tests in `build.gradle.kts` (F28) and gametests in `src/gametest/resources/fabric.mod.json`.
+Register pure tests in `build.gradle.kts` (F28) and gametests in `src/gametest/resources/fabric.mod.json`. **The gametest server has no `pocketdungeons:void` dimension** (DISCOVERIES trap 18; see the `TeardownGameTest` and `DungeonIntegrationEntrypoint` javadocs). Every gametest above that needs a dungeon must use the existing seams (`DungeonWorldRules.everywhere`, the overridable `InventorySwap.dungeonLevel` at `InventorySwap.java:116`, `enqueueClearForTesting`) or run under the `dungeonIntegrationTest` dedicated server task. `SessionStateTest` fails any new static map or list that is neither made by a `SessionState` factory nor listed in `ELSEWHERE`; `DisconnectHandlerTest` fails any `DISCONNECT.register(` body without `.execute(`.
 
 ## 12. Unverified assumptions (verify first on a machine that builds)
 
@@ -453,3 +501,64 @@ kingdom. Walk the world: are they too many, too few, too regular?
 - **Placement hitching the tick.** One attempt at a time, rate limited.
 - **Sibling mods.** Blocking `tpa`, `home` and `unstick` from here is a patch; the clean fix is for those mods to check a flag.
 - **Economy.** The cooldown is the only throttle on supply; start long.
+
+## 15. Adversarial review findings (revision 3)
+
+Source: a separate agent read revision 2 against the code (87 tool calls). Its fact table: F1-F8, F10-F12, F14-F20, F22, F24,
+F26-F29 true; F9, F13, F21, F23, F25, F30, F31 only partly true (corrected in section 2 above). I re-checked B1, B2, B3 and
+B4 myself in the code and they hold; the rest are the reviewer's findings and are marked **(reviewer)** where I did not
+re-read the cited lines.
+
+### Blocking (all folded into the body)
+
+| # | Problem | Fix | Where |
+|---|---|---|---|
+| B1 | A wild record is never "started": phase stays `HOME`, `interval.dungeonId/nodeId` and `floor.theme` stay empty, no objective is armed. Capstone, potion drip and haunt ticks return early; `promisedItems` is empty; loot band and themed barrel are wrong; `TripView.def` is null | `Instances.startWildFloor` mirroring `newFloorState`, `startCommittedFloor`, `armCommittedFloor` | task 2.3 |
+| B2 | The cursor stack is destroyed on every exit through `Instances.teleport` or `sendToWorldSpawn` | wild bypass in `liftCursorBeforeCrossing`; skip `lastDeathLocation` edits | task 2.6, F23 |
+| B3 | Dialog payloads are forgeable: anyone can enter any lodestone from anywhere, and every campaign action stays reachable | reject non `wild_` actions in wild mode; proximity, dimension and liveness check in `WildRun.enter` | tasks 0.5, 2.4 |
+| B4 | `now % 20` inside a watcher that runs once per `watchIntervalTicks` can never fire | no modulo; count wild ticks locally | tasks 2.7, 3.2, 3.6 |
+| B5 | A startup `teardown` by slot number races `allocateSlot` and writes to unloaded chunks **(reviewer)** | do not write one; `reconcileAfterUncleanShutdown` already does it; mark lodestones `READY` | task 2.10 |
+| B6 | Ground items are destroyed on every clean shutdown because `SERVER_STOPPING` purges every record and `finishClear` discards entities | wild `SERVER_STOPPING` sweep registered before `Instances.register()` | task 2.10 |
+| B7 | Planning via `buildLayout` skips the room theme, floor eligibility and node room bias, and can silently fall back to `StaticLayout` (no spawners, fixed terminal) so the dungeon could never clear | plan through `planFloor` with a synthetic `Offer`; refuse on fallback | task 2.3 |
+
+### Serious risks
+
+| # | Risk | Handling |
+|---|---|---|
+| R1 | Return point may be inside a wall or the rubble hours later | task 3.6b safe ejection |
+| R2 | Beds, anchors, end crystals and TNT minecarts are free kill tools with PvP on | blocked in task 2.11 |
+| R3 | `/dungeon exit` bypasses the Exit block and is a combat escape | blocked inside wild dungeons (0.4); owner to confirm (section 16) |
+| R4 | Relog is an instant escape (combat logging) | accepted for v1 (section 16, b) |
+| R5 | A vanilla lodestone opens the campaign menu in wild mode | force `ritualEnabled` off (task 1.5) |
+| R6 | Ender chests open Dungeon Storage inside wild dungeons | skip the `dungeonStorage` claim in wild mode (task 1.5) |
+| R7 | Leftover trial keys and bag tagged loot leave the dungeon and open real overworld vaults | owner decision (section 16, c) |
+| R8 | A nil owner gives every wild dungeon of a level the same affixes | UUID derived from the lodestone id (task 2.3) |
+| R9 | Gametests cannot run without the dungeon dimension | use the existing seams (section 11) |
+| R10 | Up to `wildMaxActive` force loaded dungeons for days, ticking entities and block entities, with nobody inside; spawner mob despawn without a player nearby is unverified **(reviewer)** | measure on the test server with `dungeonLoadTest`; if heavy, unload layout chunks while a record is empty and reload on entry (new task if needed) |
+| R11 | The placer's chunk ticket could leak on a crash | `finally` release (task 4.3) |
+| R12 | Endermen can carry blocks out of cells; lava and water placement is allowed by the break rules **(reviewer)** | live check; add a rule if it hurts |
+
+### Missing work now in the plan or listed here
+
+- `startWildFloor` and the post clear phase handling (2.3, 2.7). Done above.
+- Index the arrival and clear exit positions per live record (task 1.2). Done above.
+- The arrival exit's position (wall block, off door lanes, not the cell centre). Done in 2.3.10.
+- Drop the far wall seal (3.4). Done.
+- Collapse gets the 120 second warning too (3.6). Done.
+- Ops `ready`, `reset`, `collapse` move to phases 2 and 3 (1.6). Done.
+- BUGS numbering: highest is PD-222 (section 10). Done.
+- The record's "exit window after a clear" knob is dead (the dungeon stays open the whole cooldown); the knob list in the record
+  should drop it. Pending edit to `docs/DECISIONS.md` Knobs.
+- The six config fixtures regenerate twice because `wildMaxRadius` arrives in phase 4. Add `wildMaxRadius` in phase 0 instead.
+- A per dungeon concurrent player cap, if a fair fight matters. Open.
+- Per player journal noise: `PlaytestJournal` events for wild players. Check and silence if noisy.
+- `PadRefusalTest` needs a level for the live boss case, so it is a gametest, not pure (section 11 already says gametest).
+
+## 16. Decisions needed from the owner
+
+a. **`/dungeon exit` inside a wild dungeon.** Recommendation: blocked, so the Exit blocks are the only way out (decision rule 7).
+b. **Combat logging.** Disconnecting inside removes the player and sends them back to the lodestone on rejoin, which escapes a
+   fight. Recommendation: accept for v1 and watch it in play; the fix, if needed, is to leave the body in place for 15 seconds.
+c. **Trial keys.** Keys that drop in a wild dungeon go home with the player and open real overworld trial chambers.
+   Recommendation: allow it; they are part of the resources the lodestone promises. The alternative is to remove
+   `minecraft:trial_key` and `minecraft:ominous_trial_key` from wild loot.
