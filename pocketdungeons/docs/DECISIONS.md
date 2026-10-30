@@ -1230,7 +1230,7 @@ I can clear it every time it is ready, and anyone who wants it has to get past m
 |---|---|---|
 | Mode | `mode: wild` is a server wide config switch; only wild mode runs on the Charter server | new config knob, `PocketDungeonsConfig` |
 | Lodestone | A tagged jigsaw block in the overworld. Survival players cannot break it and explosions do not destroy it | new `WildLodestones` |
-| Exit block | A second tagged jigsaw inside the dungeon, same look, returns the player to the lodestone | new `WildLodestones` |
+| Exit block | A second tagged jigsaw inside the dungeon, same look, returns the player to the lodestone. One stands where players arrive; a second, with an emblem reading Exit, appears at the clear | new `WildLodestones` |
 | Menu | Right click either block: a dialog with the dungeon, its promise, its state and the Enter or Leave button | `DialogScreens`, `DialogRouter` |
 | Dungeon | One shared live instance per lodestone, one floor, a fixed dungeon definition. No parties | `Instances`, `DungeonDef` |
 | Inventory | Never stashed, swapped or wiped. The dungeon is an extension of the overworld | `InventorySwap` bypassed in wild mode |
@@ -1238,7 +1238,7 @@ I can clear it every time it is ready, and anyone who wants it has to get past m
 | Claims | None inside. Charter is set to overworld only claims by a separate task, not by this mod | Charter, not this mod |
 | Placement | A fixed grid, also in already generated chunks, skipping claimed or built over spots | new `WildPlacement` |
 | Lifespan | About a week. Then the dungeon collapses and a new lodestone appears somewhere else | `WildPlacement`, `WildLodestones` |
-| Cooldown | Per lodestone, shared by everyone. Starts at the clear signal; a longer promise means a longer cooldown | `WildLodestones` |
+| Cooldown | Per lodestone, shared by everyone. Starts the moment the clear exit block appears; a longer promise means a longer cooldown | `WildLodestones` |
 
 ### Rules
 
@@ -1246,10 +1246,14 @@ I can clear it every time it is ready, and anyone who wants it has to get past m
    words (`Iron. Ready in 2h.`).
 2. **Clear signal.** There is no single event for "dungeon cleared" today. The closest thing is `RunLifecycle.padGatesRefuse`,
    the check the terminal pad runs when a player steps on it (spawners, boss, brood, guardian, wave). Wild mode runs that same
-   check on a timer with nobody on the pad, and the first time it passes the dungeon is cleared and the cooldown starts. The
-   check is split out of `completeRun` so both paths share it.
-3. **After a clear.** Players inside get a short window to leave, then are moved out. When the cooldown ends the dungeon
-   resets: chests and hidden ore refresh from the existing loot tables.
+   check on a timer with nobody on the pad, and the first time it passes the dungeon is cleared. The check is split out of
+   `completeRun` so both paths share it.
+3. **The clear.** In the campaign a clear calls `advanceFloor`, which places the floor rewards (`placeFloorRewards`), seals the
+   far wall and stamps the next staging room (the doors room). Wild mode does the first and skips the other two: it places the
+   reward chests and, beside them, an exit block that looks like the one players came in by, with an emblem that reads Exit.
+   Right click opens the same kind of dialog as the lodestone, with Leave. **Placing the exit block starts the cooldown.**
+   Players inside get a short window to leave, then are moved out. When the cooldown ends the dungeon resets: chests and
+   hidden ore refresh from the existing loot tables.
 4. **Death.** Vanilla death: your items drop where you die. The dungeon stays open until the cooldown ends, so you can go
    back for them, and a killer can take them. A chat warning goes out two minutes before any reset or collapse.
 5. **Collapse.** Whatever is on the ground when the dungeon collapses goes into a lost and found chest outside, next to the
@@ -1275,6 +1279,6 @@ the reset warning (seconds), the spawn protection (seconds), the exit window aft
 Whether a week is the right lifespan; whether long cooldowns make the outposts worth building or just the walls; whether
 an unclaimed lodestone near spawn gets farmed to nothing before anyone settles; whether the lost and found chest outlasts
 the old lodestone or needs its own lifespan; how the exit block camping feels; whether `padGatesRefuse` as the clear check
-fires too early on a floor with an objective instead of spawners.
+fires too early on a floor with an objective instead of spawners; whether the emblem needs the Glyph system (approved, not built, 2026-10-21) or a plain item display above the block is enough for v1.
 
 **Status: approved, not built (2026-10-30).**
