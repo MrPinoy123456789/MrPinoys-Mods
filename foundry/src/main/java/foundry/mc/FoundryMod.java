@@ -153,6 +153,15 @@ public final class FoundryMod implements ModInitializer {
         updateOrphans(set);
         FoundryDatapack.init(set);
         FoundryCommands.register();
+        Swings.register();
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            Swings.tick(server);
+            Bolts.tick(server);
+        });
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            Swings.clear();
+            Bolts.clear();
+        });
         PackBuilds.markBaseline();
         LOG.info("Foundry: {} items registered, {} problems", FoundryItems.all().size(), set.problems().size());
     }

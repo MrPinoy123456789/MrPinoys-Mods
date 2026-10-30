@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "id": "demo:fairy_wand",
+  "display_name": "Fairy Wand",
+  "lore": [
+    "Left click: a sparkle bolt.",
+    "Right click: Mischief, a bolt that blinds and slows.",
+    "Sneak and right click: Healing Light, regeneration for nearby players."
+  ],
+  "base_item": "minecraft:stick",
+  "texture": "demo:item/fairy_wand",
+  "stack_size": 1,
+  "glint": true,
+  "rarity": "rare",
+  "mechanics": [
+    {
+      "trigger": "on_swing",
+      "cooldown_ticks": 8,
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:block.amethyst_block.chime",
+          "volume": 0.6,
+          "pitch": 1.7
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "sparkle",
+          "range": 10,
+          "speed": 1.2,
+          "particle": "minecraft:end_rod"
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "sparkle",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 3,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:end_rod",
+          "count": 12,
+          "spread": 0.3,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Mischief",
+      "trigger": "on_use",
+      "cooldown_ticks": 1200,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.evoker.cast_spell",
+          "volume": 0.7,
+          "pitch": 1.8
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "mischief",
+          "range": 6,
+          "speed": 0.8,
+          "particle": "minecraft:witch"
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "mischief",
+      "actions": [
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:blindness",
+          "duration": 60,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:slowness",
+          "duration": 60,
+          "amplifier": 0,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:witch",
+          "count": 16,
+          "spread": 0.4,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Healing Light",
+      "trigger": "on_use",
+      "cooldown_ticks": 1500,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": true
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.player.levelup",
+          "volume": 0.7,
+          "pitch": 1.6
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:regeneration",
+          "duration": 120,
+          "amplifier": 0,
+          "target": "area",
+          "radius": 5
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:happy_villager",
+          "count": 30,
+          "spread": 2.0
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:end_rod",
+          "count": 20,
+          "spread": 1.5
+        }
+      ]
+    }
+  ]
+}

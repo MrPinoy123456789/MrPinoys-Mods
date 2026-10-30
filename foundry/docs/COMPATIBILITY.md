@@ -20,7 +20,10 @@ resource-pack-extras, sound-patcher and virtual-entity. It does not contain SGUI
 |---|---|---|
 | Custom item, base item look | Verified in gametests and on a dev server | Registers with name, rarity, stack size, durability. Owner confirmed in a vanilla client on a local dev server |
 | Custom item model and texture | Pack contents verified; owner reported it works in a vanilla client on a local dev server (2026-10-29) | `RESOURCE_PACK_CREATION_EVENT` plus `ResourcePackBuilder.addData` and `addStringData` (checked with javap); `getPolymerItemModel` returns the item id, whose client item definition Foundry generates |
-| Item mechanics (on_use, on_hit_entity) | Verified in gametest | `Item.use` and `Item.hurtEnemy` overrides on `FoundryItem`; effects and sounds target the acting player only |
+| Item mechanics (on_use, on_hit_entity) | Verified in gametest | `Item.use` and `Item.hurtEnemy` overrides on `FoundryItem` |
+| Left click (on_swing) | Verified in gametest, not in a client | No item swing hook exists in 26.2 and Foundry uses no Mixins, so `Swings` watches `ServerPlayer.swinging` each tick and ignores swings caused by right click, hitting an entity or starting to mine |
+| Bolts (launch_bolt, on_bolt_hit) | Verified in gametest, not in a client | Server-side stepped point with particles, no entity; `Bolts` |
+| Permission filters | Verified in gametest with an injected check | `Permission.Atom` on vanilla's `PermissionSet`; whether LuckPerms feeds it on 26.2 is unchecked |
 | Recipes | Blocked | No public add path found without a Mixin; DECISIONS.md D8 |
 | Furniture | Not verified | Needs D3 |
 | Custom blocks | Not verified | Needs D4; expect a hard cap on distinct blocks |

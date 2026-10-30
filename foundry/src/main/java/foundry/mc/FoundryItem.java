@@ -40,8 +40,14 @@ final class FoundryItem extends SimplePolymerItem {
         return def == null ? List.of() : def.mechanics();
     }
 
+    /** Runs this item's mechanics for a trigger raised outside the item hooks (a left click swing). */
+    boolean fire(Trigger trigger, ServerPlayer player, LivingEntity hit) {
+        return MechanicHost.fire(trigger, contentId, mechanics(), player, hit);
+    }
+
     @Override
     public InteractionResult useOn(UseOnContext context) {
+        if (context.getPlayer() instanceof ServerPlayer sp) Swings.suppress(sp);
         var furniture = Furniture.forItem(ident);
         if (furniture != null && Furniture.place(context, furniture)) return InteractionResult.SUCCESS;
         return super.useOn(context);
@@ -49,8 +55,10 @@ final class FoundryItem extends SimplePolymerItem {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        if (player instanceof ServerPlayer sp && MechanicHost.fire(Trigger.ON_USE, contentId, mechanics(), sp, null)) {
-            return InteractionResult.SUCCESS;
+        if (player instanceof ServerPlayer sp) {
+            // Right click makes the server swing the arm; that swing is not a left click.
+            Swings.suppress(sp);
+            if (MechanicHost.fire(Trigger.ON_USE, contentId, mechanics(), sp, null)) return InteractionResult.SUCCESS;
         }
         return super.use(level, player, hand);
     }

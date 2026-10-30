@@ -12,19 +12,29 @@ import java.util.TreeMap;
 public final class MechanicTypes {
     private MechanicTypes() {}
 
-    public enum Kind { ID, INT, DECIMAL, TARGET }
+    public enum Kind { ID, INT, DECIMAL, TARGET, BOOL, NAME, TEXT }
 
     public record Param(String name, Kind kind, boolean required, double min, double max) {
         static Param id(String n) { return new Param(n, Kind.ID, true, 0, 0); }
         static Param integer(String n, boolean req, int min, int max) { return new Param(n, Kind.INT, req, min, max); }
         static Param decimal(String n, boolean req, double min, double max) { return new Param(n, Kind.DECIMAL, req, min, max); }
         static Param target() { return new Param("target", Kind.TARGET, false, 0, 0); }
+        static Param optId(String n) { return new Param(n, Kind.ID, false, 0, 0); }
+        static Param bool(String n) { return new Param(n, Kind.BOOL, false, 0, 0); }
+        static Param name(String n) { return new Param(n, Kind.NAME, true, 0, 0); }
+        static Param text(String n) { return new Param(n, Kind.TEXT, true, 0, 0); }
     }
 
     public record Spec(String name, List<Param> params) {}
 
-    /** Valid values for the {@code target} parameter; absent means the acting player. */
-    public static final List<String> TARGETS = List.of("self", "hit");
+    /**
+     * Valid values for the {@code target} parameter; absent means the acting player. {@code area} means every living
+     * entity within {@code radius} of the acting player (apply_effect only), narrowed by the permission filters.
+     */
+    public static final List<String> TARGETS = List.of("self", "hit", "area");
+
+    /** Longest message a definition may send, so a mechanic cannot flood a player's action bar with prose. */
+    public static final int MAX_MESSAGE = 80;
 
     public static final Map<String, Spec> ACTIONS = new TreeMap<>();
     public static final Map<String, Spec> CONDITIONS = new TreeMap<>();
@@ -33,9 +43,18 @@ public final class MechanicTypes {
         action("play_sound", Param.id("sound"), Param.decimal("volume", false, 0, 10), Param.decimal("pitch", false, 0.5, 2),
                 Param.target());
         action("apply_effect", Param.id("effect"), Param.integer("duration", true, 1, 72000),
-                Param.integer("amplifier", false, 0, 255), Param.target());
+                Param.integer("amplifier", false, 0, 255), Param.target(), Param.decimal("radius", false, 0.5, 16),
+                Param.optId("require_permission"), Param.optId("exclude_permission"));
         action("give_item", Param.id("item"), Param.integer("count", false, 1, 99), Param.target());
+        action("damage", Param.decimal("amount", true, 0.5, 100), Param.target());
+        action("spawn_particles", Param.id("particle"), Param.integer("count", false, 1, 100),
+                Param.decimal("spread", false, 0, 5), Param.decimal("speed", false, 0, 2), Param.target());
+        action("send_message", Param.text("message"), Param.target());
+        action("launch_bolt", Param.name("tag"), Param.decimal("range", false, 1, 64), Param.decimal("speed", false, 0.2, 3),
+                Param.decimal("radius", false, 0.1, 2), Param.optId("particle"), Param.optId("require_permission"),
+                Param.optId("exclude_permission"));
         condition("has_permission", Param.integer("level", true, 0, 4), Param.target());
+        condition("is_sneaking", Param.bool("value"));
     }
 
     private static void action(String name, Param... p) {
@@ -77,8 +96,24 @@ public final class MechanicTypes {
                 }
                 case TARGET -> {
                     if (!TARGETS.contains(v)) {
-                        out.add("target \"" + v + "\" is not valid. Use self (the acting player) or hit "
-                                + "(the entity hit by an on_hit_entity trigger).");
+                        out.add("target \"" + v + "\" is not valid. Use self (the acting player), hit "
+                                + "(the entity struck by an on_hit_entity or on_bolt_hit trigger) or area "
+                                + "(apply_effect only).");
+                    }
+                }
+                case BOOL -> {
+                    if (!v.equals("true") && !v.equals("false")) {
+                        out.add(p.name() + " must be true or false, not \"" + v + "\".");
+                    }
+                }
+                case NAME -> {
+                    if (!v.matches("[a-z0-9_]{1,32}")) {
+                        out.add(p.name() + " \"" + v + "\" must be 1 to 32 characters of a to z, 0 to 9 and underscore.");
+                    }
+                }
+                case TEXT -> {
+                    if (v.isBlank() || v.length() > MAX_MESSAGE) {
+                        out.add(p.name() + " must be 1 to " + MAX_MESSAGE + " characters.");
                     }
                 }
                 case INT, DECIMAL -> {

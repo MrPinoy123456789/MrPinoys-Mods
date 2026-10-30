@@ -58,9 +58,29 @@ public final class MechanicParser {
             if (actions.size() > MechanicDef.MAX_ACTIONS) {
                 out.add(Problem.error(source, where + ".actions", "At most " + MechanicDef.MAX_ACTIONS + " actions, found " + actions.size() + ".", "Remove some."));
             }
+            String name = o.has("name") ? text(o, "name") : "";
+            if (name == null || name.length() > 40) {
+                out.add(Problem.error(source, where + ".name", "name must be text of at most 40 characters.",
+                        "Use a short label such as \"Healing Light\"; it appears in cooldown messages."));
+                name = "";
+            }
+            String tag = o.has("tag") ? text(o, "tag") : "";
+            if (tag == null || !tag.matches("([a-z0-9_]{1,32})?")) {
+                out.add(Problem.error(source, where + ".tag", "tag must be 1 to 32 characters of a to z, 0 to 9 and underscore.",
+                        "Use a name such as mischief."));
+                tag = "";
+            }
+            if (trigger == Trigger.ON_BOLT_HIT && tag.isEmpty()) {
+                out.add(Problem.error(source, where + ".tag", "An on_bolt_hit mechanic needs a tag.",
+                        "Add \"tag\": \"mischief\" and give the launch_bolt action the same tag."));
+            }
+            if (trigger != Trigger.ON_BOLT_HIT && !tag.isEmpty()) {
+                out.add(Problem.error(source, where + ".tag", "tag only belongs on an on_bolt_hit mechanic.",
+                        "Remove it; put the tag on the launch_bolt action instead."));
+            }
             for (Step c : conditions) check(c, false, source, where + ".conditions", out, trigger);
             for (Step a : actions) check(a, true, source, where + ".actions", out, trigger);
-            if (trigger != null) result.add(new MechanicDef(trigger, conditions, actions, cooldown, chance));
+            if (trigger != null) result.add(new MechanicDef(trigger, conditions, actions, cooldown, chance, name, tag));
         }
         return result;
     }
@@ -71,9 +91,24 @@ public final class MechanicParser {
                     ? "See the action list in the add-foundry-item skill, or ask for a new action type."
                     : "See the condition list in the add-foundry-item skill."));
         }
-        if ("hit".equals(step.params().get("target")) && trigger != Trigger.ON_HIT_ENTITY) {
-            out.add(Problem.error(source, where, "target \"hit\" only works with an on_hit_entity trigger.",
-                    "Use target \"self\", or change the trigger to on_hit_entity."));
+        boolean strikes = trigger == Trigger.ON_HIT_ENTITY || trigger == Trigger.ON_BOLT_HIT;
+        if ("hit".equals(step.params().get("target")) && !strikes) {
+            out.add(Problem.error(source, where, "target \"hit\" only works with an on_hit_entity or on_bolt_hit trigger.",
+                    "Use target \"self\", or change the trigger to on_hit_entity or on_bolt_hit."));
+        }
+        boolean area = "area".equals(step.params().get("target"));
+        if (area && (!action || !step.type().equals("apply_effect") || !step.params().containsKey("radius"))) {
+            out.add(Problem.error(source, where, "target \"area\" works only on apply_effect, and needs a radius.",
+                    "Use { \"type\": \"apply_effect\", \"target\": \"area\", \"radius\": 5, ... }."));
+        }
+        if (action && step.type().equals("apply_effect") && !area && (step.params().containsKey("radius")
+                || step.params().containsKey("require_permission") || step.params().containsKey("exclude_permission"))) {
+            out.add(Problem.error(source, where, "radius and the permission filters only apply with target \"area\".",
+                    "Add \"target\": \"area\", or remove them."));
+        }
+        if (action && step.type().equals("launch_bolt") && trigger == Trigger.ON_BOLT_HIT) {
+            out.add(Problem.error(source, where, "A bolt cannot launch another bolt.",
+                    "Launch bolts from on_use, on_swing or on_hit_entity."));
         }
     }
 

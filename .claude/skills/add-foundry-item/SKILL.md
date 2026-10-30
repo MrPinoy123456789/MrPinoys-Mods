@@ -49,7 +49,7 @@ textures change the pack, so players re-download it; restart the server to rebui
 
 ## 4b. Mechanics
 
-`mechanics` is a list; each has `trigger` (`on_use`, `on_hit_entity`), optional `cooldown_ticks` (20 per second),
+`mechanics` is a list; each has `trigger` (`on_use`, `on_hit_entity`, `on_swing`, `on_bolt_hit`; see add-foundry-mechanic), optional `cooldown_ticks` (20 per second),
 `chance` (0 to 1), `conditions` and `actions`. Actions: `play_sound` (sound, volume, pitch), `apply_effect` (effect,
 duration, amplifier), `give_item` (item, count). Conditions: `has_permission` (level 0 to 4). Actions and conditions
 take an optional `target`: `self` (default) or `hit` (the entity struck; only on `on_hit_entity`). Limits: 8

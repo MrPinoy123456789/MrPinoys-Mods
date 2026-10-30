@@ -113,6 +113,85 @@ public final class CoreSuite {
         check(hasError(withMechanics(lots.toString()), "at most 8 mechanics"), "mechanics per item limit");
 
         runner();
+        weapons();
+    }
+
+    private static String mech(String trigger, String extra, String actions) {
+        return "[{\"trigger\":\"" + trigger + "\"" + extra + ",\"actions\":[" + actions + "]}]";
+    }
+
+    private static final String BOLT = "{\"type\":\"launch_bolt\",\"tag\":\"spark\"}";
+
+    private static void weapons() {
+        check(ItemParser.parse("w.json", withMechanics(mech("on_swing", "", BOLT))).def() != null, "on_swing with a bolt parses");
+        var landing = ItemParser.parse("w.json", withMechanics("[" + mech("on_swing", "", BOLT).substring(1, mech("on_swing", "", BOLT).length() - 1)
+                + "," + mech("on_bolt_hit", ",\"tag\":\"spark\"",
+                "{\"type\":\"damage\",\"amount\":3,\"target\":\"hit\"}").substring(1)));
+        check(landing.def() != null && landing.def().mechanics().get(1).tag().equals("spark"), "on_bolt_hit with a tag and damage on the hit target parses");
+        check(hasError(withMechanics(mech("on_bolt_hit", "", "{\"type\":\"damage\",\"amount\":3,\"target\":\"hit\"}")),
+                "needs a tag"), "on_bolt_hit without a tag is an error");
+        check(hasError(withMechanics(mech("on_use", ",\"tag\":\"spark\"", BOLT)), "only belongs on an on_bolt_hit"),
+                "a tag on any other trigger is an error");
+        check(hasError(withMechanics(mech("on_bolt_hit", ",\"tag\":\"spark\"", BOLT)), "cannot launch another bolt"),
+                "a bolt cannot launch a bolt");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"damage\",\"amount\":3,\"target\":\"hit\"}")),
+                "only works with an on_hit_entity"), "damage target hit needs a striking trigger");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"damage\",\"amount\":0}")), "between"),
+                "damage amount has a floor");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"launch_bolt\",\"tag\":\"Bad Tag\"}")), "1 to 32 characters"),
+                "bolt tag must be a plain name");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"launch_bolt\",\"tag\":\"a\",\"range\":99}")), "between"),
+                "bolt range is capped");
+        check(ItemParser.parse("w.json", withMechanics(mech("on_use", "",
+                "{\"type\":\"apply_effect\",\"effect\":\"minecraft:regeneration\",\"duration\":20,\"target\":\"area\",\"radius\":5,"
+                        + "\"require_permission\":\"race:fairy\"}"))).def() != null, "area effect with a permission filter parses");
+        check(hasError(withMechanics(mech("on_use", "",
+                "{\"type\":\"apply_effect\",\"effect\":\"minecraft:speed\",\"duration\":20,\"target\":\"area\"}")), "needs a radius"),
+                "area without a radius is an error");
+        check(hasError(withMechanics(mech("on_use", "",
+                "{\"type\":\"apply_effect\",\"effect\":\"minecraft:speed\",\"duration\":20,\"radius\":5}")), "only apply with target"),
+                "radius without area is an error");
+        check(hasError(withMechanics(mech("on_use", "",
+                "{\"type\":\"play_sound\",\"sound\":\"minecraft:block.stone.hit\",\"target\":\"area\"}")), "works only on apply_effect"),
+                "area is for apply_effect only");
+        check(hasError(withMechanics(mech("on_use", ",\"conditions\":[{\"type\":\"is_sneaking\",\"value\":\"maybe\"}]", BOLT)),
+                "true or false"), "is_sneaking value must be a boolean");
+        check(ItemParser.parse("w.json", withMechanics(mech("on_use", ",\"name\":\"Mischief\",\"conditions\":[{\"type\":\"is_sneaking\",\"value\":false}]",
+                BOLT))).def().mechanics().get(0).name().equals("Mischief"), "a mechanic name is kept");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"send_message\",\"message\":\"" + "x".repeat(81) + "\"}")),
+                "1 to 80 characters"), "messages are length capped");
+
+        // The runner reports a power's cooldown, and checks conditions before it so a sneak power on cooldown stays quiet.
+        var run = new foundry.core.mechanics.MechanicRunner();
+        long[] tick = {0};
+        boolean[] sneaking = {true};
+        foundry.core.mechanics.MechanicRunner.Host host = new foundry.core.mechanics.MechanicRunner.Host() {
+            public long nowTick() { return tick[0]; }
+            public boolean holds(foundry.core.mechanics.Step c) { return sneaking[0]; }
+            public boolean roll(double p) { return true; }
+            public void perform(foundry.core.mechanics.Step a) { }
+        };
+        var power = new foundry.core.mechanics.MechanicDef(foundry.core.mechanics.Trigger.ON_USE,
+                java.util.List.of(new foundry.core.mechanics.Step("is_sneaking", java.util.Map.of())),
+                java.util.List.of(new foundry.core.mechanics.Step("send_message", java.util.Map.of("message", "hi"))), 100, 1.0);
+        check(run.fire("a", "t:w", 0, power, host) == foundry.core.mechanics.MechanicRunner.Outcome.RAN, "power runs");
+        tick[0] = 30;
+        check(run.cooldownLeft("a", "t:w", 0, tick[0]) == 70, "cooldown left is reported in ticks");
+        sneaking[0] = false;
+        check(run.fire("a", "t:w", 0, power, host) == foundry.core.mechanics.MechanicRunner.Outcome.CONDITION_FAILED,
+                "a failed condition wins over the cooldown");
+        sneaking[0] = true;
+        check(run.fire("a", "t:w", 0, power, host) == foundry.core.mechanics.MechanicRunner.Outcome.ON_COOLDOWN, "then it is on cooldown");
+        check(run.cooldownLeft("a", "t:w", 0, 200) == 0, "cooldown left is zero once ready");
+
+        // The shipped example wand must stay valid.
+        try {
+            var text = java.nio.file.Files.readString(java.nio.file.Path.of("examples/content/demo/items/fairy_wand.json"));
+            var wand = ItemParser.parse("fairy_wand.json", text);
+            check(wand.def() != null && wand.def().mechanics().size() == 5, "the fairy wand example parses with five mechanics");
+        } catch (java.io.IOException e) {
+            check(false, "the fairy wand example is readable: " + e);
+        }
     }
 
     private static boolean hasError(String json, String fragment) {
@@ -130,7 +209,7 @@ public final class CoreSuite {
         boolean[] chance = {true};
         foundry.core.mechanics.MechanicRunner.Host host = new foundry.core.mechanics.MechanicRunner.Host() {
             public long nowTick() { return tick[0]; }
-            public boolean hasPermission(int level, boolean hit) { return !hit && allowed[0]; }
+            public boolean holds(foundry.core.mechanics.Step c) { return !"hit".equals(c.param("target", "self")) && allowed[0]; }
             public boolean roll(double p) { return chance[0]; }
             public void perform(foundry.core.mechanics.Step a) { performed[0]++; }
         };
@@ -162,7 +241,7 @@ public final class CoreSuite {
         var inner = new foundry.core.mechanics.MechanicRunner();
         foundry.core.mechanics.MechanicRunner.Host loop = new foundry.core.mechanics.MechanicRunner.Host() {
             public long nowTick() { return 0; }
-            public boolean hasPermission(int level, boolean hit) { return true; }
+            public boolean holds(foundry.core.mechanics.Step c) { return true; }
             public boolean roll(double p) { return true; }
             public void perform(foundry.core.mechanics.Step a) { nested[0] = inner.fire("x", "t:loop", 0, free, this); }
         };

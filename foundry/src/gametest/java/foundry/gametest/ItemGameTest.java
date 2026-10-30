@@ -118,7 +118,7 @@ public final class ItemGameTest {
         var original = System.getProperty("foundry.content");
         var dir = java.nio.file.Files.createTempDirectory("foundry-reload");
         var items = java.nio.file.Files.createDirectories(dir.resolve("demo").resolve("items"));
-        for (var name : new String[]{"crystal_sword.json", "glow_gem.json"}) {
+        for (var name : new String[]{"crystal_sword.json", "glow_gem.json", "fairy_wand.json"}) {
             java.nio.file.Files.copy(java.nio.file.Path.of(original, "demo", "items", name), items.resolve(name));
         }
         var source = server.createCommandSourceStack().withPermission(net.minecraft.server.permissions.PermissionSet.ALL_PERMISSIONS);
