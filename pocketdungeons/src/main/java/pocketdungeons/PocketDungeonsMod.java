@@ -42,6 +42,8 @@ public final class PocketDungeonsMod implements ModInitializer {
     @Override
     public void onInitialize() {
         PocketDungeonsConfig.load(FabricLoader.getInstance().getConfigDir());
+        // Wild mode (decision 2026-10-30): loads its saved lodestones only when mode is wild.
+        WildStore.register();
         DungeonCommands.register();
         // Ahead of Instances, so its connection handlers read a player's
         // instance before Instances' own handlers detach them.
