@@ -98,6 +98,9 @@ final class DungeonCommands {
         registerAdminPlansAndPacks(admin);
         registerAdminSaves(admin);
         registerAdminManifestAndExperiment(admin);
+        if (WildMode.active()) {
+            WildCommands.register(admin);
+        }
         root.then(admin);
     }
 

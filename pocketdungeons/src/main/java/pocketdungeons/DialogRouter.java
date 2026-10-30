@@ -74,6 +74,8 @@ public final class DialogRouter {
         }
 
         switch (id.getPath()) {
+            case DialogScreens.ACTION_WILD_ENTER -> WildRun.enter(player, tag.getStringOr(DialogScreens.KEY_WILD, ""));
+            case DialogScreens.ACTION_WILD_LEAVE -> WildRun.leave(player);
             case DialogScreens.ACTION_WHITELIST_REMOVE -> whitelistRemove(player, server, owner,
                     uuid(tag.getStringOr(DialogScreens.KEY_TARGET, "")));
             case DialogScreens.ACTION_WHITELIST_ADD -> whitelistAdd(player, server, owner,

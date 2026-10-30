@@ -383,6 +383,8 @@ for ((taskName, testClass) in mapOf(
     "atomicFilesTest" to "AtomicFilesTest",
     "wildStateTest" to "WildStateTest",
     "wildModeOffTest" to "WildModeOffTest",
+    "wildTextTest" to "WildTextTest",
+    "wildDungeonsTest" to "WildDungeonsTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",

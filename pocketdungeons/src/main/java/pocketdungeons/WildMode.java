@@ -17,7 +17,14 @@ final class WildMode {
 
     /** Whether this server runs wild mode. */
     static boolean active() {
-        return isWild(PocketDungeonsConfig.mode());
+        return testOverride != null ? testOverride : isWild(PocketDungeonsConfig.mode());
+    }
+
+    private static volatile Boolean testOverride;
+
+    /** Test seam: {@code true} or {@code false} forces the answer, {@code null} restores the config. */
+    static void setActiveForTesting(Boolean forced) {
+        testOverride = forced;
     }
 
     /** Dialog action paths wild mode answers all start with this. */

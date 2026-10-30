@@ -1,0 +1,10 @@
+{
+  "name": "The Deep Face",
+  "dungeon": "pocketdungeons:mineshaft",
+  "node": "deep_face",
+  "promise": "Coal. Iron. Gold.",
+  "cooldownMinutes": 180,
+  "weight": 10,
+  "minDistance": 500,
+  "maxLevel": 5
+}

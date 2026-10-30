@@ -36,6 +36,12 @@ final class WildStore {
         });
     }
 
+    /** Test seam: installs a state with no file, so {@link #save()} stays a no-op. {@code null} clears it. */
+    static void setForTesting(WildState replacement) {
+        state = replacement;
+        file = null;
+    }
+
     /** The live state, or {@code null} when wild mode is off or no server is running. */
     static WildState state() {
         return state;

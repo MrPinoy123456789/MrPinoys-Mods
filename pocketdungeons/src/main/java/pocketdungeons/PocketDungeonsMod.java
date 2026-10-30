@@ -52,6 +52,9 @@ public final class PocketDungeonsMod implements ModInitializer {
         Lemon.register();
         FirstVisitTutorial.register();
         Instances.register();
+        // Wild mode: the offerings load after Instances' content load, and the lodestone click answers before the ritual chain.
+        WildDungeons.register();
+        WildLodestones.register();
         RitualListener.register();
         SilenceListener.register();
         TrappedCache.register();

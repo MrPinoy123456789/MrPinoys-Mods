@@ -1,0 +1,10 @@
+{
+  "name": "The Deep Working Face",
+  "dungeon": "pocketdungeons:endless_mine_deep",
+  "node": "working_face",
+  "promise": "Iron. Gold. Deep.",
+  "cooldownMinutes": 240,
+  "weight": 8,
+  "minDistance": 1500,
+  "maxLevel": 8
+}
