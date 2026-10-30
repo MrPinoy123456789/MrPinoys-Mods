@@ -85,6 +85,9 @@ final class FoundryDatapack {
                 }
             }
             Files.createDirectories(data);
+            // Fabric registers a builtin pack only if it has a namespace, so a set with no recipes still keeps one,
+            // and recipes added later load on a reload instead of waiting for a restart.
+            Files.createDirectories(data.resolve(FoundryMod.ID));
             for (var entry : RecipeFiles.generate(set.recipes()).entrySet()) {
                 Path file = data.resolve(entry.getKey().substring("data/".length()));
                 Files.createDirectories(file.getParent());
