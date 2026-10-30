@@ -1214,3 +1214,67 @@ Whether the party reads the Objectives tab without being told; whether 12 blocks
 room; whether guests feel rewarded enough to keep joining; whether the lit window is too bright for the room.
 
 **Status: approved, not built (2026-10-21).** Handoff pack in `docs/devin/`.
+
+## 2026-10-30: Wild lodestones (overworld dungeon mode)
+
+Approved by the owner on 2026-10-30 after a propose-and-pick round (option A, one clock per lodestone). A server runs
+this mode instead of the campaign; the campaign systems are switched off, and only the dungeon generation is shared.
+Nothing is built.
+
+The player's sentence: *I find a dungeon out in the wild that promises good resources. If I build an outpost beside it
+I can clear it every time it is ready, and anyone who wants it has to get past my wall.*
+
+### The model
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| Mode | `mode: wild` is a server wide config switch; only wild mode runs on the Charter server | new config knob, `PocketDungeonsConfig` |
+| Lodestone | A tagged jigsaw block in the overworld. Survival players cannot break it and explosions do not destroy it | new `WildLodestones` |
+| Exit block | A second tagged jigsaw inside the dungeon, same look, returns the player to the lodestone | new `WildLodestones` |
+| Menu | Right click either block: a dialog with the dungeon, its promise, its state and the Enter or Leave button | `DialogScreens`, `DialogRouter` |
+| Dungeon | One shared live instance per lodestone, one floor, a fixed dungeon definition. No parties | `Instances`, `DungeonDef` |
+| Inventory | Never stashed, swapped or wiped. The dungeon is an extension of the overworld | `InventorySwap` bypassed in wild mode |
+| PvP | On inside. A few seconds of spawn protection after entering | new `WildRules` |
+| Claims | None inside. Charter is set to overworld only claims by a separate task, not by this mod | Charter, not this mod |
+| Placement | A fixed grid, also in already generated chunks, skipping claimed or built over spots | new `WildPlacement` |
+| Lifespan | About a week. Then the dungeon collapses and a new lodestone appears somewhere else | `WildPlacement`, `WildLodestones` |
+| Cooldown | Per lodestone, shared by everyone. Starts at the clear signal; a longer promise means a longer cooldown | `WildLodestones` |
+
+### Rules
+
+1. **States.** Each lodestone is Ready, In progress, or Cooling. The menu shows the state and how long is left in plain
+   words (`Iron. Ready in 2h.`).
+2. **Clear signal.** There is no single event for "dungeon cleared" today. The closest thing is `RunLifecycle.padGatesRefuse`,
+   the check the terminal pad runs when a player steps on it (spawners, boss, brood, guardian, wave). Wild mode runs that same
+   check on a timer with nobody on the pad, and the first time it passes the dungeon is cleared and the cooldown starts. The
+   check is split out of `completeRun` so both paths share it.
+3. **After a clear.** Players inside get a short window to leave, then are moved out. When the cooldown ends the dungeon
+   resets: chests and hidden ore refresh from the existing loot tables.
+4. **Death.** Vanilla death: your items drop where you die. The dungeon stays open until the cooldown ends, so you can go
+   back for them, and a killer can take them. A chat warning goes out two minutes before any reset or collapse.
+5. **Collapse.** Whatever is on the ground when the dungeon collapses goes into a lost and found chest outside, next to the
+   old lodestone. When a chest is full, another is placed beside it.
+6. **Leave a failed run.** Nothing special. Walk out through the exit block, or die and respawn as normal.
+7. **Reaching it.** The only way out is the exit block. Ender pearls, chorus fruit and teleport style commands are blocked
+   inside. A player who logs out inside and logs back in after a reset is sent to the lodestone outside.
+8. **Finding it.** Players find lodestones by exploring. Ops get a command that lists them and teleports to one.
+9. **Scaling.** Level scales with distance from world spawn. Mob counts scale with the players inside when spawners fire.
+10. **Camping.** Spawn protection lasts a few seconds. The exit block is not otherwise protected.
+
+### Supersedes
+
+Nothing. This is a separate mode; the campaign decisions stay as they are for servers running the campaign.
+
+### Knobs
+
+`mode` (`campaign` or `wild`), the grid spacing, the lifespan (days), the base cooldown and the cooldown per promise tier,
+the reset warning (seconds), the spawn protection (seconds), the exit window after a clear (seconds).
+
+### Open until played
+
+Whether a week is the right lifespan; whether long cooldowns make the outposts worth building or just the walls; whether
+an unclaimed lodestone near spawn gets farmed to nothing before anyone settles; whether the lost and found chest outlasts
+the old lodestone or needs its own lifespan; how the exit block camping feels; whether `padGatesRefuse` as the clear check
+fires too early on a floor with an objective instead of spawners.
+
+**Status: approved, not built (2026-10-30).**
