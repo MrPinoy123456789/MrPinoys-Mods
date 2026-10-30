@@ -15,24 +15,30 @@
   "mechanics": [
     {
       "trigger": "on_swing",
-      "cooldown_ticks": 8,
+      "cooldown_ticks": 13,
       "actions": [
         {
           "type": "play_sound",
-          "sound": "minecraft:block.amethyst_block.chime",
+          "sound": "minecraft:entity.allay.item_thrown",
           "volume": 1.0,
-          "pitch": 1.7
+          "pitch": 1.9
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.firework_rocket.launch",
+          "volume": 0.35,
+          "pitch": 2.0
         },
         {
           "type": "play_sound",
           "sound": "minecraft:entity.firework_rocket.twinkle",
-          "volume": 0.8,
-          "pitch": 1.4
+          "volume": 0.7,
+          "pitch": 1.6
         },
         {
           "type": "launch_bolt",
           "tag": "sparkle",
-          "range": 20,
+          "range": 40,
           "speed": 1.2,
           "particle": "minecraft:end_rod"
         }
@@ -59,7 +65,7 @@
     {
       "name": "Mischief",
       "trigger": "on_use",
-      "cooldown_ticks": 1200,
+      "cooldown_ticks": 400,
       "conditions": [
         {
           "type": "is_sneaking",
