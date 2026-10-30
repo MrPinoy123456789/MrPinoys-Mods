@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:aurelia_oathblade_3",
+  "type": "shapeless",
+  "ingredients": [
+    "kingdoms:aurelia_oathblade_2",
+    "minecraft:netherite_ingot",
+    "minecraft:emerald_block",
+    "minecraft:emerald_block"
+  ],
+  "result": "kingdoms:aurelia_oathblade_3"
+}

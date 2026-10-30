@@ -61,12 +61,23 @@ public final class ItemParser {
         int durability = intField(o, "durability", 0, source, problems);
         boolean glint = o.has("glint") && o.get("glint").getAsBoolean();
         String rarity = stringField(o, "rarity", "common", source, problems);
+        double attackDamage = decimalField(o, "attack_damage", 0, 0, 100, source, problems);
+        double attackSpeed = decimalField(o, "attack_speed", 0, 0, 16, source, problems);
+        if (attackDamage > 0 && attackDamage < 1) {
+            problems.add(Problem.error(source, "attack_damage", "attack_damage counts the whole hit, so it is at least 1.",
+                    "A sword hits for about 7; use 0 to keep the base item's damage."));
+        }
+        if (attackDamage > 0 && attackSpeed == 0) attackSpeed = ItemDef.DEFAULT_ATTACK_SPEED;
+        if (attackDamage == 0 && attackSpeed > 0) {
+            problems.add(Problem.warning(source, "attack_speed", "attack_speed does nothing without attack_damage.",
+                    "Add attack_damage, or remove attack_speed."));
+        }
 
         var mechanics = foundry.core.mechanics.MechanicParser.parse(source, id == null ? source : id.toString(),
                 o.get("mechanics"), problems);
 
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
-        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, List.copyOf(mechanics)),
+        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, attackDamage, attackSpeed, List.copyOf(mechanics)),
                 problems);
     }
 
@@ -76,6 +87,21 @@ public final class ItemParser {
             return o.get(key).getAsInt();
         } catch (RuntimeException e) {
             out.add(Problem.error(src, key, key + " must be a whole number.", "Use a number such as " + dflt + "."));
+            return dflt;
+        }
+    }
+
+    private static double decimalField(JsonObject o, String key, double dflt, double min, double max, String src, List<Problem> out) {
+        if (!o.has(key)) return dflt;
+        try {
+            double v = o.get(key).getAsDouble();
+            if (v < min || v > max) {
+                out.add(Problem.error(src, key, key + " must be between " + min + " and " + max + ".", "Use a number in that range."));
+                return dflt;
+            }
+            return v;
+        } catch (RuntimeException e) {
+            out.add(Problem.error(src, key, key + " must be a number.", "Use a number such as " + dflt + "."));
             return dflt;
         }
     }

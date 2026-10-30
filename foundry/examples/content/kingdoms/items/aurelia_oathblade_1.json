@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:aurelia_oathblade_1",
+  "display_name": "Oathblade",
+  "lore": [
+    "Hit: 2 extra damage and Weakness for 3s.",
+    "Right click: Holy Lance, a bolt of light. 15s recharge.",
+    "Sneak and right click: Rally, Strength and Speed for you and allies within 6 blocks for 8s. 60s recharge.",
+    "Upgrade: 2 diamonds and 2 gold blocks, crafted with this."
+  ],
+  "base_item": "minecraft:iron_sword",
+  "stack_size": 1,
+  "glint": true,
+  "rarity": "uncommon",
+  "attack_damage": 7,
+  "attack_speed": 1.6,
+  "mechanics": [
+    {
+      "trigger": "on_hit_entity",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 2,
+          "target": "hit",
+          "ignore_hit_delay": true
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:weakness",
+          "duration": 60,
+          "amplifier": 0,
+          "target": "hit"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.player.attack.crit",
+          "volume": 0.8,
+          "pitch": 1.2
+        }
+      ]
+    },
+    {
+      "name": "Holy Lance",
+      "trigger": "on_use",
+      "cooldown_ticks": 300,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.blaze.shoot",
+          "volume": 0.8,
+          "pitch": 1.6
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "holy_lance",
+          "range": 12,
+          "speed": 1.4,
+          "particle": "minecraft:end_rod"
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "holy_lance",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 4,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:weakness",
+          "duration": 80,
+          "amplifier": 0,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:end_rod",
+          "count": 16,
+          "spread": 0.4,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Rally",
+      "trigger": "on_use",
+      "cooldown_ticks": 1200,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": true
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:item.goat_horn.sound.0",
+          "volume": 1.0,
+          "pitch": 1.0
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:strength",
+          "duration": 160,
+          "amplifier": 0,
+          "target": "area",
+          "radius": 6
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:speed",
+          "duration": 160,
+          "amplifier": 0,
+          "target": "area",
+          "radius": 6
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:happy_villager",
+          "count": 30,
+          "spread": 2.0
+        }
+      ]
+    }
+  ]
+}

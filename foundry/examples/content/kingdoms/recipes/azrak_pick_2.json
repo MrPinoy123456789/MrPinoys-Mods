@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azrak_pick_2",
+  "type": "shapeless",
+  "ingredients": [
+    "kingdoms:azrak_pick_1",
+    "minecraft:diamond",
+    "minecraft:diamond",
+    "minecraft:iron_block",
+    "minecraft:iron_block"
+  ],
+  "result": "kingdoms:azrak_pick_2"
+}

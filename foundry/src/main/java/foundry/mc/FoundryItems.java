@@ -13,8 +13,12 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.ItemLore;
 
 /**
@@ -36,6 +40,15 @@ final class FoundryItems {
                 .rarity(Rarity.valueOf(def.rarity().toUpperCase(Locale.ROOT)));
         if (def.durability() > 0) props.durability(def.durability());
         if (def.glint()) props.component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        if (def.hasMeleeStats()) {
+            // The base values are the player's own 1 damage and 4 swings a second, so the modifiers are the difference.
+            props.attributes(ItemAttributeModifiers.builder()
+                    .add(Attributes.ATTACK_DAMAGE, new AttributeModifier(Item.BASE_ATTACK_DAMAGE_ID,
+                            def.attackDamage() - 1, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
+                    .add(Attributes.ATTACK_SPEED, new AttributeModifier(Item.BASE_ATTACK_SPEED_ID,
+                            def.attackSpeed() - 4, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
+                    .build());
+        }
         if (!def.lore().isEmpty()) {
             List<Component> lines = def.lore().stream().<Component>map(Component::literal).toList();
             props.component(DataComponents.LORE, new ItemLore(lines));

@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azrak_pick_2",
+  "display_name": "Runed War Pick II",
+  "lore": [
+    "Hit: 3 extra damage that ignores armour.",
+    "Right click: Rockfall, a heavy blast at close range. 11s recharge.",
+    "Sneak and right click: Stone Skin, tough but slow for 7s. 85s recharge.",
+    "Upgrade: a netherite ingot and 2 diamonds, crafted with this."
+  ],
+  "base_item": "minecraft:stone_pickaxe",
+  "stack_size": 1,
+  "glint": true,
+  "rarity": "rare",
+  "attack_damage": 7,
+  "attack_speed": 1.25,
+  "mechanics": [
+    {
+      "trigger": "on_hit_entity",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 3,
+          "target": "hit",
+          "ignore_hit_delay": true
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:block.anvil.hit",
+          "volume": 0.6,
+          "pitch": 1.4
+        }
+      ]
+    },
+    {
+      "name": "Rockfall",
+      "trigger": "on_use",
+      "cooldown_ticks": 220,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:block.stone.break",
+          "volume": 1.0,
+          "pitch": 0.7
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "rockfall",
+          "range": 6,
+          "speed": 1.0,
+          "particle": "minecraft:crit",
+          "radius": 0.7
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "rockfall",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 6,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:slowness",
+          "duration": 60,
+          "amplifier": 1,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:crit",
+          "count": 14,
+          "spread": 0.4,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Stone Skin",
+      "trigger": "on_use",
+      "cooldown_ticks": 1700,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": true
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:block.stone.place",
+          "volume": 1.0,
+          "pitch": 0.6
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:resistance",
+          "duration": 140,
+          "amplifier": 1
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:slowness",
+          "duration": 140,
+          "amplifier": 0
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:ash",
+          "count": 24,
+          "spread": 0.6
+        }
+      ]
+    }
+  ]
+}

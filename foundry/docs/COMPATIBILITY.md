@@ -24,7 +24,12 @@ resource-pack-extras, sound-patcher and virtual-entity. It does not contain SGUI
 | Left click (on_swing) | Verified in gametest, not in a client | No item swing hook exists in 26.2 and Foundry uses no Mixins, so `Swings` watches `ServerPlayer.swinging` each tick and ignores swings caused by right click, hitting an entity or starting to mine |
 | Bolts (launch_bolt, on_bolt_hit) | Verified in gametest, not in a client | Server-side stepped point with particles, no entity; `Bolts` |
 | Permission filters | Verified in gametest with an injected check | `Permission.Atom` on vanilla's `PermissionSet`; whether LuckPerms feeds it on 26.2 is unchecked |
-| Recipes | Blocked | No public add path found without a Mixin; DECISIONS.md D8 |
+| Recipes | Verified in gametest through a generated data pack | DECISIONS.md D8 and D9; recipes unlock in the book through generated advancements, which is not verified in a client |
+| Melee numbers (attack_damage, attack_speed) | Verified in gametest, not in a client | `Item.Properties.attributes` on the server item, copied to the client stack in `modifyBasePolymerItemStack` so the swing meter matches |
+| Hold to charge (charge_ticks) | Verified in gametest, not in a client | Server: `startUsingItem`, `releaseUsing`. Client: a `consumable` component with the bow animation and a very long time on the client stack only. Needs a real client check of the draw pose |
+| Returning bolts (returns, return_tag) | Verified in gametest, not in a client | The bolt turns on a hit, a block or the end of its range and homes on the caster, passing through blocks |
+| Armour-piercing and in-window bonus hits (damage ignore_hit_delay) | Verified in gametest | `indirect_magic` is in `#minecraft:bypasses_armor` in 26.2 data; the option clears the target's hit window so a bonus after a swing lands in full |
+| Recipe book entries and "New recipe" toast | Not verified in a client | One generated advancement per recipe, rewarded on first holding its first ingredient; how Polymer shows the Foundry item in the book is unchecked |
 | Furniture | Not verified | Needs D3 |
 | Custom blocks | Not verified | Needs D4; expect a hard cap on distinct blocks |
 | Armor appearance | Not verified | Depends on 26.2 equipment asset support |

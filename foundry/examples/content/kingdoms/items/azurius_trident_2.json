@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azurius_trident_2",
+  "display_name": "Tide Trident II",
+  "lore": [
+    "Left click: Water Jet, 4 damage at range.",
+    "Right click: throw the trident. It flies out, hits, and returns, soaking what it strikes. 14s recharge.",
+    "Sneak and right click: Riptide Mist, water breathing and speed in water for 25s. 55s recharge.",
+    "Upgrade: a heart of the sea and 2 nautilus shells, crafted with this."
+  ],
+  "base_item": "minecraft:stick",
+  "stack_size": 1,
+  "glint": true,
+  "rarity": "rare",
+  "attack_damage": 6,
+  "attack_speed": 1.1,
+  "mechanics": [
+    {
+      "trigger": "on_swing",
+      "cooldown_ticks": 13,
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.dolphin.splash",
+          "volume": 0.8,
+          "pitch": 1.5
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "water_jet",
+          "range": 25,
+          "speed": 1.3,
+          "particle": "minecraft:bubble"
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "water_jet",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 4,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:splash",
+          "count": 14,
+          "spread": 0.4,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Trident Throw",
+      "trigger": "on_use",
+      "cooldown_ticks": 280,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:item.trident.throw",
+          "volume": 1.0,
+          "pitch": 1.0
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "trident_out",
+          "range": 22,
+          "speed": 1.4,
+          "particle": "minecraft:bubble_pop",
+          "returns": true,
+          "return_tag": "trident_back",
+          "radius": 0.8
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "trident_out",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 5,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:slowness",
+          "duration": 100,
+          "amplifier": 1,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:mining_fatigue",
+          "duration": 100,
+          "amplifier": 0,
+          "target": "hit"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:item.trident.hit",
+          "volume": 1.0,
+          "pitch": 1.0
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:splash",
+          "count": 20,
+          "spread": 0.5,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "trident_back",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 3,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:slowness",
+          "duration": 50,
+          "amplifier": 1,
+          "target": "hit"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:item.trident.return",
+          "volume": 0.8,
+          "pitch": 1.2
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:splash",
+          "count": 10,
+          "spread": 0.4,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Riptide Mist",
+      "trigger": "on_use",
+      "cooldown_ticks": 1100,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": true
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.dolphin.play",
+          "volume": 1.0,
+          "pitch": 1.0
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:water_breathing",
+          "duration": 500,
+          "amplifier": 0
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:dolphins_grace",
+          "duration": 500,
+          "amplifier": 0
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:bubble",
+          "count": 30,
+          "spread": 0.8
+        }
+      ]
+    }
+  ]
+}

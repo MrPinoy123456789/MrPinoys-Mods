@@ -3,6 +3,7 @@ package foundry;
 import foundry.core.ContentLoader;
 import foundry.core.ContentSet;
 import foundry.core.Ident;
+import foundry.core.ItemDef;
 import foundry.core.ItemParser;
 import foundry.core.PackFiles;
 import foundry.core.Problem;
@@ -28,6 +29,8 @@ public final class CoreSuite {
         renames();
         orphans();
         packInputs();
+        charging();
+        weaponTiers();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -161,6 +164,45 @@ public final class CoreSuite {
         check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"send_message\",\"message\":\"" + "x".repeat(81) + "\"}")),
                 "1 to 80 characters"), "messages are length capped");
 
+        // Melee numbers: a hit's whole damage and the swing rate, defaulting to a sword's.
+        var melee = ItemParser.parse("a.json", GOOD.replace("\"durability\": 500", "\"durability\": 500, \"attack_damage\": 6"));
+        check(melee.def() != null && melee.def().attackDamage() == 6 && melee.def().attackSpeed() == ItemDef.DEFAULT_ATTACK_SPEED
+                && melee.def().hasMeleeStats(), "attack_damage alone uses the sword's swing rate");
+        var slow = ItemParser.parse("a.json", GOOD.replace("\"durability\": 500", "\"durability\": 500, \"attack_damage\": 7, \"attack_speed\": 1.2"));
+        check(slow.def() != null && slow.def().attackSpeed() == 1.2, "attack_speed is kept");
+        check(!ItemParser.parse("a.json", GOOD).def().hasMeleeStats(), "an item with no melee numbers keeps its base item's");
+        check(ItemParser.parse("a.json", GOOD.replace("\"durability\": 500", "\"durability\": 500, \"attack_damage\": 0.5")).def() == null,
+                "attack_damage below one is an error");
+        check(ItemParser.parse("a.json", GOOD.replace("\"durability\": 500", "\"durability\": 500, \"attack_damage\": 500")).def() == null,
+                "attack_damage is capped");
+
+        // Hold to charge: an on_use mechanic that fires at release after charge_ticks.
+        var charged = ItemParser.parse("c.json", withMechanics(mech("on_use", ",\"charge_ticks\":20", BOLT)));
+        check(charged.def() != null && charged.def().mechanics().get(0).charged()
+                && charged.def().mechanics().get(0).chargeTicks() == 20, "charge_ticks on an on_use mechanic parses");
+        check(!ItemParser.parse("c.json", withMechanics(mech("on_use", "", BOLT))).def().mechanics().get(0).charged(),
+                "a mechanic with no charge_ticks fires at once");
+        check(hasError(withMechanics(mech("on_swing", ",\"charge_ticks\":20", BOLT)), "only belongs on an on_use"),
+                "charge_ticks belongs on on_use only");
+        check(hasError(withMechanics(mech("on_use", ",\"charge_ticks\":999", BOLT)), "0 to"), "charge_ticks is capped");
+
+        // A bolt that comes back, with its own tag for what it strikes on the way.
+        check(ItemParser.parse("r.json", withMechanics(mech("on_use", "",
+                "{\"type\":\"launch_bolt\",\"tag\":\"out\",\"returns\":true,\"return_tag\":\"back\"}"))).def() != null,
+                "a returning bolt with a return tag parses");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"launch_bolt\",\"tag\":\"out\",\"returns\":\"maybe\"}")),
+                "true or false"), "returns must be a boolean");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"launch_bolt\",\"tag\":\"out\",\"return_tag\":\"Bad Tag\"}")),
+                "1 to 32 characters"), "return_tag must be a plain name");
+
+        // A bonus hit that must land in full asks to clear the target's hit window.
+        check(ItemParser.parse("d.json", withMechanics(mech("on_hit_entity", "",
+                "{\"type\":\"damage\",\"amount\":2,\"target\":\"hit\",\"ignore_hit_delay\":true}"))).def() != null,
+                "ignore_hit_delay parses on a damage action");
+        check(hasError(withMechanics(mech("on_hit_entity", "",
+                "{\"type\":\"damage\",\"amount\":2,\"target\":\"hit\",\"ignore_hit_delay\":\"yes\"}")), "true or false"),
+                "ignore_hit_delay must be a boolean");
+
         // The runner reports a power's cooldown, and checks conditions before it so a sneak power on cooldown stays quiet.
         var run = new foundry.core.mechanics.MechanicRunner();
         long[] tick = {0};
@@ -192,6 +234,76 @@ public final class CoreSuite {
         } catch (java.io.IOException e) {
             check(false, "the fairy wand example is readable: " + e);
         }
+    }
+
+    /** A charged mechanic is checked when the hold starts and fired at release, whatever the conditions say by then. */
+    private static void charging() {
+        var def = ItemParser.parse("c.json", withMechanics(
+                "[{\"trigger\":\"on_use\",\"cooldown_ticks\":100,\"charge_ticks\":20,"
+                        + "\"conditions\":[{\"type\":\"is_sneaking\",\"value\":false}],"
+                        + "\"actions\":[{\"type\":\"play_sound\",\"sound\":\"minecraft:block.stone.hit\"}]}]")).def().mechanics().get(0);
+        var run = new foundry.core.mechanics.MechanicRunner();
+        long[] tick = {0};
+        boolean[] sneaking = {false};
+        int[] performed = {0};
+        foundry.core.mechanics.MechanicRunner.Host host = new foundry.core.mechanics.MechanicRunner.Host() {
+            public long nowTick() { return tick[0]; }
+            public boolean holds(foundry.core.mechanics.Step c) { return sneaking[0] == Boolean.parseBoolean(c.param("value", "true")); }
+            public boolean roll(double p) { return true; }
+            public void perform(foundry.core.mechanics.Step a) { performed[0]++; }
+        };
+        check(run.ready("a", "t:s", 0, def, host), "a charged mechanic may start when its conditions hold");
+        check(performed[0] == 0, "checking readiness runs nothing");
+        sneaking[0] = true;
+        check(!run.ready("a", "t:s", 0, def, host), "and may not start when they do not");
+        sneaking[0] = false;
+        check(run.ready("a", "t:s", 0, def, host), "ready again once they hold");
+        sneaking[0] = true;   // the player starts sneaking midway through the hold
+        check(run.fire("a", "t:s", 0, def, host, false) == foundry.core.mechanics.MechanicRunner.Outcome.RAN && performed[0] == 1,
+                "the armed mechanic still fires at release, conditions were checked at the start");
+        check(!run.ready("a", "t:s", 0, def, host) && run.cooldownLeft("a", "t:s", 0, 0) == 100, "then it is on cooldown");
+        sneaking[0] = false;
+        check(!run.ready("a", "t:s", 0, def, host), "and a cooldown blocks the next hold");
+        tick[0] = 100;
+        check(run.ready("a", "t:s", 0, def, host), "until it runs out");
+    }
+
+    /** The shipped weapons: every tier parses within the mechanic limit, and each upgrade starts from the tier below. */
+    private static void weaponTiers() throws Exception {
+        int items = 0;
+        int recipes = 0;
+        for (String ns : java.util.List.of("kingdoms", "demo")) {
+            Path itemDir = Path.of("examples/content", ns, "items");
+            Path recipeDir = Path.of("examples/content", ns, "recipes");
+            try (var files = Files.list(itemDir)) {
+                for (Path f : files.toList()) {
+                    String name = f.getFileName().toString();
+                    if (!name.matches("(azrak_pick|aurelia_oathblade|azurius_trident|faeloria_staff)_[123]\\.json|fairy_wand(_[23])?\\.json")) continue;
+                    var r = ItemParser.parse(name, Files.readString(f));
+                    check(r.def() != null && r.problems().stream().noneMatch(Problem::blocking), name + " parses with no blocking problem");
+                    check(r.def().mechanics().size() <= foundry.core.mechanics.MechanicDef.MAX_MECHANICS_PER_ITEM, name + " is within the mechanic limit");
+                    check(r.def().lore().stream().noneMatch(l -> l.contains("—") || l.contains(" -- ")), name + " lore has no dashes");
+                    items++;
+                }
+            }
+            if (!Files.isDirectory(recipeDir)) continue;
+            try (var files = Files.list(recipeDir)) {
+                for (Path f : files.toList()) {
+                    String name = f.getFileName().toString();
+                    if (!name.matches("(azrak_pick|aurelia_oathblade|azurius_trident|faeloria_staff)_[23]\\.json|fairy_wand_[23]\\.json")) continue;
+                    var r = foundry.core.RecipeParser.parse(name, Files.readString(f));
+                    check(r.def() != null, name + " parses");
+                    String result = r.def().result().toString();
+                    int tier = Integer.parseInt(result.substring(result.length() - 1));
+                    String previous = result.substring(0, result.length() - 1) + (tier - 1);
+                    if (result.endsWith("fairy_wand_2")) previous = "demo:fairy_wand";
+                    check(r.def().ingredients().get(0).equals(previous), name + " upgrades from the tier below (" + previous + ")");
+                    check(Ident.parse(foundry.core.RecipeFiles.unlockItem(r.def())) != null, name + " has an item that unlocks it");
+                    recipes++;
+                }
+            }
+        }
+        check(items == 15 && recipes == 10, "five weapons of three tiers and ten upgrades are shipped (" + items + " items, " + recipes + " recipes)");
     }
 
     private static boolean hasError(String json, String fragment) {
@@ -416,7 +528,14 @@ public final class CoreSuite {
                 p -> p.where().equals("ingredients") && p.blocking()), "an unknown ingredient blocks the recipe");
 
         var files = foundry.core.RecipeFiles.generate(set.recipes());
-        check(files.size() == 1 && files.containsKey("data/t/recipe/gem.json"), "generated recipe path");
+        check(files.size() == 2 && files.containsKey("data/t/recipe/gem.json"), "generated recipe path");
+        // Each recipe comes with the advancement that adds it to the recipe book and raises the "New recipe" toast.
+        String unlock = files.get("data/t/advancement/recipes/foundry/gem.json");
+        check(unlock != null && unlock.contains("\"parent\":\"minecraft:recipes/root\"")
+                && unlock.contains("\"trigger\":\"minecraft:inventory_changed\"")
+                && unlock.contains("\"recipes\":[\"t:gem\"]")
+                && unlock.contains("\"items\":\"" + foundry.core.RecipeFiles.unlockItem(set.recipes().values().iterator().next()) + "\""),
+                "generated unlock advancement");
         check(files.get("data/t/recipe/gem.json").contains("\"type\":\"minecraft:crafting_shapeless\"")
                 && files.get("data/t/recipe/gem.json").contains("\"count\":2"), "generated recipe body");
         var shaped = foundry.core.RecipeParser.parse("s.json",

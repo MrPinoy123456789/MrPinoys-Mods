@@ -3,12 +3,12 @@
   "id": "demo:fairy_wand",
   "display_name": "Fairy Wand",
   "lore": [
-    "Left click: a sparkle bolt.",
-    "Right click: Mischief, a bolt that blinds and slows.",
-    "Sneak and right click: Healing Light, regeneration for nearby players."
+    "Left click: a sparkle bolt, 3 damage.",
+    "Right click: Mischief, a bolt that hurts, blinds and slows. 20s recharge.",
+    "Sneak and right click: Healing Light, regeneration for players nearby. 75s recharge.",
+    "Upgrade: 3 amethyst shards and a glow ink sac, crafted with this."
   ],
   "base_item": "minecraft:stick",
-  "texture": "demo:item/fairy_wand",
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",
@@ -93,9 +93,15 @@
       "tag": "mischief",
       "actions": [
         {
+          "type": "damage",
+          "amount": 2,
+          "target": "hit"
+        },
+        {
           "type": "apply_effect",
           "effect": "minecraft:blindness",
           "duration": 60,
+          "amplifier": 0,
           "target": "hit"
         },
         {

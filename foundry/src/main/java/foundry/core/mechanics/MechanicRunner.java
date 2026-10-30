@@ -35,7 +35,24 @@ public final class MechanicRunner {
         return Math.max(0, readyAt.getOrDefault(actor + "|" + contentId + "|" + mechanicIndex, 0L) - now);
     }
 
+    /** True when the mechanic's conditions hold and it is off cooldown: the check a hold-to-charge start makes. */
+    public boolean ready(String actor, String contentId, int mechanicIndex, MechanicDef m, Host host) {
+        if (running) return false;
+        for (Step c : m.conditions()) {
+            if (!host.holds(c)) return false;
+        }
+        return cooldownLeft(actor, contentId, mechanicIndex, host.nowTick()) <= 0;
+    }
+
     public Outcome fire(String actor, String contentId, int mechanicIndex, MechanicDef m, Host host) {
+        return fire(actor, contentId, mechanicIndex, m, host, true);
+    }
+
+    /**
+     * As {@link #fire(String, String, int, MechanicDef, Host)}. {@code checkConditions} false runs a charged mechanic
+     * whose conditions were checked when the hold began, so letting go of sneak mid-hold does not change what fires.
+     */
+    public Outcome fire(String actor, String contentId, int mechanicIndex, MechanicDef m, Host host, boolean checkConditions) {
         if (running) return Outcome.REENTERED;
         long now = host.nowTick();
         Deque<Long> window = recent.computeIfAbsent(actor, k -> new ArrayDeque<>());
@@ -45,7 +62,7 @@ public final class MechanicRunner {
         String key = actor + "|" + contentId + "|" + mechanicIndex;
         // Conditions first: a sneak-only power on cooldown must not answer a plain right click.
         for (Step c : m.conditions()) {
-            if (!host.holds(c)) return Outcome.CONDITION_FAILED;
+            if (checkConditions && !host.holds(c)) return Outcome.CONDITION_FAILED;
         }
         if (m.cooldownTicks() > 0 && readyAt.getOrDefault(key, 0L) > now) return Outcome.ON_COOLDOWN;
         if (m.probability() < 1.0 && !host.roll(m.probability())) return Outcome.CHANCE_FAILED;

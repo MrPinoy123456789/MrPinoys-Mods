@@ -31,6 +31,9 @@ public final class Bolts {
     static final int MAX_PER_CASTER = 8;
     /** Distance covered per collision step; small enough that a thin target cannot be skipped. */
     private static final double STEP = 0.4;
+    /** A returning bolt gives up after four seconds, and may strike the entity it left again after a quarter second. */
+    private static final int RETURN_TICK_CAP = 80;
+    private static final int RETURN_FORGET_TICKS = 5;
 
     private static final class Bolt {
         final ServerLevel level;
@@ -44,6 +47,13 @@ public final class Bolts {
         Vec3 pos;
         final Vec3 dir;
         double remaining;
+        /** A returning bolt (a thrown weapon) flies back to its caster after it lands or runs out of range. */
+        final boolean returns;
+        final String returnTag;
+        boolean coming;
+        int returnTicks;
+        /** On the way back a bolt hits each entity once, and not the one it has just left. */
+        final java.util.Set<UUID> struckOnReturn = new java.util.HashSet<>();
 
         Bolt(ServerLevel level, ServerPlayer owner, String contentId, Step spec, SimpleParticleType particle) {
             this.level = level;
@@ -55,6 +65,8 @@ public final class Bolts {
             this.speed = spec.decimalParam("speed", 1.0);
             this.hitRadius = spec.decimalParam("radius", 0.4);
             this.remaining = spec.decimalParam("range", 10);
+            this.returns = Boolean.parseBoolean(spec.param("returns", "false"));
+            this.returnTag = spec.param("return_tag", "");
             this.dir = owner.getLookAngle().normalize();
             this.pos = owner.getEyePosition().add(dir.scale(0.5)).add(0, -0.15, 0);
         }
@@ -99,6 +111,7 @@ public final class Bolts {
 
     /** Moves one tick of travel. Returns false when the bolt is finished. */
     private static boolean advance(Bolt b, ServerPlayer owner) {
+        if (b.coming) return advanceReturn(b, owner);
         double travel = Math.min(b.speed, b.remaining);
         double done = 0;
         while (done < travel) {
@@ -107,20 +120,52 @@ public final class Bolts {
             LivingEntity struck = firstEntity(b, owner, b.pos, next);
             var block = b.level.clip(new ClipContext(b.pos, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, owner));
             if (struck != null) {
-                landed(b, owner, struck);
-                return false;
+                landed(b, owner, struck, b.tag);
+                return b.returns ? turnBack(b, struck) : false;
             }
             if (block.getType() != HitResult.Type.MISS) {
                 b.level.sendParticles(ParticleTypes.POOF, block.getLocation().x, block.getLocation().y, block.getLocation().z,
                         2, 0.05, 0.05, 0.05, 0.01);
-                return false;
+                return b.returns ? turnBack(b, null) : false;
             }
             b.pos = next;
             done += step;
             b.level.sendParticles(b.particle, next.x, next.y, next.z, 1, 0, 0, 0, 0);
         }
         b.remaining -= travel;
-        return b.remaining > 0;
+        if (b.remaining > 0) return true;
+        return b.returns ? turnBack(b, null) : false;
+    }
+
+    /** The outward leg is over: the bolt now flies back to the caster. The entity it just left is skipped. */
+    private static boolean turnBack(Bolt b, LivingEntity left) {
+        b.coming = true;
+        if (left != null) b.struckOnReturn.add(left.getUUID());
+        return true;
+    }
+
+    /** Homes on the caster's current position, passing through blocks, and ends on reaching them or after a cap. */
+    private static boolean advanceReturn(Bolt b, ServerPlayer owner) {
+        Vec3 home = owner.getEyePosition().add(0, -0.3, 0);
+        if (b.pos.distanceTo(home) < 1.3 || ++b.returnTicks > RETURN_TICK_CAP) return false;
+        // The entity just struck is left behind after a few ticks, so it can be struck again on the way back.
+        if (b.returnTicks == RETURN_FORGET_TICKS) b.struckOnReturn.clear();
+        double travel = Math.min(b.speed * 1.2, b.pos.distanceTo(home));
+        double done = 0;
+        while (done < travel) {
+            double step = Math.min(STEP, travel - done);
+            Vec3 toward = home.subtract(b.pos);
+            if (toward.lengthSqr() < 1.0E-4) break;
+            Vec3 next = b.pos.add(toward.normalize().scale(step));
+            LivingEntity struck = firstEntity(b, owner, b.pos, next);
+            if (struck != null && b.struckOnReturn.add(struck.getUUID()) && !b.returnTag.isEmpty()) {
+                landed(b, owner, struck, b.returnTag);
+            }
+            b.pos = next;
+            done += step;
+            b.level.sendParticles(b.particle, next.x, next.y, next.z, 1, 0, 0, 0, 0);
+        }
+        return true;
     }
 
     private static LivingEntity firstEntity(Bolt b, ServerPlayer owner, Vec3 from, Vec3 to) {
@@ -129,6 +174,7 @@ public final class Bolts {
         double bestDistance = Double.MAX_VALUE;
         for (var e : b.level.getEntities(owner, sweep, x -> x instanceof LivingEntity l && l.isAlive() && !l.isSpectator())) {
             LivingEntity living = (LivingEntity) e;
+            if (b.coming && b.struckOnReturn.contains(living.getUUID())) continue;
             if (!MechanicHost.passesFilters(b.spec, living)) continue;
             Optional<Vec3> at = living.getBoundingBox().inflate(b.hitRadius).clip(from, to);
             if (at.isPresent() && from.distanceToSqr(at.get()) < bestDistance) {
@@ -139,10 +185,10 @@ public final class Bolts {
         return best;
     }
 
-    private static void landed(Bolt b, ServerPlayer owner, LivingEntity struck) {
+    private static void landed(Bolt b, ServerPlayer owner, LivingEntity struck, String tag) {
         var ident = foundry.core.Ident.parse(b.contentId);
         var def = ident == null ? null : FoundryMod.loaded().items().get(ident);
         if (def == null) return;
-        MechanicHost.fire(Trigger.ON_BOLT_HIT, b.tag, b.contentId, def.mechanics(), owner, struck);
+        MechanicHost.fire(Trigger.ON_BOLT_HIT, tag, b.contentId, def.mechanics(), owner, struck);
     }
 }

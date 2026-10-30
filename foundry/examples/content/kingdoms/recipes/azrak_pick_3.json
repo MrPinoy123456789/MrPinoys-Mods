@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azrak_pick_3",
+  "type": "shapeless",
+  "ingredients": [
+    "kingdoms:azrak_pick_2",
+    "minecraft:netherite_ingot",
+    "minecraft:diamond",
+    "minecraft:diamond"
+  ],
+  "result": "kingdoms:azrak_pick_3"
+}

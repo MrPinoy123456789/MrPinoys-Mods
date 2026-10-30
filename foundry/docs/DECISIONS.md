@@ -73,3 +73,24 @@ option 1 is the fallback.
 
 The mod is called Foundry (`foundry/`, jar `MrPinoys_Foundry`). It must not be called NexoCraft. The owner may still
 rename it; if so the change is a find and replace of the id, package and folder done by Claude, not by Devin.
+
+## D9 (2026-10-30): kingdom weapons, tiers and what they needed
+
+Five weapons (one per race) each come in three tiers; every tier is its own item and a shapeless recipe turns the tier
+below into the next. They are written by `tools/gen_weapons.py`, so rebalancing is a table edit and a rerun. Decisions
+that went into it:
+- Melee numbers are item fields (`attack_damage`, `attack_speed`) applied as attribute modifiers, because a custom
+  item otherwise punches for 1 whatever its look.
+- Armour piercing is vanilla `indirect_magic` damage, which bypasses armour in 26.2 data. A bonus after a swing lands
+  inside the target's hit window, so `damage` has `ignore_hit_delay` to clear it first.
+- Hold to charge follows the bow: the client sees a `consumable` component with the bow animation and a very long time,
+  so it never finishes by itself; the server decides at release. The mechanic is armed when the hold starts, so
+  letting go of sneak halfway changes nothing. Server item keeps no consumable component, or vanilla would eat it.
+- The thrown trident is a returning bolt, not a vanilla trident with Loyalty: a Polymer stack inside a vanilla
+  entity cannot be tested here, and a bolt can carry the soak effect on every hit. It homes on the caster, passes
+  through blocks, and hits entities on the way back that it has not already struck. The target it just hit is not struck
+  again, so "twice on one target" is not a thing.
+- Recipes unlock in the book through generated advancements (the vanilla pattern), triggered by holding the first
+  ingredient. Upgrades list the tier being upgraded first.
+- New weapons use the `kingdoms` namespace; the wand stays `demo:fairy_wand` so held items keep working, and can be
+  moved with `/foundry rename`.

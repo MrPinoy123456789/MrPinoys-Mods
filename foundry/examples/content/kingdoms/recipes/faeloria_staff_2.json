@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:faeloria_staff_2",
+  "type": "shapeless",
+  "ingredients": [
+    "kingdoms:faeloria_staff_1",
+    "minecraft:amethyst_shard",
+    "minecraft:amethyst_shard",
+    "minecraft:amethyst_shard",
+    "minecraft:ender_pearl"
+  ],
+  "result": "kingdoms:faeloria_staff_2"
+}

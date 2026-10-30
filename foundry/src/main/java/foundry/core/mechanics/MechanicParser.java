@@ -78,9 +78,20 @@ public final class MechanicParser {
                 out.add(Problem.error(source, where + ".tag", "tag only belongs on an on_bolt_hit mechanic.",
                         "Remove it; put the tag on the launch_bolt action instead."));
             }
+            int charge = number(o, "charge_ticks", 0, source, where, out);
+            if (charge < 0 || charge > MechanicDef.MAX_CHARGE_TICKS) {
+                out.add(Problem.error(source, where + ".charge_ticks", "charge_ticks must be 0 to " + MechanicDef.MAX_CHARGE_TICKS + ".",
+                        "Use 20 for a one second hold; 0 fires at once."));
+                charge = 0;
+            }
+            if (charge > 0 && trigger != Trigger.ON_USE) {
+                out.add(Problem.error(source, where + ".charge_ticks", "charge_ticks only belongs on an on_use mechanic.",
+                        "Remove it, or change the trigger to on_use."));
+                charge = 0;
+            }
             for (Step c : conditions) check(c, false, source, where + ".conditions", out, trigger);
             for (Step a : actions) check(a, true, source, where + ".actions", out, trigger);
-            if (trigger != null) result.add(new MechanicDef(trigger, conditions, actions, cooldown, chance, name, tag));
+            if (trigger != null) result.add(new MechanicDef(trigger, conditions, actions, cooldown, chance, name, tag, charge));
         }
         return result;
     }

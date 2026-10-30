@@ -60,6 +60,7 @@ public final class MechanicHost implements MechanicRunner.Host {
         for (int i = 0; i < mechanics.size(); i++) {
             MechanicDef m = mechanics.get(i);
             if (m.trigger() != trigger) continue;
+            if (m.charged()) continue; // fires on release, through fireCharged
             if (trigger == Trigger.ON_BOLT_HIT && !m.tag().equals(tag)) continue;
             var outcome = RUNNER.fire(player.getStringUUID(), contentId, i, m, host);
             if (outcome == MechanicRunner.Outcome.RAN) any = true;
@@ -73,6 +74,31 @@ public final class MechanicHost implements MechanicRunner.Host {
             }
         }
         return any;
+    }
+
+    /**
+     * The index of the first charged on_use mechanic that may start now (conditions hold, off cooldown), or -1. The
+     * hold-to-charge start calls this; nothing runs yet.
+     */
+    static int armedCharge(String contentId, List<MechanicDef> mechanics, ServerPlayer player) {
+        MechanicHost host = new MechanicHost(player, null, contentId);
+        for (int i = 0; i < mechanics.size(); i++) {
+            MechanicDef m = mechanics.get(i);
+            if (m.trigger() == Trigger.ON_USE && m.charged()
+                    && RUNNER.ready(player.getStringUUID(), contentId, i, m, host)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Runs the charged mechanic that was armed when the hold began. True when it ran. */
+    static boolean fireCharged(String contentId, List<MechanicDef> mechanics, int index, ServerPlayer player) {
+        if (index < 0 || index >= mechanics.size()) return false;
+        MechanicDef m = mechanics.get(index);
+        MechanicHost host = new MechanicHost(player, null, contentId);
+        var outcome = RUNNER.fire(player.getStringUUID(), contentId, index, m, host, false);
+        return outcome == MechanicRunner.Outcome.RAN;
     }
 
     @Override
@@ -143,8 +169,12 @@ public final class MechanicHost implements MechanicRunner.Host {
                             target.addEffect(instance);
                         }
                     });
-            case "damage" -> target.hurtServer(level, level.damageSources().indirectMagic(player, player),
-                    (float) action.decimalParam("amount", 1));
+            case "damage" -> {
+                // A hit that follows a melee swing lands inside the target's hit window, where vanilla only applies
+                // the amount above the last hit. A bonus that must land in full asks to clear the window first.
+                if (Boolean.parseBoolean(action.param("ignore_hit_delay", "false"))) target.invulnerableTime = 0;
+                target.hurtServer(level, level.damageSources().indirectMagic(player, player), (float) action.decimalParam("amount", 1));
+            }
             case "spawn_particles" -> {
                 var type = BuiltInRegistries.PARTICLE_TYPE.getValue(Identifier.parse(action.param("particle", "")));
                 if (type instanceof net.minecraft.core.particles.SimpleParticleType simple) {

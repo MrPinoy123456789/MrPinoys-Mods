@@ -58,9 +58,63 @@ final class FoundryItem extends SimplePolymerItem {
         if (player instanceof ServerPlayer sp) {
             // Right click makes the server swing the arm; that swing is not a left click.
             Swings.suppress(sp);
-            if (MechanicHost.fire(Trigger.ON_USE, contentId, mechanics(), sp, null)) return InteractionResult.SUCCESS;
+            var list = mechanics();
+            // A charged mechanic starts a hold, and fires when it is released after long enough.
+            int armed = MechanicHost.armedCharge(contentId, list, sp);
+            if (armed >= 0) {
+                Charging.begin(sp, new Charging.Hold(contentId, armed, sp.level().getServer().getTickCount(),
+                        list.get(armed).chargeTicks()));
+                sp.startUsingItem(hand);
+                return InteractionResult.CONSUME;
+            }
+            if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
         }
         return super.use(level, player, hand);
+    }
+
+    private boolean hasCharge() {
+        return mechanics().stream().anyMatch(MechanicDef::charged);
+    }
+
+    /** A held item has no end: the player decides when to let go. Items with no charged mechanic are untouched. */
+    @Override
+    public int getUseDuration(ItemStack stack, LivingEntity entity) {
+        return hasCharge() ? 72000 : super.getUseDuration(stack, entity);
+    }
+
+    @Override
+    public boolean releaseUsing(ItemStack stack, Level level, LivingEntity entity, int remainingTicks) {
+        if (!(entity instanceof ServerPlayer sp)) return false;
+        var hold = Charging.end(sp);
+        if (hold == null || !hold.contentId().equals(contentId)) return false;
+        long held = sp.level().getServer().getTickCount() - hold.startTick();
+        if (held < hold.needTicks()) {
+            sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Hold longer"), true);
+            return false;
+        }
+        return MechanicHost.fireCharged(contentId, mechanics(), hold.index(), sp);
+    }
+
+    /** What the client is told to show: a bow draw for a charged item, and the melee numbers the server uses. */
+    private static final net.minecraft.world.item.component.Consumable CHARGE_LOOK =
+            net.minecraft.world.item.component.Consumable.builder()
+                    .consumeSeconds(3600f)
+                    .animation(net.minecraft.world.item.ItemUseAnimation.BOW)
+                    .sound(net.minecraft.core.Holder.direct(net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                            Identifier.parse("minecraft:intentionally_empty"))))
+                    .hasConsumeParticles(false)
+                    .build();
+
+    @Override
+    public void modifyBasePolymerItemStack(ItemStack out, ItemStack stack, PacketContext context, HolderLookup.Provider lookup) {
+        super.modifyBasePolymerItemStack(out, stack, context, lookup);
+        var def = FoundryMod.loaded().items().get(ident);
+        if (def != null && def.hasMeleeStats()) {
+            var attributes = stack.get(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS);
+            if (attributes != null) out.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, attributes);
+        }
+        // Held for a "long" time on the client, so it never finishes by itself; the server decides at release.
+        if (hasCharge()) out.set(net.minecraft.core.component.DataComponents.CONSUMABLE, CHARGE_LOOK);
     }
 
     @Override

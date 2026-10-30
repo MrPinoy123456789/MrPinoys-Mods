@@ -22,6 +22,7 @@ public final class MechanicTypes {
         static Param optId(String n) { return new Param(n, Kind.ID, false, 0, 0); }
         static Param bool(String n) { return new Param(n, Kind.BOOL, false, 0, 0); }
         static Param name(String n) { return new Param(n, Kind.NAME, true, 0, 0); }
+        static Param optName(String n) { return new Param(n, Kind.NAME, false, 0, 0); }
         static Param text(String n) { return new Param(n, Kind.TEXT, true, 0, 0); }
     }
 
@@ -46,13 +47,13 @@ public final class MechanicTypes {
                 Param.integer("amplifier", false, 0, 255), Param.target(), Param.decimal("radius", false, 0.5, 16),
                 Param.optId("require_permission"), Param.optId("exclude_permission"));
         action("give_item", Param.id("item"), Param.integer("count", false, 1, 99), Param.target());
-        action("damage", Param.decimal("amount", true, 0.5, 100), Param.target());
+        action("damage", Param.decimal("amount", true, 0.5, 100), Param.target(), Param.bool("ignore_hit_delay"));
         action("spawn_particles", Param.id("particle"), Param.integer("count", false, 1, 100),
                 Param.decimal("spread", false, 0, 5), Param.decimal("speed", false, 0, 2), Param.target());
         action("send_message", Param.text("message"), Param.target());
         action("launch_bolt", Param.name("tag"), Param.decimal("range", false, 1, 64), Param.decimal("speed", false, 0.2, 3),
                 Param.decimal("radius", false, 0.1, 2), Param.optId("particle"), Param.optId("require_permission"),
-                Param.optId("exclude_permission"));
+                Param.optId("exclude_permission"), Param.bool("returns"), Param.optName("return_tag"));
         condition("has_permission", Param.integer("level", true, 0, 4), Param.target());
         condition("is_sneaking", Param.bool("value"));
     }
