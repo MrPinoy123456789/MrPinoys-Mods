@@ -191,7 +191,7 @@ final class FoundryCommands {
                     + ". Run /foundry validate; new items need a restart."));
             return 0;
         }
-        target.getInventory().placeItemBackInInventory(new ItemStack(item, count));
+        target.getInventory().placeItemBackInInventory(new ItemStack(item, count), net.minecraft.util.Prediction.SERVER_ONLY);
         src.sendSuccess(() -> Component.literal("Gave " + count + " " + id + " to " + target.getName().getString()), true);
         return 1;
     }

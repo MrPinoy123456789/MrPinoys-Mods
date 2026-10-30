@@ -11,11 +11,11 @@ repositories {
     maven("https://maven.nucleoid.xyz") { name = "Nucleoid" }
 }
 dependencies {
-    minecraft("com.mojang:minecraft:26.2")
-    implementation("net.fabricmc:fabric-loader:0.19.3")
-    implementation("net.fabricmc.fabric-api:fabric-api:0.156.0+26.2")
+    minecraft("com.mojang:minecraft:26.3")
+    implementation("net.fabricmc:fabric-loader:0.19.5")
+    implementation("net.fabricmc.fabric-api:fabric-api:0.165.0+26.3")
     // The server ships polymer-bundled; compile against it, never shade it.
-    implementation("eu.pb4:polymer-bundled:0.17.5+26.2")
+    implementation("eu.pb4:polymer-bundled:0.18.5+26.3")
 }
 java {
     withSourcesJar()

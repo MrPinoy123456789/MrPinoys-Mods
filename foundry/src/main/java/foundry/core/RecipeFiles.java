@@ -52,7 +52,10 @@ public final class RecipeFiles {
         JsonObject recipeUnlocked = new JsonObject();
         recipeUnlocked.addProperty("trigger", "minecraft:recipe_unlocked");
         JsonObject unlockedConditions = new JsonObject();
-        unlockedConditions.addProperty("recipe", r.id().toString());
+        // Since 26.3 the trigger takes a list of recipes under "recipes".
+        JsonArray unlocked = new JsonArray();
+        unlocked.add(r.id().toString());
+        unlockedConditions.add("recipes", unlocked);
         recipeUnlocked.add("conditions", unlockedConditions);
 
         JsonObject criteria = new JsonObject();

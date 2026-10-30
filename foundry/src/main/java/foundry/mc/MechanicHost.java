@@ -172,7 +172,7 @@ public final class MechanicHost implements MechanicRunner.Host {
             case "damage" -> {
                 // A hit that follows a melee swing lands inside the target's hit window, where vanilla only applies
                 // the amount above the last hit. A bonus that must land in full asks to clear the window first.
-                if (Boolean.parseBoolean(action.param("ignore_hit_delay", "false"))) target.invulnerableTime = 0;
+                if (Boolean.parseBoolean(action.param("ignore_hit_delay", "false"))) target.damageCooldownTime = 0;
                 target.hurtServer(level, level.damageSources().indirectMagic(player, player), (float) action.decimalParam("amount", 1));
             }
             case "spawn_particles" -> {
@@ -190,7 +190,7 @@ public final class MechanicHost implements MechanicRunner.Host {
             case "give_item" -> {
                 if (target instanceof Player p) {
                     var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(action.param("item", "")));
-                    p.getInventory().placeItemBackInInventory(new ItemStack(item, action.intParam("count", 1)));
+                    p.getInventory().placeItemBackInInventory(new ItemStack(item, action.intParam("count", 1)), net.minecraft.util.Prediction.SERVER_ONLY);
                 } else {
                     FoundryMod.LOG.warn("Foundry: give_item skipped; the target is not a player.");
                 }

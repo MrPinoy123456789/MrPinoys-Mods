@@ -55,7 +55,7 @@ public final class Swings {
 
     /** Looks at one player's swing state this tick; fires on_swing when a left click just began. */
     public static void observe(ServerPlayer player, long now) {
-        boolean swinging = player.swinging && player.swingingArm == InteractionHand.MAIN_HAND;
+        boolean swinging = player.isSwinging() && player.getCurrentSwing().hand() == InteractionHand.MAIN_HAND;
         boolean before = WAS_SWINGING.getOrDefault(player.getUUID(), false);
         WAS_SWINGING.put(player.getUUID(), swinging);
         if (!swinging || before) return;

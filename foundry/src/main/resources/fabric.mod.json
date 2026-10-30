@@ -8,9 +8,9 @@
   "entrypoints": { "main": ["foundry.mc.FoundryMod"] },
   "depends": {
     "fabricloader": ">=0.19.3",
-    "minecraft": "26.2",
+    "minecraft": "26.3",
     "java": ">=25",
     "fabric-api": "*",
-    "polymer-core": ">=0.17.5"
+    "polymer-core": ">=0.18.5"
   }
 }

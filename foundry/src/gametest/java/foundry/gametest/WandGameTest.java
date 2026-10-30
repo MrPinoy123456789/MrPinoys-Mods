@@ -37,7 +37,7 @@ public final class WandGameTest {
     }
 
     private static void leftClick(ServerPlayer player) {
-        player.swing(InteractionHand.MAIN_HAND);
+        player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
         Swings.observe(player, now(player));
     }
 
@@ -64,7 +64,7 @@ public final class WandGameTest {
         var player = holder(helper, 1.5, 1.5);
         wand().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
         helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 1, "Mischief launches its bolt");
-        player.swing(InteractionHand.MAIN_HAND);
+        player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
         Swings.observe(player, now(player));
         helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 1, "the swing that follows a right click launches no sparkle bolt");
         helper.succeed();
