@@ -24,6 +24,15 @@ public final class Organization {
      */
     public boolean npc;
 
+    /** Extra claims an operator granted to this faction on top of its member allowance (top level organizations only). */
+    public int claimBonus;
+
+    /**
+     * An operator's own kingdom (for example the one that guards spawn): no claim cap, no keep upkeep, and its outposts
+     * cannot be named in a war. Set with {@code /charter admin faction admin}; top level organizations only.
+     */
+    public boolean adminKingdom;
+
     private String name;
     private String description = "";
     private OrgId parent;

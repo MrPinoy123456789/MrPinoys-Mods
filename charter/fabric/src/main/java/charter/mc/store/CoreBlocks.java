@@ -203,6 +203,8 @@ public final class CoreBlocks {
             o.addProperty("status", org.status().name());
             o.addProperty("foundedAt", org.foundedAt);
             if (org.npc) o.addProperty("npc", true);
+            if (org.claimBonus != 0) o.addProperty("claimBonus", org.claimBonus);
+            if (org.adminKingdom) o.addProperty("adminKingdom", true);
 
             JsonObject gov = new JsonObject();
             gov.addProperty("preset", org.governance.preset.name());
@@ -241,6 +243,8 @@ public final class CoreBlocks {
                     OrgStatus.valueOf(str(o, "status")), num(o, "foundedAt"));
             org.describe(str(o, "description"));
             org.npc = bool(o, "npc");
+            org.claimBonus = (int) num(o, "claimBonus");
+            org.adminKingdom = bool(o, "adminKingdom");
             Map<Currency, Long> balances = get(o, "ledger", BALANCES, gson);
             if (balances != null) balances.forEach(org.ledger::add);
             People people = get(o, "people", People.class, gson);

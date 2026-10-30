@@ -50,6 +50,8 @@ import java.util.Optional;
  * <pre>
  *   /charter map                          11 by 11 chunks around you; click to claim or unclaim
  *   /charter admin faction spawn &lt;name&gt; &lt;player&gt;   a ready lordship, funded, with a nexus and a banner for the player
+ *   /charter admin faction claims &lt;faction&gt; &lt;bonus&gt;   extra claims on top of the member allowance (0 clears it)
+ *   /charter admin faction admin &lt;faction&gt; &lt;true|false&gt;   mark a kingdom as an admin kingdom (no claim cap, no upkeep, no wars on it)
  *   /charter admin camp raise-now         finish raising the nearest raising camp
  *   /charter admin give nexus|banner|book [player]
  * </pre>
@@ -76,7 +78,15 @@ public final class LandCommands {
                                 .then(Commands.argument("name", StringArgumentType.string())
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
-                                                .executes(LandCommands::spawn)))))
+                                                .executes(LandCommands::spawn))))
+                        .then(Commands.literal("admin")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                                .executes(LandCommands::adminKingdom))))
+                        .then(Commands.literal("claims")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("bonus", com.mojang.brigadier.arguments.IntegerArgumentType.integer(-1000, 100000))
+                                                .executes(LandCommands::claimBonus)))))
                 .then(Commands.literal("camp")
                         .then(Commands.literal("raise-now").executes(LandCommands::raiseNow)))
                 .then(Commands.literal("give")
@@ -238,6 +248,31 @@ public final class LandCommands {
         founder.getInventory().add(LandItems.nexus());
         founder.getInventory().add(LandItems.warBanner());
         return ok(ctx, Text.get("land.admin.spawned", "name", name.strip(), "player", founder.getPlainTextName()));
+    }
+
+    private static int adminKingdom(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on");
+        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        var org = found.get();
+        if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
+        org.adminKingdom = on;
+        return ok(ctx, Text.get(on ? "land.admin.kingdom_on" : "land.admin.kingdom_off", "name", org.name()));
+    }
+
+    private static int claimBonus(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        int bonus = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "bonus");
+        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        var org = found.get();
+        if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
+        org.claimBonus = bonus;
+        int cap = new charter.land.LandGraph(rt.state, rt.knobs).landCap(org.id, rt.clock.now());
+        return ok(ctx, Text.get("land.admin.claims_set", "name", org.name(), "bonus", bonus, "cap", cap));
     }
 
     /** The online player a command names, by name or UUID (mock players share a name), or null. */

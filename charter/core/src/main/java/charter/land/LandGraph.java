@@ -90,7 +90,11 @@ public final class LandGraph {
         return Math.max(Math.abs(a.x() - b.x()), Math.abs(a.z() - b.z())) - 3;
     }
 
+    /** What an admin kingdom may hold: more than any world has chunks, and safe to add one to. */
+    public static final int UNLIMITED = Integer.MAX_VALUE / 4;
+
     public int capacity(Core core) {
+        if (state.org(state.root(core.owner)).map(o -> o.adminKingdom).orElse(false)) return UNLIMITED;
         return core.isKeep() ? knobs.keepCapacityClaims : knobs.campCapacityClaims;
     }
 
@@ -126,7 +130,9 @@ public final class LandGraph {
     }
 
     public int landCap(OrgId faction, long wallNow) {
-        return knobs.claimsPerActiveMember * activeMembers(faction, wallNow);
+        if (state.org(faction).map(o -> o.adminKingdom).orElse(false)) return UNLIMITED;
+        int bonus = state.org(faction).map(o -> o.claimBonus).orElse(0);
+        return Math.max(0, knobs.claimsPerActiveMember * activeMembers(faction, wallNow) + bonus);
     }
 
     /** Claims counted against the member cap: everything except the chunks that make up a core. */

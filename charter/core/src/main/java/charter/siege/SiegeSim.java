@@ -146,7 +146,7 @@ public final class SiegeSim {
      */
     private void upkeepPass(SiegeRules rules, double hours, long wall, long now, List<HistoryEvent> events) {
         for (Core keep : keeps()) {
-            if (state.org(keep.owner).map(o -> o.npc).orElse(false)) continue;
+            if (state.org(keep.owner).map(o -> o.npc || o.adminKingdom).orElse(false)) continue;
             SiegeBook.KeepSite site = state.siege.keep(keep.id);
             long period = Durations.days(knobs.keepNewGraceDays);
             if (site.graceUntilSiege == 0) site.graceUntilSiege = now + period;

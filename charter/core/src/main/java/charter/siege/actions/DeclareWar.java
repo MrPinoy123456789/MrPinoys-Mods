@@ -26,6 +26,7 @@ public record DeclareWar(OrgId org, CoreId outpost) implements Action {
     public static final Reason NO_TARGET = new Reason("war_no_target", "There is no outpost like that to name.");
     public static final Reason NOT_RAISED = new Reason("war_not_raised", "That outpost is still being raised.");
     public static final Reason OWN_OUTPOST = new Reason("war_own_outpost", "That outpost belongs to your own nation.");
+    public static final Reason ADMIN_KINGDOM = new Reason("war_admin_kingdom", "That kingdom is kept by the server and cannot be warred on.");
     public static final Reason RAIDERS = new Reason("war_raiders", "The raiders are not at war with anyone. Fight them in the field.");
     public static final Reason NO_OUTPOST_OF_YOURS = new Reason("war_no_outpost", "You need a raised outpost of your own before you declare war.");
     public static final Reason ALREADY_NAMED = new Reason("war_already_named", "A war already names that outpost.");
@@ -51,6 +52,7 @@ public record DeclareWar(OrgId org, CoreId outpost) implements Action {
         OrgId defender = ctx.state.root(target.owner);
         if (defender.equals(org)) return Outcome.refuse(OWN_OUTPOST);
         if (ctx.state.org(defender).map(o -> o.npc).orElse(false)) return Outcome.refuse(RAIDERS);
+        if (ctx.state.org(defender).map(o -> o.adminKingdom).orElse(false)) return Outcome.refuse(ADMIN_KINGDOM);
         if (!target.activeCamp()) return Outcome.refuse(NOT_RAISED);
         boolean mine = ctx.state.cores().stream().anyMatch(c -> !c.isKeep() && c.activeCamp() && ctx.state.root(c.owner).equals(org));
         if (!mine) return Outcome.refuse(NO_OUTPOST_OF_YOURS);

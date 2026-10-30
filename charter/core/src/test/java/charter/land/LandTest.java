@@ -244,6 +244,15 @@ public final class LandTest {
         eq("member cap: six claims reach it", "member_cap", claim(m, 8, 0).reasonKey());
         m.f.seen(BOB);
         check("member cap: a member seen again raises it", claim(m, 8, 0).done());
+        int before = new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now());
+        m.f.state.org(m.ashfall).orElseThrow().claimBonus = 10;
+        eq("member cap: an operator bonus adds to the allowance", before + 10, new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now()));
+        m.f.state.org(m.ashfall).orElseThrow().claimBonus = -1000;
+        eq("member cap: a bonus never drives the cap below zero", 0, new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now()));
+        m.f.state.org(m.ashfall).orElseThrow().claimBonus = 0;
+        m.f.state.org(m.ashfall).orElseThrow().adminKingdom = true;
+        eq("member cap: an admin kingdom has no cap", LandGraph.UNLIMITED, new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now()));
+        m.f.state.org(m.ashfall).orElseThrow().adminKingdom = false;
 
         // camp claims count toward the cap, the banner chunk does not
         World cm = world();
