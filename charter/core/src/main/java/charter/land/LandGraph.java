@@ -62,22 +62,32 @@ public final class LandGraph {
         return List.of(chunk.offset(1, 0), chunk.offset(-1, 0), chunk.offset(0, 1), chunk.offset(0, -1));
     }
 
-    /** The core chunk and the eight around it. */
-    public static List<ChunkKey> footprint(ChunkKey center) {
+    /**
+     * How many chunks a keep reaches from its core chunk each way: 1 is a 3 by 3, 4 is a 9 by 9.
+     * The raiders' strongholds stay 3 by 3 whatever the knob says.
+     */
+    public int radiusOf(OrgId owner) {
+        boolean raiders = state.org(owner).map(o -> o.npc).orElse(false);
+        return raiders ? 1 : Math.max(1, knobs.keepRadiusChunks);
+    }
+
+    /** The core chunk and the square of chunks around it (the keep's plot). */
+    public List<ChunkKey> footprint(ChunkKey center, int r) {
         List<ChunkKey> out = new ArrayList<>();
-        for (int dz = -1; dz <= 1; dz++) {
-            for (int dx = -1; dx <= 1; dx++) out.add(center.offset(dx, dz));
+        for (int dz = -r; dz <= r; dz++) {
+            for (int dx = -r; dx <= r; dx++) out.add(center.offset(dx, dz));
         }
         return out;
     }
 
-    /** The twelve chunks sharing an edge with a keep's ring: the 5 by 5 square less its corners and inner 3 by 3. */
-    public static List<ChunkKey> keepPerimeterChunks(ChunkKey center) {
+    /** The chunks sharing an edge with a keep's plot: the ring one step out, less its four corners. */
+    public List<ChunkKey> keepPerimeterChunks(ChunkKey center, int r) {
+        int edge = r + 1;
         List<ChunkKey> out = new ArrayList<>();
-        for (int dz = -2; dz <= 2; dz++) {
-            for (int dx = -2; dx <= 2; dx++) {
-                boolean outer = Math.max(Math.abs(dx), Math.abs(dz)) == 2;
-                boolean corner = Math.abs(dx) == 2 && Math.abs(dz) == 2;
+        for (int dz = -edge; dz <= edge; dz++) {
+            for (int dx = -edge; dx <= edge; dx++) {
+                boolean outer = Math.max(Math.abs(dx), Math.abs(dz)) == edge;
+                boolean corner = Math.abs(dx) == edge && Math.abs(dz) == edge;
                 if (outer && !corner) out.add(center.offset(dx, dz));
             }
         }
@@ -85,9 +95,9 @@ public final class LandGraph {
     }
 
     /** Empty chunks between two keep footprints, by the larger axis. Different dimensions are infinitely far apart. */
-    public static int gapBetween(ChunkKey a, ChunkKey b) {
+    public int gapBetween(ChunkKey a, int radiusA, ChunkKey b, int radiusB) {
         if (!a.dimension().equals(b.dimension())) return Integer.MAX_VALUE;
-        return Math.max(Math.abs(a.x() - b.x()), Math.abs(a.z() - b.z())) - 3;
+        return Math.max(Math.abs(a.x() - b.x()), Math.abs(a.z() - b.z())) - (radiusA + radiusB + 1);
     }
 
     /** What an admin kingdom may hold: more than any world has chunks, and safe to add one to. */
@@ -149,26 +159,33 @@ public final class LandGraph {
 
     public Optional<Reason> keepProblem(OrgId owner, ChunkKey center) {
         if (!dimensionAllowed(center)) return Optional.of(LandReasons.WRONG_DIMENSION);
-        for (ChunkKey chunk : footprint(center)) {
+        int r = radiusOf(owner);
+        for (ChunkKey chunk : footprint(center, r)) {
             if (state.claimAt(chunk).isPresent()) return Optional.of(LandReasons.KEEP_NEEDS_ROOM);
         }
         OrgId faction = faction(owner);
         for (Core other : state.cores()) {
             if (!other.isKeep() || faction(other.owner).equals(faction)) continue;
-            if (gapBetween(center, other.center) < knobs.keepGapChunks) return Optional.of(LandReasons.KEEP_GAP);
+            if (gapBetween(center, r, other.center, radiusOf(other.owner)) < knobs.keepGapChunks) return Optional.of(LandReasons.KEEP_GAP);
         }
         return Optional.empty();
     }
 
     /** Keep checks for a faction that does not exist yet: every existing keep is foreign. */
     public Optional<Reason> keepProblemForNew(ChunkKey center) {
+        return keepProblemForNew(center, false);
+    }
+
+    /** As above; a raiders' stronghold keeps the small footprint however big a player's keep is. */
+    public Optional<Reason> keepProblemForNew(ChunkKey center, boolean raiders) {
         if (!dimensionAllowed(center)) return Optional.of(LandReasons.WRONG_DIMENSION);
-        for (ChunkKey chunk : footprint(center)) {
+        int r = raiders ? 1 : Math.max(1, knobs.keepRadiusChunks);
+        for (ChunkKey chunk : footprint(center, r)) {
             if (state.claimAt(chunk).isPresent()) return Optional.of(LandReasons.KEEP_NEEDS_ROOM);
         }
         for (Core other : state.cores()) {
             if (!other.isKeep()) continue;
-            if (gapBetween(center, other.center) < knobs.keepGapChunks) return Optional.of(LandReasons.KEEP_GAP);
+            if (gapBetween(center, r, other.center, radiusOf(other.owner)) < knobs.keepGapChunks) return Optional.of(LandReasons.KEEP_GAP);
         }
         return Optional.empty();
     }
@@ -206,7 +223,7 @@ public final class LandGraph {
         Core core = new Core(state.ids.core(), CoreKind.KEEP, owner, center, state.takeCoreOrder(), wallNow,
                 CampPhase.ACTIVE, state.siegeClock.now());
         state.addCore(core);
-        for (ChunkKey chunk : footprint(center)) {
+        for (ChunkKey chunk : footprint(center, radiusOf(owner))) {
             ClaimKind kind = chunk.equals(center) ? ClaimKind.KEEP_CORE : ClaimKind.KEEP_RING;
             state.addClaim(new Claim(state.ids.claim(), chunk, owner, kind, core.id, 0, wallNow));
         }
@@ -448,7 +465,7 @@ public final class LandGraph {
     }
 
     private Perimeter keepPerimeter(Core keep) {
-        List<ChunkKey> chunks = keepPerimeterChunks(keep.center);
+        List<ChunkKey> chunks = keepPerimeterChunks(keep.center, radiusOf(keep.owner));
         Set<ChunkKey> inPerimeter = new HashSet<>(chunks);
         OrgId defender = faction(keep.owner);
         Set<OrgId> besiegers = new HashSet<>();

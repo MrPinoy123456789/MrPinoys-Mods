@@ -46,6 +46,7 @@ public final class LandTest {
 
     public static void run() {
         keepAndPerimeter();
+        bigPlotKeep();
         placementRefusals();
         rangeCapacityAndMemberCap();
         hopAssignmentOlderCoreWinsTies();
@@ -140,6 +141,25 @@ public final class LandTest {
         check("keep: it has the chunks beside the ring", chunksOf(perimeter.chunks()).containsAll(List.of(ch(-2, 0), ch(2, 1), ch(0, -2), ch(-1, 2))));
         eq("keep: with no besiegers every side is open", 12, perimeter.open().size());
         check("keep: the keep's own farms there stay open", claim(w, 2, 0).done() && !new LandGraph(w.f.state, w.f.knobs).perimeter(core).isClosed(ch(2, 0)));
+    }
+
+    static void bigPlotKeep() {
+        World w = world();
+        w.f.knobs.keepRadiusChunks = 4;
+        w.f.knobs.keepCapacityClaims = 40;
+        check("plot: a keep places with a nine by nine plot", keep(w, 0, 0).done());
+        eq("plot: eighty one chunks are claimed", 81, w.f.state.claimsOf(w.ashfall).size());
+        eq("plot: the middle chunk holds the nexus", ClaimKind.KEEP_CORE, at(w, 0, 0).kind());
+        check("plot: the far corner is the keep's", at(w, 4, -4) != null && at(w, -4, 4) != null);
+        check("plot: one past the edge is not", at(w, 5, 0) == null && at(w, 0, -5) == null);
+        check("plot: the plot chunks do not count against the member cap", new LandGraph(w.f.state, w.f.knobs).countedClaims(w.ashfall) == 0);
+        Core core = coreOf(w, w.ashfall, ch(0, 0));
+        Perimeter perimeter = new LandGraph(w.f.state, w.f.knobs).perimeter(core);
+        eq("plot: the perimeter is the thirty six chunks beside it", 36, perimeter.chunks().size());
+        check("plot: it has no corners", !chunksOf(perimeter.chunks()).contains(ch(5, 5)) && chunksOf(perimeter.chunks()).contains(ch(5, 4)));
+        eq("plot: a rival keep too close is refused", "keep_needs_room", w.f.as(ZED, new PlaceNexus(w.brine, ch(8, 0))).reasonKey());
+        eq("plot: and one inside the gap", "keep_gap", w.f.as(ZED, new PlaceNexus(w.brine, ch(12, 0))).reasonKey());
+        check("plot: a rival keep beyond the gap is fine", w.f.as(ZED, new PlaceNexus(w.brine, ch(14, 0))).done());
     }
 
     static void placementRefusals() {

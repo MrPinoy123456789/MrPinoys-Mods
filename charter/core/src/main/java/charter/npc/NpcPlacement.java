@@ -41,7 +41,7 @@ public final class NpcPlacement {
 
     /** Every rule except the terrain. */
     public static boolean acceptable(ChunkKey center, CharterState state, Knobs knobs, Collection<ChunkKey> players) {
-        if (new LandGraph(state, knobs).keepProblemForNew(center).isPresent()) return false;
+        if (new LandGraph(state, knobs).keepProblemForNew(center, true).isPresent()) return false;
         int clear = knobs.npcPlayerClearChunks;
         for (Claim claim : state.claims()) {
             boolean raiders = state.org(claim.owner).map(o -> o.npc).orElse(false);

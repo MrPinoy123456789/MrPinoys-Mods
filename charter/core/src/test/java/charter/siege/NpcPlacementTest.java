@@ -107,6 +107,19 @@ public final class NpcPlacementTest {
         eq("6: and in cobblestone", 128L, org.ledger.balance(charter.treasury.Currency.COBBLESTONE));
         check("6: a keep of nine chunks", f.state.coresOf(org.id).size() == 1 && f.state.claimsOf(org.id).size() == 9);
         check("6: its Lord is the raiders' own", f.holder(org.id, charter.gov.Preset.LORD).equals(NpcBook.LORD));
+
+        // Players may hold bigger plots; the raiders' strongholds stay as they were.
+        f.knobs.keepRadiusChunks = 4;
+        var big = f.admin(new SpawnNpc("The Big Plot Bandits", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 60, 60), 1, 1));
+        check("6: a stronghold is raised with the big plot setting " + big, big.done());
+        var bandits = f.state.orgNamed("The Big Plot Bandits").orElseThrow();
+        eq("6: and is still nine chunks", 9, f.state.claimsOf(bandits.id).size());
+        check("6: a player keep can stand just past the stronghold and the gap counts both sizes",
+                new charter.land.LandGraph(f.state, f.knobs).keepProblemForNew(new ChunkKey(DIM, 60 + 1 + 4 + 1 + f.knobs.keepGapChunks, 60)).isEmpty()
+                        && new charter.land.LandGraph(f.state, f.knobs).keepProblemForNew(new ChunkKey(DIM, 60 + 1 + 4 + f.knobs.keepGapChunks, 60)).isPresent());
+        eq("6: a stronghold site still needs only the small footprint", true,
+                new charter.land.LandGraph(f.state, f.knobs).keepProblemForNew(new ChunkKey(DIM, 60 + 1 + 1 + 1 + f.knobs.keepGapChunks, 60), true).isEmpty());
+        f.knobs.keepRadiusChunks = 1;
         eq("6: a player cannot spawn one", charter.land.LandReasons.OPERATOR_ONLY.key(),
                 f.as(Fixture.player("Kris"), new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 90, 90), 1, 1)).reasonKey());
         var outpost = f.admin(new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.OUTPOST, new ChunkKey(DIM, 90, 90), 0, 0));

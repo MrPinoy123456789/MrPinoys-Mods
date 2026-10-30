@@ -67,6 +67,8 @@ public final class Knobs {
     public int campRangeHops = 2;
     public int claimsPerActiveMember = 6;
     public int keepGapChunks = 4;
+    /** Chunks a keep's plot reaches from its core chunk each way: 1 is 3 by 3, 4 is 9 by 9. */
+    public int keepRadiusChunks = 1;
 
     // ---- food (S) ----
     public double drainPerMouthPerHour = 10;
@@ -218,6 +220,7 @@ public final class Knobs {
         if (confinementMinMinutes > confinementMaxHours * 60) out.add("confinementMinMinutes is longer than confinementMaxHours.");
         if (simStepTicks < 1) out.add("simStepTicks must be at least 1.");
         if (voteDurationHours < 1) out.add("voteDurationHours must be at least 1.");
+        if (keepRadiusChunks < 1) out.add("keepRadiusChunks must be at least 1.");
         return out;
     }
 }

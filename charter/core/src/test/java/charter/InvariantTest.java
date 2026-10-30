@@ -412,7 +412,8 @@ public final class InvariantTest {
             if (chain != null) return "6: grant " + grant.id + " works but " + chain;
         }
         Set<ChunkKey> chunks = new HashSet<>();
-        LandGraph land = new LandGraph(s, new charter.config.Knobs());
+        charter.config.Knobs knobs = new charter.config.Knobs();
+        LandGraph land = new LandGraph(s, knobs);
         for (Claim claim : s.claims()) {
             if (!chunks.add(claim.chunk)) return "10: two claims at " + claim.chunk;
             if (s.claimAt(claim.chunk).map(c -> c != claim).orElse(true)) return "10: chunk index disagrees at " + claim.chunk;
@@ -426,7 +427,8 @@ public final class InvariantTest {
         for (Core core : s.cores()) {
             List<Claim> own = s.claims().stream().filter(c -> core.id.equals(c.core())).toList();
             long fixed = own.stream().filter(Claim::fixed).count();
-            if (core.isKeep() && fixed != 9) return "12: keep " + core.id + " has " + fixed + " of its nine chunks";
+            int side = 2 * land.radiusOf(core.owner) + 1;
+            if (core.isKeep() && fixed != (long) side * side) return "12: keep " + core.id + " has " + fixed + " of its " + side * side + " chunks";
             if (!core.isKeep() && fixed != 1) return "12: camp " + core.id + " has " + fixed + " banner chunks";
             long counted = own.stream().filter(c -> !c.fixed()).count();
             if (counted > land.capacity(core)) return "13: core " + core.id + " holds " + counted + " claims over capacity " + land.capacity(core);
