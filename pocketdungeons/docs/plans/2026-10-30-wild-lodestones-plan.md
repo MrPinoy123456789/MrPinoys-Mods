@@ -130,9 +130,11 @@ and can be built beside them.
   def id), `node` (one node of it), `promise` (the two or three words on the menu), `cooldownMinutes`, `weight`,
   `minDistance`. Validate at load like the other manifests. Use the `dungeon-content` skill to pick nodes that make a good
   single floor.
-- **Grid:** the world is cut into cells of `wildGridSize` blocks. Each cell has one deterministic jittered candidate position
-  from `hash(worldSeed, cellX, cellZ, generation)`. The placer keeps `wildTargetActive` lodestones, filling empty cells in
-  random order, a few per minute so it never stalls the tick.
+- **Scatter, not a lattice (owner, 2026-10-30):** the world is cut into cells of `wildGridSize` (1500) blocks only to give
+  every lodestone room. A cell's candidate is a random point anywhere in the cell (from `hash(worldSeed, cellX, cellZ,
+  generation)`), never the cell center, and only some cells are filled: the placer picks random empty cells until
+  `wildTargetActive` lodestones exist, so the result has gaps and clusters and no repeating spacing. A candidate is rejected
+  if it is within `wildMinSeparation` (default 600) of any active lodestone. A few per minute so it never stalls the tick.
 - **Candidate checks:** load the chunk through a short ticket, take the surface height, then reject: water or lava underfoot,
   within `wildMinSpawnDistance` of world spawn, inside a claimed area, or with player built blocks nearby (a small tag list of
   builder blocks within a radius). A rejected cell retries with the next generation number.
@@ -150,7 +152,7 @@ and can be built beside them.
 
 ## Knobs
 
-`mode`, `wildGridSize`, `wildTargetActive`, `wildMaxActive`, `wildMinSpawnDistance`, `wildLifespanDays`,
+`mode`, `wildGridSize`, `wildMinSeparation`, `wildTargetActive`, `wildMaxActive`, `wildMinSpawnDistance`, `wildLifespanDays`,
 `wildCollapseWarnHours`, `wildResetWarnSeconds`, `wildSpawnProtectionSeconds`, `wildClaimsSource`, `wildBlockedCommands`,
 `wildLostAndFoundMaxChests`, plus per dungeon `cooldownMinutes`, `weight`, `minDistance` in `wild_dungeon/*.json`.
 
@@ -159,7 +161,7 @@ and can be built beside them.
 | Test | Kind | Covers |
 |---|---|---|
 | `WildStateTest` | pure | JSON round trip, phases, cooldown and expiry arithmetic |
-| `WildPlacementTest` | pure | deterministic candidates, spacing, rejection and generation retry |
+| `WildPlacementTest` | pure | deterministic candidates, random point inside the cell (not a lattice), minimum separation, rejection and generation retry |
 | `WildTextTest` | pure | menu strings: short, no em dash, no double hyphen |
 | `PadRefusalTest` | pure or gametest | the extracted check gives the same answers as before |
 | `WildEnterGameTest` | gametest | inventory identical before and after entering and leaving; second player joins the same record |
@@ -199,5 +201,5 @@ Camp the arrival block. Relog inside, and restart the server with a player insid
    (rectangles, chunk lists or radii) before `ClaimSource` can be written.
 3. **Confirmed (owner, 2026-10-30):** reset also sweeps ground items to lost and found; each reset uses a fresh seed; spawn
    protection ends early if the player attacks.
-4. **Starting numbers:** grid 1500 blocks, 12 active lodestones, 7 day lifespan, 4 to 24 hour cooldowns by promise, 5 second
+4. **Starting numbers:** grid 1500 blocks (random points, minimum separation 600), 12 active lodestones, 7 day lifespan, 4 to 24 hour cooldowns by promise, 5 second
    spawn protection, 120 second reset warning. All are knobs.

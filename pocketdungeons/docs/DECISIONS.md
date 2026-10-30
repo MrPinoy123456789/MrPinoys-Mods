@@ -1236,7 +1236,7 @@ I can clear it every time it is ready, and anyone who wants it has to get past m
 | Inventory | Never stashed, swapped or wiped. The dungeon is an extension of the overworld | `InventorySwap` bypassed in wild mode |
 | PvP | On inside. A few seconds of spawn protection after entering | new `WildRules` |
 | Claims | None inside. Charter is set to overworld only claims by a separate task, not by this mod | Charter, not this mod |
-| Placement | A fixed grid, also in already generated chunks, skipping claimed or built over spots | new `WildPlacement` |
+| Placement | Scattered at random, not on a lattice: cells of 1500 blocks give each lodestone room, the spot is random anywhere in its cell, only some cells are filled, and two lodestones never sit closer than a minimum. Also in already generated chunks, skipping claimed or built over spots | new `WildPlacement` |
 | Lifespan | About a week. Then the dungeon collapses and a new lodestone appears somewhere else | `WildPlacement`, `WildLodestones` |
 | Cooldown | Per lodestone, shared by everyone. Starts the moment the clear exit block appears; a longer promise means a longer cooldown | `WildLodestones` |
 
