@@ -80,3 +80,11 @@ harness cleanup bounds, and give independently stamped navigation cases separate
 cells rather than reusing one cell's terrain and path cache in the same tick.
 Chunk-scoped helpers such as `AoETelegraph.clear` require distinct chunks for
 concurrent fixtures; different origin tiles inside one chunk are not isolated.
+
+## The shipped kingdom server
+
+`d212ecae` is the owner's live Charter, Lemon and Foundry server (Minecraft 26.3, with Bedrock through Geyser). Read
+`docs/KINGDOM_SERVER.md` for how it is set up, and use the `deploy-shipped-server` skill to deploy
+(`tools/playtest/shipped-deploy.mjs`). Never deploy Pocket Dungeons there, never upload a jar built for another
+Minecraft version, and never use `minecraft:stick` as a Foundry base item. Master is the 26.3 line; the older 26.2
+worktrees (`charter-book-plan`, `foundry`) are superseded.
