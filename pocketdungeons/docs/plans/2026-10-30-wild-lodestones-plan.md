@@ -412,11 +412,41 @@ lava, a surface below sea level minus 3, a tree top block, no sky above, and a 9
 `pocketdungeons:wild_builder_blocks`: planks, torches, chests, doors, glass, wool, beds, furnaces, crafting tables, rails).
 Overworld only.
 
-**4.4 Claims.** `ClaimSource` reads `wildClaimsSource`: an `https://` URL fetched at most once a minute on a worker thread (never
-the server thread) and cached, or a file path read the same way; empty means no check. **The format is not known.** The owner
-says Charter's public data is already published; get the URL and format from the owner and write the parser then. Reject a
-candidate whose point, or any point within 64 blocks, is claimed. On a fetch failure keep the last good data; with none and a
-source configured, place nothing (fail closed).
+**4.4 Claims (settled 2026-10-30 from the Charter agent's report).** Charter writes `<world folder>/charter/areas.json` itself
+(on the Kinetic server `/home/container/world/charter/areas.json`; `server.getWorldPath(LevelResource.ROOT).resolve("charter/areas.json")`).
+Both mods run in the same server, so read the file directly: no HTTP, no panel key, no dependency on Charter's Java API (mods in
+this suite stay strangers). Charter has no public URL and the panel API needs a key that controls the whole server, so never use it.
+
+Real format, from the live file (one line, no schema version, `version` is a republish counter that resets at restart):
+```
+{"version":4,"areas":[{"kind":"keep","kingdom":"Azrak","dimension":"minecraft:overworld","bounds":{"minX":-768,"minZ":-1744,"maxX":-625,"maxZ":-1601},"chunks":[[-48,-109],[-48,-108], ...]}, {"kind":"outpost","kingdom":"Banner Bandits","dimension":"minecraft:overworld","bounds":{"minX":1488,"minZ":-112,"maxX":1503,"maxZ":-97},"chunks":[[93,-7]]}]}
+```
+- `kind` is `keep` (9 by 9 chunks), `outpost` or `claim`; treat **any** kind, including an unknown one, as claimed land. The raiders'
+  strongholds are ordinary `keep` and `outpost` entries, which is right for keeping dungeons out.
+- `chunks` is exact (chunk coordinates, block = chunk * 16 .. +15). `bounds` is only the bounding box (block coordinates,
+  inclusive) and over-covers an L shaped outpost, so use it as a quick reject and use `chunks` as the answer.
+- Only `dimension`, `bounds` and `chunks` are read. The file has no personal data.
+- Only entries with `dimension == "minecraft:overworld"` matter for placement. Claims are overworld only on this server (`claimDimensions`
+  in `config/charter/charter.json`).
+
+`ClaimSource` (pure parsing plus a thin file reader):
+1. `ClaimSource.parse(String json)` returns an immutable snapshot: a `Set<Long>` of packed overworld chunk coordinates and the
+   file's modified time. Defensive: `areas` must be an array and each entry must have `dimension` and a `chunks` array of two
+   element int arrays; an entry that fails is skipped with a warning, and if **no** entry parses from a non empty array, treat the
+   whole file as unreadable (a format change).
+2. `isClaimedNear(x, z, bufferBlocks)`: true if any chunk within `bufferBlocks` (default 64, so a 9 by 9 chunk neighbourhood)
+   of the point is in the set.
+3. Reload when the file's modified time changes, checked at most once a minute, off the server thread; publish the new snapshot
+   through a `volatile` field. The write is atomic (temp file then rename) so a reader never sees half a file.
+4. **Fail closed.** If `wildClaimsSource` is set and the file is missing or unreadable, place nothing and log once per
+   minute at WARN. Treat a missing file as unknown, not empty. A stale file (server stopped) still lists the old claims, which
+   is the safe direction. `wildClaimsSource` is a path, relative to the world folder unless absolute; set it to
+   `charter/areas.json` on the Charter server; empty skips the check.
+5. A lodestone already placed that later ends up inside claimed land (an outpost built around it) is **intended** and left alone.
+
+Test: `ClaimSourceTest` (pure) parses the sample above verbatim (two entries, one chunk list abbreviated into real chunks),
+checks the keep's neighbourhood is claimed and a far point is not, checks the buffer arithmetic at a chunk edge, an unknown
+`kind`, a non overworld entry, an empty `areas` array, a missing file, a garbage file and a format change.
 
 **4.5 Level.** `WildLevel.of(distance)` = clamp(1 + distance / 400, 1, offering `maxLevel`). Pure, tested.
 
@@ -479,7 +509,7 @@ Register pure tests in `build.gradle.kts` (F28) and gametests in `src/gametest/r
 11. `SessionState` requirements for new statics.
 12. Which `tickRecord` content ticks a one floor dungeon needs (task 2.7b).
 13. `Heightmap` and chunk loading cost of the placer on the live world.
-14. The format and URL of Charter's public kingdom data.
+14. ~~The format and URL of Charter's public kingdom data.~~ Settled (task 4.4): a local file, real format known. Still verify on the live server that the file exists at `world/charter/areas.json` and that `getWorldPath(ROOT)` resolves to the `world` folder.
 15. That `HerobrineFight`'s `ALLOW_DEATH` listener (EARLY phase) does not also cancel a wild death.
 16. That the `maxConcurrentInstances` cap and `wildMaxActive` interact as described (F25).
 17. That `Instances.forceLoad` and `InstanceTeardown.teardown` can clear a slot given only its number and origin after a restart

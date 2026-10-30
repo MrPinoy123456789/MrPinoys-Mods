@@ -51,8 +51,8 @@ index 7580695..2ebac43 100644
 +    private static final Knob<Integer> WILD_LOST_AND_FOUND_MAX_CHESTS = integer("wildLostAndFoundMaxChests", 64,
 +            v -> v >= 1, "must be >= 1");
 +    /**
-+     * Wild mode: URL or file path of the public kingdom data; lodestones are not placed inside claimed
-+     * land. Empty skips the check.
++     * Wild mode: path of Charter's land file (charter/areas.json), relative to the world folder unless
++     * absolute; lodestones are not placed inside claimed land. Empty skips the check.
 +     */
 +    private static final Knob<String> WILD_CLAIMS_SOURCE = text("wildClaimsSource", "", true);
 +    /** Wild mode: comma separated commands refused inside a wild dungeon. Operators are exempt. */
