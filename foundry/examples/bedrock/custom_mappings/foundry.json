@@ -1,0 +1,273 @@
+{
+  "format_version": 2,
+  "items": {
+    "minecraft:paper": [
+      {
+        "type": "definition",
+        "model": "demo:desk",
+        "bedrock_identifier": "demo:desk",
+        "display_name": "Oak Desk",
+        "bedrock_options": {
+          "icon": "demo:desk",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 16
+        }
+      }
+    ],
+    "minecraft:breeze_rod": [
+      {
+        "type": "definition",
+        "model": "demo:fairy_wand",
+        "bedrock_identifier": "demo:fairy_wand",
+        "display_name": "Fairy Wand",
+        "bedrock_options": {
+          "icon": "demo:fairy_wand",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "demo:fairy_wand_2",
+        "bedrock_identifier": "demo:fairy_wand_2",
+        "display_name": "Fairy Wand II",
+        "bedrock_options": {
+          "icon": "demo:fairy_wand_2",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "demo:fairy_wand_3",
+        "bedrock_identifier": "demo:fairy_wand_3",
+        "display_name": "Fairy Wand III",
+        "bedrock_options": {
+          "icon": "demo:fairy_wand_3",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:amethyst_shard": [
+      {
+        "type": "definition",
+        "model": "demo:glow_gem",
+        "bedrock_identifier": "demo:glow_gem",
+        "display_name": "Glow Gem",
+        "bedrock_options": {
+          "icon": "demo:glow_gem",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 16
+        }
+      }
+    ],
+    "minecraft:glowstone_dust": [
+      {
+        "type": "definition",
+        "model": "demo:lamp",
+        "bedrock_identifier": "demo:lamp",
+        "display_name": "Glow Lamp",
+        "bedrock_options": {
+          "icon": "demo:lamp",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 16
+        }
+      }
+    ],
+    "minecraft:iron_sword": [
+      {
+        "type": "definition",
+        "model": "kingdoms:aurelia_oathblade_1",
+        "bedrock_identifier": "kingdoms:aurelia_oathblade_1",
+        "display_name": "Oathblade",
+        "bedrock_options": {
+          "icon": "kingdoms:aurelia_oathblade_1",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:aurelia_oathblade_2",
+        "bedrock_identifier": "kingdoms:aurelia_oathblade_2",
+        "display_name": "Oathblade II",
+        "bedrock_options": {
+          "icon": "kingdoms:aurelia_oathblade_2",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:aurelia_oathblade_3",
+        "bedrock_identifier": "kingdoms:aurelia_oathblade_3",
+        "display_name": "Oathblade III",
+        "bedrock_options": {
+          "icon": "kingdoms:aurelia_oathblade_3",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:stone_pickaxe": [
+      {
+        "type": "definition",
+        "model": "kingdoms:azrak_pick_1",
+        "bedrock_identifier": "kingdoms:azrak_pick_1",
+        "display_name": "Runed War Pick",
+        "bedrock_options": {
+          "icon": "kingdoms:azrak_pick_1",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:azrak_pick_2",
+        "bedrock_identifier": "kingdoms:azrak_pick_2",
+        "display_name": "Runed War Pick II",
+        "bedrock_options": {
+          "icon": "kingdoms:azrak_pick_2",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:azrak_pick_3",
+        "bedrock_identifier": "kingdoms:azrak_pick_3",
+        "display_name": "Runed War Pick III",
+        "bedrock_options": {
+          "icon": "kingdoms:azrak_pick_3",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:bone": [
+      {
+        "type": "definition",
+        "model": "kingdoms:azurius_trident_1",
+        "bedrock_identifier": "kingdoms:azurius_trident_1",
+        "display_name": "Tide Trident",
+        "bedrock_options": {
+          "icon": "kingdoms:azurius_trident_1",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:azurius_trident_2",
+        "bedrock_identifier": "kingdoms:azurius_trident_2",
+        "display_name": "Tide Trident II",
+        "bedrock_options": {
+          "icon": "kingdoms:azurius_trident_2",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:azurius_trident_3",
+        "bedrock_identifier": "kingdoms:azurius_trident_3",
+        "display_name": "Tide Trident III",
+        "bedrock_options": {
+          "icon": "kingdoms:azurius_trident_3",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:blaze_rod": [
+      {
+        "type": "definition",
+        "model": "kingdoms:faeloria_staff_1",
+        "bedrock_identifier": "kingdoms:faeloria_staff_1",
+        "display_name": "Briarthorn Staff",
+        "bedrock_options": {
+          "icon": "kingdoms:faeloria_staff_1",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:faeloria_staff_2",
+        "bedrock_identifier": "kingdoms:faeloria_staff_2",
+        "display_name": "Briarthorn Staff II",
+        "bedrock_options": {
+          "icon": "kingdoms:faeloria_staff_2",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:faeloria_staff_3",
+        "bedrock_identifier": "kingdoms:faeloria_staff_3",
+        "display_name": "Briarthorn Staff III",
+        "bedrock_options": {
+          "icon": "kingdoms:faeloria_staff_3",
+          "display_handheld": true,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ]
+  }
+}
