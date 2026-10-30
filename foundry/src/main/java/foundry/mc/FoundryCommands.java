@@ -8,6 +8,7 @@ import java.util.Map;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.network.chat.Component;
@@ -25,6 +26,7 @@ final class FoundryCommands {
                         .executes(ctx -> help(ctx.getSource()))
                         .then(Commands.literal("help").executes(ctx -> help(ctx.getSource())))
                         .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
+                        .then(Commands.literal("list").executes(ctx -> list(ctx.getSource())))
                         .then(Commands.literal("validate").executes(ctx -> validate(ctx.getSource())))
                         .then(Commands.literal("reload").executes(ctx -> reload(ctx.getSource())))
                         .then(Commands.literal("pack").then(Commands.literal("status")
@@ -40,6 +42,8 @@ final class FoundryCommands {
                         .then(Commands.literal("give")
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .then(Commands.argument("id", IdentifierArgument.id())
+                                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                                        FoundryItems.all().keySet().stream().map(Object::toString).sorted().toList(), builder))
                                                 .executes(ctx -> give(ctx.getSource(), EntityArgument.getPlayer(ctx, "target"),
                                                         IdentifierArgument.getId(ctx, "id").toString(), 1))
                                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 99))
@@ -51,7 +55,7 @@ final class FoundryCommands {
 
     private static int help(CommandSourceStack src) {
         src.sendSuccess(() -> Component.literal(
-                "Foundry: /foundry status, validate, reload, pack status, pack build, rename <old> <new>,"
+                "Foundry: /foundry status, list, validate, reload, pack status, pack build, rename <old> <new>,"
                         + " give <player> <id> [count]"), false);
         return 1;
     }
@@ -63,6 +67,19 @@ final class FoundryCommands {
                 + set.recipes().size() + " recipes, "
                 + errors + " errors, " + (set.problems().size() - errors) + " warnings at last load."), false);
         return 1;
+    }
+
+    /** {@code /foundry list}: every registered item id, one per line, ready to use with {@code give}. */
+    private static int list(CommandSourceStack src) {
+        var ids = FoundryItems.all().keySet().stream().map(Object::toString).sorted().toList();
+        if (ids.isEmpty()) {
+            src.sendSuccess(() -> Component.literal("Foundry: no items are registered. Add item files under config/foundry/content and restart."), false);
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal("Foundry items (" + ids.size() + "):"), false);
+        for (String id : ids) src.sendSuccess(() -> Component.literal("  " + id), false);
+        src.sendSuccess(() -> Component.literal("Get one with /foundry give <player> <id>, or /give <player> <id>."), false);
+        return ids.size();
     }
 
     /** Re-reads the files and reports. New or changed items still need a restart to take effect. */

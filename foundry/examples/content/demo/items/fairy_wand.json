@@ -20,13 +20,19 @@
         {
           "type": "play_sound",
           "sound": "minecraft:block.amethyst_block.chime",
-          "volume": 0.6,
+          "volume": 1.0,
           "pitch": 1.7
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.firework_rocket.twinkle",
+          "volume": 0.8,
+          "pitch": 1.4
         },
         {
           "type": "launch_bolt",
           "tag": "sparkle",
-          "range": 10,
+          "range": 20,
           "speed": 1.2,
           "particle": "minecraft:end_rod"
         }
