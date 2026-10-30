@@ -22,8 +22,8 @@ dependencies {
 
     // Server-side GUIs (the granary screen, M9). Vanilla clients see an ordinary
     // chest window. Plain implementation, as in ballot: 26.x is unobfuscated.
-    implementation("eu.pb4:sgui:2.1.0+26.2")
-    include("eu.pb4:sgui:2.1.0+26.2")
+    implementation("eu.pb4:sgui:2.2.1+26.3")
+    include("eu.pb4:sgui:2.2.1+26.3")
 
     implementation(project(":core"))
     include(project(":core"))

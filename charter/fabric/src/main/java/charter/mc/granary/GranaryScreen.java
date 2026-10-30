@@ -217,7 +217,7 @@ public final class GranaryScreen extends SimpleGui {
                 int n = Math.min(left, item.getDefaultMaxStackSize());
                 ItemStack stack = new ItemStack(item, n);
                 viewer.getInventory().add(stack);
-                if (!stack.isEmpty()) viewer.drop(stack, false);
+                if (!stack.isEmpty()) viewer.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
                 left -= n;
             }
         }

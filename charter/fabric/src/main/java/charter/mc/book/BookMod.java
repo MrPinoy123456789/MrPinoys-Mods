@@ -38,7 +38,7 @@ public final class BookMod {
 
     /** Into the inventory, or at the player's feet when it does not fit. Null when it fitted. */
     public static net.minecraft.world.entity.item.ItemEntity giveOrDrop(ServerPlayer player, ItemStack stack) {
-        return player.getInventory().add(stack) ? null : player.drop(stack, false);
+        return player.getInventory().add(stack) ? null : player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
     }
 
     public static void register() {

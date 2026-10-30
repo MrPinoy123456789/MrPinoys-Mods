@@ -50,7 +50,7 @@ final class LemonBody extends Allay {
         setNoGravity(true);
         setNoAi(true);
         setSilent(true);
-        setInvulnerable(true);
+        setPermanentlyInvulnerable(true);
         setCanPickUpLoot(false);
         addTag(Lemon.TAG);
         setCustomName(Component.literal("Lemon").withStyle(ChatFormatting.YELLOW));

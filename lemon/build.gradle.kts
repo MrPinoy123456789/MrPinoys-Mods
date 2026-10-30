@@ -8,9 +8,9 @@ group = "lemon"
 base { archivesName = "MrPinoys_Lemon" }
 repositories { mavenLocal() }
 dependencies {
-    minecraft("com.mojang:minecraft:26.2")
-    implementation("net.fabricmc:fabric-loader:0.19.3")
-    implementation("net.fabricmc.fabric-api:fabric-api:0.156.0+26.2")
+    minecraft("com.mojang:minecraft:26.3")
+    implementation("net.fabricmc:fabric-loader:0.19.5")
+    implementation("net.fabricmc.fabric-api:fabric-api:0.165.0+26.3")
 }
 java {
     withSourcesJar()

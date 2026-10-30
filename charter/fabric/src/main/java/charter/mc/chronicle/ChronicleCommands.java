@@ -88,7 +88,7 @@ final class ChronicleCommands {
             scope = "org:" + org.get().value();
         }
         ItemStack stack = Chronicles.book(book, scope);
-        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        if (!player.getInventory().add(stack)) player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
         ctx.getSource().sendSuccess(() -> Component.literal(Text.get("chronicle.given", "title", book.title(),
                 "pages", book.pages().size())).withStyle(ChatFormatting.GREEN), false);
         return 1;

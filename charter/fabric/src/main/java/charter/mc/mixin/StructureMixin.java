@@ -35,7 +35,7 @@ public abstract class StructureMixin {
 
     @Inject(method = "generate", at = @At("RETURN"), cancellable = true)
     private void charter$keepKingdomsClear(Holder<Structure> structure, ResourceKey<Level> dimension, RegistryAccess registries,
-                                           ChunkGenerator generator, BiomeSource biomes, RandomState random,
+                                           ChunkGenerator generator, BiomeSource biomes, net.minecraft.world.level.biome.Climate.Sampler sampler, RandomState random,
                                            StructureTemplateManager templates, long seed, ChunkPos pos, int references,
                                            LevelHeightAccessor height, Predicate<Holder<Biome>> validBiome,
                                            CallbackInfoReturnable<StructureStart> cir) {

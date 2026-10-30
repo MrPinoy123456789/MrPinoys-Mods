@@ -36,6 +36,15 @@ public abstract class FireBlockMixin {
         return original.call(level, target, state, flags);
     }
 
+    /** Spread in 26.3: the new fire is placed with setBlockAndUpdate, no longer setBlock with flags. */
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/server/level/ServerLevel;setBlockAndUpdate(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
+    private boolean charter$guardSpreadAndUpdate(ServerLevel level, BlockPos target, BlockState state,
+                                                 Operation<Boolean> original, @Local(argsOnly = true) BlockPos fire) {
+        if (Protection.crossesIntoGuarded(level, fire, target)) return false;
+        return original.call(level, target, state);
+    }
+
     /** Burn out: the neighbour is only eaten if the fire may reach it. The fire is the block that called, so its position is the tick's. */
     @Inject(method = "checkBurnOut", at = @At("HEAD"), cancellable = true)
     private void charter$guardBurn(Level level, BlockPos target, int chance, RandomSource random, int age, CallbackInfo ci) {

@@ -19,8 +19,8 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class FarmlandBlockMixin {
 
     @WrapWithCondition(method = "fallOn", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/level/block/FarmlandBlock;turnToDirt(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;)V"))
-    private boolean charter$guardTrample(Entity entity, BlockState state, Level level, BlockPos pos) {
+            target = "Lnet/minecraft/world/level/block/FarmlandBlock;turnToBaseBlock(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;)V"))
+    private boolean charter$guardTrample(FarmlandBlock self, Entity entity, BlockState state, Level level, BlockPos pos) {
         return Hazards.mayTrample(level, pos, entity);
     }
 }
