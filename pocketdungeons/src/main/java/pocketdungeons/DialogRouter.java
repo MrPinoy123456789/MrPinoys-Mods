@@ -39,6 +39,11 @@ public final class DialogRouter {
 
     /** Dispatches one {@code pocketdungeons:} custom-click payload from the packet mixin. */
     public static void handle(ServerPlayer player, Identifier id, Optional<Tag> payload) {
+        // Wild mode (task 0.5): the campaign screens do not exist, so a payload for one is forged. Refused before anything else.
+        if (WildMode.active() && !WildMode.allowsDialogAction(id.getPath())) {
+            PocketDungeonsMod.LOG.warn("Dialog action {} from {} refused in wild mode", id, player.getName().getString());
+            return;
+        }
         // PD-21: the mixin defers this call through server.execute, a real gap
         // in which the player can disconnect. Every other check below is about
         // whether the payload is trustworthy; this one is about whether the

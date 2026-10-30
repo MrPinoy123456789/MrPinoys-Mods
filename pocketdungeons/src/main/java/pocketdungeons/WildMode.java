@@ -20,6 +20,14 @@ final class WildMode {
         return isWild(PocketDungeonsConfig.mode());
     }
 
+    /** Dialog action paths wild mode answers all start with this. */
+    static final String DIALOG_PREFIX = "wild_";
+
+    /** In wild mode only wild screens exist; any other dialog action path is a forged payload. */
+    static boolean allowsDialogAction(String actionPath) {
+        return actionPath != null && actionPath.startsWith(DIALOG_PREFIX);
+    }
+
     /** The pure rule behind {@link #active()}, so a test can pin it without loading a config. */
     static boolean isWild(String configured) {
         return configured != null && WILD.equals(configured.trim().toLowerCase(Locale.ROOT));

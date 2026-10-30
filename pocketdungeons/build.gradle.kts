@@ -382,6 +382,7 @@ for ((taskName, testClass) in mapOf(
     // Cleanup sweep: the room editor save and lost and found entries write through a temp file and an atomic move.
     "atomicFilesTest" to "AtomicFilesTest",
     "wildStateTest" to "WildStateTest",
+    "wildModeOffTest" to "WildModeOffTest",
     // Playtest 2026-10-07-2: the Plate Relay replaces Hold the Plate.
     "plateRelayTest" to "PlateRelayTest",
     "nodePaletteTest" to "NodePaletteTest",
