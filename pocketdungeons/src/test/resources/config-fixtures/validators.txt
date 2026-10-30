@@ -118,6 +118,174 @@ maxConcurrentPreviews [int, default 16]
   odd empty array -> 16 | ERROR pocketdungeons.json field 'maxConcurrentPreviews' is not a valid integer; using default 16
   odd null -> 16 | ERROR pocketdungeons.json field 'maxConcurrentPreviews' is not a valid integer; using default 16
   odd empty object -> 16 | ERROR pocketdungeons.json field 'maxConcurrentPreviews' is not a valid integer; using default 16
+mode [String, default campaign]
+  probes nnYY
+  values campaign,campaign,minecraft:stone,say hi
+  rejected ERROR pocketdungeons.json field 'mode' must not be empty; using default 'campaign'
+  disturbs (nothing else)
+  odd string abc -> abc | (no warning)
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> true | (no warning)
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array -> campaign | ERROR pocketdungeons.json field 'mode' is not a valid string; using default 'campaign'
+  odd null -> campaign | ERROR pocketdungeons.json field 'mode' is not a valid string; using default 'campaign'
+  odd empty object -> campaign | ERROR pocketdungeons.json field 'mode' is not a valid string; using default 'campaign'
+wildGridSize [int, default 1500]
+  probes nnnnnnnnnnnnnnnnnnYYYYYYYYY
+  values 1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildGridSize' has invalid value -1; must be >= 256; using default 1500
+  disturbs (nothing else)
+  odd string abc -> 1500 | ERROR pocketdungeons.json field 'wildGridSize' is not a valid integer; using default 1500
+  odd string 7 -> 1500 | ERROR pocketdungeons.json field 'wildGridSize' has invalid value 7; must be >= 256; using default 1500
+  odd boolean true -> 1500 | ERROR pocketdungeons.json field 'wildGridSize' is not a valid integer; using default 1500
+  odd number 1.5 -> 1500 | ERROR pocketdungeons.json field 'wildGridSize' has invalid value 1; must be >= 256; using default 1500
+  odd empty array -> 1500 | ERROR pocketdungeons.json field 'wildGridSize' is not a valid integer; using default 1500
+  odd null -> 1500 | ERROR pocketdungeons.json field 'wildGridSize' is not a valid integer; using default 1500
+  odd empty object -> 1500 | ERROR pocketdungeons.json field 'wildGridSize' is not a valid integer; using default 1500
+wildMinSeparation [int, default 600]
+  probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 600,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildMinSeparation' has invalid value -1; must be >= 0; using default 600
+  disturbs (nothing else)
+  odd string abc -> 600 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 600
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 600 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 600
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 600 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 600
+  odd null -> 600 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 600
+  odd empty object -> 600 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 600
+wildTargetActive [int, default 12]
+  probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 12,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildTargetActive' has invalid value -1; must be >= 0; using default 12
+  disturbs (nothing else)
+  odd string abc -> 12 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 12
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 12 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 12
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 12 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 12
+  odd null -> 12 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 12
+  odd empty object -> 12 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 12
+wildMaxActive [int, default 24]
+  probes nnYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 24,24,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildMaxActive' has invalid value -1; must be >= 1; using default 24
+  disturbs (nothing else)
+  odd string abc -> 24 | ERROR pocketdungeons.json field 'wildMaxActive' is not a valid integer; using default 24
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 24 | ERROR pocketdungeons.json field 'wildMaxActive' is not a valid integer; using default 24
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 24 | ERROR pocketdungeons.json field 'wildMaxActive' is not a valid integer; using default 24
+  odd null -> 24 | ERROR pocketdungeons.json field 'wildMaxActive' is not a valid integer; using default 24
+  odd empty object -> 24 | ERROR pocketdungeons.json field 'wildMaxActive' is not a valid integer; using default 24
+wildMinSpawnDistance [int, default 500]
+  probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 500,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildMinSpawnDistance' has invalid value -1; must be >= 0; using default 500
+  disturbs (nothing else)
+  odd string abc -> 500 | ERROR pocketdungeons.json field 'wildMinSpawnDistance' is not a valid integer; using default 500
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 500 | ERROR pocketdungeons.json field 'wildMinSpawnDistance' is not a valid integer; using default 500
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 500 | ERROR pocketdungeons.json field 'wildMinSpawnDistance' is not a valid integer; using default 500
+  odd null -> 500 | ERROR pocketdungeons.json field 'wildMinSpawnDistance' is not a valid integer; using default 500
+  odd empty object -> 500 | ERROR pocketdungeons.json field 'wildMinSpawnDistance' is not a valid integer; using default 500
+wildMaxRadius [int, default 6000]
+  probes nnnnnnnnnnnnnnnnnnYYYYYYYYY
+  values 6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,6000,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildMaxRadius' has invalid value -1; must be >= 256; using default 6000
+  disturbs (nothing else)
+  odd string abc -> 6000 | ERROR pocketdungeons.json field 'wildMaxRadius' is not a valid integer; using default 6000
+  odd string 7 -> 6000 | ERROR pocketdungeons.json field 'wildMaxRadius' has invalid value 7; must be >= 256; using default 6000
+  odd boolean true -> 6000 | ERROR pocketdungeons.json field 'wildMaxRadius' is not a valid integer; using default 6000
+  odd number 1.5 -> 6000 | ERROR pocketdungeons.json field 'wildMaxRadius' has invalid value 1; must be >= 256; using default 6000
+  odd empty array -> 6000 | ERROR pocketdungeons.json field 'wildMaxRadius' is not a valid integer; using default 6000
+  odd null -> 6000 | ERROR pocketdungeons.json field 'wildMaxRadius' is not a valid integer; using default 6000
+  odd empty object -> 6000 | ERROR pocketdungeons.json field 'wildMaxRadius' is not a valid integer; using default 6000
+wildLifespanDays [int, default 7]
+  probes nnYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 7,7,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildLifespanDays' has invalid value -1; must be >= 1; using default 7
+  disturbs (nothing else)
+  odd string abc -> 7 | ERROR pocketdungeons.json field 'wildLifespanDays' is not a valid integer; using default 7
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 7 | ERROR pocketdungeons.json field 'wildLifespanDays' is not a valid integer; using default 7
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 7 | ERROR pocketdungeons.json field 'wildLifespanDays' is not a valid integer; using default 7
+  odd null -> 7 | ERROR pocketdungeons.json field 'wildLifespanDays' is not a valid integer; using default 7
+  odd empty object -> 7 | ERROR pocketdungeons.json field 'wildLifespanDays' is not a valid integer; using default 7
+wildCollapseWarnHours [int, default 24]
+  probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 24,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildCollapseWarnHours' has invalid value -1; must be >= 0; using default 24
+  disturbs (nothing else)
+  odd string abc -> 24 | ERROR pocketdungeons.json field 'wildCollapseWarnHours' is not a valid integer; using default 24
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 24 | ERROR pocketdungeons.json field 'wildCollapseWarnHours' is not a valid integer; using default 24
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 24 | ERROR pocketdungeons.json field 'wildCollapseWarnHours' is not a valid integer; using default 24
+  odd null -> 24 | ERROR pocketdungeons.json field 'wildCollapseWarnHours' is not a valid integer; using default 24
+  odd empty object -> 24 | ERROR pocketdungeons.json field 'wildCollapseWarnHours' is not a valid integer; using default 24
+wildResetWarnSeconds [int, default 120]
+  probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 120,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildResetWarnSeconds' has invalid value -1; must be >= 0; using default 120
+  disturbs (nothing else)
+  odd string abc -> 120 | ERROR pocketdungeons.json field 'wildResetWarnSeconds' is not a valid integer; using default 120
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 120 | ERROR pocketdungeons.json field 'wildResetWarnSeconds' is not a valid integer; using default 120
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 120 | ERROR pocketdungeons.json field 'wildResetWarnSeconds' is not a valid integer; using default 120
+  odd null -> 120 | ERROR pocketdungeons.json field 'wildResetWarnSeconds' is not a valid integer; using default 120
+  odd empty object -> 120 | ERROR pocketdungeons.json field 'wildResetWarnSeconds' is not a valid integer; using default 120
+wildSpawnProtectionSeconds [int, default 5]
+  probes nYYYYYYYYYYYYYnnnnnnnnnnnnn
+  values 5,0,1,2,3,4,5,6,8,10,11,16,20,50,5,5,5,5,5,5,5,5,5,5,5,5,5
+  rejected ERROR pocketdungeons.json field 'wildSpawnProtectionSeconds' has invalid value -1; must be 0 to 60; using default 5
+  disturbs (nothing else)
+  odd string abc -> 5 | ERROR pocketdungeons.json field 'wildSpawnProtectionSeconds' is not a valid integer; using default 5
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 5 | ERROR pocketdungeons.json field 'wildSpawnProtectionSeconds' is not a valid integer; using default 5
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 5 | ERROR pocketdungeons.json field 'wildSpawnProtectionSeconds' is not a valid integer; using default 5
+  odd null -> 5 | ERROR pocketdungeons.json field 'wildSpawnProtectionSeconds' is not a valid integer; using default 5
+  odd empty object -> 5 | ERROR pocketdungeons.json field 'wildSpawnProtectionSeconds' is not a valid integer; using default 5
+wildLostAndFoundMaxChests [int, default 64]
+  probes nnYYYYYYYYYYYYYYYYYYYYYYYYY
+  values 64,64,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildLostAndFoundMaxChests' has invalid value -1; must be >= 1; using default 64
+  disturbs (nothing else)
+  odd string abc -> 64 | ERROR pocketdungeons.json field 'wildLostAndFoundMaxChests' is not a valid integer; using default 64
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> 64 | ERROR pocketdungeons.json field 'wildLostAndFoundMaxChests' is not a valid integer; using default 64
+  odd number 1.5 -> 1 | (no warning)
+  odd empty array -> 64 | ERROR pocketdungeons.json field 'wildLostAndFoundMaxChests' is not a valid integer; using default 64
+  odd null -> 64 | ERROR pocketdungeons.json field 'wildLostAndFoundMaxChests' is not a valid integer; using default 64
+  odd empty object -> 64 | ERROR pocketdungeons.json field 'wildLostAndFoundMaxChests' is not a valid integer; using default 64
+wildClaimsSource [String, default (empty)]
+  probes YYYY
+  values , ,minecraft:stone,say hi
+  rejected (none)
+  disturbs (nothing else)
+  odd string abc -> abc | (no warning)
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> true | (no warning)
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array ->  | ERROR pocketdungeons.json field 'wildClaimsSource' is not a valid string; using default ''
+  odd null ->  | ERROR pocketdungeons.json field 'wildClaimsSource' is not a valid string; using default ''
+  odd empty object ->  | ERROR pocketdungeons.json field 'wildClaimsSource' is not a valid string; using default ''
+wildBlockedCommands [String, default (empty)]
+  probes YYYY
+  values , ,minecraft:stone,say hi
+  rejected (none)
+  disturbs (nothing else)
+  odd string abc -> abc | (no warning)
+  odd string 7 -> 7 | (no warning)
+  odd boolean true -> true | (no warning)
+  odd number 1.5 -> 1.5 | (no warning)
+  odd empty array ->  | ERROR pocketdungeons.json field 'wildBlockedCommands' is not a valid string; using default ''
+  odd null ->  | ERROR pocketdungeons.json field 'wildBlockedCommands' is not a valid string; using default ''
+  odd empty object ->  | ERROR pocketdungeons.json field 'wildBlockedCommands' is not a valid string; using default ''
 playtestJournal [boolean, default true]
   probes YY
   values true,false

@@ -87,6 +87,66 @@ public final class PocketDungeonsConfig {
             v -> v >= 0, "must be >= 0");
     private static final Knob<Integer> MAX_CONCURRENT_PREVIEWS = integer("maxConcurrentPreviews", 16,
             v -> v >= 0, "must be >= 0");
+    /**
+     * Which game mode this server runs: campaign (the compass, rooms and acts) or wild (lodestones
+     * scattered across the overworld, cleared on a cooldown). Anything else counts as campaign.
+     */
+    private static final Knob<String> MODE = text("mode", "campaign", false);
+    /**
+     * Wild mode: the side of the square cells that give each wild lodestone room, in blocks. A
+     * lodestone sits at a random point inside its cell.
+     */
+    private static final Knob<Integer> WILD_GRID_SIZE = integer("wildGridSize", 1500, v -> v >= 256, "must be >= 256");
+    /** Wild mode: the least distance in blocks between two active wild lodestones. */
+    private static final Knob<Integer> WILD_MIN_SEPARATION = integer("wildMinSeparation", 600,
+            v -> v >= 0, "must be >= 0");
+    /** Wild mode: how many wild lodestones the server keeps in the world at once. */
+    private static final Knob<Integer> WILD_TARGET_ACTIVE = integer("wildTargetActive", 12,
+            v -> v >= 0, "must be >= 0");
+    /**
+     * Wild mode: the most live wild dungeons at once; entering one past this is refused with a try
+     * again line. Keep maxConcurrentInstances above it.
+     */
+    private static final Knob<Integer> WILD_MAX_ACTIVE = integer("wildMaxActive", 24, v -> v >= 1, "must be >= 1");
+    /** Wild mode: the least distance in blocks from world spawn at which a wild lodestone is placed. */
+    private static final Knob<Integer> WILD_MIN_SPAWN_DISTANCE = integer("wildMinSpawnDistance", 500,
+            v -> v >= 0, "must be >= 0");
+    /** Wild mode: the farthest distance in blocks from world spawn at which a wild lodestone is placed. */
+    private static final Knob<Integer> WILD_MAX_RADIUS = integer("wildMaxRadius", 6000,
+            v -> v >= 256, "must be >= 256");
+    /**
+     * Wild mode: days a wild lodestone lasts before its dungeon collapses and a new one appears
+     * elsewhere.
+     */
+    private static final Knob<Integer> WILD_LIFESPAN_DAYS = integer("wildLifespanDays", 7, v -> v >= 1, "must be >= 1");
+    /** Wild mode: hours before a collapse at which players inside are first warned. */
+    private static final Knob<Integer> WILD_COLLAPSE_WARN_HOURS = integer("wildCollapseWarnHours", 24,
+            v -> v >= 0, "must be >= 0");
+    /** Wild mode: seconds of warning before a cleared dungeon resets and moves everyone out. */
+    private static final Knob<Integer> WILD_RESET_WARN_SECONDS = integer("wildResetWarnSeconds", 120,
+            v -> v >= 0, "must be >= 0");
+    /**
+     * Wild mode: seconds of damage protection after entering a wild dungeon; it ends early if the
+     * player attacks.
+     */
+    private static final Knob<Integer> WILD_SPAWN_PROTECTION_SECONDS = integer("wildSpawnProtectionSeconds", 5,
+            v -> v >= 0 && v <= 60, "must be 0 to 60");
+    /**
+     * Wild mode: the most lost and found chests placed at one collapse or reset; items beyond this are
+     * logged.
+     */
+    private static final Knob<Integer> WILD_LOST_AND_FOUND_MAX_CHESTS = integer("wildLostAndFoundMaxChests", 64,
+            v -> v >= 1, "must be >= 1");
+    /**
+     * Wild mode: path of Charter's land file (charter/areas.json), relative to the world folder unless
+     * absolute. Lodestones are not placed inside claimed land. Empty skips the check.
+     */
+    private static final Knob<String> WILD_CLAIMS_SOURCE = text("wildClaimsSource", "", true);
+    /**
+     * Wild mode: comma separated commands refused inside a wild dungeon. Empty by default, so teleport
+     * commands work. Operators are exempt.
+     */
+    private static final Knob<String> WILD_BLOCKED_COMMANDS = text("wildBlockedCommands", "", true);
     /** Record the playtest journal ({@code docs/PLAYTEST_EVENTS.md}). */
     private static final Knob<Boolean> PLAYTEST_JOURNAL = flag("playtestJournal", true);
     /** Seconds Lemon lingers after its last line before it vanishes. */
@@ -1127,6 +1187,62 @@ public final class PocketDungeonsConfig {
     /** M76: cap on preview cells standing at once. 0 disables the cap. */
     public static int maxConcurrentPreviews() {
         return MAX_CONCURRENT_PREVIEWS.get();
+    }
+
+    public static String mode() {
+        return MODE.get();
+    }
+
+    public static int wildGridSize() {
+        return WILD_GRID_SIZE.get();
+    }
+
+    public static int wildMinSeparation() {
+        return WILD_MIN_SEPARATION.get();
+    }
+
+    public static int wildTargetActive() {
+        return WILD_TARGET_ACTIVE.get();
+    }
+
+    public static int wildMaxActive() {
+        return WILD_MAX_ACTIVE.get();
+    }
+
+    public static int wildMinSpawnDistance() {
+        return WILD_MIN_SPAWN_DISTANCE.get();
+    }
+
+    public static int wildMaxRadius() {
+        return WILD_MAX_RADIUS.get();
+    }
+
+    public static int wildLifespanDays() {
+        return WILD_LIFESPAN_DAYS.get();
+    }
+
+    public static int wildCollapseWarnHours() {
+        return WILD_COLLAPSE_WARN_HOURS.get();
+    }
+
+    public static int wildResetWarnSeconds() {
+        return WILD_RESET_WARN_SECONDS.get();
+    }
+
+    public static int wildSpawnProtectionSeconds() {
+        return WILD_SPAWN_PROTECTION_SECONDS.get();
+    }
+
+    public static int wildLostAndFoundMaxChests() {
+        return WILD_LOST_AND_FOUND_MAX_CHESTS.get();
+    }
+
+    public static String wildClaimsSource() {
+        return WILD_CLAIMS_SOURCE.get();
+    }
+
+    public static String wildBlockedCommands() {
+        return WILD_BLOCKED_COMMANDS.get();
     }
 
     public static boolean playtestJournal() {
