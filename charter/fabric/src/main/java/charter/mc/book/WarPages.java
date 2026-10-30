@@ -60,9 +60,11 @@ public final class WarPages {
             OrgId other = truce.a().equals(nation) ? truce.b() : truce.a();
             body.add(Text.get("book.war.truce", "org", rt.describe.org(other), "time", Chat.duration(truce.untilSiege() - now)));
         }
-        boolean raised = rt.state.cores().stream().anyMatch(c -> !c.isKeep() && c.activeCamp() && rt.state.root(c.owner).equals(nation));
+        List<Core> mine = rt.state.cores().stream()
+                .filter(c -> !c.isKeep() && c.activeCamp() && rt.state.root(c.owner).equals(nation)).toList();
+        var land = new charter.land.LandGraph(rt.state, rt.knobs);
         List<ActionButton> buttons = new ArrayList<>();
-        if (!raised) {
+        if (mine.isEmpty()) {
             body.add(Text.get("book.war.need_outpost"));
         } else {
             int shown = 0;
@@ -70,8 +72,10 @@ public final class WarPages {
                 if (shown >= TARGETS_MAX) break;
                 if (target.isKeep() || !target.activeCamp()) continue;
                 OrgId defender = rt.state.root(target.owner);
-                if (defender.equals(nation) || rt.state.org(defender).map(o -> o.npc).orElse(true)) continue;
+                if (defender.equals(nation) || rt.state.org(defender).map(o -> o.npc || o.adminKingdom).orElse(true)) continue;
                 if (rt.state.wars.against(target.id).isPresent()) continue;
+                // A war is fought between two touching outposts, so only a neighbour of one of yours can be named.
+                if (mine.stream().noneMatch(m -> land.touching(m, target))) continue;
                 CoreId id = target.id;
                 String label = Text.get("book.war.declare_button", "org", rt.describe.org(defender), "x", target.center.x() * 16 + 8, "z", target.center.z() * 16 + 8);
                 buttons.add(BookDialogs.act(player, label, null, p -> confirm(p, id)));
@@ -115,8 +119,13 @@ public final class WarPages {
             return;
         }
         String org = rt.describe.org(rt.state.root(target.owner));
+        var land = new charter.land.LandGraph(rt.state, rt.knobs);
+        Core from = rt.state.cores().stream().filter(c -> !c.isKeep() && c.activeCamp() && rt.state.root(c.owner).equals(nation)
+                && land.touching(c, target)).findFirst().orElse(null);
+        CoreId fromId = from == null ? null : from.id;
         List<DialogBody> body = List.of(
-                BookDialogs.text(Text.get("book.war.confirm", "org", org, "site", rt.describe.core(outpost))),
+                BookDialogs.text(Text.get("book.war.confirm", "org", org, "site", rt.describe.core(outpost),
+                        "from", from == null ? "?" : rt.describe.core(from.id))),
                 BookDialogs.text(Text.get("book.war.confirm_skin")),
                 BookDialogs.text(Text.get("book.war.confirm_notice", "hours", rt.knobs.warGoalNoticeHours, "minutes", rt.knobs.outpostCaptureMinutes,
                         "total", rt.knobs.warGoalHours)),
@@ -127,7 +136,7 @@ public final class WarPages {
                 page(p, null);
                 return;
             }
-            BookRouter.run(p, new DeclareWar(n, outpost), line -> page(p, line != null ? line : Text.get("book.war.declared")));
+            BookRouter.run(p, new DeclareWar(n, outpost, fromId), line -> page(p, line != null ? line : Text.get("book.war.declared")));
         });
         BookDialogs.show(player, BookDialogs.confirm(Text.get("book.war.title"), body, yes, BookDialogs.back(player, p -> page(p, null))));
     }

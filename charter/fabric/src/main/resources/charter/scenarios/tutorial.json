@@ -1,6 +1,6 @@
 {
   "name": "tutorial",
-  "setup": "A first hour with Charter for one new player. You name a banner at an anvil, craft it with a lodestone into a Nexus, and place it at the emerald pillar: that founds your faction and raises its keep. Brinewatch, a small rival, holds a keep 12 chunks east and an outpost beyond it. You plant an outpost of your own at the gold pillar, declare war on theirs, and take it.",
+  "setup": "A first hour with Charter for one new player. You name a banner at an anvil, craft it with a lodestone into a Nexus, and place it at the emerald pillar: that founds your faction and raises its keep. Brinewatch, a small rival, holds a keep 12 chunks east and an outpost beyond it. You plant an outpost of your own at the gold pillar, touching theirs, declare war on it, and take it.",
   "tries": "Read the book Charter: A First Hour in your inventory and follow it page by page. Your Charter book shows where you stand. The longer guide is charter/TUTORIAL.md.",
   "knobs": {
     "timeScale": 24,
@@ -83,7 +83,7 @@
     },
     {
       "at": [
-        10,
+        15,
         0
       ],
       "block": "minecraft:gold_block",

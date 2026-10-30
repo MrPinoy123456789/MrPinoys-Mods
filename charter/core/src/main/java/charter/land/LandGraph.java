@@ -100,6 +100,23 @@ public final class LandGraph {
         return Math.max(Math.abs(a.x() - b.x()), Math.abs(a.z() - b.z())) - (radiusA + radiusB + 1);
     }
 
+    /** Whether two cores hold land that touches: a chunk of one is beside, or at the corner of, a chunk of the other. */
+    public boolean touching(Core a, Core b) {
+        java.util.Set<ChunkKey> mine = new java.util.HashSet<>();
+        for (Claim c : state.claims()) {
+            if (a.id.equals(c.core())) mine.add(c.chunk);
+        }
+        for (Claim c : state.claims()) {
+            if (!b.id.equals(c.core())) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (mine.contains(c.chunk.offset(dx, dz))) return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** What an admin kingdom may hold: more than any world has chunks, and safe to add one to. */
     public static final int UNLIMITED = Integer.MAX_VALUE / 4;
 

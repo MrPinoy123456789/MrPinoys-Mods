@@ -295,6 +295,13 @@ public final class ChronicleTest {
         check("sample: the office is told", lines.stream().anyMatch(l -> l.contains("Cy took up the office of Treasurer in Riverside")));
         check("sample: the spend is told", lines.stream().anyMatch(l -> l.contains("Kris drew 30 diamond from the treasury of Riverside")));
         check("sample: no name is missing", lines.stream().noneMatch(l -> l.contains("unknown") || l.contains("someone") || l.contains("{")));
+        // One happening is told once, and joins are brief.
+        check("brief: the founding is one line, with no separate office entry",
+                lines.stream().noneMatch(l -> l.contains("created the office of Lord") || l.contains("took up the office of Lord")));
+        check("brief: two members who joined the same day are one short line",
+                lines.stream().filter(l -> l.contains("joined Riverside")).count() == 1
+                        && lines.stream().anyMatch(l -> l.contains("Gil and Cy joined Riverside, making it a true body.")));
+        check("brief: the second member line is not told apart", lines.stream().noneMatch(l -> l.contains("gained its second member")));
         check("sample: the admin invites are not in the story", lines.stream().noneMatch(l -> l.contains("invited")));
         long hidden = f.state.history.entries().stream().filter(History.Entry::admin).count();
         check("sample: the history did hold admin entries", hidden > 0);

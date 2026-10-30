@@ -71,6 +71,13 @@ public final class Knobs {
     public int keepRadiusChunks = 1;
     /** Whether players may found kingdoms and keeps themselves. Off: only operators set kingdoms, through the admin commands. */
     public boolean playerFounding = true;
+    /**
+     * Whether the playtest and debugging commands exist: fast-forwarding time, backdating members, raising a camp at
+     * once, hand-made kingdoms, a Nexus to hand out, notes, the supply and granary tools, and /charter page.
+     */
+    public boolean devTools = true;
+    /** Whether the operator playtest scenarios (the tutorial, the jail and the rest) can be run with /charter admin scenario. */
+    public boolean scenarios = true;
     /** Whether land can be claimed beside a keep. Off: a keep is its plot and extra land comes only from outposts. */
     public boolean keepClaims = true;
     /** Whether the game may generate structures (dungeons, villages) that overlap land a keep or outpost holds. Off keeps them out. */

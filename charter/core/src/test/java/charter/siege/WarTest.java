@@ -31,6 +31,7 @@ public final class WarTest {
         aDefenderInTheChunkResetsTheHold();
         aGoalThatLapsesStartsACooldown();
         capturedOutpostsOnlyGoToTheCaptorsForAWhile();
+        aWarIsFoughtBetweenTouchingOutposts();
     }
 
     /** Presence the test sets by hand. */
@@ -56,7 +57,7 @@ public final class WarTest {
         Pair() {
             w.sim.inputs(presence);
             w.f.as(KRIS, new PlantCamp(w.ashfall, ch(40, 0)));
-            w.f.as(ZED, new PlantCamp(w.brine, ch(60, 0)));
+            w.f.as(ZED, new PlantCamp(w.brine, ch(41, 0)));
             w.raise();
             theirs = w.f.state.coresOf(w.brine).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
         }
@@ -68,7 +69,7 @@ public final class WarTest {
 
     static void declaringNeedsAnOutpostOfYourOwnAndARaisedTarget() {
         SiegeTest.World w = SiegeTest.world();
-        w.f.as(ZED, new PlantCamp(w.brine, ch(60, 0)));
+        w.f.as(ZED, new PlantCamp(w.brine, ch(41, 0)));
         Core theirs = w.f.state.coresOf(w.brine).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
         eq("war: a target still being raised is refused", DeclareWar.NOT_RAISED.key(), w.f.as(KRIS, new DeclareWar(w.ashfall, theirs.id)).reasonKey());
         w.raise();
@@ -88,7 +89,35 @@ public final class WarTest {
         eq("war: it is told", 1, w.f.state.history.of(SiegeEvents.WarDeclared.class).size());
         eq("war: the same outpost cannot be named twice", DeclareWar.ALREADY_NAMED.key(), w.f.as(KRIS, new DeclareWar(w.ashfall, theirs.id)).reasonKey());
         Core own = w.f.state.coresOf(w.ashfall).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
+        eq("war: it records the outpost the war is fought from", own.id, goal.from);
         eq("war: your own outpost is no target", DeclareWar.OWN_OUTPOST.key(), w.f.as(KRIS, new DeclareWar(w.ashfall, own.id)).reasonKey());
+    }
+
+    /** Outposts far apart cannot be named; touching ones can, by an edge or a corner; losing the attackers' one ends the war. */
+    static void aWarIsFoughtBetweenTouchingOutposts() {
+        SiegeTest.World far = SiegeTest.world();
+        far.f.as(KRIS, new PlantCamp(far.ashfall, ch(40, 0)));
+        far.f.as(ZED, new PlantCamp(far.brine, ch(60, 0)));
+        far.raise();
+        Core distant = far.f.state.coresOf(far.brine).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
+        eq("war: an outpost that does not touch yours cannot be named", DeclareWar.NOT_TOUCHING.key(),
+                far.f.as(KRIS, new DeclareWar(far.ashfall, distant.id)).reasonKey());
+
+        SiegeTest.World corner = SiegeTest.world();
+        corner.f.as(KRIS, new PlantCamp(corner.ashfall, ch(40, 0)));
+        corner.f.as(ZED, new PlantCamp(corner.brine, ch(41, 1)));
+        corner.raise();
+        Core diagonal = corner.f.state.coresOf(corner.brine).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
+        check("war: one touching at a corner can be named", corner.f.as(KRIS, new DeclareWar(corner.ashfall, diagonal.id)).done());
+
+        Pair p = new Pair();
+        check("war: declared between neighbours", p.declare().done());
+        Core mine = p.w.f.state.coresOf(p.w.ashfall).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
+        p.w.f.admin(new charter.land.actions.LoseCore(mine.id));
+        p.w.advance(Durations.MINUTE);
+        check("war: when the attackers' outpost is lost the war ends", p.w.f.state.wars.goals.isEmpty()
+                && p.w.f.state.history.has(SiegeEvents.WarLapsed.class));
+        check("war: with no truce, since nothing was fought over", !p.w.f.state.wars.truce(p.w.ashfall, p.w.brine, p.w.f.state.siegeClock.now()));
     }
 
     static void captureCannotBeginUntilTheNoticeIsOver() {

@@ -2,6 +2,10 @@ package charter.mc.book;
 
 import charter.gov.Standing;
 import charter.mc.Text;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -23,10 +27,56 @@ public final class StandingText {
         return joined(lines, false);
     }
 
+    /** Food in and out of granaries is not a power while keeps need no food; outposts keep their own store. */
+    private static boolean hiddenLine(Standing.Line line) {
+        boolean granary = line.power() == charter.grant.Power.GRANARY_DEPOSIT || line.power() == charter.grant.Power.GRANARY_WITHDRAW
+                || line.group() == charter.gov.PowerGroup.GRANARY_IN || line.group() == charter.gov.PowerGroup.GRANARY_OUT;
+        return granary && charter.mc.CharterServer.running() && !charter.mc.CharterServer.runtime().knobs.keepGranary;
+    }
+
+    /**
+     * The same lines as {@link #joined(List, boolean)}, laid out to read: each holder is a coloured heading with a
+     * hover that says what holding a power that way means, and what they hold is one bullet per line beneath it.
+     */
+    public static List<Component> components(List<Standing.Line> lines, boolean newcomer) {
+        Map<String, List<Standing.Line>> byHolder = new LinkedHashMap<>();
+        for (Standing.Line line : lines) {
+            if (hiddenLine(line)) continue;
+            String key = line.kind() + "|" + line.name() + "|" + line.holders() + "|" + line.together() + "|" + line.youCanVote();
+            byHolder.computeIfAbsent(key, k -> new ArrayList<>()).add(line);
+        }
+        List<Component> out = new ArrayList<>();
+        for (List<Standing.Line> group : byHolder.values()) {
+            Standing.Line first = group.get(0);
+            Component tip = Component.literal(holderTip(first));
+            MutableComponent block = Component.literal("");
+            block.append(Component.literal(holder(first, newcomer)).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+                    .withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(tip))));
+            for (Standing.Line line : group) {
+                block.append(Component.literal("\n  • " + label(line)).withStyle(ChatFormatting.WHITE));
+            }
+            out.add(block);
+        }
+        return out;
+    }
+
+    /** What it means that someone holds a power this way, for the hover on their name. */
+    static String holderTip(Standing.Line line) {
+        return switch (line.kind()) {
+            case YOU -> Text.get("book.tip.you");
+            case OFFICE -> line.holders().size() <= 1 ? Text.get("book.tip.office_one", "name", String.join(", ", line.holders()))
+                    : Text.get(line.together() ? "book.tip.office_together" : "book.tip.office_any");
+            case MEMBERS_BY_VOTE -> Text.get("book.tip.vote");
+            case PLAYER -> Text.get("book.tip.player");
+            case ORG -> Text.get("book.tip.org");
+        };
+    }
+
     /** As {@link #joined(List)}; {@code newcomer} words the vote as something the reader could do once a member. */
     public static List<String> joined(List<Standing.Line> lines, boolean newcomer) {
         Map<String, List<Standing.Line>> byHolder = new LinkedHashMap<>();
         for (Standing.Line line : lines) {
+            if (hiddenLine(line)) continue;
             String key = line.kind() + "|" + line.name() + "|" + line.holders() + "|" + line.together() + "|" + line.youCanVote();
             byHolder.computeIfAbsent(key, k -> new ArrayList<>()).add(line);
         }

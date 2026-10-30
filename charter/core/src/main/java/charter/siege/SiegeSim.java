@@ -198,6 +198,12 @@ public final class SiegeSim {
                 wars.goals.remove(goal);
                 continue;
             }
+            if (goal.from != null && state.core(goal.from).isEmpty()) {
+                // The war is between two outposts: when the attackers' one is lost, there is nothing left to fight from.
+                events.add(new SiegeEvents.WarLapsed(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
+                wars.goals.remove(goal);
+                continue;
+            }
             if (now >= goal.expiresAt) {
                 events.add(new SiegeEvents.WarLapsed(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
                 wars.truces.add(new WarBook.Truce(goal.attacker, goal.defender, now + Durations.days(knobs.truceDays)));

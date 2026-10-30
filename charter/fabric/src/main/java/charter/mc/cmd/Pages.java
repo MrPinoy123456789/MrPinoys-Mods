@@ -112,7 +112,10 @@ final class Pages {
                         }
                     })));
         }
-        player.sendSystemMessage(Component.literal("").append(Chat.suggest(Text.get("link.found"), "/charter found ")));
+        // The founding link is for a server where players found kingdoms; operators set them here.
+        if (CharterServer.runtime().knobs.playerFounding) {
+            player.sendSystemMessage(Component.literal("").append(Chat.suggest(Text.get("link.found"), "/charter found ")));
+        }
     }
 
     private static String balances(Organization org) {

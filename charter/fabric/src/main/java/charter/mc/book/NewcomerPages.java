@@ -128,20 +128,25 @@ public final class NewcomerPages {
         Standing.View v = Standing.asNewcomer(rt.state, rt.engine, id, now);
         List<DialogBody> body = new ArrayList<>();
         long keeps = rt.state.coresOf(id).stream().filter(c -> c.isKeep()).count();
-        body.add(BookDialogs.text(Text.get("book.join.about", "form", formText(v.form()),
-                "members", rt.state.members(id).size(), "keeps", keeps)));
+        String formTip = MemberPages.formTip(v.form(),
+                rt.state.org(id).map(o -> o.governance.deciders).flatMap(rt.state::office).orElse(null));
+        body.add(BookDialogs.text(Component.literal(Text.get("book.join.about", "form", formText(v.form()),
+                        "members", rt.state.members(id).size(), "keeps", keeps))
+                .withStyle(ChatFormatting.GOLD)
+                .withStyle(style -> style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(formTip))))));
         // Only what an ordinary member lives under: who takes members in and removes them, who spends,
         // who declares war and signs treaties, who changes or ends the charter. The rest is one closing line.
         body.add(BookDialogs.text(Text.get("book.join.who_decides")));
         java.util.Set<charter.gov.PowerGroup> shown = java.util.EnumSet.of(charter.gov.PowerGroup.MEMBERS,
                 charter.gov.PowerGroup.TREASURY, charter.gov.PowerGroup.WAR, charter.gov.PowerGroup.DIPLOMACY);
         List<Standing.Line> mine = v.freedoms().stream().filter(l -> shown.contains(l.group())).toList();
-        for (String line : StandingText.joined(mine, true)) body.add(BookDialogs.text(line));
+        for (Component line : StandingText.components(mine, true)) body.add(BookDialogs.text(line));
         boolean restByHands = v.freedoms().stream().anyMatch(l -> !shown.contains(l.group())
                 && l.kind() != Standing.HolderKind.MEMBERS_BY_VOTE);
         if (restByHands) body.add(BookDialogs.text(Text.get("book.join.runs_keeps")));
         // Say plainly what a member can and cannot do about their ruler.
-        body.add(BookDialogs.text(Text.get(v.form() == Standing.Form.COMMUNE ? "book.join.commune_rule" : "book.join.no_vote")));
+        body.add(BookDialogs.text(Text.get(v.form() == Standing.Form.COMMUNE ? "book.join.commune_rule"
+                : rt.knobs.playerFounding ? "book.join.no_vote" : "book.join.no_vote_set")));
         List<ActionButton> buttons = new ArrayList<>();
         Optional<JoinRequest> asked = rt.state.joinRequestOf(me(player));
         if (asked.isPresent() && asked.get().org().equals(id)) {

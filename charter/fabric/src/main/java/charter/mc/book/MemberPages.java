@@ -71,10 +71,24 @@ public final class MemberPages {
         return text.length() <= LABEL_MAX ? text : text.substring(0, LABEL_MAX - 3) + "...";
     }
 
-    private static List<DialogBody> lines(String notice, List<String> lines) {
+    /** Each item is a plain String or a styled Component, shown as its own paragraph. */
+    private static List<DialogBody> lines(String notice, List<?> lines) {
         List<DialogBody> body = new ArrayList<>();
-        for (String line : lines) body.add(BookDialogs.text(line));
+        for (Object line : lines) {
+            if (line instanceof net.minecraft.network.chat.Component c) body.add(BookDialogs.text(c));
+            else body.add(BookDialogs.text(String.valueOf(line)));
+        }
         return BookDialogs.withNotice(notice, body);
+    }
+
+    /** The hover that says what a form of rule means; commune and council are the two that need telling apart. */
+    static String formTip(Standing.Form form, Office deciders) {
+        return switch (form) {
+            case COMMUNE -> Text.get("book.tip.form_commune");
+            case LORDSHIP -> Text.get("book.tip.form_lordship");
+            case COUNCIL -> Text.get(deciders != null && deciders.deciding() == Office.Deciding.TOGETHER
+                    ? "book.tip.form_council_together" : "book.tip.form_council_alone");
+        };
     }
 
     private static ActionButton go(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> page) {
@@ -111,8 +125,16 @@ public final class MemberPages {
                 go(player, v.orgName(), p -> faction(p, null)),
                 go(player, Text.get("book.button.war"), p -> WarPages.page(p, null)),
                 go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
+        String tip = formTip(v.form(), deciders(v.org()));
+        net.minecraft.network.chat.Component formLine = net.minecraft.network.chat.Component.literal(
+                        Text.get("book.home.form", "form", form, "offices", offices))
+                .withStyle(net.minecraft.ChatFormatting.GOLD)
+                .withStyle(style -> style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
+                        net.minecraft.network.chat.Component.literal(tip))));
+        net.minecraft.network.chat.Component hint = net.minecraft.network.chat.Component.literal(Text.get("book.home.form_hint"))
+                .withStyle(net.minecraft.ChatFormatting.GRAY, net.minecraft.ChatFormatting.ITALIC);
         BookDialogs.show(player, BookDialogs.list(Text.get("book.home.title", "org", v.orgName()),
-                lines(notice, List.of(Text.get("book.home.form", "form", form, "offices", offices),
+                lines(notice, List.of(formLine, hint,
                         Text.get("book.calendar.seasons", "seasons", seasonNames()), Text.get("book.calendar.days"))),
                 buttons, BookDialogs.close()));
     }
@@ -133,10 +155,16 @@ public final class MemberPages {
     public static void rights(ServerPlayer player, String notice) {
         if (!member(player)) return;
         Standing.View v = view(player).orElseThrow();
-        List<String> rights = StandingText.joined(v.rights().stream().filter(l -> l.group() != charter.gov.PowerGroup.CHARTER).toList());
-        List<String> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> rights = StandingText.components(
+                v.rights().stream().filter(l -> l.group() != charter.gov.PowerGroup.CHARTER).toList(), false);
+        List<Object> body = new ArrayList<>();
         body.add(Text.get("book.rights.intro", "org", v.orgName()));
-        if (rights.isEmpty()) body.add(Text.get("book.rights.none")); else body.addAll(rights);
+        if (rights.isEmpty()) {
+            // Only a commune's members decide by vote; in a lordship or council the ruler does.
+            body.add(Text.get(v.form() == Standing.Form.COMMUNE ? "book.rights.none" : "book.rights.none_ruled"));
+        } else {
+            body.addAll(rights);
+        }
         BookDialogs.show(player, BookDialogs.list(Text.get("book.rights.title"), lines(notice, body), List.of(),
                 BookDialogs.back(player, p -> home(p, null))));
     }
@@ -145,15 +173,21 @@ public final class MemberPages {
         if (!member(player)) return;
         Standing.View v = view(player).orElseThrow();
         // "Changing or ending the charter" names no action that exists, so it is not shown.
-        List<String> freedoms = StandingText.joined(v.freedoms().stream().filter(l -> l.group() != charter.gov.PowerGroup.CHARTER).toList());
-        List<String> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> freedoms = StandingText.components(
+                v.freedoms().stream().filter(l -> l.group() != charter.gov.PowerGroup.CHARTER).toList(), false);
+        List<Object> body = new ArrayList<>();
         body.add(Text.get("book.freedoms.intro", "org", v.orgName()));
         if (freedoms.isEmpty()) body.add(Text.get("book.freedoms.none")); else body.addAll(freedoms);
-        // Members of a Lordship or a council cannot vote the ruler out; the only ways out are to leave or break away.
-        if (v.form() != Standing.Form.COMMUNE) body.add(Text.get("book.freedoms.no_vote"));
-        BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body),
-                List.of(BookDialogs.act(player, Text.get("book.leave.button"), null, p -> leaveConfirm(p)),
-                        BreakawayPages.button(player)),
+        // Members of a Lordship or a council cannot vote the ruler out. While the operators set the kingdoms there is no
+        // breaking away either, so the one way out is to leave.
+        boolean breakaway = rt().knobs.playerFounding;
+        if (v.form() != Standing.Form.COMMUNE) {
+            body.add(Text.get(breakaway ? "book.freedoms.no_vote" : "book.freedoms.no_vote_set"));
+        }
+        List<ActionButton> exits = new ArrayList<>();
+        exits.add(BookDialogs.act(player, Text.get("book.leave.button"), null, p -> leaveConfirm(p)));
+        if (breakaway) exits.add(BreakawayPages.button(player));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body), exits,
                 BookDialogs.back(player, p -> home(p, null))));
     }
 
@@ -310,6 +344,11 @@ public final class MemberPages {
         body.add(Text.get("book.faction.treasury", "balances", String.join(", ", balances)));
         for (Core core : rt.state.coresOf(org)) {
             if (!core.isKeep()) continue;
+            if (!rt.knobs.keepGranary) {
+                // Keeps need no food, so there is no granary to report.
+                body.add(Text.get("book.faction.keep_plain", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8));
+                continue;
+            }
             body.add(Text.get("book.faction.keep", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8,
                     "granary", GranaryText.timeLine(rt, core)));
             double daysLeft = GranaryText.daysLeft(rt, core);

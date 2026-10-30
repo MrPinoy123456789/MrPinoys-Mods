@@ -74,7 +74,7 @@ public final class LandCommands {
         return Commands.literal("admin")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.literal("faction")
-                        .then(Commands.literal("spawn")
+                        .then(Commands.literal("spawn").requires(Gate::devTools)
                                 .then(Commands.argument("name", StringArgumentType.string())
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
@@ -98,11 +98,12 @@ public final class LandCommands {
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("bonus", com.mojang.brigadier.arguments.IntegerArgumentType.integer(-1000, 100000))
                                                 .executes(LandCommands::claimBonus)))))
-                .then(Commands.literal("camp")
+                .then(Commands.literal("camp").requires(Gate::devTools)
                         .then(Commands.literal("raise-now").executes(LandCommands::raiseNow)))
                 .then(Commands.literal("give")
                         .then(Commands.argument("what", StringArgumentType.word())
-                                .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"nexus", "banner", "book"}, b))
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                        Gate.devTools() ? new String[]{"nexus", "banner", "book"} : new String[]{"banner", "book"}, b))
                                 .executes(ctx -> give(ctx, ctx.getSource().getPlayerOrException()))
                                 .then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
@@ -365,7 +366,11 @@ public final class LandCommands {
         if (target == null) return fail(ctx, Text.get("land.admin.no_player", "name", StringArgumentType.getString(ctx, "player")));
         String what = StringArgumentType.getString(ctx, "what");
         switch (what) {
-            case "nexus" -> target.getInventory().add(LandItems.nexus());
+            case "nexus" -> {
+                // A Nexus founds a kingdom, which players cannot do while the operators set them.
+                if (!Gate.devTools()) return fail(ctx, Text.get("land.admin.bad_item"));
+                target.getInventory().add(LandItems.nexus());
+            }
             case "banner" -> target.getInventory().add(LandItems.warBanner());
             case "book" -> target.getInventory().add(charter.mc.book.CharterBook.create());
             default -> {

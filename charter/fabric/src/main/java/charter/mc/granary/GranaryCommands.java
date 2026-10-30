@@ -41,7 +41,7 @@ final class GranaryCommands {
         dispatcher.register(Commands.literal("charter")
                 .then(Commands.literal("admin")
                         .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.literal("granary")
+                        .then(Commands.literal("granary").requires(charter.mc.cmd.Gate::devTools)
                                 .then(Commands.literal("set")
                                         .then(Commands.argument("pos", BlockPosArgument.blockPos()).executes(GranaryCommands::set)))
                                 .then(Commands.literal("remove")

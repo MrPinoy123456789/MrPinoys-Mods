@@ -75,8 +75,8 @@ public final class CharterCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter")
                         .executes(CharterCommands::menu)
-                        .then(Commands.literal("page").executes(ctx -> page(ctx, Pages::faction)))
-                        .then(Commands.literal("found")
+                        .then(Commands.literal("page").requires(Gate::devTools).executes(ctx -> page(ctx, Pages::faction)))
+                        .then(Commands.literal("found").requires(Gate::founding)
                                 .then(Commands.argument("name", StringArgumentType.string())
                                         .then(Commands.argument("preset", StringArgumentType.word())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"commune", "lordship"}, b))

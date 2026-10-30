@@ -27,7 +27,7 @@ public final class SupplyCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter").then(Commands.literal("admin")
                         .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.literal("supply").then(Commands.literal("show").executes(SupplyCommands::show))))));
+                        .then(Commands.literal("supply").requires(Gate::devTools).then(Commands.literal("show").executes(SupplyCommands::show))))));
     }
 
     private static int show(CommandContext<CommandSourceStack> ctx) {

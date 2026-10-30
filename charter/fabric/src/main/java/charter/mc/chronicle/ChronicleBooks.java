@@ -71,11 +71,13 @@ public final class ChronicleBooks {
         // Newest first. Stop as soon as the volume asked for is full and one page more is known to exist.
         int need = CONTENT_PAGES * number + 1;
         Pager pager = new Pager();
-        for (int i = all.size() - 1; i >= 0 && pager.pages.size() < need; i--) {
-            History.Entry entry = all.get(i);
-            if (!wanted.test(entry)) continue;
-            renderer.render(entry).ifPresent(pager::add);
+        // Told oldest first so one happening that left several entries is told once, then read from the newest back.
+        List<History.Entry> chosen = new ArrayList<>();
+        for (History.Entry entry : all) {
+            if (wanted.test(entry)) chosen.add(entry);
         }
+        List<String> told = renderer.render(chosen);
+        for (int i = told.size() - 1; i >= 0 && pager.pages.size() < need; i--) pager.add(told.get(i));
         pager.finish();
 
         int from = CONTENT_PAGES * (number - 1);

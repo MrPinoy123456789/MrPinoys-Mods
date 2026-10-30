@@ -49,9 +49,11 @@ public final class ScenarioCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter").then(Commands.literal("admin")
                         .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.literal("note")
+                        .then(Commands.literal("note").requires(charter.mc.cmd.Gate::devTools)
                                 .then(Commands.argument("text", StringArgumentType.greedyString()).executes(ScenarioCommands::note)))
                         .then(Commands.literal("scenario")
+                                // Switched off in charter.json: the command is gone from the tree, not just refused.
+                                .requires(source -> charter.mc.cmd.Gate.devTools(source) && (CharterMod.knobs() == null || CharterMod.knobs().scenarios))
                                 .then(Commands.literal("list").executes(ScenarioCommands::list))
                                 .then(Commands.literal("clear").executes(ScenarioCommands::clear))
                                 .then(Commands.literal("run").then(named(false)))
