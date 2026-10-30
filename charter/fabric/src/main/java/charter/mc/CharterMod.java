@@ -53,6 +53,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.npc.NpcCommands.register();
         // The Charter book and the founding Nexus.
         charter.mc.book.BookMod.register();
+        // Kingdom membership as the permission node race:<kingdom>, for other mods' race items.
+        charter.mc.RaceNodes.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }
