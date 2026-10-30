@@ -1252,8 +1252,10 @@ I can clear it every time it is ready, and anyone who wants it has to get past m
    far wall and stamps the next staging room (the doors room). Wild mode does the first and skips the other two: it places the
    reward chests and, beside them, an exit block that looks like the one players came in by, with an emblem that reads Exit.
    Right click opens the same kind of dialog as the lodestone, with Leave. **Placing the exit block starts the cooldown.**
-   Players inside get a short window to leave, then are moved out. When the cooldown ends the dungeon resets: chests and
-   hidden ore refresh from the existing loot tables.
+   The dungeon stays open and enterable for the whole cooldown; leftover chests are first come first served. When the
+   cooldown ends, a 120 second warning goes out, everyone is moved out, and the dungeon resets: chests and hidden ore
+   refresh from the existing loot tables, ground items go to lost and found, and the next entry builds a fresh seed
+   (owner, 2026-10-30).
 4. **Death.** Vanilla death: your items drop where you die. The dungeon stays open until the cooldown ends, so you can go
    back for them, and a killer can take them. A chat warning goes out two minutes before any reset or collapse.
 5. **Collapse.** Whatever is on the ground when the dungeon collapses goes into a lost and found chest outside, next to the
@@ -1281,4 +1283,4 @@ an unclaimed lodestone near spawn gets farmed to nothing before anyone settles; 
 the old lodestone or needs its own lifespan; how the exit block camping feels; whether `padGatesRefuse` as the clear check
 fires too early on a floor with an objective instead of spawners; whether the emblem needs the Glyph system (approved, not built, 2026-10-21) or a plain item display above the block is enough for v1.
 
-**Status: approved, not built (2026-10-30).**
+**Status: approved, not built (2026-10-30).** Plan: `docs/plans/2026-10-30-wild-lodestones-plan.md`.

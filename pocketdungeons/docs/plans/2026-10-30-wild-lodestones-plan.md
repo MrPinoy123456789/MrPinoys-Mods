@@ -193,13 +193,11 @@ Camp the arrival block. Relog inside, and restart the server with a player insid
 
 ## Open items before phase 3 and 4
 
-1. **A contradiction in the record.** Rule 3 says players inside get a short window after a clear and are then moved out.
-   Rule 4 says the dungeon stays open until the cooldown ends so a dead player can fetch their items. Recommendation: the
-   dungeon stays enterable and open for the whole cooldown; at reset there is a 120 second warning and then everyone is moved
-   out. Leftover chests are first come first served. Rule 3 changes to match.
-2. **Charter data.** The placer needs the public kingdom data: a URL or file, and a format (rectangles, chunk lists or
-   radii). The Charter agent should publish it; the format is agreed before phase 4.
-3. **Defaults the record does not state:** reset also sweeps ground items to lost and found (assumed yes); each reset uses a
-   fresh seed (assumed yes); spawn protection ends early if the player attacks (assumed yes).
+1. **Resolved (owner, 2026-10-30).** The dungeon stays enterable and open for the whole cooldown; at reset there is a 120
+   second warning and then everyone is moved out. Leftover chests are first come first served. The record's rule 3 now says so.
+2. **Charter data.** The owner says the kingdom data is already published. Phase 4 still needs its URL and format
+   (rectangles, chunk lists or radii) before `ClaimSource` can be written.
+3. **Confirmed (owner, 2026-10-30):** reset also sweeps ground items to lost and found; each reset uses a fresh seed; spawn
+   protection ends early if the player attacks.
 4. **Starting numbers:** grid 1500 blocks, 12 active lodestones, 7 day lifespan, 4 to 24 hour cooldowns by promise, 5 second
    spawn protection, 120 second reset warning. All are knobs.
