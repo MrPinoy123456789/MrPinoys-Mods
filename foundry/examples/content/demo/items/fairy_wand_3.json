@@ -8,10 +8,15 @@
     "Sneak and right click: Healing Light, regeneration for players nearby. 65s recharge.",
     "Fully upgraded."
   ],
-  "base_item": "minecraft:stick",
+  "base_item": "minecraft:breeze_rod",
+  "texture": "demo:item/fairy_wand_3",
   "stack_size": 1,
   "glint": true,
   "rarity": "epic",
+  "handheld": true,
+  "require_permission": "race:everdelle",
+  "locked_message": "Only the Fairies of Everdelle can wield this.",
+  "keep_on_death": true,
   "mechanics": [
     {
       "trigger": "on_swing",

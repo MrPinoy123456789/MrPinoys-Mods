@@ -133,7 +133,7 @@ def azurius(t):
     mist = [400, 500, 600][t]
     mist_cd = [1200, 1100, 1000][t]
     return dict(
-        key="azurius_trident", name="Tide Trident", base="minecraft:stick", damage=[5, 6, 7][t], speed=1.1,
+        key="azurius_trident", name="Tide Trident", base="minecraft:bone", damage=[5, 6, 7][t], speed=1.1,
         lore=[f"Left click: Water Jet, {jet} damage at range.",
               f"Right click: throw the trident. It flies out, hits, and returns, soaking what it strikes. {secs(throw_cd)}s recharge.",
               f"Sneak and right click: Riptide Mist, water breathing and speed in water for {secs(mist)}s. {secs(mist_cd)}s recharge."],
@@ -167,7 +167,7 @@ def faeloria(t):
     glam = [160, 200, 240][t]
     glam_cd = [1800, 1700, 1600][t]
     return dict(
-        key="faeloria_staff", name="Briarthorn Staff", base="minecraft:stick", damage=0, speed=0,
+        key="faeloria_staff", name="Briarthorn Staff", base="minecraft:blaze_rod", damage=0, speed=0,
         lore=[f"Left click: Thorn Bolt, {thorn} damage and poison.",
               f"Right click: hold for a second, then let go. Bramble Burst. {secs(burst_cd)}s recharge.",
               f"Sneak and right click: Glamour, invisible and swift for {secs(glam)}s. {secs(glam_cd)}s recharge."],
@@ -196,7 +196,7 @@ def fairy(t):
     heal_cd = [1500, 1400, 1300][t]
     mis_cd = [400, 360, 320][t]
     return dict(
-        key="fairy_wand", name="Fairy Wand", base="minecraft:stick", damage=0, speed=0,
+        key="fairy_wand", name="Fairy Wand", base="minecraft:breeze_rod", damage=0, speed=0,
         lore=[f"Left click: a sparkle bolt, {[3, 4, 5][t]} damage.",
               f"Right click: Mischief, a bolt that hurts, blinds and slows. {secs(mis_cd)}s recharge.",
               f"Sneak and right click: Healing Light, regeneration for players nearby. {secs(heal_cd)}s recharge."],
@@ -226,11 +226,20 @@ WEAPONS = [azrak, aurelia, azurius, faeloria, fairy]
 NAMESPACE = {"fairy_wand": "demo"}      # the wand already lives under demo; new weapons get their own namespace
 DEFAULT_NS = "kingdoms"
 NUMERALS = ["", " II", " III"]
+# Each weapon belongs to one kingdom: only its members hold the race node Charter grants.
+GATES = {"azrak_pick": ("azrak", "Dwarves of Azrak"), "aurelia_oathblade": ("aurelia", "Humans of Aurelia"),
+         "azurius_trident": ("azurius", "Merfolk of Azurius"), "faeloria_staff": ("faeloria", "Fae of Faeloria"),
+         "fairy_wand": ("everdelle", "Fairies of Everdelle")}
 
 
 def ident(key, tier):
     ns = NAMESPACE.get(key, DEFAULT_NS)
     return f"{ns}:{key}" if tier == 0 and ns == "demo" else f"{ns}:{key}_{tier + 1}"
+
+
+def ident_texture(item_id):
+    ns, path = item_id.split(":")
+    return f"{ns}:item/{path}"
 
 
 def write(path, data):
@@ -254,11 +263,16 @@ def main():
             else:
                 lore.append("Fully upgraded.")
             item = {"schema_version": 1, "id": item_id, "display_name": w["name"] + NUMERALS[t], "lore": lore,
-                    "base_item": w["base"], "stack_size": 1, "glint": True,
+                    "base_item": w["base"], "texture": ident_texture(item_id), "stack_size": 1, "glint": True,
                     "rarity": RARITY_OVERRIDE.get(w["key"], RARITY)[t]}
             if w["damage"]:
                 item["attack_damage"] = w["damage"]
                 item["attack_speed"] = w["speed"]
+            node, people = GATES[w["key"]]
+            item["handheld"] = True
+            item["require_permission"] = "race:" + node
+            item["locked_message"] = "Only the " + people + " can wield this."
+            item["keep_on_death"] = True
             item["mechanics"] = w["mechanics"]
             write(os.path.join(ROOT, ns, "items", path + ".json"), item)
             count += 1

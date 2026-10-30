@@ -32,6 +32,7 @@ public final class WandGameTest {
         var player = helper.makeMockServerPlayerInLevel();
         var at = helper.absoluteVec(new net.minecraft.world.phys.Vec3(x, 2, z));
         player.snapTo(at.x, at.y, at.z, 0f, 0f);
+        TestPerms.grant(player, "race:everdelle");
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(wand()));
         return player;
     }

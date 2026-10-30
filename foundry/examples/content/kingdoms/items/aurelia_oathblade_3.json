@@ -9,11 +9,16 @@
     "Fully upgraded."
   ],
   "base_item": "minecraft:iron_sword",
+  "texture": "kingdoms:item/aurelia_oathblade_3",
   "stack_size": 1,
   "glint": true,
   "rarity": "epic",
   "attack_damage": 9,
   "attack_speed": 1.6,
+  "handheld": true,
+  "require_permission": "race:aurelia",
+  "locked_message": "Only the Humans of Aurelia can wield this.",
+  "keep_on_death": true,
   "mechanics": [
     {
       "trigger": "on_hit_entity",

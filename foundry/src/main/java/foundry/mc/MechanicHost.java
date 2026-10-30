@@ -30,12 +30,15 @@ public final class MechanicHost implements MechanicRunner.Host {
     private static final MechanicRunner RUNNER = new MechanicRunner();
 
     /**
-     * Decides whether an entity holds a permission node (an Identifier such as {@code race:fairy}) through vanilla's
-     * permission set. A test or another mod's permission source may replace it; Foundry never names a node itself.
+     * Decides whether an entity holds a permission node (an Identifier such as {@code race:fairy}). It asks the Fabric
+     * permission API, which a permissions mod or Charter feeds, and falls back to vanilla's permission set. A test may
+     * replace it; Foundry never names a node itself.
      */
-    public static java.util.function.BiPredicate<LivingEntity, Identifier> permissionCheck = (entity, node) ->
-            entity instanceof ServerPlayer p && p.permissions().hasPermission(
-                    net.minecraft.server.permissions.Permission.Atom.create(node));
+    public static java.util.function.BiPredicate<LivingEntity, Identifier> permissionCheck = (entity, node) -> {
+        if (!(entity instanceof ServerPlayer p)) return false;
+        if (((net.fabricmc.fabric.api.permission.v1.PermissionContextOwner) p).checkPermission(node, false)) return true;
+        return p.permissions().hasPermission(net.minecraft.server.permissions.Permission.Atom.create(node));
+    };
 
     private final ServerPlayer player;
     private final LivingEntity hit;

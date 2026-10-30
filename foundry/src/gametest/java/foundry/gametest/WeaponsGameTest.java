@@ -41,6 +41,21 @@ public final class WeaponsGameTest {
         var player = helper.makeMockServerPlayerInLevel();
         var at = helper.absoluteVec(new net.minecraft.world.phys.Vec3(1.5, 2, 1.5));
         player.snapTo(at.x, at.y, at.z, 0f, 0f);
+        TestPerms.grant(player, NODES.get(id.replaceAll("_[123]$", "")));
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(item(id)));
+        return player;
+    }
+
+    private static final java.util.Map<String, String> NODES = java.util.Map.of(
+            "kingdoms:azrak_pick", "race:azrak", "kingdoms:aurelia_oathblade", "race:aurelia",
+            "kingdoms:azurius_trident", "race:azurius", "kingdoms:faeloria_staff", "race:faeloria",
+            "demo:fairy_wand", "race:everdelle");
+
+    @SuppressWarnings("removal")
+    private static ServerPlayer outsider(GameTestHelper helper, String id) {
+        var player = helper.makeMockServerPlayerInLevel();
+        var at = helper.absoluteVec(new net.minecraft.world.phys.Vec3(1.5, 2, 1.5));
+        player.snapTo(at.x, at.y, at.z, 0f, 0f);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(item(id)));
         return player;
     }
@@ -241,6 +256,58 @@ public final class WeaponsGameTest {
         var attacker = holder(helper, "kingdoms:azrak_pick_1");
         item("kingdoms:azrak_pick_1").use(helper.getLevel(), attacker, InteractionHand.MAIN_HAND);
         helper.assertValueEqual(Bolts.liveFor(attacker.getUUID()), 1, "a plain right click launches Rockfall");
+        helper.succeed();
+    }
+
+    @GameTest
+    public void aWeaponWorksOnlyForTheKingdomWhoseNodeThePlayerHolds(GameTestHelper helper) {
+        var staff = item("kingdoms:faeloria_staff_1");
+        var pick = item("kingdoms:azrak_pick_1");
+        var member = holder(helper, "kingdoms:faeloria_staff_1");
+        var stranger = outsider(helper, "kingdoms:faeloria_staff_1");
+        helper.assertTrue(foundry.mc.Gate.allowed(member, foundry.mc.FoundryMod.loaded().items().get(foundry.core.Ident.parse("kingdoms:faeloria_staff_1"))),
+                "the Fae can wield the staff");
+        staff.use(helper.getLevel(), stranger, InteractionHand.MAIN_HAND);
+        helper.assertTrue(!stranger.isUsingItem(), "a stranger cannot even start charging the staff");
+        staff.use(helper.getLevel(), member, InteractionHand.MAIN_HAND);
+        helper.assertTrue(member.isUsingItem(), "a member can");
+        member.stopUsingItem();
+
+        // The node is per kingdom: the Fae cannot lift a dwarf's pick.
+        var wrong = holder(helper, "kingdoms:faeloria_staff_1");
+        wrong.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(pick));
+        Mob zombie = still(helper, 1, 2, 3);
+        float before = zombie.getHealth();
+        pick.hurtEnemy(wrong.getMainHandItem(), zombie, wrong);
+        helper.assertValueEqual(zombie.getHealth(), before, "the pick's armour piercing bonus does not fire for the wrong people");
+        helper.succeed();
+    }
+
+    @GameTest
+    public void aStrangersLeftClickIsRefusedBeforeItLands(GameTestHelper helper) {
+        var stranger = outsider(helper, "kingdoms:azrak_pick_1");
+        Mob zombie = still(helper, 1, 2, 3);
+        var result = net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker()
+                .interact(stranger, helper.getLevel(), InteractionHand.MAIN_HAND, zombie, null);
+        helper.assertTrue(result == net.minecraft.world.InteractionResult.FAIL, "the attack is cancelled for a stranger");
+        var member = holder(helper, "kingdoms:azrak_pick_1");
+        var allowed = net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker()
+                .interact(member, helper.getLevel(), InteractionHand.MAIN_HAND, zombie, null);
+        helper.assertTrue(allowed != net.minecraft.world.InteractionResult.FAIL, "a member's attack goes ahead");
+        helper.succeed();
+    }
+
+    @GameTest
+    public void aWeaponStaysWithItsOwnerThroughADeath(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:azrak_pick_1");
+        player.getInventory().add(new ItemStack(Items.COBBLESTONE, 5));
+        foundry.mc.Gate.setAside(player);
+        helper.assertTrue(player.getInventory().countItem(item("kingdoms:azrak_pick_1")) == 0, "the weapon is lifted out before the drops");
+        helper.assertTrue(player.getInventory().countItem(Items.COBBLESTONE) == 5, "ordinary items are left to the death");
+        foundry.mc.Gate.handBack(player);
+        helper.assertTrue(player.getInventory().countItem(item("kingdoms:azrak_pick_1")) == 1, "the weapon returns on respawn");
+        foundry.mc.Gate.handBack(player);
+        helper.assertTrue(player.getInventory().countItem(item("kingdoms:azrak_pick_1")) == 1, "handing back twice does not duplicate it");
         helper.succeed();
     }
 }

@@ -154,6 +154,7 @@ public final class FoundryMod implements ModInitializer {
         FoundryDatapack.init(set);
         FoundryCommands.register();
         Swings.register();
+        Gate.register();
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             Swings.tick(server);
             Bolts.tick(server);
@@ -162,6 +163,7 @@ public final class FoundryMod implements ModInitializer {
             Swings.clear();
             Bolts.clear();
             Charging.clear();
+            Gate.clear();
         });
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 Charging.forget(handler.getPlayer().getUUID()));

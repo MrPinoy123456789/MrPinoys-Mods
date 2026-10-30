@@ -39,7 +39,7 @@ public final class PackFiles {
             if (def.texture() != null) {
                 // A flat generated model named after the item, so two items never share a generated file.
                 modelId = new Ident(def.id().namespace(), "item/" + def.id().path());
-                out.put(modelPath(modelId), "{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\""
+                out.put(modelPath(modelId), "{\"parent\":\"minecraft:item/" + (def.handheld() ? "handheld" : "generated") + "\",\"textures\":{\"layer0\":\""
                         + def.texture() + "\"}}\n");
             }
             out.put(clientItemPath(def.id()),

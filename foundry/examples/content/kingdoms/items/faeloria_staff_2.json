@@ -8,10 +8,15 @@
     "Sneak and right click: Glamour, invisible and swift for 10s. 85s recharge.",
     "Upgrade: 2 echo shards and an eye of ender, crafted with this."
   ],
-  "base_item": "minecraft:stick",
+  "base_item": "minecraft:blaze_rod",
+  "texture": "kingdoms:item/faeloria_staff_2",
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",
+  "handheld": true,
+  "require_permission": "race:faeloria",
+  "locked_message": "Only the Fae of Faeloria can wield this.",
+  "keep_on_death": true,
   "mechanics": [
     {
       "trigger": "on_swing",

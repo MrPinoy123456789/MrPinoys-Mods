@@ -94,3 +94,9 @@ that went into it:
   ingredient. Upgrades list the tier being upgraded first.
 - New weapons use the `kingdoms` namespace; the wand stays `demo:fairy_wand` so held items keep working, and can be
   moved with `/foundry rename`.
+- Items can be locked to a people. `require_permission` on an item (a node such as `race:azrak`) stops use, charge,
+  swing, on-hit mechanics and the melee hit itself for anyone without it; `locked_message` says why on the action bar.
+  The node is asked through the Fabric permission API (`PermissionContextOwner`), because Fabric does not feed vanilla's
+  `permissions()`. Operators pass so they can test any item. Charter answers `race:<kingdom>` for its members.
+- `keep_on_death` lifts the stack out of the inventory at `ALLOW_DEATH`, before the drops, and gives it back at
+  `COPY_FROM`. The set aside stacks live in memory only: a server stop while a player sits on the death screen loses them.

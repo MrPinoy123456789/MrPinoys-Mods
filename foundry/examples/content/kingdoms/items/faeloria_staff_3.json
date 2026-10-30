@@ -8,10 +8,15 @@
     "Sneak and right click: Glamour, invisible and swift for 12s. 80s recharge.",
     "Fully upgraded."
   ],
-  "base_item": "minecraft:stick",
+  "base_item": "minecraft:blaze_rod",
+  "texture": "kingdoms:item/faeloria_staff_3",
   "stack_size": 1,
   "glint": true,
   "rarity": "epic",
+  "handheld": true,
+  "require_permission": "race:faeloria",
+  "locked_message": "Only the Fae of Faeloria can wield this.",
+  "keep_on_death": true,
   "mechanics": [
     {
       "trigger": "on_swing",

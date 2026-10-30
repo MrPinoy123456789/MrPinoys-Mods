@@ -40,14 +40,21 @@ final class FoundryItem extends SimplePolymerItem {
         return def == null ? List.of() : def.mechanics();
     }
 
+    /** The live definition, or null while it is missing from the content set. */
+    foundry.core.ItemDef def() {
+        return FoundryMod.loaded().items().get(ident);
+    }
+
     /** Runs this item's mechanics for a trigger raised outside the item hooks (a left click swing). */
     boolean fire(Trigger trigger, ServerPlayer player, LivingEntity hit) {
+        if (!Gate.allowed(player, def())) return false;
         return MechanicHost.fire(trigger, contentId, mechanics(), player, hit);
     }
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
         if (context.getPlayer() instanceof ServerPlayer sp) Swings.suppress(sp);
+        if (context.getPlayer() instanceof ServerPlayer locked && !Gate.check(locked, def())) return InteractionResult.FAIL;
         var furniture = Furniture.forItem(ident);
         if (furniture != null && Furniture.place(context, furniture)) return InteractionResult.SUCCESS;
         return super.useOn(context);
@@ -58,6 +65,7 @@ final class FoundryItem extends SimplePolymerItem {
         if (player instanceof ServerPlayer sp) {
             // Right click makes the server swing the arm; that swing is not a left click.
             Swings.suppress(sp);
+            if (!Gate.check(sp, def())) return InteractionResult.FAIL;
             var list = mechanics();
             // A charged mechanic starts a hold, and fires when it is released after long enough.
             int armed = MechanicHost.armedCharge(contentId, list, sp);
@@ -120,7 +128,7 @@ final class FoundryItem extends SimplePolymerItem {
     @Override
     public void hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
         super.hurtEnemy(stack, target, attacker);
-        if (attacker instanceof ServerPlayer sp) MechanicHost.fire(Trigger.ON_HIT_ENTITY, contentId, mechanics(), sp, target);
+        if (attacker instanceof ServerPlayer sp && Gate.allowed(sp, def())) MechanicHost.fire(Trigger.ON_HIT_ENTITY, contentId, mechanics(), sp, target);
     }
 
     @Override

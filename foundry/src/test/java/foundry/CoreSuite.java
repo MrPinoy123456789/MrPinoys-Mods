@@ -31,6 +31,7 @@ public final class CoreSuite {
         packInputs();
         charging();
         weaponTiers();
+        itemLocks();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -269,6 +270,24 @@ public final class CoreSuite {
     }
 
     /** The shipped weapons: every tier parses within the mechanic limit, and each upgrade starts from the tier below. */
+    private static void itemLocks() {
+        String base = "{ \"schema_version\": 1, \"id\": \"t:axe\", \"display_name\": \"Axe\", \"base_item\": \"minecraft:iron_axe\"";
+        var plain = ItemParser.parse("t.json", base + " }");
+        check(!plain.def().locked() && !plain.def().keepOnDeath(), "an item is open and droppable by default");
+        var locked = ItemParser.parse("t.json", base + ", \"require_permission\": \"race:azrak\", \"keep_on_death\": true,"
+                + " \"locked_message\": \"Dwarves only.\" }");
+        check(locked.def().locked() && locked.def().requirePermission().equals("race:azrak"), "require_permission is read");
+        check(locked.def().keepOnDeath() && locked.def().lockedMessage().equals("Dwarves only."), "keep_on_death and locked_message are read");
+        var held = ItemParser.parse("t.json", base + ", \"texture\": \"t:item/axe\", \"handheld\": true }");
+        check(held.def().handheld() && !plain.def().handheld(), "handheld is read and off by default");
+        var model = foundry.core.PackFiles.generate(new foundry.core.ContentSet(java.util.Map.of(held.def().id(), held.def()),
+                java.util.Map.of(), java.util.List.of(), java.util.Map.of()));
+        check(model.values().stream().anyMatch(v -> v.contains("minecraft:item/handheld")), "a handheld item gets the tool model parent");
+        var bad = ItemParser.parse("t.json", base + ", \"require_permission\": \"Not A Node\" }");
+        check(bad.def() == null && bad.problems().stream().anyMatch(p -> p.blocking() && p.toString().contains("require_permission")),
+                "a malformed node is refused");
+    }
+
     private static void weaponTiers() throws Exception {
         int items = 0;
         int recipes = 0;
@@ -283,6 +302,8 @@ public final class CoreSuite {
                     check(r.def() != null && r.problems().stream().noneMatch(Problem::blocking), name + " parses with no blocking problem");
                     check(r.def().mechanics().size() <= foundry.core.mechanics.MechanicDef.MAX_MECHANICS_PER_ITEM, name + " is within the mechanic limit");
                     check(r.def().lore().stream().noneMatch(l -> l.contains("—") || l.contains(" -- ")), name + " lore has no dashes");
+                    check(r.def().locked() && r.def().requirePermission().startsWith("race:"), name + " is locked to a race node");
+                    check(r.def().keepOnDeath(), name + " stays with its owner on death");
                     items++;
                 }
             }

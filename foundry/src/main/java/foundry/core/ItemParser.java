@@ -73,11 +73,21 @@ public final class ItemParser {
                     "Add attack_damage, or remove attack_speed."));
         }
 
+        String requirePermission = stringField(o, "require_permission", "", source, problems);
+        if (!requirePermission.isEmpty() && Ident.parse(requirePermission) == null) {
+            problems.add(Problem.error(source, "require_permission", "\"" + requirePermission + "\" is not a valid permission node.",
+                    "Use a namespaced node such as race:azrak."));
+        }
+        String lockedMessage = stringField(o, "locked_message", "This item is not yours to use.", source, problems);
+        boolean keepOnDeath = o.has("keep_on_death") && o.get("keep_on_death").getAsBoolean();
+        boolean handheld = o.has("handheld") && o.get("handheld").getAsBoolean();
+
         var mechanics = foundry.core.mechanics.MechanicParser.parse(source, id == null ? source : id.toString(),
                 o.get("mechanics"), problems);
 
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
-        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, attackDamage, attackSpeed, List.copyOf(mechanics)),
+        return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, attackDamage, attackSpeed,
+                requirePermission, lockedMessage, keepOnDeath, handheld, List.copyOf(mechanics)),
                 problems);
     }
 

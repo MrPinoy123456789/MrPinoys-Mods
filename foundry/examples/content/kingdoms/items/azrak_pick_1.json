@@ -9,11 +9,16 @@
     "Upgrade: 2 diamonds and 2 iron blocks, crafted with this."
   ],
   "base_item": "minecraft:stone_pickaxe",
+  "texture": "kingdoms:item/azrak_pick_1",
   "stack_size": 1,
   "glint": true,
   "rarity": "uncommon",
   "attack_damage": 6,
   "attack_speed": 1.2,
+  "handheld": true,
+  "require_permission": "race:azrak",
+  "locked_message": "Only the Dwarves of Azrak can wield this.",
+  "keep_on_death": true,
   "mechanics": [
     {
       "trigger": "on_hit_entity",

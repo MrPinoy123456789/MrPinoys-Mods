@@ -8,10 +8,15 @@
     "Sneak and right click: Healing Light, regeneration for players nearby. 75s recharge.",
     "Upgrade: 3 amethyst shards and a glow ink sac, crafted with this."
   ],
-  "base_item": "minecraft:stick",
+  "base_item": "minecraft:breeze_rod",
+  "texture": "demo:item/fairy_wand",
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",
+  "handheld": true,
+  "require_permission": "race:everdelle",
+  "locked_message": "Only the Fairies of Everdelle can wield this.",
+  "keep_on_death": true,
   "mechanics": [
     {
       "trigger": "on_swing",

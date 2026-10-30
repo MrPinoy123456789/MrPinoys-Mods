@@ -8,12 +8,17 @@
     "Sneak and right click: Riptide Mist, water breathing and speed in water for 25s. 55s recharge.",
     "Upgrade: a heart of the sea and 2 nautilus shells, crafted with this."
   ],
-  "base_item": "minecraft:stick",
+  "base_item": "minecraft:bone",
+  "texture": "kingdoms:item/azurius_trident_2",
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",
   "attack_damage": 6,
   "attack_speed": 1.1,
+  "handheld": true,
+  "require_permission": "race:azurius",
+  "locked_message": "Only the Merfolk of Azurius can wield this.",
+  "keep_on_death": true,
   "mechanics": [
     {
       "trigger": "on_swing",
