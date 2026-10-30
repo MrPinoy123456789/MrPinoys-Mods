@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azurius_trident_3",
+  "type": "shapeless",
+  "ingredients": [
+    "kingdoms:azurius_trident_2",
+    "minecraft:heart_of_the_sea",
+    "minecraft:nautilus_shell",
+    "minecraft:nautilus_shell"
+  ],
+  "result": "kingdoms:azurius_trident_3"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "demo:wizard_staff",
+  "type": "shaped",
+  "pattern": [
+    "G",
+    "S",
+    "S"
+  ],
+  "key": {
+    "G": "demo:glow_gem",
+    "S": "minecraft:stick"
+  },
+  "result": "demo:wizard_staff"
+}

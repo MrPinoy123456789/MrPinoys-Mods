@@ -1,0 +1,75 @@
+package foundry.core;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
+/**
+ * Reads {@code <root>/<namespace>/items/*.json} and {@code <root>/<namespace>/recipes/*.json} and {@code .../furniture/*.json} into a validated
+ * {@link ContentSet}. Files are read in sorted order so results are deterministic.
+ */
+public final class ContentLoader {
+    private ContentLoader() {}
+
+    public static ContentSet load(Path root, Predicate<Ident> itemExists, Predicate<String> assetExists,
+            Function<String, String> assetText) {
+        return load(root, itemExists, b -> true, assetExists, assetText);
+    }
+
+    public static ContentSet load(Path root, Predicate<Ident> itemExists, Predicate<Ident> blockExists,
+            Predicate<String> assetExists, Function<String, String> assetText) {
+        List<Problem> problems = new ArrayList<>();
+        List<FurnitureParser.Sourced> furniture = new ArrayList<>();
+        List<Validator.Sourced> parsed = new ArrayList<>();
+        List<Validator.SourcedRecipe> recipes = new ArrayList<>();
+        if (!Files.isDirectory(root)) {
+            problems.add(Problem.warning("(none)", root.toString(), "The content folder does not exist.",
+                    "Create it and add definitions under <namespace>/items/."));
+            return new ContentSet(Map.of(), Map.of(), List.copyOf(problems), Map.of());
+        }
+        try (Stream<Path> files = Files.walk(root)) {
+            List<Path> jsons = files.filter(p -> p.toString().endsWith(".json"))
+                    .filter(p -> p.getParent() != null)
+                    .sorted().toList();
+            for (Path p : jsons) {
+                String src = root.relativize(p).toString().replace('\\', '/');
+                String kind = p.getParent().getFileName().toString();
+                try {
+                    String text = Files.readString(p, StandardCharsets.UTF_8);
+                    if (kind.equals("items")) {
+                        ItemParser.Result r = ItemParser.parse(src, text);
+                        problems.addAll(r.problems());
+                        if (r.def() != null) parsed.add(new Validator.Sourced(src, r.def()));
+                    } else if (kind.equals("furniture")) {
+                        FurnitureParser.Result r = FurnitureParser.parse(src, text);
+                        problems.addAll(r.problems());
+                        if (r.def() != null) furniture.add(new FurnitureParser.Sourced(src, r.def()));
+                    } else if (kind.equals("recipes")) {
+                        RecipeParser.Result r = RecipeParser.parse(src, text);
+                        problems.addAll(r.problems());
+                        if (r.def() != null) recipes.add(new Validator.SourcedRecipe(src, r.def()));
+                    }
+                } catch (IOException e) {
+                    problems.add(Problem.error(src, "file", "Could not read the file: " + e.getMessage(),
+                            "Check the file exists and is not locked."));
+                }
+            }
+        } catch (IOException e) {
+            problems.add(Problem.error("(none)", root.toString(),
+                    "Could not scan the content folder: " + e.getMessage(), "Check the folder permissions."));
+        }
+        ContentSet base = Validator.validate(parsed, recipes, itemExists, assetExists, assetText, problems);
+        List<Problem> all = new ArrayList<>(base.problems());
+        Map<Ident, FurnitureDef> accepted = FurnitureParser.validate(furniture, base.items(), blockExists, itemExists, all);
+        Map<Ident, String> sources = new java.util.LinkedHashMap<>(base.sources());
+        for (FurnitureParser.Sourced s : furniture) if (accepted.containsKey(s.def().id())) sources.put(s.def().id(), s.source());
+        return new ContentSet(base.items(), base.recipes(), List.copyOf(all), Map.copyOf(sources), Map.copyOf(accepted));
+    }
+}

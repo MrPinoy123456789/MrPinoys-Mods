@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "id": "demo:fairy_wand_3",
+  "display_name": "Fairy Wand III",
+  "lore": [
+    "Left click: a sparkle bolt, 5 damage.",
+    "Right click: Mischief, a bolt that hurts, blinds and slows. 16s recharge.",
+    "Sneak and right click: Healing Light, regeneration for players nearby. 65s recharge.",
+    "Fully upgraded."
+  ],
+  "base_item": "minecraft:breeze_rod",
+  "texture": "demo:item/fairy_wand_3",
+  "stack_size": 1,
+  "glint": true,
+  "rarity": "epic",
+  "handheld": true,
+  "require_permission": "race:everdelle",
+  "locked_message": "Only the Fairies of Everdelle can wield this.",
+  "keep_on_death": true,
+  "mechanics": [
+    {
+      "trigger": "on_swing",
+      "cooldown_ticks": 13,
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.allay.item_thrown",
+          "volume": 1.0,
+          "pitch": 1.9
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.firework_rocket.launch",
+          "volume": 0.35,
+          "pitch": 2.0
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.firework_rocket.twinkle",
+          "volume": 0.7,
+          "pitch": 1.6
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "sparkle",
+          "range": 40,
+          "speed": 1.2,
+          "particle": "minecraft:end_rod"
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "sparkle",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 5,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:end_rod",
+          "count": 12,
+          "spread": 0.3,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Mischief",
+      "trigger": "on_use",
+      "cooldown_ticks": 320,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.evoker.cast_spell",
+          "volume": 0.7,
+          "pitch": 1.8
+        },
+        {
+          "type": "launch_bolt",
+          "tag": "mischief",
+          "range": 6,
+          "speed": 0.8,
+          "particle": "minecraft:witch"
+        }
+      ]
+    },
+    {
+      "trigger": "on_bolt_hit",
+      "tag": "mischief",
+      "actions": [
+        {
+          "type": "damage",
+          "amount": 4,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:blindness",
+          "duration": 100,
+          "amplifier": 0,
+          "target": "hit"
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:slowness",
+          "duration": 100,
+          "amplifier": 0,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:witch",
+          "count": 16,
+          "spread": 0.4,
+          "target": "hit"
+        }
+      ]
+    },
+    {
+      "name": "Healing Light",
+      "trigger": "on_use",
+      "cooldown_ticks": 1300,
+      "conditions": [
+        {
+          "type": "is_sneaking",
+          "value": true
+        }
+      ],
+      "actions": [
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.player.levelup",
+          "volume": 0.7,
+          "pitch": 1.6
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:regeneration",
+          "duration": 120,
+          "amplifier": 1,
+          "target": "area",
+          "radius": 5
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:happy_villager",
+          "count": 30,
+          "spread": 2.0
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:end_rod",
+          "count": 20,
+          "spread": 1.5
+        }
+      ]
+    }
+  ]
+}

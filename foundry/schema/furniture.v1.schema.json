@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "foundry/furniture.v1",
+  "title": "Foundry furniture definition, version 1",
+  "description": "Mirrors foundry.core.FurnitureDef. Each definition registers one real block with a cardinal FACING; a display entity is drawn over it.",
+  "type": "object",
+  "required": [
+    "id",
+    "placed_by",
+    "display"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$"
+    },
+    "placed_by": {
+      "type": "string",
+      "description": "A Foundry item id; players hold it to place this piece."
+    },
+    "display": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "block": {
+          "type": "string"
+        },
+        "item": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scale": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 4,
+      "default": 1
+    },
+    "offset_y": {
+      "type": "number",
+      "minimum": -2,
+      "maximum": 2,
+      "default": 0
+    },
+    "solid": {
+      "type": "boolean",
+      "default": true
+    },
+    "hardness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 50,
+      "default": 2,
+      "description": "Mining hardness. Stone is 1.5, wood is 2, obsidian is 50."
+    }
+  }
+}

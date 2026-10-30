@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azurius_trident_2",
+  "type": "shapeless",
+  "ingredients": [
+    "kingdoms:azurius_trident_1",
+    "minecraft:prismarine_crystals",
+    "minecraft:prismarine_crystals",
+    "minecraft:prismarine_crystals",
+    "minecraft:prismarine_crystals",
+    "minecraft:nautilus_shell"
+  ],
+  "result": "kingdoms:azurius_trident_2"
+}

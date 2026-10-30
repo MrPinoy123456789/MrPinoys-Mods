@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "foundry",
+  "version": "${version}",
+  "name": "Foundry",
+  "description": "Data-driven custom content for vanilla clients, built on Polymer.",
+  "environment": "server",
+  "entrypoints": { "main": ["foundry.mc.FoundryMod"] },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "26.3",
+    "java": ">=25",
+    "fabric-api": "*",
+    "polymer-core": ">=0.18.5"
+  }
+}

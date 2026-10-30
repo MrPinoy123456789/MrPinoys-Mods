@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "demo:lamp",
+  "display_name": "Glow Lamp",
+  "lore": [
+    "You can walk through it."
+  ],
+  "base_item": "minecraft:glowstone_dust",
+  "stack_size": 16,
+  "rarity": "uncommon",
+  "texture": "demo:item/lamp"
+}

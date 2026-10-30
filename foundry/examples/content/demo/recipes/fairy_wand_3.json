@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "demo:fairy_wand_3",
+  "type": "shapeless",
+  "ingredients": [
+    "demo:fairy_wand_2",
+    "minecraft:echo_shard",
+    "minecraft:amethyst_block",
+    "minecraft:glow_ink_sac"
+  ],
+  "result": "demo:fairy_wand_3"
+}

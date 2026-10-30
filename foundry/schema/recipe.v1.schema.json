@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "foundry/recipe.v1",
+  "title": "Foundry recipe definition, version 1",
+  "description": "Mirrors foundry.core.RecipeDef. The Java parser is authoritative until a schema generated from it replaces this file.",
+  "type": "object",
+  "required": ["schema_version", "id", "type", "result"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$" },
+    "type": { "enum": ["shaped", "shapeless"] },
+    "pattern": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "Shaped only. Rows of the crafting grid, each 1 to 3 characters, all the same length; a space is an empty slot.",
+      "items": { "type": "string", "minLength": 1, "maxLength": 3 }
+    },
+    "key": {
+      "type": "object",
+      "description": "Shaped only. Maps each pattern character to an item id or #tag. Every symbol must appear in the pattern.",
+      "additionalProperties": { "type": "string", "pattern": "^#?[a-z0-9_.-]+:[a-z0-9_./-]+$" }
+    },
+    "ingredients": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 9,
+      "description": "Shapeless only. Item ids or #tags, repeats allowed.",
+      "items": { "type": "string", "pattern": "^#?[a-z0-9_.-]+:[a-z0-9_./-]+$" }
+    },
+    "result": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$", "description": "The item produced; never a tag." },
+    "count": { "type": "integer", "minimum": 1, "maximum": 99, "default": 1 },
+    "group": { "type": "string", "description": "Optional recipe book group." }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "shaped" } } },
+      "then": { "required": ["pattern", "key"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "shapeless" } } },
+      "then": { "required": ["ingredients"] }
+    }
+  ]
+}

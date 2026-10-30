@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "demo:wizard_staff",
+  "display_name": "Wizard Staff",
+  "lore": ["Older than the mountain it taps."],
+  "base_item": "minecraft:stick",
+  "model": "demo:item/wizard_staff",
+  "stack_size": 1,
+  "rarity": "rare"
+}

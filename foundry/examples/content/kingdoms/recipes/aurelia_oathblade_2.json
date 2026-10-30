@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:aurelia_oathblade_2",
+  "type": "shapeless",
+  "ingredients": [
+    "kingdoms:aurelia_oathblade_1",
+    "minecraft:diamond",
+    "minecraft:diamond",
+    "minecraft:gold_block",
+    "minecraft:gold_block"
+  ],
+  "result": "kingdoms:aurelia_oathblade_2"
+}
