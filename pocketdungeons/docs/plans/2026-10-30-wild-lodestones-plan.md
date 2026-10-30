@@ -145,7 +145,7 @@ this mod only reads where kingdoms are so it does not place lodestones inside th
 fixture diffs. Knobs: `mode` "campaign", `wildGridSize` 1500, `wildMinSeparation` 600, `wildTargetActive` 12, `wildMaxActive` 24,
 `wildMinSpawnDistance` 500, `wildLifespanDays` 7, `wildCollapseWarnHours` 24, `wildResetWarnSeconds` 120,
 `wildSpawnProtectionSeconds` 5, `wildLostAndFoundMaxChests` 64, `wildClaimsSource` "", `wildBlockedCommands`
-"tpa,tpahere,home,back,spawn,rtp,unstick", plus `wildMaxRadius` 6000 (used in phase 4; add it now so the fixtures regenerate once). Set `maxConcurrentInstances` above `wildMaxActive` in the wild server's config (F25).
+"" (empty by default, owner 2026-10-30), plus `wildMaxRadius` 6000 (used in phase 4; add it now so the fixtures regenerate once). Set `maxConcurrentInstances` above `wildMaxActive` in the wild server's config (F25).
 
 **0.2 Reference code.** Copy `WildMode`, `WildState`, `WildStateTest` from the reference folder, dropping `.txt`. Register
 `"wildStateTest" to "WildStateTest"` after `"atomicFilesTest"` (F28). Run it. It passed under plain `javac` here.
@@ -157,7 +157,7 @@ and null. `save()` after every mutation (the file is tiny). `WildClock.now()` re
 override for tests. If it holds per player data, register it with `SessionState` (read `SessionState` first [A]).
 
 **0.4 Mode gating audit.** In wild mode these must do nothing or refuse politely: `/dungeon` entry, `/dungeon key`, the keystone
-commands, room commands, party commands that start a run. `/dungeon admin ...` stays. `/dungeon exit` is **blocked inside a wild dungeon** (decision rule 7: the exit block is the only way out; owner to confirm, section 16). Read
+commands, room commands, party commands that start a run. `/dungeon admin ...` stays. `/dungeon exit` is **blocked inside a wild dungeon** (owner, 2026-10-30). Ordinary teleport commands (`/tpa`, `/home` and the like) are **not** blocked. Read
 `DungeonCommands.register()` and wrap the player facing branches with `WildMode.active()`. **Also grep every
 `ServerPlayConnectionEvents.JOIN` handler** (`Instances.java:272, 291, 297`, `PlaytestJournal.java:107`, and any in `Lemon`,
 `FirstVisitTutorial`, `ActZero`, `HallRoom`) and confirm each is harmless for a player who has never had a room or compass. Fix
@@ -326,8 +326,9 @@ tick's member sweep ("not in the dungeon dimension", F4).
   would wipe the new dungeon. On `SERVER_STARTED` just mark every non `READY` lodestone `READY`. No slot is persisted.
 
 **2.11 Travel blocks.** `WildRules.register()`: `UseItemCallback` returning `FAIL` for `minecraft:ender_pearl` and
-`minecraft:chorus_fruit` when `DungeonWorldRules.inDungeon(player.level())` and wild is active; and a check for the
-`wildBlockedCommands` names, ops exempt. Also block, in wild mode and in the dungeon dimension: bed and respawn anchor use (the dimension has `bed_works: false` and
+`minecraft:chorus_fruit` when `DungeonWorldRules.inDungeon(player.level())` and wild is active; and nothing for
+command teleports: the owner wants normal teleports left alone (2026-10-30), so `wildBlockedCommands` now defaults to empty and stays
+as an opt in list. Also block, in wild mode and in the dungeon dimension: bed and respawn anchor use (the dimension has `bed_works: false` and
 `respawn_anchor_works: false` in `dimension_type/void.json`, so they explode), end crystals and TNT minecarts (`ServerExplosionMixin`
 stops block damage in cells but not entity damage); with PvP on these are free kill tools. Hook: first look for a Fabric API event for command execution
 (`ServerMessageEvents.ALLOW_COMMAND_MESSAGE` may exist [A]); if none fits, a mixin on `Commands.performCommand` with a crash
@@ -556,9 +557,9 @@ re-read the cited lines.
 
 ## 16. Decisions needed from the owner
 
-a. **`/dungeon exit` inside a wild dungeon.** Recommendation: blocked, so the Exit blocks are the only way out (decision rule 7).
-b. **Combat logging.** Disconnecting inside removes the player and sends them back to the lodestone on rejoin, which escapes a
+a. **Resolved (owner, 2026-10-30): `/dungeon exit` is blocked inside a wild dungeon; normal teleports (`/tpa`, `/home`) are not blocked.** Ender pearls and chorus fruit stay blocked in the dungeon dimension (assumption: they were not meant by "normal tps"; they only move a player around a sealed dimension and can break out of rooms).
+b. **Resolved (owner, 2026-10-30): accepted for v1.** **Combat logging.** Disconnecting inside removes the player and sends them back to the lodestone on rejoin, which escapes a
    fight. Recommendation: accept for v1 and watch it in play; the fix, if needed, is to leave the body in place for 15 seconds.
-c. **Trial keys.** Keys that drop in a wild dungeon go home with the player and open real overworld trial chambers.
+c. **Resolved (owner, 2026-10-30): allowed.** **Trial keys.** Keys that drop in a wild dungeon go home with the player and open real overworld trial chambers.
    Recommendation: allow it; they are part of the resources the lodestone promises. The alternative is to remove
    `minecraft:trial_key` and `minecraft:ominous_trial_key` from wild loot.

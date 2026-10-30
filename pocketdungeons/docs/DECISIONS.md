@@ -1261,8 +1261,9 @@ I can clear it every time it is ready, and anyone who wants it has to get past m
 5. **Collapse.** Whatever is on the ground when the dungeon collapses goes into a lost and found chest outside, next to the
    old lodestone. When a chest is full, another is placed beside it.
 6. **Leave a failed run.** Nothing special. Walk out through the exit block, or die and respawn as normal.
-7. **Reaching it.** The only way out is the exit block. Ender pearls, chorus fruit and teleport style commands are blocked
-   inside. A player who logs out inside and logs back in after a reset is sent to the lodestone outside.
+7. **Reaching it.** The exit blocks are the way out: `/dungeon exit` is blocked inside, and ender pearls and chorus fruit are
+   blocked. Normal teleport commands (`/tpa`, `/home`) are not blocked (owner, 2026-10-30). Disconnecting inside is an accepted
+   escape for v1, and trial keys found inside may be taken home (owner, 2026-10-30). A player who logs out inside and logs back in after a reset is sent to the lodestone outside.
 8. **Finding it.** Players find lodestones by exploring. Ops get a command that lists them and teleports to one.
 9. **Scaling.** Level scales with distance from world spawn. Mob counts scale with the players inside when spawners fire.
 10. **Camping.** Spawn protection lasts a few seconds. The exit block is not otherwise protected.
