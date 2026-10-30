@@ -38,6 +38,8 @@ public final class CharterRuntime implements AutoCloseable {
     public final HistoryFile history;
     public final SiegeLog siegeLog;
     public final ClaimIndex claims;
+    /** The public land map other mods read, republished after land changes. */
+    public final charter.mc.land.AreaPublisher areas;
     public final Mail mail;
     public final Describe describe;
     public final Notices notices;
@@ -69,6 +71,8 @@ public final class CharterRuntime implements AutoCloseable {
         state.history.listen(history::append);
         state.history.listen(siegeLog::onEntry);
         state.history.listen(claims::onEntry);
+        this.areas = new charter.mc.land.AreaPublisher(state, dir, warn);
+        state.history.listen(areas::onEntry);
         state.history.listen(notices::onEntry);
 
         // Repairs found while loading go to the history file now that it is listening.
@@ -102,5 +106,6 @@ public final class CharterRuntime implements AutoCloseable {
     public void close() {
         history.close();
         siegeLog.close();
+        areas.close();
     }
 }

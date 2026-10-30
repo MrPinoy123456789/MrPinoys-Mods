@@ -75,10 +75,11 @@ public final class NewcomerPages {
         }
         body.add(BookDialogs.text(Text.get("book.calendar.seasons", "seasons", MemberPages.seasonNames())));
         body.add(BookDialogs.text(Text.get("book.calendar.days")));
-        List<ActionButton> buttons = List.of(
-                go(player, Text.get("book.button.join"), p -> join(p, null)),
-                go(player, Text.get("book.button.found"), p -> found(p, null)),
-                go(player, Text.get("book.button.realm"), MemberPages::realmChronicle));
+        List<ActionButton> buttons = new ArrayList<>();
+        buttons.add(go(player, Text.get("book.button.join"), p -> join(p, null)));
+        // While the operators set the kingdoms, there is no founding to walk a newcomer through.
+        if (rt.knobs.playerFounding) buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)));
+        buttons.add(go(player, Text.get("book.button.realm"), MemberPages::realmChronicle));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.newcomer.title"), lines(notice, body), buttons, BookDialogs.close()));
     }
 
@@ -93,7 +94,7 @@ public final class NewcomerPages {
         List<ActionButton> buttons = new ArrayList<>();
         if (orgs.isEmpty()) {
             body.add(BookDialogs.text(Text.get("book.join.none")));
-            buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)));
+            if (rt.knobs.playerFounding) buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)));
         }
         for (Organization org : orgs.stream().limit(FACTIONS_MAX).toList()) {
             OrgId id = org.id;

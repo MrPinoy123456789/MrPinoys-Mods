@@ -25,5 +25,6 @@ public final class OrgReasons {
     public static final Reason HAS_SUBFACTIONS = new Reason("has_subfactions", "A faction with sub-factions cannot be left by a group. Its sub-factions secede by a vote.");
     public static final Reason RULER_STAYS = new Reason("ruler_stays", "A ruler abdicates before breaking away.");
     public static final Reason NEEDS_GROUP = new Reason("needs_group", "At least two must break away together.");
+    public static final Reason FOUNDING_CLOSED = new Reason("founding_closed", "Kingdoms are set by the server's operators for now. Ask one to make yours.");
     public static final Reason NOT_YOU = new Reason("not_you", "Only that player can do this.");
 }

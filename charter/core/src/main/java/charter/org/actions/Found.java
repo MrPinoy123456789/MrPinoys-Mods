@@ -39,6 +39,7 @@ public record Found(PlayerId founder, String name, Preset preset) implements Act
     @Override
     public Outcome check(ActionContext ctx) {
         if (!ctx.admin() && !founder.equals(ctx.player())) return Outcome.refuse(OrgReasons.NOT_YOU);
+        if (!ctx.admin() && !ctx.knobs.playerFounding) return Outcome.refuse(OrgReasons.FOUNDING_CLOSED);
         if (ctx.state.membership(founder).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
         Outcome named = checkName(ctx, name);
         if (named.refused()) return named;

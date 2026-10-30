@@ -79,6 +79,17 @@ public final class LandCommands {
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                                 .executes(LandCommands::spawn))))
+                        .then(Commands.literal("create")
+                                .then(Commands.argument("name", StringArgumentType.string())
+                                        .then(Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                .then(Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                        .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                                .executes(LandCommands::createKingdom))))))
+                        .then(Commands.literal("leader")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("player", StringArgumentType.string())
+                                                .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
+                                                .executes(LandCommands::appointLeader))))
                         .then(Commands.literal("admin")
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
@@ -248,6 +259,55 @@ public final class LandCommands {
         founder.getInventory().add(LandItems.nexus());
         founder.getInventory().add(LandItems.warBanner());
         return ok(ctx, Text.get("land.admin.spawned", "name", name.strip(), "player", founder.getPlainTextName()));
+    }
+
+    /** {@code faction create "<name>" <x> <y> <z>}: a kingdom with its keep and Nexus there and nobody in the Lord's seat. */
+    private static int createKingdom(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "name");
+        var level = ctx.getSource().getServer().overworld();
+        net.minecraft.core.BlockPos at = new net.minecraft.core.BlockPos(
+                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "x"),
+                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "y"),
+                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "z"));
+        level.getChunk(at.getX() >> 4, at.getZ() >> 4);
+        ChunkKey chunk = charter.mc.land.Placement.chunkOf(level, at);
+        Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()),
+                new charter.org.actions.CreateKingdom(name, chunk));
+        if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
+        // The Nexus stands where the operator said, lifted clear of any ground the coordinates sit inside.
+        net.minecraft.core.BlockPos nexus = at;
+        while (!level.getBlockState(nexus).canBeReplaced() && nexus.getY() < level.getMaxY()) nexus = nexus.above();
+        level.setBlockAndUpdate(nexus, net.minecraft.world.level.block.Blocks.LODESTONE.defaultBlockState());
+        charter.mc.land.Placement.recordNexus(rt, level, nexus, chunk);
+        rt.claims.rebuild();
+        return ok(ctx, Text.get("land.admin.created", "name", name.strip(), "x", nexus.getX(), "y", nexus.getY(), "z", nexus.getZ()));
+    }
+
+    /** {@code faction leader "<faction>" <player>}: the player joins the kingdom and takes the Lord's seat. */
+    private static int appointLeader(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        ServerPlayer online = online(ctx);
+        PlayerId id;
+        String who;
+        if (online != null) {
+            id = new PlayerId(online.getUUID());
+            who = online.getPlainTextName();
+            rt.state.touch(id, who, rt.clock.now());
+        } else {
+            String wanted = StringArgumentType.getString(ctx, "player");
+            var known = rt.state.allPlayers().stream().filter(p -> p.name.equalsIgnoreCase(wanted)).findFirst();
+            if (known.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", wanted));
+            id = known.get().id;
+            who = known.get().name;
+        }
+        Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()),
+                new charter.org.actions.AppointLeader(found.get().id, id));
+        if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
+        return ok(ctx, Text.get("land.admin.leader", "player", who, "name", found.get().name()));
     }
 
     private static int adminKingdom(CommandContext<CommandSourceStack> ctx) {

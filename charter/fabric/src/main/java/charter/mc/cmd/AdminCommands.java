@@ -60,6 +60,7 @@ final class AdminCommands {
                 .then(Commands.literal("dissolve")
                         .then(Commands.argument("faction", StringArgumentType.string()).executes(AdminCommands::dissolve)))
                 .then(Commands.literal("repair").executes(AdminCommands::repair))
+                .then(Commands.literal("areas").executes(AdminCommands::areas))
                 .then(Commands.literal("save").executes(AdminCommands::save));
     }
 
@@ -155,6 +156,20 @@ final class AdminCommands {
     private static int repair(CommandContext<CommandSourceStack> ctx) {
         Repairs repairs = rt().repairNow();
         return ok(ctx, Text.get("admin.repaired", "count", repairs.count()));
+    }
+
+    /** {@code /charter admin areas}: the public land map other mods read, one line per area. */
+    private static int areas(CommandContext<CommandSourceStack> ctx) {
+        rt().areas.flush();
+        var areas = charter.api.CharterAreas.areas();
+        ctx.getSource().sendSuccess(() -> Chat.line(Text.get("admin.areas_head", "count", areas.size(),
+                "version", charter.api.CharterAreas.version())), false);
+        for (charter.api.Area a : areas) {
+            ctx.getSource().sendSuccess(() -> Chat.line(Text.get("admin.areas_line", "kind", a.kind().name().toLowerCase(java.util.Locale.ROOT),
+                    "kingdom", a.kingdom(), "dimension", a.dimension(), "chunks", a.chunks().size(),
+                    "x1", a.minBlockX(), "z1", a.minBlockZ(), "x2", a.maxBlockX(), "z2", a.maxBlockZ())), false);
+        }
+        return areas.size();
     }
 
     private static int save(CommandContext<CommandSourceStack> ctx) {

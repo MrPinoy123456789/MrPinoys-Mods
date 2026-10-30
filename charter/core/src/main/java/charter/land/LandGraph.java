@@ -207,6 +207,9 @@ public final class LandGraph {
         if (plan.assigned.get(chunk) == null) {
             return Optional.of(plan.reachable.contains(chunk) ? LandReasons.CORE_FULL : LandReasons.OUT_OF_RANGE);
         }
+        if (!knobs.keepClaims && state.core(plan.assigned.get(chunk)).map(Core::isKeep).orElse(false)) {
+            return Optional.of(LandReasons.KEEP_PLOT_ONLY);
+        }
         for (ChunkKey orphan : plan.orphans) {
             boolean alreadyContested = state.claimAt(orphan).map(Claim::contested).orElse(false);
             if (!alreadyContested) return Optional.of(LandReasons.CORE_FULL);

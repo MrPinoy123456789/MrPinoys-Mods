@@ -69,6 +69,12 @@ public final class Knobs {
     public int keepGapChunks = 4;
     /** Chunks a keep's plot reaches from its core chunk each way: 1 is 3 by 3, 4 is 9 by 9. */
     public int keepRadiusChunks = 1;
+    /** Whether players may found kingdoms and keeps themselves. Off: only operators set kingdoms, through the admin commands. */
+    public boolean playerFounding = true;
+    /** Whether land can be claimed beside a keep. Off: a keep is its plot and extra land comes only from outposts. */
+    public boolean keepClaims = true;
+    /** Whether the game may generate structures (dungeons, villages) that overlap land a keep or outpost holds. Off keeps them out. */
+    public boolean structuresInKingdoms = false;
 
     // ---- food (S) ----
     public double drainPerMouthPerHour = 10;
@@ -96,6 +102,8 @@ public final class Knobs {
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
     public int keepUpkeepDays = 14;
+    /** Whether a keep eats from its granary and lapses when it runs dry. Off: keeps need no food, and only outposts keep a store. */
+    public boolean keepGranary = true;
     /** Days of food left at which every member is warned, largest first. */
     public int[] keepWarnDays = {7, 3, 1};
 

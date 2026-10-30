@@ -10,6 +10,7 @@ public final class LandReasons {
 
     public static final Reason WRONG_DIMENSION = new Reason("wrong_dimension", "Land cannot be claimed in this dimension.");
     public static final Reason CLAIMED = new Reason("claimed", "That chunk is already inside a claim.");
+    public static final Reason KEEP_PLOT_ONLY = new Reason("keep_plot_only", "A keep is its plot and cannot grow. Extra land comes from an outpost.");
     public static final Reason KEEP_NEEDS_ROOM = new Reason("keep_needs_room", "A keep needs a free square of chunks around it, and part of that is already claimed.");
     public static final Reason SUB_NO_KEEP = new Reason("sub_no_keep", "A sub-faction cannot hold a keep. Its nation does; or it breaks away and founds one of its own.");
     public static final Reason ONE_KEEP = new Reason("one_keep", "A nation has one keep. Yours stands, or its claim must lapse before you place another.");

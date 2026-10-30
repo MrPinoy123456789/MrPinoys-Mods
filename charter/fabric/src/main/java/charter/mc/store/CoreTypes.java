@@ -49,6 +49,8 @@ public final class CoreTypes {
                 .register("org.accept_invite", AcceptInvite.class)
                 .register("org.leave", Leave.class)
                 .register("org.found_keep", charter.org.actions.FoundKeep.class)
+                .register("org.create_kingdom", charter.org.actions.CreateKingdom.class)
+                .register("org.appoint_leader", charter.org.actions.AppointLeader.class)
                 .register("org.secede", charter.org.actions.Secede.class)
                 .register("org.dissolve", charter.org.actions.DissolveOrg.class)
                 .register("npc.spawn", charter.npc.SpawnNpc.class)

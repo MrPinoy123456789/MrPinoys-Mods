@@ -19,6 +19,7 @@ public final class FabricSuite {
         RegistryTest.run();
         RuntimeTest.run();
         LandFixturesTest.run();
+        AreasApiTest.run();
         GranaryTest.run();
         JusticeTest.run();
         ChronicleBookTest.run();
