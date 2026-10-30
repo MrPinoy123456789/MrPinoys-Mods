@@ -27,12 +27,29 @@ public class WildModeOffTest {
                     "if (WildMode.active()) {"},
     };
 
+    /** {file, text that must appear}: guards that sit inside a long method rather than at its start. */
+    private static final String[][] CONTAINS = {
+            // Task 1.5: the RitualListener chain skips the campaign claims in wild mode.
+            {"RitualListener.java", "boolean wild = WildMode.active();"},
+            {"RitualListener.java", "wild ? null : bagChest("},
+            {"RitualListener.java", "!wild && PackPots.onUse("},
+            // Task 1.6: the wild admin commands exist only in wild mode.
+            {"DungeonCommands.java", "if (WildMode.active()) {\n            WildCommands.register(admin);"},
+            // Task 0.3: the store loads nothing outside wild mode.
+            {"WildStore.java", "if (!WildMode.active()) {\n            return;"},
+            {"WildLodestones.java", "if (!WildMode.active() || level.isClientSide()"},
+    };
+
     public static void main(String[] args) throws IOException {
         for (String[] guard : GUARDS) {
             guardPresent(guard[0], guard[1], guard[2]);
         }
+        for (String[] contains : CONTAINS) {
+            String source = Files.readString(SOURCES.resolve(contains[0])).replace("\r\n", "\n");
+            check(source.contains(contains[1]), contains[0] + " lost its wild guard: " + contains[1]);
+        }
         pureRules();
-        System.out.println("WildModeOffTest passed (" + GUARDS.length + " guarded hooks)");
+        System.out.println("WildModeOffTest passed (" + (GUARDS.length + CONTAINS.length) + " guarded hooks)");
     }
 
     private static void guardPresent(String fileName, String anchor, String guard) throws IOException {

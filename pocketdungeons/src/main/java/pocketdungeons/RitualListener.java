@@ -89,11 +89,19 @@ final class RitualListener {
 
         // Each claim below returns null when the click is not its own, and the
         // first one that answers ends the handling. The order is the contract.
+        //
+        // Wild mode (task 1.5) keeps the claims that act on dungeon content or only look at positions:
+        // spyglassCoords (operators), armedMineGuard, floorObjective, and the three positional masks
+        // (roomContainerMask, roomPlacementMask, dungeonShellPlacementMask), which do nothing where no
+        // room exists. It skips the claims that need a room, bag, compass, storage or pot:
+        // roomInspector, bagChest, PackPots, the run storage half of dungeonStorage, stations,
+        // stagingFurniture and lodestoneMenu. The ender chest refusal inside the dungeon stays.
+        boolean wild = WildMode.active();
         InteractionResult result = spyglassCoords(serverPlayer, level, pos);
         if (result != null) {
             return result;
         }
-        result = roomInspector(serverPlayer, level, pos);
+        result = wild ? null : roomInspector(serverPlayer, level, pos);
         if (result != null) {
             return result;
         }
@@ -101,7 +109,7 @@ final class RitualListener {
         if (result != null) {
             return result;
         }
-        result = bagChest(serverPlayer, level, hand, hit, pos);
+        result = wild ? null : bagChest(serverPlayer, level, hand, hit, pos);
         if (result != null) {
             return result;
         }
@@ -110,10 +118,10 @@ final class RitualListener {
             return result;
         }
         // A pack pot (campaign and endgame, 2026-10-18): a decorated pot the mod placed; the click is its own.
-        if (PackPots.onUse(serverPlayer, pos)) {
+        if (!wild && PackPots.onUse(serverPlayer, pos)) {
             return InteractionResult.SUCCESS_SERVER;
         }
-        result = dungeonStorage(serverPlayer, level, pos);
+        result = wild ? wildEnderChest(level, pos) : dungeonStorage(serverPlayer, level, pos);
         if (result != null) {
             return result;
         }
@@ -130,6 +138,9 @@ final class RitualListener {
         if (result != null) {
             return result;
         }
+        if (wild) {
+            return InteractionResult.PASS;
+        }
         result = stations(serverPlayer, level, hand, pos);
         if (result != null) {
             return result;
@@ -139,6 +150,14 @@ final class RitualListener {
             return result;
         }
         return lodestoneMenu(serverPlayer, level, pos);
+    }
+
+    /** Wild mode: no run storage, but a carried ender chest still does not open inside the dungeon. */
+    private static InteractionResult wildEnderChest(Level level, BlockPos pos) {
+        if (DungeonWorldRules.inDungeon(level) && level.getBlockState(pos).is(Blocks.ENDER_CHEST)) {
+            return InteractionResult.FAIL;
+        }
+        return null;
     }
 
     // PD-87: keys from before the fix carry the chest tables' bag tag,
