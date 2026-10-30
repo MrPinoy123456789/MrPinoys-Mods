@@ -63,7 +63,7 @@ public final class WildLodestoneGameTest {
                     "the jigsaw carries the wild_entrance name and an empty target");
             helper.assertTrue(state.getDestroySpeed(level, pos) < 0.0F, "survival cannot break it (hardness -1)");
             helper.assertTrue(state.getBlock().getExplosionResistance() >= 3_600_000.0F, "it is blast proof");
-            level.explode(null, pos.getX() + 1.5, pos.getY() + 0.5, pos.getZ() + 0.5, 6.0F,
+            level.explode(null, pos.getX() + 1.5, pos.getY() + 0.5, pos.getZ() + 0.5, 1.5F,
                     Level.ExplosionInteraction.TNT);
             helper.assertTrue(level.getBlockState(pos).is(Blocks.JIGSAW), "a blast beside it leaves it standing");
             WildLodestones.rubble(level, pos);
