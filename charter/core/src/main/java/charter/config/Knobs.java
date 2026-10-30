@@ -145,6 +145,8 @@ public final class Knobs {
     public int npcMaxOutposts = 4;
     /** Real minutes between waves, and before a fallen or expired site is replaced elsewhere. */
     public int npcWaveMinutes = 5;
+    /** Real seconds after a wave is wiped out before the next spawns, instead of waiting out the interval. */
+    public int npcWaveAfterClearSeconds = 30;
     /** A site nobody fought for this many real days is cleaned up and replaced. */
     public int npcExpireDays = 10;
     /** Server ticks between the layers of a falling site's crumble, from the top down. */

@@ -45,6 +45,7 @@ final class AdminCommands {
     static LiteralArgumentBuilder<CommandSourceStack> tree() {
         return Commands.literal("admin")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(AdminCommands::menu)
                 .then(Commands.literal("time")
                         .executes(AdminCommands::showTime)
                         .then(Commands.literal("advance").requires(Gate::devTools)
@@ -66,6 +67,14 @@ final class AdminCommands {
 
     private static CharterRuntime rt() {
         return CharterServer.runtime();
+    }
+
+    /** {@code /charter admin} on its own opens the operators' menu; the console is pointed at the typed commands. */
+    private static int menu(CommandContext<CommandSourceStack> ctx) {
+        if (!CharterServer.running()) return fail(ctx, Text.get("book.not_running"));
+        if (ctx.getSource().getPlayer() == null) return fail(ctx, Text.get("admin.menu.console"));
+        charter.mc.book.AdminPages.open(ctx.getSource().getPlayer());
+        return 1;
     }
 
     private static void logged(CommandContext<CommandSourceStack> ctx) {

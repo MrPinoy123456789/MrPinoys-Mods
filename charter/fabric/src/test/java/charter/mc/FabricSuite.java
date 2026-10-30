@@ -25,6 +25,7 @@ public final class FabricSuite {
         ChronicleBookTest.run();
         ScenarioFilesTest.run();
         RaceNodesTest.run();
+        FormValuesTest.run();
 
         System.out.println("fabric: " + passed + " passed, " + failures.size() + " failed");
         for (String failure : failures) {

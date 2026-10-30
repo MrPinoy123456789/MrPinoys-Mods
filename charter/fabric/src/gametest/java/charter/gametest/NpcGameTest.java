@@ -7,6 +7,7 @@ import charter.land.Core;
 import charter.land.actions.LoseCore;
 import charter.mc.CharterRuntime;
 import charter.mc.CharterServer;
+import charter.mc.granary.Granaries;
 import charter.mc.npc.NpcWorld;
 import charter.npc.NpcBook;
 import charter.time.Durations;
@@ -199,6 +200,11 @@ public final class NpcGameTest {
 
             later(helper, s, () -> {
                 helper.assertTrue(s.raiders().size() == pool, "The raiders should stand in the world (" + pool + "), found " + s.raiders().size());
+                // A raider granary shows the raiders left, never an upkeep countdown.
+                Granaries.refreshDisplays();
+                String granaryText = Granaries.displayText(keep.id);
+                helper.assertTrue(granaryText != null && granaryText.contains("Raiders left:") && !granaryText.contains("Provisions"),
+                        "The raider granary does not show the raiders left: " + granaryText);
                 // Kill them all; the next wave replaces what the supply allows and a kill is not refunded.
                 long due = live.nextWaveAt + 1;
                 s.killRaiders();

@@ -47,12 +47,14 @@ public final class NpcScheduler {
      * One pass over a standing site (protected keeps, N). {@code alive} is how many of its raiders stand now and
      * {@code died} how many were lost since the last pass. A site falls when its supply is spent and none is left;
      * it expires when nobody has fought it for {@code npcExpireDays}; otherwise a wave tops its raiders up to the
-     * pool, each costing one supply, once {@code npcWaveMinutes} have passed.
+     * pool, each costing one supply, once {@code npcWaveMinutes} have passed. A wave wiped out does not wait out
+     * the interval: the next is due {@code npcWaveAfterClearSeconds} later (owner, 2026-10-29).
      */
     public static Step step(NpcBook.Live live, int alive, int died, Knobs knobs, long now) {
         if (died > 0) live.lastFoughtAt = now;
         if (live.supply <= 0 && alive == 0) return new Step(0, true, false);
         if (now - live.lastFoughtAt >= Durations.days(knobs.npcExpireDays)) return new Step(0, false, true);
+        if (alive == 0) live.nextWaveAt = Math.min(live.nextWaveAt, now + Durations.seconds(knobs.npcWaveAfterClearSeconds));
         return new Step(wave(live, alive, knobs, now), false, false);
     }
 

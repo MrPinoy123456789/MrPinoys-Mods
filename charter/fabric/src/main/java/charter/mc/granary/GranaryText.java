@@ -5,6 +5,8 @@ import charter.food.Provisions;
 import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.Text;
+import charter.npc.NpcBook;
+import charter.npc.NpcScheduler;
 import charter.time.Durations;
 
 /**
@@ -45,7 +47,25 @@ public final class GranaryText {
         return Text.get("time.minutes", "minutes", Math.max(1, minutes));
     }
 
+    /**
+     * The raiders a faction of theirs can still field: who stands plus what the supply will spawn, or null for a
+     * player's core. A raider granary has no upkeep drain, so its line is this, never a countdown (owner, 2026-10-29).
+     */
+    private static Integer raidersLeft(CharterRuntime rt, Core core) {
+        if (!rt.state.org(core.owner).map(o -> o.npc).orElse(false)) return null;
+        int left = 0;
+        for (NpcBook.Site site : rt.state.npc.sites) {
+            if (site.core().equals(core.id)) {
+                NpcBook.Live live = NpcScheduler.live(rt.state.npc, site, rt.knobs);
+                left = live.supply + live.raiders.size();
+            }
+        }
+        return left;
+    }
+
     public static String timeLine(CharterRuntime rt, Core core) {
+        Integer raiders = raidersLeft(rt, core);
+        if (raiders != null) return Text.get("granary.raiders", "count", raiders);
         Provisions provisions = rt.state.siege.store(core.id).provisions;
         if (provisions.nourishment(rt.sim.food()) <= 0) return Text.get("granary.empty");
         double hours = hoursLeft(rt, core);

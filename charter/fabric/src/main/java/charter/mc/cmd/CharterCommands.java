@@ -63,6 +63,23 @@ public final class CharterCommands {
         return TOKENS;
     }
 
+    /** What a form's submit button runs: the player, and the text the client sent (see FormValues). */
+    public record Form(ServerPlayer player, String raw) {
+    }
+
+    /** The tokens behind form buttons. They run {@code /charter form <token> =<values>}. */
+    static final Tokens<Form> FORMS = new Tokens<>();
+
+    /** The form tokens, for gametests that submit a form the way a player would. */
+    public static Tokens<Form> forms() {
+        return FORMS;
+    }
+
+    /** Issues a one-shot token for a form's submit button. */
+    public static String issueForm(ServerPlayer player, String label, java.util.function.Consumer<Form> run) {
+        return FORMS.issue(player.getUUID(), label, System.currentTimeMillis(), run);
+    }
+
     /** Issues a one-shot token bound to this player, for the buttons of the Charter book. */
     public static String issue(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> run) {
         return TOKENS.issue(player.getUUID(), label, System.currentTimeMillis(), run);
@@ -99,6 +116,10 @@ public final class CharterCommands {
                         .then(Commands.literal("act")
                                 .then(Commands.argument("token", StringArgumentType.word())
                                         .executes(CharterCommands::act)))
+                        .then(Commands.literal("form")
+                                .then(Commands.argument("token", StringArgumentType.word())
+                                        .then(Commands.argument("values", StringArgumentType.greedyString())
+                                                .executes(CharterCommands::form))))
                         .then(AdminCommands.tree())));
     }
 
@@ -184,6 +205,19 @@ public final class CharterCommands {
             return 0;
         }
         run.get().accept(player);
+        return 1;
+    }
+
+    /** A submitted form: the token says which page asked, the text after it is what was typed or picked. */
+    private static int form(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!CharterServer.running()) return 0;
+        var run = FORMS.take(StringArgumentType.getString(ctx, "token"), player.getUUID(), System.currentTimeMillis());
+        if (run.isEmpty()) {
+            ctx.getSource().sendFailure(Chat.bad(Text.get("link.expired")));
+            return 0;
+        }
+        run.get().accept(new Form(player, StringArgumentType.getString(ctx, "values")));
         return 1;
     }
 

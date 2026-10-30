@@ -1,6 +1,8 @@
 package charter.mc.book;
 
 import charter.mc.cmd.CharterCommands;
+import com.google.gson.JsonPrimitive;
+import com.mojang.serialization.JsonOps;
 import charter.mc.Text;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
@@ -13,10 +15,15 @@ import net.minecraft.server.dialog.CommonDialogData;
 import net.minecraft.server.dialog.ConfirmationDialog;
 import net.minecraft.server.dialog.Dialog;
 import net.minecraft.server.dialog.DialogAction;
+import net.minecraft.server.dialog.Input;
 import net.minecraft.server.dialog.MultiActionDialog;
 import net.minecraft.server.dialog.NoticeDialog;
 import net.minecraft.server.dialog.action.Action;
+import net.minecraft.server.dialog.action.CommandTemplate;
+import net.minecraft.server.dialog.action.ParsedTemplate;
 import net.minecraft.server.dialog.action.StaticAction;
+import net.minecraft.server.dialog.input.SingleOptionInput;
+import net.minecraft.server.dialog.input.TextInput;
 import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.dialog.body.PlainMessage;
 import net.minecraft.server.level.ServerPlayer;
@@ -81,6 +88,43 @@ public final class BookDialogs {
     static ActionButton act(ServerPlayer player, String label, String tooltip, Consumer<ServerPlayer> run) {
         String token = CharterCommands.issue(player, label, run);
         return button(label, tooltip, new StaticAction(new ClickEvent.RunCommand("/charter act " + token)));
+    }
+
+    // ---- forms: inputs the player fills in, sent back through /charter form ----
+
+    /** A one-line text box. */
+    static Input textInput(String key, String label, String initial, int maxLength) {
+        return new Input(key, new TextInput(WIDE, Component.literal(label), true, initial, maxLength, Optional.empty()));
+    }
+
+    /** A dropdown; the value sent back is the id. The first entry starts picked. At least one entry is needed. */
+    static Input choice(String key, String label, List<String> ids, List<String> shown) {
+        List<SingleOptionInput.Entry> entries = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i++) {
+            entries.add(new SingleOptionInput.Entry(ids.get(i), Optional.of(Component.literal(shown.get(i))), i == 0));
+        }
+        return new Input(key, new SingleOptionInput(WIDE, entries, Component.literal(label), true));
+    }
+
+    /** A screen with inputs and one button that sends them, and an exit that Esc also runs. */
+    static Dialog form(String title, List<DialogBody> body, List<Input> inputs, ActionButton submit, ActionButton exit) {
+        if (exit == null) throw new IllegalArgumentException("a Charter dialog needs an exit button: " + title);
+        CommonDialogData data = new CommonDialogData(Component.literal(title), Optional.empty(), true, false,
+                DialogAction.CLOSE, body, inputs);
+        return new MultiActionDialog(data, List.of(submit), Optional.of(exit), 1);
+    }
+
+    /**
+     * The button that sends a form's inputs back. It runs {@code /charter form <token>} with every input's value;
+     * the token binds it to this player and to {@code run}, which must check the values again.
+     */
+    static ActionButton submit(ServerPlayer player, String label, String tooltip, List<Input> inputs,
+                               Consumer<CharterCommands.Form> run) {
+        String token = CharterCommands.issueForm(player, label, run);
+        String command = FormValues.template(token, inputs.stream().map(Input::key).toList());
+        ParsedTemplate template = ParsedTemplate.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(command))
+                .getOrThrow(IllegalArgumentException::new);
+        return button(label, tooltip, new CommandTemplate(template));
     }
 
     static NoticeDialog notice(String title, List<DialogBody> body, ActionButton exit) {

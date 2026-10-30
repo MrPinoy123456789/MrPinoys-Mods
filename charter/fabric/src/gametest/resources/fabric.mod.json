@@ -28,7 +28,8 @@
       "charter.gametest.KeepUpkeepGameTest",
       "charter.gametest.TeleportGameTest",
       "charter.gametest.WarGameTest",
-      "charter.gametest.RaceNodeGameTest"
+      "charter.gametest.RaceNodeGameTest",
+      "charter.gametest.AdminMenuGameTest"
     ]
   },
   "mixins": [
