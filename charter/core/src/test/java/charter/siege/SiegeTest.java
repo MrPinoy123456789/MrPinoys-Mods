@@ -64,6 +64,7 @@ public final class SiegeTest {
         upkeepWarnsOncePerThresholdAndRearms();
         aNewKeepHasOnePeriodOfGrace();
         aLapseReleasesTheLandAndKeepsTheNation();
+        withTheGranaryOffAKeepNeedsNoFood();
         theRaidersKeepsAreNotKeptUp();
         onlyANationHoldsAKeep();
         oneKeepAndOneOutpostEach();
@@ -276,6 +277,16 @@ public final class SiegeTest {
         Outcome again = w.f.as(KRIS, new PlaceNexus(w.ashfall, ch(0, 0)));
         check("K2: it may put a new Nexus down: " + again, again.done());
         eq("K2: and pays the founding price again", diamonds - w.f.knobs.keepPriceDiamonds, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
+    }
+
+    static void withTheGranaryOffAKeepNeedsNoFood() {
+        World w = world();
+        w.f.knobs.keepGranary = false;
+        w.advance(Durations.days(40));
+        check("K2: with the granary off an unstocked keep stands after forty days", w.f.state.core(w.keep.id).isPresent());
+        check("K2: and nobody is warned", !w.f.state.history.has(SiegeEvents.KeepRunningLow.class)
+                && !w.f.state.history.has(SiegeEvents.KeepLapsed.class));
+        eq("K2: it drains nothing", 0.0, w.rules().upkeepPerHour(w.keep));
     }
 
     static void theRaidersKeepsAreNotKeptUp() {

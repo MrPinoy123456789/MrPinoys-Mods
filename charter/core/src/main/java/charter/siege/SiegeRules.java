@@ -80,6 +80,7 @@ public final class SiegeRules {
      * and war change nothing here (protected keeps, K2).
      */
     public double upkeepPerHour(Core keep) {
+        if (!knobs.keepGranary) return 0;
         return storageLimit(keep) / (knobs.keepUpkeepDays * 24.0);
     }
 

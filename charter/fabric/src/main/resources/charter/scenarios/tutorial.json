@@ -1,6 +1,6 @@
 {
   "name": "tutorial",
-  "setup": "A first hour with Charter for one new player. You name a banner at an anvil, craft it with a lodestone into a Nexus, and place it at the emerald pillar: that founds your faction and raises its keep. Brinewatch, a small rival, holds a keep 12 chunks east and an outpost beyond it. You plant an outpost of your own at the gold pillar, declare war on theirs, and take it.",
+  "setup": "A first hour with Charter for one new player. You name a banner at an anvil, craft it with a lodestone into a Nexus, and place it at the emerald pillar: that founds your faction and raises its keep. Brinewatch, a small rival, holds a keep 12 chunks east and an outpost beyond it. You plant an outpost of your own at the gold pillar, touching theirs, declare war on it, and take it.",
   "tries": "Read the book Charter: A First Hour in your inventory and follow it page by page. Your Charter book shows where you stand. The longer guide is charter/TUTORIAL.md.",
   "knobs": {
     "timeScale": 24,
@@ -58,7 +58,7 @@
         "Welcome to Charter\n\nHere factions hold land with keeps that nobody can take, and fight over outposts.\n\nThis book takes you through your first hour. Time runs 24 times fast for it.",
         "1. Name a banner\n\nYou carry a white banner. An anvil stands beside the emerald pillar. Rename the banner there: its name will be your faction's name.",
         "2. Craft the Nexus\n\nPut the lodestone and your named banner in a crafting table, and nothing else. You get a Nexus with your faction's name on it.",
-        "3. Found your faction\n\nWalk to the emerald pillar. Place the Nexus on the ground near it. 64 of your diamonds pay for the keep.\n\nThe 3 by 3 chunks around it are now your keep, and you are its Lord.",
+        "3. Found your faction\n\nWalk to the emerald pillar. Place the Nexus on the ground near it. 64 of your diamonds pay for the keep.\n\nThe square of chunks around it is now your keep, and you are its Lord.",
         "Your Charter\n\nThe Charter book in your inventory shows where you stand: your Rights, your Freedoms, your faction and its Chronicle.\n\nUse it any time.",
         "4. Fill the treasury\n\nOpen your Charter, then your faction. Press Pay in diamond.\n\nA war banner needs 8 diamonds.",
         "5. Stock the granary\n\nPlace a chest in the Nexus's chunk: it is your granary. Put 40 bread in.\n\nA keep eats its granary slowly: 14 days from full. When it runs dry the claim lapses.",
@@ -83,7 +83,7 @@
     },
     {
       "at": [
-        10,
+        15,
         0
       ],
       "block": "minecraft:gold_block",

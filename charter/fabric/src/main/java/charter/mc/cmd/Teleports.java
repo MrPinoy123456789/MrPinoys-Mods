@@ -17,9 +17,11 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -31,14 +33,14 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * {@code /home}, {@code /keep} and {@code /outpost} (protected keeps, K3). Each waits a few seconds, cancelled by moving
+ * {@code /home}, {@code /keep}, {@code /outpost} and {@code /spawn} (protected keeps, K3). Each waits a few seconds, cancelled by moving
  * or taking damage, then takes the player to their bed, their nation's keep, or their organization's outpost in the
  * same dimension. A cooldown follows. {@code /outpost} also costs food from that outpost's supply and is refused when
  * the supply is empty; the other two are free. Charter does not own beds: {@code /home} reads the vanilla spawn point.
  */
 public final class Teleports {
 
-    public enum Kind { HOME, KEEP, OUTPOST }
+    public enum Kind { HOME, KEEP, OUTPOST, SPAWN }
 
     private record Pending(Kind kind, Vec3 start, int ticksLeft, float health) {
     }
@@ -155,6 +157,14 @@ public final class Teleports {
                 if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return Text.get("teleport.other_dimension");
                 if (!level.getBlockState(data.pos()).is(BlockTags.BEDS)) return Text.get("teleport.no_bed");
                 return new Dest(level, data.pos().getX() + 0.5, data.pos().getY() + 0.6, data.pos().getZ() + 0.5, null);
+            }
+            case SPAWN -> {
+                ServerLevel level = player.level().getServer().overworld();
+                if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return Text.get("teleport.other_dimension");
+                BlockPos at = level.getRespawnData().pos();
+                level.getChunk(at.getX() >> 4, at.getZ() >> 4);
+                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at.getX(), at.getZ());
+                return new Dest(level, at.getX() + 0.5, y, at.getZ() + 0.5, null);
             }
             case KEEP -> {
                 MemberRecord member = rt.state.membership(new charter.id.PlayerId(player.getUUID())).orElse(null);

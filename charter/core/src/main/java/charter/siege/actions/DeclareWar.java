@@ -20,12 +20,21 @@ import java.util.Optional;
  * A nation declares war with one goal: to capture another nation's outpost (protected keeps, O1). The outpost is not
  * touched until the notice has run out. The declaring nation must hold a raised outpost of its own.
  */
-public record DeclareWar(OrgId org, CoreId outpost) implements Action {
+public record DeclareWar(OrgId org, CoreId outpost, CoreId from) implements Action {
+
+    /** Names no outpost of the attackers: the first raised one of theirs that touches the target is used. */
+    public DeclareWar(OrgId org, CoreId outpost) {
+        this(org, outpost, null);
+    }
+
+    public static final Reason NOT_TOUCHING = new Reason("war_not_touching",
+            "Wars are fought between neighbouring outposts. A raised outpost of yours must touch the one you name.");
 
     public static final Reason NOT_A_NATION = new Reason("war_not_a_nation", "Only a nation declares war, not a sub-faction.");
     public static final Reason NO_TARGET = new Reason("war_no_target", "There is no outpost like that to name.");
     public static final Reason NOT_RAISED = new Reason("war_not_raised", "That outpost is still being raised.");
     public static final Reason OWN_OUTPOST = new Reason("war_own_outpost", "That outpost belongs to your own nation.");
+    public static final Reason ADMIN_KINGDOM = new Reason("war_admin_kingdom", "That kingdom is kept by the server and cannot be warred on.");
     public static final Reason RAIDERS = new Reason("war_raiders", "The raiders are not at war with anyone. Fight them in the field.");
     public static final Reason NO_OUTPOST_OF_YOURS = new Reason("war_no_outpost", "You need a raised outpost of your own before you declare war.");
     public static final Reason ALREADY_NAMED = new Reason("war_already_named", "A war already names that outpost.");
@@ -51,18 +60,35 @@ public record DeclareWar(OrgId org, CoreId outpost) implements Action {
         OrgId defender = ctx.state.root(target.owner);
         if (defender.equals(org)) return Outcome.refuse(OWN_OUTPOST);
         if (ctx.state.org(defender).map(o -> o.npc).orElse(false)) return Outcome.refuse(RAIDERS);
+        if (ctx.state.org(defender).map(o -> o.adminKingdom).orElse(false)) return Outcome.refuse(ADMIN_KINGDOM);
         if (!target.activeCamp()) return Outcome.refuse(NOT_RAISED);
         boolean mine = ctx.state.cores().stream().anyMatch(c -> !c.isKeep() && c.activeCamp() && ctx.state.root(c.owner).equals(org));
         if (!mine) return Outcome.refuse(NO_OUTPOST_OF_YOURS);
+        if (attackingOutpost(ctx, target) == null) return Outcome.refuse(NOT_TOUCHING);
         if (ctx.state.wars.against(outpost).isPresent()) return Outcome.refuse(ALREADY_NAMED);
         if (ctx.state.wars.openBy(org) >= ctx.knobs.warGoalsPerWar) return Outcome.refuse(TOO_MANY);
         if (ctx.state.wars.truce(org, defender, ctx.state.siegeClock.now())) return Outcome.refuse(TRUCE);
         return Outcome.OK;
     }
 
+    /**
+     * The attackers' raised outpost the war is fought from: the one named, or else the first they hold that touches
+     * the target. Null when none of them touches it.
+     */
+    private Core attackingOutpost(ActionContext ctx, Core target) {
+        var land = new charter.land.LandGraph(ctx.state, ctx.knobs);
+        for (Core c : ctx.state.cores()) {
+            if (c.isKeep() || !c.activeCamp() || !ctx.state.root(c.owner).equals(org)) continue;
+            if (from != null && !from.equals(c.id)) continue;
+            if (land.touching(c, target)) return c;
+        }
+        return null;
+    }
+
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
         Core target = ctx.state.core(outpost).orElseThrow();
+        Core fromCore = attackingOutpost(ctx, target);
         OrgId defender = ctx.state.root(target.owner);
         long now = ctx.state.siegeClock.now();
         WarBook.Goal goal = new WarBook.Goal();
@@ -70,6 +96,7 @@ public record DeclareWar(OrgId org, CoreId outpost) implements Action {
         goal.attacker = org;
         goal.defender = defender;
         goal.outpost = outpost;
+        goal.from = fromCore == null ? null : fromCore.id;
         goal.declaredAt = now;
         goal.opensAt = now + Durations.hours(ctx.knobs.warGoalNoticeHours);
         goal.expiresAt = now + Durations.hours(ctx.knobs.warGoalHours);

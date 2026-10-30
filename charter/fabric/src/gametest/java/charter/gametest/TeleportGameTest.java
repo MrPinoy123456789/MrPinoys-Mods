@@ -53,6 +53,22 @@ public final class TeleportGameTest {
     }
 
     @GameTest(maxTicks = 100)
+    public void spawnTakesAnyoneToTheWorldSpawnEvenWithoutAKingdom(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper); Knobs k = new Knobs(0, 30)) {
+            ServerPlayer stranger = kit.outsider();
+            Teleports.reset();
+            helper.assertTrue(Teleports.start(stranger, Teleports.Kind.SPAWN) == null, "A player with no nation was refused spawn");
+            BlockPos spawn = helper.getLevel().getRespawnData().pos();
+            helper.assertTrue(Math.abs(stranger.getX() - (spawn.getX() + 0.5)) < 1 && Math.abs(stranger.getZ() - (spawn.getZ() + 0.5)) < 1,
+                    "The player did not arrive at spawn: " + stranger.position());
+            String again = Teleports.start(stranger, Teleports.Kind.SPAWN);
+            helper.assertTrue(again != null && again.contains("Wait"), "A second trip at once was not held by the cooldown: " + again);
+            Teleports.reset();
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
     public void outpostCostsFoodAndIsRefusedWhenTheSupplyIsEmpty(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper); Knobs k = new Knobs(0, 0)) {
             ServerPlayer lord = kit.faction("Post");

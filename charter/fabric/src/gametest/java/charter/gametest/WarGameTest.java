@@ -77,7 +77,7 @@ public final class WarGameTest {
                 String button = Text.get("book.war.declare_button", "org", name, "x", theirs.center.x() * 16 + 8, "z", theirs.center.z() * 16 + 8);
                 press(helper, attackerLord, button);
                 String confirm = String.join("\n", body(attackerLord));
-                helper.assertTrue(confirm.contains("raised outpost of its own"), "The confirm page does not say the declarer needs an outpost: " + confirm);
+                helper.assertTrue(confirm.contains("touch"), "The confirm page does not say the war is between touching outposts: " + confirm);
                 helper.assertTrue(confirm.contains("12 hours"), "The confirm page does not give the notice: " + confirm);
                 press(helper, attackerLord, Text.get("book.war.declare_yes"));
                 WarBook.Goal goal = rt.state.wars.against(theirs.id).orElse(null);

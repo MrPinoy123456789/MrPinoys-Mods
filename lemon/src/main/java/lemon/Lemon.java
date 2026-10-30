@@ -193,7 +193,11 @@ final class Lemon {
         // Chat to Lemon is taken out of the broadcast (verified in
         // fabric-message-api-v1 7.0.7: ALLOW_CHAT_MESSAGE returning false
         // cancels PlayerList.broadcastChatMessage, vanilla's log line included).
+        // With chatTalk off (the default) she never touches chat; players use /lemon.
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
+            if (!LemonConfig.chatTalk()) {
+                return true;
+            }
             boolean solo = soloForChat(sender);
             String text = LemonSpeech.addressed(message.signedContent(), solo);
             MinecraftServer server = sender.level().getServer();

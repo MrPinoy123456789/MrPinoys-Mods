@@ -23,6 +23,8 @@ final class LemonConfig {
             "lemonFallbackSeconds", 45, "lemonLingerSeconds", 4, "lemonThinkSeconds", 90);
     private static final Map<String, Integer> VALUES = new LinkedHashMap<>(DEFAULTS);
     private static String onInteract = "";
+    /** Whether plain chat can reach Lemon. Off: she answers only {@code /lemon}, and chat is never held back. */
+    private static boolean chatTalk = false;
     private static final Map<String, String> HOLDING = new LinkedHashMap<>();
 
     static void load() {
@@ -31,6 +33,7 @@ final class LemonConfig {
             if (!Files.exists(path)) {
                 JsonObject defaults = new JsonObject();
                 DEFAULTS.forEach(defaults::addProperty);
+                defaults.addProperty("chatTalk", false);
                 defaults.addProperty("onInteract", "");
                 defaults.add("onInteractHolding", new JsonObject());
                 Files.createDirectories(path.getParent());
@@ -44,6 +47,7 @@ final class LemonConfig {
                 }
                 VALUES.put(key, value);
             });
+            chatTalk = root.has("chatTalk") && root.get("chatTalk").getAsBoolean();
             onInteract = root.has("onInteract") ? root.get("onInteract").getAsString() : "";
             HOLDING.clear();
             if (root.has("onInteractHolding")) {
@@ -53,6 +57,7 @@ final class LemonConfig {
         } catch (IOException | RuntimeException e) {
             VALUES.clear();
             VALUES.putAll(DEFAULTS);
+            chatTalk = false;
             onInteract = "";
             HOLDING.clear();
             LemonMod.LOG.warn("Could not load Lemon config; using defaults", e);
@@ -84,6 +89,7 @@ final class LemonConfig {
     static int lemonFallbackSeconds() { return VALUES.get("lemonFallbackSeconds"); }
     static int lemonLingerSeconds() { return VALUES.get("lemonLingerSeconds"); }
     static int lemonThinkSeconds() { return VALUES.get("lemonThinkSeconds"); }
+    static boolean chatTalk() { return chatTalk; }
 
     static void interact(ServerPlayer player) {
         String command = interactionCommand(player.getMainHandItem(), onInteract, HOLDING);

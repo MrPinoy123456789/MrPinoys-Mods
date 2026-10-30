@@ -39,6 +39,7 @@ public record AcceptInvite(PlayerId player, OrgId org) implements Action {
         if (!ctx.admin() && !player.equals(ctx.player())) return Outcome.refuse(OrgReasons.NOT_YOU);
         if (ctx.state.org(org).isEmpty()) return Outcome.refuse(charter.engine.Reason.NO_SUCH_ORG);
         if (ctx.state.invite(org, player).isEmpty()) return Outcome.refuse(OrgReasons.NO_INVITE);
+        if (Joining.closed(ctx, org)) return Outcome.refuse(OrgReasons.CLOSED);
         Optional<MemberRecord> current = ctx.state.membership(player);
         if (current.isPresent()) {
             if (current.get().org().equals(org)) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);

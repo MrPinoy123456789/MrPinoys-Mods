@@ -50,7 +50,7 @@ public record SpawnNpc(String name, String banner, NpcBook.Kind kind, ChunkKey c
         if (!ctx.admin() && !(ctx.actor instanceof Actor.System)) return Outcome.refuse(LandReasons.OPERATOR_ONLY);
         if (name == null || name.isBlank() || ctx.state.orgNamed(name.strip()).isPresent()) return Outcome.refuse(OrgReasons.NAME_TAKEN);
         var land = new LandGraph(ctx.state, ctx.knobs);
-        var problem = kind == NpcBook.Kind.STRONGHOLD ? land.keepProblemForNew(center) : land.campProblem(center);
+        var problem = kind == NpcBook.Kind.STRONGHOLD ? land.keepProblemForNew(center, true) : land.campProblem(center);
         if (problem.isPresent()) return Outcome.refuse(problem.get());
         return Outcome.OK;
     }

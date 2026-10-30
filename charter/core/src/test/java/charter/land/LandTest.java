@@ -46,6 +46,9 @@ public final class LandTest {
 
     public static void run() {
         keepAndPerimeter();
+        bigPlotKeep();
+        opsSetKingdoms();
+        outpostOnlyClaims();
         placementRefusals();
         rangeCapacityAndMemberCap();
         hopAssignmentOlderCoreWinsTies();
@@ -140,6 +143,94 @@ public final class LandTest {
         check("keep: it has the chunks beside the ring", chunksOf(perimeter.chunks()).containsAll(List.of(ch(-2, 0), ch(2, 1), ch(0, -2), ch(-1, 2))));
         eq("keep: with no besiegers every side is open", 12, perimeter.open().size());
         check("keep: the keep's own farms there stay open", claim(w, 2, 0).done() && !new LandGraph(w.f.state, w.f.knobs).perimeter(core).isClosed(ch(2, 0)));
+    }
+
+    static void bigPlotKeep() {
+        World w = world();
+        w.f.knobs.keepRadiusChunks = 4;
+        w.f.knobs.keepCapacityClaims = 40;
+        check("plot: a keep places with a nine by nine plot", keep(w, 0, 0).done());
+        eq("plot: eighty one chunks are claimed", 81, w.f.state.claimsOf(w.ashfall).size());
+        eq("plot: the middle chunk holds the nexus", ClaimKind.KEEP_CORE, at(w, 0, 0).kind());
+        check("plot: the far corner is the keep's", at(w, 4, -4) != null && at(w, -4, 4) != null);
+        check("plot: one past the edge is not", at(w, 5, 0) == null && at(w, 0, -5) == null);
+        check("plot: the plot chunks do not count against the member cap", new LandGraph(w.f.state, w.f.knobs).countedClaims(w.ashfall) == 0);
+        Core core = coreOf(w, w.ashfall, ch(0, 0));
+        Perimeter perimeter = new LandGraph(w.f.state, w.f.knobs).perimeter(core);
+        eq("plot: the perimeter is the thirty six chunks beside it", 36, perimeter.chunks().size());
+        check("plot: it has no corners", !chunksOf(perimeter.chunks()).contains(ch(5, 5)) && chunksOf(perimeter.chunks()).contains(ch(5, 4)));
+        eq("plot: a rival keep too close is refused", "keep_needs_room", w.f.as(ZED, new PlaceNexus(w.brine, ch(8, 0))).reasonKey());
+        eq("plot: and one inside the gap", "keep_gap", w.f.as(ZED, new PlaceNexus(w.brine, ch(12, 0))).reasonKey());
+        check("plot: a rival keep beyond the gap is fine", w.f.as(ZED, new PlaceNexus(w.brine, ch(14, 0))).done());
+    }
+
+    static void outpostOnlyClaims() {
+        World w = world();
+        w.f.knobs.keepClaims = false;
+        check("outposts only: the keep is placed", keep(w, 0, 0).done());
+        eq("outposts only: land beside the keep cannot be claimed", "keep_plot_only", claim(w, 2, 0).reasonKey());
+        legacyCamp(w, w.ashfall, 20, 0);
+        check("outposts only: land beside an outpost can " + claim(w, 21, 0), at(w, 21, 0) != null);
+        check("outposts only: and it belongs to the outpost, not the keep",
+                at(w, 21, 0).core() != null && w.f.state.core(at(w, 21, 0).core()).map(c -> !c.isKeep()).orElse(false));
+        w.f.knobs.keepClaims = true;
+        check("outposts only: with the setting off a claim beside the keep works again", claim(w, 2, 0).done());
+    }
+
+    static void opsSetKingdoms() {
+        Fixture f = new Fixture();
+        f.knobs.playerFounding = false;
+        f.knobs.keepRadiusChunks = 4;
+        PlayerId newbie = player("Newbie");
+        PlayerId lead = player("Lead");
+        eq("ops only: a player cannot found a kingdom", "founding_closed",
+                f.as(newbie, new charter.org.actions.Found(newbie, "Nowhere", Preset.LORDSHIP)).reasonKey());
+        eq("ops only: nor found a keep", "founding_closed",
+                f.as(newbie, new charter.org.actions.FoundKeep(newbie, "Nowhere", "", ch(0, 0), 64)).reasonKey());
+        eq("ops only: a player cannot set one through the operator action", "not_you",
+                f.as(newbie, new charter.org.actions.CreateKingdom("Nowhere", ch(0, 0))).reasonKey());
+
+        Outcome made = f.admin(new charter.org.actions.CreateKingdom("Azrak", ch(-44, -105)));
+        check("ops only: an operator sets a kingdom " + made, made.done());
+        var azrak = f.state.orgNamed("Azrak").orElseThrow();
+        eq("ops only: with its whole plot", 81, f.state.claimsOf(azrak.id).size());
+        check("ops only: it is active with no members and nobody in the Lord's seat",
+                azrak.status() == charter.org.OrgStatus.ACTIVE && f.state.members(azrak.id).isEmpty()
+                        && f.state.office(azrak.governance.deciders).orElseThrow().vacant());
+        // What a newcomer's book reads for a kingdom nobody leads yet must not throw.
+        var seen = charter.gov.Standing.asNewcomer(f.state, f.engine, azrak.id, f.clock.now());
+        check("ops only: a newcomer can read a kingdom with no leader", seen != null);
+        eq("ops only: a leaderless kingdom takes no applications until a leader is named is not enforced, it just waits",
+                true, f.as(newbie, new charter.org.actions.Apply(newbie, azrak.id)).done());
+        eq("ops only: a second kingdom may not overlap the first", "keep_needs_room",
+                f.admin(new charter.org.actions.CreateKingdom("Overlap", ch(-44, -103))).reasonKey());
+        eq("ops only: nor reuse a name", "name_taken",
+                f.admin(new charter.org.actions.CreateKingdom("Azrak", ch(250, 46))).reasonKey());
+
+        Outcome named = f.admin(new charter.org.actions.AppointLeader(azrak.id, lead));
+        check("ops only: an operator names the leader " + named, named.done());
+        check("ops only: the leader is a member and holds the Lord's seat",
+                f.state.isMember(lead, azrak.id) && f.state.office(azrak.governance.deciders).orElseThrow().holds(lead));
+        eq("ops only: a player cannot name a leader", "not_you",
+                f.as(newbie, new charter.org.actions.AppointLeader(azrak.id, newbie)).reasonKey());
+
+        check("ops only: the leader invites a citizen", f.as(lead, new charter.org.actions.InviteMember(azrak.id, BOB)).done());
+        check("ops only: who accepts", f.as(BOB, new charter.org.actions.AcceptInvite(BOB, azrak.id)).done());
+        check("ops only: the leader can send them away again", f.as(lead, new charter.org.actions.Expel(azrak.id, BOB)).done());
+
+        check("ops only: a second kingdom", f.admin(new charter.org.actions.CreateKingdom("Aurelia", ch(250, 46))).done());
+        var aurelia = f.state.orgNamed("Aurelia").orElseThrow();
+        eq("ops only: a leader of one kingdom cannot lead another", "leader_elsewhere",
+                f.admin(new charter.org.actions.AppointLeader(aurelia.id, lead)).reasonKey());
+        PlayerId successor = player("Successor");
+        check("ops only: an operator can replace a leader", f.admin(new charter.org.actions.AppointLeader(azrak.id, successor)).done()
+                && f.state.office(azrak.governance.deciders).orElseThrow().holds(successor)
+                && !f.state.office(azrak.governance.deciders).orElseThrow().holds(lead));
+
+        // Switched back on, players found kingdoms as before.
+        f.knobs.playerFounding = true;
+        check("ops only: with founding open a player can found again",
+                f.as(newbie, new charter.org.actions.Found(newbie, "Opened", Preset.LORDSHIP)).done());
     }
 
     static void placementRefusals() {
@@ -244,6 +335,21 @@ public final class LandTest {
         eq("member cap: six claims reach it", "member_cap", claim(m, 8, 0).reasonKey());
         m.f.seen(BOB);
         check("member cap: a member seen again raises it", claim(m, 8, 0).done());
+        int before = new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now());
+        m.f.state.org(m.ashfall).orElseThrow().claimBonus = 10;
+        eq("member cap: an operator bonus adds to the allowance", before + 10, new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now()));
+        m.f.state.org(m.ashfall).orElseThrow().claimBonus = -1000;
+        eq("member cap: a bonus never drives the cap below zero", 0, new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now()));
+        m.f.state.org(m.ashfall).orElseThrow().claimBonus = 0;
+        m.f.state.org(m.ashfall).orElseThrow().adminKingdom = true;
+        eq("member cap: an admin kingdom has no cap", LandGraph.UNLIMITED, new LandGraph(m.f.state, m.f.knobs).landCap(m.ashfall, m.f.clock.now()));
+        Core ashKeep = m.f.state.coresOf(m.ashfall).stream().filter(Core::isKeep).findFirst().orElseThrow();
+        eq("admin kingdom: no range limit", LandGraph.UNLIMITED, new LandGraph(m.f.state, m.f.knobs).range(ashKeep));
+        PlayerId walker = player("Walker");
+        eq("admin kingdom: nobody can ask to join", charter.org.OrgReasons.CLOSED.key(), m.f.as(walker, new charter.org.actions.Apply(walker, m.ashfall)).reasonKey());
+        eq("admin kingdom: nobody is invited", charter.org.OrgReasons.CLOSED.key(), m.f.admin(new charter.org.actions.InviteMember(m.ashfall, walker)).reasonKey());
+        m.f.state.org(m.ashfall).orElseThrow().adminKingdom = false;
+        check("admin kingdom: an ordinary kingdom takes applications again", m.f.as(walker, new charter.org.actions.Apply(walker, m.ashfall)).done());
 
         // camp claims count toward the cap, the banner chunk does not
         World cm = world();

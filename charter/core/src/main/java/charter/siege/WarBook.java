@@ -20,6 +20,8 @@ public final class WarBook {
         public OrgId attacker;
         public OrgId defender;
         public CoreId outpost;
+        /** The attackers' outpost the war is fought from, touching {@link #outpost}; null in a war declared before this was kept. */
+        public CoreId from;
         public long declaredAt;
         public long opensAt;
         public long expiresAt;

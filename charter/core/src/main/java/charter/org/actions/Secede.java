@@ -49,6 +49,7 @@ public record Secede(OrgId org) implements Action {
     public Outcome check(ActionContext ctx) {
         Organization o = ctx.state.org(org).orElse(null);
         if (o == null || o.parent() == null) return Outcome.refuse(OrgReasons.NOT_A_SUBFACTION);
+        if (!ctx.admin() && !ctx.knobs.playerFounding) return Outcome.refuse(OrgReasons.FOUNDING_CLOSED);
         if (ctx.state.pendingSecession(org).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_BREAKING);
         if (ctx.player() != null) {
             Outcome cooled = Found.cooldownProblem(ctx, ctx.player());

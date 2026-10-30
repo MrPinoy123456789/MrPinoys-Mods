@@ -45,13 +45,14 @@ final class AdminCommands {
     static LiteralArgumentBuilder<CommandSourceStack> tree() {
         return Commands.literal("admin")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(AdminCommands::menu)
                 .then(Commands.literal("time")
                         .executes(AdminCommands::showTime)
-                        .then(Commands.literal("advance")
+                        .then(Commands.literal("advance").requires(Gate::devTools)
                                 .then(Commands.argument("duration", StringArgumentType.word()).executes(AdminCommands::advance)))
-                        .then(Commands.literal("scale")
+                        .then(Commands.literal("scale").requires(Gate::devTools)
                                 .then(Commands.argument("factor", DoubleArgumentType.doubleArg(0.001, 100_000)).executes(AdminCommands::scale))))
-                .then(Commands.literal("age")
+                .then(Commands.literal("age").requires(Gate::devTools)
                         .then(Commands.argument("player", StringArgumentType.string())
                                 .then(Commands.argument("days", IntegerArgumentType.integer(0, 3650)).executes(AdminCommands::age))))
                 .then(Commands.literal("vote")
@@ -60,11 +61,20 @@ final class AdminCommands {
                 .then(Commands.literal("dissolve")
                         .then(Commands.argument("faction", StringArgumentType.string()).executes(AdminCommands::dissolve)))
                 .then(Commands.literal("repair").executes(AdminCommands::repair))
+                .then(Commands.literal("areas").executes(AdminCommands::areas))
                 .then(Commands.literal("save").executes(AdminCommands::save));
     }
 
     private static CharterRuntime rt() {
         return CharterServer.runtime();
+    }
+
+    /** {@code /charter admin} on its own opens the operators' menu; the console is pointed at the typed commands. */
+    private static int menu(CommandContext<CommandSourceStack> ctx) {
+        if (!CharterServer.running()) return fail(ctx, Text.get("book.not_running"));
+        if (ctx.getSource().getPlayer() == null) return fail(ctx, Text.get("admin.menu.console"));
+        charter.mc.book.AdminPages.open(ctx.getSource().getPlayer());
+        return 1;
     }
 
     private static void logged(CommandContext<CommandSourceStack> ctx) {
@@ -155,6 +165,20 @@ final class AdminCommands {
     private static int repair(CommandContext<CommandSourceStack> ctx) {
         Repairs repairs = rt().repairNow();
         return ok(ctx, Text.get("admin.repaired", "count", repairs.count()));
+    }
+
+    /** {@code /charter admin areas}: the public land map other mods read, one line per area. */
+    private static int areas(CommandContext<CommandSourceStack> ctx) {
+        rt().areas.flush();
+        var areas = charter.api.CharterAreas.areas();
+        ctx.getSource().sendSuccess(() -> Chat.line(Text.get("admin.areas_head", "count", areas.size(),
+                "version", charter.api.CharterAreas.version())), false);
+        for (charter.api.Area a : areas) {
+            ctx.getSource().sendSuccess(() -> Chat.line(Text.get("admin.areas_line", "kind", a.kind().name().toLowerCase(java.util.Locale.ROOT),
+                    "kingdom", a.kingdom(), "dimension", a.dimension(), "chunks", a.chunks().size(),
+                    "x1", a.minBlockX(), "z1", a.minBlockZ(), "x2", a.maxBlockX(), "z2", a.maxBlockZ())), false);
+        }
+        return areas.size();
     }
 
     private static int save(CommandContext<CommandSourceStack> ctx) {

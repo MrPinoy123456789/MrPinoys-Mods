@@ -9,6 +9,7 @@ import charter.id.CoreId;
 import charter.id.OfficeId;
 import charter.id.OrgId;
 import charter.id.PlayerId;
+import charter.org.OrgEvents;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
@@ -66,11 +67,110 @@ public final class ChronicleRenderer {
         return Optional.of(line);
     }
 
-    /** The lines for these entries, oldest first, skipping hidden ones. */
+    /**
+     * The lines for these entries, oldest first, skipping hidden ones. One thing that happened is told once: the
+     * parts of a founding, the taking in and the joining of a member, and members who joined together fold into a
+     * single short line. The full record (admin view) keeps every entry.
+     */
     public List<String> render(List<History.Entry> entries) {
         List<String> lines = new ArrayList<>();
-        for (History.Entry entry : entries) render(entry).ifPresent(lines::add);
+        if (includeAdmin) {
+            for (History.Entry entry : entries) render(entry).ifPresent(lines::add);
+            return lines;
+        }
+        int i = 0;
+        while (i < entries.size()) {
+            History.Entry entry = entries.get(i);
+            HistoryEvent event = entry.event();
+            if (partOfFounding(event, entries)) {
+                i++;
+                continue;
+            }
+            // "Kris took in Gil" then "Gil joined Kris's faction" is one happening.
+            OrgEvents.Joined first = null;
+            int at = i;
+            if (event instanceof OrgEvents.Admitted a && i + 1 < entries.size()
+                    && entries.get(i + 1).event() instanceof OrgEvents.Joined j && j.org().equals(a.org())
+                    && j.player().equals(a.player()) && j.at() == a.at()) {
+                first = j;
+                at = i + 1;
+            } else if (event instanceof OrgEvents.Joined j) {
+                first = j;
+            }
+            if (first != null && foldableJoin(entries.get(at), first)) {
+                List<PlayerId> who = new ArrayList<>();
+                who.add(first.player());
+                boolean trueBody = false;
+                int k = at + 1;
+                while (k < entries.size()) {
+                    History.Entry next = entries.get(k);
+                    HistoryEvent n = next.event();
+                    if (next.admin() || routine(n)) {
+                        // Entries the story leaves out anyway do not break a run of joins.
+                        k++;
+                        continue;
+                    }
+                    if (n instanceof OrgEvents.Joined j && j.org().equals(first.org()) && j.from() == null
+                            && calendar.dayPhrase(j.at()).equals(calendar.dayPhrase(first.at())) && foldableJoin(next, j)) {
+                        who.add(j.player());
+                        k++;
+                    } else if (n instanceof OrgEvents.Admitted a2 && a2.org().equals(first.org()) && k + 1 < entries.size()
+                            && entries.get(k + 1).event() instanceof OrgEvents.Joined j2 && j2.player().equals(a2.player())
+                            && j2.org().equals(first.org()) && j2.from() == null && foldableJoin(entries.get(k + 1), j2)
+                            && calendar.dayPhrase(j2.at()).equals(calendar.dayPhrase(first.at()))) {
+                        who.add(j2.player());
+                        k += 2;
+                    } else if (n instanceof OrgEvents.Activated act && act.org().equals(first.org())) {
+                        trueBody = true;
+                        k++;
+                    } else {
+                        break;
+                    }
+                }
+                List<String> names = new ArrayList<>();
+                for (PlayerId p : who) names.add(this.names.player(p));
+                lines.add("On " + calendar.dayPhrase(first.at()) + ", " + join(names) + " joined " + this.names.org(first.org())
+                        + (trueBody ? ", making it a true body" : "") + ".");
+                i = k;
+                continue;
+            }
+            render(entry).ifPresent(lines::add);
+            i++;
+        }
         return lines;
+    }
+
+    /** A plain join of a player faction, with the default wording, that is safe to fold into a shorter line. */
+    private boolean foldableJoin(History.Entry entry, OrgEvents.Joined join) {
+        if (entry.admin() || join.from() != null || names.isNpc(join.org())) return false;
+        String key = TemplateSet.keyOf(OrgEvents.Joined.class);
+        String mine = templates.get(key).map(Template::text).orElse("");
+        String standard = DefaultTemplates.get().get(key).map(Template::text).orElse("");
+        return mine.equals(standard);
+    }
+
+    /** The office, grants and first member that come with a founding at the same moment are part of its one line. */
+    private static boolean partOfFounding(HistoryEvent event, List<History.Entry> entries) {
+        charter.id.OrgId org;
+        long at;
+        if (event instanceof charter.gov.GovEvents.OfficeCreated e) {
+            org = e.org();
+            at = e.at();
+        } else if (event instanceof charter.gov.GovEvents.OfficeFilled e) {
+            org = e.org();
+            at = e.at();
+        } else if (event instanceof charter.grant.GrantEvents.Granted e) {
+            org = e.subject();
+            at = e.at();
+        } else {
+            return false;
+        }
+        for (History.Entry other : entries) {
+            HistoryEvent o = other.event();
+            if (o instanceof OrgEvents.Founded f && f.org().equals(org) && f.at() == at) return true;
+            if (o instanceof OrgEvents.SubOrgCreated s && s.org().equals(org) && s.at() == at) return true;
+        }
+        return false;
     }
 
     /** Everyday traffic that would drown the story: food carried in when no siege needed it. */

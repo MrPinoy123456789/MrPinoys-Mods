@@ -76,12 +76,14 @@ public final class CharterServer {
                 CharterMod.LOG::info, CharterMod.LOG::warn);
         lastStepMillis = runtime.clock.now();
         ticks = 0;
+        runtime.areas.flush();
         CharterMod.LOG.info("Charter state ready: {} organization(s), {} claim(s), siege clock at {} ms",
                 runtime.state.orgs().size(), runtime.state.claims().size(), runtime.state.siegeClock.now());
     }
 
     private static void tick(MinecraftServer s) {
         if (runtime == null) return;
+        runtime.areas.flush();
         ticks++;
         if (ticks % Math.max(1, runtime.knobs.simStepTicks) != 0) return;
         step();

@@ -137,7 +137,7 @@ public final class TutorialGameTest {
         helper.assertTrue(!level.getBlockState(theirs).isAir(), "You broke a block on Brinewatch's land");
 
         // Page 7: the War Banner at the gold pillar.
-        BlockPos banner = ground(level, CHUNK_X + 10, CHUNK_Z, 0, 0);
+        BlockPos banner = ground(level, CHUNK_X + 15, CHUNK_Z, 0, 0);
         you.teleportTo(banner.getX() + 0.5, banner.getY(), banner.getZ() - 2.5);
         place(you, level, LandItems.WAR_BANNER, banner);
         Core camp = rt.state.coresOf(mine).stream().filter(c -> !c.isKeep()).findFirst().orElse(null);

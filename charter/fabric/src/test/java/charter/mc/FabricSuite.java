@@ -19,10 +19,12 @@ public final class FabricSuite {
         RegistryTest.run();
         RuntimeTest.run();
         LandFixturesTest.run();
+        AreasApiTest.run();
         GranaryTest.run();
         JusticeTest.run();
         ChronicleBookTest.run();
         ScenarioFilesTest.run();
+        FormValuesTest.run();
 
         System.out.println("fabric: " + passed + " passed, " + failures.size() + " failed");
         for (String failure : failures) {

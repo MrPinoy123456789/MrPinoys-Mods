@@ -145,8 +145,9 @@ public final class SiegeSim {
      * A keep gets one upkeep period of grace from its first pass, so a new, unstocked keep does not lapse at once.
      */
     private void upkeepPass(SiegeRules rules, double hours, long wall, long now, List<HistoryEvent> events) {
+        if (!knobs.keepGranary) return;
         for (Core keep : keeps()) {
-            if (state.org(keep.owner).map(o -> o.npc).orElse(false)) continue;
+            if (state.org(keep.owner).map(o -> o.npc || o.adminKingdom).orElse(false)) continue;
             SiegeBook.KeepSite site = state.siege.keep(keep.id);
             long period = Durations.days(knobs.keepNewGraceDays);
             if (site.graceUntilSiege == 0) site.graceUntilSiege = now + period;
@@ -194,6 +195,12 @@ public final class SiegeSim {
         for (WarBook.Goal goal : new ArrayList<>(wars.goals)) {
             Core outpost = state.core(goal.outpost).orElse(null);
             if (outpost == null) {
+                wars.goals.remove(goal);
+                continue;
+            }
+            if (goal.from != null && state.core(goal.from).isEmpty()) {
+                // The war is between two outposts: when the attackers' one is lost, there is nothing left to fight from.
+                events.add(new SiegeEvents.WarLapsed(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
                 wars.goals.remove(goal);
                 continue;
             }

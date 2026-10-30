@@ -35,6 +35,10 @@ public record PlaceNexus(OrgId org, ChunkKey center) implements Action {
         if (ctx.state.org(org).orElseThrow().parent() != null && ctx.state.pendingSecession(org).isEmpty()) {
             return Outcome.refuse(LandReasons.SUB_NO_KEEP);
         }
+        // A breakaway's Nexus founds a new kingdom, which only operators may do while founding is closed.
+        if (ctx.state.pendingSecession(org).isPresent() && !ctx.admin() && !ctx.knobs.playerFounding) {
+            return Outcome.refuse(charter.org.OrgReasons.FOUNDING_CLOSED);
+        }
         var problem = ctx.state.pendingSecession(org).isPresent() ? land.keepProblemForNew(center) : land.keepProblem(org, center);
         if (problem.isPresent()) return Outcome.refuse(problem.get());
         // One keep for a nation (protected keeps, K3). A sub-faction breaking away is not a nation yet and has none.

@@ -44,6 +44,7 @@ public record FoundKeep(PlayerId founder, String name, String banner, ChunkKey c
     @Override
     public Outcome check(ActionContext ctx) {
         if (!ctx.admin() && !founder.equals(ctx.player())) return Outcome.refuse(OrgReasons.NOT_YOU);
+        if (!ctx.admin() && !ctx.knobs.playerFounding) return Outcome.refuse(OrgReasons.FOUNDING_CLOSED);
         // A member may found a keep only as the starter of a group breaking away from a faction with no sub-factions.
         Optional<Breakaway> group = ctx.state.groupStartedBy(founder);
         if (ctx.state.membership(founder).isPresent() && group.isEmpty()) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
