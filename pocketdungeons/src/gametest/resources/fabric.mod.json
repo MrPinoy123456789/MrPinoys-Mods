@@ -66,6 +66,7 @@
       "pocketdungeons.BroodChamberGameTest",
       "pocketdungeons.BlackoutGameTest",
       "pocketdungeons.WildLodestoneGameTest",
+      "pocketdungeons.WildRunGameTest",
       "pocketdungeons.SeamGameTest",
       "pocketdungeons.HauntFloorGameTest",
       "pocketdungeons.LemonGameTest",

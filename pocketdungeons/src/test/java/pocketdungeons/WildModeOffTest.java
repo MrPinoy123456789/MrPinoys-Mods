@@ -38,6 +38,14 @@ public class WildModeOffTest {
             // Task 0.3: the store loads nothing outside wild mode.
             {"WildStore.java", "if (!WildMode.active()) {\n            return;"},
             {"WildLodestones.java", "if (!WildMode.active() || level.isClientSide()"},
+            // Phase 2: the run hooks in the hot campaign files.
+            {"Instances.java", "if (record.wild) {\n            WildRun.tick(server, record, now, interval);\n            return;"},
+            {"Instances.java", "if (record.wild) {\n            return true;"},
+            {"Instances.java", "if (WildMode.active()) {\n            // Wild mode never touches the recovery compass target"},
+            {"Instances.java", "if (record.wild) {\n                return point;"},
+            {"InventorySwap.java", "if (WildMode.active()) {\n            // Wild mode never stashes or swaps"},
+            {"InventorySwap.java", "if (WildMode.active()) {\n            // No inventory is stashed in wild mode"},
+            {"WildRules.java", "if (!WildMode.active() || !(entity instanceof ServerPlayer player))"},
     };
 
     public static void main(String[] args) throws IOException {

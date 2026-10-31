@@ -257,6 +257,14 @@ final class InstanceRecord {
     InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
                    Set<String> affixes, UUID owner, boolean untimed, boolean adminBuild,
                    int parentSlot, BlockPos returnPos) {
+        this(slot, origin, createdAtTick, layout, affixes, owner, untimed, adminBuild, parentSlot, returnPos, null);
+    }
+
+    private InstanceRecord(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
+                           Set<String> affixes, UUID owner, boolean untimed, boolean adminBuild,
+                           int parentSlot, BlockPos returnPos, String wildId) {
+        this.wild = wildId != null;
+        this.wildId = wildId;
         this.slot = slot;
         this.origin = origin;
         this.createdAtTick = createdAtTick;
@@ -308,6 +316,26 @@ final class InstanceRecord {
         this.layout = lobbyLayout;
         this.interval = new IntervalState();
         this.floor = new FloorState();
+    }
+
+    /**
+     * Wild lodestones (decision 2026-10-30): the shared live dungeon of one wild lodestone. It is untimed (outside the
+     * floor loop) yet {@link #isKeystoneRun()} is true, because its layout keeps a level for mob scaling. It has no
+     * owner, no room and no staging room, and {@code Instances.tickRecord} hands it to {@code WildRun.tick}.
+     */
+    final boolean wild;
+
+    /** The id of the lodestone this record serves, or {@code null} for every other record. */
+    final String wildId;
+
+    /**
+     * A wild lodestone's record. The layout is {@code null} until the stamp succeeds, because the planner needs a
+     * record to read its door direction and interval from before anything stands in the world.
+     */
+    static InstanceRecord forWild(int slot, BlockPos origin, long createdAtTick, InstanceLayout layout,
+                                  Set<String> affixes, String wildId) {
+        return new InstanceRecord(slot, origin, createdAtTick, layout, affixes, WildRun.NIL_OWNER, true, false, -1,
+                null, java.util.Objects.requireNonNull(wildId));
     }
 
     /** Whether a keystone was spent to open the floor in progress. False at home and for admin builds. */

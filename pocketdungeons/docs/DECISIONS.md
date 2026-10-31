@@ -1284,4 +1284,6 @@ an unclaimed lodestone near spawn gets farmed to nothing before anyone settles; 
 the old lodestone or needs its own lifespan; how the exit block camping feels; whether `padGatesRefuse` as the clear check
 fires too early on a floor with an objective instead of spawners; whether the emblem needs the Glyph system (approved, not built, 2026-10-21) or a plain item display above the block is enough for v1.
 
-**Status: approved, not built (2026-10-30).** Plan: `docs/plans/2026-10-30-wild-lodestones-plan.md`.
+**Status: phases 0 to 2 built on `feature/wild-lodestones`, phases 3 to 5 not built (2026-10-31).** Plan: `docs/plans/2026-10-30-wild-lodestones-plan.md`. Keystone audit: `docs/plans/2026-10-30-wild-lodestones-audit.md`.
+
+Phase 2 deviations from the plan: the arrival Exit block has no item or text display yet (the jigsaw alone marks it); `wildBlockedCommands` is read but not enforced (it defaults to empty, so nothing is blocked); the clean stop sweep of ground items (task 2.10) waits for `WildSweep` in phase 3; the unclean-stop slot clear relies on `reconcileAfterUncleanShutdown`, as planned.

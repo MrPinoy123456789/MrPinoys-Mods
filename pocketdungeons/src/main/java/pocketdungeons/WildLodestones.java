@@ -139,6 +139,16 @@ final class WildLodestones {
         EXITS.values().removeIf(ref -> ref.lodestoneId().equals(lodestoneId));
     }
 
+    /** Whether an Exit block of this kind is registered for the lodestone. */
+    static boolean hasExit(String lodestoneId, boolean clear) {
+        for (ExitRef ref : EXITS.values()) {
+            if (ref.lodestoneId().equals(lodestoneId) && ref.clear() == clear) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static ExitRef exitAt(BlockPos pos) {
         return EXITS.get(pos);
     }

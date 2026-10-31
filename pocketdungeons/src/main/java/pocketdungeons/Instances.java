@@ -173,6 +173,10 @@ final class Instances {
                 || !DungeonWorldRules.inDungeon(player.level())) {
             return true;
         }
+        // Wild lodestones: death is vanilla. Items drop where the player falls and they respawn outside.
+        if (record.wild) {
+            return true;
+        }
         // M25: death inside a Pocket2 child ejects to the parent at the
         // door, with the outer run's death penalty still applied. The child
         // is torn down either way; see Pocket2.dieInChild.
@@ -1285,7 +1289,7 @@ final class Instances {
      *
      * @return the plan, or {@code null} (logged) when every round failed
      */
-    private static DungeonPlan planFloor(ServerLevel level, InstanceRecord record, Keystone.Offer offer,
+    static DungeonPlan planFloor(ServerLevel level, InstanceRecord record, Keystone.Offer offer,
                                          ThemeManifest.Entry theme, RunRecipePlan recipePlan,
                                          Set<String> bagTags, RoomEligibility.Floor roomFloor) {
         DoorMask.Direction dungeonDoor = record.roomDungeonDoor;
@@ -1786,6 +1790,28 @@ final class Instances {
             record.interval.path.add(offer.nodeId());
         }
         RunSession.transition(record, RunSession.Phase.ACTIVE);
+    }
+
+    /**
+     * Wild lodestones (task 2.3): starts the one floor of a wild record the way a door commit starts a campaign floor.
+     * The campaign writes nearly all of its floor state in {@link #newFloorState}, {@link #startCommittedFloor} and
+     * {@link #armCommittedFloor}, not at registration; a record that skipped them would sit in {@code HOME} with an empty
+     * trip, no theme and no armed objective, and the capstone, drip and haunt ticks would never run.
+     * {@code HOME -> ACTIVE} is not an edge {@link RunSession} allows, so the phase is set directly, and
+     * {@code startCommittedFloor} is not reused because it makes that transition.
+     */
+    static void startWildFloor(MinecraftServer server, ServerLevel level, InstanceRecord record,
+                               Keystone.Offer offer, DungeonPlan plan, InstanceLayout layout, String themeId,
+                               Set<String> affixes) {
+        FloorState next = newFloorState(server, record, offer, plan, affixes, themeId, Set.of());
+        next.boardAffixes = Keystone.dealtAffixes(WildRun.affixOwner(record.wildId), offer);
+        record.startFloor(layout, next);
+        record.interval.dungeonId = offer.dungeonId();
+        record.interval.generatedDef = UnchartedDoors.pin(offer.dungeonId());
+        record.interval.nodeId = offer.nodeId();
+        record.interval.path.add(offer.nodeId());
+        record.phase = RunSession.Phase.ACTIVE;
+        armCommittedFloor(level, record, offer, plan, layout, themeId, false);
     }
 
     private static void announceOminousRoll(MinecraftServer server, InstanceRecord record) {
@@ -2413,6 +2439,9 @@ final class Instances {
         record.floor.onPad.remove(member);
         if (player != null) {
             clearTrialOmen(player);
+            if (record.wild) {
+                return point;
+            }
             // One tracker for the party (owner ask 2026-10-19): in the run their compass read the
             // owner's quest line; out of it, and only now that byMember no longer maps them to this
             // record, a repaint puts their own line back.
@@ -2642,7 +2671,11 @@ final class Instances {
                 // "outside": a crash before admit(), or a first join straight
                 // into the void. World spawn is the wrong answer on a server that
                 // has emptied its overworld; sendHome asks for the room first.
-                sendHome(server, player);
+                if (WildMode.active()) {
+                    WildRun.sendOut(server, player);
+                } else {
+                    sendHome(server, player);
+                }
             }
             boolean closed = pending.record == null || pending.record.tearingDown
                     || InstanceRegistry.bySlot.get(pending.record.slot) != pending.record;
@@ -2745,6 +2778,11 @@ final class Instances {
         // in Pocket2.tickChild.
         if (record.parentSlot >= 0) {
             Pocket2.tickChild(server, record, now, interval);
+            return;
+        }
+        // Wild lodestones: a shared record with no owner, party, room or staging; it runs only what a floor needs.
+        if (record.wild) {
+            WildRun.tick(server, record, now, interval);
             return;
         }
 
@@ -2918,7 +2956,7 @@ final class Instances {
      * member standing inside that cell the moment it first reaches that state.
      * A deliberate small watcher: there is no per-cell clear event to hook.
      */
-    private static void watchSpawnerClears(MinecraftServer server, InstanceRecord record) {
+    static void watchSpawnerClears(MinecraftServer server, InstanceRecord record) {
         ServerLevel level = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
         if (level == null || record.layout.trialSpawners().isEmpty()) {
             return;
@@ -3265,6 +3303,11 @@ final class Instances {
                 && !DungeonWorldRules.inDungeon(player.level());
         boolean crossingOut = !DungeonWorldRules.inDungeon(dimension)
                 && DungeonWorldRules.inDungeon(player.level());
+        if (WildMode.active()) {
+            // Wild mode never touches the recovery compass target: the player's own last death marker stays theirs.
+            crossingIn = false;
+            crossingOut = false;
+        }
         if (crossingIn) {
             player.setLastDeathLocation(Optional.of(GlobalPos.of(dimension, BlockPos.containing(pos))));
         } else if (crossingOut) {

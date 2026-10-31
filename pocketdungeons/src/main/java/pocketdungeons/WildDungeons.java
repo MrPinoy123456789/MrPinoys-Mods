@@ -56,6 +56,11 @@ final class WildDungeons {
         if (!WildMode.active()) {
             return;
         }
+        loadFrom(server);
+    }
+
+    /** Reads the offering files whatever the mode is. {@link #load} gates on wild mode; gametests call this directly. */
+    static void loadFrom(MinecraftServer server) {
         Map<String, Offering> loaded = new LinkedHashMap<>();
         List<Map.Entry<Identifier, Resource>> sorted = new ArrayList<>(
                 server.getResourceManager().listResources(FOLDER, id -> id.getPath().endsWith(".json")).entrySet());
