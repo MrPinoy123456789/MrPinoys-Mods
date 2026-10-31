@@ -99,6 +99,8 @@ public final class ManualKingdomSource implements KingdomSource {
     /** Create a kingdom. False if the id is blank or already taken. */
     public boolean create(String id, String name) {
         if (id == null || id.isBlank()) return false;
+        // "commons" is the ledger for Renown earned outside any kingdom.
+        if (id.equalsIgnoreCase(Treasury.COMMONS)) return false;
         synchronized (lock) {
             String key = id.toLowerCase(Locale.ROOT);
             if (kingdoms.containsKey(key)) return false;

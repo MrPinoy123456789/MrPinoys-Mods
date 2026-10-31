@@ -78,6 +78,10 @@ public final class EconomyTest {
         mintPlanner();
         mintTax();
         treasury();
+        earnRules();
+        renownRules();
+        renownCatalogue();
+        earnConcurrency();
         valor();
         inventoryMath();
         formatting();
@@ -863,6 +867,257 @@ public final class EconomyTest {
         shutdown(pool2);
         check("800 racing tax credits are never lost", taxes.balance("a") == 6_400
                 && taxes.taxCollected("a") == 6_400);
+    }
+
+    // ---- earn and renown ----------------------------------------------------
+
+    private static final long DAY_MS = 86_400_000L;
+
+    private static EarnService.Config earnConfig(int probationDays, long playerCap) {
+        Map<String, EarnService.Source> sources = new LinkedHashMap<>();
+        sources.put("dungeon", new EarnService.Source("dungeon", 10, 2, 150, 0, 1.0));
+        sources.put("event", new EarnService.Source("event", 20, 0, 0, 0, 1.0));
+        sources.put("soft", new EarnService.Source("soft", 100, 0, 150, 0, 1.0));
+        sources.put("tiny", new EarnService.Source("tiny", 1, 0, 1, 0, 1.0));
+        sources.put("hard", new EarnService.Source("hard", 60, 0, 0, 100, 1.0));
+        sources.put("half", new EarnService.Source("half", 10, 0, 0, 0, 0.5));
+        return new EarnService.Config(sources, playerCap, 30, probationDays);
+    }
+
+    private static final class EarnRig {
+        final EconomyService economy = new CharterCurrency(AccountStore.inMemory());
+        final PlayerBook book = new PlayerBook();
+        final Treasury treasury = new Treasury();
+        final AtomicLong now = new AtomicLong(1_000_000L * DAY_MS / 1_000_000L);
+        final EarnService earn;
+
+        EarnRig(int probationDays, long playerCap) {
+            earn = new EarnService(book, economy, treasury, VALOR, earnConfig(probationDays, playerCap),
+                    now::get);
+        }
+
+        long day() {
+            return now.get() / DAY_MS;
+        }
+
+        EarnService.Result award(UUID who, String kingdom, String source, int level, String run) {
+            return earn.award(who, "p", kingdom, source, level, run, day());
+        }
+    }
+
+    private static void earnRules() {
+        section("Earn rules");
+
+        EarnRig r = new EarnRig(0, 0);
+        check("formula without a level", r.award(ALEX, "k", "event", 0, null).valor() == 20);
+        check("formula with a level", r.award(STEVE, "k", "dungeon", 7, null).valor() == 24);
+        check("formula treats a missing level as 0", r.award(JAMIE, "k", "dungeon", 0, null).valor() == 10);
+        check("valor reaches the balance", r.economy.getBalance(STEVE, VALOR) == 24);
+        check("an unknown source is refused",
+                r.award(ALEX, "k", "nope", 0, null).status() == EarnService.Status.UNKNOWN_SOURCE
+                        && r.economy.getBalance(ALEX, VALOR) == 20);
+
+        // soft cap: 150 pool, awards of 100
+        EarnRig soft = new EarnRig(0, 0);
+        long a1 = soft.award(ALEX, null, "soft", 0, null).valor();
+        long a2 = soft.award(ALEX, null, "soft", 0, null).valor();
+        EarnService.Result a3 = soft.award(ALEX, null, "soft", 0, null);
+        check("awards inside the soft pool pay in full (the crossing award too)", a1 == 100 && a2 == 100);
+        check("once the pool is spent awards are halved", a3.valor() == 50 && a3.halved());
+        EarnRig tiny = new EarnRig(0, 0);
+        tiny.award(ALEX, null, "tiny", 0, null);
+        check("halving never goes below 1", tiny.award(ALEX, null, "tiny", 0, null).valor() == 1);
+
+        // carry-over: skipped days refill, to at most 3x
+        EarnRig carry = new EarnRig(0, 0);
+        carry.award(ALEX, null, "soft", 0, null);
+        carry.award(ALEX, null, "soft", 0, null);
+        check("pool empty after two awards", carry.award(ALEX, null, "soft", 0, null).halved());
+        carry.now.addAndGet(5 * DAY_MS);
+        EarnService.Result back = carry.award(ALEX, null, "soft", 0, null);
+        EarnService.Result back2 = carry.award(ALEX, null, "soft", 0, null);
+        EarnService.Result back3 = carry.award(ALEX, null, "soft", 0, null);
+        EarnService.Result back4 = carry.award(ALEX, null, "soft", 0, null);
+        EarnService.Result back5 = carry.award(ALEX, null, "soft", 0, null);
+        check("a skipped stretch refills the pool up to three days' worth (450, capped)",
+                !back.halved() && !back2.halved() && !back3.halved() && !back4.halved()
+                        && !back5.halved() && carry.award(ALEX, null, "soft", 0, null).halved());
+
+        // hard cap: 100 a day, awards of 60
+        EarnRig hard = new EarnRig(0, 0);
+        long h1 = hard.award(ALEX, "k", "hard", 0, null).valor();
+        EarnService.Result h2 = hard.award(ALEX, "k", "hard", 1, null);
+        EarnService.Result h3 = hard.award(ALEX, "k", "hard", 2, null);
+        check("an award that crosses the hard cap is clipped to the room", h1 == 60 && h2.valor() == 40
+                && h2.hardCapped());
+        check("past the hard cap an award pays 0 Valor and 0 Renown",
+                h3.valor() == 0 && h3.renown() == 0 && h3.hardCapped());
+        hard.now.addAndGet(DAY_MS);
+        check("the hard cap resets at the day change", hard.award(ALEX, "k", "hard", 3, null).valor() == 60);
+
+        // renown multiplier rounding
+        EarnRig mult = new EarnRig(0, 0);
+        check("renown follows the multiplier", mult.award(ALEX, "k", "half", 0, null).renown() == 5);
+    }
+
+    private static void renownRules() {
+        section("Renown rules");
+
+        // per player daily cap
+        EarnRig cap = new EarnRig(0, 120);
+        check("first big award credited in full", cap.award(ALEX, "k", "dungeon", 50, null).renown() == 110);
+        EarnService.Result second = cap.award(ALEX, "k", "dungeon", 51, null);
+        check("the award that crosses the player cap is clipped", second.renown() == 10);
+        EarnService.Result third = cap.award(ALEX, "k", "dungeon", 52, null);
+        check("past the cap Valor still pays but Renown does not",
+                third.renown() == 0 && third.valor() > 0
+                        && third.outcome() == EarnService.RenownOutcome.DAILY_CAP);
+        check("the kingdom got exactly 120", cap.treasury.renown("k") == 120);
+        cap.now.addAndGet(DAY_MS);
+        check("the player cap resets daily", cap.award(ALEX, "k", "dungeon", 10, null).renown() == 30);
+
+        // run de-duplication without a run id: window
+        EarnRig win = new EarnRig(0, 0);
+        win.award(ALEX, "k", "dungeon", 5, null);
+        win.award(STEVE, "k", "dungeon", 5, null);
+        win.award(JAMIE, "k", "dungeon", 5, null);
+        EarnService.Result tay = win.award(TAYLOR, "k", "dungeon", 5, null);
+        check("a party of four earns the kingdom one credit", win.treasury.renown("k") == 20
+                && tay.outcome() == EarnService.RenownOutcome.DUPLICATE_RUN);
+        check("each player still gets their own Valor", win.economy.getBalance(TAYLOR, VALOR) == 20
+                && win.economy.getBalance(ALEX, VALOR) == 20);
+        win.now.addAndGet(31_000);
+        win.award(ALEX, "k", "dungeon", 5, null);
+        check("outside the window it is a new run", win.treasury.renown("k") == 40);
+        win.award(STEVE, "k", "dungeon", 9, null);
+        check("a different level is a different run", win.treasury.renown("k") == 68);
+
+        // run de-duplication with a run id: top-up to the largest award
+        EarnRig run = new EarnRig(0, 0);
+        run.award(ALEX, "k", "dungeon", 0, "run1");
+        run.award(STEVE, "k", "dungeon", 10, "run1");
+        check("a larger award in the same run tops the credit up", run.treasury.renown("k") == 30
+                && run.treasury.renownLifetime("k") == 30);
+        run.award(JAMIE, "k", "dungeon", 5, "run1");
+        check("a smaller one adds nothing", run.treasury.renown("k") == 30);
+        run.award(ALEX, "k", "dungeon", 0, "run2");
+        check("another run id is another credit", run.treasury.renown("k") == 40);
+        run.now.addAndGet(5 * 60_000L);
+        run.award(TAYLOR, "k", "dungeon", 0, "run1");
+        check("with a run id there is no time window", run.treasury.renown("k") == 40);
+        run.award(ALEX, "other", "dungeon", 0, "run1");
+        check("the key is per kingdom", run.treasury.renown("other") == 10);
+
+        // probation
+        EarnRig pro = new EarnRig(7, 0);
+        EarnService.Result first = pro.award(ALEX, "k", "dungeon", 0, null);
+        check("a new member earns Valor but no Renown", first.valor() == 10 && first.renown() == 0
+                && first.outcome() == EarnService.RenownOutcome.PROBATION && first.probationDaysLeft() == 7);
+        pro.now.addAndGet(4 * DAY_MS);
+        check("days left count down", pro.award(ALEX, "k", "dungeon", 1, null).probationDaysLeft() == 3);
+        pro.now.addAndGet(3 * DAY_MS);
+        check("after the probation Renown counts", pro.award(ALEX, "k", "dungeon", 2, null).renown() == 14);
+        pro.now.addAndGet(DAY_MS);
+        EarnService.Result moved = pro.award(ALEX, "other", "dungeon", 3, null);
+        check("a change of kingdom restarts the clock",
+                moved.outcome() == EarnService.RenownOutcome.PROBATION && moved.probationDaysLeft() == 7);
+
+        // an ineligible first settler does not claim the run
+        EarnRig order = new EarnRig(7, 0);
+        order.award(STEVE, "k", "dungeon", 0, "x");
+        order.now.addAndGet(8 * DAY_MS);
+        order.award(JAMIE, "k", "dungeon", 0, "warm");
+        EarnService.Result fresh = order.award(ALEX, "k", "dungeon", 0, "y");
+        check("a newcomer is on probation", fresh.renown() == 0);
+        order.award(ALEX, "k", "dungeon", 0, "run9");
+        EarnService.Result vet = order.award(STEVE, "k", "dungeon", 0, "run9");
+        check("an eligible player still credits after an ineligible one", vet.renown() == 10);
+
+        // Commons
+        EarnRig commons = new EarnRig(7, 0);
+        EarnService.Result free = commons.award(ALEX, null, "dungeon", 7, null);
+        check("no kingdom: the Renown goes to the Commons, with no probation",
+                free.renown() == 24 && Treasury.COMMONS.equals(free.renownTarget())
+                        && commons.treasury.renown(Treasury.COMMONS) == 24);
+        commons.award(STEVE, "k", "dungeon", 0, null);
+        check("a later kingdom never receives the held Renown", commons.treasury.renown("k") == 0);
+    }
+
+    private static void renownCatalogue() {
+        section("Renown catalogue");
+        Treasury t = new Treasury();
+        Treasury.CatalogEntry hamlet = new Treasury.CatalogEntry("tier_hamlet", "Hamlet", "", 300, false, null, List.of());
+        Treasury.CatalogEntry village = new Treasury.CatalogEntry("tier_village", "Village", "", 900, false,
+                "tier_hamlet", List.of());
+        Treasury.CatalogEntry repeat = new Treasury.CatalogEntry("banner", "Banner", "", 100, true, null, List.of());
+
+        t.creditRenown("k", 1_000, "earn", "x", "");
+        check("insufficient balance is refused",
+                t.buy("k", new Treasury.CatalogEntry("big", "Big", "", 5_000, false, null, List.of()), "x")
+                        == Treasury.BuyStatus.INSUFFICIENT && t.renown("k") == 1_000);
+        check("requires is enforced", t.buy("k", village, "x") == Treasury.BuyStatus.REQUIRES_MISSING
+                && t.renown("k") == 1_000);
+        check("a purchase deducts", t.buy("k", hamlet, "x") == Treasury.BuyStatus.OK && t.renown("k") == 700);
+        check("a non-repeatable entry is bought once",
+                t.buy("k", hamlet, "x") == Treasury.BuyStatus.ALREADY_BOUGHT && t.renown("k") == 700);
+        check("the prerequisite now unlocks the next tier", t.buy("k", village, "x") == Treasury.BuyStatus.INSUFFICIENT);
+        check("lifetime earned is untouched by spending", t.renownLifetime("k") == 1_000);
+        check("admin add does not inflate lifetime", t.adjustRenown("k", 50, "op")
+                && t.renownLifetime("k") == 1_000 && t.renown("k") == 750);
+        check("admin remove cannot go negative", !t.adjustRenown("k", -5_000, "op") && t.renown("k") == 750);
+
+        Treasury race = new Treasury();
+        race.creditRenown("k", 1_000, "earn", "x", "");
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        AtomicLong ok = new AtomicLong();
+        CountDownLatch start = new CountDownLatch(1);
+        for (int i = 0; i < 40; i++) {
+            pool.submit(() -> {
+                await(start);
+                if (race.buy("k", repeat, "t") == Treasury.BuyStatus.OK) ok.incrementAndGet();
+            });
+        }
+        start.countDown();
+        shutdown(pool);
+        check("40 racing buys against 1,000 Renown: exactly 10 succeed, never negative",
+                ok.get() == 10 && race.renown("k") == 0 && race.bought("k", "banner") == 10);
+    }
+
+    private static void earnConcurrency() {
+        section("Earn concurrency");
+
+        // eight threads, one run: the kingdom is credited once, never doubled
+        EarnRig same = new EarnRig(0, 0);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        CountDownLatch start = new CountDownLatch(1);
+        for (int i = 0; i < 8; i++) {
+            UUID who = UUID.fromString("00000000-0000-0000-0000-00000000b0" + (10 + i));
+            pool.submit(() -> {
+                await(start);
+                same.award(who, "k", "dungeon", 5, "shared");
+            });
+        }
+        start.countDown();
+        shutdown(pool);
+        check("eight threads in one run credit the kingdom exactly once", same.treasury.renown("k") == 20);
+
+        // eight threads, distinct runs: every credit lands
+        EarnRig many = new EarnRig(0, 0);
+        ExecutorService pool2 = Executors.newFixedThreadPool(8);
+        CountDownLatch go = new CountDownLatch(1);
+        for (int i = 0; i < 400; i++) {
+            int n = i;
+            UUID who = UUID.fromString("00000000-0000-0000-0000-00000000c" + String.format("%03d", n));
+            pool2.submit(() -> {
+                await(go);
+                many.award(who, "k", "dungeon", 0, "run" + n);
+            });
+        }
+        go.countDown();
+        shutdown(pool2);
+        check("400 racing awards to one kingdom never lose or duplicate Renown",
+                many.treasury.renown("k") == 4_000 && many.treasury.renownLifetime("k") == 4_000);
+        check("and every player was paid their Valor", many.economy.totalSupply(VALOR) == 4_000);
     }
 
     // ---- inventory arithmetic ----------------------------------------------

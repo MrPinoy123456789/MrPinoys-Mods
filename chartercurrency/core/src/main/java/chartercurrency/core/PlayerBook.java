@@ -19,8 +19,26 @@ public final class PlayerBook {
     /** One player's record. */
     public static final class Player {
         public Mint.State mint;
+        /** Per earn source: soft cap pool and what was earned today. */
+        public Map<String, SourceDay> sources = new LinkedHashMap<>();
+        /** The day {@code renownToday} was counted on, and the Renown generated that day. */
+        public long renownDay;
+        public long renownToday;
+        /** The kingdom last resolved for this player ("" for none) and when first seen there (ms). */
+        public String kingdom = "";
+        public long kingdomSince;
 
         public Player() {}
+    }
+
+    /** One earn source's per-day record for one player. */
+    public static final class SourceDay {
+        public long day;
+        /** Soft cap left: refilled by the soft cap each day, to at most three times it. */
+        public long softRemaining;
+        public long earnedToday;
+
+        public SourceDay() {}
     }
 
     /** The file shape of {@code players.json}. */
@@ -43,6 +61,11 @@ public final class PlayerBook {
 
     public PlayerBook() {
         this(new File(), () -> { });
+    }
+
+    /** The lock guarding the file; services that mutate records directly hold it. */
+    Object monitor() {
+        return lock;
     }
 
     public <T> T locked(Function<File, T> action) {

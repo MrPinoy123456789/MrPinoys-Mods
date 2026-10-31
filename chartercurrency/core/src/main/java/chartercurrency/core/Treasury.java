@@ -42,6 +42,10 @@ public final class Treasury {
     public static final class Org {
         public long treasury;
         public long taxCollected;
+        public long renown;
+        public long renownLifetime;
+        /** Catalogue key to times bought. */
+        public Map<String, Integer> bought = new java.util.LinkedHashMap<>();
         public List<Entry> ledger = new ArrayList<>();
     }
 
@@ -183,6 +187,102 @@ public final class Treasury {
             append(org(orgId), currency, kind, delta, balanceAfter, actor, note);
         }
         onChange.run();
+    }
+
+    // ---- Renown -------------------------------------------------------------
+
+    /** The ledger id for Renown earned by players who are in no kingdom. */
+    public static final String COMMONS = "commons";
+
+    /** One thing a kingdom can buy with Renown (renown_catalog.json). */
+    public record CatalogEntry(String key, String name, String description, long cost,
+                               boolean repeatable, String requires, List<String> commands) {
+        public CatalogEntry {
+            commands = commands == null ? List.of() : List.copyOf(commands);
+        }
+    }
+
+    public enum BuyStatus { OK, INSUFFICIENT, ALREADY_BOUGHT, REQUIRES_MISSING, UNKNOWN }
+
+    public long renown(String orgId) {
+        synchronized (lock) {
+            Org org = state.orgs.get(key(orgId));
+            return org == null ? 0L : org.renown;
+        }
+    }
+
+    public long renownLifetime(String orgId) {
+        synchronized (lock) {
+            Org org = state.orgs.get(key(orgId));
+            return org == null ? 0L : org.renownLifetime;
+        }
+    }
+
+    /** How many times a catalogue key has been bought. */
+    public int bought(String orgId, String key) {
+        synchronized (lock) {
+            Org org = state.orgs.get(key(orgId));
+            return org == null ? 0 : org.bought.getOrDefault(key, 0);
+        }
+    }
+
+    /** Renown earned by play: counts toward lifetime. */
+    public boolean creditRenown(String orgId, long amount, String kind, String actor, String note) {
+        if (amount <= 0 || orgId == null || orgId.isBlank()) return false;
+        synchronized (lock) {
+            Org org = org(orgId);
+            if (org.renown > Long.MAX_VALUE - amount || org.renownLifetime > Long.MAX_VALUE - amount) return false;
+            org.renown += amount;
+            org.renownLifetime += amount;
+            append(org, "renown", kind, amount, org.renown, actor, note);
+        }
+        onChange.run();
+        return true;
+    }
+
+    /**
+     * Admin adjustment. An add is not "earned" (a refund must not inflate the lifetime
+     * ranking); a remove that would go negative is refused.
+     */
+    public boolean adjustRenown(String orgId, long delta, String actor) {
+        if (delta == 0 || orgId == null || orgId.isBlank()) return false;
+        synchronized (lock) {
+            Org org = org(orgId);
+            if (delta < 0 && org.renown < -delta) return false;
+            if (delta > 0 && org.renown > Long.MAX_VALUE - delta) return false;
+            org.renown += delta;
+            append(org, "renown", delta > 0 ? "admin_add" : "admin_remove", delta, org.renown, actor, "");
+        }
+        onChange.run();
+        return true;
+    }
+
+    /**
+     * Spend Renown on a catalogue entry: balance, once-only and prerequisite checks and
+     * the deduction happen under one lock, so concurrent buys can never overspend.
+     */
+    public BuyStatus buy(String orgId, CatalogEntry entry, String actor) {
+        if (entry == null || orgId == null || orgId.isBlank()) return BuyStatus.UNKNOWN;
+        BuyStatus result;
+        synchronized (lock) {
+            Org org = org(orgId);
+            int have = org.bought.getOrDefault(entry.key(), 0);
+            if (!entry.repeatable() && have > 0) {
+                result = BuyStatus.ALREADY_BOUGHT;
+            } else if (entry.requires() != null && !entry.requires().isBlank()
+                    && org.bought.getOrDefault(entry.requires(), 0) <= 0) {
+                result = BuyStatus.REQUIRES_MISSING;
+            } else if (org.renown < entry.cost()) {
+                result = BuyStatus.INSUFFICIENT;
+            } else {
+                org.renown -= entry.cost();
+                org.bought.merge(entry.key(), 1, Integer::sum);
+                append(org, "renown", "purchase", -entry.cost(), org.renown, actor, entry.key());
+                result = BuyStatus.OK;
+            }
+        }
+        if (result == BuyStatus.OK) onChange.run();
+        return result;
     }
 
     // ---- internals ----------------------------------------------------------
