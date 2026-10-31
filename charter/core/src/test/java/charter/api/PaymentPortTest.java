@@ -73,7 +73,7 @@ public final class PaymentPortTest {
         check("none: an operator's deposit does nothing and breaks nothing", f.admin(new Deposit(ashfall, 50)).done());
         eq("none: the port still reports nothing held", 0L, f.state.payment.balance(ashfall.toString()));
         check("none: the old item treasury was never touched", f.org(ashfall).ledger.snapshot().isEmpty());
-        check("none: founding a keep needs no payer", f.as(GIL, new charter.org.actions.FoundKeep(GIL, "Gilhold", "", ch(200, 200))).done());
+        check("none: founding a keep takes diamonds carried, not Marks", f.as(GIL, new charter.org.actions.FoundKeep(GIL, "Gilhold", "", ch(200, 200), f.knobs.keepPriceDiamonds)).done());
     }
 
     private static List<String> kinds(List<String> warnings) {

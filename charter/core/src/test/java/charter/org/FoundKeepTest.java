@@ -27,31 +27,31 @@ public final class FoundKeepTest {
     }
 
     public static void run() {
-        foundingIsFree();
-        foundingChargesAndCreditsNothing();
+        foundingPaysForTheKeep();
+        diamondsPaidNeverEnterATreasury();
         everyRefusalChangesNothing();
         eventsComeInOrder();
     }
 
-    static void foundingIsFree() {
+    static void foundingPaysForTheKeep() {
         Fixture f = new Fixture();
         f.seen(KRIS);
-        Outcome done = f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "{banner}", HERE));
+        Outcome done = f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "{banner}", HERE, 64));
         check("1: founded", done.done());
         var org = f.state.orgNamed("Ashfall").orElseThrow();
         eq("1: forming", OrgStatus.FORMING, org.status());
         eq("1: the founder is the Lord", KRIS, f.holder(org.id, Preset.LORD));
         eq("1: nine claims", 9L, f.state.claimsOf(org.id).size() + 0L);
-        eq("1: the founding keep is free, so the port was never touched", 0, f.port.calls.size());
+        check("1: the diamonds never entered a treasury", org.ledger.snapshot().isEmpty());
         eq("1: the banner is kept", "{banner}", org.people.banner);
         eq("1: one keep", 1, f.state.coresOf(org.id).size());
     }
 
-    static void foundingChargesAndCreditsNothing() {
+    static void diamondsPaidNeverEnterATreasury() {
         Fixture f = new Fixture();
         f.seen(KRIS);
-        f.state.payment = new charter.api.NoPayment(m -> { });
-        check("2: with no provider the keep is still founded", f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE)).done());
+        f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE, 70));
+        check("2: more than the price changes nothing in any treasury", f.state.orgNamed("Ashfall").orElseThrow().ledger.snapshot().isEmpty() && f.port.calls.isEmpty());
     }
 
     private static void refused(String what, Fixture f, PlayerId who, FoundKeep action) {
@@ -70,26 +70,27 @@ public final class FoundKeepTest {
     static void everyRefusalChangesNothing() {
         Fixture f = new Fixture();
         f.seen(KRIS, GIL);
-        f.as(GIL, new FoundKeep(GIL, "Taken", "", new ChunkKey(DIM, 100, 100)));
-        refused("a taken name", f, KRIS, new FoundKeep(KRIS, "Taken", "", new ChunkKey(DIM, 0, 0)));
-        refused("a two letter name", f, KRIS, new FoundKeep(KRIS, "Ab", "", new ChunkKey(DIM, 0, 0)));
-        refused("a keep too near another", f, KRIS, new FoundKeep(KRIS, "Near", "", new ChunkKey(DIM, 101, 100)));
-        refused("a footprint already claimed", f, KRIS, new FoundKeep(KRIS, "Claimed", "", new ChunkKey(DIM, 100, 101)));
-        refused("already a member", f, GIL, new FoundKeep(GIL, "Second", "", new ChunkKey(DIM, 0, 0)));
+        f.as(GIL, new FoundKeep(GIL, "Taken", "", new ChunkKey(DIM, 100, 100), 64));
+        refused("a taken name", f, KRIS, new FoundKeep(KRIS, "Taken", "", new ChunkKey(DIM, 0, 0), 64));
+        refused("a two letter name", f, KRIS, new FoundKeep(KRIS, "Ab", "", new ChunkKey(DIM, 0, 0), 64));
+        refused("a keep too near another", f, KRIS, new FoundKeep(KRIS, "Near", "", new ChunkKey(DIM, 101, 100), 64));
+        refused("a footprint already claimed", f, KRIS, new FoundKeep(KRIS, "Claimed", "", new ChunkKey(DIM, 100, 101), 64));
+        refused("too few diamonds", f, KRIS, new FoundKeep(KRIS, "Poor", "", new ChunkKey(DIM, 0, 0), 63));
+        refused("already a member", f, GIL, new FoundKeep(GIL, "Second", "", new ChunkKey(DIM, 0, 0), 64));
 
         Fixture g = new Fixture();
         g.seen(KRIS);
         g.as(KRIS, new Found(KRIS, "Early", Preset.LORDSHIP));
         g.as(KRIS, new charter.org.actions.Leave(KRIS));
         g.passDays(2, KRIS);
-        refused("founding two days after the last", g, KRIS, new FoundKeep(KRIS, "Again", "", new ChunkKey(DIM, 0, 0)));
+        refused("founding two days after the last", g, KRIS, new FoundKeep(KRIS, "Again", "", new ChunkKey(DIM, 0, 0), 64));
     }
 
     static void eventsComeInOrder() {
         Fixture f = new Fixture();
         f.seen(KRIS);
         int before = f.state.history.entries().size();
-        f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE));
+        f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE, 64));
         List<String> names = new ArrayList<>();
         for (var e : f.state.history.entries().subList(before, f.state.history.entries().size())) {
             names.add(e.event().getClass().getSimpleName());

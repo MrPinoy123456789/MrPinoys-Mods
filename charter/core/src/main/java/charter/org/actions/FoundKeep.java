@@ -23,13 +23,12 @@ import java.util.Optional;
 
 /**
  * A player founds a Lordship and raises its keep in one act, paying for the keep
- * (the Charter book's Nexus). The founding keep is free: the new organization has no treasury to pay
- * it from, and a founder's own coin is not Charter's to take. Keeps placed later cost {@code keepPriceMarks}
- * from the treasury ({@link PlaceNexus}). A refusal leaves
+ * with the diamonds they carried (the Charter book's Nexus). The diamonds are items the fabric side takes from the
+ * player; they never enter a treasury. Keeps placed later cost {@code keepPriceMarks} from the treasury ({@link PlaceNexus}). A refusal leaves
  * nothing behind: every check runs before anything changes. A player's own act,
  * like {@link Found}.
  */
-public record FoundKeep(PlayerId founder, String name, String banner, ChunkKey center) implements Action {
+public record FoundKeep(PlayerId founder, String name, String banner, ChunkKey center, long paidDiamonds) implements Action {
 
     @Override
     public OrgId actingFor() {
@@ -55,6 +54,9 @@ public record FoundKeep(PlayerId founder, String name, String banner, ChunkKey c
         if (cooled.refused()) return cooled;
         var problem = new LandGraph(ctx.state, ctx.knobs).keepProblemForNew(center);
         if (problem.isPresent()) return Outcome.refuse(problem.get());
+        if (paidDiamonds < ctx.knobs.keepPriceDiamonds) {
+            return Outcome.refuse(LandReasons.NO_FUNDS.with("A keep costs " + ctx.knobs.keepPriceDiamonds + " diamonds and you carry fewer."));
+        }
         return Outcome.OK;
     }
 

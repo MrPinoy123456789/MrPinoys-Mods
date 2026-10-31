@@ -119,6 +119,7 @@ public final class ChronicleStoryTest {
                 IN + "Ashfall set 2 terms on Gil, by right of custody, though the terms were cut down to the limit.");
         golden(new ContractEvents.Fined(AT, CONTRACT, GIL, ASHFALL, 8, 1), IN + "Gil was fined 8 diamonds by Ashfall and paid 1.");
         golden(new ContractEvents.FinedMarks(AT, CONTRACT, GIL, ASHFALL, 8, 1), IN + "Gil was fined 8 Marks by Ashfall and paid 1 Mark.");
+        golden(new ContractEvents.Bailed(AT, CONTRACT, GIL, EASTERN, ASHFALL, 32), IN + "the Eastern Guard paid 32 Marks to Ashfall to bail Gil out.");
         golden(new ContractEvents.Executed(AT, CONTRACT, ASHFALL, GIL, Durations.minutes(30), Durations.days(1)),
                 IN + "Ashfall put Gil to death. They would wait 30 minutes to rise again, and were banished for 1 day.");
         golden(new ContractEvents.Escaped(AT, CONTRACT, GIL, ASHFALL), IN + "Gil escaped from the cells of Ashfall.");

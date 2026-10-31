@@ -89,6 +89,7 @@ public final class DefaultTemplates {
         t.put("ContractEvents.Imposed", "On {when}, {imposer} set {terms} on {subject}, by right of {basis}{cut?, though the terms were cut down to the limit}{outsider?, and jailing a stranger was an act of war}.");
         t.put("ContractEvents.Fined", "On {when}, {prisoner} was fined {asked#diamond} by {to} and paid {paid}.");
         t.put("ContractEvents.FinedMarks", "On {when}, {prisoner} was fined {asked#Mark} by {to} and paid {paid#Mark}.");
+        t.put("ContractEvents.Bailed", "On {when}, {payer} paid {marks#Mark} to {to} to bail {prisoner} out.");
         t.put("ContractEvents.Executed", "On {when}, {faction} put {prisoner} to death. They would wait {respawnDelayMillis} to rise again, and were banished for {banishmentMillis}.");
         t.put("ContractEvents.Escaped", "On {when}, {prisoner} escaped from the cells of {faction}.");
         t.put("ContractEvents.Pardoned", "On {when}, {by} pardoned {prisoner}.");

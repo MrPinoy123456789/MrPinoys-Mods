@@ -84,6 +84,9 @@ public final class JusticeCommands {
                                 .then(Commands.literal("sentence").then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                         .executes(JusticeCommands::sentence))))
+                        .then(Commands.literal("bail").then(Commands.argument("player", StringArgumentType.string())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
+                                .executes(JusticeCommands::bail)))
                         .then(Commands.literal("safe")
                                 .executes(ctx -> page(ctx, JusticeCommands::safePage))
                                 .then(Commands.literal("deposit").then(Commands.argument("amount", IntegerArgumentType.integer(1))
@@ -210,6 +213,22 @@ public final class JusticeCommands {
         }
         sentencePage(player, rt, target.get());
         return 1;
+    }
+
+    /** The player's kingdom buys a member out of a sentence another faction set: {@code /charter bail <player>}. */
+    private static int bail(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!CharterServer.running()) return 0;
+        CharterRuntime rt = CharterServer.runtime();
+        String name = StringArgumentType.getString(ctx, "player");
+        Optional<PlayerId> target = find(rt, ctx.getSource(), name);
+        Optional<OrgId> mine = orgOf(rt, player);
+        if (target.isEmpty() || mine.isEmpty()) {
+            player.sendSystemMessage(Chat.bad(Text.get(mine.isEmpty() ? "page.no_org" : "invite.no_player", "name", name)));
+            return 0;
+        }
+        return run(player, new charter.contract.actions.Bail(rt.state.root(mine.get()), target.get()),
+                Text.get("justice.bailed", "player", rt.describe.player(target.get()))) ? 1 : 0;
     }
 
     private static Optional<PlayerId> find(CharterRuntime rt, CommandSourceStack source, String name) {

@@ -182,7 +182,7 @@ public final class BreakawayTest {
         check("8: one member starts", f.as(GIL, new BreakAway(GIL)).done());
         check("8: another joins the same group", f.as(CY, new BreakAway(CY)).done());
         eq("8: the group has both", 2, f.state.groupLeaving(ash).orElseThrow().members().size());
-        Outcome founded = f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200)));
+        Outcome founded = f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200), 64));
         check("8: the starter founds the keep " + founded, founded.done());
         OrgId fresh = f.state.orgNamed("Newhold").orElseThrow().id;
         check("8: the starter is its Lord", f.holder(fresh, Preset.LORD).equals(GIL));
@@ -197,7 +197,7 @@ public final class BreakawayTest {
         OrgId ash = f.state.orgNamed("Ashfall").orElseThrow().id;
         f.as(GIL, new BreakAway(GIL));
         eq("9: one alone cannot", OrgReasons.NEEDS_GROUP.key(),
-                f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200))).reasonKey());
+                f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200), 64)).reasonKey());
         f.pass(charter.time.Durations.hours(f.knobs.breakawayHours) + 60_000, KRIS, GIL, CY, DEE);
         check("9: a group that did not gather in time lapses", f.state.groupLeaving(ash).isEmpty() && f.state.isMember(GIL, ash));
     }

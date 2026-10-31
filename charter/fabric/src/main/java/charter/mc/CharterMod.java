@@ -45,8 +45,6 @@ public final class CharterMod implements ModInitializer {
         charter.mc.justice.JusticeMod.register();
         // M13: the Chronicle in the world: charter lecterns, the Realm Chronicle, its voice file.
         charter.mc.chronicle.Chronicles.register();
-        // M14: the playtest kit: operator scenarios.
-        charter.mc.scenario.ScenarioCommands.register();
         // The raiders' strongholds and outposts, and their admin commands.
         charter.mc.cmd.Teleports.register();
         charter.mc.npc.NpcWorld.register();

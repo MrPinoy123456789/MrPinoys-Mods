@@ -531,7 +531,7 @@ public final class JusticeGameTest {
     // ---- fines ----
 
     @GameTest(maxTicks = 100)
-    public void aFineOnAPlayerWithNoKingdomPaysNothingAndTakesNoItems(GameTestHelper helper) {
+    public void aFineOnAPlayerWithNoKingdomIsRefusedAndTakesNoItems(GameTestHelper helper) {
         try (Rig r = new Rig(helper)) {
             GamePort port = GamePort.of(r.rt);
             r.prisoner.getInventory().add(new ItemStack(Items.DIAMOND, 30));
@@ -542,7 +542,7 @@ public final class JusticeGameTest {
             r.click(r.lord, Text.get("justice.link_fine", "count", 64));
             r.check(port.marks(r.org) == treasury, "A fine on a player with no kingdom paid the treasury");
             r.check(r.diamonds(r.prisoner) == 30, "A fine took diamonds the prisoner carried");
-            r.check(r.rt.state.contracts.custodyOf(r.prisonerId).isEmpty(), "The prisoner is still in custody after the fine");
+            r.check(r.rt.state.contracts.custodyOf(r.prisonerId).isPresent(), "A refused fine freed the prisoner");
             r.check(r.rt.state.contracts.vault(r.prisonerId).snapshot().isEmpty(), "The old safe was touched");
             helper.succeed();
         }

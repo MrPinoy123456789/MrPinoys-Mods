@@ -72,6 +72,7 @@ public final class FoundingGameTest {
             ServerPlayer player = kit.outsider();
             clear(player);
             String name = unique("Fnd");
+            player.getInventory().setItem(20, new ItemStack(Items.DIAMOND, 64));
             ItemStack nexus = NexusItems.founding(name, "");
             kit.placeOn(player, nexus, kit.nexusPos());
 
@@ -83,24 +84,27 @@ public final class FoundingGameTest {
                     .filter(c -> c.kind() == ClaimKind.KEEP_CORE || c.kind() == ClaimKind.KEEP_RING).count();
             helper.assertTrue(claimed == 9, "The keep claims " + claimed + " chunks, not nine");
             helper.assertTrue(diamonds(player) == 0, "The player still holds " + diamonds(player) + " diamonds");
-            helper.assertTrue(org.ledger.snapshot().isEmpty(), "The old item treasury is not empty");
+            helper.assertTrue(org.ledger.snapshot().isEmpty(), "The diamonds entered a treasury");
             helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).is(Blocks.LODESTONE), "The Nexus block is not standing");
             helper.succeed();
         }
     }
 
     @GameTest(maxTicks = 100, environment = BATCH)
-    public void foundingTheFirstKeepNeedsNoDiamonds(GameTestHelper helper) {
+    public void tooFewDiamondsRefusesAndKeepsTheNexus(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer player = kit.outsider();
             clear(player);
             String name = unique("Poor");
-            player.getInventory().setItem(20, new ItemStack(Items.DIAMOND, 3));
+            // The Nexus goes in the selected hotbar slot, so the diamonds wait elsewhere.
+            player.getInventory().setItem(20, new ItemStack(Items.DIAMOND, 63));
             kit.placeOn(player, NexusItems.founding(name, ""), kit.nexusPos());
 
-            helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).is(Blocks.LODESTONE), "The Nexus was refused for want of diamonds");
-            helper.assertTrue(diamonds(player) == 3, "Founding touched the diamonds the player carried: " + diamonds(player));
-            helper.assertTrue(kit.rt.state.orgNamed(name).isPresent(), "No faction was founded");
+            helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).isAir(), "The refused Nexus left its block");
+            ItemStack back = player.getItemInHand(InteractionHand.MAIN_HAND);
+            helper.assertTrue(NexusItems.foundingName(back).isPresent(), "The Nexus did not come back to the hand");
+            helper.assertTrue(diamonds(player) == 63, "The refusal took diamonds: " + diamonds(player));
+            helper.assertTrue(kit.rt.state.orgNamed(name).isEmpty(), "A faction was founded anyway");
             helper.succeed();
         }
     }
@@ -152,6 +156,8 @@ public final class FoundingGameTest {
         clear(player);
         player.getInventory().add(NexusItems.founding("Ashfall", ""));
         helper.assertTrue(firstOpen(NewcomerPages.foundSteps(player)) == 4, "A crafted Nexus did not finish step four");
+        player.getInventory().add(new ItemStack(Items.DIAMOND, 64));
+        helper.assertTrue(firstOpen(NewcomerPages.foundSteps(player)) == 5, "Sixty four diamonds did not finish step five");
         BookDialogs.LAST.remove(player.getUUID());
         NewcomerPages.found(player, null);
         helper.assertTrue(BookDialogs.LAST.containsKey(player.getUUID()), "The Found page sent no dialog");
