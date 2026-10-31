@@ -5,6 +5,10 @@ import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
 import chartercurrency.core.EconomyService;
 import chartercurrency.core.LeaderboardService;
+import chartercurrency.core.ManualKingdomSource;
+import chartercurrency.core.MintService;
+import chartercurrency.core.PlayerBook;
+import chartercurrency.core.Treasury;
 import chartercurrency.core.ShopCatalog;
 import chartercurrency.core.ShopEntry;
 import net.fabricmc.api.ModInitializer;
@@ -53,6 +57,10 @@ public final class CharterCurrencyMod implements ModInitializer {
     private CharterCurrency economy;
     private NameCache names;
     private LoginSnapshot loginSnapshot;
+    private JsonStateFile<PlayerBook.File> playersFile;
+    private JsonStateFile<Treasury.State> treasuryFile;
+    private JsonStateFile<KingdomRuntime.File> kingdomsFile;
+    private JsonStateFile<MintSites.File> minesFile;
 
     @Override
     public void onInitialize() {
@@ -77,6 +85,39 @@ public final class CharterCurrencyMod implements ModInitializer {
                 SuiteItems.Loader::new);
         ShopCatalog catalog = new ShopCatalog();
 
+        // State beyond balances. Each file is written atomically and refuses to load
+        // over a file it cannot read, because Renown and treasuries are money too.
+        playersFile = new JsonStateFile<>(configDir, "players.json", PlayerBook.File.class);
+        PlayerBook book = new PlayerBook(playersFile.load(), playersFile::markDirty);
+        playersFile.bind(() -> book.locked(JsonStateFile::toJson));
+
+        treasuryFile = new JsonStateFile<>(configDir, "kingdoms_state.json", Treasury.State.class);
+        Treasury treasury = new Treasury(treasuryFile.load(), treasuryFile::markDirty,
+                System::currentTimeMillis);
+        treasuryFile.bind(() -> treasury.locked(JsonStateFile::toJson));
+
+        kingdomsFile = new JsonStateFile<>(configDir, "kingdoms.json", KingdomRuntime.File.class);
+        ManualKingdomSource manual = new ManualKingdomSource(kingdomsFile.load().kingdoms,
+                kingdomsFile::markDirty);
+        kingdomsFile.bind(() -> {
+            KingdomRuntime.File snapshot = new KingdomRuntime.File();
+            snapshot.kingdoms = manual.snapshot();
+            return JsonStateFile.toJson(snapshot);
+        });
+        KingdomRuntime kingdoms = new KingdomRuntime(manual);
+
+        minesFile = new JsonStateFile<>(configDir, "mints.json", MintSites.File.class);
+        MintSites sites = new MintSites(minesFile.load(), minesFile::markDirty);
+        minesFile.bind(sites::json);
+
+        MintService mintService = new MintService(book, treasury, settings.mint);
+        Services services = new Services(settings, currencies, economy, leaderboard, names, log,
+                treasury, book, mintService, kingdoms, sites);
+        MintListener mintListener = new MintListener(services);
+        mintListener.register();
+        TreasuryCommands treasuryCommands = new TreasuryCommands(services, mintListener);
+        KingdomAdminCommands kingdomAdmin = new KingdomAdminCommands(services, treasuryCommands);
+
         loginSnapshot = new LoginSnapshot(leaderboard, currencies, names, settings);
 
         EconomyService service = economy;
@@ -89,6 +130,8 @@ public final class CharterCurrencyMod implements ModInitializer {
             new AdminCommands(service, currencies, names, log, catalog, shopConfig)
                     .register(dispatcher);
             new ShopkeeperCommands().register(dispatcher);
+            treasuryCommands.register(dispatcher);
+            kingdomAdmin.register(dispatcher);
         });
 
         ShopkeeperInteraction.register(service, catalog, log, settings);
@@ -117,6 +160,10 @@ public final class CharterCurrencyMod implements ModInitializer {
             economy.shutdown();
             store.close();
             log.close();
+            playersFile.close();
+            treasuryFile.close();
+            kingdomsFile.close();
+            minesFile.close();
         });
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {

@@ -52,6 +52,30 @@ public final class EconomySettings {
 
     public final ShopSettings shop = new ShopSettings();
 
+    /** Time zone for "today" (Mint allowance, daily caps). Blank means the server's own. */
+    public String timezone = "";
+
+    /** Mint allowance numbers. The tax rate is NOT here: it is fixed in code. */
+    public chartercurrency.core.Mint.Rules mint = chartercurrency.core.Mint.Rules.defaults();
+
+    /** The zone "today" is measured in. A bad name falls back to the system zone. */
+    public java.time.ZoneId zone() {
+        if (timezone != null && !timezone.isBlank()) {
+            try {
+                return java.time.ZoneId.of(timezone.trim());
+            } catch (RuntimeException e) {
+                CharterCurrencyMod.LOG.warn("settings.json timezone '{}' is not a zone; using the system zone",
+                        timezone);
+            }
+        }
+        return java.time.ZoneId.systemDefault();
+    }
+
+    /** Today's day number in {@link #zone()}. */
+    public long today() {
+        return java.time.LocalDate.now(zone()).toEpochDay();
+    }
+
     /**
      * Settings for the shop's purchase confirmation.
      *
@@ -172,6 +196,18 @@ public final class EconomySettings {
                     settings.shop.confirmAt = parsed;
                 }
             }
+            if (root.has("timezone")) settings.timezone = root.get("timezone").getAsString();
+            JsonObject mintBlock = root.getAsJsonObject("mint");
+            if (mintBlock == null) {
+                rewrite = true;
+            } else {
+                chartercurrency.core.Mint.Rules d = settings.mint;
+                settings.mint = new chartercurrency.core.Mint.Rules(
+                        Math.max(1, integer(mintBlock, "fullBandPerDay", d.fullBandPerDay())),
+                        Math.max(1, integer(mintBlock, "halfBandPerDay", d.halfBandPerDay())),
+                        Math.max(0, integer(mintBlock, "carryOverDays", d.carryOverDays())));
+            }
+            if (!root.has("timezone")) rewrite = true;
         } catch (Exception e) {
             CharterCurrencyMod.LOG.warn("Could not read settings.json; using defaults", e);
             return settings;
@@ -213,6 +249,12 @@ public final class EconomySettings {
         root.add("logging", logging);
         root.add("welcome", welcome);
         root.add("shop", shop);
+        root.addProperty("timezone", timezone);
+        JsonObject mintBlock = new JsonObject();
+        mintBlock.addProperty("fullBandPerDay", mint.fullBandPerDay());
+        mintBlock.addProperty("halfBandPerDay", mint.halfBandPerDay());
+        mintBlock.addProperty("carryOverDays", mint.carryOverDays());
+        root.add("mint", mintBlock);
 
         try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             GSON.toJson(root, out);
