@@ -14,6 +14,10 @@ public final class LandEvents {
     public record NexusPlaced(long at, OrgId org, CoreId core, ChunkKey center) implements HistoryEvent {
     }
 
+    /** An operator moved a keep to another place; the core stays the same. */
+    public record KeepMoved(long at, OrgId org, CoreId core, ChunkKey fromChunk, ChunkKey toChunk) implements HistoryEvent {
+    }
+
     public record CampPlanted(long at, OrgId org, CoreId core, ChunkKey center) implements HistoryEvent {
     }
 

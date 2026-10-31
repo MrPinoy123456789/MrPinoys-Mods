@@ -85,6 +85,12 @@ public final class LandCommands {
                                                 .then(Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                         .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                                 .executes(LandCommands::createKingdom))))))
+                        .then(Commands.literal("move")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                .then(Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                        .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                                .executes(LandCommands::moveKeep))))))
                         .then(Commands.literal("leader")
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("player", StringArgumentType.string())
@@ -297,6 +303,46 @@ public final class LandCommands {
         charter.mc.land.Placement.recordNexus(rt, level, nexus, chunk);
         rt.claims.rebuild();
         return ok(ctx, Text.get("land.admin.created", "name", name.strip(), "x", nexus.getX(), "y", nexus.getY(), "z", nexus.getZ()));
+    }
+
+    /** {@code faction move "<faction>" <x> <y> <z>}: the keep and its Nexus move there; members, race, treasury and history stay. */
+    private static int moveKeep(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        var found = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        var org = found.get();
+        var keep = rt.state.coresOf(org.id).stream().filter(charter.land.Core::isKeep).findFirst();
+        if (keep.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        var level = ctx.getSource().getServer().overworld();
+        net.minecraft.core.BlockPos at = new net.minecraft.core.BlockPos(
+                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "x"),
+                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "y"),
+                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "z"));
+        level.getChunk(at.getX() >> 4, at.getZ() >> 4);
+        ChunkKey chunk = charter.mc.land.Placement.chunkOf(level, at);
+        var fixtures = charter.mc.land.Fixtures.of(rt.state);
+        var oldNexus = fixtures.first(keep.get().id, charter.mc.land.Fixtures.Kind.NEXUS);
+        Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()),
+                new charter.land.actions.MoveKeep(org.id, chunk));
+        if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
+        // The old Nexus block goes, wherever it stood, and its record with it.
+        net.minecraft.core.BlockPos old = oldNexus == null ? at : new net.minecraft.core.BlockPos(oldNexus.x(), oldNexus.y(), oldNexus.z());
+        if (oldNexus != null) {
+            var oldLevel = ctx.getSource().getServer().getLevel(net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(oldNexus.dimension())));
+            if (oldLevel != null && oldLevel.getBlockState(old).is(net.minecraft.world.level.block.Blocks.LODESTONE)) {
+                oldLevel.setBlockAndUpdate(old, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+            }
+            fixtures.remove(oldNexus);
+        }
+        net.minecraft.core.BlockPos nexus = at;
+        while (!level.getBlockState(nexus).canBeReplaced() && nexus.getY() < level.getMaxY()) nexus = nexus.above();
+        level.setBlockAndUpdate(nexus, net.minecraft.world.level.block.Blocks.LODESTONE.defaultBlockState());
+        charter.mc.land.Placement.recordNexus(rt, level, nexus, chunk);
+        rt.claims.rebuild();
+        return ok(ctx, Text.get("land.admin.keep_moved", "name", org.name(), "x", nexus.getX(), "y", nexus.getY(), "z", nexus.getZ(),
+                "ox", old.getX(), "oy", old.getY(), "oz", old.getZ()));
     }
 
     /** {@code faction leader "<faction>" <player>}: the player joins the kingdom and takes the Lord's seat. */
