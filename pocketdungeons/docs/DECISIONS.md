@@ -1286,4 +1286,6 @@ fires too early on a floor with an objective instead of spawners; whether the em
 
 **Status: phases 0 to 2 built on `feature/wild-lodestones`, phases 3 to 5 not built (2026-10-31).** Plan: `docs/plans/2026-10-30-wild-lodestones-plan.md`. Keystone audit: `docs/plans/2026-10-30-wild-lodestones-audit.md`.
 
+Owner notes after phase 2 (2026-10-31): Endless Mine nodes are acceptable offerings, but each offering must be thematic for its type of dungeon (mine, dungeon, long dungeon). Wild mode does not need the campaign's guarantee of a clear path to finishing, because players can bring items from the overworld to solve problems. Not yet built; the type field and what it changes are open.
+
 Phase 2 deviations from the plan: the arrival Exit block has no item or text display yet (the jigsaw alone marks it); `wildBlockedCommands` is read but not enforced (it defaults to empty, so nothing is blocked); the clean stop sweep of ground items (task 2.10) waits for `WildSweep` in phase 3; the unclean-stop slot clear relies on `reconcileAfterUncleanShutdown`, as planned.
