@@ -207,6 +207,44 @@ public final class LandGraph {
         return Optional.empty();
     }
 
+    /**
+     * Whether an organization's keep may stand with its core chunk here instead: its own keep's land and its own keep do
+     * not count against the move, everything else does.
+     */
+    public Optional<Reason> keepProblemForMove(OrgId org, ChunkKey center) {
+        if (!dimensionAllowed(center)) return Optional.of(LandReasons.WRONG_DIMENSION);
+        int r = Math.max(1, knobs.keepRadiusChunks);
+        r = radiusOf(org);
+        for (ChunkKey chunk : footprint(center, r)) {
+            var claim = state.claimAt(chunk);
+            if (claim.isPresent() && !(claim.get().owner.equals(org) && state.core(claim.get().core()).map(Core::isKeep).orElse(false))) {
+                return Optional.of(LandReasons.KEEP_NEEDS_ROOM);
+            }
+        }
+        for (Core other : state.cores()) {
+            if (!other.isKeep() || other.owner.equals(org)) continue;
+            if (gapBetween(center, r, other.center, radiusOf(other.owner)) < knobs.keepGapChunks) return Optional.of(LandReasons.KEEP_GAP);
+        }
+        return Optional.empty();
+    }
+
+    /** Moves a keep: its land is taken up and laid down again around the new core chunk, and the rest is reconciled. */
+    public List<HistoryEvent> moveKeep(OrgId owner, Core keep, ChunkKey center, long wallNow) {
+        ChunkKey from = keep.center;
+        for (Claim claim : List.copyOf(state.claimsOf(owner))) {
+            if (keep.id.equals(claim.core()) && claim.fixed()) state.removeClaim(claim.id);
+        }
+        keep.center = center;
+        for (ChunkKey chunk : footprint(center, radiusOf(owner))) {
+            ClaimKind kind = chunk.equals(center) ? ClaimKind.KEEP_CORE : ClaimKind.KEEP_RING;
+            state.addClaim(new Claim(state.ids.claim(), chunk, owner, kind, keep.id, 0, wallNow));
+        }
+        List<HistoryEvent> events = new ArrayList<>();
+        events.add(new LandEvents.KeepMoved(wallNow, owner, keep.id, from, center));
+        events.addAll(reconcile(owner, wallNow));
+        return events;
+    }
+
     /** A camp may stand beside foreign land but never inside it. */
     public Optional<Reason> campProblem(ChunkKey center) {
         if (!dimensionAllowed(center)) return Optional.of(LandReasons.WRONG_DIMENSION);

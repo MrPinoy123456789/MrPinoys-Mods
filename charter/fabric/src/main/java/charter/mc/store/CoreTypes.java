@@ -12,6 +12,7 @@ import charter.history.HistoryEvent;
 import charter.land.LandEvents;
 import charter.land.actions.ClaimLand;
 import charter.land.actions.LoseCore;
+import charter.land.actions.MoveKeep;
 import charter.land.actions.PlaceNexus;
 import charter.land.actions.PlantCamp;
 import charter.land.actions.Unclaim;
@@ -80,6 +81,7 @@ public final class CoreTypes {
                 .register("land.claim", ClaimLand.class)
                 .register("land.unclaim", Unclaim.class)
                 .register("land.lose_core", LoseCore.class)
+                .register("land.move_keep", MoveKeep.class)
                 .register("siege.deposit_food", DepositFood.class)
                 .register("war.declare", charter.siege.actions.DeclareWar.class);
 

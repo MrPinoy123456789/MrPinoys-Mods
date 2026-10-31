@@ -60,6 +60,7 @@ public final class DefaultTemplates {
 
         // ---- land (LandEvents) ----
         t.put("LandEvents.NexusPlaced", "On {when}, {org} raised a keep at {center} and laid claim to the ground around it.");
+        t.put("LandEvents.KeepMoved", "On {when}, {org} moved its keep from {fromChunk} to {toChunk}.");
         t.put("LandEvents.CampPlanted", "On {when}, {org} planted a war banner at {center}.");
         t.put("LandEvents.Claimed", "On {when}, {org} claimed the land at {chunk}.");
         t.put("LandEvents.Unclaimed", "On {when}, {org} gave up the land at {chunk}.");

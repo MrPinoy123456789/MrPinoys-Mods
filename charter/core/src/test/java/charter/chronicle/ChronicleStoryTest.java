@@ -86,6 +86,7 @@ public final class ChronicleStoryTest {
     static void goldenSentences() {
         // land
         golden(new LandEvents.NexusPlaced(AT, ASHFALL, KEEP, CHUNK), IN + "Ashfall raised a keep at 200, -56 and laid claim to the ground around it.");
+        golden(new LandEvents.KeepMoved(AT, ASHFALL, KEEP, CHUNK, new ChunkKey("minecraft:overworld", 0, 0)), IN + "Ashfall moved its keep from 200, -56 to 8, 8.");
         golden(new LandEvents.CampPlanted(AT, EASTERN, CAMP, CHUNK), IN + "the Eastern Guard planted a war banner at 200, -56.");
         golden(new LandEvents.Claimed(AT, ASHFALL, CHUNK, KEEP), IN + "Ashfall claimed the land at 200, -56.");
         golden(new LandEvents.Unclaimed(AT, ASHFALL, CHUNK), IN + "Ashfall gave up the land at 200, -56.");

@@ -311,4 +311,28 @@ public final class LandProtectionGameTest {
             helper.succeed();
         }
     }
+
+    @GameTest(maxTicks = 100)
+    public void anOperatorMovesAKeepAndItsNexus(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Mover");
+            kit.keep(lord);
+            charter.id.OrgId org = kit.orgOf(lord);
+            String name = kit.rt.state.org(org).orElseThrow().name();
+            net.minecraft.core.BlockPos old = kit.nexusPos();
+            helper.assertTrue(kit.level.getBlockState(old.above(0)).is(net.minecraft.world.level.block.Blocks.LODESTONE)
+                    || kit.level.getBlockState(old).is(net.minecraft.world.level.block.Blocks.LODESTONE), "the keep starts with a lodestone");
+            int newX = old.getX() + 16;
+            kit.server.getCommands().performPrefixedCommand(kit.server.createCommandSourceStack(),
+                    "charter admin faction move \"" + name + "\" " + newX + " " + kit.y + " " + old.getZ());
+            var core = kit.rt.state.coresOf(org).stream().filter(charter.land.Core::isKeep).findFirst().orElseThrow();
+            helper.assertTrue(core.center.x() == (newX >> 4), "the keep moved one chunk east: " + core.center);
+            var fixture = charter.mc.land.Fixtures.of(kit.rt.state).first(core.id, charter.mc.land.Fixtures.Kind.NEXUS);
+            helper.assertTrue(fixture != null && fixture.x() == newX, "the Nexus is recorded at the new place");
+            helper.assertTrue(kit.level.getBlockState(new net.minecraft.core.BlockPos(fixture.x(), fixture.y(), fixture.z()))
+                    .is(net.minecraft.world.level.block.Blocks.LODESTONE), "and a lodestone stands there");
+            helper.assertTrue(!kit.level.getBlockState(old).is(net.minecraft.world.level.block.Blocks.LODESTONE), "the old lodestone is gone");
+            helper.succeed();
+        }
+    }
 }

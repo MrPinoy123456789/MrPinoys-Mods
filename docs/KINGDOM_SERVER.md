@@ -67,6 +67,16 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Moving a keep
+
+`/charter admin faction move "<kingdom>" <x> <y> <z>` moves the kingdom's keep so its core chunk is the one at those
+coordinates (`MoveKeep`). The keep keeps its identity: members, race, treasury, history, outposts and the leader stay.
+Its 9 by 9 plot is laid down again around the new chunk, the old Nexus lodestone is removed and a new one is placed at
+the coordinates, lifted clear of ground. The same checks as founding apply: the new plot must not overlap other land and
+must keep the gap to other keeps (the keep's own old land does not count). Outposts that no longer touch the keep fall
+back on the usual grace for land without a core. The Chronicle gets one line, "moved its keep from A to B". Walls built
+by hand around the old plot are not moved. Run it while standing near the new spot so the chunk is loaded.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check

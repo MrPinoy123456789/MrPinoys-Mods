@@ -14,8 +14,8 @@ public final class Core {
     public final CoreId id;
     public final CoreKind kind;
     public final OrgId owner;
-    /** The core chunk of a keep, or the banner chunk of a camp. */
-    public final ChunkKey center;
+    /** The core chunk of a keep, or the banner chunk of a camp. Only an operator moving a keep changes it. */
+    public ChunkKey center;
     /** Placement order across the world; the lower number is the older core and wins hop ties. */
     public final long order;
     /** Wall time it was placed. */
