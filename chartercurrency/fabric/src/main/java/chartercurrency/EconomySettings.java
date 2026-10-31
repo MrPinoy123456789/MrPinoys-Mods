@@ -256,8 +256,11 @@ public final class EconomySettings {
         mintBlock.addProperty("carryOverDays", mint.carryOverDays());
         root.add("mint", mintBlock);
 
-        try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-            GSON.toJson(root, out);
+        try {
+            Files.createDirectories(file.getParent());
+            try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+                GSON.toJson(root, out);
+            }
         } catch (Exception e) {
             CharterCurrencyMod.LOG.warn("Could not write settings.json", e);
         }
