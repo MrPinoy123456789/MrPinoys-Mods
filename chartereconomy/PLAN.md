@@ -82,11 +82,30 @@ chatdonkey are not on this server and need no changes.
 2. ballot voter-list file, so kingdom votes can approve large Renown spends.
 3. The weekly Valor shelf (ROADMAP P2.2 rotation).
 
+## Phase 6: limited war (the Frontier)
+
+1. PvP gate: player damage off in plots always and everywhere outside a war
+   window, through `ServerLivingEntityEvents.ALLOW_DAMAGE` (core tests for the
+   place and time rules).
+2. Holdings: admin bind command, protection reused from plots, daily Renown and
+   coin cache to the holder.
+3. War windows: schedule in config, announcements, declarations with the Renown
+   cost and approval rule, allies joining a side.
+4. Capture: king of the hill with the 5-per-side count, boss bar, change of hands.
+5. Keep inventory on a war-zone death via `ALLOW_DEATH`, respawn at the seat.
+6. `war` and `holding` earn sources.
+
+Done when two test kingdoms can fight a window, the bar moves, the Holding
+changes hands, nobody loses items, and a plot stays PvP-free throughout.
+
 ## What to measure from day one
 
 - Total coin supply and Marks minted per day (startup log, `/baltop`).
 - Valor earned per active player per week, split by source.
 - Days for each kingdom to reach each tier, by active citizen count.
 - Share of Renown coming from the top 10 percent of players (a snowball alarm).
+- Who holds each Holding week to week, and how many citizens per kingdom show up
+  to a war window (if one kingdom always wins, the 5-per-side count or the
+  Holding yield needs retuning).
 
 Retune with `SPEC.md` §5.4 as the target, not the starting prices.

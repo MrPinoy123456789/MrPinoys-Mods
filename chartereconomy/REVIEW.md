@@ -66,3 +66,7 @@ refactor is dropped; only pocketdungeons needs its run placeholders.
 Finally, every kingdom keeps the server's current fixed 9x9 plot at every tier, so
 land no longer scales with tier or active citizens. That also settles the
 review's snowball worry for land: size cannot buy territory.
+War, which the review left out of scope, is now in: a limited Frontier war over
+admin-placed Holdings between kingdoms, in scheduled windows only, with plots
+always PvP-free and no inventory loss (SPEC section 4.7). It uses Fabric API
+damage and death events, so it adds no mixins.
