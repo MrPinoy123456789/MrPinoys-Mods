@@ -104,6 +104,11 @@ public final class DiscordBridge {
                 applicationId = app;
                 if (first) {
                     rest.putCommands(app, config.guildId, DiscordMessages.commands());
+                    // The application is Charter's alone: with the commands in one server, clear any
+                    // global ones (a bot this application used to run left its own there).
+                    if (config.guildId != null && !config.guildId.isBlank()) {
+                        rest.putCommands(app, "", new com.google.gson.JsonArray());
+                    }
                     CharterMod.LOG.info("Discord connected as {}; {} linked player(s).", botName, links.size());
                 }
             }

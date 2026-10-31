@@ -70,11 +70,13 @@ HTTP and WebSocket clients. Code: `charter.mc.discord`; tests: `DiscordTest`.
 **Setting it up**
 
 1. In the Discord developer portal, create an application, add a Bot, and copy its
-   token. No privileged intents are needed. Give Charter **its own** application;
-   do not reuse another bot's token (such as the server control bot). Charter
-   replaces the application's whole slash command list when it connects, and so
-   does a discord.py bot when it syncs, so two programs on one token wipe each
-   other's commands and both receive every interaction.
+   token. No privileged intents are needed. The application must be Charter's
+   alone: Charter replaces its whole slash command list when it connects, and with
+   `guildId` set it also clears the application's global commands. An application
+   that used to run another bot (Gord, the server control bot) is fine once that
+   bot is switched off; its old commands disappear on Charter's first connect.
+   Two programs running on one token at once wipe each other's commands and both
+   receive every interaction.
 2. Invite the bot to your Discord server with the `bot` and
    `applications.commands` scopes (OAuth2, URL Generator). It needs no channel
    permissions: it only answers its own commands and sends DMs.
