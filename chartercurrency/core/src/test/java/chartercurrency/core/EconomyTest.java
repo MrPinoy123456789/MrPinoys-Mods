@@ -74,6 +74,10 @@ public final class EconomyTest {
         persistence();
         security();
         denominations();
+        kingdomSource();
+        mintPlanner();
+        mintTax();
+        treasury();
         valor();
         inventoryMath();
         formatting();
@@ -634,6 +638,231 @@ public final class EconomyTest {
                 shipped.all().size() == 2 && shipped.all().iterator().next().equals(COIN));
         check("valor resolves with no denomination",
                 shipped.resolveWord("valor").orElseThrow().denomination() == null);
+    }
+
+    // ---- kingdom source -----------------------------------------------------
+
+    private static void kingdomSource() {
+        section("Kingdom source (manual stand-in)");
+        ManualKingdomSource k = new ManualKingdomSource();
+        check("create works", k.create("northreach", "Northreach"));
+        check("duplicate create refused", !k.create("NorthReach", "Again"));
+        check("unknown player is in no kingdom", k.kingdomOf(ALEX).isEmpty());
+        check("setMember unknown kingdom refused", !k.setMember(ALEX, "nowhere"));
+        check("setMember works", k.setMember(ALEX, "northreach")
+                && k.kingdomOf(ALEX).orElse("").equals("northreach"));
+        check("no lord until named", k.lordOf("northreach").isEmpty());
+        check("naming a lord moves them in",
+                k.setLord("northreach", STEVE) && k.kingdomOf(STEVE).isPresent()
+                        && k.lordOf("northreach").orElseThrow().equals(STEVE));
+        k.create("southmark", "Southmark");
+        k.setMember(STEVE, "southmark");
+        check("a lord who moves away vacates the office", k.lordOf("northreach").isEmpty());
+        check("a player is in one kingdom only", k.memberCount("northreach") == 1
+                && k.memberCount("southmark") == 1);
+        check("member can leave", k.setMember(ALEX, null) && k.kingdomOf(ALEX).isEmpty());
+        check("display name", k.displayName("southmark").equals("Southmark")
+                && k.displayName("ghost").equals("ghost"));
+        check("ids listed", k.kingdomIds().size() == 2);
+        check("remove releases members", k.remove("southmark") && k.kingdomOf(STEVE).isEmpty());
+        ManualKingdomSource copy = new ManualKingdomSource(k.snapshot(), () -> { });
+        check("state round trips through a snapshot", copy.kingdomIds().size() == 1);
+    }
+
+    // ---- mint planner -------------------------------------------------------
+
+    private static final Mint.Rules RULES = Mint.Rules.defaults();
+
+    private static Mint.State freshMint() {
+        return Mint.State.fresh(100, RULES);
+    }
+
+    private static void mintPlanner() {
+        section("Mint planner");
+
+        Mint.Plan full = Mint.plan(freshMint(), "iron", 8, 10);
+        check("full band first at one ingot per coin",
+                full.coinsFull() == 10 && full.coinsHalf() == 0 && full.ingotsUsed() == 10);
+        check("allowance falls by face value", full.after().fullRemaining == 192 - 80);
+
+        Mint.State noFull = freshMint();
+        noFull.fullRemaining = 0;
+        Mint.Plan half = Mint.plan(noFull, "iron", 8, 10);
+        check("half band costs two ingots per coin",
+                half.coinsHalf() == 5 && half.ingotsUsed() == 10 && half.coinsFull() == 0);
+
+        Mint.State partial = freshMint();
+        partial.fullRemaining = 100;
+        Mint.Plan split = Mint.plan(partial, "gold", 64, 5);
+        check("a coin is never split across bands: 1 full, 2 half",
+                split.coinsFull() == 1 && split.coinsHalf() == 2 && split.ingotsUsed() == 5);
+        check("the unspent full band remainder stays",
+                split.after().fullRemaining == 36 && split.after().halfRemaining == 192 - 128);
+
+        Mint.State spent = freshMint();
+        spent.fullRemaining = 0;
+        spent.halfRemaining = 0;
+        Mint.Plan none = Mint.plan(spent, "copper", 1, 50);
+        check("nothing past the half band",
+                !none.struck() && none.shortfall() == Mint.Shortfall.EXHAUSTED && none.ingotsUsed() == 0);
+
+        Mint.State oddHalf = freshMint();
+        oddHalf.fullRemaining = 0;
+        Mint.Plan odd = Mint.plan(oddHalf, "copper", 1, 5);
+        check("an odd ingot in the half band is not consumed",
+                odd.coinsStruck() == 2 && odd.ingotsUsed() == 4);
+        Mint.Plan one = Mint.plan(oddHalf, "copper", 1, 1);
+        check("one ingot cannot buy a half band coin",
+                !one.struck() && one.shortfall() == Mint.Shortfall.NEED_MORE_INGOTS);
+        check("nothing offered", Mint.plan(freshMint(), "copper", 1, 0).shortfall()
+                == Mint.Shortfall.NOTHING_OFFERED);
+
+        // carry-over
+        Mint.State day0 = Mint.State.fresh(0, RULES);
+        check("a 1 day gap adds one day", Mint.rollTo(day0, 1, RULES).fullRemaining == 384);
+        check("2 days later it is 576", Mint.rollTo(day0, 2, RULES).fullRemaining == 576);
+        check("a 5 day gap caps at 576", Mint.rollTo(day0, 5, RULES).fullRemaining == 576);
+        Mint.State used = Mint.State.fresh(0, RULES);
+        used.fullRemaining = 10;
+        used.halfRemaining = 3;
+        Mint.State next = Mint.rollTo(used, 1, RULES);
+        check("unused full band carries over", next.fullRemaining == 202);
+        check("the half band does not carry over", next.halfRemaining == 192);
+        check("the same day changes nothing", Mint.rollTo(day0, 0, RULES).fullRemaining == 192);
+        check("a past day changes nothing", Mint.rollTo(day0, -3, RULES).day == 0);
+    }
+
+    private static void mintTax() {
+        section("Mint tax");
+
+        Mint.State s = freshMint();
+        Mint.Plan first = Mint.plan(s, "iron", 8, 3);
+        check("3 coins: none taxed yet", first.coinsToKingdom() == 0 && first.coinsToPlayer() == 3);
+        check("counter holds 3", first.after().taxCounters.get("iron") == 3);
+        Mint.Plan second = Mint.plan(first.after(), "iron", 8, 2);
+        check("strikes of 3 then 2 tax the fifth",
+                second.coinsToKingdom() == 1 && second.coinsToPlayer() == 1
+                        && second.after().taxCounters.get("iron") == 0);
+
+        Mint.Plan ten = Mint.plan(freshMint(), "iron", 8, 10);
+        check("10 coins: 8 to the player, 2 to the kingdom",
+                ten.coinsToPlayer() == 8 && ten.coinsToKingdom() == 2 && ten.marksToKingdom() == 16);
+        check("the allowance counts taxed coins", ten.after().fullRemaining == 192 - 80
+                && ten.marksStruck() == 80);
+        Mint.Plan single = Mint.plan(freshMint(), "gold", 64, 1);
+        check("a single Sovereign works with the counter", single.coinsToKingdom() == 0
+                && single.after().taxCounters.get("gold") == 1);
+        Mint.State four = freshMint();
+        four.taxCounters.put("gold", 4);
+        check("the fifth Sovereign is the kingdom's",
+                Mint.plan(four, "gold", 64, 1).marksToKingdom() == 64);
+        Mint.State mixed = freshMint();
+        mixed.taxCounters.put("iron", 4);
+        check("counters are per denomination",
+                Mint.plan(mixed, "copper", 1, 1).coinsToKingdom() == 0);
+
+        // exactly 20 percent over 1,000 random strikes
+        java.util.Random random = new java.util.Random(7);
+        Mint.State big = freshMint();
+        big.fullRemaining = Long.MAX_VALUE / 4;
+        long struck = 0;
+        long taxed = 0;
+        for (int i = 0; i < 1000; i++) {
+            Mint.Plan p = Mint.plan(big, "copper", 1, 1 + random.nextInt(20));
+            struck += p.coinsStruck();
+            taxed += p.coinsToKingdom();
+            big = p.after();
+        }
+        check("exactly 20 percent over 1,000 random strikes",
+                taxed == struck / 5 && big.taxCounters.get("copper") == struck % 5);
+
+        // service: kingdom, no kingdom, and a change of kingdom
+        Treasury treasury = new Treasury();
+        PlayerBook book = new PlayerBook();
+        MintService service = new MintService(book, treasury, RULES);
+        long today = 100;
+        Mint.Plan a = service.preview(ALEX, "iron", 8, 3, today);
+        service.commit(ALEX, a, "northreach", "Alex", today);
+        Mint.Plan b = service.preview(ALEX, "iron", 8, 2, today);
+        long paid = service.commit(ALEX, b, "southmark", "Alex", today);
+        check("the counter survives a change of kingdom: the new kingdom gets the fifth coin",
+                paid == 8 && treasury.balance("southmark") == 8 && treasury.balance("northreach") == 0);
+        check("the tax lands in the treasury and its lifetime total",
+                treasury.taxCollected("southmark") == 8);
+
+        Mint.Plan c = service.preview(STEVE, "iron", 8, 10, today);
+        long destroyedPaid = service.commit(STEVE, c, null, "Steve", today);
+        check("no kingdom: the fifth coin is destroyed, nothing is credited",
+                destroyedPaid == 0 && treasury.totalSupply() == 8);
+        check("stats record minted and destroyed",
+                book.stat(MintService.STAT_MINTED, today, 1) == 120);
+        check("destroyed tax is tracked", book.stat(MintService.STAT_TAX_DESTROYED, today, 1) == 16);
+        check("allowance persists per player",
+                service.state(ALEX, today).fullRemaining == 192 - 40
+                        && service.state(STEVE, today).fullRemaining == 192 - 80);
+        check("a new day carries the unused band over",
+                service.state(ALEX, today + 1).fullRemaining == 192 - 40 + 192);
+    }
+
+    // ---- treasury -----------------------------------------------------------
+
+    private static void treasury() {
+        section("Treasury");
+        Treasury t = new Treasury();
+        check("deposit credits", t.credit("northreach", 500, "deposit", "Alex", "") && t.balance("northreach") == 500);
+        check("zero deposit refused", !t.credit("northreach", 0, "deposit", "Alex", ""));
+        check("withdraw takes exactly", t.charge("northreach", 200, "withdraw", "Steve", "") && t.balance("northreach") == 300);
+        check("a short withdrawal changes nothing",
+                !t.charge("northreach", 301, "withdraw", "Steve", "") && t.balance("northreach") == 300);
+        check("an unknown treasury has nothing", !t.charge("ghost", 1, "withdraw", "x", "") && t.balance("ghost") == 0);
+        check("ledger newest first", t.ledger("northreach", null).get(0).kind.equals("withdraw")
+                && t.ledger("northreach", null).size() == 2);
+        t.record("northreach", "renown", "earn", 24, 24, "Alex", "dungeon");
+        check("ledger filters by currency", t.ledger("northreach", "renown").size() == 1
+                && t.ledger("northreach", "coin").size() == 2);
+        for (int i = 0; i < 600; i++) t.credit("northreach", 1, "deposit", "Alex", "");
+        check("ledger keeps the last 500", t.ledger("northreach", null).size() == Treasury.LEDGER_LIMIT);
+
+        ManualKingdomSource k = new ManualKingdomSource();
+        k.create("northreach", "Northreach");
+        k.setLord("northreach", STEVE);
+        k.setMember(ALEX, "northreach");
+        check("the Lord may withdraw", Treasury.mayWithdraw(k, "northreach", STEVE, false));
+        check("an ordinary member may not", !Treasury.mayWithdraw(k, "northreach", ALEX, false));
+        check("an op may", Treasury.mayWithdraw(k, "northreach", JAMIE, true));
+        check("a stranger may not", !Treasury.mayWithdraw(k, "northreach", JAMIE, false));
+        check("a vacant lordship allows only ops", !Treasury.mayWithdraw(k, "ghost", STEVE, false));
+
+        // never negative under concurrent withdrawals
+        Treasury race = new Treasury();
+        race.credit("a", 1_000, "deposit", "x", "");
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        AtomicLong ok = new AtomicLong();
+        CountDownLatch start = new CountDownLatch(1);
+        for (int i = 0; i < 40; i++) {
+            pool.submit(() -> {
+                await(start);
+                if (race.charge("a", 100, "withdraw", "t", "")) ok.incrementAndGet();
+            });
+        }
+        start.countDown();
+        shutdown(pool);
+        check("40 racing withdrawals of 100 from 1,000: exactly 10 succeed, never negative",
+                ok.get() == 10 && race.balance("a") == 0);
+
+        Treasury taxes = new Treasury();
+        ExecutorService pool2 = Executors.newFixedThreadPool(8);
+        CountDownLatch go = new CountDownLatch(1);
+        for (int i = 0; i < 800; i++) {
+            pool2.submit(() -> {
+                await(go);
+                taxes.collectTax("a", 8, "t");
+            });
+        }
+        go.countDown();
+        shutdown(pool2);
+        check("800 racing tax credits are never lost", taxes.balance("a") == 6_400
+                && taxes.taxCollected("a") == 6_400);
     }
 
     // ---- inventory arithmetic ----------------------------------------------
