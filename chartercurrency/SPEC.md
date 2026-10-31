@@ -32,6 +32,10 @@ Three currencies:
 Kingdoms also hold **coin** in a kingdom treasury, filled by the Mint tax
 (section 8.3). That is the same coin currency, not a fourth one.
 
+**Charter**, the server's existing kingdom system, keeps deciding the rights of
+players in each kingdom, including who may spend the treasury. This mod holds the
+money; Charter holds the rights (section 4.4).
+
 Mod id `chartercurrency`, display name **Charter Currency**, Java package
 `chartercurrency`, config folder `config/chartercurrency/`.
 
@@ -130,20 +134,44 @@ between coin and Valor or Renown, ever.
 
 ### 4.4 Kingdom treasury (coin)
 
+**The split:** Charter Currency holds every coin balance, players' and kingdoms',
+in one store with one set of rules (atomic, never negative, never partially
+executed, one transaction log). Charter keeps owning the rights: who may spend a
+kingdom's treasury and on what. The owner chose this so the Mint tax is an
+in-process transfer that cannot fail half way, and so total coin supply is
+counted in one place.
+
 - Each kingdom has a coin balance, stored in Marks, filled by the Mint tax and by
   voluntary deposits.
-- Kingdom leaders (and ops) can withdraw it as physical coin; anyone in the
-  kingdom can deposit. Every movement is in the kingdom's ledger and visible to
-  its members, so a leader can spend it but never quietly.
-- What the kingdom spends it on is the kingdom's business (paying builders,
-  buying from the shop, prizes). This mod only holds it.
+- Anyone in the kingdom can deposit. Every movement is in the kingdom's ledger
+  and visible to its members, so the treasury can be spent but never quietly.
+- What the kingdom spends it on is the kingdom's business. This mod only holds
+  it and moves it when told to by someone with the right.
+
+**Who may withdraw, two routes:**
+
+1. **Charter tells this mod.** A console command Charter (or an admin) runs after
+   its own rights check:
+   `/chartercurrency treasury pay <kingdom> <player> <amount> [denomination]`
+   moves coin from the treasury into that player's bank balance, and
+   `/chartercurrency treasury give <kingdom> <player> <amount> [denomination]`
+   hands it over as physical coin (bank rules: all-or-nothing on space). This is
+   the preferred route once Charter can call it.
+2. **Stand-in until then:** players listed in the kingdom's `leaders` array in
+   `kingdoms.json` (and ops) can use `/treasury withdraw` directly. Remove or
+   ignore this when Charter's route is wired.
 
 | Command | Who | What |
 |---|---|---|
 | `/treasury` | Members, ops | Balance and the last few movements |
 | `/treasury deposit <amount> [denomination]` | Members | Same rules as `/bank` |
-| `/treasury withdraw <amount> [denomination]` | Kingdom leaders, ops | Same rules as `/withdraw` |
+| `/treasury withdraw <amount> [denomination]` | `leaders` stand-in, ops | Same rules as `/withdraw` |
 | `/treasury ledger [page]` | Members, ops | Full history (shared with the Renown ledger, filterable by currency) |
+
+**Existing Charter treasuries.** If Charter's treasuries already hold coin-like
+value, an admin moves each balance over once with
+`/chartercurrency treasury add <kingdom> <amount>`, and Charter's own treasury
+stops taking new money.
 
 ## 5. Bank and player commands
 
@@ -524,6 +552,7 @@ Write all state files the same way the fork writes `accounts.json`.
 | `/chartercurrency set\|add\|remove <player> <amount> <coin\|valor>` | Same code path as players, never negative |
 | `/chartercurrency renown add\|remove <kingdom\|commons> <amount>` | Logged with the operator's name |
 | `/chartercurrency treasury add\|remove <kingdom> <amount>` | Coin, in Marks. Logged with the operator's name |
+| `/chartercurrency treasury pay\|give <kingdom> <player> <amount> [denomination]` | The route Charter uses to spend a treasury (section 4.4) |
 | `/chartercurrency kingdom set <player> <kingdom\|none>` | Manual membership override |
 | `/chartercurrency kingdom list` | Kingdoms, their teams, leaders and member counts as resolved now |
 | `/chartercurrency mint bind\|unbind\|list` | Section 8.1 |
@@ -593,6 +622,14 @@ Commit after each milestone with the core tests green.
 
 ## 15. Verify against the 26.2 jar before relying on it
 
+**First, ask the owner about Charter:** how it identifies a kingdom and a
+player's kingdom, who may spend a kingdom's treasury, and whether it can run a
+console command (for the treasury pay route in section 4.4). If Charter exposes
+membership or leaders, use that in place of the scoreboard resolver and the
+`leaders` list in sections 6.4, 4.4 and 7.2.
+
+Then check:
+
 Check with `javap` against the Loom cache, as the fork's README shows:
 
 - `minecraft:copper_nugget` exists in 26.2.
@@ -609,8 +646,9 @@ Check with `javap` against the Loom cache, as the fork's README shows:
 - Do not add a crafting recipe that produces coins.
 - Do not let Valor or Renown be withdrawn, paid or transferred.
 - Do not make the Mint tax configurable.
-- Do not build claims, kingdom management, tier effects, war or upkeep. The
-  treasury holds coin; it does not charge kingdoms anything.
+- Do not build claims, kingdom management, kingdom rights, tier effects, war or
+  upkeep. The treasury holds coin and moves it when told; Charter decides who may
+  tell it, and it never charges kingdoms anything.
 - Do not modify `cobbleeconomy/` or any other mod (except section 13, with
   permission).
 - Do not add mixins. None are needed. (The fork's dialog mixin may stay only if
