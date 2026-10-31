@@ -145,9 +145,11 @@ Marks) become one gold ingot, so nobody melts coin by accident or for profit.
 
 ### 4.1 What a charter is
 
-A kingdom exists because it holds a **charter**. Founding one costs coin, needs a
-seat (a bound lectern, the kingdom's centre), and creates a vanilla scoreboard
-team for the name colour and chat tag. The charter has a tier, a Renown ledger, a
+A kingdom exists because it holds a **charter**. The roster is fixed: the
+server's existing kingdoms are the kingdoms, only admins can create one, and more
+are unlikely (owner, 2026-10-31). Players choose which kingdom to join; they never
+found their own. Each charter has a seat (a bound lectern at the kingdom's centre)
+and a vanilla scoreboard team for the name colour and chat tag. The charter has a tier, a Renown ledger, a
 coin treasury, and a member list with roles: **Sovereign** (leader), **Steward**
 (officer), **Citizen**.
 
@@ -165,7 +167,7 @@ Starting numbers, all in config and all expected to be retuned:
 
 | Tier | Renown (base) | Coin (base, Sovereigns) | Min active citizens | Unlocks |
 |---|---|---|---|---|
-| Camp | 0 | 4 (founding fee) | 1 | The 9x9 plot and its protection, seat, team colour, chat tag |
+| Camp | 0 | 0 (every kingdom starts here) | 1 | The 9x9 plot and its protection, seat, team colour, chat tag |
 | Hamlet | 300 | 8 | 2 | Seat warp, a title card when anyone enters the plot, Kingdom Mint |
 | Village | 900 | 16 | 3 | Respawn at the seat, kingdom banner on the seat, ally pacts |
 | Town | 2,000 | 32 | 4 | Haste I inside the plot, a kingdom shop stall |
@@ -214,12 +216,12 @@ review's "adopt a claims mod" advice; section 9 records why that is workable.
 
 - **One fixed plot per kingdom: 9 by 9 chunks** (144 by 144 blocks), centred on
   the seat's chunk, the same for every kingdom at every tier. This is how the
-  Kingdoms server runs today, and the spec keeps it.
-- **Plots are granted, not bought.** A charter is issued by staff
-  (`/charter admin found <name> <leader>` while standing at the centre), which is
-  also what stops alts founding kingdoms to grab land. Plots may not overlap and
-  must keep a 2-chunk gap from each other and from spawn. Existing kingdoms are
-  registered the same way at their current centre, so nobody moves.
+  Kingdoms server runs today (owner confirmed 9x9 chunks), and the spec keeps it.
+- **Existing plots are registered, not created.** On install an admin runs
+  `/charter admin register <name> <leader>` standing at each kingdom's current
+  centre, so nobody moves and no land changes hands. The same command is the only
+  way a new kingdom could ever appear. Registration refuses a plot that overlaps
+  another.
 - **No per-chunk price.** With fixed plots there is nothing to buy chunk by chunk,
   so the coin sinks are building materials in
   the shop (a fixed plot fills up, so kingdoms build up and build dense), upkeep
@@ -236,10 +238,9 @@ review's "adopt a claims mod" advice; section 9 records why that is workable.
 - **Protection never lapses for unpaid upkeep** (section 4.4). A kingdom whose
   every member has been inactive for 60 days becomes **ruined**: its claims stay
   protected against building and breaking, but its containers open to anyone. The
-  builds are never deleted; what was left inside becomes loot. Because plots are
-  fixed and space near spawn is finite, staff may revoke a ruined charter to free
-  its plot for a new kingdom (`/charter admin revoke`), which also never deletes
-  blocks. Operators can extend or disable the timer per kingdom.
+  builds are never deleted; what was left inside becomes loot. With a fixed roster
+  a ruined kingdom is a real loss to the server, so the timer is off by default
+  and admins switch it on per kingdom if they want it.
 
 What protection covers, and how:
 
@@ -320,7 +321,7 @@ about a month. Those are the dials to watch.
 |---|---|---|
 | Everyday | Marks | Building blocks (ice, sand, terracotta, quartz, glass, concrete), dyes, food. The biggest coin sink on a fixed-plot server: every kingdom builds up, not out |
 | Working | Crowns | Tools, enchanted books, potions, rockets, services |
-| Capital | Sovereigns | Charter founding and tiers, upkeep, power items: Up Up And Bye Boots, Big Hole Pick and Shovel, Spirit Stones |
+| Capital | Sovereigns | Charter tiers, upkeep, power items: Up Up And Bye Boots, Big Hole Pick and Shovel, Spirit Stones |
 
 Power items are priced in coin, never Valor **[R]**: a Valor shop that sells power
 stops being a medal and becomes a grind.
@@ -354,7 +355,8 @@ kingdom shop stall. Never extra land: the 9x9 plot is the same for everyone.
 | **Weekly** | Kingdom upkeep (Sunday), the Valor shelf rotates, a scheduled event or build-off | "Our kingdom is moving" |
 | **Season (8 weeks)** | Climb the Valor board; your kingdom climbs its bracket | A title and a crown. The world never resets |
 
-Season rankings are split into **brackets by charter tier** and scored on Renown
+With a fixed roster the same kingdoms meet every season, so rivalries build over
+time; that is the point of keeping the roster small. Season rankings are split into **brackets by charter tier** and scored on Renown
 earned **per active citizen** **[R]**, so a five-person Village can win its bracket
 and the biggest kingdom does not win every season.
 
@@ -370,7 +372,7 @@ and the biggest kingdom does not win every season.
 | Leader steals the treasury | Treasury is deposit-only; Renown is spend-only |
 | Upkeep griefing of inactive kingdoms | Unpaid upkeep pauses perks only; protection never lapses |
 | Big kingdom snowball | Every kingdom has the same 9x9 plot, so size cannot buy land; costs and upkeep scale with `activeCitizens^0.8`; season brackets by tier |
-| Land grabs and alt kingdoms | Plots are granted by staff, never bought; fixed spacing; ruined plots can be revoked |
+| Land grabs and alt kingdoms | The kingdom roster is fixed and only admins can add one; land is never bought |
 | Inflation | Every shop, tier, perk and upkeep payment destroys currency; supply is printed at startup and in `/baltop` |
 | Chores | Soft caps with three day carry-over, no weekly hard caps |
 
@@ -413,11 +415,8 @@ Placeholder API (kingdom and title tags in chat), LuckPerms (rank meta).
    safe; the question is whether players will mint at home at all with a fee.
 2. **PvP and war between kingdoms:** out of scope here. If wanted, Renown is the
    natural stake, and that is its own design pass.
-3. **Ruined kingdoms:** 60 days of total inactivity opens a kingdom's containers
-   but never its blocks. Is that the right line, or should ruined land stay fully
-   protected?
-4. **Plot spacing:** a 2-chunk gap between plots and from spawn is a guess. What
-   does the current map use?
-5. **Plot expansion (parked):** the owner will revisit it only if players ask for
+3. **Ruined kingdoms:** off by default. If switched on, 60 days of total
+   inactivity opens a kingdom's containers but never its blocks. Wanted at all?
+4. **Plot expansion (parked):** the owner will revisit it only if players ask for
    permanent expansion in numbers (2026-10-31). If it comes back, the lever is a
    Renown perk that adds one ring of chunks, with a hard cap. Not in the build.

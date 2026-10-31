@@ -61,20 +61,20 @@ chatdonkey are not on this server and need no changes.
 
 ## Phase 4: kingdoms and charters
 
-1. Charter founding, seat lectern, roles, scoreboard team, active citizen count
+1. Charter registration for the existing kingdoms, seat lectern, roles, scoreboard team, active citizen count
    from vanilla playtime stats.
 2. Tiers, `^0.8` cost scaling, `onTierUp` and `onPerkPaused` command templates.
 3. Deposit-only treasury, weekly upkeep, perk pause on non-payment.
 4. Renown rules: per player cap, once per run per kingdom, probation, hop wait,
    Commons for kingdomless players.
 5. Renown spend approvals, `/charter ledger`, absent leader succession.
-6. **Plots**: one fixed 9x9-chunk plot per kingdom, granted by
-   `/charter admin found`, spacing check, registration of existing kingdoms at
-   their current centres; role permissions and ally pacts; Fabric API event
+6. **Plots**: one fixed 9x9-chunk plot per kingdom,
+   registered by `/charter admin register` at each existing kingdom's current
+   centre (overlap check); role permissions and ally pacts; Fabric API event
    protection for player actions; then the four protection mixins (core tests for
    the plot map and permission rules; gametests for each mixin).
 7. Borders: action bar on entry, `/charter map`, particle outline.
-8. Ruined kingdoms after 60 days of total inactivity; `/charter admin revoke`.
+8. Ruined kingdoms (off by default, per-kingdom admin switch).
 
 ## Phase 5: seasons and polish
 
