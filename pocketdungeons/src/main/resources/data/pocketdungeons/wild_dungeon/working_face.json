@@ -1,0 +1,12 @@
+{
+  "type": "mine",
+  "variety": "coal",
+  "name": "The Working Face",
+  "dungeon": "pocketdungeons:endless_mine",
+  "node": "working_face",
+  "promise": "Coal. Iron.",
+  "cooldownMinutes": 120,
+  "weight": 12,
+  "minDistance": 0,
+  "maxLevel": 4
+}

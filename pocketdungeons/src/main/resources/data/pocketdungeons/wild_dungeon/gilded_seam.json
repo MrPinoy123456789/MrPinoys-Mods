@@ -1,0 +1,39 @@
+{
+  "type": "long_dungeon",
+  "variety": "nether",
+  "name": "The Gilded Seam",
+  "dungeon": "pocketdungeons:gilded_seam",
+  "node": "the_deep_vein",
+  "promise": "Nether gold. Quartz. Debris.",
+  "cooldownMinutes": 600,
+  "weight": 3,
+  "minDistance": 3500,
+  "maxLevel": 12,
+  "bonusRewards": [
+    {
+      "item": "minecraft:nether_wart",
+      "count": 8,
+      "chance": 1.0
+    },
+    {
+      "item": "minecraft:blaze_rod",
+      "count": 3,
+      "chance": 1.0
+    },
+    {
+      "item": "minecraft:glowstone",
+      "count": 12,
+      "chance": 1.0
+    },
+    {
+      "item": "minecraft:ghast_tear",
+      "count": 1,
+      "chance": 0.4
+    },
+    {
+      "item": "minecraft:netherite_scrap",
+      "count": 1,
+      "chance": 0.1
+    }
+  ]
+}

@@ -74,6 +74,8 @@
       "pocketdungeons.BroodChamberGameTest",
       "pocketdungeons.CowPitsPhasesGameTest",
       "pocketdungeons.BlackoutGameTest",
+      "pocketdungeons.WildLodestoneGameTest",
+      "pocketdungeons.WildRunGameTest",
       "pocketdungeons.SeamGameTest",
       "pocketdungeons.DeepslatePhasesGameTest",
       "pocketdungeons.HauntFloorGameTest",

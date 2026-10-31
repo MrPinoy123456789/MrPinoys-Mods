@@ -1,0 +1,39 @@
+{
+  "type": "long_dungeon",
+  "variety": "end",
+  "name": "The Chorus Orchard",
+  "dungeon": "pocketdungeons:the_end",
+  "node": "chorus_orchard",
+  "promise": "Chorus. End stone. Shulkers.",
+  "cooldownMinutes": 720,
+  "weight": 2,
+  "minDistance": 5000,
+  "maxLevel": 14,
+  "bonusRewards": [
+    {
+      "item": "minecraft:end_stone",
+      "count": 32,
+      "chance": 1.0
+    },
+    {
+      "item": "minecraft:chorus_fruit",
+      "count": 6,
+      "chance": 1.0
+    },
+    {
+      "item": "minecraft:purpur_block",
+      "count": 16,
+      "chance": 1.0
+    },
+    {
+      "item": "minecraft:shulker_shell",
+      "count": 2,
+      "chance": 0.3
+    },
+    {
+      "item": "minecraft:elytra",
+      "count": 1,
+      "chance": 0.03
+    }
+  ]
+}

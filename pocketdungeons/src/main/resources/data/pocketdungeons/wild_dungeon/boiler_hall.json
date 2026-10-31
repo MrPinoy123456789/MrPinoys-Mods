@@ -1,0 +1,12 @@
+{
+  "type": "dungeon",
+  "variety": "copper",
+  "name": "Boiler Hall",
+  "dungeon": "pocketdungeons:copper_works",
+  "node": "boiler_hall",
+  "promise": "Copper. Iron. Coal.",
+  "cooldownMinutes": 180,
+  "weight": 10,
+  "minDistance": 500,
+  "maxLevel": 6
+}

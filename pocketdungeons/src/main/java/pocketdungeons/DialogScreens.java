@@ -53,6 +53,11 @@ final class DialogScreens {
     /** The one key a player's typing lands under; deliberately unprefixed. */
     static final String KEY_NAME = "name";
 
+    /** The lodestone a wild screen was opened for (wild mode, task 1.4). */
+    static final String KEY_WILD = "pd_wild";
+    static final String ACTION_WILD_ENTER = "wild_enter";
+    static final String ACTION_WILD_LEAVE = "wild_leave";
+
     static final String ACTION_WHITELIST_ADD = "room_whitelist_add";
     static final String ACTION_WHITELIST_REMOVE = "room_whitelist_remove";
 

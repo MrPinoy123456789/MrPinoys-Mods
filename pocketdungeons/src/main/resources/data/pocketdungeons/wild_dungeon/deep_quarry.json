@@ -1,0 +1,12 @@
+{
+  "type": "long_dungeon",
+  "variety": "deepslate",
+  "name": "Deep Quarry",
+  "dungeon": "pocketdungeons:deepslate",
+  "node": "deep_quarry",
+  "promise": "Lapis. Redstone. Diamond.",
+  "cooldownMinutes": 480,
+  "weight": 5,
+  "minDistance": 2500,
+  "maxLevel": 10
+}
