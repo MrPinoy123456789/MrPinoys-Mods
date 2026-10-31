@@ -62,7 +62,7 @@ public final class ShopkeeperAnchor {
      */
     private static void normalise(Villager villager) {
         villager.setNoAi(true);
-        villager.setInvulnerable(true);
+        villager.setPermanentlyInvulnerable(true);
         villager.setPersistenceRequired();
     }
 

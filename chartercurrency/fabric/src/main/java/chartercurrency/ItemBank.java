@@ -229,7 +229,7 @@ public final class ItemBank {
         // the stack down to the remainder, so the remainder is what to check.
         player.getInventory().add(stack);
         int leftover = stack.getCount();
-        if (leftover > 0) player.drop(stack, false);
+        if (leftover > 0) player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
         return leftover;
     }
 

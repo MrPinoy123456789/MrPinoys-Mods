@@ -81,7 +81,7 @@ public final class ShopkeeperCommands {
         // Belt and braces with ShopkeeperInteraction's damage refusal: this flag alone
         // lets a creative-mode player through, and that alone would not stop a mob
         // suffocating it, so both exist.
-        villager.setInvulnerable(true);
+        villager.setPermanentlyInvulnerable(true);
 
         // Set a custom name
         villager.setCustomName(Component.literal("Shopkeeper"));
