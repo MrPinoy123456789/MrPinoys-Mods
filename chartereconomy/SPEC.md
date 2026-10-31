@@ -260,66 +260,27 @@ Four small, single-purpose mixins, each behind a config switch, are the
 justification `docs/DESIGN.md` asks for: without them a claim is a sign, not a
 wall. They are the only mixins in the mod.
 
-### 4.7 Limited war: the Frontier
+### 4.7 Limited war: what it pays and costs
 
-War is in scope, but it can never touch a kingdom's 9x9 plot (owner,
-2026-10-31). Kingdoms fight over the land **between** them, not over each other's
-homes.
+Limited war between kingdoms is in scope for the server, but it can never touch a
+kingdom's 9x9 plot (owner, 2026-10-31). How war is fought (when, where, how a
+side wins) is its own design and not part of this spec. This section only defines
+the currency hooks, so whatever war system is built plugs into the economy the
+same way dungeons do.
 
-**The plot is a sanctuary.** Player versus player damage is off inside every
-plot, always, war or no war. No war rule ever opens a plot's blocks or
-containers.
+**Holdings** are the thing a war is fought over: a site in the open land between
+kingdoms (a watchtower, a ruined fort, a mine head) that one kingdom controls at a
+time. Kingdoms take Holdings from each other; nobody ever takes a plot.
 
-**Holdings.** Admins place a handful of **Holdings** in the open land between
-kingdoms: a watchtower, a ruined fort, a mine head, built by staff and fully
-protected for everyone at all times. Each Holding has a capture zone (a radius
-around a bound banner) and belongs to one kingdom or to none. Holding one pays
-its kingdom every day:
+| Hook | Currency | Starting number |
+|---|---|---|
+| Declaring a war on a Holding | Renown, destroyed (same approval rule as a large spend, section 4.5) | 150 |
+| Controlling a Holding, paid daily to the kingdom | Renown | 40 per Holding |
+| Controlling a Holding, paid daily to the treasury | Coin (new money, helps pay upkeep) | 2 Sovereigns per Holding |
+| Taking part in a war | Valor and Renown through `/charter earn` (source `war`) | 30, winners 50 |
 
-| Pays the holder, per day | Starting number |
-|---|---|
-| Renown | 40 |
-| A coin cache into the treasury (helps pay upkeep) | 2 Sovereigns |
-| A visible flag: the banner shows the holder's colours and name | n/a |
-
-Starting with one Holding per kingdom plus one makes sure at least one kingdom
-is always fighting to get one.
-
-**War windows.** Fighting only happens in a scheduled window, for example Saturday
-evening for two hours, announced in chat a day before and again an hour before.
-Outside a window PvP is off everywhere a Holding is, so nobody is raided at
-3 a.m. and nobody has to stand guard. This is the lesson of every Factions server
-that let raids happen at any hour: the kingdom with the most night owls wins and
-everyone else quits.
-
-**Declaring.** Before a window, a kingdom declares on a Holding (Sovereign or two
-Stewards, the same rule as a large Renown spend). Declaring costs 150 Renown,
-destroyed, so wars are chosen, not spammed. A Holding can be declared on once per
-window. The current holder defends for free. Allies may join either side.
-
-**Capturing.** During the window the capture zone works like king of the hill:
-the side with more citizens standing in the zone moves the capture bar toward
-itself. Only the first 5 per side count, so bringing 20 players helps you win the
-fights but does not capture 4 times faster. A Holding changes hands when the bar
-fills, and the new holder keeps it until it is next taken.
-
-**Dying in a war zone costs nothing but the fight.** Inside a capture zone during
-a window, a player who dies keeps their inventory and respawns at their seat. A
-full-loot war drives the losing side off the server; a limited war should make
-people want to come back next Saturday.
-
-**Rewards for taking part.** Each citizen who spends at least 10 minutes in the
-zone during a window earns Valor and Renown through `/charter earn` (source
-`war`: 30 each, more for the winning side), with the usual per-player caps.
-
-**How it is built without a mixin:**
-
-| Need | How |
-|---|---|
-| PvP off in plots and outside windows | Fabric API `ServerLivingEntityEvents.ALLOW_DAMAGE`: cancel damage when both sides are players and the place or time is not a war zone. Covers melee and projectiles |
-| Keep inventory on a war death | Fabric API `ServerLivingEntityEvents.ALLOW_DEATH`: stash and clear the inventory before it drops, return it on respawn |
-| Capture bar | A per-tick count of citizens in the radius, shown on a boss bar to everyone in the zone |
-| Holdings protected | The same plot protection as section 4.6, with no members |
+Every Holding adds a daily payout, so the number of Holdings is an economy dial:
+total coin supply should be checked whenever one is added.
 
 ## 5. Earning: the faucets
 
@@ -345,7 +306,7 @@ already uses; none of them imports Charter Economy.
 | Dungeon capstone or boss first clear (`capstone`) | 50 | 50 | once per dungeon per week |
 | Build competition placing (`buildoff`) | 100 / 60 / 30 | same | per event |
 | Server event participation (`event`) | 20 | 20 | per event |
-| Took part in a Frontier war window (`war`) | 30, winners 50 | same | per window |
+| Took part in a war (`war`) | 30, winners 50 | same | per war |
 | Holding a Holding (`holding`, paid daily to the kingdom) | none | 40 per Holding | n/a |
 
 Coin faucets: the Mint, coin items in dungeon reward chests, and trade. Other suite
@@ -410,7 +371,7 @@ Starting prices: 150 for a title, 300 to 600 for trims and patterns, 1,000 to
 
 Charter tiers first. Then perks, bought by the kingdom and paused by unpaid upkeep:
 an extra seat warp, a plot aura upgrade, a kingdom monument banner, an extra
-kingdom shop stall. And **war declarations** on a Frontier Holding (section 4.7). Never extra land: the 9x9 plot is the same for everyone.
+kingdom shop stall. And **war declarations** on a Holding (section 4.7). Never extra land: the 9x9 plot is the same for everyone.
 
 ## 7. The loops
 
@@ -418,7 +379,7 @@ kingdom shop stall. And **war declarations** on a Frontier Holding (section 4.7)
 |---|---|---|
 | **Session** | Mine, mint, build, trade; run a dungeon for Valor and loot | "I made money" and "I did something brave" |
 | **Daily** | Fill today's mint allowance; one dungeon run; tend the kingdom's land | A short, finishable list, with carry-over so missing a day costs nothing |
-| **Weekly** | Kingdom upkeep (Sunday), the Valor shelf rotates, the Frontier war window (Saturday), a scheduled event or build-off | "Our kingdom is moving" and "we took the tower" |
+| **Weekly** | Kingdom upkeep (Sunday), the Valor shelf rotates, a war over a Holding, a scheduled event or build-off | "Our kingdom is moving" and "we took the tower" |
 | **Season (8 weeks)** | Climb the Valor board; your kingdom climbs its bracket | A title and a crown. The world never resets |
 
 With a fixed roster the same kingdoms meet every season, so rivalries build over
@@ -441,8 +402,7 @@ and the biggest kingdom does not win every season.
 | Land grabs and alt kingdoms | The kingdom roster is fixed and only admins can add one; land is never bought |
 | Inflation | Every shop, tier, perk and upkeep payment destroys currency; supply is printed at startup and in `/baltop` |
 | Chores | Soft caps with three day carry-over, no weekly hard caps |
-| War griefing and burnout | Plots are always sanctuaries; fighting only in scheduled windows; no blocks broken; inventory kept on a war death |
-| The biggest kingdom wins every war | Only 5 per side count for capture; allies can join; declarations cost Renown |
+| War spam | Declaring costs Renown, destroyed; plots are never at stake |
 
 ## 9. Adjacent mods
 
@@ -478,11 +438,8 @@ Placeholder API (kingdom and title tags in chat), LuckPerms (rank meta).
 
 ## 10. Open questions for the owner
 
-1. **Holdings:** how many, and where? One per kingdom plus one is the starting
-   suggestion; staff build and place them.
-2. **War window:** which day and time suits most of the server?
-3. **Ruined kingdoms:** off by default. If switched on, 60 days of total
+1. **Ruined kingdoms:** off by default. If switched on, 60 days of total
    inactivity opens a kingdom's containers but never its blocks. Wanted at all?
-4. **Plot expansion (parked):** the owner will revisit it only if players ask for
+2. **Plot expansion (parked):** the owner will revisit it only if players ask for
    permanent expansion in numbers (2026-10-31). If it comes back, the lever is a
    Renown perk that adds one ring of chunks, with a hard cap. Not in the build.
