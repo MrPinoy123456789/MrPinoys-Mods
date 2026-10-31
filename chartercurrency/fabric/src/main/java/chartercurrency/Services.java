@@ -2,6 +2,7 @@ package chartercurrency;
 
 import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
+import chartercurrency.core.EarnService;
 import chartercurrency.core.EconomyService;
 import chartercurrency.core.LeaderboardService;
 import chartercurrency.core.MintService;
@@ -25,6 +26,8 @@ final class Services {
     final MintService mint;
     final KingdomRuntime kingdoms;
     final MintSites sites;
+    EarnService earn;
+    volatile java.util.List<Treasury.CatalogEntry> catalog = java.util.List.of();
 
     Services(EconomySettings settings, CurrencyRegistry currencies, EconomyService economy,
              LeaderboardService leaderboard, NameCache names, TransactionLog log, Treasury treasury,

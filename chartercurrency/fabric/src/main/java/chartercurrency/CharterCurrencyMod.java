@@ -3,6 +3,7 @@ package chartercurrency;
 import chartercurrency.core.CharterCurrency;
 import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
+import chartercurrency.core.EarnService;
 import chartercurrency.core.EconomyService;
 import chartercurrency.core.LeaderboardService;
 import chartercurrency.core.ManualKingdomSource;
@@ -118,6 +119,12 @@ public final class CharterCurrencyMod implements ModInitializer {
         mintListener.register();
         TreasuryCommands treasuryCommands = new TreasuryCommands(services, mintListener);
         KingdomAdminCommands kingdomAdmin = new KingdomAdminCommands(services, treasuryCommands);
+        services.earn = new EarnService(book, economy, treasury,
+                currencies.byId("valor").orElse(CurrencyRegistry.VALOR),
+                EarnConfigFile.loadEarn(configDir, EarnConfigFile.defaultsEarn()),
+                System::currentTimeMillis);
+        services.catalog = EarnConfigFile.loadCatalog(configDir, EarnConfigFile.defaultsCatalog());
+        RenownCommands renownCommands = new RenownCommands(services, treasuryCommands);
 
         loginSnapshot = new LoginSnapshot(leaderboard, currencies, names, settings);
 
@@ -125,8 +132,11 @@ public final class CharterCurrencyMod implements ModInitializer {
         EconomyApi.Holder.set(service, leaderboard, currencies, catalog);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
-            new EconomyCommands(service, leaderboard, currencies, names, log, settings)
-                    .register(dispatcher);
+            EconomyCommands economyCommands =
+                    new EconomyCommands(service, leaderboard, currencies, names, log, settings);
+            economyCommands.attach(services);
+            economyCommands.register(dispatcher);
+            renownCommands.register(dispatcher);
             new ShopCommands(service, catalog, log, settings).register(dispatcher);
             new AdminCommands(service, currencies, names, log, catalog, shopConfig)
                     .register(dispatcher);

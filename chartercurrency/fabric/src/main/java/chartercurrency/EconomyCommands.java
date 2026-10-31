@@ -72,6 +72,13 @@ public final class EconomyCommands {
         this.coin = currencies.coin();
     }
 
+    /** Services that arrive after construction: the kingdom lookup behind /balance. */
+    private Services services;
+
+    void attach(Services services) {
+        this.services = services;
+    }
+
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(balanceCommand("balance"));
         dispatcher.register(balanceCommand("bal"));
@@ -148,6 +155,22 @@ public final class EconomyCommands {
                 if (rank > 0) {
                     source.sendSuccess(() -> Messages.body("  Rank: #" + rank), false);
                 }
+            }
+        }
+        if (services != null) {
+            // The kingdom and its Renown, asked of Charter (or the stand-in) right now.
+            try {
+                Optional<String> kingdom = services.kingdoms.source().kingdomOf(player.getUUID());
+                if (kingdom.isPresent()) {
+                    String id = kingdom.get();
+                    String name = services.kingdoms.source().displayName(id);
+                    source.sendSuccess(() -> Messages.body("Kingdom: " + name + "   Renown: "
+                            + Wallet.format(services.treasury.renown(id))), false);
+                } else {
+                    source.sendSuccess(() -> Messages.body("Kingdom: none"), false);
+                }
+            } catch (RuntimeException e) {
+                CharterCurrencyMod.LOG.warn("Kingdom lookup failed for /balance", e);
             }
         }
         source.sendSuccess(Messages::rule, false);

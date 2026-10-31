@@ -13,7 +13,7 @@ it currently covers milestones 1 to 3 (the fork, Coin and Valor).
 | 2. Coin | done |
 | 3. Valor | done |
 | 4. Mint and treasury | done (Charter wiring built against a stub of its api; see below) |
-| 5. Earn and Renown | not started |
+| 5. Earn and Renown | done |
 | 6. Stats and polish | not started |
 
 ## Coin and Valor
@@ -95,6 +95,47 @@ Without Charter, ops use the manual source (stored in `kingdoms.json`):
 <kingdom|none>`, `lord <kingdom> <player>`, `list`. These refuse while Charter is
 answering.
 
+## Earning Valor and Renown
+
+Every award goes through one console or op command:
+
+```
+/chartercurrency earn <player> <source> [level] [run]
+```
+
+`source` is a key in `earn.json`; `level` feeds the source's `base + perLevel * level`;
+`run` names one shared activity. Pocket Dungeons reaches it through its existing config:
+
+```
+"payoutCommand": "chartercurrency earn %player% dungeon %level%"
+```
+
+Events and build-offs are the same command typed by an admin
+(`chartercurrency earn Steve event`, `chartercurrency earn Steve buildoff_1st`).
+
+Valor: a soft daily cap per source halves further awards (rounded down, minimum 1; unused
+cap carries over for up to two extra days); an optional hard cap per source stops them.
+Renown is the Valor paid times the source's multiplier, credited to the player's kingdom
+(or the Commons when they are in none). Per player, 120 Renown a day at most; a kingdom
+gets one credit per run (with a `run` id: one per id; without: one per source and level
+inside 30 seconds), raised to the largest award in the run. A player earns no Renown
+for a kingdom until they have been in it 7 days; Valor is unaffected. All of these are in
+`earn.json`, `0` meaning no cap.
+
+| Command | Who | What |
+|---|---|---|
+| `/renown` | Anyone | Your kingdom's Renown, lifetime earned, and what it bought |
+| `/renown catalog` | Anyone | The catalogue with costs and whether each is bought or affordable |
+| `/renown buy <key>` | The Lord, ops | Asks first, then spends and runs the entry's commands |
+| `/renown ledger [page]` | Members, ops | Credits and spends |
+| `/renown top` | Anyone | Kingdoms by lifetime Renown |
+| `/chartercurrency renown add\|remove <kingdom\|commons> <amount>` | Ops | Adjust; an add does not count as earned |
+
+`renown_catalog.json` ships the five charter tiers (Hamlet 300, Village 900, Town 2000,
+City 4000, Realm 8000, each needing the one before) with a broadcast command only; what
+a tier does belongs to Charter. Placeholders in commands: `%kingdom%`, `%kingdom_name%`,
+`%buyer%`. A command that fails is logged at ERROR and the purchase stands.
+
 ## Building
 
 JDK 25. `./gradlew build` writes `fabric/build/libs/chartercurrency-0.1.0.jar`.
@@ -126,6 +167,19 @@ Places where the spec was silent or ambiguous, and the reading taken.
 - The fork's generic multi-currency core tests now run against a test-only payable
   second currency (`gem`), because Valor is deliberately not payable. Coin replaced
   cobblestone in those tests.
+
+Milestone 5 decisions:
+
+- Soft cap: an award is paid in full while any pool is left, even if it crosses zero
+  (the literal reading of "once a player has earned the soft cap"); then halved.
+- Hard cap: an award that would cross it is clipped to the room left.
+- A Renown top-up counts against the topping player's daily Renown cap.
+- Probation, the player cap and Commons routing are decided before a run key is
+  claimed, so an ineligible first settler cannot block an eligible teammate.
+- Run de-duplication applies to the Commons too. Run claims live in memory only.
+- `commons` is a reserved id; a manual kingdom cannot be created with it.
+- If the kingdom lookup fails during an award, nothing is awarded.
+- Ledger lines for Renown purchases carry the catalogue key as the note.
 
 Milestone 4 decisions:
 

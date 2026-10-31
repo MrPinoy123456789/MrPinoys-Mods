@@ -77,7 +77,7 @@ final class TreasuryCommands {
 
     // ---- which organization -------------------------------------------------
 
-    private static boolean isOp(CommandSourceStack source) {
+    static boolean isOp(CommandSourceStack source) {
         return Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(source);
     }
 
@@ -324,7 +324,13 @@ final class TreasuryCommands {
                 kingdom = token;
             }
         }
-        Optional<String> org = orgFor(source, kingdom);
+        return showLedger(source, filter, page, kingdom);
+    }
+
+    /** The ledger page for the player's own kingdom, or a named one for ops. */
+    int showLedger(CommandSourceStack source, String filter, int page, String kingdom) {
+        Optional<String> org = kingdom != null && kingdom.equalsIgnoreCase(Treasury.COMMONS) && isOp(source)
+                ? Optional.of(Treasury.COMMONS) : orgFor(source, kingdom);
         if (org.isEmpty()) return 0;
 
         List<Treasury.Entry> entries = s.treasury.ledger(org.get(), filter);
