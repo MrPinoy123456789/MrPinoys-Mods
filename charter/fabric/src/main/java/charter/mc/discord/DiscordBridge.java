@@ -11,6 +11,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -47,6 +48,8 @@ public final class DiscordBridge {
 
     private static DiscordConfig config = new DiscordConfig();
     private static LinkBook links;
+    private static NoticeGate gate;
+    private static int tickCount;
     private static Path linksDir;
     private static volatile DiscordRest rest;
     private static DiscordGateway gateway;
@@ -62,11 +65,17 @@ public final class DiscordBridge {
         ServerLifecycleEvents.SERVER_STARTED.register(DiscordBridge::start);
         ServerLifecycleEvents.AFTER_SAVE.register((s, flush, force) -> saveLinks());
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
+        ServerTickEvents.END_SERVER_TICK.register(s -> {
+            if (++tickCount % 200 == 0) sendDigests();
+        });
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter").then(Commands.literal("discord")
                         .executes(DiscordBridge::status)
                         .then(Commands.literal("link").executes(DiscordBridge::issueCode))
-                        .then(Commands.literal("unlink").executes(DiscordBridge::unlink)))));
+                        .then(Commands.literal("unlink").executes(DiscordBridge::unlink))
+                        .then(Commands.literal("notify")
+                                .then(Commands.literal("on").executes(ctx -> notify(ctx, true)))
+                                .then(Commands.literal("off").executes(ctx -> notify(ctx, false)))))));
     }
 
     /** True while the bot is set up and running. */
@@ -90,6 +99,8 @@ public final class DiscordBridge {
         linksDir = CharterServer.charterDir(server);
         links = new LinkBook(new SecureRandom(), config.linkCodeMinutes * 60_000L);
         links.load(linksDir, CharterMod.LOG::warn);
+        gate = new NoticeGate(config.applicantCooldownMinutes, config.quietMinutes);
+        gate.load(linksDir, CharterMod.LOG::warn);
         rest = new DiscordRest(token, CharterMod.LOG::warn);
         interactions = new DiscordInteractions(links, DiscordBridge::desk,
                 id -> CharterServer.running() ? CharterServer.runtime().describe.player(id) : Text.get("name.someone"),
@@ -128,6 +139,7 @@ public final class DiscordBridge {
         rest = null;
         interactions = null;
         links = null;
+        gate = null;
         linksDir = null;
         applicationId = null;
     }
@@ -175,9 +187,39 @@ public final class DiscordBridge {
         if (d == null) return;
         String notice = Text.get("notice.asked", "player", CharterServer.runtime().describe.player(asked.player()),
                 "org", CharterServer.runtime().describe.org(asked.org()));
+        long now = System.currentTimeMillis();
+        if (!gate.worthTelling(asked.player(), asked.org(), now)) return;
         for (PlayerId member : d.answerers(asked.org())) {
+            if (links.discordOf(member).isEmpty()) continue;
+            if (gate.forMember(member, now) != NoticeGate.Verdict.SEND) continue;
             links.discordOf(member).ifPresent(user -> rest.directMessage(user, DiscordMessages.requests(d.answerable(member), notice)));
         }
+    }
+
+    /** On the server thread, every ten seconds: one message to each member whose held requests are due. */
+    private static void sendDigests() {
+        if (!on() || gate == null || rest == null || !CharterServer.running()) return;
+        JoinDesk d = desk();
+        if (d == null) return;
+        for (var due : gate.due(System.currentTimeMillis()).entrySet()) {
+            PlayerId member = due.getKey();
+            var open = d.answerable(member);
+            if (open.isEmpty()) continue;
+            String notice = Text.get("discord.digest", "count", due.getValue());
+            links.discordOf(member).ifPresent(user -> rest.directMessage(user, DiscordMessages.requests(open, notice)));
+        }
+    }
+
+    private static int notify(CommandContext<CommandSourceStack> ctx, boolean on) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!on() || gate == null) {
+            player.sendSystemMessage(Component.literal(Text.get("discord.off")).withStyle(ChatFormatting.GRAY));
+            return 0;
+        }
+        gate.setMuted(new PlayerId(player.getUUID()), !on);
+        gate.save(linksDir, CharterMod.LOG::warn);
+        player.sendSystemMessage(Component.literal(Text.get(on ? "discord.notify_on" : "discord.notify_off")).withStyle(ChatFormatting.AQUA));
+        return 1;
     }
 
     // ---- in game ----

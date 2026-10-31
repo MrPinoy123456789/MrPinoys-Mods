@@ -89,6 +89,8 @@ HTTP and WebSocket clients. Code: `charter.mc.discord`; tests: `DiscordTest`.
    | `guildId` | `""` | Your Discord server's id. Set it and the commands show there at once; blank registers them everywhere, which Discord can take up to an hour to show |
    | `notifyJoinRequests` | `true` | DM linked members who may take players in when someone asks to join |
    | `linkCodeMinutes` | `10` | How long a link code works |
+| `applicantCooldownMinutes` | `60` | The same player asking the same faction again within this long is not announced again. `0` turns it off |
+| `quietMinutes` | `10` | After a member is messaged, requests for the next this long are held and announced in one message. `0` messages every request |
 
 4. Restart the server. The log says `Discord connected as <bot name>`.
 
@@ -103,6 +105,8 @@ A code works once, runs out after `linkCodeMinutes`, and only the player who
 asked sees it. Five wrong codes from one Discord account make it wait 15 minutes.
 One Discord account per player: linking again replaces the old link. Links are
 kept in the world's `charter/discord-links.json`; codes are not saved.
+
+**Quiet or loud**: `/charter discord notify off` in game stops the Discord messages about join requests for that player (`/requests` still works); `notify on` brings them back. Mutes are kept in `charter/discord-mutes.json`.
 
 **Join requests**
 
