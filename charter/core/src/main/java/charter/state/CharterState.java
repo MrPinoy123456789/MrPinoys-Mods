@@ -202,16 +202,33 @@ public final class CharterState {
     }
 
     public void join(PlayerId player, OrgId org, long now) {
+        PlayerRecord record = player(player);
+        if (raceOf(player).isEmpty()) record.race = root(org);
         memberships.put(player, MemberRecord.of(player, org, now));
-        // Belonging to an organization ends a mercenary's own race; it never stacks on top of one.
-        PlayerRecord record = players.get(player);
-        if (record != null) record.mercKingdom = null;
         treeVersion++;
     }
 
+    /** The kingdom whose race this player has: the one they were given, else the kingdom they belong to now. */
+    public Optional<OrgId> raceOf(PlayerId player) {
+        PlayerRecord record = players.get(player);
+        if (record != null && record.race != null && orgs.containsKey(record.race)) return Optional.of(record.race);
+        return membership(player).map(m -> root(m.org()));
+    }
+
+    /** True when the player's race lets them into this kingdom: it is their race, or the kingdom takes any race. */
+    public boolean raceAllows(PlayerId player, OrgId org) {
+        OrgId top = root(org);
+        Optional<OrgId> race = raceOf(player);
+        return race.isEmpty() || race.get().equals(top) || org(top).map(o -> o.mixedRace).orElse(false);
+    }
+
     public void leave(PlayerId player) {
-        MemberRecord gone = memberships.remove(player);
+        MemberRecord gone = memberships.get(player);
         if (gone != null) {
+            // A member keeps their race when they leave.
+            PlayerRecord record = player(player);
+            if (record.race == null || !orgs.containsKey(record.race)) record.race = root(gone.org());
+            memberships.remove(player);
             for (Office office : offices(gone.org())) {
                 office.unseat(player);
             }

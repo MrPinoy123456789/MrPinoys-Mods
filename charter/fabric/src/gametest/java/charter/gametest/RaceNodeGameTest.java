@@ -48,8 +48,25 @@ public final class RaceNodeGameTest {
             helper.assertTrue(holds(merc, dwarfKingdom), "a mercenary holds the chosen race");
             helper.assertTrue(!holds(merc, elfKingdom), "and no other");
             helper.assertTrue(kit.rt.state.membership(id).isEmpty(), "while belonging to no kingdom");
-            kit.rt.state.org(dwarfOrg).orElseThrow().adminKingdom = true;
-            helper.assertTrue(!holds(merc, dwarfKingdom), "the race is lost if its kingdom becomes an admin kingdom");
+            var again = kit.rt.engine.run(new charter.engine.Actor.Player(id),
+                    new charter.org.actions.ChooseMercenaryRace(id, kit.orgOf(elf)));
+            helper.assertTrue(again.refused() && holds(merc, dwarfKingdom), "and it cannot be changed");
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void aMemberKeepsTheirRaceAfterLeaving(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer dwarf = kit.faction("Dwarf");
+            ServerPlayer elf = kit.faction("Elf");
+            charter.id.PlayerId id = new charter.id.PlayerId(dwarf.getUUID());
+            String dwarfKingdom = kit.rt.state.org(kit.orgOf(dwarf)).orElseThrow().name();
+            kit.rt.engine.run(new charter.engine.Actor.Player(id), new charter.org.actions.Leave(id));
+            helper.assertTrue(holds(dwarf, dwarfKingdom), "leaving a kingdom keeps its race");
+            helper.assertTrue(!kit.rt.state.raceAllows(id, kit.orgOf(elf)), "and the other kingdom stays closed to it");
+            kit.rt.state.org(kit.orgOf(elf)).orElseThrow().mixedRace = true;
+            helper.assertTrue(kit.rt.state.raceAllows(id, kit.orgOf(elf)), "unless that kingdom takes any race");
             helper.succeed();
         }
     }

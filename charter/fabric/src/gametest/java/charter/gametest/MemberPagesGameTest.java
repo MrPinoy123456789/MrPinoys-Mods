@@ -130,7 +130,7 @@ public final class MemberPagesGameTest {
             ServerPlayer gil = member(kit, kit.orgOf(lord));
             MemberPages.freedoms(gil, null);
             List<String> lordship = body(gil);
-            helper.assertTrue(lordship.size() <= 3, "A Lordship member's Freedoms run to " + lordship.size() + " lines: " + lordship);
+            helper.assertTrue(lordship.size() <= 4, "A Lordship member's Freedoms run to " + lordship.size() + " lines: " + lordship);
 
             ServerPlayer founder = kit.outsider();
             kit.rt.state.touch(id(founder), founder.getPlainTextName(), kit.rt.clock.now());

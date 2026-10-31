@@ -31,19 +31,21 @@ recipes with the lower tier first, unlocked through generated advancements.
 - Bedrock: Geyser cannot read Polymer models. `foundry/tools/gen_bedrock.py` writes the Geyser mappings and the
   Bedrock pack; deploy with `--bedrock`. Geyser needs `enable-custom-content: true` (already set).
 
-## Mercenaries
+## Races and mercenaries
 
-A mercenary is a player with no organization who has taken the race of an ordinary kingdom. They hold that kingdom's
-`race:<kingdom>` node, so its weapons work for them, but they belong to no kingdom, hold no land and are on their own.
-They are killable anywhere like everyone else. Grouping up is left to the players for now.
+A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with `CharterState.raceOf`. The weapons ask
+`race:<kingdom>` and Charter answers from that race (`RaceNodes`), so a race outlives membership.
 
-- Choose with the Charter book (Become a mercenary) or `/charter merc <kingdom>`. The action is `ChooseMercenaryRace`;
-  the choice lives on `PlayerRecord.mercKingdom` and is saved with the players.
-- Admin kingdoms (flag `adminKingdom`, for example Hey Dol Hollow) cannot be chosen, and the race is lost if its kingdom
-  later becomes an admin kingdom. Operators can set any choice with no wait.
-- A change of race waits `mercChangeDays` (default 7). Joining any organization clears the record; it never stacks on
-  membership and does not return when the member leaves.
-- Operators who make a kingdom an admin kingdom after mercenaries chose it remove the race from them without notice.
+- A member gets their kingdom's race when they first join. Leaving does not change it.
+- A mercenary is a player with no organization who has chosen a race with the Charter book (Become a mercenary) or
+  `/charter merc <kingdom>` (`ChooseMercenaryRace`). They belong to no kingdom, hold no land and are killable anywhere.
+  Grouping up is left to the players for now.
+- The race cannot be changed by the player. Operators can set it again with the same action.
+- Admin kingdoms (flag `adminKingdom`, for example Hey Dol Hollow) cannot be chosen as a mercenary race.
+- A kingdom takes only its own race, in asking, invites and admitting. Operators place anyone. The Mixed Race option
+  (`Organization.mixedRace`, set with `/charter admin faction mixed <kingdom> <on>`) lets a kingdom take any race, and
+  the Freedoms page says which a kingdom is. A leader's own switch for it is not built yet.
+- Closing a kingdom again does not remove members already inside.
 
 ## Branches and Minecraft versions
 

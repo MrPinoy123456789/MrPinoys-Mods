@@ -23,6 +23,11 @@ final class Joining {
         return ctx.state.org(ctx.state.root(org)).map(o -> o.adminKingdom).orElse(false);
     }
 
+    /** A kingdom that is not mixed takes only its own race; operators can place anyone. */
+    static boolean raceBlocks(ActionContext ctx, OrgId org, PlayerId player) {
+        return !ctx.admin() && !ctx.state.raceAllows(player, org);
+    }
+
     static List<HistoryEvent> join(ActionContext ctx, PlayerId player, OrgId org) {
         OrgId from = ctx.state.membership(player).map(MemberRecord::org).orElse(null);
         ctx.state.leave(player);

@@ -74,10 +74,8 @@ public final class NewcomerPages {
         } else {
             body.add(BookDialogs.text(Text.get("book.newcomer.intro")));
         }
-        OrgId merc = rt.state.knownPlayer(me(player)).map(r -> r.mercKingdom).orElse(null);
-        if (merc != null && rt.state.org(merc).isPresent()) {
-            body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(merc))));
-        }
+        Optional<OrgId> race = rt.state.raceOf(me(player));
+        if (race.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(race.get()))));
         body.add(BookDialogs.text(Text.get("book.calendar.seasons", "seasons", MemberPages.seasonNames())));
         body.add(BookDialogs.text(Text.get("book.calendar.days")));
         List<ActionButton> buttons = new ArrayList<>();
@@ -95,23 +93,21 @@ public final class NewcomerPages {
     public static void mercenary(ServerPlayer player, String notice) {
         if (!alone(player)) return;
         CharterRuntime rt = rt();
-        OrgId current = rt.state.knownPlayer(me(player)).map(r -> r.mercKingdom).orElse(null);
+        Optional<OrgId> current = rt.state.raceOf(me(player));
         List<DialogBody> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("book.merc.intro")));
-        body.add(BookDialogs.text(Text.get("book.merc.rules", "days", rt.knobs.mercChangeDays)));
-        if (current != null && rt.state.org(current).isPresent()) {
-            body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(current))));
-        }
+        body.add(BookDialogs.text(Text.get("book.merc.rules")));
+        if (current.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(current.get()))));
         List<ActionButton> buttons = new ArrayList<>();
         for (Organization org : rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
                 .sorted(Comparator.comparing(Organization::name)).toList()) {
             OrgId id = org.id;
-            if (id.equals(current)) continue;
+            if (current.isPresent()) break;
             buttons.add(go(player, Text.get("book.merc.take", "race", org.name()), p -> BookRouter.run(p,
                     new ChooseMercenaryRace(me(p), id),
                     line -> mercenary(p, line != null ? line : Text.get("book.merc.done", "race", org.name())))));
         }
-        if (buttons.isEmpty()) body.add(BookDialogs.text(Text.get("book.merc.none")));
+        if (current.isEmpty() && buttons.isEmpty()) body.add(BookDialogs.text(Text.get("book.merc.none")));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.merc.title"), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
     }
@@ -121,7 +117,8 @@ public final class NewcomerPages {
     public static void join(ServerPlayer player, String notice) {
         if (!alone(player)) return;
         CharterRuntime rt = rt();
-        List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
+        List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom
+                        && rt.state.raceAllows(me(player), o.id))
                 .sorted(Comparator.comparingInt((Organization o) -> rt.state.members(o.id).size()).reversed()).toList();
         List<DialogBody> body = new ArrayList<>();
         List<ActionButton> buttons = new ArrayList<>();
@@ -129,6 +126,7 @@ public final class NewcomerPages {
             body.add(BookDialogs.text(Text.get("book.join.none")));
             if (rt.knobs.playerFounding) buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)));
         }
+        if (rt.state.raceOf(me(player)).isPresent()) body.add(BookDialogs.text(Text.get("book.join.race_note")));
         for (Organization org : orgs.stream().limit(FACTIONS_MAX).toList()) {
             OrgId id = org.id;
             String label = Text.get("book.join.entry", "org", org.name(), "members", rt.state.members(id).size(),

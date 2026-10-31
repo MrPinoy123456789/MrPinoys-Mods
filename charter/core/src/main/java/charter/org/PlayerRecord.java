@@ -14,10 +14,11 @@ public final class PlayerRecord {
     public long lastSeen;
     /** Wall time of the last found or secede; 0 if never. */
     public long lastFoundedAt;
-    /** The kingdom whose race this mercenary took; null if they are not a mercenary. Cleared when they join an organization. */
-    public charter.id.OrgId mercKingdom;
-    /** Wall time of the last choice of race; 0 if never. */
-    public long mercChosenAt;
+    /**
+     * The kingdom whose race this player has; null until they join a kingdom or a mercenary chooses one. Kept for good:
+     * leaving a kingdom does not change it, and only an operator can set it again.
+     */
+    public charter.id.OrgId race;
 
     public PlayerRecord(PlayerId id, String name, long lastSeen) {
         this.id = id;

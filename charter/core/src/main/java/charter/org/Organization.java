@@ -33,6 +33,9 @@ public final class Organization {
      */
     public boolean adminKingdom;
 
+    /** True when the kingdom takes members of any race. Otherwise it takes only its own. Set with the mixed option of the admin faction command. */
+    public boolean mixedRace;
+
     private String name;
     private String description = "";
     private OrgId parent;

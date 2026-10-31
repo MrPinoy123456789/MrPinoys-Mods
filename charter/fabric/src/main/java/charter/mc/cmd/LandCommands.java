@@ -94,6 +94,10 @@ public final class LandCommands {
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
                                                 .executes(LandCommands::adminKingdom))))
+                        .then(Commands.literal("mixed")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                                .executes(LandCommands::mixedRace))))
                         .then(Commands.literal("claims")
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("bonus", com.mojang.brigadier.arguments.IntegerArgumentType.integer(-1000, 100000))
@@ -321,6 +325,18 @@ public final class LandCommands {
         if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
         org.adminKingdom = on;
         return ok(ctx, Text.get(on ? "land.admin.kingdom_on" : "land.admin.kingdom_off", "name", org.name()));
+    }
+
+    private static int mixedRace(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on");
+        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        var org = found.get();
+        if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
+        org.mixedRace = on;
+        return ok(ctx, Text.get(on ? "land.admin.mixed_on" : "land.admin.mixed_off", "name", org.name()));
     }
 
     private static int claimBonus(CommandContext<CommandSourceStack> ctx) {

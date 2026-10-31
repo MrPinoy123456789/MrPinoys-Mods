@@ -9,16 +9,15 @@ import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.org.OrgReasons;
 import charter.org.Organization;
-import charter.org.PlayerRecord;
-import charter.time.Durations;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * A player with no organization takes the race of an ordinary kingdom and becomes a mercenary: they may wield that
+ * A player with no organization chooses the race of an ordinary kingdom and becomes a mercenary: they may wield that
  * race's weapons, but belong to no kingdom, hold no land and answer to no one. Kingdoms the operators have marked as
- * admin kingdoms cannot be chosen. A change of race waits out {@code mercChangeDays}. Joining an organization ends it.
+ * admin kingdoms cannot be chosen. The race is kept for good; only an operator can change it. A kingdom that is not
+ * mixed takes only members of its own race, so the choice also decides which kingdom the mercenary may join.
  */
 public record ChooseMercenaryRace(PlayerId player, OrgId kingdom) implements Action {
 
@@ -43,21 +42,13 @@ public record ChooseMercenaryRace(PlayerId player, OrgId kingdom) implements Act
         if (!ctx.admin() && !player.equals(ctx.player())) return Outcome.refuse(OrgReasons.NOT_YOU);
         if (ctx.state.membership(player).isPresent()) return Outcome.refuse(OrgReasons.MERC_IN_ORG);
         if (!choosable(ctx, kingdom)) return Outcome.refuse(OrgReasons.MERC_NOT_A_RACE);
-        PlayerRecord record = ctx.state.knownPlayer(player).orElse(null);
-        if (record == null) return Outcome.OK;
-        if (kingdom.equals(record.mercKingdom)) return Outcome.refuse(OrgReasons.MERC_SAME);
-        if (!ctx.admin() && record.mercKingdom != null && record.mercChosenAt != 0
-                && ctx.now - record.mercChosenAt < Durations.days(ctx.knobs.mercChangeDays)) {
-            return Outcome.refuse(OrgReasons.MERC_COOLDOWN);
-        }
+        if (!ctx.admin() && ctx.state.raceOf(player).isPresent()) return Outcome.refuse(OrgReasons.RACE_CHOSEN);
         return Outcome.OK;
     }
 
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
-        PlayerRecord record = ctx.state.player(player);
-        record.mercKingdom = kingdom;
-        record.mercChosenAt = ctx.now;
+        ctx.state.player(player).race = kingdom;
         return List.of();
     }
 }

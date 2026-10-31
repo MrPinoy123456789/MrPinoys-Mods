@@ -173,8 +173,7 @@ public final class CoreBlocks {
             o.addProperty("name", p.name);
             o.addProperty("lastSeen", p.lastSeen);
             o.addProperty("lastFoundedAt", p.lastFoundedAt);
-            if (p.mercKingdom != null) o.add("mercKingdom", gson.toJsonTree(p.mercKingdom));
-            if (p.mercChosenAt != 0) o.addProperty("mercChosenAt", p.mercChosenAt);
+            if (p.race != null) o.add("race", gson.toJsonTree(p.race));
             players.add(o);
         }
         JsonObject root = new JsonObject();
@@ -189,8 +188,7 @@ public final class CoreBlocks {
             p.name = str(o, "name");
             p.lastSeen = num(o, "lastSeen");
             p.lastFoundedAt = num(o, "lastFoundedAt");
-            p.mercKingdom = get(o, "mercKingdom", OrgId.class, gson);
-            p.mercChosenAt = num(o, "mercChosenAt");
+            p.race = get(o, "race", OrgId.class, gson);
         }
     }
 
@@ -209,6 +207,7 @@ public final class CoreBlocks {
             if (org.npc) o.addProperty("npc", true);
             if (org.claimBonus != 0) o.addProperty("claimBonus", org.claimBonus);
             if (org.adminKingdom) o.addProperty("adminKingdom", true);
+            if (org.mixedRace) o.addProperty("mixedRace", true);
 
             JsonObject gov = new JsonObject();
             gov.addProperty("preset", org.governance.preset.name());
@@ -249,6 +248,7 @@ public final class CoreBlocks {
             org.npc = bool(o, "npc");
             org.claimBonus = (int) num(o, "claimBonus");
             org.adminKingdom = bool(o, "adminKingdom");
+            org.mixedRace = bool(o, "mixedRace");
             Map<Currency, Long> balances = get(o, "ledger", BALANCES, gson);
             if (balances != null) balances.forEach(org.ledger::add);
             People people = get(o, "people", People.class, gson);

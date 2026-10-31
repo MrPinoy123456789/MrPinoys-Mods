@@ -178,6 +178,9 @@ public final class MemberPages {
         List<Object> body = new ArrayList<>();
         body.add(Text.get("book.freedoms.intro", "org", v.orgName()));
         if (freedoms.isEmpty()) body.add(Text.get("book.freedoms.none")); else body.addAll(freedoms);
+        rt().state.membership(new charter.id.PlayerId(player.getUUID())).map(m -> rt().state.root(m.org())).flatMap(rt().state::org)
+                .ifPresent(top -> body.add(Text.get(top.mixedRace ? "book.freedoms.mixed_open" : "book.freedoms.mixed_closed",
+                        "org", top.name())));
         // Members of a Lordship or a council cannot vote the ruler out. While the operators set the kingdoms there is no
         // breaking away either, so the one way out is to leave.
         boolean breakaway = rt().knobs.playerFounding;
