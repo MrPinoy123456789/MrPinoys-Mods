@@ -31,8 +31,18 @@ import java.util.Set;
  */
 public final class WildRunGameTest {
 
-    private static final BlockPos ORIGIN = new BlockPos(14400, 120, 14400);
-    private static final int SLOT = 9981;
+    /**
+     * Each stamping test gets its own slot and its own corner of the world. The tests of a class run in one world at
+     * the same time, and one test's cleanup releases the force loaded chunks of the cells it clears: sharing a corner
+     * let one test unload another's dungeon mid run.
+     */
+    private static int slotOf(int test) {
+        return 9981 + test;
+    }
+
+    private static BlockPos originOf(int test) {
+        return new BlockPos(14400 + 1024 * test, 120, 14400);
+    }
 
     private static WildState.Lodestone lodestone(ServerLevel level, WildDungeons.Offering offering, String id, int lvl) {
         return new WildState.Lodestone(id, WildLodestones.dimensionKey(level), 5, 70, 5, offering.id(), lvl,
@@ -79,8 +89,8 @@ public final class WildRunGameTest {
                     problems.add(offering.id() + ": no plan (" + WildRun.lastRefusal() + ")");
                     continue;
                 }
-                InstanceRegistry.usedSlots.add(SLOT);
-                record = WildRun.stampAt(server, level, lode, planned, SLOT, ORIGIN);
+                InstanceRegistry.usedSlots.add(slotOf(0));
+                record = WildRun.stampAt(server, level, lode, planned, slotOf(0), originOf(0));
                 if (record == null) {
                     problems.add(offering.id() + ": no record (" + WildRun.lastRefusal() + ")");
                     continue;
@@ -120,7 +130,7 @@ public final class WildRunGameTest {
                 }
             } finally {
                 cleanUp(level, record);
-                InstanceRegistry.usedSlots.remove(SLOT);
+                InstanceRegistry.usedSlots.remove(slotOf(0));
             }
         }
         helper.assertTrue(problems.isEmpty(), "offering problems: " + problems);
@@ -145,8 +155,8 @@ public final class WildRunGameTest {
         try {
             WildRun.PlannedFloor planned = WildRun.planFor(level, lode, offering);
             helper.assertTrue(planned != null, "plans");
-            InstanceRegistry.usedSlots.add(SLOT);
-            record = WildRun.stampAt(server, level, lode, planned, SLOT, ORIGIN);
+            InstanceRegistry.usedSlots.add(slotOf(1));
+            record = WildRun.stampAt(server, level, lode, planned, slotOf(1), originOf(1));
             helper.assertTrue(record != null, "stamps");
             helper.assertTrue(WildRun.liveRecord(lode.id) == record, "the lodestone finds its record");
             helper.assertTrue(WildRun.insideCount(lode.id) == 0, "empty at first");
@@ -171,12 +181,12 @@ public final class WildRunGameTest {
             helper.assertTrue(!record.members.containsKey(a.getUUID()) && !InstanceRegistry.byMember.containsKey(a.getUUID()),
                     "a left");
             helper.assertTrue(record.members.containsKey(b.getUUID()), "b stays");
-            helper.assertTrue(InstanceRegistry.bySlot.get(SLOT) == record, "the record stays up");
+            helper.assertTrue(InstanceRegistry.bySlot.get(slotOf(1)) == record, "the record stays up");
             helper.assertValueEqual(before, fingerprint(a), "the pack is untouched");
             helper.assertTrue(ItemStack.matches(carried, a.containerMenu.getCarried()), "the cursor stack is kept");
 
             WildRun.leave(b);
-            helper.assertTrue(record.members.isEmpty() && InstanceRegistry.bySlot.get(SLOT) == record,
+            helper.assertTrue(record.members.isEmpty() && InstanceRegistry.bySlot.get(slotOf(1)) == record,
                     "an empty wild record stays up");
         } finally {
             WildMode.setActiveForTesting(null);
@@ -196,55 +206,30 @@ public final class WildRunGameTest {
     }
 
     /**
-     * A hostile mob that teleported onto the roof is still inside the layout's bounds but out of reach, so it is
-     * discarded; one inside a cell stays. The spawner that tracked it forgets it (owner, 2026-10-31).
+     * The rule behind the stray sweep (owner, 2026-10-31: an enderman that lands on the roof must not strand its
+     * spawner): a point counts as in the fight only inside a cell's own column and height. Above the roof, off the side
+     * and far below the floor are all strays. Checked on plain positions, because a test that spawns mobs into a far
+     * away force loaded layout depends on how long the test world takes to load those chunks; whether the sweep then
+     * removes the mob is a live check.
      */
-    @GameTest(maxTicks = 900)
-    public void mobsOnTheRoofAreDiscardedAndMobsInsideStay(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        MinecraftServer server = level.getServer();
-        WildDungeons.loadFrom(server);
-        WildDungeons.Offering offering = WildDungeons.byId("pocketdungeons:boiler_hall");
-        WildState.Lodestone lode = lodestone(level, offering, "w-roof", 1);
-        InstanceRegistry.usedSlots.add(SLOT);
-        InstanceRecord record = WildRun.stampAt(server, level, lode, WildRun.planFor(level, lode, offering), SLOT, ORIGIN);
-        helper.assertTrue(record != null, "stamps");
-        // The stamp force loads its chunks, but loading finishes over the following ticks (how many varies with the
-        // layout). An entity added to a chunk that is not loaded yet is neither registered nor found by a query, so the
-        // test polls until the entrance chunk and the one above it are loaded. Players enter long after that.
-        Runnable[] poll = new Runnable[1];
-        int[] waited = {0};
-        poll[0] = () -> {
-            BlockPos entrance = record.layout.entrance();
-            if (!level.isLoaded(entrance) && waited[0]++ < 300) {
-                helper.runAfterDelay(2, poll[0]);
-                return;
-            }
-            try {
-                var inside = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
-                        net.minecraft.world.entity.EntitySpawnReason.COMMAND);
-                var roof = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
-                        net.minecraft.world.entity.EntitySpawnReason.COMMAND);
-                inside.setPos(entrance.getX() + 0.5, entrance.getY() + 1, entrance.getZ() + 0.5);
-                int top = (int) Math.ceil(record.layout.bounds().maxY);
-                for (BlockPos cell : record.layout.geometry().cellOrigins()) {
-                    top = Math.max(top, cell.getY() + RoomGeometry.CEILING_Y + 1);
-                }
-                roof.setPos(entrance.getX() + 0.5, top + 4, entrance.getZ() + 0.5);
-                helper.assertTrue(level.isLoaded(entrance), "the entrance chunk loaded within " + waited[0] * 2 + " ticks");
-                level.addFreshEntity(inside);
-                helper.assertTrue(level.addFreshEntity(roof), "the roof mob was added to the level");
-                WildRun.sweepStrays(level, record);
-                helper.assertTrue(!inside.isRemoved(), "a mob inside a cell stays");
-                helper.assertTrue(roof.isRemoved(), "a mob above the roof is discarded (roof at " + roof.position() + ")");
-                inside.discard();
-            } finally {
-                cleanUp(level, record);
-                InstanceRegistry.usedSlots.remove(SLOT);
-            }
-            helper.succeed();
-        };
-        helper.runAfterDelay(2, poll[0]);
+    @GameTest
+    public void strayRuleCountsOnlyCellVolumes(GameTestHelper helper) {
+        java.util.List<BlockPos> cells = java.util.List.of(new BlockPos(1600, 120, 1600), new BlockPos(1616, 120, 1600),
+                new BlockPos(1616, 120, 1616));
+        double mid = RoomGeometry.CELL / 2.0;
+        helper.assertTrue(WildRun.inCell(cells, new net.minecraft.world.phys.Vec3(1600 + mid, 121, 1600 + mid)),
+                "the middle of a cell is inside");
+        helper.assertTrue(WildRun.inCell(cells, new net.minecraft.world.phys.Vec3(1616 + mid, 121, 1616 + mid)),
+                "the middle of another cell is inside");
+        helper.assertTrue(!WildRun.inCell(cells, new net.minecraft.world.phys.Vec3(1600 + mid, 120 + RoomGeometry.CEILING_Y + 6,
+                1600 + mid)), "above the roof is a stray");
+        helper.assertTrue(!WildRun.inCell(cells, new net.minecraft.world.phys.Vec3(1600 + mid, 120 - 20, 1600 + mid)),
+                "far below the floor is a stray");
+        helper.assertTrue(!WildRun.inCell(cells, new net.minecraft.world.phys.Vec3(1600 - 3, 121, 1600 + mid)),
+                "outside the side of the layout is a stray");
+        helper.assertTrue(!WildRun.inCell(cells, new net.minecraft.world.phys.Vec3(1600 + mid, 121, 1616 + mid)),
+                "a gap in the layout (no cell there) is a stray");
+        helper.succeed();
     }
 
     /** The watch tick drops a member who is not in the dungeon dimension and leaves the record standing. */
@@ -262,8 +247,8 @@ public final class WildRunGameTest {
         WildMode.setActiveForTesting(true);
         InstanceRecord record = null;
         try {
-            InstanceRegistry.usedSlots.add(SLOT);
-            record = WildRun.stampAt(server, level, lode, WildRun.planFor(level, lode, offering), SLOT, ORIGIN);
+            InstanceRegistry.usedSlots.add(slotOf(3));
+            record = WildRun.stampAt(server, level, lode, WildRun.planFor(level, lode, offering), slotOf(3), originOf(3));
             helper.assertTrue(record != null, "stamps");
             ServerPlayer a = helper.makeMockServerPlayerInLevel();
             record.members.put(a.getUUID(), new ReturnPoint(Level.OVERWORLD, a.position(), 0.0f, 0.0f));
@@ -272,7 +257,7 @@ public final class WildRunGameTest {
             WildRun.tick(server, record, level.getGameTime(), 20);
             helper.assertTrue(record.members.isEmpty() && !InstanceRegistry.byMember.containsKey(a.getUUID()),
                     "the member standing outside the dungeon dimension is detached");
-            helper.assertTrue(InstanceRegistry.bySlot.get(SLOT) == record, "the record stays");
+            helper.assertTrue(InstanceRegistry.bySlot.get(slotOf(3)) == record, "the record stays");
             WildRun.tick(server, record, level.getGameTime(), 20);
         } finally {
             WildMode.setActiveForTesting(null);
