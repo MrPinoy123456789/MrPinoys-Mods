@@ -418,5 +418,6 @@ Placeholder API (kingdom and title tags in chat), LuckPerms (rank meta).
    protected?
 4. **Plot spacing:** a 2-chunk gap between plots and from spawn is a guess. What
    does the current map use?
-5. **Plots later:** if land ever grows, the clean lever is a Renown perk that adds
-   a ring of chunks, with a hard cap. The spec does not include it for now.
+5. **Plot expansion (parked):** the owner will revisit it only if players ask for
+   permanent expansion in numbers (2026-10-31). If it comes back, the lever is a
+   Renown perk that adds one ring of chunks, with a hard cap. Not in the build.
