@@ -37,7 +37,7 @@ provider says "kingdom" (Renown, Mint tax) it means the top level organization t
 | `outpost` | `PlantCamp` | charge the deposit (`outpostDepositMarks` plus `outpostDepositStepMarks` for each outpost the nation holds) |
 | `outpost_refund` | an outpost lost without a capture | credit the deposit it held |
 | `plunder` | a captured outpost's deposit; a fallen raider stronghold | credit the attackers; for a stronghold, charge the site then credit the winner a quarter of its balance |
-| `fine` | a custody fine | charge the prisoner's own kingdom, then credit the fining faction |
+| `fine` | a custody fine | charge the prisoner's own kingdom, then credit the fining faction; refused when there is no provider, or the prisoner has no other kingdom holding coin |
 | `transfer` | `Transfer` | charge the payer, then credit the payee (the credit follows a successful charge) |
 | `deposit` | `Deposit`, operators and scenarios only | credit |
 | `npc_treasury` | a raider site is raised | credit `npcTreasuryMarks` for its tier |

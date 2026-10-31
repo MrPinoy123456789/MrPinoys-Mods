@@ -219,9 +219,11 @@ public final class ContractTest {
         w.arrest(KRIS, w.ashfall, PAT, ch(0, 0));
         eq("S: a confinement under the minimum is refused", ContractReasons.TOO_SHORT.key(),
                 w.confine(KRIS, w.ashfall, PAT, Durations.minutes(10), w.keepA).reasonKey());
-        Outcome bigFine = w.f.as(KRIS, new FineCustody(w.ashfall, PAT, 40));
-        check("S: a fine over the cap is accepted, cut", bigFine.done());
-        eq("S: the fine term was cut to the cap", 16L, w.latest().term(Term.FineMarks.class).marks());
+        BasisCaps.Checked bigFine = BasisCaps.check(Basis.CUSTODY, new Term.FineMarks(40), w.f.knobs);
+        check("S: a fine over the cap is accepted, cut", bigFine.ok() && bigFine.cut());
+        eq("S: the fine term was cut to the cap", 16L, ((Term.FineMarks) bigFine.term()).marks());
+        eq("S: a fine on a player with no kingdom to pay it is refused", "nothing_to_fine",
+                w.f.as(KRIS, new FineCustody(w.ashfall, PAT, 40)).reasonKey());
 
         w.arrest(KRIS, w.ashfall, ROB, ch(0, 0));
         ClaimId some = w.f.state.claims().iterator().next().id;
@@ -309,9 +311,10 @@ public final class ContractTest {
 
         w.arrest(KRIS, w.ashfall, SAM, ch(0, 0));
         w.f.port.balances.put(w.brine.toString(), 0L);
-        check("fine: a kingdom with nothing pays nothing", w.f.as(KRIS, new FineCustody(w.ashfall, SAM, 10)).done());
-        eq("fine: paid 0", 0L, w.f.state.history.of(ContractEvents.FinedMarks.class).getLast().paid());
-        check("fine: a fine alone leaves the prisoner free", Justice.holding(w.f.state, w.f.knobs, SAM, w.f.engine.now()).isEmpty());
+        eq("fine: a kingdom with nothing cannot be fined", "nothing_to_fine", w.f.as(KRIS, new FineCustody(w.ashfall, SAM, 10)).reasonKey());
+        check("fine: the refused fine leaves the prisoner held", w.f.state.contracts.custodyOf(SAM).isPresent());
+        w.f.state.payment = new charter.api.NoPayment(m -> { });
+        eq("fine: with no currency installed fines are off", "fines_need_currency", w.f.as(KRIS, new FineCustody(w.ashfall, SAM, 10)).reasonKey());
 
         // execution
         w.arrest(KRIS, w.ashfall, ROB, ch(0, 0));

@@ -254,6 +254,18 @@ public final class Justice {
     }
 
     /**
+     * Who would pay a fine on this prisoner: their own kingdom, when a payment provider is installed, the kingdom is not the
+     * fining faction's own, and it holds something. Empty means a fine cannot be collected, so none is allowed.
+     */
+    public static Optional<OrgId> finePayer(ActionContext ctx, OrgId faction, PlayerId prisoner) {
+        CharterState state = ctx.state;
+        if (!ctx.knobs.custodyFinesFromKingdom || !ctx.hasProvider()) return Optional.empty();
+        Optional<OrgId> payer = state.membership(prisoner).map(m -> state.root(m.org()));
+        if (payer.isEmpty() || payer.get().equals(state.root(faction))) return Optional.empty();
+        return state.payment.balance(payer.get().toString()) > 0 ? payer : Optional.empty();
+    }
+
+    /**
      * Takes a fine through the payment port and returns what was paid. The port holds balances for organizations only, so
      * the fine is charged to the prisoner's own kingdom (up to what it holds) and credited to the fining faction; a
      * prisoner with no kingdom, or of the fining faction's own kingdom, pays nothing, and so does everyone while costs
@@ -261,9 +273,8 @@ public final class Justice {
      */
     private static long collectFine(ActionContext ctx, OrgId faction, PlayerId prisoner, long asked) {
         CharterState state = ctx.state;
-        if (!ctx.knobs.custodyFinesFromKingdom || !ctx.hasProvider()) return 0;
-        Optional<OrgId> payer = state.membership(prisoner).map(m -> state.root(m.org()));
-        if (payer.isEmpty() || payer.get().equals(state.root(faction))) return 0;
+        Optional<OrgId> payer = finePayer(ctx, faction, prisoner);
+        if (payer.isEmpty()) return 0;
         long paid = Math.min(asked, state.payment.balance(payer.get().toString()));
         if (paid <= 0 || !state.payment.charge(payer.get().toString(), paid, "fine")) return 0;
         ctx.earn(faction, paid, "fine");

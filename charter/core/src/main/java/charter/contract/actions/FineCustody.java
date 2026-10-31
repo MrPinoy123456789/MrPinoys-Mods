@@ -5,6 +5,7 @@ import charter.contract.Term;
 import charter.engine.Action;
 import charter.engine.ActionContext;
 import charter.engine.Outcome;
+import charter.engine.Reason;
 import charter.grant.Power;
 import charter.history.HistoryEvent;
 import charter.id.OrgId;
@@ -18,6 +19,9 @@ import java.util.Optional;
  * {@link Justice}). Nothing is paid when no provider is installed. The prisoner is then free.
  */
 public record FineCustody(OrgId faction, PlayerId prisoner, long marks) implements Action {
+
+    public static final Reason NO_CURRENCY = new Reason("fines_need_currency", "Fines need a coin currency, and this server has none.");
+    public static final Reason NOTHING_TO_FINE = new Reason("nothing_to_fine", "That player has no kingdom with coin to fine.");
 
     private List<Term> terms() {
         return List.of(new Term.FineMarks(marks));
@@ -35,6 +39,8 @@ public record FineCustody(OrgId faction, PlayerId prisoner, long marks) implemen
 
     @Override
     public Outcome check(ActionContext ctx) {
+        if (!ctx.hasProvider()) return Outcome.refuse(NO_CURRENCY);
+        if (Justice.finePayer(ctx, faction, prisoner).isEmpty()) return Outcome.refuse(NOTHING_TO_FINE);
         Justice.Plan plan = Justice.plan(ctx, faction, prisoner, terms());
         return plan.ok() ? Outcome.OK : Outcome.refuse(plan.refusal());
     }
