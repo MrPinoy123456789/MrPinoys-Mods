@@ -39,6 +39,22 @@ public final class CharterPaymentProvider implements PaymentProvider {
                 s.log.tx("Charter credited " + marks + " Marks to the " + orgId + " treasury: " + reason);
             }
         }
+
+        /** A player's own wallet is their bank coin balance. */
+        @Override
+        public long balanceOfPlayer(java.util.UUID player) {
+            Services s = Services.current;
+            return s == null || player == null ? 0L : s.economy.getBalance(player, s.coin());
+        }
+
+        @Override
+        public boolean chargePlayer(java.util.UUID player, long marks, String reason) {
+            Services s = Services.current;
+            if (s == null || player == null || marks <= 0) return false;
+            boolean ok = s.economy.withdraw(player, s.coin(), marks).ok();
+            if (ok) s.log.tx("Charter charged " + marks + " Marks to the wallet of " + player + ": " + reason);
+            return ok;
+        }
     };
 
     @Override
