@@ -75,7 +75,7 @@ public final class BreakawayTest {
     }
 
     private static void fundGuard(Fixture f) {
-        f.as(GIL, new Deposit(guard(f), Currency.DIAMOND, 70));
+        f.admin(new Deposit(guard(f), 70));
     }
 
     private static Vote proposeSecession(Fixture f) {
@@ -98,7 +98,7 @@ public final class BreakawayTest {
                 && f.state.org(guard(f)).orElseThrow().parent() != null);
         Outcome placed = f.as(GIL, new PlaceNexus(guard(f), new ChunkKey(DIM, 50, 50)));
         check("1: the Lord places the Nexus at the faction's own cost " + placed, placed.done());
-        eq("1: paid from its own treasury", 6L, f.org(guard(f)).ledger.balance(Currency.DIAMOND));
+        eq("1: paid from its own treasury", 6L, f.marks(guard(f)));
         f.passDays(0.01, KRIS, GIL, CY, DEE);
         check("1: the sub-faction is now a faction of its own", f.state.org(guard(f)).orElseThrow().isTopLevel());
         check("1: nothing is pending", f.state.pendingSecession(guard(f)).isEmpty());
@@ -182,7 +182,7 @@ public final class BreakawayTest {
         check("8: one member starts", f.as(GIL, new BreakAway(GIL)).done());
         check("8: another joins the same group", f.as(CY, new BreakAway(CY)).done());
         eq("8: the group has both", 2, f.state.groupLeaving(ash).orElseThrow().members().size());
-        Outcome founded = f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200), 64));
+        Outcome founded = f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200)));
         check("8: the starter founds the keep " + founded, founded.done());
         OrgId fresh = f.state.orgNamed("Newhold").orElseThrow().id;
         check("8: the starter is its Lord", f.holder(fresh, Preset.LORD).equals(GIL));
@@ -197,7 +197,7 @@ public final class BreakawayTest {
         OrgId ash = f.state.orgNamed("Ashfall").orElseThrow().id;
         f.as(GIL, new BreakAway(GIL));
         eq("9: one alone cannot", OrgReasons.NEEDS_GROUP.key(),
-                f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200), 64)).reasonKey());
+                f.as(GIL, new FoundKeep(GIL, "Newhold", "", new ChunkKey(DIM, 200, 200))).reasonKey());
         f.pass(charter.time.Durations.hours(f.knobs.breakawayHours) + 60_000, KRIS, GIL, CY, DEE);
         check("9: a group that did not gather in time lapses", f.state.groupLeaving(ash).isEmpty() && f.state.isMember(GIL, ash));
     }

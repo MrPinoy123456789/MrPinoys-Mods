@@ -19,7 +19,6 @@ import charter.org.MemberRecord;
 import charter.org.Organization;
 import charter.org.actions.AcceptInvite;
 import charter.org.actions.Leave;
-import charter.treasury.Currency;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
@@ -75,8 +74,11 @@ final class Pages {
             if (office.vacant() && office.seats() > 0) player.sendSystemMessage(Chat.dim(Text.get("page.office_vacant", "office", office.name)));
         }
 
-        player.sendSystemMessage(Chat.line(Text.get("page.treasury", "balances", balances(org)))
-                .append(" ").append(Chat.run(Text.get("link.vault"), "/charter vault")));
+        String balance = charter.mc.Treasury.balance(rt, org.id);
+        if (balance != null) {
+            player.sendSystemMessage(Chat.line(Text.get("page.treasury", "balances", balance))
+                    .append(" ").append(Chat.run(Text.get("link.vault"), "/charter vault")));
+        }
 
         List<Core> cores = rt.state.coresOf(org.id);
         long keeps = cores.stream().filter(Core::isKeep).count();
@@ -116,15 +118,6 @@ final class Pages {
         if (CharterServer.runtime().knobs.playerFounding) {
             player.sendSystemMessage(Component.literal("").append(Chat.suggest(Text.get("link.found"), "/charter found ")));
         }
-    }
-
-    private static String balances(Organization org) {
-        List<String> parts = new ArrayList<>();
-        for (Currency c : Currency.values()) {
-            long n = org.ledger.balance(c);
-            parts.add(Text.get("vault.amount", "amount", n, "currency", Describe.currency(c, n)));
-        }
-        return String.join(", ", parts);
     }
 
     /** The organization's last few Chronicle lines: entries whose event names it. */
@@ -209,14 +202,13 @@ final class Pages {
         player.sendSystemMessage(Chat.header(Text.get("vault.title")));
         Optional<Organization> org = rt.state.membership(me).flatMap(m -> rt.state.org(m.org()));
         if (org.isPresent()) {
-            player.sendSystemMessage(Chat.line(Text.get("page.treasury", "balances", balances(org.get()))));
-            MutableComponent links = Component.literal("");
-            for (Currency c : Currency.values()) {
-                String name = c.name().toLowerCase(Locale.ROOT);
-                links.append(Chat.suggest(Text.get("link.deposit", "currency", Describe.currency(c, 2)), "/charter vault deposit " + name + " ")).append(" ");
-                links.append(Chat.suggest(Text.get("link.withdraw", "currency", Describe.currency(c, 2)), "/charter vault withdraw " + name + " ")).append(" ");
+            String balance = charter.mc.Treasury.balance(rt, org.get().id);
+            if (balance == null) {
+                player.sendSystemMessage(Chat.dim(Text.get("vault.no_currency")));
+            } else {
+                player.sendSystemMessage(Chat.line(Text.get("page.treasury", "balances", balance)));
+                player.sendSystemMessage(Chat.suggest(Text.get("link.withdraw"), "/charter vault withdraw "));
             }
-            player.sendSystemMessage(links);
         } else {
             player.sendSystemMessage(Chat.dim(Text.get("page.no_org")));
         }

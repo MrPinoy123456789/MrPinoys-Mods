@@ -56,6 +56,13 @@ final class RuntimeTest {
         final Set<PlayerId> online = new HashSet<>();
         final List<String> sent = new ArrayList<>();
         final List<PlayerId> delivered = new ArrayList<>();
+        final List<String> paidOut = new ArrayList<>();
+
+        @Override
+        public boolean payOut(OrgId org, PlayerId to, long marks) {
+            paidOut.add(org + ">" + to + ":" + marks);
+            return true;
+        }
 
         @Override
         public boolean online(PlayerId player) {
@@ -105,20 +112,22 @@ final class RuntimeTest {
                 rt.mail.peek(bob).stream().anyMatch(m -> m.text().contains("Oakvale invited you")));
         rt.engine.run(new Actor.Player(bob), new AcceptInvite(bob, oak));
         check("runtime: an online member is told at once", messenger.sent.stream().anyMatch(s -> s.contains("Bob joined Oakvale")));
-        rt.engine.run(new Actor.Admin("test"), new Deposit(oak, Currency.DIAMOND, 20));
+        TestPort port = new TestPort();
+        rt.state.payment = port;
+        rt.engine.run(new Actor.Admin("test"), new Deposit(oak, 20));
 
         for (MemberRecord m : List.copyOf(rt.state.members(oak))) {
             rt.state.restoreMembership(new MemberRecord(m.player(), m.org(), m.joinedAt() - Durations.days(4), m.roles()));
         }
-        Outcome refused = rt.engine.run(new Actor.Player(alice), new Withdraw(oak, Currency.DIAMOND, 5, bob));
+        Outcome refused = rt.engine.run(new Actor.Player(alice), new Withdraw(oak, 5, bob));
         check("runtime: a commune member cannot spend without a vote", "needs_vote".equals(refused.reasonKey()));
-        Outcome opened = rt.engine.propose(alice, new Withdraw(oak, Currency.DIAMOND, 5, bob));
+        Outcome opened = rt.engine.propose(alice, new Withdraw(oak, 5, bob));
         check("runtime: the spend opens as a vote", opened instanceof Outcome.VoteOpened);
         check("runtime: the offline voter is told about it",
-                rt.mail.peek(bob).stream().anyMatch(m -> m.text().contains("A vote opened in Oakvale: pay 5 diamonds to Bob")));
+                rt.mail.peek(bob).stream().anyMatch(m -> m.text().contains("A vote opened in Oakvale: pay 5 Marks to Bob")));
         rt.engine.cast(bob, ((Outcome.VoteOpened) opened).vote(), Vote.Ballot.YES);
-        check("runtime: the passed vote moved the treasury", rt.state.org(oak).orElseThrow().ledger.balance(Currency.DIAMOND) == 15);
-        check("runtime: the payout is owed to the offline payee", rt.mail.owedTo(bob).getOrDefault("minecraft:diamond", 0) == 5);
+        check("runtime: the passed vote went to the payment provider as a payout", messenger.paidOut.equals(List.of(oak + ">" + bob + ":5")));
+        check("runtime: the old item treasury was never touched", rt.state.org(oak).orElseThrow().ledger.snapshot().isEmpty());
 
         int entries = rt.state.history.size();
         long siegeClock = rt.state.siegeClock.now();
@@ -128,9 +137,8 @@ final class RuntimeTest {
         clock.advance(Durations.hours(6));
         CharterRuntime back = open(dir, knobs, clock, messenger);
         check("runtime: after a restart the organization is still there",
-                back.state.org(oak).map(o -> o.ledger.balance(Currency.DIAMOND) == 15).orElse(false));
+                back.state.org(oak).isPresent());
         check("runtime: the offline messages are kept", back.mail.peek(bob).size() == rt.mail.peek(bob).size());
-        check("runtime: items owed are kept", back.mail.owedTo(bob).getOrDefault("minecraft:diamond", 0) == 5);
         check("runtime: the history is read back from history.jsonl", back.state.history.size() == entries);
         check("runtime: the read back history keeps its types",
                 back.state.history.of(charter.gov.GovEvents.VotePassed.class).size() == 1);

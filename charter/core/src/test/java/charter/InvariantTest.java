@@ -143,7 +143,7 @@ public final class InvariantTest {
             return all[rng.nextInt(all.length)];
         }
 
-        Currency currency() {
+        Currency legacyCurrency() {
             return rng.nextBoolean() ? Currency.COBBLESTONE : Currency.DIAMOND;
         }
 
@@ -188,9 +188,9 @@ public final class InvariantTest {
                     case 0 -> new charter.contract.Term.Confinement(Durations.minutes(rng.nextInt(4 * 24 * 60)), c == null ? null : c.id, "cell");
                     case 1 -> new charter.contract.Term.Banishment(org(), Durations.minutes(rng.nextInt(4 * 24 * 60)));
                     case 2 -> new charter.contract.Term.RespawnDelay(Durations.minutes(rng.nextInt(240)));
-                    case 3 -> new charter.contract.Term.Fine(rng.nextInt(60));
+                    case 3 -> new charter.contract.Term.FineMarks(rng.nextInt(60));
                     case 4 -> new charter.contract.Term.Tether(Durations.minutes(rng.nextInt(4 * 24 * 60)), c == null ? null : c.id);
-                    default -> new charter.contract.Term.Payment(currency(), rng.nextInt(50));
+                    default -> new charter.contract.Term.Payment(legacyCurrency(), rng.nextInt(50));
                 });
             }
             return out;
@@ -253,15 +253,15 @@ public final class InvariantTest {
                     yield o == null ? new CreateOffice(org, "Reeve") : new Vacate(o.org, o.id);
                 }
                 case 10, 11 -> new GrantPower(org, power(), holder(),
-                        rng.nextBoolean() ? GrantScope.ANY : GrantScope.spendUpTo(rng.nextInt(3000), rng.nextInt(60)),
+                        rng.nextBoolean() ? GrantScope.ANY : GrantScope.spendUpTo(rng.nextInt(60)),
                         rng.nextBoolean(), rng.nextInt(4) == 0 ? f.clock.now() + Durations.hours(rng.nextInt(48)) : 0);
                 case 12 -> {
                     Grant g = pick(new ArrayList<>(f.state.grants()));
-                    yield g == null ? new Deposit(org, currency(), 10) : new RevokeGrant(g.subject, g.power, g.id);
+                    yield g == null ? new Deposit(org, 10) : new RevokeGrant(g.subject, g.power, g.id);
                 }
-                case 13, 14 -> new Deposit(org, currency(), rng.nextInt(600) - 20);
-                case 15 -> new Withdraw(org, currency(), rng.nextInt(80), p);
-                case 16 -> new Transfer(org, org(), currency(), rng.nextInt(80));
+                case 13, 14 -> new Deposit(org, rng.nextInt(600) - 20);
+                case 15 -> new Withdraw(org, rng.nextInt(80), p);
+                case 16 -> new Transfer(org, org(), rng.nextInt(80));
                 case 17 -> new PlaceNexus(org, chunk());
                 case 18 -> new PlantCamp(org, chunk());
                 case 19, 20 -> new ClaimLand(org, chunk());
@@ -283,7 +283,7 @@ public final class InvariantTest {
                 case 29 -> new charter.contract.actions.Pardon(org, player());
                 case 30 -> new charter.contract.actions.Release(org, player());
                 case 31 -> new charter.contract.actions.Escape(player());
-                case 32 -> new charter.contract.actions.DepositPersonal(player(), currency(), rng.nextInt(50) - 5);
+                case 32 -> new charter.contract.actions.DepositPersonal(player(), legacyCurrency(), rng.nextInt(50) - 5);
                 case 33 -> {
                     charter.contract.Contract c = pick(new ArrayList<>(f.state.contracts.all()));
                     yield c == null ? new charter.contract.actions.DepositPersonal(p, Currency.DIAMOND, 3)
@@ -304,6 +304,8 @@ public final class InvariantTest {
         int refused = 0;
         int historyBefore = 0;
         for (int step = 0; step < STEPS; step++) {
+            // Players cannot deposit coin through Charter any more, so the operator tops up a random treasury now and then.
+            if (step % 12 == 0 && !w.f.state.orgs().isEmpty()) w.f.admin(new Deposit(w.org(), 400));
             String what;
             String before = fingerprint(w.f.state);
             int roll = w.rng.nextInt(20);
@@ -311,7 +313,7 @@ public final class InvariantTest {
             Action acted = null;
             if (roll < 13) {
                 Action action = w.action();
-                boolean asAdmin = w.rng.nextInt(15) == 0;
+                boolean asAdmin = action instanceof Deposit || w.rng.nextInt(15) == 0;
                 what = (asAdmin ? "admin " : "") + action;
                 acted = action;
                 PlayerId actor = w.preferred != null && w.rng.nextInt(4) != 0 ? w.preferred : w.player();
@@ -392,9 +394,8 @@ public final class InvariantTest {
                 if (!seen.add(at)) return "3: cycle above " + org.id;
                 at = s.orgIncludingDissolved(at).map(Organization::parent).orElse(null);
             }
-            for (Currency c : Currency.values()) {
-                if (org.ledger.balance(c) < 0) return "9: " + org.id + " holds negative " + c;
-            }
+            // The old item ledger is closed: nothing may ever put anything in it.
+            if (!org.ledger.snapshot().isEmpty()) return "9: " + org.id + " holds old ledger balances " + org.ledger.snapshot();
             for (MemberRecord m : s.members(org.id)) {
                 if (!s.membership(m.player()).map(r -> r.org().equals(org.id)).orElse(false)) return "4: membership index disagrees for " + m.player();
             }
@@ -466,7 +467,7 @@ public final class InvariantTest {
                     case charter.contract.Term.Tether x -> x.durationMillis() > Durations.hours(k.confinementMaxHours) ? "bond" : null;
                     case charter.contract.Term.Banishment x -> x.durationMillis() > Durations.hours(k.banishmentMaxHours) ? "banishment" : null;
                     case charter.contract.Term.RespawnDelay x -> x.durationMillis() > Durations.minutes(k.executionRespawnDelayMaxMinutes) ? "respawn delay" : null;
-                    case charter.contract.Term.Fine x -> x.diamonds() > k.custodyFineCapDiamonds ? "fine" : null;
+                    case charter.contract.Term.FineMarks x -> x.marks() > k.custodyFineCapMarks ? "fine" : null;
                     default -> null;
                 };
                 if (over != null) return "18: imposed contract " + c.id + " has a " + over + " over its cap: " + t;
@@ -489,9 +490,7 @@ public final class InvariantTest {
             if (!parent.redelegable) return "a parent was not passable on";
             if (!g.grantor.equals(parent.recipient)) return "a link was not given by its parent's recipient";
             // Compared limit by limit, not with GrantScope.within, so this check does not share the code it checks.
-            for (Currency c : Currency.values()) {
-                if (g.scope.limit(c) > parent.scope.limit(c)) return "a link allows more " + c + " than its parent";
-            }
+            if (g.scope.limit() > parent.scope.limit()) return "a link allows more Marks than its parent";
             if (parent.power != g.power || !parent.subject.equals(g.subject)) return "a link changes power or subject";
             g = parent;
         }
@@ -514,7 +513,7 @@ public final class InvariantTest {
         b.append("siege clock ").append(s.siegeClock.now()).append('\n');
         for (Organization o : s.orgs()) {
             b.append("org ").append(o.id).append(' ').append(o.name()).append(' ').append(o.parent()).append(' ')
-                    .append(o.status()).append(' ').append(o.ledger.snapshot()).append('\n');
+                    .append(o.status()).append(' ').append(o.ledger.snapshot()).append(' ').append((long) (s.payment instanceof FakePort fp ? fp.balances.getOrDefault(o.id.toString(), 0L) : 0L)).append('\n');
             for (MemberRecord m : s.members(o.id)) b.append("  member ").append(m).append('\n');
         }
         for (var i : s.invites()) b.append("invite ").append(i).append('\n');

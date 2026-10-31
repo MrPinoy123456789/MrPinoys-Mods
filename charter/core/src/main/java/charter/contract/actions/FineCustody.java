@@ -14,14 +14,13 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A custody fine (D10): at most 16 diamonds, taken from the prisoner's own
- * deposit and never from their faction's treasury. A player with no deposit pays
- * nothing. The prisoner is then free.
+ * A custody fine (D10): at most {@code custodyFineCapMarks} Marks, paid through the payment port (see
+ * {@link Justice}). Nothing is paid when no provider is installed. The prisoner is then free.
  */
-public record FineCustody(OrgId faction, PlayerId prisoner, long diamonds) implements Action {
+public record FineCustody(OrgId faction, PlayerId prisoner, long marks) implements Action {
 
     private List<Term> terms() {
-        return List.of(new Term.Fine(diamonds));
+        return List.of(new Term.FineMarks(marks));
     }
 
     @Override

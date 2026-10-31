@@ -13,7 +13,6 @@ import charter.id.PlayerId;
 import charter.id.VoteId;
 import charter.org.MemberRecord;
 import charter.state.CharterState;
-import charter.treasury.Currency;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,10 +43,10 @@ public final class Standing {
      * @param name                the office, player or organization name; empty otherwise
      * @param holders             for OFFICE: the seated players' names
      * @param together            for OFFICE: the office decides together
-     * @param spendLimitDiamonds  -1 when there is none
+     * @param spendLimitMarks  -1 when there is none
      */
     public record Line(PowerGroup group, Power power, HolderKind kind, String name, List<String> holders,
-                       boolean together, boolean youCanVote, long spendLimitDiamonds) {
+                       boolean together, boolean youCanVote, long spendLimitMarks) {
 
         public boolean right() {
             return kind == HolderKind.YOU;
@@ -57,7 +56,7 @@ public final class Standing {
         public boolean sameHolder(Line other) {
             return kind == other.kind && name.equals(other.name) && holders.equals(other.holders)
                     && together == other.together && youCanVote == other.youCanVote
-                    && spendLimitDiamonds == other.spendLimitDiamonds;
+                    && spendLimitMarks == other.spendLimitMarks;
         }
     }
 
@@ -119,7 +118,7 @@ public final class Standing {
             if (same) {
                 Line first = perPower.get(0);
                 out.add(new Line(group, null, first.kind(), first.name(), first.holders(), first.together(),
-                        first.youCanVote(), first.spendLimitDiamonds()));
+                        first.youCanVote(), first.spendLimitMarks()));
             } else {
                 out.addAll(perPower);
             }
@@ -152,7 +151,7 @@ public final class Standing {
 
     /** A line for a grant; {@code you} forces the kind (YOU), otherwise the kind follows the recipient. */
     private static Line describe(CharterState state, PowerGroup group, Power power, HolderKind you, Grant grant, boolean canVote) {
-        long limit = power == Power.SPEND ? grant.scope.limit(Currency.DIAMOND) : Long.MAX_VALUE;
+        long limit = power == Power.SPEND ? grant.scope.limit() : Long.MAX_VALUE;
         long shown = limit == Long.MAX_VALUE ? -1 : limit;
         return switch (grant.recipient) {
             case Holder.OfOffice o -> {

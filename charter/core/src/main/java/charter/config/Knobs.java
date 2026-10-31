@@ -60,7 +60,8 @@ public final class Knobs {
     public List<String> claimDimensions = new ArrayList<>(List.of("minecraft:overworld"));
 
     // ---- land and prices ----
-    public int keepPriceDiamonds = 64;
+    /** What a keep costs, in Marks (about 2048: five days of a ten member kingdom's Mint tax). Paid by the treasury through the payment port. */
+    public int keepPriceMarks = 2048;
     public int keepCapacityClaims = 40;
     public int keepRangeHops = 8;
     public int campCapacityClaims = 4;
@@ -102,9 +103,9 @@ public final class Knobs {
     public int outpostTeleportFood = 1;
     /** Members a sub-faction needs before it may place an outpost. */
     public int outpostMinMembers = 2;
-    /** Diamonds the first outpost of a nation holds as its deposit; each outpost held already adds the step. */
-    public int outpostDeposit = 8;
-    public int outpostDepositStep = 4;
+    /** Marks the first outpost of a nation holds as its deposit; each outpost held already adds the step. */
+    public int outpostDepositMarks = 256;
+    public int outpostDepositStepMarks = 128;
 
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
@@ -183,14 +184,12 @@ public final class Knobs {
     public int npcExpireDays = 10;
     /** Server ticks between the layers of a falling site's crumble, from the top down. */
     public int npcCrumbleTicksPerLayer = 4;
-    /** Stacks of the treasury's diamonds, then cobblestone, spilled where a site falls. */
-    public int npcFallLoot = 4;
     /** A new site stands at least this many chunks from any player claim and any online player. */
     public int npcPlayerClearChunks = 8;
     /** Tiers by distance from the world spawn, in chunks: near is below the first, middle below the second, else far. */
     public int npcNearChunks = 40;
     public int npcMiddleChunks = 120;
-    /** Granary share at spawn, defenders, treasury diamonds and cobblestone, near, middle, far. */
+    /** Granary share at spawn, near, middle, far. */
     public double[] npcGranaryShare = {0.30, 0.50, 0.70};
     /** Raiders a stronghold may have alive at once, near, middle, far, and an outpost. */
     public int[] npcPoolByTier = {3, 5, 8};
@@ -198,8 +197,8 @@ public final class Knobs {
     /** Raiders a site can still spawn, over its whole life, near, middle, far. Each raider costs one. */
     public int[] npcSupplyStronghold = {24, 48, 96};
     public int[] npcSupplyOutpost = {6, 9, 12};
-    public int[] npcDiamonds = {16, 32, 64};
-    public int[] npcCobblestone = {128, 256, 512};
+    /** Marks a stronghold's treasury starts with, near, middle, far. A quarter is plundered when it falls. */
+    public int[] npcTreasuryMarks = {528, 1056, 2112};
     /** How long a faction that voted to break away has to place its Nexus, and a group has to gather, before it lapses. */
     public int breakawayHours = 24;
     /** How long a request to join a faction waits for an answer before it lapses. */
@@ -214,8 +213,7 @@ public final class Knobs {
     public int mercChangeDays = 7;
     public int dormancyDays = 30;
     /** What a Lordship's Lord may spend in one action without a vote. */
-    public int lordSpendLimitDiamonds = 32;
-    public int lordSpendLimitCobblestone = 2048;
+    public int lordSpendLimitMarks = 1024;
     public int orgNameMaxLength = 32;
 
     // ---- justice and contracts ----
@@ -225,7 +223,9 @@ public final class Knobs {
     public int banishmentMaxHours = 24;
     public int weeklyPunishmentCapHours = 24;
     public int sameFactionSamePlayerCooldownDays = 3;
-    public int custodyFineCapDiamonds = 16;
+    public int custodyFineCapMarks = 512;
+    /** Whether a custody fine is charged to the prisoner's own kingdom when it is another kingdom than the fining one. */
+    public boolean custodyFinesFromKingdom = true;
     public int custodyLapseMinutes = 5;
     public int imposedVassalageCapDays = 14;
     public boolean scaleSentencesWithTimeScale = false;

@@ -84,8 +84,8 @@ public final class StandingTest {
     static void theTreasuryLineCarriesTheSpendLimit() {
         Fixture f = world(Preset.LORDSHIP, 4);
         eq("2: the Lord's spending is limited", 32L,
-                line(view(f, KRIS), PowerGroup.TREASURY, null).spendLimitDiamonds());
-        eq("2: other powers have no limit", -1L, line(view(f, KRIS), PowerGroup.MEMBERS, null).spendLimitDiamonds());
+                line(view(f, KRIS), PowerGroup.TREASURY, null).spendLimitMarks());
+        eq("2: other powers have no limit", -1L, line(view(f, KRIS), PowerGroup.MEMBERS, null).spendLimitMarks());
     }
 
     static void aMemberReadsFreedoms() {

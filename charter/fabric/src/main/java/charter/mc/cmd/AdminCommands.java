@@ -147,7 +147,7 @@ final class AdminCommands {
             claims += rt().state.claimsOf(id).size();
             for (var core : List.copyOf(rt().state.coresOf(id))) {
                 if (core.isKeep()) keeps++;
-                charter.mc.war.SiegeWorld.physical(core.id, core.center, true, java.util.Map.of());
+                charter.mc.war.SiegeWorld.physical(core.id, core.center, true);
                 if (granaries != null) granaries.book().remove(core.id);
                 charter.mc.land.Fixtures.of(rt().state).removeCore(core.id);
             }

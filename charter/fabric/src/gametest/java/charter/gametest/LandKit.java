@@ -60,6 +60,8 @@ final class LandKit implements AutoCloseable {
         this.level = helper.getLevel();
         this.server = level.getServer();
         this.rt = CharterServer.runtime();
+        // Every kit pays in Marks through a funded in-memory port; the admin spawn credits each faction it founds.
+        GamePort.of(rt);
         int slot = next++;
         this.rx = 40_000 + slot * 40;
         this.rz = 40_000 + (slot % 7) * 40;

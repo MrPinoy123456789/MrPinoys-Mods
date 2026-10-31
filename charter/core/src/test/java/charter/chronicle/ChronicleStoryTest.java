@@ -101,8 +101,8 @@ public final class ChronicleStoryTest {
                 IN + "Ashfall declared war on the Eastern Guard and named the outpost of the Eastern Guard. Nothing may be done to it until the notice has run out.");
         golden(new SiegeEvents.WarOpened(AT, 0, 1, ASHFALL, EASTERN, CAMP),
                 IN + "the notice was over: Ashfall may now try to take the outpost of the Eastern Guard, if they hold it with none of its people there.");
-        golden(new SiegeEvents.OutpostCaptured(AT, 0, 1, ASHFALL, EASTERN, CAMP, CHUNK, 8),
-                IN + "Ashfall took the outpost of the Eastern Guard, banner and land, and its deposit of 8 diamonds with it.");
+        golden(new SiegeEvents.OutpostCaptured(AT, 0, 1, ASHFALL, EASTERN, CAMP, CHUNK, 0, 8),
+                IN + "Ashfall took the outpost of the Eastern Guard, banner and land.");
         golden(new SiegeEvents.WarLapsed(AT, 0, 1, ASHFALL, EASTERN, CAMP),
                 IN + "the war of Ashfall on the outpost of the Eastern Guard ran out and nothing was taken. They may not fight again for a while.");
         golden(new SiegeEvents.KeepRunningLow(AT, 0, KEEP, ASHFALL, 7),
@@ -118,6 +118,7 @@ public final class ChronicleStoryTest {
                         List.of(new Term.Fine(4), new Term.Payment(Currency.DIAMOND, 1)), true, false, 1),
                 IN + "Ashfall set 2 terms on Gil, by right of custody, though the terms were cut down to the limit.");
         golden(new ContractEvents.Fined(AT, CONTRACT, GIL, ASHFALL, 8, 1), IN + "Gil was fined 8 diamonds by Ashfall and paid 1.");
+        golden(new ContractEvents.FinedMarks(AT, CONTRACT, GIL, ASHFALL, 8, 1), IN + "Gil was fined 8 Marks by Ashfall and paid 1 Mark.");
         golden(new ContractEvents.Executed(AT, CONTRACT, ASHFALL, GIL, Durations.minutes(30), Durations.days(1)),
                 IN + "Ashfall put Gil to death. They would wait 30 minutes to rise again, and were banished for 1 day.");
         golden(new ContractEvents.Escaped(AT, CONTRACT, GIL, ASHFALL), IN + "Gil escaped from the cells of Ashfall.");

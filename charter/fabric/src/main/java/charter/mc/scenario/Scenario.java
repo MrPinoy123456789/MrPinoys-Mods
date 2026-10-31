@@ -48,8 +48,11 @@ public final class Scenario {
         /** Its people; the first is the Lord. */
         public List<String> roles = new ArrayList<>();
         public List<Office> offices = new ArrayList<>();
-        public long diamonds = 400;
-        public long cobblestone = 5000;
+        /** Marks the faction starts with, paid in through the payment port (nothing happens with no provider). */
+        public long marks = 12800;
+        /** The old item treasury amounts. Scenario files may still carry them; nothing reads them. */
+        public long diamonds = 0;
+        public long cobblestone = 0;
     }
 
     public static final class Office {

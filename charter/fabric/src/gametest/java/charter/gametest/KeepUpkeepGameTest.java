@@ -5,7 +5,6 @@ import charter.land.Core;
 import charter.mc.land.LandItems;
 import charter.siege.SiegeEvents;
 import charter.siege.Store;
-import charter.treasury.Currency;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -71,15 +70,15 @@ public final class KeepUpkeepGameTest {
 
             // The granary runs dry (and the first grace period is over): the claim lapses.
             store.provisions = new charter.food.Provisions();
-            kit.rt.engine.run(new charter.engine.Actor.Admin("gametest"), new charter.treasury.actions.Deposit(org, Currency.DIAMOND, 200));
-            long diamonds = kit.rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND);
+            GamePort.of(kit.rt).fund(org, 6_400);
+            long diamonds = GamePort.of(kit.rt).marks(org);
             advance(kit, "1m");
             helper.assertTrue(kit.rt.state.core(keep.id).isEmpty(), "The dry keep did not lapse");
             helper.assertTrue(kit.rt.state.history.of(SiegeEvents.KeepLapsed.class).stream().anyMatch(e -> e.keep().equals(keep.id)),
                     "The lapse was not recorded");
             helper.assertTrue(kit.rt.state.org(org).isPresent() && kit.rt.state.membership(new charter.id.PlayerId(lord.getUUID())).isPresent(),
                     "The nation lost its members with the keep");
-            helper.assertTrue(kit.rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == diamonds, "The lapse touched the treasury");
+            helper.assertTrue(GamePort.of(kit.rt).marks(org) == diamonds, "The lapse touched the treasury");
             helper.assertTrue(kit.level.getBlockState(wall).is(Blocks.COBBLESTONE), "The lapse took blocks down");
             helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).is(Blocks.LODESTONE), "The lapse took the Nexus block down");
 
@@ -93,7 +92,7 @@ public final class KeepUpkeepGameTest {
                     new charter.land.actions.PlaceNexus(org, charter.mc.land.Placement.chunkOf(kit.level, kit.nexusPos())));
             helper.assertTrue(again.done(), "A new Nexus was refused after the lapse: " + again);
             helper.assertTrue(kit.rt.state.coresOf(org).size() == 1, "The new Nexus raised no keep");
-            helper.assertTrue(kit.rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == diamonds - kit.rt.knobs.keepPriceDiamonds,
+            helper.assertTrue(GamePort.of(kit.rt).marks(org) == diamonds - kit.rt.knobs.keepPriceMarks,
                     "The new Nexus did not cost the founding price");
             helper.succeed();
         }

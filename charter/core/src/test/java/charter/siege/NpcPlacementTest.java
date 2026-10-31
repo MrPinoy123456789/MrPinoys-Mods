@@ -38,7 +38,7 @@ public final class NpcPlacementTest {
         f.knobs.keepGapChunks = 4;
         f.knobs.npcPlayerClearChunks = 8;
         // A rival keep and a player nearby; every chosen site must keep clear of both.
-        check("setup: a rival keep", f.admin(new SpawnNpc("Ironhide Raiders", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 30, 0), 16, 128)).done());
+        check("setup: a rival keep", f.admin(new SpawnNpc("Ironhide Raiders", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 30, 0), 144)).done());
         ChunkKey player = new ChunkKey(DIM, 0, 20);
         for (long seed = 1; seed <= 40; seed++) {
             Optional<ChunkKey> site = NpcPlacement.choose(new Random(seed), DIM, SPAWN, 10, 60, f.state, f.knobs, List.of(player), c -> true);
@@ -99,18 +99,18 @@ public final class NpcPlacementTest {
 
     static void aSpawnedFactionHoldsItsSiteAndItsPrize() {
         Fixture f = new Fixture();
-        var out = f.admin(new SpawnNpc("The Pillage Village People", "banner", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 25, 25), 16, 128));
+        var out = f.admin(new SpawnNpc("The Pillage Village People", "banner", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 25, 25), 144));
         check("6: the raiders raise a stronghold " + out, out.done());
         var org = f.state.orgNamed("The Pillage Village People").orElseThrow();
         check("6: it is a faction of the raiders", org.npc && org.status() == charter.org.OrgStatus.ACTIVE);
-        eq("6: the prize in diamonds", 16L, org.ledger.balance(charter.treasury.Currency.DIAMOND));
-        eq("6: and in cobblestone", 128L, org.ledger.balance(charter.treasury.Currency.COBBLESTONE));
+        eq("6: the prize is credited in Marks through the port", 144L, f.marks(org.id));
+        check("6: and the old ledger holds nothing", org.ledger.snapshot().isEmpty());
         check("6: a keep of nine chunks", f.state.coresOf(org.id).size() == 1 && f.state.claimsOf(org.id).size() == 9);
         check("6: its Lord is the raiders' own", f.holder(org.id, charter.gov.Preset.LORD).equals(NpcBook.LORD));
 
         // Players may hold bigger plots; the raiders' strongholds stay as they were.
         f.knobs.keepRadiusChunks = 4;
-        var big = f.admin(new SpawnNpc("The Big Plot Bandits", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 60, 60), 1, 1));
+        var big = f.admin(new SpawnNpc("The Big Plot Bandits", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 60, 60), 2));
         check("6: a stronghold is raised with the big plot setting " + big, big.done());
         var bandits = f.state.orgNamed("The Big Plot Bandits").orElseThrow();
         eq("6: and is still nine chunks", 9, f.state.claimsOf(bandits.id).size());
@@ -121,8 +121,8 @@ public final class NpcPlacementTest {
                 new charter.land.LandGraph(f.state, f.knobs).keepProblemForNew(new ChunkKey(DIM, 60 + 1 + 1 + 1 + f.knobs.keepGapChunks, 60), true).isEmpty());
         f.knobs.keepRadiusChunks = 1;
         eq("6: a player cannot spawn one", charter.land.LandReasons.OPERATOR_ONLY.key(),
-                f.as(Fixture.player("Kris"), new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 90, 90), 1, 1)).reasonKey());
-        var outpost = f.admin(new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.OUTPOST, new ChunkKey(DIM, 90, 90), 0, 0));
+                f.as(Fixture.player("Kris"), new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.STRONGHOLD, new ChunkKey(DIM, 90, 90), 2)).reasonKey());
+        var outpost = f.admin(new SpawnNpc("Evoker Fan Club", "", NpcBook.Kind.OUTPOST, new ChunkKey(DIM, 90, 90), 0));
         check("6: an outpost is a raised camp", outpost.done() && f.state.cores().stream().anyMatch(c -> !c.isKeep()
                 && c.phase() == charter.land.CampPhase.ACTIVE));
     }

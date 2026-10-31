@@ -59,7 +59,7 @@ public enum Preset {
         Holder self = new Holder.OfOrg(org);
         for (Power power : LORD_POWERS) {
             GrantScope scope = power == Power.SPEND
-                    ? GrantScope.spendUpTo(knobs.lordSpendLimitCobblestone, knobs.lordSpendLimitDiamonds)
+                    ? GrantScope.spendUpTo(knobs.lordSpendLimitMarks)
                     : GrantScope.ANY;
             state.addGrant(new Grant(state.ids.grant(), org, power, new Holder.OfOffice(lord), self,
                     null, scope, true, now, 0));

@@ -137,15 +137,17 @@ public final class WarTest {
     static void holdingTheChunkWithNoDefenderCapturesIt() {
         Pair p = new Pair();
         p.declare();
-        long deposit = p.theirs.deposit;
-        long before = p.w.f.org(p.w.ashfall).ledger.balance(Currency.DIAMOND);
+        long deposit = p.theirs.depositMarks;
+        long before = p.w.f.marks(p.w.ashfall);
         p.w.advance(Durations.hours(12) + Durations.MINUTE);
         p.presence.attackers.put(p.theirs.id, 2);
         p.w.advance(Durations.minutes(9));
         check("war: nine minutes is not enough", p.w.f.state.core(p.theirs.id).isPresent());
         p.w.advance(Durations.minutes(2));
         check("war: ten minutes captures it", p.w.f.state.core(p.theirs.id).isEmpty());
-        eq("war: its deposit goes to the attackers", before + deposit, p.w.f.org(p.w.ashfall).ledger.balance(Currency.DIAMOND));
+        eq("war: its deposit goes to the attackers", before + deposit, p.w.f.marks(p.w.ashfall));
+        eq("war: the port saw one plunder credit to the attackers of exactly the deposit", java.util.List.of(deposit),
+                p.w.f.port.calls("credit", "plunder").stream().filter(c -> c.org().equals(p.w.ashfall.toString())).map(charter.FakePort.Call::marks).toList());
         check("war: its land is released", p.w.f.state.claimAt(p.theirs.center).isEmpty());
         check("war: the goal is done", p.w.f.state.wars.goals.isEmpty());
         check("war: and told", p.w.f.state.history.has(SiegeEvents.OutpostCaptured.class));

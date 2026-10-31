@@ -70,7 +70,7 @@ public final class BreakawayPages {
             body.add(Text.get("book.breakaway.comes", "list", String.join(", ", names)));
             boolean keep = rt.state.coresOf(org).stream().anyMatch(c -> c.isKeep());
             body.add(keep ? Text.get("book.breakaway.cost_none")
-                    : Text.get("book.breakaway.cost_nexus", "price", rt.knobs.keepPriceDiamonds, "hours", hours));
+                    : Text.get("book.breakaway.cost_nexus", "price", rt.knobs.keepPriceMarks, "hours", hours));
             body.add(Text.get("book.breakaway.stay", "parent", parent));
             Optional<Breakaway> pending = rt.state.pendingSecession(org);
             if (pending.isPresent()) {
@@ -95,7 +95,7 @@ public final class BreakawayPages {
             } else {
                 body.add(Text.get("book.breakaway.flat_start", "hours", hours));
             }
-            body.add(Text.get("book.breakaway.cost_diamonds", "price", rt.knobs.keepPriceDiamonds));
+            body.add(Text.get("book.breakaway.cost_free"));
             body.add(Text.get("book.breakaway.starter_places"));
             boolean in = group.map(g -> g.members().contains(me)).orElse(false);
             if (!in) {

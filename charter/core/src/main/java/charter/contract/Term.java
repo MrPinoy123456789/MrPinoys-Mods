@@ -43,9 +43,14 @@ public sealed interface Term {
         public double severity(Knobs knobs) { return 1; }
     }
 
-    /** A fine from a player's own deposit. */
+    /** The old fine in diamonds from a player's own deposit; stored contracts still hold it, and no new one is made. */
     record Fine(long diamonds) implements Term {
-        public double severity(Knobs knobs) { return knobs.custodyFineCapDiamonds <= 0 ? 0 : (double) diamonds / knobs.custodyFineCapDiamonds; }
+        public double severity(Knobs knobs) { return 0; }
+    }
+
+    /** A fine in Marks, charged through the payment port (see {@link Justice}). */
+    record FineMarks(long marks) implements Term {
+        public double severity(Knobs knobs) { return knobs.custodyFineCapMarks <= 0 ? 0 : (double) marks / knobs.custodyFineCapMarks; }
     }
 
     /** Items into a named chest by a deadline. */

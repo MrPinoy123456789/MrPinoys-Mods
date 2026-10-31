@@ -205,7 +205,7 @@ final class GranaryTest {
         Clock.Manual clock = new Clock.Manual(1_800_000_000_000L);
         try (CharterRuntime rt = RuntimeTest.open(dir, knobs, clock, new RuntimeTest.FakeMessenger())) {
             Outcome out = rt.engine.run(new Actor.System(), new SpawnNpc("Gnashers", "{}",
-                    NpcBook.Kind.STRONGHOLD, new ChunkKey(FullState.OW, 40, 40), 16, 128, false));
+                    NpcBook.Kind.STRONGHOLD, new ChunkKey(FullState.OW, 40, 40), 144, false));
             check("granary npc: the raiders founded", !out.refused());
             OrgId org = rt.state.orgNamed("Gnashers").orElseThrow().id;
             Core keep = rt.state.coresOf(org).getFirst();

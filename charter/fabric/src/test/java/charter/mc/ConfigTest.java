@@ -30,7 +30,7 @@ final class ConfigTest {
         Knobs knobs = CharterConfig.readOrCreate(dir, info::add, s -> { });
         Path file = dir.resolve(CharterConfig.FILE_NAME);
         check("config: a missing file is created", Files.exists(file));
-        check("config: defaults are returned", knobs.keepPriceDiamonds == 64 && knobs.timeScale == 1.0);
+        check("config: defaults are returned", knobs.keepPriceMarks == 2048 && knobs.timeScale == 1.0);
         String text = Files.readString(file, StandardCharsets.UTF_8);
         check("config: the written file names every knob", text.contains("\"granaryMaxChests\"") && text.contains("\"labourTerms\""));
         check("config: writing the defaults is logged", info.stream().anyMatch(s -> s.contains("Wrote default config")));
@@ -40,9 +40,9 @@ final class ConfigTest {
 
     static void missingKeysKeepTheirDefaults() throws Exception {
         Path dir = Files.createTempDirectory("charter-config");
-        Files.writeString(dir.resolve(CharterConfig.FILE_NAME), "{ \"timeScale\": 24, \"keepPriceDiamonds\": 10 }");
+        Files.writeString(dir.resolve(CharterConfig.FILE_NAME), "{ \"timeScale\": 24, \"keepPriceMarks\": 10 }");
         Knobs knobs = CharterConfig.readOrCreate(dir, s -> { }, s -> { });
-        check("config: a value in the file is used", knobs.timeScale == 24 && knobs.keepPriceDiamonds == 10);
+        check("config: a value in the file is used", knobs.timeScale == 24 && knobs.keepPriceMarks == 10);
         check("config: a key missing from the file keeps its default", knobs.storageLimitHours == 84 && knobs.drainPerMouthPerHour == 10);
         check("config: a missing list keeps its default", knobs.claimDimensions.equals(List.of("minecraft:overworld")));
     }

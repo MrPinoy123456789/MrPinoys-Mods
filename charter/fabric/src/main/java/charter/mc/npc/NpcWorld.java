@@ -162,9 +162,8 @@ public final class NpcWorld {
         ServerLevel level = server.overworld();
         int tier = NpcPlacement.tier(spawnChunk(level), center, rt.knobs);
         String name = nextName(rt);
-        long diamonds = kind == NpcBook.Kind.STRONGHOLD ? rt.knobs.npcDiamonds[tier] : 0;
-        long cobblestone = kind == NpcBook.Kind.STRONGHOLD ? rt.knobs.npcCobblestone[tier] : 0;
-        Outcome out = rt.engine.run(new Actor.System(), new SpawnNpc(name, Text.get("npc.banner"), kind, center, diamonds, cobblestone, replacement));
+        long marks = kind == NpcBook.Kind.STRONGHOLD ? rt.knobs.npcTreasuryMarks[tier] : 0;
+        Outcome out = rt.engine.run(new Actor.System(), new SpawnNpc(name, Text.get("npc.banner"), kind, center, marks, replacement));
         if (out instanceof Outcome.Refused(Reason reason)) return reason.text();
         OrgId org = rt.state.orgNamed(name).orElseThrow().id;
         Core core = rt.state.coresOf(org).getFirst();
@@ -442,8 +441,8 @@ public final class NpcWorld {
 
     /**
      * Takes a site down: its raiders, its cores, fixtures and granary, its faction and its claim, and the ground put back
-     * from the snapshot (or, with none, cleared to the surface). {@code loot} spills a share of its treasury where it
-     * stood once the ground is back; {@code retire} also awaits a replacement; {@code slowly} lets the blocks come down a
+     * from the snapshot (or, with none, cleared to the surface). {@code loot} plunders a share of its treasury to the
+     * kingdom that beat it; {@code retire} also awaits a replacement; {@code slowly} lets the blocks come down a
      * layer at a time (an operator's clear is instant). Returns the faction's name.
      */
     static String dismantle(MinecraftServer server, NpcBook.Site site, boolean loot, boolean retire, boolean slowly, long now) {
@@ -453,7 +452,7 @@ public final class NpcWorld {
         NpcBook.Live live = book.live.get(site.id());
         BlockPos home = homeOf(rt, level, site, live);
         String name = rt.describe.org(site.org());
-        long[] share = loot ? lootShare(rt, site) : new long[]{0, 0};
+        if (loot) plunder(rt, level, home, site);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) level.getChunk(site.chunk().x() + dx, site.chunk().z() + dz);
         }
@@ -466,7 +465,7 @@ public final class NpcWorld {
         for (Mob mob : tagged(level, home)) mob.discard();
         GranaryService granaries = Granaries.service();
         for (Core core : List.copyOf(rt.state.coresOf(site.org()))) {
-            SiegeWorld.physical(core.id, core.center, true, Map.of());
+            SiegeWorld.physical(core.id, core.center, true);
             if (granaries != null) granaries.book().remove(core.id);
             Fixtures.of(rt.state).removeCore(core.id);
         }
@@ -481,8 +480,6 @@ public final class NpcWorld {
         crumble.homeX = home.getX();
         crumble.homeY = home.getY();
         crumble.homeZ = home.getZ();
-        crumble.diamonds = share[0];
-        crumble.cobblestone = share[1];
         // Only the positions the site changed, and only those that now hold something, come down layer by layer.
         for (int[] b : ground.blocks) {
             if (!level.getBlockState(new BlockPos(b[0], b[1], b[2])).isAir()) crumble.pending.add(new int[]{b[0], b[1], b[2]});
@@ -502,29 +499,26 @@ public final class NpcWorld {
         return name;
     }
 
-    /** A quarter of the treasury's diamonds and of its cobblestone. */
-    private static long[] lootShare(CharterRuntime rt, NpcBook.Site site) {
-        var org = rt.state.org(site.org());
-        if (org.isEmpty()) return new long[]{0, 0};
-        return new long[]{org.get().ledger.balance(charter.treasury.Currency.DIAMOND) / 4,
-                org.get().ledger.balance(charter.treasury.Currency.COBBLESTONE) / 4};
-    }
-
-    /** As at most {@code npcFallLoot} stacks, diamonds first. */
-    private static List<ItemStack> lootStacks(CharterRuntime rt, long diamonds, long cobble) {
-        List<ItemStack> stacks = new ArrayList<>();
-        while (stacks.size() < rt.knobs.npcFallLoot && (diamonds > 0 || cobble > 0)) {
-            if (diamonds > 0) {
-                int n = (int) Math.min(64, diamonds);
-                stacks.add(new ItemStack(Items.DIAMOND, n));
-                diamonds -= n;
-            } else {
-                int n = (int) Math.min(64, cobble);
-                stacks.add(new ItemStack(Items.COBBLESTONE, n));
-                cobble -= n;
-            }
+    /**
+     * A quarter of the fallen site's treasury is plundered by the kingdom with the most members near the site (within the
+     * fight radius, online), through the payment port: charged to the site, credited to the winner only if the charge
+     * succeeded. With no provider, or nobody near, nothing is taken.
+     */
+    private static void plunder(CharterRuntime rt, ServerLevel level, BlockPos home, NpcBook.Site site) {
+        if (!charter.mc.Treasury.available(rt) || rt.state.org(site.org()).isEmpty()) return;
+        long share = rt.state.payment.balance(site.org().toString()) / 4;
+        if (share <= 0) return;
+        Map<OrgId, Integer> near = new java.util.LinkedHashMap<>();
+        for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
+            if (p.level() != level || Math.abs(p.getBlockX() - home.getX()) > 48 || Math.abs(p.getBlockZ() - home.getZ()) > 48) continue;
+            rt.state.membership(new charter.id.PlayerId(p.getUUID())).ifPresent(m -> near.merge(rt.state.root(m.org()), 1, Integer::sum));
         }
-        return stacks;
+        OrgId winner = null;
+        for (Map.Entry<OrgId, Integer> e : near.entrySet()) {
+            if (!e.getKey().equals(site.org()) && (winner == null || e.getValue() > near.get(winner))) winner = e.getKey();
+        }
+        if (winner == null) return;
+        if (rt.state.payment.charge(site.org().toString(), share, "plunder")) rt.state.payment.credit(winner.toString(), share, "plunder");
     }
 
     /** For a site raised before snapshots: what to clear (its palette blocks within reach) and what to leave in their place. */
@@ -573,10 +567,6 @@ public final class NpcWorld {
             return false;
         }
         restore(level, c.restore);
-        CharterRuntime rt = CharterServer.runtime();
-        for (ItemStack stack : lootStacks(rt, c.diamonds, c.cobblestone)) {
-            level.addFreshEntity(new ItemEntity(level, c.homeX + 0.5, c.homeY + 1, c.homeZ + 0.5, stack));
-        }
         return true;
     }
 

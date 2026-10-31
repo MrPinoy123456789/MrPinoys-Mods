@@ -64,7 +64,7 @@ public final class ContractBook {
         return Collections.unmodifiableCollection(custody.values());
     }
 
-    // ---- a player's own deposit (a fine comes from here and nowhere else) ----
+    // ---- a player's own deposit: the old safe, stored but closed (fines are paid through the payment port) ----
 
     public Ledger vault(PlayerId player) {
         return vault.computeIfAbsent(player, p -> new Ledger());
