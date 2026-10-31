@@ -67,6 +67,14 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Structure salts
+
+`tools/worldgen/kingdom_structure_salts` is a world datapack (installed in `/world/datapacks` on d212ecae) that gives
+ancient cities and trial chambers their own placement salt, so a player who learns the world seed still cannot find them
+with a finder tool. It affects only chunks generated after it was installed; the world was already about 880 MB of region
+files when it went in, so structures in that area stay at their vanilla positions. The seed itself is not hidden: a
+client can still work it out from what it sees. Keep the datapack and its salts private. Its README says how to update it.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check
