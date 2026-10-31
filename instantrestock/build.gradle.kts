@@ -1,0 +1,39 @@
+plugins {
+    id("net.fabricmc.fabric-loom") version "1.17-SNAPSHOT"
+    `java-library`
+}
+
+version = "0.1.0"
+group = "instantrestock"
+base { archivesName = "MrPinoys_InstantRestock" }
+repositories { mavenLocal() }
+dependencies {
+    minecraft("com.mojang:minecraft:26.3")
+    implementation("net.fabricmc:fabric-loader:0.19.5")
+    implementation("net.fabricmc.fabric-api:fabric-api:0.165.0+26.3")
+}
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+tasks.withType<JavaCompile>().configureEach {
+    options.release = 25
+    options.encoding = "UTF-8"
+}
+tasks.processResources {
+    inputs.property("version", project.version)
+    filesMatching("fabric.mod.json") { expand("version" to project.version) }
+}
+fabricApi.configureTests {
+    createSourceSet = true
+    modId = "instantrestock-gametest"
+    enableGameTests = true
+    enableClientGameTests = false
+}
+tasks.register<Copy>("dist") {
+    dependsOn("jar")
+    from(layout.buildDirectory.dir("libs"))
+    into(rootProject.projectDir.parentFile.resolve("dist"))
+    exclude("*-sources.jar")
+}

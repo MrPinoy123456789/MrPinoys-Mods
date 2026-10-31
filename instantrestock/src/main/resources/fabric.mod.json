@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "instantrestock",
+  "version": "${version}",
+  "name": "Instant Restock",
+  "description": "A villager's trades come back the moment one is used.",
+  "environment": "server",
+  "mixins": ["instantrestock.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.3",
+    "java": ">=25"
+  }
+}
