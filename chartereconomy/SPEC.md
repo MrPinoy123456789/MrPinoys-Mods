@@ -5,8 +5,8 @@
 > marked **[R]** below. The build order is in `PLAN.md`.
 >
 > **Mod:** `chartereconomy`, display name **Charter Economy**. One standalone mod
-> owns the whole system: bank, shop, Mint, kingdoms, charters and all three
-> currencies. It is a sibling of `cobbleeconomy`, built the same way, and does not
+> owns the whole system: bank, shop, Mint, kingdoms, charters, land claims and
+> all three currencies. It is a sibling of `cobbleeconomy`, built the same way, and does not
 > depend on it or change it (owner, 2026-10-31).
 >
 > **Server:** the Kingdoms (charter) server, a separate server from the cobblestone
@@ -36,7 +36,7 @@ The owner's brief: two currencies for players, one for kingdoms.
 | **Who holds it** | Players | Players | Kingdoms |
 | **Physical?** | Yes: three denominations | No: bank balance only | No: kingdom ledger only |
 | **Tradeable** | Yes (`/pay`, hand to hand) | No | No (spend-only) |
-| **Earned by** | Minting metal, bounties, quests, trade | Dungeons, events | The same events as Valor, mirrored |
+| **Earned by** | Minting metal, dungeon chests, trade | Dungeons, events | The same events as Valor, mirrored |
 | **Spent on** | Shop, services, upkeep, player trade | Personal prestige and convenience | Charter tiers, kingdom perks |
 | **Stored as** | Player bank balance | Player bank balance | Kingdom ledger |
 | **Feels like** | Money | A medal | A kingdom's reputation |
@@ -44,7 +44,8 @@ The owner's brief: two currencies for players, one for kingdoms.
 ### 2.1 Coin: one currency, three denominations **[R]**
 
 Copper, iron and gold coins are **one currency** with fixed face values, not three
-independent currencies.
+independent currencies. The ratio is 1:8:64 (owner, 2026-10-31): a stack of 64
+Marks is one Sovereign.
 
 | Denomination | Base item | Face value |
 |---|---|---|
@@ -164,15 +165,18 @@ Starting numbers, all in config and all expected to be retuned:
 
 | Tier | Renown (base) | Coin (base, Sovereigns) | Min active citizens | Unlocks |
 |---|---|---|---|---|
-| Camp | 0 | 4 (founding fee) | 1 | Seat, team colour, chat tag, claim area 1 |
-| Hamlet | 300 | 8 | 2 | Kingdom Mint, claim area 2, seat warp |
-| Village | 900 | 16 | 3 | Claim area 3, kingdom banner on the seat, kingdom bounty board |
-| Town | 2,000 | 32 | 4 | Claim area 4, territory aura (Haste I near the seat) |
-| City | 4,000 | 64 | 6 | Claim area 5, second seat warp, kingdom shop listing slot |
-| Realm | 8,000 | 128 | 8 | Claim area 6, Realm title, season crown eligibility in the top bracket |
+| Camp | 0 | 4 (founding fee) | 1 | Seat, team colour, chat tag, 9 claim chunks |
+| Hamlet | 300 | 8 | 2 | Kingdom Mint, 16 chunks, seat warp |
+| Village | 900 | 16 | 3 | 25 chunks, kingdom banner on the seat, respawn at the seat |
+| Town | 2,000 | 32 | 4 | 36 chunks, territory aura (Haste I inside claims) |
+| City | 4,000 | 64 | 6 | 49 chunks, second seat warp, kingdom shop listing slot |
+| Realm | 8,000 | 128 | 8 | 64 chunks, one detached outpost claim, Realm title, season crown eligibility in the top bracket |
 
-Renown and coin spent on a tier are destroyed. Tier effects go out through config
-command templates (`onTierUp`), so the claims mod, LuckPerms or scoreboard commands
+Every tier also adds 4 claim chunks per active citizen (section 4.6).
+
+Renown and coin spent on a tier are destroyed. Claims and the in-mod perks are
+applied directly. Anything outside the mod goes out through config command
+templates (`onTierUp`), so LuckPerms or scoreboard commands
 do the work and this mod never names them.
 
 ### 4.4 Upkeep
@@ -199,6 +203,48 @@ do the work and this mod never names them.
 - **Absent leader:** if the Sovereign has not logged in for 30 days, the most
   active Steward inherits the role automatically.
 
+### 4.6 Claims: the charter is the deed
+
+Charter Economy is partly a claims mod (owner, 2026-10-31): a kingdom's land is
+part of its charter, not a separate plugin's business. This overrules the
+review's "adopt a claims mod" advice; section 9 records why that is workable.
+
+- **Chunk claims.** A kingdom claims whole chunks with `/charter claim` while
+  standing in them. Allowance: the tier's base chunks plus 4 per active citizen.
+  Claims must touch the kingdom's existing land (no sprawl across the map); a
+  Realm may hold one detached outpost.
+- **Claiming costs coin**, a one-time 8 Crowns per chunk, destroyed. Unclaiming
+  refunds nothing. This is the everyday coin sink for a growing kingdom.
+- **Who may do what** inside a claim, by role, with per-kingdom toggles: build and
+  break, open containers, use doors and redstone, hurt animals, ride. Citizens get
+  everything by default; outsiders get nothing; **allies** (a kingdom-to-kingdom
+  pact, both sides agree) get doors and doors only unless granted more.
+- **Visible borders.** Walking into a claim shows the kingdom's name on the action
+  bar in its team colour; `/charter map` prints the surrounding chunks in chat;
+  `/charter claim show` draws the border with particles for 10 seconds.
+- **Kingdomless players** can found a one-person Camp, which is a 9-chunk claim
+  for a single home. A charter is the only way to own land.
+- **Protection never lapses for unpaid upkeep** (section 4.4). A kingdom whose
+  every member has been inactive for 60 days becomes **ruined**: its claims stay
+  protected against building and breaking, but its containers open to anyone. The
+  builds are never deleted; what was left inside becomes loot. Operators can
+  extend or disable this per kingdom.
+
+What protection covers, and how:
+
+| Threat | How it is stopped | Mixin? |
+|---|---|---|
+| Players breaking, placing, using blocks, hitting animals or item frames | Fabric API events (`PlayerBlockBreakEvents`, `UseBlockCallback`, `AttackBlockCallback`, `UseEntityCallback`, `AttackEntityCallback`) | No |
+| Creeper and ghast block damage | The `mobGriefing` game rule, server-wide | No |
+| TNT and other explosions from outside a claim | Filter the explosion's block list to drop claimed blocks | Yes, one |
+| Pistons pushing across a claim border | Cancel the move if any block crosses into a different owner's claim | Yes, one |
+| Lava and water flowing across a claim border | Cancel the spread when source and target differ in owner | Yes, one |
+| Fire spreading into a claim | Cancel ignition of a claimed block from an unclaimed source | Yes, one |
+
+Four small, single-purpose mixins, each behind a config switch, are the
+justification `docs/DESIGN.md` asks for: without them a claim is a sign, not a
+wall. They are the only mixins in the mod.
+
 ## 5. Earning: the faucets
 
 ### 5.1 One earning endpoint
@@ -221,13 +267,13 @@ already uses; none of them imports Charter Economy.
 |---|---|---|---|
 | Dungeon run settled (`dungeon`) | 10 + 2 per keystone level | same as Valor | 150, then half |
 | Dungeon capstone or boss first clear (`capstone`) | 50 | 50 | once per dungeon per week |
-| Quiz round win (`quiz`) | 15 | 15 | 60 |
-| Bounty completed (`bounty`) | 10 | 10 | 40 |
 | Build competition placing (`buildoff`) | 100 / 60 / 30 | same | per event |
 | Server event participation (`event`) | 20 | 20 | per event |
 
-Coin faucets (paid as physical coin items, the suite's normal way): bounties,
-daily quests, the chat donkey's gift, dungeon reward chests, Wayfarer traders.
+Coin faucets: the Mint, coin items in dungeon reward chests, and trade. Other suite
+mods (bounties, quizengine, chatdonkey) are not on the charter server; if one is
+added later, it joins through the same `/charter earn` template and a source row
+here.
 
 ### 5.3 Renown rules **[R]**
 
@@ -286,14 +332,14 @@ Starting prices: 150 for a title, 300 to 600 for trims and patterns, 1,000 to
 
 Charter tiers first. Then perks, bought by the kingdom and paused by unpaid upkeep:
 an extra seat warp, a territory aura upgrade, a kingdom monument banner, an extra
-kingdom shop slot, a kingdom bounty board posting.
+kingdom shop slot, extra claim chunks beyond the tier allowance.
 
 ## 7. The loops
 
 | Loop | What the player does | What they feel |
 |---|---|---|
 | **Session** | Mine, mint, build, trade; run a dungeon for Valor and loot | "I made money" and "I did something brave" |
-| **Daily** | Fill today's mint allowance; bounties and quests; one dungeon run | A short, finishable list, with carry-over so missing a day costs nothing |
+| **Daily** | Fill today's mint allowance; one dungeon run; tend the kingdom's land | A short, finishable list, with carry-over so missing a day costs nothing |
 | **Weekly** | Kingdom upkeep (Sunday), the Valor shelf rotates, a scheduled event or build-off | "Our kingdom is moving" |
 | **Season (8 weeks)** | Climb the Valor board; your kingdom climbs its bracket | A title and a crown. The world never resets |
 
@@ -328,14 +374,13 @@ every mod must version against (`docs/DESIGN.md` §2). The two mods never run on
 same server, share no config, and Cobble Economy is not changed.
 
 
-**Claims: adopt, do not build.** Protecting land from explosions, pistons, fluids,
-fire and mob griefing has no Fabric API events, so a home-made claims system means
-mixins. Candidates (26.2 availability unverified for all of them): **Open Parties
-and Claims** and **Flan** (both vanilla-client friendly), **Get Off My Lawn**.
-FTB Chunks expects a client install, so it is out. Kingdom perks reach the claims
-mod through `onTierUp` command templates; if a mod needs to ask "may this player
-build here", **Common Protection API** is the seam that does not name the claims
-mod.
+**Claims: built in, not adopted.** The review recommended adopting Open Parties
+and Claims or Flan because environmental protection has no Fabric API events. The
+owner chose to make claims part of the charter (section 4.6). The cost is the four
+small mixins listed there; the gain is one mod that owns land, money and kingdoms
+together, with no outside mod to wait on for a 26.2 build. If another mod ever
+needs to ask "may this player build here", Charter Economy can register with
+**Common Protection API** (if it has a 26.2 build) without that mod naming it.
 
 **Also useful:** vanilla scoreboard teams (colour, tag, team chat, no mod needed),
 Placeholder API (kingdom and title tags in chat), LuckPerms (rank meta).
@@ -345,20 +390,19 @@ Placeholder API (kingdom and title tags in chat), LuckPerms (rank meta).
 | Mod | Role on the charter server |
 |---|---|
 | pocketdungeons | Main Valor and Renown faucet through `payoutCommand` |
-| quizengine, bounties | Valor faucet via a command template; coin rewards as configurable items |
-| ballot | Build-offs and season prizes now; kingdom votes once it has a voter list |
-| wayfarers | Traders priced in coin; sell kingdom cosmetics by suite tag |
+| ballot | (if added) Build-offs and season prizes now; kingdom votes once it has a voter list |
+| wayfarers | (if added) Traders priced in coin; sell kingdom cosmetics by suite tag |
 | wondrous, spiritwolves | Sink targets: power in coin, convenience and cosmetics in Valor |
-| chatdonkey | Small coin gift |
 
 ## 10. Open questions for the owner
 
-1. **Which claims mod?** Open Parties and Claims is the recommendation, pending a
-   26.2 build.
-2. **Denominations 1:8:64, or 1:10:100?** Eights match a Minecraft stack (64 Marks
-   is a stack of copper and one Sovereign); tens are easier mental arithmetic.
-3. **Should a kingdom's Mint pay a small fee into its treasury?** The review argued
+1. **Should a kingdom's Mint pay a small fee into its treasury?** The review argued
    against any fee a leader controls. Since the treasury is deposit-only, a fee is
    safe; the question is whether players will mint at home at all with a fee.
-4. **PvP and war between kingdoms:** out of scope here. If wanted, Renown is the
+2. **PvP and war between kingdoms:** out of scope here. If wanted, Renown is the
    natural stake, and that is its own design pass.
+3. **Ruined kingdoms:** 60 days of total inactivity opens a kingdom's containers
+   but never its blocks. Is that the right line, or should ruined land stay fully
+   protected?
+4. **Claim price:** 8 Crowns a chunk, one time. A recurring per-chunk charge would
+   be a stronger sink but is the Towny pattern the review warned about.

@@ -54,9 +54,12 @@
 | Season crown split by bracket, scored per active citizen | 7 | Accepted |
 | Cut the market tax and the weekly "Valor pledged" board | n/a | Accepted; both removed |
 | Collapse back to cobblestone and diamonds plus one kingdom unit | header | **Overruled.** The charter server is its own economy (owner confirmed 2026-10-31), and the owner asked for metal coins |
-| Adopt a claims mod; building claims needs mixins | 9 | Accepted |
+| Adopt a claims mod; building claims needs mixins | 4.6, 9 | **Overruled by the owner.** Charter Economy is partly a claims mod. Player actions use Fabric API events; four small mixins cover explosions, pistons, fluids and fire |
 
 **After the review:** the owner decided the whole system is one standalone mod,
 Charter Economy (`chartereconomy`). The review's "code needed in cobbleeconomy"
 findings above still describe the work, but it now happens in a fork of Cobble
 Economy's code inside the new mod, and Cobble Economy itself is not changed.
+The owner also confirmed the 1:8:64 denominations, and that bounties, quizengine
+and chatdonkey are not on the charter server, so the review's four-mod faucet
+refactor is dropped; only pocketdungeons needs its run placeholders.

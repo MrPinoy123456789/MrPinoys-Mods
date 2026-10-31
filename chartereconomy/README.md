@@ -2,7 +2,7 @@
 
 **Strike coin, earn Valor, raise your kingdom's charter.**
 
-A server-side Fabric economy and kingdom progression mod for the Kingdoms (charter)
+A server-side Fabric economy, land claims and kingdom progression mod for the Kingdoms (charter)
 server. Minecraft 26.2, JDK 25. Vanilla clients need nothing installed.
 
 > **Status:** design only, 2026-10-31. No code yet.

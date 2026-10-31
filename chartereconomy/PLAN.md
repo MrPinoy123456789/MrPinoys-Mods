@@ -1,21 +1,23 @@
 # Charter Economy: Build Plan
 
 > Reads with `SPEC.md`. Phases are ordered so each one ships something playable
-> and nothing waits on an unverified outside mod until phase 4.
+> and nothing waits on an outside mod.
 
 ## Where the code lives
 
 Everything is one new mod, `chartereconomy` (**Charter Economy**), in the house
 layout: `core/` (pure Java, no Minecraft on the classpath, tested in about a
 second) and `fabric/` (the mod). JDK 25, Minecraft 26.2,
-`"environment": "server"`, zero mixins. Commands: `/bank`, `/balance`, `/pay`,
+`"environment": "server"`. Four small mixins, all for claim protection
+(explosions, pistons, fluids, fire), each behind a config switch; nothing else
+uses one. Commands: `/bank`, `/balance`, `/pay`,
 `/shop`, `/buy`, `/baltop` for players, `/charter` for kingdoms and the Mint.
 
 | Piece | Where |
 |---|---|
 | Coin denominations, Valor, bank, shop | `chartereconomy` (forked from Cobble Economy, then extended) |
 | Mint, kingdoms, charters, Renown, upkeep, `/charter earn` | `chartereconomy` |
-| Claims | An adopted mod (Open Parties and Claims, pending a 26.2 build). Protection needs mixins; do not build it |
+| Land claims and protection | `chartereconomy` (SPEC section 4.6) |
 
 `cobbleeconomy` is not touched; it keeps running the cobblestone server.
 
@@ -50,16 +52,12 @@ and `/pay` on Valor is refused.
 Done when a player can strike all three coins up to the allowance, buy from the
 shop, and a test `/charter earn` pays Valor.
 
-## Phase 3: faucets speak coin and Valor (small changes in four mods)
+## Phase 3: dungeons pay Valor and Renown
 
-1. **pocketdungeons**: add `%uuid%` and `%run%` to `Payout.substitute`; set
-   `payoutCommand` to `/charter earn %player% dungeon %level% %run%`.
-2. **bounties, quizengine, chatdonkey**: the hardcoded `Items.DIAMOND` reward
-   becomes a configurable reward item (`item`, `components`, `count`), defaulting
-   to diamonds so the cobblestone server is unchanged; plus an optional
-   `rewardCommand` template for Valor.
-3. **wayfarers**: `Payment` generalised from its two-currency wallet to a
-   configured currency with markers (the largest of the four; can trail).
+**pocketdungeons** is the only faucet mod on the charter server: add `%uuid%` and
+`%run%` to `Payout.substitute`, then set `payoutCommand` to
+`/charter earn %player% dungeon %level% %run%`. Bounties, quizengine and
+chatdonkey are not on this server and need no changes.
 
 ## Phase 4: kingdoms and charters
 
@@ -70,7 +68,12 @@ shop, and a test `/charter earn` pays Valor.
 4. Renown rules: per player cap, once per run per kingdom, probation, hop wait,
    Commons for kingdomless players.
 5. Renown spend approvals, `/charter ledger`, absent leader succession.
-6. Wire the adopted claims mod through templates (claim area per tier).
+6. **Claims**: chunk claims with the contiguity rule and per-tier allowance,
+   role permissions and ally pacts, Fabric API event protection for player
+   actions, then the four protection mixins (core tests for the claim map,
+   allowance and permission rules; gametests for each mixin).
+7. Borders: action bar on entry, `/charter map`, particle outline.
+8. Ruined kingdoms after 60 days of total inactivity.
 
 ## Phase 5: seasons and polish
 
