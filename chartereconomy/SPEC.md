@@ -4,8 +4,9 @@
 > Minecraft lead designer pass (`REVIEW.md`); every change that review forced is
 > marked **[R]** below. The build order is in `PLAN.md`.
 >
-> **Server:** the Kingdoms (charter) server. Minecraft 26.2, Fabric, JDK 25,
-> server-side only. Vanilla clients install nothing, the same rule as every mod in
+> **Server:** the Kingdoms (charter) server, a separate server from the cobblestone
+> and diamond one (owner, 2026-10-31). Coin replaces cobblestone and diamonds here.
+> Minecraft 26.2, Fabric, JDK 25, server-side only. Vanilla clients install nothing, the same rule as every mod in
 > this suite (`docs/DESIGN.md`).
 
 ---
@@ -338,15 +339,12 @@ Placeholder API (kingdom and title tags in chat), LuckPerms (rank meta).
 
 ## 10. Open questions for the owner
 
-1. **Is this a separate server from the cobblestone and diamond one?** The spec
-   assumes yes: coin replaces cobblestone and diamonds there. If both economies
-   must share one world, coin and diamonds need separate roles first.
-2. **Which claims mod?** Open Parties and Claims is the recommendation, pending a
+1. **Which claims mod?** Open Parties and Claims is the recommendation, pending a
    26.2 build.
-3. **Denominations 1:8:64, or 1:10:100?** Eights match a Minecraft stack (64 Marks
+2. **Denominations 1:8:64, or 1:10:100?** Eights match a Minecraft stack (64 Marks
    is a stack of copper and one Sovereign); tens are easier mental arithmetic.
-4. **Should a kingdom's Mint pay a small fee into its treasury?** The review argued
+3. **Should a kingdom's Mint pay a small fee into its treasury?** The review argued
    against any fee a leader controls. Since the treasury is deposit-only, a fee is
    safe; the question is whether players will mint at home at all with a fee.
-5. **PvP and war between kingdoms:** out of scope here. If wanted, Renown is the
+4. **PvP and war between kingdoms:** out of scope here. If wanted, Renown is the
    natural stake, and that is its own design pass.

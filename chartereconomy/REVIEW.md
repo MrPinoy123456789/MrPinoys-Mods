@@ -53,5 +53,5 @@
 | Power items out of the Valor shop | 6.1, 6.2 | Accepted: power in coin, convenience and cosmetics in Valor |
 | Season crown split by bracket, scored per active citizen | 7 | Accepted |
 | Cut the market tax and the weekly "Valor pledged" board | n/a | Accepted; both removed |
-| Collapse back to cobblestone and diamonds plus one kingdom unit | 10 | **Overruled.** The charter server is assumed to be its own economy, and the owner asked for metal coins. Recorded as open question 1 |
+| Collapse back to cobblestone and diamonds plus one kingdom unit | header | **Overruled.** The charter server is its own economy (owner confirmed 2026-10-31), and the owner asked for metal coins |
 | Adopt a claims mod; building claims needs mixins | 9 | Accepted |
