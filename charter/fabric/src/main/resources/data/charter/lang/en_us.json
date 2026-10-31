@@ -638,6 +638,7 @@
   "book.reject.title": "Turn away?",
   "book.reject.confirm": "Turn {player} away?",
   "book.decides.title": "Who decides",
+  "book.decides.locked": "The server sets how this kingdom is run for now, so it cannot be changed here.",
   "book.decides.intro": "A commune is run by its members, so changing how it is run is their vote.",
   "book.decides.now": "Now: {now}.",
   "book.decides.proposed": "Put to a vote of the members.",

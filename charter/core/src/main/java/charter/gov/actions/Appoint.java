@@ -26,6 +26,7 @@ public record Appoint(OrgId org, OfficeId office, PlayerId player) implements Ac
     public static final Reason NO_SUCH_OFFICE = new Reason("no_such_office", "There is no such office here.");
 
     public static final Reason ALREADY_SEATED = new Reason("already_seated", "That player already holds this office.");
+    public static final Reason LOCKED = new Reason("appointing_locked", "Offices are filled by the server for now.");
     public static final Reason NO_SEATS = new Reason("no_seats", "This office has no seats.");
     public static final Reason OFFICE_FULL = new Reason("office_full", "Every seat is taken. Remove someone first.");
 
@@ -51,6 +52,8 @@ public record Appoint(OrgId org, OfficeId office, PlayerId player) implements Ac
 
     @Override
     public Outcome check(ActionContext ctx) {
+        // An election the members hold still seats its winner; people with power may not seat anyone.
+        if (ctx.actor instanceof charter.engine.Actor.Player && !ctx.knobs.leadersAppointOffices) return Outcome.refuse(LOCKED);
         Optional<Office> found = ctx.state.office(office);
         if (found.isEmpty() || !found.get().org.equals(org)) return Outcome.refuse(NO_SUCH_OFFICE);
         if (Deciders.isDecisionOffice(ctx.state, found.get())) {

@@ -109,6 +109,10 @@ public final class Knobs {
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
     public int keepUpkeepDays = 14;
+    /** Whether a kingdom's deciders may change its form of government (Lordship, council, Commune). Off: only operators can. */
+    public boolean leadersChangeGovernance = true;
+    /** Whether anyone may be put into an office, or a new office made, by the people who hold power. Off: only operators, and the members' elections. */
+    public boolean leadersAppointOffices = true;
     /** Whether a keep eats from its granary and lapses when it runs dry. Off: keeps need no food, and only outposts keep a store. */
     public boolean keepGranary = true;
     /** Days of food left at which every member is warned, largest first. */

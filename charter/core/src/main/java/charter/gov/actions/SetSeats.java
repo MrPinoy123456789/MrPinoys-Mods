@@ -28,6 +28,7 @@ public record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding de
 
     public static final Reason BAD_SEATS = new Reason("bad_seats", "That is not a number of seats this faction may have.");
     public static final Reason NOT_DECIDER = Deciders.NOT_DECIDER;
+    public static final Reason LOCKED = new Reason("governance_locked", "The form of government is set by the server for now.");
     public static final Reason NO_CHANGE = new Reason("no_change", "That is how it already is.");
 
     @Override
@@ -57,6 +58,7 @@ public record SetSeats(OrgId org, OfficeId office, int seats, Office.Deciding de
 
     @Override
     public Outcome check(ActionContext ctx) {
+        if (!ctx.admin() && !ctx.knobs.leadersChangeGovernance) return Outcome.refuse(LOCKED);
         Optional<Office> found = ctx.state.office(office);
         if (found.isEmpty() || !found.get().org.equals(org)) return Outcome.refuse(Appoint.NO_SUCH_OFFICE);
         if (seats < 0 || seats > ctx.knobs.maxSeats || deciding == null) return Outcome.refuse(BAD_SEATS);

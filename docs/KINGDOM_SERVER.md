@@ -48,6 +48,14 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
   is not built yet. Turning it off again does not change anyone already inside.
 - Planned, not designed: an altar that swaps a player's race.
 
+## Locks on leaders
+
+Two knobs in `charter.json` (both default true, set both false on the kingdom server): `leadersChangeGovernance` stops
+a Lord or council changing the form of government (`SetSeats`), and `leadersAppointOffices` stops players seating anyone
+in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the members' elections still work, so a
+vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
+server sets it and offers no buttons.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check

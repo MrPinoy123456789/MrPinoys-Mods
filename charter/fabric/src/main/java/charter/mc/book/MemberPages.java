@@ -437,6 +437,18 @@ public final class MemberPages {
         if (!member(player)) return;
         Standing.View v = view(player).orElseThrow();
         Office deciders = deciders(v.org());
+        if (!rt().knobs.leadersChangeGovernance) {
+            // The form is set by the server: say who decides, and offer nothing to change.
+            List<String> names = new ArrayList<>();
+            if (deciders != null) for (Office.Seat seat : deciders.holders()) names.add(rt().describe.player(seat.player()));
+            List<String> fixed = new ArrayList<>();
+            fixed.add(Text.get("book.decides.locked"));
+            fixed.add(Text.get("book.decides.only", "now", deciders == null ? "" : choiceText(deciders.seats(), deciders.deciding()),
+                    "who", names.isEmpty() ? Text.get("book.decides.nobody") : String.join(", ", names)));
+            BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, fixed), List.of(),
+                    BookDialogs.back(player, p -> faction(p, null))));
+            return;
+        }
         if (deciders != null && deciders.seats() == 0) {
             whoDecidesMembers(player, notice);
             return;

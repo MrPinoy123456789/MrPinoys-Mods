@@ -28,6 +28,7 @@ public record CreateOffice(OrgId org, String name) implements Action {
 
     @Override
     public Outcome check(ActionContext ctx) {
+        if (ctx.actor instanceof charter.engine.Actor.Player && !ctx.knobs.leadersAppointOffices) return Outcome.refuse(Appoint.LOCKED);
         String trimmed = name == null ? "" : name.strip();
         if (trimmed.length() < 2 || trimmed.length() > 24) return Outcome.refuse(new Reason("bad_office_name", "That office name is too short or too long."));
         if (ctx.state.officeNamed(org, trimmed).isPresent()) return Outcome.refuse(new Reason("office_exists", "There is already an office with that name."));
