@@ -77,7 +77,7 @@ public final class TeleportGameTest {
             Core camp = kit.rt.state.coresOf(kit.orgOf(lord)).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
             helper.assertTrue(Teleports.start(lord, Teleports.Kind.OUTPOST) != null, "A camp still raising was a destination");
             camp.setPhase(charter.land.CampPhase.ACTIVE, 0);
-            helper.assertTrue(camp.deposit > 0, "The outpost holds no deposit");
+            helper.assertTrue(camp.depositMarks > 0, "The outpost holds no deposit");
             String empty = Teleports.start(lord, Teleports.Kind.OUTPOST);
             helper.assertTrue(empty != null && empty.contains("no food"), "An outpost with no food was a destination: " + empty);
 

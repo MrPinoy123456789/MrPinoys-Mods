@@ -20,8 +20,6 @@ import charter.org.Organization;
 import charter.org.actions.ChooseMercenaryRace;
 import charter.org.actions.Found;
 import charter.org.actions.InviteMember;
-import charter.treasury.Currency;
-import charter.treasury.actions.Deposit;
 import charter.treasury.actions.Withdraw;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -119,8 +117,8 @@ public final class CharterCommands {
                         .then(Commands.literal("vote").executes(ctx -> page(ctx, Pages::votes)))
                         .then(Commands.literal("vault")
                                 .executes(ctx -> page(ctx, Pages::vault))
-                                .then(Commands.literal("deposit").then(currencyAmount(true)))
-                                .then(Commands.literal("withdraw").then(currencyAmount(false))))
+                                .then(Commands.literal("deposit").executes(CharterCommands::depositElsewhere))
+                                .then(Commands.literal("withdraw").then(withdrawAmount())))
                         .then(Commands.literal("act")
                                 .then(Commands.argument("token", StringArgumentType.word())
                                         .executes(CharterCommands::act)))
@@ -131,11 +129,8 @@ public final class CharterCommands {
                         .then(AdminCommands.tree())));
     }
 
-    private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> currencyAmount(boolean deposit) {
-        return Commands.argument("currency", StringArgumentType.word())
-                .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"cobblestone", "diamond"}, b))
-                .then(Commands.argument("amount", IntegerArgumentType.integer(1))
-                        .executes(ctx -> deposit ? deposit(ctx) : withdraw(ctx)));
+    private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, Integer> withdrawAmount() {
+        return Commands.argument("amount", IntegerArgumentType.integer(1)).executes(CharterCommands::withdraw);
     }
 
     // ---- shared ----
@@ -343,87 +338,25 @@ public final class CharterCommands {
 
     // ---- the vault ----
 
-    static Optional<Currency> currency(String name) {
-        try {
-            return Optional.of(Currency.valueOf(name.toUpperCase(Locale.ROOT)));
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
-        }
-    }
-
-    private static int deposit(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
-        CharterRuntime rt = CharterServer.runtime();
-        Optional<OrgId> org = orgOf(rt, player);
-        Optional<Currency> currency = currency(StringArgumentType.getString(ctx, "currency"));
-        int amount = IntegerArgumentType.getInteger(ctx, "amount");
-        if (org.isEmpty() || currency.isEmpty()) {
-            ctx.getSource().sendFailure(Chat.bad(Text.get(org.isEmpty() ? "page.no_org" : "vault.bad_currency")));
-            return 0;
-        }
-        int carried = count(player, currency.get());
-        if (carried < amount) {
-            ctx.getSource().sendFailure(Chat.bad(Text.get("vault.not_carried", "count", carried,
-                    "currency", charter.mc.Describe.currency(currency.get(), carried))));
-            return 0;
-        }
-        int done = perform(player, new Deposit(org.get(), currency.get(), amount), Text.get("vault.deposited",
-                "amount", amount, "currency", charter.mc.Describe.currency(currency.get(), amount)));
-        if (done == 1) take(player, currency.get(), amount);
-        return done;
+    private static int depositElsewhere(CommandContext<CommandSourceStack> ctx) {
+        ctx.getSource().sendFailure(Chat.bad(Text.get("vault.deposit_elsewhere")));
+        return 0;
     }
 
     private static int withdraw(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         CharterRuntime rt = CharterServer.runtime();
         Optional<OrgId> org = orgOf(rt, player);
-        Optional<Currency> currency = currency(StringArgumentType.getString(ctx, "currency"));
         int amount = IntegerArgumentType.getInteger(ctx, "amount");
-        if (org.isEmpty() || currency.isEmpty()) {
-            ctx.getSource().sendFailure(Chat.bad(Text.get(org.isEmpty() ? "page.no_org" : "vault.bad_currency")));
+        if (org.isEmpty()) {
+            ctx.getSource().sendFailure(Chat.bad(Text.get("page.no_org")));
             return 0;
         }
-        // The items reach the player through the Withdrawn event (Notices), the same way a vote's payout does.
-        return perform(player, new Withdraw(org.get(), currency.get(), amount, id(player)), Text.get("vault.withdrawn",
-                "amount", amount, "currency", charter.mc.Describe.currency(currency.get(), amount)));
-    }
-
-    /** Everything of this currency the player carries, paid into their faction's treasury. Returns the amount paid, 0 if none or refused. */
-    public static int depositAll(ServerPlayer player, Currency currency) {
-        CharterRuntime rt = CharterServer.runtime();
-        Optional<OrgId> org = orgOf(rt, player);
-        int carried = count(player, currency);
-        if (org.isEmpty() || carried <= 0) return 0;
-        int done = perform(player, new Deposit(org.get(), currency, carried), Text.get("vault.deposited",
-                "amount", carried, "currency", charter.mc.Describe.currency(currency, carried)));
-        if (done != 1) return 0;
-        take(player, currency, carried);
-        return carried;
-    }
-
-    /** How much of this currency the player carries. */
-    public static int carried(ServerPlayer player, Currency currency) {
-        return count(player, currency);
-    }
-
-    static int count(ServerPlayer player, Currency currency) {
-        int n = 0;
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && CharterServer.itemId(stack).equals(currency.itemId)) n += stack.getCount();
+        if (!charter.mc.Treasury.available(rt)) {
+            ctx.getSource().sendFailure(Chat.bad(Text.get("vault.no_currency")));
+            return 0;
         }
-        return n;
-    }
-
-    static void take(ServerPlayer player, Currency currency, int amount) {
-        int left = amount;
-        for (int i = 0; i < player.getInventory().getContainerSize() && left > 0; i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (stack.isEmpty() || !CharterServer.itemId(stack).equals(currency.itemId)) continue;
-            int n = Math.min(left, stack.getCount());
-            stack.shrink(n);
-            left -= n;
-        }
-        player.getInventory().setChanged();
+        // The coin reaches the player through the WithdrawnMarks event (Notices), the same way a vote's payout does.
+        return perform(player, new Withdraw(org.get(), amount, id(player)), Text.get("vault.withdrawn", "amount", amount));
     }
 }

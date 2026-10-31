@@ -8,7 +8,6 @@ import charter.mc.CharterServer;
 import charter.mc.Text;
 import charter.mc.cmd.CharterCommands;
 import charter.org.OrgStatus;
-import charter.treasury.Currency;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
@@ -81,14 +80,16 @@ public final class VoteCommandGameTest {
         asOp(server, "charter admin age " + bob.getUUID() + " 4");
 
         // The vault.
+        GamePort port = GamePort.of(rt);
+        port.fund(org, 10);
         alice.getInventory().add(new ItemStack(Items.DIAMOND, 10));
-        as(alice, "charter vault deposit diamond 10");
-        helper.assertTrue(rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == 10, "The deposit did not reach the treasury");
-        helper.assertTrue(diamonds(alice) == 0, "The deposited diamonds were not taken");
+        as(alice, "charter vault deposit");
+        helper.assertTrue(port.marks(org) == 10, "A vault deposit changed the treasury");
+        helper.assertTrue(diamonds(alice) == 10, "The vault took diamonds");
 
         // A spend needs a vote: propose it, then Bob votes yes from his vote page.
-        as(alice, "charter vault withdraw diamond 4");
-        helper.assertTrue(rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == 10, "A commune member spent without a vote");
+        as(alice, "charter vault withdraw 4");
+        helper.assertTrue(port.marks(org) == 10, "A commune member spent without a vote");
         click(helper, alice, "link.propose");
         Vote vote = rt.state.votes().stream().filter(v -> v.org.equals(org) && v.open()).findFirst().orElse(null);
         helper.assertTrue(vote != null, "Proposing the spend opened no vote");
@@ -96,8 +97,7 @@ public final class VoteCommandGameTest {
         click(helper, bob, "link.yes");
 
         helper.assertTrue(vote.state() == Vote.State.EXECUTED, "The spend vote was not carried out: " + vote.state());
-        helper.assertTrue(rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == 6, "The vote did not move the treasury");
-        helper.assertTrue(diamonds(alice) == 4, "The payee did not get the diamonds: " + diamonds(alice));
+        helper.assertTrue(rt.state.history.has(charter.treasury.TreasuryEvents.WithdrawnMarks.class), "The vote did not record the withdrawal");
 
         // A used link is gone.
         helper.assertTrue(CharterCommands.tokens().newest(bob.getUUID(), Text.get("link.yes")).isEmpty(), "A clicked link was not used up");

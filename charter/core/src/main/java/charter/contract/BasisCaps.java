@@ -35,7 +35,7 @@ public final class BasisCaps {
     public static boolean allows(Basis basis, Term term) {
         return switch (basis) {
             case CUSTODY -> term instanceof Term.Confinement || term instanceof Term.Tether
-                    || term instanceof Term.Banishment || term instanceof Term.RespawnDelay || term instanceof Term.Fine;
+                    || term instanceof Term.Banishment || term instanceof Term.RespawnDelay || term instanceof Term.FineMarks;
             case WAR_GOAL -> term instanceof Term.Payment || term instanceof Term.Delivery || term instanceof Term.GrantTerm
                     || term instanceof Term.Cede || term instanceof Term.RelationLock || term instanceof Term.ClaimLimit
                     || term instanceof Term.Release;
@@ -50,10 +50,11 @@ public final class BasisCaps {
             case Term.Tether t -> knobs.labourTerms ? held(term, t.durationMillis(), knobs) : Checked.refuse(ContractReasons.BOND_OFF);
             case Term.Banishment b -> limited(term, b.durationMillis(), Durations.hours(knobs.banishmentMaxHours));
             case Term.RespawnDelay r -> limited(term, r.durationMillis(), Durations.minutes(knobs.executionRespawnDelayMaxMinutes));
-            case Term.Fine f -> {
-                if (f.diamonds() <= 0) yield Checked.refuse(ContractReasons.BAD_TERM);
-                long cap = knobs.custodyFineCapDiamonds;
-                yield f.diamonds() > cap ? Checked.ok(new Term.Fine(cap), true) : Checked.ok(term, false);
+            case Term.Fine f -> Checked.refuse(ContractReasons.NOT_ALLOWED);
+            case Term.FineMarks f -> {
+                if (f.marks() <= 0) yield Checked.refuse(ContractReasons.BAD_TERM);
+                long cap = knobs.custodyFineCapMarks;
+                yield f.marks() > cap ? Checked.ok(new Term.FineMarks(cap), true) : Checked.ok(term, false);
             }
             case Term.Access a -> limited(term, a.durationMillis(), Durations.days(knobs.occupationCapDays));
             case Term.GrantTerm g -> limited(term, g.durationMillis(), Durations.days(knobs.imposedVassalageCapDays));

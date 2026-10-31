@@ -84,7 +84,7 @@ public final class FoundingGameTest {
                     .filter(c -> c.kind() == ClaimKind.KEEP_CORE || c.kind() == ClaimKind.KEEP_RING).count();
             helper.assertTrue(claimed == 9, "The keep claims " + claimed + " chunks, not nine");
             helper.assertTrue(diamonds(player) == 0, "The player still holds " + diamonds(player) + " diamonds");
-            helper.assertTrue(org.ledger.balance(charter.treasury.Currency.DIAMOND) == 0, "The treasury is not empty");
+            helper.assertTrue(org.ledger.snapshot().isEmpty(), "The diamonds entered a treasury");
             helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).is(Blocks.LODESTONE), "The Nexus block is not standing");
             helper.succeed();
         }
@@ -128,10 +128,12 @@ public final class FoundingGameTest {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Member");
             OrgId org = kit.orgOf(lord);
-            long before = kit.rt.state.org(org).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND);
+            GamePort port = GamePort.of(kit.rt);
+            port.fund(org, 10_000);
+            long before = port.marks(org);
             kit.keep(lord);
-            long after = kit.rt.state.org(org).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND);
-            helper.assertTrue(before - after == kit.rt.knobs.keepPriceDiamonds, "The treasury paid " + (before - after));
+            long after = port.marks(org);
+            helper.assertTrue(before - after == kit.rt.knobs.keepPriceMarks, "The treasury paid " + (before - after));
             helper.succeed();
         }
     }

@@ -9,20 +9,21 @@ import charter.grant.ScopeNeed;
 import charter.history.HistoryEvent;
 import charter.id.OrgId;
 import charter.id.PlayerId;
-import charter.treasury.Currency;
 import charter.treasury.TreasuryEvents;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Pays items out of the treasury to a player at the vault. Needs the spend power
- * with a limit covering the amount, or a vote; the fabric side hands over the
- * real items after this succeeds.
+ * Pays coin out of the treasury to a player at the vault. Needs the spend power with a limit covering the amount, or
+ * a vote. This action only decides and records: the fabric side then hands the coin over through the provider's own
+ * treasury give route, which takes the Marks out of the treasury itself, so nothing is charged here. With no
+ * provider there is no coin to hand over and the action is refused.
  */
-public record Withdraw(OrgId org, Currency currency, long amount, PlayerId to) implements Action {
+public record Withdraw(OrgId org, long marks, PlayerId to) implements Action {
 
     public static final Reason SHORT = new Reason("treasury_short", "The treasury does not hold that much.");
+    public static final Reason NO_PROVIDER = new Reason("no_currency", "There is no coin currency installed, so there is no treasury.");
 
     @Override
     public OrgId actingFor() {
@@ -36,19 +37,19 @@ public record Withdraw(OrgId org, Currency currency, long amount, PlayerId to) i
 
     @Override
     public ScopeNeed need(ActionContext ctx) {
-        return ScopeNeed.spend(currency, amount);
+        return ScopeNeed.spend(marks);
     }
 
     @Override
     public Outcome check(ActionContext ctx) {
-        if (amount <= 0) return Outcome.refuse(new Reason("bad_amount", "Withdraw at least one."));
-        if (ctx.state.org(org).orElseThrow().ledger.balance(currency) < amount) return Outcome.refuse(SHORT);
+        if (marks <= 0) return Outcome.refuse(new Reason("bad_amount", "Withdraw at least one Mark."));
+        if (!ctx.hasProvider()) return Outcome.refuse(NO_PROVIDER);
+        if (!ctx.canPay(org, marks)) return Outcome.refuse(SHORT);
         return Outcome.OK;
     }
 
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
-        ctx.state.org(org).orElseThrow().ledger.take(currency, amount);
-        return List.of(new TreasuryEvents.Withdrawn(ctx.now, org, currency, amount, to));
+        return List.of(new TreasuryEvents.WithdrawnMarks(ctx.now, org, marks, to));
     }
 }

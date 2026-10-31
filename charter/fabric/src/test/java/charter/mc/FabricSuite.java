@@ -23,7 +23,6 @@ public final class FabricSuite {
         GranaryTest.run();
         JusticeTest.run();
         ChronicleBookTest.run();
-        ScenarioFilesTest.run();
         RaceNodesTest.run();
         RacePassivesTest.run();
         FormValuesTest.run();

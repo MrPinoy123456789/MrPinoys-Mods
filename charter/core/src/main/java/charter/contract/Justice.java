@@ -9,7 +9,6 @@ import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.land.Core;
 import charter.state.CharterState;
-import charter.treasury.Currency;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -246,15 +245,29 @@ public final class Justice {
                 contract.terms, plan.cut(), outsider, notoriety));
 
         for (Term t : plan.terms()) {
-            if (t instanceof Term.Fine fine) {
-                long paid = Math.min(fine.diamonds(), state.contracts.vault(prisoner).balance(Currency.DIAMOND));
-                if (paid > 0) {
-                    state.contracts.vault(prisoner).take(Currency.DIAMOND, paid);
-                    state.org(faction).ifPresent(o -> o.ledger.add(Currency.DIAMOND, paid));
-                }
-                events.add(new ContractEvents.Fined(ctx.now, contract.id, prisoner, faction, fine.diamonds(), paid));
+            if (t instanceof Term.FineMarks fine) {
+                long paid = collectFine(ctx, faction, prisoner, fine.marks());
+                events.add(new ContractEvents.FinedMarks(ctx.now, contract.id, prisoner, faction, fine.marks(), paid));
             }
         }
         return new Imposition(contract, events);
+    }
+
+    /** What the prisoner holds in their own wallet; 0 with no payment provider, or one that keeps no player wallets. */
+    public static long fineable(ActionContext ctx, PlayerId prisoner) {
+        return ctx.hasProvider() ? ctx.state.payment.balanceOfPlayer(prisoner.value()) : 0;
+    }
+
+    /**
+     * Takes a fine through the payment port and returns what was paid: the prisoner pays from their own wallet, up to what
+     * they hold, and the fining faction is credited. A prisoner with no coin pays nothing (the fine is refused earlier), and
+     * so does everyone while costs are waived. Marks only move, they are never made: the credit follows a successful charge.
+     */
+    private static long collectFine(ActionContext ctx, OrgId faction, PlayerId prisoner, long asked) {
+        CharterState state = ctx.state;
+        long paid = Math.min(asked, fineable(ctx, prisoner));
+        if (paid <= 0 || !state.payment.chargePlayer(prisoner.value(), paid, "fine")) return 0;
+        ctx.earn(faction, paid, "fine");
+        return paid;
     }
 }

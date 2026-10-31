@@ -60,6 +60,9 @@ public final class Knobs {
     public List<String> claimDimensions = new ArrayList<>(List.of("minecraft:overworld"));
 
     // ---- land and prices ----
+    /** What a keep costs, in Marks (about 2048: five days of a ten member kingdom's Mint tax). Paid by the treasury through the payment port. */
+    public int keepPriceMarks = 2048;
+    /** Diamonds a founder carries and gives up to found a kingdom with the Charter book's Nexus (items, not a treasury). */
     public int keepPriceDiamonds = 64;
     public int keepCapacityClaims = 40;
     public int keepRangeHops = 8;
@@ -76,8 +79,6 @@ public final class Knobs {
      * once, hand-made kingdoms, a Nexus to hand out, notes, the supply and granary tools, and /charter page.
      */
     public boolean devTools = true;
-    /** Whether the operator playtest scenarios (the tutorial, the jail and the rest) can be run with /charter admin scenario. */
-    public boolean scenarios = true;
     /** Whether land can be claimed beside a keep. Off: a keep is its plot and extra land comes only from outposts. */
     public boolean keepClaims = true;
     /** Whether the game may generate structures (dungeons, villages) that overlap land a keep or outpost holds. Off keeps them out. */
@@ -102,9 +103,9 @@ public final class Knobs {
     public int outpostTeleportFood = 1;
     /** Members a sub-faction needs before it may place an outpost. */
     public int outpostMinMembers = 2;
-    /** Diamonds the first outpost of a nation holds as its deposit; each outpost held already adds the step. */
-    public int outpostDeposit = 8;
-    public int outpostDepositStep = 4;
+    /** Marks the first outpost of a nation holds as its deposit; each outpost held already adds the step. */
+    public int outpostDepositMarks = 256;
+    public int outpostDepositStepMarks = 128;
 
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
@@ -183,14 +184,12 @@ public final class Knobs {
     public int npcExpireDays = 10;
     /** Server ticks between the layers of a falling site's crumble, from the top down. */
     public int npcCrumbleTicksPerLayer = 4;
-    /** Stacks of the treasury's diamonds, then cobblestone, spilled where a site falls. */
-    public int npcFallLoot = 4;
     /** A new site stands at least this many chunks from any player claim and any online player. */
     public int npcPlayerClearChunks = 8;
     /** Tiers by distance from the world spawn, in chunks: near is below the first, middle below the second, else far. */
     public int npcNearChunks = 40;
     public int npcMiddleChunks = 120;
-    /** Granary share at spawn, defenders, treasury diamonds and cobblestone, near, middle, far. */
+    /** Granary share at spawn, near, middle, far. */
     public double[] npcGranaryShare = {0.30, 0.50, 0.70};
     /** Raiders a stronghold may have alive at once, near, middle, far, and an outpost. */
     public int[] npcPoolByTier = {3, 5, 8};
@@ -198,8 +197,10 @@ public final class Knobs {
     /** Raiders a site can still spawn, over its whole life, near, middle, far. Each raider costs one. */
     public int[] npcSupplyStronghold = {24, 48, 96};
     public int[] npcSupplyOutpost = {6, 9, 12};
-    public int[] npcDiamonds = {16, 32, 64};
-    public int[] npcCobblestone = {128, 256, 512};
+    /** Marks a stronghold's treasury starts with, near, middle, far. The share set by npcPlunderShare is plundered when it falls. */
+    public int[] npcTreasuryMarks = {528, 1056, 2112};
+    /** The share of a fallen stronghold's treasury the winner takes, 0 to 1. The rest stays with the dissolved site. */
+    public double npcPlunderShare = 1.0;
     /** How long a faction that voted to break away has to place its Nexus, and a group has to gather, before it lapses. */
     public int breakawayHours = 24;
     /** How long a request to join a faction waits for an answer before it lapses. */
@@ -213,9 +214,12 @@ public final class Knobs {
     /** How long a mercenary waits before taking a different race. */
     public int mercChangeDays = 7;
     public int dormancyDays = 30;
-    /** What a Lordship's Lord may spend in one action without a vote. */
-    public int lordSpendLimitDiamonds = 32;
-    public int lordSpendLimitCobblestone = 2048;
+    /**
+     * What a Lordship's Lord may spend in one action without a vote, in Marks. Negative means no limit, which is the
+     * default for now; the dial stays here for when a limit is wanted. Read when a Lordship is founded, so a kingdom keeps the
+     * limit it was founded with.
+     */
+    public int lordSpendLimitMarks = -1;
     public int orgNameMaxLength = 32;
 
     // ---- justice and contracts ----
@@ -225,7 +229,9 @@ public final class Knobs {
     public int banishmentMaxHours = 24;
     public int weeklyPunishmentCapHours = 24;
     public int sameFactionSamePlayerCooldownDays = 3;
-    public int custodyFineCapDiamonds = 16;
+    public int custodyFineCapMarks = 512;
+    /** Marks a kingdom pays, for each hour of a sentence still to run, to buy one of its own members out of it (at most custodyFineCapMarks). */
+    public int bailMarksPerHour = 32;
     public int custodyLapseMinutes = 5;
     public int imposedVassalageCapDays = 14;
     public boolean scaleSentencesWithTimeScale = false;

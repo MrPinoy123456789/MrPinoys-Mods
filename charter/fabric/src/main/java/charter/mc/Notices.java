@@ -41,6 +41,11 @@ public final class Notices {
         /** Hands over whatever {@link Mail} says is owed, if the player is online. */
         void deliver(PlayerId player);
 
+        /** Pays a withdrawal out through the payment provider; false when nothing took it. */
+        default boolean payOut(OrgId org, PlayerId to, long marks) {
+            return false;
+        }
+
         /** A siege alert (PLAN.md §7.2): by default a plain message; in game also a title and a quiet chime. */
         default void alert(PlayerId player, String text) {
             send(player, text);
@@ -98,12 +103,11 @@ public final class Notices {
                 if (e.formerHolder() != null) tell(e.at(), Set.of(e.formerHolder()),
                         Text.get("notice.office_vacated", "office", describe.office(e.office()), "org", describe.org(e.org())));
             }
-            case TreasuryEvents.Withdrawn e -> {
+            case TreasuryEvents.WithdrawnMarks e -> {
                 if (e.to() == null) return;
-                mail.owe(e.to(), e.currency().itemId, (int) Math.min(Integer.MAX_VALUE, e.amount()));
-                tell(e.at(), Set.of(e.to()), Text.get("notice.paid", "org", describe.org(e.org()),
-                        "amount", e.amount(), "currency", Describe.currency(e.currency(), e.amount())));
-                messenger.deliver(e.to());
+                boolean paid = messenger.payOut(e.org(), e.to(), e.marks());
+                tell(e.at(), Set.of(e.to()), Text.get(paid ? "notice.paid" : "notice.pay_failed", "org", describe.org(e.org()),
+                        "amount", e.marks()));
             }
             // ---- keep upkeep: to the whole faction, subordinates included, as alerts ----
             case SiegeEvents.WarDeclared e -> {
@@ -121,9 +125,9 @@ public final class Notices {
             }
             case SiegeEvents.OutpostCaptured e -> {
                 alert(e.at(), faction(e.defender()), Text.get("notice.outpost_lost", "org", describe.org(e.attacker()),
-                        "site", describe.core(e.outpost()), "deposit", e.deposit()));
+                        "site", describe.core(e.outpost()), "deposit", e.depositMarks()));
                 alert(e.at(), faction(e.attacker()), Text.get("notice.outpost_taken", "org", describe.org(e.defender()),
-                        "site", describe.core(e.outpost()), "deposit", e.deposit()));
+                        "site", describe.core(e.outpost()), "deposit", e.depositMarks()));
             }
             case SiegeEvents.WarLapsed e -> {
                 alert(e.at(), faction(e.defender()), Text.get("notice.war_lapsed", "org", describe.org(e.attacker()),
@@ -149,10 +153,11 @@ public final class Notices {
                 if (judge != null) tell(e.at(), Set.of(judge), Text.get("notice.sentence_done",
                         "player", describe.player(e.subject().player()), "terms", terms));
             }
-            case charter.contract.ContractEvents.Fined e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.fined",
+            case charter.contract.ContractEvents.FinedMarks e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.fined",
                     "org", describe.org(e.to()), "asked", e.asked(), "paid", e.paid()));
             case charter.contract.ContractEvents.Escaped e -> tell(e.at(), faction(e.faction()), Text.get("notice.escaped",
                     "player", describe.player(e.prisoner())));
+            case charter.contract.ContractEvents.Bailed e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.bailed", "org", describe.org(e.payer()), "to", describe.org(e.to())));
             case charter.contract.ContractEvents.Released e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.released", "org", describe.org(e.by())));
             case charter.contract.ContractEvents.Pardoned e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.pardoned", "org", describe.org(e.by())));
             case charter.contract.ContractEvents.PrisonersFreed e -> {

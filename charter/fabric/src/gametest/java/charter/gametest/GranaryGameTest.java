@@ -145,8 +145,7 @@ public final class GranaryGameTest {
             join(ashfall, lordId, seen("Ashhand"));
             join(brine, zed, seen("Brinehand"));
             for (OrgId org : List.of(ashfall, brine)) {
-                rt.engine.run(admin, new Deposit(org, Currency.DIAMOND, 400));
-                rt.engine.run(admin, new Deposit(org, Currency.COBBLESTONE, 5000));
+                GamePort.of(rt).fund(org, 12_800);
             }
             var placed = rt.engine.run(admin, new PlaceNexus(ashfall, new ChunkKey(OW, cx, cz)));
             helper.assertTrue(placed.done(), "The keep was refused: " + placed);

@@ -9,7 +9,6 @@ import charter.id.ChunkKey;
 import charter.id.OrgId;
 import charter.land.LandGraph;
 import charter.land.LandReasons;
-import charter.treasury.Currency;
 
 import java.util.List;
 import java.util.Optional;
@@ -47,15 +46,15 @@ public record PlaceNexus(OrgId org, ChunkKey center) implements Action {
                 && ctx.state.cores().stream().anyMatch(c -> c.isKeep() && ctx.state.root(c.owner).equals(root))) {
             return Outcome.refuse(LandReasons.ONE_KEEP);
         }
-        if (ctx.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) < ctx.knobs.keepPriceDiamonds) {
-            return Outcome.refuse(LandReasons.NO_FUNDS.with("A keep costs " + ctx.knobs.keepPriceDiamonds + " diamonds and the treasury holds fewer."));
+        if (!ctx.canPay(org, ctx.knobs.keepPriceMarks)) {
+            return Outcome.refuse(LandReasons.NO_FUNDS.with("A keep costs " + ctx.knobs.keepPriceMarks + " Marks and the treasury holds fewer."));
         }
         return Outcome.OK;
     }
 
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
-        ctx.state.org(org).orElseThrow().ledger.take(Currency.DIAMOND, ctx.knobs.keepPriceDiamonds);
+        ctx.pay(org, ctx.knobs.keepPriceMarks, "keep");
         return new LandGraph(ctx.state, ctx.knobs).placeKeep(org, center, ctx.now);
     }
 }

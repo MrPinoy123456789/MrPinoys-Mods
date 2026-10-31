@@ -277,28 +277,11 @@ are in DESIGN.md §23, 2026-10-27.
   SURVIVAL first); it stands at the world origin; `placeOn` puts the item in the
   selected hotbar slot, so keep other items in a different slot.
 
-## The playtest kit (`charter.mc.scenario`, M14)
+## The playtest kit
 
-- A scenario is data (`Scenario`), never code: a new one is a JSON file. The shipped
-  five live in `fabric/src/main/resources/charter/scenarios/` and must stay
-  consistent with `ScenarioFilesTest` (every role, faction, knob and power they
-  name exists; no dashes in their text).
-- `ScenarioRunner` runs every rule through the engine as the admin and stops at
-  the first refusal. It may touch the world (pads, chests, rails, cells) but never
-  decides a rule; cells are marked with `Cells.markAt`, the same flood fill a
-  player's marking uses.
-- A scenario sets knobs. A gametest that runs one saves every `Knobs` field first
-  and restores them after, as `ScenarioGameTest` does, or the next test runs at
-  time scale 24.
-- A gametest that reads the scenario files deletes the copies in the run's
-  `config/charter/scenarios/` first, so it tests the shipped files.
 - The debrief lines no history event carries (`drain_hour`, `presence`,
   `crossing`) come from `SiegeLogFeed`, fed by core's `SiegeSim.afterPass` and the
   keep's last-pass readings (`KeepSite.multiplier`, `mouths`, `perHour`, all
   `transient`, never saved). Core computes the numbers; the feed only copies them.
 - A keep that is lost takes its cells at once (`JusticeMod` on `CoreLost`), so the
   live state matches what a reload's repair would leave.
-- `scenario clear` is global: it takes down every faction a scenario made and any
-  faction a named player founded since. A gametest whose player founds a faction
-  (`TutorialGameTest`) runs in its own environment, `tutorial_alone`, so a scenario
-  test clearing in the same batch cannot take its faction down mid test.

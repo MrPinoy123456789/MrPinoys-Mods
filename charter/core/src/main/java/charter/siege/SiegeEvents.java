@@ -31,7 +31,7 @@ public final class SiegeEvents {
     }
 
     /** The attackers held the outpost's chunk long enough: its banner is gone, its land released, its deposit theirs. */
-    public record OutpostCaptured(long at, long siegeAt, long goal, OrgId attacker, OrgId defender, CoreId outpost, ChunkKey center, long deposit) implements HistoryEvent {
+    public record OutpostCaptured(long at, long siegeAt, long goal, OrgId attacker, OrgId defender, CoreId outpost, ChunkKey center, long deposit, long depositMarks) implements HistoryEvent {
     }
 
     /** The goal ran out without a capture; the two nations may not fight again for the truce. */

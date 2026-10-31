@@ -70,7 +70,7 @@ public final class BreakawayPages {
             body.add(Text.get("book.breakaway.comes", "list", String.join(", ", names)));
             boolean keep = rt.state.coresOf(org).stream().anyMatch(c -> c.isKeep());
             body.add(keep ? Text.get("book.breakaway.cost_none")
-                    : Text.get("book.breakaway.cost_nexus", "price", rt.knobs.keepPriceDiamonds, "hours", hours));
+                    : Text.get("book.breakaway.cost_nexus", "price", rt.knobs.keepPriceMarks, "hours", hours));
             body.add(Text.get("book.breakaway.stay", "parent", parent));
             Optional<Breakaway> pending = rt.state.pendingSecession(org);
             if (pending.isPresent()) {

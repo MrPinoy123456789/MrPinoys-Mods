@@ -1,7 +1,5 @@
 package charter.contract.actions;
 
-import charter.contract.ContractEvents;
-import charter.contract.ContractReasons;
 import charter.engine.Action;
 import charter.engine.ActionContext;
 import charter.engine.Outcome;
@@ -15,9 +13,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A player puts currency into their own deposit, the only place a custody fine
- * can be taken from (D10). The fabric side takes the real items first.
+ * The old personal safe (D10), closed now that custody fines are paid through the payment port. Kept registered
+ * so stored records still read back; it refuses every time, and the stored safes are never read.
+ *
+ * @deprecated legacy stored data only
  */
+@Deprecated
 public record DepositPersonal(PlayerId player, Currency currency, long amount) implements Action {
 
     @Override
@@ -32,14 +33,11 @@ public record DepositPersonal(PlayerId player, Currency currency, long amount) i
 
     @Override
     public Outcome check(ActionContext ctx) {
-        if (ctx.player() != null && !ctx.player().equals(player)) return Outcome.refuse(ContractReasons.NOT_YOU);
-        if (amount <= 0) return Outcome.refuse(ContractReasons.BAD_AMOUNT);
-        return Outcome.OK;
+        return Outcome.refuse(new charter.engine.Reason("safe_closed", "The personal safe is closed; custody fines are paid from the kingdom's treasury."));
     }
 
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
-        ctx.state.contracts.vault(player).add(currency, amount);
-        return List.of(new ContractEvents.VaultDeposited(ctx.now, player, currency, amount));
+        return List.of();
     }
 }

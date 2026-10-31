@@ -52,8 +52,7 @@ import java.util.UUID;
  *   /charter cell mark|remove|list [name]    cells of your keeps
  *   /charter justice                         who is in custody or held, with links
  *   /charter justice sentence &lt;player&gt;       the sentencing page for someone in custody
- *   /charter safe                            your own deposit, where a fine is taken from
- *   /charter safe deposit &lt;diamonds&gt;
+ *   /charter safe                            closed: fines are paid from the prisoner's kingdom through the payment port
  * </pre>
  *
  * <p>Every link runs an action through the engine as the clicking player, so core
@@ -64,7 +63,7 @@ public final class JusticeCommands {
 
     /** The sentence lengths the page offers; core cuts each to its cap and to what is left of the week. */
     private static final long[] HOLDS = {Durations.hours(1), Durations.hours(6), Durations.hours(24)};
-    private static final long[] FINES = {4, 16};
+    private static final long[] FINES = {64, 512};
     private static final long EXECUTION_WAIT = Durations.minutes(5);
     private static final long EXECUTION_BANISH = Durations.hours(24);
 
@@ -85,6 +84,9 @@ public final class JusticeCommands {
                                 .then(Commands.literal("sentence").then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                         .executes(JusticeCommands::sentence))))
+                        .then(Commands.literal("bail").then(Commands.argument("player", StringArgumentType.string())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
+                                .executes(JusticeCommands::bail)))
                         .then(Commands.literal("safe")
                                 .executes(ctx -> page(ctx, JusticeCommands::safePage))
                                 .then(Commands.literal("deposit").then(Commands.argument("amount", IntegerArgumentType.integer(1))
@@ -213,6 +215,22 @@ public final class JusticeCommands {
         return 1;
     }
 
+    /** The player's kingdom buys a member out of a sentence another faction set: {@code /charter bail <player>}. */
+    private static int bail(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!CharterServer.running()) return 0;
+        CharterRuntime rt = CharterServer.runtime();
+        String name = StringArgumentType.getString(ctx, "player");
+        Optional<PlayerId> target = find(rt, ctx.getSource(), name);
+        Optional<OrgId> mine = orgOf(rt, player);
+        if (target.isEmpty() || mine.isEmpty()) {
+            player.sendSystemMessage(Chat.bad(Text.get(mine.isEmpty() ? "page.no_org" : "invite.no_player", "name", name)));
+            return 0;
+        }
+        return run(player, new charter.contract.actions.Bail(rt.state.root(mine.get()), target.get()),
+                Text.get("justice.bailed", "player", rt.describe.player(target.get()))) ? 1 : 0;
+    }
+
     private static Optional<PlayerId> find(CharterRuntime rt, CommandSourceStack source, String name) {
         ServerPlayer online = source.getServer().getPlayerList().getPlayerByName(name);
         if (online == null) {
@@ -288,55 +306,29 @@ public final class JusticeCommands {
                             p -> run(p, new Execute(me, prisoner, EXECUTION_WAIT, EXECUTION_BANISH),
                                     Text.get("justice.done_execute", "player", name)))));
         }
-        // Fines, from the prisoner's own safe.
+        // Fines, in Marks, charged to the prisoner's kingdom through the payment port when a provider is installed.
+        if (!charter.mc.Treasury.available(rt)) return;
         MutableComponent fines = Chat.line(Text.get("justice.row_fine") + " ");
-        for (long diamonds : FINES) {
-            BasisCaps.Checked checked = BasisCaps.check(Basis.CUSTODY, new Term.Fine(diamonds), rt.knobs);
+        for (long marks : FINES) {
+            BasisCaps.Checked checked = BasisCaps.check(Basis.CUSTODY, new Term.FineMarks(marks), rt.knobs);
             if (!checked.ok()) continue;
-            long shown = ((Term.Fine) checked.term()).diamonds();
+            long shown = ((Term.FineMarks) checked.term()).marks();
             fines.append(Chat.act(judge, Text.get("justice.link_fine", "count", shown), Text.get("justice.link_fine_hover", "player", name),
-                    p -> run(p, new FineCustody(me, prisoner, diamonds), Text.get("justice.done_fine", "player", name)))).append(Component.literal(" "));
+                    p -> run(p, new FineCustody(me, prisoner, marks), Text.get("justice.done_fine", "player", name)))).append(Component.literal(" "));
         }
         judge.sendSystemMessage(fines);
     }
 
-    // ---- the safe: a player's own deposit, the only place a fine is taken from ----
+    // ---- the safe: closed. Fines are paid through the payment port, not from a personal deposit ----
 
     public static void safePage(ServerPlayer player, CharterRuntime rt) {
-        long balance = rt.state.contracts.vault(id(player)).balance(Currency.DIAMOND);
         player.sendSystemMessage(Chat.header(Text.get("safe.header")));
-        player.sendSystemMessage(Chat.line(Text.get("safe.balance", "count", balance)));
+        player.sendSystemMessage(Chat.line(Text.get("safe.closed")));
     }
 
     private static int deposit(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        if (!CharterServer.running()) return 0;
-        int amount = IntegerArgumentType.getInteger(ctx, "amount");
-        return deposit(player, amount) ? 1 : 0;
-    }
-
-    /** Puts diamonds from the player's inventory into their own safe. */
-    public static boolean deposit(ServerPlayer player, int amount) {
-        int carried = 0;
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && CharterServer.itemId(stack).equals(Currency.DIAMOND.itemId)) carried += stack.getCount();
-        }
-        if (carried < amount) {
-            player.sendSystemMessage(Chat.bad(Text.get("vault.not_carried", "count", carried,
-                    "currency", charter.mc.Describe.currency(Currency.DIAMOND, carried))));
-            return false;
-        }
-        if (!run(player, new DepositPersonal(id(player), Currency.DIAMOND, amount), Text.get("safe.deposited", "count", amount))) return false;
-        int left = amount;
-        for (int i = 0; i < player.getInventory().getContainerSize() && left > 0; i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (stack.isEmpty() || !CharterServer.itemId(stack).equals(Currency.DIAMOND.itemId)) continue;
-            int n = Math.min(left, stack.getCount());
-            stack.shrink(n);
-            left -= n;
-        }
-        player.getInventory().setChanged();
-        return true;
+        player.sendSystemMessage(Chat.bad(Text.get("safe.closed")));
+        return 0;
     }
 }

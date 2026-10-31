@@ -31,7 +31,6 @@ import charter.org.MemberRecord;
 import charter.org.Organization;
 import charter.org.actions.Admit;
 import charter.org.actions.Reject;
-import charter.treasury.Currency;
 import net.minecraft.server.dialog.ActionButton;
 import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.level.ServerPlayer;
@@ -338,13 +337,9 @@ public final class MemberPages {
             body.add(Text.get(running.restricted() ? "book.faction.election_council" : "book.faction.election_running",
                     "office", rt.describe.office(running.office)));
         }
-        List<String> balances = new ArrayList<>();
         Organization organization = rt.state.org(org).orElseThrow();
-        for (Currency c : Currency.values()) {
-            long n = organization.ledger.balance(c);
-            balances.add(Text.get("vault.amount", "amount", n, "currency", Describe.currency(c, n)));
-        }
-        body.add(Text.get("book.faction.treasury", "balances", String.join(", ", balances)));
+        String balance = charter.mc.Treasury.balance(rt, org);
+        if (balance != null) body.add(Text.get("book.faction.treasury", "balances", balance));
         for (Core core : rt.state.coresOf(org)) {
             if (!core.isKeep()) continue;
             if (!rt.knobs.keepGranary) {
@@ -380,15 +375,6 @@ public final class MemberPages {
                         line -> faction(p, line != null ? line : Text.get("book.faction.admitted", "player", name)))));
                 buttons.add(go(player, Text.get("book.button.reject", "player", name), p -> confirmReject(p, org, applicant)));
             }
-        }
-        for (Currency c : Currency.values()) {
-            int carried = charter.mc.cmd.CharterCommands.carried(player, c);
-            if (carried <= 0) continue;
-            buttons.add(go(player, Text.get("book.button.pay", "amount", carried, "currency", Describe.currency(c, carried)), p -> {
-                int paid = charter.mc.cmd.CharterCommands.depositAll(p, c);
-                faction(p, paid > 0 ? Text.get("book.faction.paid", "amount", paid, "currency", Describe.currency(c, paid))
-                        : Text.get("book.faction.not_paid"));
-            }));
         }
         if (rt.engine.eligibleVoters(org, now).contains(me)) {
             buttons.add(go(player, Text.get("book.faction.who_decides"), p -> whoDecides(p, null)));

@@ -531,32 +531,19 @@ public final class JusticeGameTest {
     // ---- fines ----
 
     @GameTest(maxTicks = 100)
-    public void aFineComesFromThePrisonersOwnSafeAndNowhereElse(GameTestHelper helper) {
+    public void aFineOnAPlayerWithNoKingdomIsRefusedAndTakesNoItems(GameTestHelper helper) {
         try (Rig r = new Rig(helper)) {
+            GamePort port = GamePort.of(r.rt);
             r.prisoner.getInventory().add(new ItemStack(Items.DIAMOND, 30));
-            r.check(JusticeCommands.deposit(r.prisoner, 20), "The deposit into the safe failed");
-            r.check(r.diamonds(r.prisoner) == 10, "Diamonds were not taken for the deposit: " + r.diamonds(r.prisoner));
-            r.check(r.rt.state.contracts.vault(r.prisonerId).balance(charter.treasury.Currency.DIAMOND) == 20, "The safe does not hold the deposit");
-            long treasury = r.rt.state.org(r.org).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND);
+            long treasury = port.marks(r.org);
 
             r.arrest(r.prisoner, 5, 6);
             JusticeCommands.sentencePage(r.lord, r.rt, r.prisonerId);
-            r.click(r.lord, Text.get("justice.link_fine", "count", 16));
-            r.check(r.rt.state.contracts.vault(r.prisonerId).balance(charter.treasury.Currency.DIAMOND) == 4, "The fine should take 16 of 20 from the safe");
-            r.check(r.rt.state.org(r.org).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND) == treasury + 16, "The fine did not reach the jailers' treasury");
-            r.check(r.diamonds(r.prisoner) == 10, "A fine took diamonds the prisoner carried");
-            r.check(r.rt.state.contracts.custodyOf(r.prisonerId).isEmpty(), "The prisoner is still in custody after the fine");
-
-            // Nothing in the safe, nothing taken, whatever they carry.
-            ServerPlayer broke = r.kit.outsider();
-            PlayerId brokeId = new PlayerId(broke.getUUID());
-            r.rt.state.touch(brokeId, "Broke" + Integer.toHexString(broke.getUUID().hashCode()), r.rt.clock.now());
-            broke.getInventory().add(new ItemStack(Items.DIAMOND, 40));
-            r.arrest(broke, 6, 6);
-            JusticeCommands.sentencePage(r.lord, r.rt, brokeId);
-            r.click(r.lord, Text.get("justice.link_fine", "count", 4));
-            r.check(r.diamonds(broke) == 40, "A player with an empty safe lost carried diamonds to a fine");
-            r.check(r.rt.state.org(r.org).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND) == treasury + 16, "A fine on an empty safe still paid the treasury");
+            r.click(r.lord, Text.get("justice.link_fine", "count", 64));
+            r.check(port.marks(r.org) == treasury, "A fine on a player with no kingdom paid the treasury");
+            r.check(r.diamonds(r.prisoner) == 30, "A fine took diamonds the prisoner carried");
+            r.check(r.rt.state.contracts.custodyOf(r.prisonerId).isPresent(), "A refused fine freed the prisoner");
+            r.check(r.rt.state.contracts.vault(r.prisonerId).snapshot().isEmpty(), "The old safe was touched");
             helper.succeed();
         }
     }

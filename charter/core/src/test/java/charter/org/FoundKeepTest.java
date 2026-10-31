@@ -7,7 +7,6 @@ import charter.id.ChunkKey;
 import charter.id.PlayerId;
 import charter.org.actions.Found;
 import charter.org.actions.FoundKeep;
-import charter.treasury.Currency;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +28,7 @@ public final class FoundKeepTest {
 
     public static void run() {
         foundingPaysForTheKeep();
-        changeStaysInTheTreasury();
+        diamondsPaidNeverEnterATreasury();
         everyRefusalChangesNothing();
         eventsComeInOrder();
     }
@@ -43,16 +42,16 @@ public final class FoundKeepTest {
         eq("1: forming", OrgStatus.FORMING, org.status());
         eq("1: the founder is the Lord", KRIS, f.holder(org.id, Preset.LORD));
         eq("1: nine claims", 9L, f.state.claimsOf(org.id).size() + 0L);
-        eq("1: nothing left in the treasury", 0L, org.ledger.balance(Currency.DIAMOND));
+        check("1: the diamonds never entered a treasury", org.ledger.snapshot().isEmpty());
         eq("1: the banner is kept", "{banner}", org.people.banner);
         eq("1: one keep", 1, f.state.coresOf(org.id).size());
     }
 
-    static void changeStaysInTheTreasury() {
+    static void diamondsPaidNeverEnterATreasury() {
         Fixture f = new Fixture();
         f.seen(KRIS);
         f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE, 70));
-        eq("2: the change", 6L, f.state.orgNamed("Ashfall").orElseThrow().ledger.balance(Currency.DIAMOND));
+        check("2: more than the price changes nothing in any treasury", f.state.orgNamed("Ashfall").orElseThrow().ledger.snapshot().isEmpty() && f.port.calls.isEmpty());
     }
 
     private static void refused(String what, Fixture f, PlayerId who, FoundKeep action) {
@@ -97,9 +96,8 @@ public final class FoundKeepTest {
             names.add(e.event().getClass().getSimpleName());
         }
         int founded = names.indexOf("Founded");
-        int deposited = names.indexOf("Deposited");
         int placed = names.indexOf("NexusPlaced");
-        check("4: Founded, the office, Deposited, NexusPlaced in that order " + names,
-                founded == 0 && names.indexOf("OfficeCreated") > founded && deposited > names.indexOf("OfficeFilled") && placed > deposited);
+        check("4: Founded, the office, NexusPlaced in that order, with no deposit event " + names,
+                founded == 0 && names.indexOf("OfficeCreated") > founded && placed > names.indexOf("OfficeFilled") && !names.contains("Deposited"));
     }
 }

@@ -37,6 +37,29 @@ public final class ActionContext {
         return new AuthorityResolver(state, now);
     }
 
+    /** True when a payment provider is installed; without one every cost is waived and nothing can be paid out. */
+    public boolean hasProvider() {
+        return !(state.payment instanceof charter.api.NoPayment);
+    }
+
+    /** Whether the organization could pay: always true while costs are waived. */
+    public boolean canPay(charter.id.OrgId org, long marks) {
+        return !hasProvider() || state.payment.balance(org.toString()) >= marks;
+    }
+
+    /** Takes the Marks from the organization (a no-op while costs are waived). Throws if a checked payment is refused. */
+    public void pay(charter.id.OrgId org, long marks, String reason) {
+        if (marks <= 0) return;
+        if (!state.payment.charge(org.toString(), marks, reason)) {
+            throw new IllegalStateException("payment of " + marks + " Marks by " + org + " for " + reason + " was refused after the check");
+        }
+    }
+
+    /** Adds Marks to the organization (a no-op while costs are waived). */
+    public void earn(charter.id.OrgId org, long marks, String reason) {
+        if (marks > 0) state.payment.credit(org.toString(), marks, reason);
+    }
+
     /** The acting player, or null if this is a vote, an operator or the rules. */
     public PlayerId player() {
         return actor instanceof Actor.Player p ? p.id() : null;

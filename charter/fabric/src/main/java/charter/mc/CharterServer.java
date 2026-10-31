@@ -1,5 +1,6 @@
 package charter.mc;
 
+import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.mc.store.Persistence;
 import charter.time.Durations;
@@ -78,6 +79,7 @@ public final class CharterServer {
         server = s;
         runtime = CharterRuntime.open(charterDir(s), CharterMod.knobs(), System::currentTimeMillis, new Messenger(),
                 CharterMod.LOG::info, CharterMod.LOG::warn);
+        PaymentLookup.install(runtime.state, CharterMod.LOG::info, CharterMod.LOG::warn);
         lastStepMillis = runtime.clock.now();
         ticks = 0;
         runtime.areas.flush();
@@ -180,6 +182,13 @@ public final class CharterServer {
         @Override
         public boolean online(PlayerId player) {
             return server != null && server.getPlayerList().getPlayer(player.value()) != null;
+        }
+
+        @Override
+        public boolean payOut(OrgId org, PlayerId to, long marks) {
+            if (server == null) return false;
+            String name = runtime.state.knownPlayer(to).map(p -> p.name).orElse("");
+            return Treasury.payOut(server, org, to, name, marks, online(to));
         }
 
         @Override

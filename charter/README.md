@@ -6,6 +6,9 @@ breaking blocks. Vanilla clients install nothing. The design is `DESIGN.md`, the
 plan `PLAN.md`, how to build and test `BUILDING.md`, the rules that must never
 break `INVARIANTS.md`.
 
+Charter holds no treasury of its own: every cost is paid in Marks through the payment API
+(`docs/PAYMENT_API.md`), which a currency mod implements. With none installed every cost is waived.
+
 ## Mixins, and why no Fabric API event covers each
 
 The suite rule: every Mixin is listed here with the reason an event would not do.
@@ -120,43 +123,11 @@ Lord rule still needs the Lord to log in).
 
 Everything an operator needs for the first session (PLAN.md §12).
 
-### Scenarios
-
-Six scenario files ship in the jar and are written to
-`config/charter/scenarios/` the first time a scenario command runs; edit or copy
-them there, and a file already there is never replaced.
-
-| Scenario | Sets up |
-|---|---|
-| `tutorial` | One new player's first hour: they name a banner at an anvil, craft a Nexus, place it at an emerald pillar to found a faction and raise its keep, then plant a banner at a gold pillar beside Brinewatch's nearly empty keep and starve it out. A 15 page book guides them in game; `TUTORIAL.md` is the long version |
-| `raid` | Ashfall's keep and three farms with wheat and cows; a raised Brinewatch camp beside the farthest farm |
-| `partial-siege` | Ashfall's keep at half; two Brinewatch camps close the east side; a food chest to the west with rails and a chest cart into the keep |
-| `encirclement` | Ashfall's keep at 30 percent; four camps with two claims each hold all twelve sides (the plan said three camps, but a camp holds three sides, so the ring takes four) |
-| `sally` | The encirclement, with the defenders beside the east camp and food beyond it |
-| `jail` | Ashfall's keep with a stone cell, a Sheriff with arrest and judge powers and leads; an outsider and a Brinewatch member stand in the keep |
+### Operator notes
 
 ```
-/charter admin scenario list
-/charter admin scenario run <name> [with <player> ...]      around your chunk
-/charter admin scenario runat <x> <z> <name> [with ...]     around a block, overworld (from the console)
-/charter admin scenario clear                               take down every faction a scenario made
-/charter admin note <text>                                  a check-in, written to the siege log
+/charter admin note <text>      a check-in, written to the siege log
 ```
-
-Start the tutorial with `/charter admin scenario run tutorial with <player>`; `scenario
-clear` afterwards also takes down the faction that player founded in it.
-
-Players are named for the scenario's roles in order (`scenario list` shows them:
-`A1 A2 A3 B1 B2` for the raid); a role nobody is named for is an offline
-stand-in. Every scenario sets `timeScale` 24, `carryInWindowMinutes` 240 and
-`presenceMinMemberSeconds` 0, waives new-faction protection for its factions, and
-backdates their membership 30 days. Each step runs through the engine as the
-admin, so a refused step stops the run and says why. Named players must not
-already belong to an organization; `scenario clear` frees them.
-
-Run one scenario at a time and clear it before the next. The siege clock is shared, so
-raising a later scenario's camps moves every earlier siege on by the raising time
-too: run back to back, the raid's far farm was empty before anyone arrived.
 
 ### The siege log and the debrief report
 
@@ -201,8 +172,7 @@ players outside any active site every 4 ticks) is not needed at this size.
    dimension.
 4. In the server log: `Charter initialised`, the config written to
    `config/charter/charter.json`, no Mixin errors. Then, as a smoke check:
-   `pdserver.mjs cmd charter admin supply show` and
-   `pdserver.mjs cmd charter admin scenario list`.
+   `pdserver.mjs cmd charter admin supply show`.
 5. Before players join, an op claims spawn and the Pocket Dungeons lobby for a
    "Crown" organization (`/charter admin faction spawn Crown <op>`, then a nexus
    at spawn), so nobody can claim them.

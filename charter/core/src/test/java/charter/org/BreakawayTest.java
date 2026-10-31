@@ -75,7 +75,7 @@ public final class BreakawayTest {
     }
 
     private static void fundGuard(Fixture f) {
-        f.as(GIL, new Deposit(guard(f), Currency.DIAMOND, 70));
+        f.admin(new Deposit(guard(f), 70));
     }
 
     private static Vote proposeSecession(Fixture f) {
@@ -98,7 +98,7 @@ public final class BreakawayTest {
                 && f.state.org(guard(f)).orElseThrow().parent() != null);
         Outcome placed = f.as(GIL, new PlaceNexus(guard(f), new ChunkKey(DIM, 50, 50)));
         check("1: the Lord places the Nexus at the faction's own cost " + placed, placed.done());
-        eq("1: paid from its own treasury", 6L, f.org(guard(f)).ledger.balance(Currency.DIAMOND));
+        eq("1: paid from its own treasury", 6L, f.marks(guard(f)));
         f.passDays(0.01, KRIS, GIL, CY, DEE);
         check("1: the sub-faction is now a faction of its own", f.state.org(guard(f)).orElseThrow().isTopLevel());
         check("1: nothing is pending", f.state.pendingSecession(guard(f)).isEmpty());

@@ -57,6 +57,9 @@ public final class DefaultTemplates {
         t.put("TreasuryEvents.Deposited", "On {when}, {by} paid {amount} {currency} into the treasury of {org}.");
         t.put("TreasuryEvents.Withdrawn", "On {when}, {to} drew {amount} {currency} from the treasury of {org}.");
         t.put("TreasuryEvents.Transferred", "On {when}, {from} sent {amount} {currency} to {to}.");
+        t.put("TreasuryEvents.DepositedMarks", "On {when}, {marks#Mark} were paid into the treasury of {org}.");
+        t.put("TreasuryEvents.WithdrawnMarks", "On {when}, {to} drew {marks#Mark} from the treasury of {org}.");
+        t.put("TreasuryEvents.TransferredMarks", "On {when}, {from} sent {marks#Mark} to {to}.");
 
         // ---- land (LandEvents) ----
         t.put("LandEvents.NexusPlaced", "On {when}, {org} raised a keep at {center} and laid claim to the ground around it.");
@@ -74,7 +77,7 @@ public final class DefaultTemplates {
         t.put("SiegeEvents.CampActive", "On {when}, {owner} finished raising an outpost.");
         t.put("SiegeEvents.WarDeclared", "On {when}, {attacker} declared war on {defender} and named {outpost}. Nothing may be done to it until the notice has run out.");
         t.put("SiegeEvents.WarOpened", "On {when}, the notice was over: {attacker} may now try to take {outpost}, if they hold it with none of its people there.");
-        t.put("SiegeEvents.OutpostCaptured", "On {when}, {attacker} took {outpost}, banner and land, and its deposit of {deposit} diamonds with it.");
+        t.put("SiegeEvents.OutpostCaptured", "On {when}, {attacker} took {outpost}, banner and land.");
         t.put("SiegeEvents.WarLapsed", "On {when}, the war of {attacker} on {outpost} ran out and nothing was taken. They may not fight again for a while.");
         t.put("SiegeEvents.KeepRunningLow", "On {when}, the granary of {keep} was down to {daysLeft} days of food. {owner} was told to feed it.");
         t.put("SiegeEvents.KeepLapsed", "On {when}, the granary of {keep} ran dry and its claim lapsed. The land lay open again, though every block stood where it was.");
@@ -85,6 +88,8 @@ public final class DefaultTemplates {
         t.put("ContractEvents.CustodyLapsed", "On {when}, {faction} let {prisoner} go, for no sentence was passed.");
         t.put("ContractEvents.Imposed", "On {when}, {imposer} set {terms} on {subject}, by right of {basis}{cut?, though the terms were cut down to the limit}{outsider?, and jailing a stranger was an act of war}.");
         t.put("ContractEvents.Fined", "On {when}, {prisoner} was fined {asked#diamond} by {to} and paid {paid}.");
+        t.put("ContractEvents.FinedMarks", "On {when}, {prisoner} was fined {asked#Mark} by {to} and paid {paid#Mark}.");
+        t.put("ContractEvents.Bailed", "On {when}, {payer} paid {marks#Mark} to {to} to bail {prisoner} out.");
         t.put("ContractEvents.Executed", "On {when}, {faction} put {prisoner} to death. They would wait {respawnDelayMillis} to rise again, and were banished for {banishmentMillis}.");
         t.put("ContractEvents.Escaped", "On {when}, {prisoner} escaped from the cells of {faction}.");
         t.put("ContractEvents.Pardoned", "On {when}, {by} pardoned {prisoner}.");

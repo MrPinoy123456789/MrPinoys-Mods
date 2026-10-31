@@ -169,7 +169,7 @@ public final class Placement {
         Core core = rt.state.core(fixture.core()).orElse(null);
         if (core == null || core.isKeep()) return;
         player.sendSystemMessage(Component.literal(Text.get("outpost.inspect", "org", rt.describe.org(core.owner),
-                "deposit", core.deposit)).withStyle(ChatFormatting.YELLOW));
+                "deposit", core.depositMarks)).withStyle(ChatFormatting.YELLOW));
     }
 
     /**

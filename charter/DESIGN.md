@@ -32,6 +32,9 @@ Three ideas set the mod apart:
    that is completely surrounded falls in the end, because nobody can carry food
    in. Walls buy time; supply lines decide wars.
 
+> **Treasury note (2026-10-31).** Sections that speak of a treasury in diamonds and cobblestone are superseded: Charter
+> keeps the rights to spend, and the money is Marks held by a payment provider. See `docs/PAYMENT_API.md`.
+
 ## 2. Why kingdom servers die, and what answers each
 
 | Failure | Answer in Charter |

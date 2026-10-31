@@ -11,7 +11,6 @@ import charter.mc.granary.Granaries;
 import charter.mc.npc.NpcWorld;
 import charter.npc.NpcBook;
 import charter.time.Durations;
-import charter.treasury.Currency;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -187,8 +186,9 @@ public final class NpcGameTest {
             helper.assertTrue(rt.state.org(org).orElseThrow().npc, "The stronghold's faction is not a faction of the raiders");
             Core keep = rt.state.core(site.core()).orElseThrow();
             helper.assertTrue(keep.isKeep(), "The stronghold has no keep");
-            long diamonds = rt.knobs.npcDiamonds[site.tier()];
-            helper.assertTrue(rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == diamonds, "The treasury is not stocked by tier");
+            long marks = rt.knobs.npcTreasuryMarks[site.tier()];
+            helper.assertTrue(rt.state.org(org).orElseThrow().ledger.snapshot().isEmpty(), "The old item treasury was stocked");
+            helper.assertTrue(rt.state.payment instanceof charter.api.NoPayment || GamePort.of(rt).marks(org) == marks, "The treasury is not stocked by tier");
             helper.assertTrue(s.differences(before) != null, "Raising a stronghold changed nothing in the world");
 
             NpcBook.Live live = rt.state.npc.live.get(site.id());
@@ -231,13 +231,10 @@ public final class NpcGameTest {
                             for (BlockPos p : BlockPos.betweenClosed(c.offset(-14, -4, -14), c.offset(14, 10, 14))) {
                                 helper.assertTrue(!(s.level.getBlockEntity(p) instanceof Container), "A container is left at " + p.toShortString());
                             }
-                            long spilledDiamonds = 0;
                             for (ItemEntity e : s.level.getEntitiesOfClass(ItemEntity.class, new AABB(c).inflate(12))) {
                                 helper.assertTrue(!e.getItem().is(Items.BREAD), "The granary's bread was left on the ground");
-                                if (e.getItem().is(Items.DIAMOND)) spilledDiamonds += e.getItem().getCount();
                                 e.discard();
                             }
-                            helper.assertTrue(spilledDiamonds == diamonds / 4, "The fall loot should be a quarter of the diamonds (" + diamonds / 4 + "), was " + spilledDiamonds);
                             helper.assertTrue(s.raiders().isEmpty(), "Raiders stayed after the site fell");
                             helper.succeed();
                         } finally {

@@ -17,7 +17,6 @@ import charter.org.OrgEvents;
 import charter.org.OrgReasons;
 import charter.org.OrgStatus;
 import charter.org.Organization;
-import charter.treasury.Currency;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,11 +27,11 @@ import java.util.Optional;
  * and N2). Operators and the rules only. The faction is an ordinary organization with the {@code npc}
  * flag, an unreachable Lord, and a treasury stocked by tier: that treasury is the prize.
  */
-public record SpawnNpc(String name, String banner, NpcBook.Kind kind, ChunkKey center, long diamonds, long cobblestone,
+public record SpawnNpc(String name, String banner, NpcBook.Kind kind, ChunkKey center, long marks,
                       boolean replacement) implements Action {
 
-    public SpawnNpc(String name, String banner, NpcBook.Kind kind, ChunkKey center, long diamonds, long cobblestone) {
-        this(name, banner, kind, center, diamonds, cobblestone, false);
+    public SpawnNpc(String name, String banner, NpcBook.Kind kind, ChunkKey center, long marks) {
+        this(name, banner, kind, center, marks, false);
     }
 
     @Override
@@ -68,8 +67,7 @@ public record SpawnNpc(String name, String banner, NpcBook.Kind kind, ChunkKey c
         ctx.state.join(NpcBook.LORD, org.id, ctx.now);
         events.add(new OrgEvents.Founded(ctx.now, org.id, org.name(), Preset.LORDSHIP, NpcBook.LORD));
         events.addAll(Preset.LORDSHIP.apply(ctx.state, org, NpcBook.LORD, ctx.knobs, ctx.now));
-        org.ledger.add(Currency.DIAMOND, diamonds);
-        org.ledger.add(Currency.COBBLESTONE, cobblestone);
+        ctx.earn(org.id, marks, "npc_treasury");
         LandGraph land = new LandGraph(ctx.state, ctx.knobs);
         events.addAll(kind == NpcBook.Kind.STRONGHOLD ? land.placeKeep(org.id, center, ctx.now)
                 : land.plantCamp(org.id, center, ctx.now, CampPhase.ACTIVE));

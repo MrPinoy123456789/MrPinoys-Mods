@@ -5,6 +5,7 @@ import charter.contract.Term;
 import charter.engine.Action;
 import charter.engine.ActionContext;
 import charter.engine.Outcome;
+import charter.engine.Reason;
 import charter.grant.Power;
 import charter.history.HistoryEvent;
 import charter.id.OrgId;
@@ -14,14 +15,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A custody fine (D10): at most 16 diamonds, taken from the prisoner's own
- * deposit and never from their faction's treasury. A player with no deposit pays
- * nothing. The prisoner is then free.
+ * A custody fine (D10): at most {@code custodyFineCapMarks} Marks, paid through the payment port (see
+ * {@link Justice}). Nothing is paid when no provider is installed. The prisoner is then free.
  */
-public record FineCustody(OrgId faction, PlayerId prisoner, long diamonds) implements Action {
+public record FineCustody(OrgId faction, PlayerId prisoner, long marks) implements Action {
+
+    public static final Reason NO_CURRENCY = new Reason("fines_need_currency", "Fines need a coin currency, and this server has none.");
+    public static final Reason NOTHING_TO_FINE = new Reason("nothing_to_fine", "That player holds no coin to fine.");
 
     private List<Term> terms() {
-        return List.of(new Term.Fine(diamonds));
+        return List.of(new Term.FineMarks(marks));
     }
 
     @Override
@@ -36,6 +39,8 @@ public record FineCustody(OrgId faction, PlayerId prisoner, long diamonds) imple
 
     @Override
     public Outcome check(ActionContext ctx) {
+        if (!ctx.hasProvider()) return Outcome.refuse(NO_CURRENCY);
+        if (Justice.fineable(ctx, prisoner) <= 0) return Outcome.refuse(NOTHING_TO_FINE);
         Justice.Plan plan = Justice.plan(ctx, faction, prisoner, terms());
         return plan.ok() ? Outcome.OK : Outcome.refuse(plan.refusal());
     }

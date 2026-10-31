@@ -17,7 +17,6 @@ import charter.mc.Text;
 import charter.mc.cmd.Chat;
 import charter.mc.land.Fixtures;
 import charter.mc.land.Protection;
-import charter.treasury.Currency;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.ChatFormatting;
@@ -37,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The mod's physical work on a core: spills items at a Nexus or breaks it, now if the chunk is loaded, else when
+ * The mod's physical work on a core: breaks a Nexus, now if the chunk is loaded, else when
  * it loads (protected keeps: a keep no longer falls, so only the raiders' strongholds use this).
  *
  * <p>A core can be taken down with nobody near. Its physical consequences then wait for the chunk to load and
@@ -46,7 +45,7 @@ import java.util.Map;
 public final class SiegeWorld {
 
     /** Physical work for a chunk that was not loaded when it was due. */
-    private record Work(ChunkKey chunk, BlockPos at, boolean breakNexus, Map<Currency, Long> spill) {
+    private record Work(ChunkKey chunk, BlockPos at, boolean breakNexus) {
     }
 
     private static final Map<ChunkKey, List<Work>> WAITING = new LinkedHashMap<>();
@@ -123,14 +122,14 @@ public final class SiegeWorld {
 
     // ---- the physical work ----
 
-    /** Spills items at the nexus, or breaks it, now if the chunk is loaded, else when it loads. */
-    public static void physical(CoreId keep, ChunkKey chunk, boolean breakNexus, Map<Currency, Long> spill) {
+    /** Breaks the nexus, now if the chunk is loaded, else when it loads. */
+    public static void physical(CoreId keep, ChunkKey chunk, boolean breakNexus) {
         CharterRuntime rt = CharterServer.runtime();
         Fixtures.Fixture nexus = Fixtures.of(rt.state).first(keep, Fixtures.Kind.NEXUS);
         ChunkKey where = nexus != null ? new ChunkKey(nexus.dimension(), nexus.x() >> 4, nexus.z() >> 4) : chunk;
         if (where == null) return;
         BlockPos at = nexus != null ? new BlockPos(nexus.x(), nexus.y(), nexus.z()) : null;
-        Work work = new Work(where, at, breakNexus && nexus != null, spill);
+        Work work = new Work(where, at, breakNexus && nexus != null);
         ServerLevel level = level(where.dimension());
         if (level != null && level.hasChunk(where.x(), where.z())) apply(level, work);
         else WAITING.computeIfAbsent(where, k -> new ArrayList<>()).add(work);
@@ -150,17 +149,6 @@ public final class SiegeWorld {
         if (work.breakNexus() && level.getBlockState(at).is(Blocks.LODESTONE)) {
             level.levelEvent(2001, at, net.minecraft.world.level.block.Block.getId(level.getBlockState(at)));
             level.setBlock(at, Blocks.AIR.defaultBlockState(), 3);
-        }
-        for (Map.Entry<Currency, Long> e : work.spill().entrySet()) {
-            var item = CharterServer.item(e.getKey().itemId);
-            long left = e.getValue();
-            while (left > 0) {
-                int n = (int) Math.min(left, item.getDefaultMaxStackSize());
-                ItemEntity drop = new ItemEntity(level, at.getX() + 0.5, at.getY() + 1.2, at.getZ() + 0.5, new ItemStack(item, n));
-                drop.setDefaultPickUpDelay();
-                level.addFreshEntity(drop);
-                left -= n;
-            }
         }
     }
 

@@ -39,6 +39,14 @@ public final class ContractEvents {
     public record Fined(long at, ContractId contract, PlayerId prisoner, OrgId to, long asked, long paid) implements HistoryEvent {
     }
 
+    /** A sentence's fine in Marks was paid through the payment port; {@code paid} may be less than asked, or nothing. */
+    public record FinedMarks(long at, ContractId contract, PlayerId prisoner, OrgId to, long asked, long paid) implements HistoryEvent {
+    }
+
+    /** A kingdom bought a member out of a sentence; the Marks went to the jailing faction. */
+    public record Bailed(long at, ContractId contract, PlayerId prisoner, OrgId payer, OrgId to, long marks) implements HistoryEvent {
+    }
+
     /** An execution: a respawn delay, then banishment. The prisoner keeps their inventory. */
     public record Executed(long at, ContractId contract, OrgId faction, PlayerId prisoner, long respawnDelayMillis,
                            long banishmentMillis) implements HistoryEvent {

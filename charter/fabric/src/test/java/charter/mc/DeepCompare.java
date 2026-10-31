@@ -23,6 +23,7 @@ final class DeepCompare {
             "charter.state.CharterState.history",          // history.jsonl, compared separately
             "charter.state.CharterState.descendantCache",
             "charter.state.CharterState.treeVersion",
+            "charter.state.CharterState.payment",         // the installed port, never saved
             "charter.state.CharterState.cacheVersion",
             "charter.siege.SiegeBook.food");               // configuration, set by the sim
 

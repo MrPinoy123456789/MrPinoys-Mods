@@ -63,11 +63,11 @@ public final class SeatsTest {
     }
 
     private static void fund(Fixture f) {
-        check("setup: funded", f.as(KRIS, new Deposit(org(f), Currency.DIAMOND, 100)).done());
+        check("setup: funded", f.admin(new Deposit(org(f), 100)).done());
     }
 
     private static boolean spends(Fixture f, PlayerId who) {
-        return f.as(who, new Withdraw(org(f), Currency.DIAMOND, 10, who)).done();
+        return f.as(who, new Withdraw(org(f), 10, who)).done();
     }
 
     /** Setup: a Commune leaves by a vote of the members; any other form is the deciders' own, done here as the operator. */
@@ -96,7 +96,7 @@ public final class SeatsTest {
         eq("1: the organization names its decision makers", lord.id, f.org(org(f)).governance.deciders);
         fund(f);
         check("1: the Lord spends as before", spends(f, KRIS));
-        eq("1: a member does not", Reason.NEEDS_VOTE.key(), f.as(GIL, new Withdraw(org(f), Currency.DIAMOND, 10, GIL)).reasonKey());
+        eq("1: a member does not", Reason.NEEDS_VOTE.key(), f.as(GIL, new Withdraw(org(f), 10, GIL)).reasonKey());
     }
 
     static void aCommuneFoundsWithNoSeats() {
@@ -105,9 +105,9 @@ public final class SeatsTest {
         eq("2: no seats", 0, lord.seats());
         check("2: nobody holds it", lord.vacant());
         fund(f);
-        eq("2: a member's spend needs a vote", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org(f), Currency.DIAMOND, 10, KRIS)).reasonKey());
-        f.motion(KRIS, new Withdraw(org(f), Currency.DIAMOND, 10, KRIS), GIL, CY);
-        eq("2: a vote of the members spends", 90L, f.org(org(f)).ledger.balance(Currency.DIAMOND));
+        eq("2: a member's spend needs a vote", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org(f), 10, KRIS)).reasonKey());
+        f.motion(KRIS, new Withdraw(org(f), 10, KRIS), GIL, CY);
+        eq("2: a vote of the members spends", 90L, f.marks(org(f)));
     }
 
     static void aLordAbdicatesAndOnlyTheMembersLeaveACommune() {
@@ -117,7 +117,7 @@ public final class SeatsTest {
                 f.engine.propose(GIL, new SetSeats(org(f), lord(f), 3, Office.Deciding.ALONE)).reasonKey());
         check("3: the Lord abdicates into a Commune by himself", f.as(KRIS, new SetSeats(org(f), lord(f), 0, Office.Deciding.ALONE)).done());
         check("3: the former Lord is unseated", f.office(org(f), Preset.LORD).vacant());
-        eq("3: the former Lord's spend now needs a vote", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org(f), Currency.DIAMOND, 10, KRIS)).reasonKey());
+        eq("3: the former Lord's spend now needs a vote", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org(f), 10, KRIS)).reasonKey());
         eq("3: leaving the Commune is reserved to the members", Reason.RESERVED.key(),
                 f.as(KRIS, new SetSeats(org(f), lord(f), 1, Office.Deciding.ALONE)).reasonKey());
         f.motion(KRIS, new SetSeats(org(f), lord(f), 1, Office.Deciding.ALONE), GIL, CY);
@@ -146,9 +146,9 @@ public final class SeatsTest {
         elect(f, GIL);
         elect(f, CY);
         setSeats(f, 3, Office.Deciding.TOGETHER);
-        eq("5: one holder's spend is refused", Reason.NEEDS_SEATS.key(), f.as(KRIS, new Withdraw(org(f), Currency.DIAMOND, 10, KRIS)).reasonKey());
+        eq("5: one holder's spend is refused", Reason.NEEDS_SEATS.key(), f.as(KRIS, new Withdraw(org(f), 10, KRIS)).reasonKey());
 
-        Outcome opened = f.engine.proposeToSeats(KRIS, lord(f), new Withdraw(org(f), Currency.DIAMOND, 10, KRIS));
+        Outcome opened = f.engine.proposeToSeats(KRIS, lord(f), new Withdraw(org(f), 10, KRIS));
         check("5: proposing to the seats opens a vote", opened instanceof Outcome.VoteOpened);
         Vote vote = f.vote(((Outcome.VoteOpened) opened).vote());
         eq("5: the electorate is the three seats", 3, vote.electorate.size());
@@ -156,17 +156,17 @@ public final class SeatsTest {
         check("5: one yes of three does not pass", vote.open());
         f.engine.cast(GIL, vote.id, Vote.Ballot.YES);
         eq("5: the second yes passes at once", Vote.State.EXECUTED, vote.state());
-        eq("5: and the spend happened", 90L, f.org(org(f)).ledger.balance(Currency.DIAMOND));
+        eq("5: and the spend happened", 90L, f.marks(org(f)));
 
-        Outcome second = f.engine.proposeToSeats(KRIS, lord(f), new Withdraw(org(f), Currency.DIAMOND, 10, KRIS));
+        Outcome second = f.engine.proposeToSeats(KRIS, lord(f), new Withdraw(org(f), 10, KRIS));
         Vote no = f.vote(((Outcome.VoteOpened) second).vote());
         f.engine.cast(GIL, no.id, Vote.Ballot.NO);
         check("5: one no leaves it open", no.open());
         f.engine.cast(CY, no.id, Vote.Ballot.NO);
         eq("5: two no fail it at once", Vote.State.FAILED, no.state());
-        eq("5: and nothing was spent", 90L, f.org(org(f)).ledger.balance(Currency.DIAMOND));
+        eq("5: and nothing was spent", 90L, f.marks(org(f)));
 
-        Outcome outsider = f.engine.proposeToSeats(player("Dee"), lord(f), new Withdraw(org(f), Currency.DIAMOND, 10, KRIS));
+        Outcome outsider = f.engine.proposeToSeats(player("Dee"), lord(f), new Withdraw(org(f), 10, KRIS));
         check("5: only a holder may propose", outsider.refused());
     }
 

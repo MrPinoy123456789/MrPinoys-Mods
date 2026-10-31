@@ -16,8 +16,6 @@ import charter.org.OrgEvents;
 import charter.org.OrgStatus;
 import charter.org.Organization;
 import charter.org.OrgReasons;
-import charter.treasury.Currency;
-import charter.treasury.TreasuryEvents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +23,8 @@ import java.util.Optional;
 
 /**
  * A player founds a Lordship and raises its keep in one act, paying for the keep
- * with the diamonds they carried (the Charter book's Nexus). A refusal leaves
+ * with the diamonds they carried (the Charter book's Nexus). The diamonds are items the fabric side takes from the
+ * player; they never enter a treasury. Keeps placed later cost {@code keepPriceMarks} from the treasury ({@link PlaceNexus}). A refusal leaves
  * nothing behind: every check runs before anything changes. A player's own act,
  * like {@link Found}.
  */
@@ -76,9 +75,6 @@ public record FoundKeep(PlayerId founder, String name, String banner, ChunkKey c
         Organization org = ctx.state.orgNamed(name.strip()).orElseThrow();
         org.people.banner = banner;
         org.people.name = name.strip();
-        org.ledger.add(Currency.DIAMOND, paidDiamonds);
-        events.add(new TreasuryEvents.Deposited(ctx.now, org.id, Currency.DIAMOND, paidDiamonds, founder));
-        org.ledger.take(Currency.DIAMOND, ctx.knobs.keepPriceDiamonds);
         events.addAll(new LandGraph(ctx.state, ctx.knobs).placeKeep(org.id, center, ctx.now));
         if (group.isPresent()) {
             // Those who came along move into the new Lordship.
