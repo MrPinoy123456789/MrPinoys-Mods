@@ -23,11 +23,6 @@ final class ShopDisplay {
      * item's name if the mod is absent at the moment this renders.
      */
     static String displayName(ShopEntry entry) {
-        if (WondrousShop.isWondrousItemId(entry.itemId())) {
-            return WondrousShop.displayName(WondrousShop.idFrom(entry.itemId()))
-                    .map(Component::getString)
-                    .orElseGet(() -> prettyName(WondrousShop.idFrom(entry.itemId())));
-        }
         if (SuiteItems.isSuiteItemId(entry.itemId())) {
             return SuiteItems.displayName(SuiteItems.idFrom(entry.itemId()))
                     .map(Component::getString)

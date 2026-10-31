@@ -155,7 +155,7 @@ public final class ShopConfig {
                 }
             } else {
                 String currencyId = object.has("currency")
-                        ? object.get("currency").getAsString() : CurrencyRegistry.COBBLESTONE.id();
+                        ? object.get("currency").getAsString() : CurrencyRegistry.COIN.id();
                 Currency currency = currencies.byId(currencyId).orElse(null);
                 if (currency == null) {
                     CharterCurrencyMod.LOG.warn("Shop entry '{}' names unknown currency '{}'",
@@ -174,15 +174,7 @@ public final class ShopConfig {
             // registry id or a "wondrous:" id, so it must not be re-checked against
             // either lookup below.
             if (!isSuiteItem) {
-                if (WondrousShop.isWondrousItemId(itemId)) {
-                    String wondrousId = WondrousShop.idFrom(itemId);
-                    if (!WondrousShop.available() || WondrousShop.baseItem(wondrousId).isEmpty()) {
-                        CharterCurrencyMod.LOG.warn(
-                                "Shop entry '{}' names wondrous item '{}', but it could not be "
-                                        + "resolved (mod absent or unknown id)", key, itemId);
-                        return null;
-                    }
-                } else if (ItemBank.resolve(itemId).isEmpty()) {
+                if (ItemBank.resolve(itemId).isEmpty()) {
                     CharterCurrencyMod.LOG.warn("Shop entry '{}' names unknown item '{}'", key, itemId);
                     return null;
                 }
@@ -282,27 +274,31 @@ public final class ShopConfig {
      */
     private void writeDefaults() {
         ShopCatalog catalog = new ShopCatalog();
-        Currency cobble = CurrencyRegistry.COBBLESTONE;
-        Currency diamond = CurrencyRegistry.DIAMOND;
+        Currency coin = CurrencyRegistry.COIN;
+        Currency valor = CurrencyRegistry.VALOR;
         String building = "Building Materials";
-        String rare = "Rare Resources";
+        String working = "Working Items";
+        String honours = "Honours";
 
-        catalog.put(ShopEntry.of("ice", "minecraft:ice", 64, cobble, 640, building));
-        catalog.put(ShopEntry.of("snow", "minecraft:snow_block", 64, cobble, 320, building));
-        catalog.put(ShopEntry.of("packed_ice", "minecraft:packed_ice", 64, cobble, 1_280, building));
-        catalog.put(ShopEntry.of("dirt", "minecraft:dirt", 64, cobble, 160, building));
-        catalog.put(ShopEntry.of("sand", "minecraft:sand", 64, cobble, 320, building));
-        catalog.put(ShopEntry.of("gravel", "minecraft:gravel", 64, cobble, 320, building));
-        catalog.put(ShopEntry.of("ancient_debris", "minecraft:ancient_debris", 1, diamond, 2, rare));
-        catalog.put(ShopEntry.of("netherite_upgrade", "minecraft:netherite_upgrade_smithing_template",
-                1, diamond, 8, rare));
-        catalog.put(ShopEntry.of("elytra", "minecraft:elytra", 1, diamond, 20, rare));
-        // Sample wondrous listing -- resolved through WondrousShop, not the item
-        // registry. If the wondrous mod isn't installed, this entry is skipped with
-        // one log warning at the next reload; it does not stop the server starting.
-        catalog.put(ShopEntry.of("big_hole_shovel", "wondrous:big_hole_shovel", 1, diamond, 12, rare));
-        catalog.put(ShopEntry.of("pocket_disenchanter", "wondrous:pocket_disenchanter", 1, diamond, 16, rare));
-        catalog.put(ShopEntry.of("pocket_smelter", "wondrous:pocket_smelter", 1, diamond, 10, rare));
+        // Every price is a placeholder the owner will retune. Prices are in Marks.
+        catalog.put(ShopEntry.of("ice", "minecraft:ice", 64, coin, 64, building));
+        catalog.put(ShopEntry.of("sand", "minecraft:sand", 64, coin, 32, building));
+        catalog.put(ShopEntry.of("glass", "minecraft:glass", 64, coin, 64, building));
+        catalog.put(ShopEntry.of("terracotta", "minecraft:terracotta", 64, coin, 96, building));
+        catalog.put(ShopEntry.of("quartz", "minecraft:quartz_block", 64, coin, 192, building));
+        catalog.put(ShopEntry.of("concrete_powder", "minecraft:white_concrete_powder", 64, coin, 96, building));
+        catalog.put(ShopEntry.of("rockets", "minecraft:firework_rocket", 64, coin, 128, working));
+        catalog.put(ShopEntry.of("book_unbreaking", "minecraft:enchanted_book", 1, coin, 192, working,
+                "{\"minecraft:stored_enchantments\":{\"minecraft:unbreaking\":3}}"));
+        catalog.put(ShopEntry.of("book_efficiency", "minecraft:enchanted_book", 1, coin, 256, working,
+                "{\"minecraft:stored_enchantments\":{\"minecraft:efficiency\":4}}"));
+        catalog.put(ShopEntry.of("champion_helm", "minecraft:iron_helmet", 1, valor, 150, honours,
+                "{\"minecraft:item_name\":\"Champion's Helm\","
+                        + "\"minecraft:trim\":{\"material\":\"minecraft:gold\",\"pattern\":\"minecraft:silence\"}}"));
+        catalog.put(ShopEntry.of("champion_head", "minecraft:player_head", 1, valor, 80, honours,
+                "{\"minecraft:item_name\":\"Champion's Trophy\"}"));
+        catalog.put(ShopEntry.of("valor_banner", "minecraft:white_banner", 1, valor, 40, honours,
+                "{\"minecraft:item_name\":\"Banner of Valor\"}"));
 
         save(catalog);
         CharterCurrencyMod.LOG.info("Wrote a starter shop.json -- edit it to set your own prices");

@@ -48,13 +48,6 @@ public final class JsonAccountStore implements AccountStore {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final long FLUSH_SECONDS = 15;
 
-    /**
-     * Where a first-release balance lands. The old file had one unnamed number per
-     * player and that number was always cobblestone, so this is a fact about the old
-     * format rather than a default anyone should configure.
-     */
-    private static final String LEGACY_CURRENCY = "cobblestone";
-
     private final Path file;
     private final Path temp;
     private final Map<UUID, Map<String, Long>> balances = new LinkedHashMap<>();
@@ -105,7 +98,6 @@ public final class JsonAccountStore implements AccountStore {
             if (accounts == null) return Map.of();
 
             int skipped = 0;
-            int migrated = 0;
             for (Map.Entry<String, com.google.gson.JsonElement> e : accounts.entrySet()) {
                 try {
                     UUID id = UUID.fromString(e.getKey());
@@ -118,15 +110,6 @@ public final class JsonAccountStore implements AccountStore {
                             long value = row.getValue().getAsLong();
                             if (value > 0) account_balances.put(row.getKey(), value);
                         }
-                    } else if (account.has("balance")) {
-                        // Single-currency format from the first release. Everything in
-                        // it was cobblestone by definition, so it reads as cobblestone
-                        // and gets written back in the new shape on the next flush.
-                        long value = account.get("balance").getAsLong();
-                        if (value > 0) {
-                            account_balances.put(LEGACY_CURRENCY, value);
-                            migrated++;
-                        }
                     }
 
                     if (!account_balances.isEmpty()) balances.put(id, account_balances);
@@ -137,12 +120,6 @@ public final class JsonAccountStore implements AccountStore {
             }
             if (skipped > 0) {
                 CharterCurrencyMod.LOG.warn("Skipped {} malformed account entries", skipped);
-            }
-            if (migrated > 0) {
-                CharterCurrencyMod.LOG.info(
-                        "Migrated {} accounts from the single-currency format to {}",
-                        migrated, LEGACY_CURRENCY);
-                dirty.set(true);
             }
             CharterCurrencyMod.LOG.info("Loaded {} accounts", balances.size());
             return new HashMap<>(balances);

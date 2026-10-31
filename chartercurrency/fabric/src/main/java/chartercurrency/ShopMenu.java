@@ -273,21 +273,14 @@ final class ShopMenu {
     }
 
     /**
-     * The icon shown for an entry. A wondrous entry uses its own fully-tagged stack
-     * (name, lore and glow included) rather than the plain base item -- the same stack
-     * {@link WondrousShop#deliver} would hand over, so what is shown is what is sold.
+     * The icon shown for an entry, built from the same item and components that a
+     * purchase would deliver, so what is shown is what is sold.
      *
      * <p>Package-private so {@link ShopAdminMenu} shows an entry exactly as a shopper
      * would see it. An admin editing a listing that renders differently from the one
      * players buy is editing the wrong thing.
      */
     static ItemStack iconFor(ShopEntry entry, HolderLookup.Provider registries) {
-        if (WondrousShop.isWondrousItemId(entry.itemId())) {
-            String id = WondrousShop.idFrom(entry.itemId());
-            return WondrousShop.iconStack(id)
-                    .or(() -> WondrousShop.baseItem(id).map(ItemStack::new))
-                    .orElse(new ItemStack(Items.BARRIER));
-        }
         if (SuiteItems.isSuiteItemId(entry.itemId())) {
             String id = SuiteItems.idFrom(entry.itemId());
             return SuiteItems.iconStack(id, registries)

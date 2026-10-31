@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 
 /**
- * Charter Currency. Cobblestone is money, diamonds are better money.
+ * Charter Currency. The currency system for the Kingdoms server: Coin, Valor and Renown.
  *
  * <p>Server-side only -- vanilla clients need nothing installed. Nothing is added to a
  * synced registry, no packets are sent that a vanilla client cannot read, and both
@@ -59,7 +59,7 @@ public final class CharterCurrencyMod implements ModInitializer {
         Path configDir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
 
         EconomySettings settings = EconomySettings.load(configDir);
-        CurrencyRegistry currencies = CurrencyRegistry.defaults();
+        CurrencyRegistry currencies = CurrencyConfig.load(configDir);
 
         store = new JsonAccountStore(configDir);
         names = new NameCache(configDir);
@@ -71,10 +71,7 @@ public final class CharterCurrencyMod implements ModInitializer {
         LeaderboardService leaderboard = new LeaderboardService(economy, names::nameOf);
 
         ShopConfig shopConfig = new ShopConfig(configDir, currencies);
-        // Loaded on SERVER_STARTED, not here: "thingy" is only a "suggests"
-        // dependency, so its onInitialize() (which populates VirtualItems.Holder)
-        // is not guaranteed to have run yet. Loading here would silently drop every
-        // wondrous: shop entry whenever thingy initialises after this mod.
+        // The shop catalog itself is loaded on SERVER_STARTED, once registries exist.
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
                 Identifier.fromNamespaceAndPath(MOD_ID, "suite_items"),
                 SuiteItems.Loader::new);

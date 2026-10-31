@@ -65,6 +65,14 @@ public record ShopEntry(
         return new ShopEntry(key, itemId, quantity, price, category, true, null);
     }
 
+    /** A single-currency entry that sells a component-stamped item. */
+    public static ShopEntry of(String key, String itemId, int quantity,
+                               Currency currency, long amount, String category, String components) {
+        Map<Currency, Long> price = new LinkedHashMap<>();
+        price.put(currency, amount);
+        return new ShopEntry(key, itemId, quantity, price, category, true, components);
+    }
+
     /** True if this entry carries data components beyond the plain registry item. */
     public boolean hasComponents() {
         return components != null && !components.isBlank();

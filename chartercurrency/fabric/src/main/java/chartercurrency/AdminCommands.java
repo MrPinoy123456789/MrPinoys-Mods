@@ -71,7 +71,7 @@ public final class AdminCommands {
                 .then(Commands.literal("help").executes(ctx -> {
                     CommandSourceStack source = ctx.getSource();
                     source.sendSuccess(Messages::rule, false);
-                    source.sendSuccess(() -> Messages.title("COBBLE ECONOMY ADMIN"), false);
+                    source.sendSuccess(() -> Messages.title("CHARTER CURRENCY ADMIN"), false);
                     source.sendSuccess(Messages::blank, false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency balance <player>", "Check a player's balances"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency set <player> <amount> <currency>", "Set a balance"), false);
@@ -315,13 +315,7 @@ public final class AdminCommands {
         int quantity = IntegerArgumentType.getInteger(ctx, "quantity");
         long price = LongArgumentType.getLong(ctx, "price");
 
-        if (WondrousShop.isWondrousItemId(itemId)) {
-            if (!WondrousShop.available()
-                    || WondrousShop.baseItem(WondrousShop.idFrom(itemId)).isEmpty()) {
-                source.sendFailure(Messages.bad("No such wondrous item: " + itemId));
-                return 0;
-            }
-        } else if (SuiteItems.isSuiteItemId(itemId)) {
+        if (SuiteItems.isSuiteItemId(itemId)) {
             String suiteId = SuiteItems.idFrom(itemId);
             if (SuiteItems.baseItem(suiteId).isEmpty()) {
                 source.sendFailure(Messages.bad("No such suite item: " + itemId));

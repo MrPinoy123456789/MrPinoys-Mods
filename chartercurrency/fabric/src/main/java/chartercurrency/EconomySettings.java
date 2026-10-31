@@ -82,8 +82,8 @@ public final class EconomySettings {
             // LinkedHashMap rather than Map.of: this is written back out to settings.json
             // and a randomised order would rewrite the file differently every restart.
             Map<String, Long> out = new LinkedHashMap<>();
-            out.put("cobblestone", 1_000L);
-            out.put("diamond", 1L);
+            out.put("coin", 512L);
+            out.put("valor", 100L);
             return out;
         }
     }
@@ -94,8 +94,8 @@ public final class EconomySettings {
         public int delayTicks = 40;
         public List<String> lines = List.of(
                 "Two things are money here.",
-                "  \uD83E\uDEA8 Cobblestone \u2014 common. Bank it with /bank all",
-                "  \uD83D\uDC8E Diamond \u2014 premium. Earned from quizzes, bounties and riddles",
+                "  Coin: copper Marks, iron Crowns, gold Sovereigns. Bank them with /bank all",
+                "  Valor: earned in dungeons and at events. It cannot be traded",
                 "Type /shop to see what the server sells.",
                 "  [ Open the shop ]");
     }

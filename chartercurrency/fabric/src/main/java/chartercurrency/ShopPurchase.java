@@ -31,9 +31,6 @@ final class ShopPurchase {
      * would deliver, rather than reimplementing the wondrous fork and drifting from it.
      */
     static Optional<Item> itemOf(ShopEntry entry) {
-        if (WondrousShop.isWondrousItemId(entry.itemId())) {
-            return WondrousShop.baseItem(WondrousShop.idFrom(entry.itemId()));
-        }
         if (SuiteItems.isSuiteItemId(entry.itemId())) {
             return SuiteItems.baseItem(SuiteItems.idFrom(entry.itemId()));
         }
@@ -42,8 +39,6 @@ final class ShopPurchase {
 
     static Shop.PurchaseResult attempt(EconomyService economy, TransactionLog log,
                                        ServerPlayer player, ShopEntry entry, boolean announce) {
-        boolean wondrous = WondrousShop.isWondrousItemId(entry.itemId());
-
         Optional<Item> maybeItem = itemOf(entry);
         if (maybeItem.isEmpty()) {
             // Startup already warned about this; say something useful rather than
@@ -60,11 +55,6 @@ final class ShopPurchase {
         long capacity = ItemBank.freeCapacity(player, item);
         Shop.PurchaseResult result = Shop.buy(economy, player.getUUID(), entry, capacity,
                 (itemId, quantity) -> {
-                    if (wondrous) {
-                        // A fully tagged stack, not the plain item ItemBank.give would
-                        // create -- the tag is the entire trick that makes it wondrous.
-                        return WondrousShop.deliver(player, WondrousShop.idFrom(itemId), quantity);
-                    }
                     if (SuiteItems.isSuiteItemId(itemId)) {
                         // The suite loader already validated the definition and its
                         // components; delivery builds the same stamped stack the GUI icon

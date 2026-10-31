@@ -127,6 +127,9 @@ public final class CharterCurrency implements EconomyService {
             return TxResult.fail(TxStatus.INVALID_AMOUNT, currency, amount, getBalance(from, currency));
         }
         if (currency == null) return TxResult.fail(TxStatus.UNKNOWN_CURRENCY, null, amount, 0L);
+        if (!currency.payable()) {
+            return TxResult.fail(TxStatus.NOT_PAYABLE, currency, amount, getBalance(from, currency));
+        }
         synchronized (lock) {
             long fromBalance = getBalance(from, currency);
             long toBalance = getBalance(to, currency);

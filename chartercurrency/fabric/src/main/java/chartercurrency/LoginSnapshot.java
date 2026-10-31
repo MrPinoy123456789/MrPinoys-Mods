@@ -128,8 +128,8 @@ public final class LoginSnapshot {
      * glyph per heading does the work of a word without adding a line.
      */
     private static String symbolOf(Currency currency) {
-        if (currency.id().equals(CurrencyRegistry.COBBLESTONE.id())) return "\uD83E\uDEA8";
-        if (currency.id().equals(CurrencyRegistry.DIAMOND.id())) return "\uD83D\uDC8E";
+        if (currency.id().equals(CurrencyRegistry.COIN.id())) return "\uD83E\uDE99";
+        if (currency.id().equals(CurrencyRegistry.VALOR.id())) return "\u2694";
         return "\u2022";
     }
 }

@@ -36,9 +36,23 @@ public final class EconomyTest {
     private static final UUID JAMIE = UUID.fromString("00000000-0000-0000-0000-0000000000a3");
     private static final UUID TAYLOR = UUID.fromString("00000000-0000-0000-0000-0000000000a4");
 
-    private static final CurrencyRegistry REGISTRY = CurrencyRegistry.defaults();
-    private static final Currency COBBLE = CurrencyRegistry.COBBLESTONE;
-    private static final Currency DIAMOND = CurrencyRegistry.DIAMOND;
+    /**
+     * The fork's generic two-currency tests keep running against an ordinary payable,
+     * withdrawable second currency (GEM), because Valor is deliberately not payable.
+     * Coin is the real coin; the shipped registry (coin + valor) is tested separately.
+     */
+    private static final Currency COIN = CurrencyRegistry.COIN;
+    private static final Currency VALOR = CurrencyRegistry.VALOR;
+    private static final Currency GEM = Currency.of("gem", "Gem", "gem", "gems",
+            "minecraft:diamond", "gems", "dia");
+    private static final CurrencyRegistry REGISTRY = testRegistry();
+
+    private static CurrencyRegistry testRegistry() {
+        CurrencyRegistry r = new CurrencyRegistry();
+        r.register(COIN);
+        r.register(GEM);
+        return r;
+    }
 
     /** Names used for the leaderboard tie-break. */
     private static final Map<UUID, String> NAMES = new HashMap<>();
@@ -59,6 +73,8 @@ public final class EconomyTest {
         adminOps();
         persistence();
         security();
+        denominations();
+        valor();
         inventoryMath();
         formatting();
         shopCatalog();
@@ -77,33 +93,44 @@ public final class EconomyTest {
     private static void currencyRegistry() {
         section("Currency registry");
 
-        check("resolves canonical id", REGISTRY.resolve("cobblestone").orElseThrow().equals(COBBLE));
-        check("resolves alias", REGISTRY.resolve("cobble").orElseThrow().equals(COBBLE));
-        check("resolves case-insensitively", REGISTRY.resolve("COBBLE").orElseThrow().equals(COBBLE));
-        check("resolves plural alias", REGISTRY.resolve("diamonds").orElseThrow().equals(DIAMOND));
+        check("resolves canonical id", REGISTRY.resolve("coin").orElseThrow().equals(COIN));
+        check("resolves alias", REGISTRY.resolve("coins").orElseThrow().equals(COIN));
+        check("resolves case-insensitively", REGISTRY.resolve("COIN").orElseThrow().equals(COIN));
+        check("resolves plural alias", REGISTRY.resolve("gems").orElseThrow().equals(GEM));
         check("unknown currency is empty", REGISTRY.resolve("emeralds").isEmpty());
         check("blank is empty", REGISTRY.resolve("  ").isEmpty());
         check("null is empty", REGISTRY.resolve(null).isEmpty());
         check("both currencies registered", REGISTRY.all().size() == 2);
-        check("cobblestone is listed first", REGISTRY.all().iterator().next().equals(COBBLE));
-        check("maps to the vanilla item", COBBLE.itemId().equals("minecraft:cobblestone"));
-        check("diamond maps to the vanilla item", DIAMOND.itemId().equals("minecraft:diamond"));
+        check("coin is listed first", REGISTRY.all().iterator().next().equals(COIN));
+        check("a plain currency maps to its item", GEM.itemId().equals("minecraft:diamond"));
+        check("coin has no single item, it has denominations",
+                COIN.itemId() == null && COIN.denominations().size() == 3);
 
-        check("singular wording", DIAMOND.describe(1).equals("1 diamond"));
-        check("plural wording", DIAMOND.describe(37).equals("37 diamonds"));
-        check("plural wording groups digits", COBBLE.describe(12481).equals("12,481 cobblestone"));
+        check("singular wording", GEM.describe(1).equals("1 gem"));
+        check("plural wording", GEM.describe(37).equals("37 gems"));
+        check("plural wording groups digits", GEM.describe(12481).equals("12,481 gems"));
 
         // An alias claimed by two currencies would make /pay ambiguous, so it is fatal.
         CurrencyRegistry clashing = new CurrencyRegistry();
-        clashing.register(COBBLE);
+        clashing.register(COIN);
         boolean rejected = false;
         try {
             clashing.register(Currency.of("granite", "Granite", "granite", "granite",
-                    "minecraft:granite", "stone"));
+                    "minecraft:granite", "coin"));
         } catch (IllegalArgumentException e) {
             rejected = true;
         }
         check("clashing alias is rejected at registration", rejected);
+
+        // Denomination words are aliases too: a currency may not steal "crowns".
+        boolean denomRejected = false;
+        try {
+            clashing.register(Currency.of("crownland", "Crownland", "crown", "crowns",
+                    "minecraft:granite", "crowns"));
+        } catch (IllegalArgumentException e) {
+            denomRejected = true;
+        }
+        check("clashing denomination alias is rejected at registration", denomRejected);
     }
 
     // ---- depositing ---------------------------------------------------------
@@ -112,29 +139,29 @@ public final class EconomyTest {
         section("Depositing");
         EconomyService e = fresh();
 
-        check("deposit exact amount", e.deposit(ALEX, COBBLE, 500).ok());
-        check("balance reflects deposit", e.getBalance(ALEX, COBBLE) == 500);
+        check("deposit exact amount", e.deposit(ALEX, COIN, 500).ok());
+        check("balance reflects deposit", e.getBalance(ALEX, COIN) == 500);
 
-        e.deposit(ALEX, COBBLE, 1_842);
-        check("deposits accumulate", e.getBalance(ALEX, COBBLE) == 2_342);
+        e.deposit(ALEX, COIN, 1_842);
+        check("deposits accumulate", e.getBalance(ALEX, COIN) == 2_342);
 
         check("deposit zero rejected",
-                e.deposit(ALEX, COBBLE, 0).status() == TxStatus.INVALID_AMOUNT);
+                e.deposit(ALEX, COIN, 0).status() == TxStatus.INVALID_AMOUNT);
         check("deposit negative rejected",
-                e.deposit(ALEX, COBBLE, -500).status() == TxStatus.INVALID_AMOUNT);
-        check("rejected deposits do not move the balance", e.getBalance(ALEX, COBBLE) == 2_342);
+                e.deposit(ALEX, COIN, -500).status() == TxStatus.INVALID_AMOUNT);
+        check("rejected deposits do not move the balance", e.getBalance(ALEX, COIN) == 2_342);
         check("null currency rejected",
                 e.deposit(ALEX, null, 100).status() == TxStatus.UNKNOWN_CURRENCY);
 
         EconomyService brim = fresh();
-        brim.set(ALEX, COBBLE, Long.MAX_VALUE - 10);
+        brim.set(ALEX, COIN, Long.MAX_VALUE - 10);
         check("overflow rejected rather than wrapping negative",
-                brim.deposit(ALEX, COBBLE, 100).status() == TxStatus.OVERFLOW);
+                brim.deposit(ALEX, COIN, 100).status() == TxStatus.OVERFLOW);
         check("rejected overflow leaves the balance intact",
-                brim.getBalance(ALEX, COBBLE) == Long.MAX_VALUE - 10);
+                brim.getBalance(ALEX, COIN) == Long.MAX_VALUE - 10);
         check("a deposit that exactly fills the range still works",
-                brim.deposit(ALEX, COBBLE, 10).ok()
-                        && brim.getBalance(ALEX, COBBLE) == Long.MAX_VALUE);
+                brim.deposit(ALEX, COIN, 10).ok()
+                        && brim.getBalance(ALEX, COIN) == Long.MAX_VALUE);
     }
 
     // ---- withdrawal ---------------------------------------------------------
@@ -142,25 +169,25 @@ public final class EconomyTest {
     private static void withdrawal() {
         section("Withdrawal");
         EconomyService e = fresh();
-        e.deposit(ALEX, COBBLE, 1_000);
+        e.deposit(ALEX, COIN, 1_000);
 
-        check("withdraw part of balance", e.withdraw(ALEX, COBBLE, 400).ok());
-        check("balance reduced", e.getBalance(ALEX, COBBLE) == 600);
-        check("withdraw exact balance", e.withdraw(ALEX, COBBLE, 600).ok());
-        check("balance now zero", e.getBalance(ALEX, COBBLE) == 0);
+        check("withdraw part of balance", e.withdraw(ALEX, COIN, 400).ok());
+        check("balance reduced", e.getBalance(ALEX, COIN) == 600);
+        check("withdraw exact balance", e.withdraw(ALEX, COIN, 600).ok());
+        check("balance now zero", e.getBalance(ALEX, COIN) == 0);
 
         check("withdraw more than balance rejected",
-                e.withdraw(ALEX, COBBLE, 1).status() == TxStatus.INSUFFICIENT_FUNDS);
+                e.withdraw(ALEX, COIN, 1).status() == TxStatus.INSUFFICIENT_FUNDS);
         check("withdraw zero rejected",
-                e.withdraw(ALEX, COBBLE, 0).status() == TxStatus.INVALID_AMOUNT);
+                e.withdraw(ALEX, COIN, 0).status() == TxStatus.INVALID_AMOUNT);
         check("withdraw negative rejected",
-                e.withdraw(ALEX, COBBLE, -50).status() == TxStatus.INVALID_AMOUNT);
+                e.withdraw(ALEX, COIN, -50).status() == TxStatus.INVALID_AMOUNT);
 
-        e.deposit(STEVE, COBBLE, 100);
-        e.withdraw(STEVE, COBBLE, 500);
-        check("failed withdrawal leaves balance untouched", e.getBalance(STEVE, COBBLE) == 100);
+        e.deposit(STEVE, COIN, 100);
+        e.withdraw(STEVE, COIN, 500);
+        check("failed withdrawal leaves balance untouched", e.getBalance(STEVE, COIN) == 100);
         check("failed withdrawal reports current balance",
-                e.withdraw(STEVE, COBBLE, 500).actorBalance() == 100);
+                e.withdraw(STEVE, COIN, 500).actorBalance() == 100);
     }
 
     // ---- payments -----------------------------------------------------------
@@ -168,43 +195,43 @@ public final class EconomyTest {
     private static void payments() {
         section("Payments");
         EconomyService e = fresh();
-        e.deposit(ALEX, COBBLE, 5_000);
-        e.deposit(STEVE, COBBLE, 2_250);
+        e.deposit(ALEX, COIN, 5_000);
+        e.deposit(STEVE, COIN, 2_250);
 
-        TxResult r = e.transfer(ALEX, STEVE, COBBLE, 500);
+        TxResult r = e.transfer(ALEX, STEVE, COIN, 500);
         check("successful payment", r.ok());
-        check("sender debited", e.getBalance(ALEX, COBBLE) == 4_500);
-        check("recipient credited", e.getBalance(STEVE, COBBLE) == 2_750);
+        check("sender debited", e.getBalance(ALEX, COIN) == 4_500);
+        check("recipient credited", e.getBalance(STEVE, COIN) == 2_750);
         check("result carries sender balance", r.actorBalance() == 4_500);
         check("result carries recipient balance", r.targetBalance() == 2_750);
-        check("result carries the currency", r.currency().equals(COBBLE));
+        check("result carries the currency", r.currency().equals(COIN));
 
         check("insufficient funds rejected",
-                e.transfer(ALEX, STEVE, COBBLE, 999_999).status() == TxStatus.INSUFFICIENT_FUNDS);
+                e.transfer(ALEX, STEVE, COIN, 999_999).status() == TxStatus.INSUFFICIENT_FUNDS);
         check("failed payment moves nothing",
-                e.getBalance(ALEX, COBBLE) == 4_500 && e.getBalance(STEVE, COBBLE) == 2_750);
+                e.getBalance(ALEX, COIN) == 4_500 && e.getBalance(STEVE, COIN) == 2_750);
 
         check("self payment rejected",
-                e.transfer(ALEX, ALEX, COBBLE, 100).status() == TxStatus.SELF_TRANSFER);
-        check("self payment does not double money", e.getBalance(ALEX, COBBLE) == 4_500);
+                e.transfer(ALEX, ALEX, COIN, 100).status() == TxStatus.SELF_TRANSFER);
+        check("self payment does not double money", e.getBalance(ALEX, COIN) == 4_500);
 
         check("zero payment rejected",
-                e.transfer(ALEX, STEVE, COBBLE, 0).status() == TxStatus.INVALID_AMOUNT);
+                e.transfer(ALEX, STEVE, COIN, 0).status() == TxStatus.INVALID_AMOUNT);
         check("negative payment rejected",
-                e.transfer(ALEX, STEVE, COBBLE, -100).status() == TxStatus.INVALID_AMOUNT);
+                e.transfer(ALEX, STEVE, COIN, -100).status() == TxStatus.INVALID_AMOUNT);
         check("negative payment cannot drain the recipient",
-                e.getBalance(STEVE, COBBLE) == 2_750);
+                e.getBalance(STEVE, COIN) == 2_750);
 
         // Offline recipients are not special: an account is a UUID and some numbers.
         check("payment to an account never seen before",
-                e.transfer(ALEX, JAMIE, COBBLE, 250).ok());
-        check("previously unknown recipient credited", e.getBalance(JAMIE, COBBLE) == 250);
+                e.transfer(ALEX, JAMIE, COIN, 250).ok());
+        check("previously unknown recipient credited", e.getBalance(JAMIE, COIN) == 250);
         check("null recipient rejected",
-                e.transfer(ALEX, null, COBBLE, 100).status() == TxStatus.INVALID_AMOUNT);
+                e.transfer(ALEX, null, COIN, 100).status() == TxStatus.INVALID_AMOUNT);
 
-        long before = e.totalSupply(COBBLE);
-        e.transfer(ALEX, STEVE, COBBLE, 1_000);
-        check("transfer conserves total supply", e.totalSupply(COBBLE) == before);
+        long before = e.totalSupply(COIN);
+        e.transfer(ALEX, STEVE, COIN, 1_000);
+        check("transfer conserves total supply", e.totalSupply(COIN) == before);
     }
 
     // ---- multi-currency independence ---------------------------------------
@@ -212,46 +239,46 @@ public final class EconomyTest {
     private static void multiCurrencyIndependence() {
         section("Multi-currency independence");
         EconomyService e = fresh();
-        e.set(ALEX, COBBLE, 12_480);
-        e.set(ALEX, DIAMOND, 37);
+        e.set(ALEX, COIN, 12_480);
+        e.set(ALEX, GEM, 37);
 
         check("both balances held at once",
-                e.getBalance(ALEX, COBBLE) == 12_480 && e.getBalance(ALEX, DIAMOND) == 37);
+                e.getBalance(ALEX, COIN) == 12_480 && e.getBalance(ALEX, GEM) == 37);
 
-        e.deposit(ALEX, COBBLE, 1_000);
-        check("depositing cobblestone leaves diamonds alone", e.getBalance(ALEX, DIAMOND) == 37);
-        e.deposit(ALEX, DIAMOND, 3);
+        e.deposit(ALEX, COIN, 1_000);
+        check("depositing cobblestone leaves diamonds alone", e.getBalance(ALEX, GEM) == 37);
+        e.deposit(ALEX, GEM, 3);
         check("depositing diamonds leaves cobblestone alone",
-                e.getBalance(ALEX, COBBLE) == 13_480);
+                e.getBalance(ALEX, COIN) == 13_480);
 
-        e.withdraw(ALEX, COBBLE, 480);
-        check("withdrawing cobblestone leaves diamonds alone", e.getBalance(ALEX, DIAMOND) == 40);
-        e.withdraw(ALEX, DIAMOND, 10);
+        e.withdraw(ALEX, COIN, 480);
+        check("withdrawing cobblestone leaves diamonds alone", e.getBalance(ALEX, GEM) == 40);
+        e.withdraw(ALEX, GEM, 10);
         check("withdrawing diamonds leaves cobblestone alone",
-                e.getBalance(ALEX, COBBLE) == 13_000);
+                e.getBalance(ALEX, COIN) == 13_000);
 
-        e.set(STEVE, COBBLE, 100);
-        e.set(STEVE, DIAMOND, 5);
-        e.transfer(ALEX, STEVE, COBBLE, 500);
+        e.set(STEVE, COIN, 100);
+        e.set(STEVE, GEM, 5);
+        e.transfer(ALEX, STEVE, COIN, 500);
         check("paying cobblestone leaves the sender's diamonds alone",
-                e.getBalance(ALEX, DIAMOND) == 30);
+                e.getBalance(ALEX, GEM) == 30);
         check("paying cobblestone leaves the recipient's diamonds alone",
-                e.getBalance(STEVE, DIAMOND) == 5);
+                e.getBalance(STEVE, GEM) == 5);
 
-        e.transfer(ALEX, STEVE, DIAMOND, 2);
+        e.transfer(ALEX, STEVE, GEM, 2);
         check("paying diamonds leaves the sender's cobblestone alone",
-                e.getBalance(ALEX, COBBLE) == 12_500);
+                e.getBalance(ALEX, COIN) == 12_500);
         check("paying diamonds leaves the recipient's cobblestone alone",
-                e.getBalance(STEVE, COBBLE) == 600);
-        check("diamond payment landed", e.getBalance(STEVE, DIAMOND) == 7);
+                e.getBalance(STEVE, COIN) == 600);
+        check("diamond payment landed", e.getBalance(STEVE, GEM) == 7);
 
         // Running out of one currency must not be answerable with the other.
         EconomyService poor = fresh();
-        poor.set(ALEX, COBBLE, 1_000_000);
+        poor.set(ALEX, COIN, 1_000_000);
         check("a cobblestone fortune does not buy a diamond",
-                poor.withdraw(ALEX, DIAMOND, 1).status() == TxStatus.INSUFFICIENT_FUNDS);
+                poor.withdraw(ALEX, GEM, 1).status() == TxStatus.INSUFFICIENT_FUNDS);
         check("the failed diamond withdrawal did not spend cobblestone",
-                poor.getBalance(ALEX, COBBLE) == 1_000_000);
+                poor.getBalance(ALEX, COIN) == 1_000_000);
 
         check("getBalances reports every currency", fresh() != null
                 && e.getBalances(ALEX).size() == 2);
@@ -260,11 +287,11 @@ public final class EconomyTest {
 
     private static boolean drainedAccountKeepsOther() {
         EconomyService e = fresh();
-        e.set(ALEX, COBBLE, 50);
-        e.set(ALEX, DIAMOND, 5);
-        e.withdraw(ALEX, COBBLE, 50);
-        return e.getBalance(ALEX, COBBLE) == 0
-                && e.getBalance(ALEX, DIAMOND) == 5
+        e.set(ALEX, COIN, 50);
+        e.set(ALEX, GEM, 5);
+        e.withdraw(ALEX, COIN, 50);
+        return e.getBalance(ALEX, COIN) == 0
+                && e.getBalance(ALEX, GEM) == 5
                 && e.getBalances(ALEX).size() == 1;
     }
 
@@ -273,37 +300,37 @@ public final class EconomyTest {
     private static void compoundPrices() {
         section("Compound prices");
         EconomyService e = fresh();
-        e.set(ALEX, COBBLE, 1_000);
-        e.set(ALEX, DIAMOND, 3);
+        e.set(ALEX, COIN, 1_000);
+        e.set(ALEX, GEM, 3);
 
         Map<Currency, Long> price = new LinkedHashMap<>();
-        price.put(COBBLE, 500L);
-        price.put(DIAMOND, 1L);
+        price.put(COIN, 500L);
+        price.put(GEM, 1L);
 
         check("compound charge succeeds when both are affordable", e.charge(ALEX, price).ok());
-        check("cobblestone debited", e.getBalance(ALEX, COBBLE) == 500);
-        check("diamond debited", e.getBalance(ALEX, DIAMOND) == 2);
+        check("cobblestone debited", e.getBalance(ALEX, COIN) == 500);
+        check("diamond debited", e.getBalance(ALEX, GEM) == 2);
 
         // The case the whole map-shaped price exists for: affordable in one currency,
         // not the other. Neither may be taken.
         Map<Currency, Long> steep = new LinkedHashMap<>();
-        steep.put(COBBLE, 100L);
-        steep.put(DIAMOND, 99L);
+        steep.put(COIN, 100L);
+        steep.put(GEM, 99L);
         TxResult failed = e.charge(ALEX, steep);
         check("compound charge fails if any line is unaffordable",
                 failed.status() == TxStatus.INSUFFICIENT_FUNDS);
-        check("failure names the currency that was short", failed.currency().equals(DIAMOND));
-        check("affordable line was NOT debited on failure", e.getBalance(ALEX, COBBLE) == 500);
-        check("unaffordable line was not debited", e.getBalance(ALEX, DIAMOND) == 2);
+        check("failure names the currency that was short", failed.currency().equals(GEM));
+        check("affordable line was NOT debited on failure", e.getBalance(ALEX, COIN) == 500);
+        check("unaffordable line was not debited", e.getBalance(ALEX, GEM) == 2);
 
         e.refund(ALEX, price);
-        check("refund restores cobblestone", e.getBalance(ALEX, COBBLE) == 1_000);
-        check("refund restores diamonds", e.getBalance(ALEX, DIAMOND) == 3);
+        check("refund restores cobblestone", e.getBalance(ALEX, COIN) == 1_000);
+        check("refund restores diamonds", e.getBalance(ALEX, GEM) == 3);
 
         check("empty price rejected",
                 e.charge(ALEX, Map.of()).status() == TxStatus.INVALID_AMOUNT);
         check("non-positive price line rejected",
-                e.charge(ALEX, Map.of(COBBLE, 0L)).status() == TxStatus.INVALID_AMOUNT);
+                e.charge(ALEX, Map.of(COIN, 0L)).status() == TxStatus.INVALID_AMOUNT);
     }
 
     // ---- admin operations ---------------------------------------------------
@@ -312,25 +339,25 @@ public final class EconomyTest {
         section("Admin operations");
         EconomyService e = fresh();
 
-        check("set from nothing", e.set(ALEX, COBBLE, 84_231).ok());
-        check("set applied", e.getBalance(ALEX, COBBLE) == 84_231);
+        check("set from nothing", e.set(ALEX, COIN, 84_231).ok());
+        check("set applied", e.getBalance(ALEX, COIN) == 84_231);
         check("set overwrites rather than adds",
-                e.set(ALEX, COBBLE, 100).ok() && e.getBalance(ALEX, COBBLE) == 100);
+                e.set(ALEX, COIN, 100).ok() && e.getBalance(ALEX, COIN) == 100);
         check("set to zero allowed",
-                e.set(ALEX, COBBLE, 0).ok() && e.getBalance(ALEX, COBBLE) == 0);
+                e.set(ALEX, COIN, 0).ok() && e.getBalance(ALEX, COIN) == 0);
         check("set negative rejected",
-                e.set(ALEX, COBBLE, -1).status() == TxStatus.INVALID_AMOUNT);
+                e.set(ALEX, COIN, -1).status() == TxStatus.INVALID_AMOUNT);
 
-        check("admin add is a deposit", e.deposit(ALEX, DIAMOND, 50).ok());
-        check("admin remove is a withdrawal", e.withdraw(ALEX, DIAMOND, 50).ok());
+        check("admin add is a deposit", e.deposit(ALEX, GEM, 50).ok());
+        check("admin remove is a withdrawal", e.withdraw(ALEX, GEM, 50).ok());
         check("admin remove past zero rejected",
-                e.withdraw(ALEX, DIAMOND, 1).status() == TxStatus.INSUFFICIENT_FUNDS);
+                e.withdraw(ALEX, GEM, 1).status() == TxStatus.INSUFFICIENT_FUNDS);
 
-        e.set(STEVE, COBBLE, 500);
-        e.set(STEVE, DIAMOND, 5);
-        e.set(STEVE, DIAMOND, 0);
+        e.set(STEVE, COIN, 500);
+        e.set(STEVE, GEM, 5);
+        e.set(STEVE, GEM, 0);
         check("admin clearing one currency spares the other",
-                e.getBalance(STEVE, COBBLE) == 500 && e.getBalance(STEVE, DIAMOND) == 0);
+                e.getBalance(STEVE, COIN) == 500 && e.getBalance(STEVE, GEM) == 0);
     }
 
     // ---- persistence --------------------------------------------------------
@@ -340,38 +367,38 @@ public final class EconomyTest {
         RecordingStore store = new RecordingStore();
         EconomyService e = new CharterCurrency(store);
 
-        e.deposit(ALEX, COBBLE, 12_481);
-        e.deposit(ALEX, DIAMOND, 37);
-        e.deposit(STEVE, COBBLE, 932);
+        e.deposit(ALEX, COIN, 12_481);
+        e.deposit(ALEX, GEM, 37);
+        e.deposit(STEVE, COIN, 932);
 
         check("both currencies reach the store",
-                store.saved.get(ALEX).get("cobblestone") == 12_481L
-                        && store.saved.get(ALEX).get("diamond") == 37L);
+                store.saved.get(ALEX).get("coin") == 12_481L
+                        && store.saved.get(ALEX).get("gem") == 37L);
         check("multiple players persisted independently",
-                store.saved.get(STEVE).get("cobblestone") == 932L);
+                store.saved.get(STEVE).get("coin") == 932L);
 
         // The restart: a brand new service reading what the old one wrote.
         EconomyService restarted = new CharterCurrency(store.asSourceOfTruth());
-        check("cobblestone survives restart", restarted.getBalance(ALEX, COBBLE) == 12_481);
-        check("diamonds survive restart", restarted.getBalance(ALEX, DIAMOND) == 37);
-        check("all accounts survive restart", restarted.balances(COBBLE).size() == 2);
+        check("cobblestone survives restart", restarted.getBalance(ALEX, COIN) == 12_481);
+        check("diamonds survive restart", restarted.getBalance(ALEX, GEM) == 37);
+        check("all accounts survive restart", restarted.balances(COIN).size() == 2);
         check("a player with only one currency reloads correctly",
-                restarted.getBalance(STEVE, DIAMOND) == 0);
+                restarted.getBalance(STEVE, GEM) == 0);
 
         EconomyService big = fresh();
-        big.set(ALEX, COBBLE, 9_000_000_000L);
+        big.set(ALEX, COIN, 9_000_000_000L);
         check("balances beyond int range are held exactly",
-                big.getBalance(ALEX, COBBLE) == 9_000_000_000L);
-        big.deposit(ALEX, COBBLE, 1L);
+                big.getBalance(ALEX, COIN) == 9_000_000_000L);
+        big.deposit(ALEX, COIN, 1L);
         check("large balances still arithmetic correctly",
-                big.getBalance(ALEX, COBBLE) == 9_000_000_001L);
+                big.getBalance(ALEX, COIN) == 9_000_000_001L);
 
         EconomyService zeroed = fresh();
-        zeroed.deposit(ALEX, COBBLE, 10);
-        zeroed.withdraw(ALEX, COBBLE, 10);
+        zeroed.deposit(ALEX, COIN, 10);
+        zeroed.withdraw(ALEX, COIN, 10);
         check("emptied accounts are not stored as rows of nothing",
-                zeroed.balances(COBBLE).isEmpty());
-        check("emptied account still reads as zero", zeroed.getBalance(ALEX, COBBLE) == 0);
+                zeroed.balances(COIN).isEmpty());
+        check("emptied account still reads as zero", zeroed.getBalance(ALEX, COIN) == 0);
     }
 
     // ---- security -----------------------------------------------------------
@@ -379,14 +406,14 @@ public final class EconomyTest {
     private static void security() {
         section("Security");
         EconomyService e = fresh();
-        e.set(ALEX, COBBLE, 1_000);
+        e.set(ALEX, COIN, 1_000);
 
         // Command spam: 2,000 withdrawals of 1 against a balance of 1,000. Exactly
         // 1,000 must succeed -- one extra is duplicated currency.
         int ok = 0;
-        for (int i = 0; i < 2_000; i++) if (e.withdraw(ALEX, COBBLE, 1).ok()) ok++;
+        for (int i = 0; i < 2_000; i++) if (e.withdraw(ALEX, COIN, 1).ok()) ok++;
         check("repeated commands cannot withdraw more than exists", ok == 1_000);
-        check("spammed account lands exactly at zero", e.getBalance(ALEX, COBBLE) == 0);
+        check("spammed account lands exactly at zero", e.getBalance(ALEX, COIN) == 0);
 
         check("concurrent transfers neither duplicate nor destroy", raceTransfers());
         check("concurrent withdrawals never overdraw", raceWithdrawals());
@@ -399,9 +426,9 @@ public final class EconomyTest {
         UUID[] players = new UUID[8];
         for (int i = 0; i < players.length; i++) {
             players[i] = UUID.randomUUID();
-            e.set(players[i], COBBLE, 10_000);
+            e.set(players[i], COIN, 10_000);
         }
-        long before = e.totalSupply(COBBLE);
+        long before = e.totalSupply(COIN);
 
         ExecutorService pool = Executors.newFixedThreadPool(8);
         CountDownLatch start = new CountDownLatch(1);
@@ -410,19 +437,19 @@ public final class EconomyTest {
             pool.submit(() -> {
                 await(start);
                 for (int i = 0; i < 2_000; i++) {
-                    e.transfer(players[from], players[(from + 1) % players.length], COBBLE, 3);
+                    e.transfer(players[from], players[(from + 1) % players.length], COIN, 3);
                 }
             });
         }
         start.countDown();
         shutdown(pool);
-        return e.totalSupply(COBBLE) == before;
+        return e.totalSupply(COIN) == before;
     }
 
     /** 8 threads race to drain one account. The sum withdrawn must equal the balance. */
     private static boolean raceWithdrawals() {
         EconomyService e = fresh();
-        e.set(ALEX, COBBLE, 5_000);
+        e.set(ALEX, COIN, 5_000);
 
         ExecutorService pool = Executors.newFixedThreadPool(8);
         CountDownLatch start = new CountDownLatch(1);
@@ -433,7 +460,7 @@ public final class EconomyTest {
             pool.submit(() -> {
                 await(start);
                 for (int i = 0; i < 5_000; i++) {
-                    if (e.withdraw(ALEX, COBBLE, 1).ok()) tally.incrementAndGet();
+                    if (e.withdraw(ALEX, COIN, 1).ok()) tally.incrementAndGet();
                 }
             });
         }
@@ -441,7 +468,7 @@ public final class EconomyTest {
         shutdown(pool);
 
         long withdrawn = tallies.stream().mapToLong(AtomicLong::get).sum();
-        return withdrawn == 5_000 && e.getBalance(ALEX, COBBLE) == 0;
+        return withdrawn == 5_000 && e.getBalance(ALEX, COIN) == 0;
     }
 
     /**
@@ -450,8 +477,8 @@ public final class EconomyTest {
      */
     private static boolean racePurchases() {
         EconomyService e = fresh();
-        e.set(ALEX, COBBLE, 6_400);
-        ShopEntry ice = ShopEntry.of("ice", "minecraft:ice", 64, COBBLE, 640, "Building");
+        e.set(ALEX, COIN, 6_400);
+        ShopEntry ice = ShopEntry.of("ice", "minecraft:ice", 64, COIN, 640, "Building");
 
         AtomicLong delivered = new AtomicLong();
         AtomicLong succeeded = new AtomicLong();
@@ -476,7 +503,137 @@ public final class EconomyTest {
 
         return succeeded.get() == 10
                 && delivered.get() == 10
-                && e.getBalance(ALEX, COBBLE) == 0;
+                && e.getBalance(ALEX, COIN) == 0;
+    }
+
+    // ---- denominations ------------------------------------------------------
+
+    private static void denominations() {
+        section("Denominations");
+        int[] faces = Wallet.DEFAULT_FACE_VALUES;
+
+        check("shipped face values are 1, 8, 64",
+                java.util.Arrays.equals(COIN.faceValues(), new int[] {1, 8, 64}));
+        check("display spells out parts and the Marks total",
+                COIN.describe(213).equals("3 Sovereigns, 2 Crowns, 5 Marks (213 Marks)"));
+        check("zero parts are omitted", COIN.describe(16).equals("2 Crowns (16 Marks)"));
+        check("a Marks-only amount is not repeated", COIN.describe(5).equals("5 Marks"));
+        check("one Mark is singular", COIN.describe(1).equals("1 Mark"));
+        check("zero is shown", COIN.describe(0).equals("0 Marks"));
+        check("denomination words resolve",
+                REGISTRY.resolveWord("Crowns").orElseThrow().denomination().id().equals("iron")
+                        && REGISTRY.resolveWord("sov").orElseThrow().denomination().id().equals("gold")
+                        && REGISTRY.resolveWord("MARK").orElseThrow().denomination().id().equals("copper"));
+        check("the word coin names the currency, not a denomination",
+                REGISTRY.resolveWord("coin").orElseThrow().denomination() == null);
+
+        // deposit: mixed coins at face value
+        int[] carried = {5, 3, 2};
+        Wallet.DepositPlan all = Wallet.planDeposit(carried, 5 + 24 + 128);
+        check("deposit of everything counts mixed coins at face value",
+                all != null && all.credited() == 157 && all.change() == 0
+                        && java.util.Arrays.equals(all.take(), carried));
+
+        // deposit: exact
+        Wallet.DepositPlan exact = Wallet.planDeposit(new int[] {10, 10, 10}, 75);
+        check("exact deposit takes exact coins", exact != null && exact.taken() == 75
+                && exact.change() == 0 && exact.credited() == 75);
+
+        // deposit: overpay with change
+        Wallet.DepositPlan over = Wallet.planDeposit(new int[] {0, 0, 2}, 100);
+        check("overpay takes the smallest sufficient coins", over != null && over.taken() == 128
+                && java.util.Arrays.equals(over.take(), new int[] {0, 0, 2}));
+        check("overpay returns the difference as change",
+                over != null && over.change() == 28
+                        && java.util.Arrays.equals(over.changeCoins(), new int[] {4, 3, 0})
+                        && over.credited() == 100);
+        Wallet.DepositPlan prefer = Wallet.planDeposit(new int[] {0, 5, 1}, 60);
+        check("smallest overpayment wins over fewer coins",
+                prefer != null && prefer.taken() == 64);
+
+        // deposit: not enough
+        check("not enough in total returns null", Wallet.planDeposit(new int[] {3, 1, 0}, 12) == null);
+        check("zero deposit returns null", Wallet.planDeposit(new int[] {3, 1, 0}, 0) == null);
+        check("a plan never takes more than carried", exactNeverExceeds());
+
+        // change
+        check("makeChange gives the fewest coins: 200 is 3 Sovereigns and 1 Crown",
+                java.util.Arrays.equals(Wallet.makeChange(200, faces), new int[] {0, 1, 3}));
+        check("makeChange of 7 is seven Marks",
+                java.util.Arrays.equals(Wallet.makeChange(7, faces), new int[] {7, 0, 0}));
+        check("makeChange honours face values in any order",
+                java.util.Arrays.equals(Wallet.makeChange(73, new int[] {64, 1, 8}), new int[] {1, 1, 1}));
+        check("makeChange of zero is nothing",
+                java.util.Arrays.equals(Wallet.makeChange(0, faces), new int[] {0, 0, 0}));
+
+        // withdraw: joint fit, and rollback when there is no space
+        long[] none = {0, 0, 0};
+        check("withdrawal fits when empty slots cover every kind",
+                Wallet.fitsAll(2, none, new long[] {0, 1, 3}, 64));
+        check("withdrawal does not fit when kinds compete for one slot",
+                !Wallet.fitsAll(1, none, new long[] {0, 1, 3}, 64));
+        check("partial stacks absorb the need",
+                Wallet.fitsAll(0, new long[] {10, 10, 10}, new long[] {5, 5, 5}, 64));
+        check("a full inventory fits nothing",
+                !Wallet.fitsAll(0, none, new long[] {1, 0, 0}, 64));
+
+        EconomyService e = fresh();
+        e.set(ALEX, COIN, 200);
+        boolean fits = Wallet.fitsAll(1, none, new long[] {0, 1, 3}, 64);
+        if (fits) e.withdraw(ALEX, COIN, 200);
+        check("a withdrawal that does not fit leaves the balance untouched",
+                !fits && e.getBalance(ALEX, COIN) == 200);
+    }
+
+    private static boolean exactNeverExceeds() {
+        java.util.Random random = new java.util.Random(42);
+        for (int trial = 0; trial < 400; trial++) {
+            int[] c = {random.nextInt(40), random.nextInt(12), random.nextInt(5)};
+            long total = c[0] + 8L * c[1] + 64L * c[2];
+            if (total == 0) continue;
+            long amount = 1 + (long) (random.nextDouble() * total);
+            Wallet.DepositPlan p = Wallet.planDeposit(c, amount);
+            if (p == null) return false;
+            for (int i = 0; i < 3; i++) if (p.take()[i] > c[i] || p.take()[i] < 0) return false;
+            if (p.credited() != amount || p.taken() < amount) return false;
+        }
+        return true;
+    }
+
+    // ---- valor --------------------------------------------------------------
+
+    private static void valor() {
+        section("Valor");
+        EconomyService e = fresh();
+
+        check("valor has no item and no coins", VALOR.itemId() == null && !VALOR.hasDenominations());
+        check("valor is neither withdrawable nor payable",
+                !VALOR.withdrawable() && !VALOR.payable());
+        check("valor wording", VALOR.describe(24).equals("24 Valor"));
+        e.set(ALEX, VALOR, 100);
+        TxResult pay = e.transfer(ALEX, STEVE, VALOR, 10);
+        check("paying valor is refused", pay.status() == TxStatus.NOT_PAYABLE);
+        check("a refused payment moves nothing",
+                e.getBalance(ALEX, VALOR) == 100 && e.getBalance(STEVE, VALOR) == 0);
+        check("admin add still works", e.deposit(ALEX, VALOR, 5).ok()
+                && e.getBalance(ALEX, VALOR) == 105);
+        check("valor is charged by the shop path",
+                e.charge(ALEX, Map.of(VALOR, 50L)).ok() && e.getBalance(ALEX, VALOR) == 55);
+
+        // A compound price in coin and valor is both or neither.
+        e.set(ALEX, COIN, 500);
+        Map<Currency, Long> both = new LinkedHashMap<>();
+        both.put(COIN, 100L);
+        both.put(VALOR, 1_000L);
+        check("coin plus valor price is refused when valor is short",
+                e.charge(ALEX, both).status() == TxStatus.INSUFFICIENT_FUNDS
+                        && e.getBalance(ALEX, COIN) == 500);
+
+        CurrencyRegistry shipped = CurrencyRegistry.defaults();
+        check("shipped registry is coin then valor",
+                shipped.all().size() == 2 && shipped.all().iterator().next().equals(COIN));
+        check("valor resolves with no denomination",
+                shipped.resolveWord("valor").orElseThrow().denomination() == null);
     }
 
     // ---- inventory arithmetic ----------------------------------------------
@@ -544,10 +701,10 @@ public final class EconomyTest {
 
     private static ShopCatalog sampleCatalog() {
         ShopCatalog catalog = new ShopCatalog();
-        catalog.put(ShopEntry.of("ice", "minecraft:ice", 64, COBBLE, 640, "Building Materials"));
-        catalog.put(ShopEntry.of("snow", "minecraft:snow_block", 64, COBBLE, 320, "Building Materials"));
-        catalog.put(ShopEntry.of("packed_ice", "minecraft:packed_ice", 64, COBBLE, 1_280, "Building Materials"));
-        catalog.put(ShopEntry.of("ancient_debris", "minecraft:ancient_debris", 1, DIAMOND, 2, "Rare Resources"));
+        catalog.put(ShopEntry.of("ice", "minecraft:ice", 64, COIN, 640, "Building Materials"));
+        catalog.put(ShopEntry.of("snow", "minecraft:snow_block", 64, COIN, 320, "Building Materials"));
+        catalog.put(ShopEntry.of("packed_ice", "minecraft:packed_ice", 64, COIN, 1_280, "Building Materials"));
+        catalog.put(ShopEntry.of("ancient_debris", "minecraft:ancient_debris", 1, GEM, 2, "Rare Resources"));
         return catalog;
     }
 
@@ -567,28 +724,30 @@ public final class EconomyTest {
         check("all entries available by default", catalog.available().size() == 4);
 
         ShopEntry ice = catalog.find("ice").orElseThrow();
-        check("price renders with the currency", ice.describePrice().equals("640 cobblestone"));
-        check("diamond price uses the plural correctly",
-                catalog.find("ancient_debris").orElseThrow().describePrice().equals("2 diamonds"));
+        check("price renders with the currency",
+                ice.describePrice().equals("10 Sovereigns (640 Marks)"));
+        check("plain price uses the plural correctly",
+                catalog.find("ancient_debris").orElseThrow().describePrice().equals("2 gems"));
 
         Map<Currency, Long> both = new LinkedHashMap<>();
-        both.put(COBBLE, 500L);
-        both.put(DIAMOND, 1L);
+        both.put(COIN, 500L);
+        both.put(GEM, 1L);
         ShopEntry compound = new ShopEntry("elytra", "minecraft:elytra", 1, both, "Premium", true);
         check("compound price renders both lines",
-                compound.describePrice().equals("500 cobblestone + 1 diamond"));
+                compound.describePrice().equals(
+                        "7 Sovereigns, 6 Crowns, 4 Marks (500 Marks) + 1 gem"));
 
         // Malformed entries are the server owner's typo, and must not crash /shop.
-        catalog.put(new ShopEntry("broken", "minecraft:ice", 0, Map.of(COBBLE, 10L), "X", true));
+        catalog.put(new ShopEntry("broken", "minecraft:ice", 0, Map.of(COIN, 10L), "X", true));
         check("zero-quantity entry is invalid", !catalog.find("broken").orElseThrow().isValid());
         check("invalid entries are hidden from players", catalog.available().size() == 4);
-        catalog.put(new ShopEntry("free", "minecraft:ice", 1, Map.of(COBBLE, 0L), "X", true));
+        catalog.put(new ShopEntry("free", "minecraft:ice", 1, Map.of(COIN, 0L), "X", true));
         check("zero-price entry is invalid", !catalog.find("free").orElseThrow().isValid());
         catalog.put(new ShopEntry("empty_price", "minecraft:ice", 1, Map.of(), "X", true));
         check("priceless entry is invalid", !catalog.find("empty_price").orElseThrow().isValid());
 
         ShopEntry disabled = new ShopEntry("hidden", "minecraft:ice", 64,
-                Map.of(COBBLE, 10L), "X", false);
+                Map.of(COIN, 10L), "X", false);
         catalog.put(disabled);
         check("disabled entry is still findable by admins", catalog.find("hidden").isPresent());
         check("disabled entry is hidden from players", !catalog.keys().contains("hidden"));
@@ -604,8 +763,8 @@ public final class EconomyTest {
         ShopEntry debris = catalog.find("ancient_debris").orElseThrow();
 
         EconomyService e = fresh();
-        e.set(ALEX, COBBLE, 1_000);
-        e.set(ALEX, DIAMOND, 5);
+        e.set(ALEX, COIN, 1_000);
+        e.set(ALEX, GEM, 5);
 
         List<String> delivered = new ArrayList<>();
         Shop.Delivery ok = (item, qty) -> {
@@ -615,27 +774,27 @@ public final class EconomyTest {
 
         Shop.PurchaseResult bought = Shop.buy(e, ALEX, ice, 640, ok);
         check("successful purchase", bought.ok());
-        check("currency removed correctly", e.getBalance(ALEX, COBBLE) == 360);
+        check("currency removed correctly", e.getBalance(ALEX, COIN) == 360);
         check("item granted correctly", delivered.equals(List.of("64xminecraft:ice")));
-        check("purchase did not touch the other currency", e.getBalance(ALEX, DIAMOND) == 5);
+        check("purchase did not touch the other currency", e.getBalance(ALEX, GEM) == 5);
 
         Shop.PurchaseResult broke = Shop.buy(e, ALEX, ice, 640, ok);
         check("insufficient currency rejected",
                 broke.status() == Shop.PurchaseStatus.INSUFFICIENT_FUNDS);
-        check("rejected purchase charges nothing", e.getBalance(ALEX, COBBLE) == 360);
+        check("rejected purchase charges nothing", e.getBalance(ALEX, COIN) == 360);
         check("rejected purchase delivers nothing", delivered.size() == 1);
 
         Shop.PurchaseResult cramped = Shop.buy(e, ALEX, debris, 0, ok);
         check("insufficient inventory space rejected",
                 cramped.status() == Shop.PurchaseStatus.INSUFFICIENT_SPACE);
-        check("no space means no charge", e.getBalance(ALEX, DIAMOND) == 5);
+        check("no space means no charge", e.getBalance(ALEX, GEM) == 5);
         check("no space means no delivery", delivered.size() == 1);
 
         // The rollback the callback exists to make reachable.
         Shop.PurchaseResult failed = Shop.buy(e, ALEX, debris, 64, (item, qty) -> false);
         check("failed delivery is reported",
                 failed.status() == Shop.PurchaseStatus.DELIVERY_FAILED);
-        check("failed delivery refunds the money in full", e.getBalance(ALEX, DIAMOND) == 5);
+        check("failed delivery refunds the money in full", e.getBalance(ALEX, GEM) == 5);
 
         // A delivery that throws must not leave a player charged either.
         boolean threw = false;
@@ -647,26 +806,26 @@ public final class EconomyTest {
             threw = true;
         }
         check("a throwing delivery propagates", threw);
-        check("a throwing delivery still refunds", e.getBalance(ALEX, DIAMOND) == 5);
+        check("a throwing delivery still refunds", e.getBalance(ALEX, GEM) == 5);
 
         check("invalid entry cannot be bought",
                 Shop.buy(e, ALEX, new ShopEntry("x", "minecraft:ice", 0,
-                        Map.of(COBBLE, 1L), "X", true), 64, ok).status()
+                        Map.of(COIN, 1L), "X", true), 64, ok).status()
                         == Shop.PurchaseStatus.UNAVAILABLE);
         check("disabled entry cannot be bought",
                 Shop.buy(e, ALEX, new ShopEntry("x", "minecraft:ice", 1,
-                        Map.of(COBBLE, 1L), "X", false), 64, ok).status()
+                        Map.of(COIN, 1L), "X", false), 64, ok).status()
                         == Shop.PurchaseStatus.UNAVAILABLE);
         check("null entry cannot be bought",
                 Shop.buy(e, ALEX, null, 64, ok).status() == Shop.PurchaseStatus.UNAVAILABLE);
 
         // The shop is a currency sink: money spent leaves the economy entirely.
         EconomyService sink = fresh();
-        sink.set(ALEX, COBBLE, 640);
-        long before = sink.totalSupply(COBBLE);
+        sink.set(ALEX, COIN, 640);
+        long before = sink.totalSupply(COIN);
         Shop.buy(sink, ALEX, ice, 640, ok);
         check("purchases destroy currency rather than moving it",
-                sink.totalSupply(COBBLE) == before - 640);
+                sink.totalSupply(COIN) == before - 640);
     }
 
     // ---- leaderboards -------------------------------------------------------
@@ -678,13 +837,13 @@ public final class EconomyTest {
     private static void leaderboards() {
         section("Leaderboards");
         EconomyService e = fresh();
-        e.set(STEVE, COBBLE, 82_410);
-        e.set(ALEX, COBBLE, 61_290);
-        e.set(JAMIE, COBBLE, 44_912);
-        e.set(TAYLOR, COBBLE, 31_502);
+        e.set(STEVE, COIN, 82_410);
+        e.set(ALEX, COIN, 61_290);
+        e.set(JAMIE, COIN, 44_912);
+        e.set(TAYLOR, COIN, 31_502);
         LeaderboardService board = board(e);
 
-        List<LeaderboardService.Rank> top3 = board.top(COBBLE, 3);
+        List<LeaderboardService.Rank> top3 = board.top(COIN, 3);
         check("top 3 has three rows", top3.size() == 3);
         check("ranked highest first", top3.get(0).player().equals(STEVE));
         check("second place correct", top3.get(1).player().equals(ALEX));
@@ -692,37 +851,37 @@ public final class EconomyTest {
         check("rank numbers are 1-based", top3.get(0).rank() == 1 && top3.get(2).rank() == 3);
         check("balances carried through", top3.get(0).balance() == 82_410);
 
-        check("rankOf finds a listed player", board.rankOf(TAYLOR, COBBLE) == 4);
+        check("rankOf finds a listed player", board.rankOf(TAYLOR, COIN) == 4);
         check("rankOf returns 0 for a player with no balance",
-                board.rankOf(UUID.randomUUID(), COBBLE) == 0);
-        check("participants counts holders", board.participants(COBBLE) == 4);
+                board.rankOf(UUID.randomUUID(), COIN) == 0);
+        check("participants counts holders", board.participants(COIN) == 4);
 
         // Section 9 of the leaderboard spec: zero balances do not appear.
-        e.set(TAYLOR, COBBLE, 0);
-        check("zero balance drops off the leaderboard", board.participants(COBBLE) == 3);
-        check("zero balance has no rank", board.rankOf(TAYLOR, COBBLE) == 0);
+        e.set(TAYLOR, COIN, 0);
+        check("zero balance drops off the leaderboard", board.participants(COIN) == 3);
+        check("zero balance has no rank", board.rankOf(TAYLOR, COIN) == 0);
 
         // Section 8: fewer than three players shows only what exists, no filler rows.
         EconomyService sparse = fresh();
-        sparse.set(STEVE, COBBLE, 12_480);
-        sparse.set(ALEX, COBBLE, 4_200);
+        sparse.set(STEVE, COIN, 12_480);
+        sparse.set(ALEX, COIN, 4_200);
         LeaderboardService sparseBoard = board(sparse);
-        check("two players yield two rows", sparseBoard.top(COBBLE, 3).size() == 2);
-        check("one player yields one row", sparseBoard.top(DIAMOND, 3).isEmpty());
+        check("two players yield two rows", sparseBoard.top(COIN, 3).size() == 2);
+        check("one player yields one row", sparseBoard.top(GEM, 3).isEmpty());
 
         EconomyService empty = fresh();
         check("empty economy yields an empty leaderboard",
-                board(empty).top(COBBLE, 3).isEmpty());
+                board(empty).top(COIN, 3).isEmpty());
         check("empty economy does not throw on rank",
-                board(empty).rankOf(ALEX, COBBLE) == 0);
+                board(empty).rankOf(ALEX, COIN) == 0);
 
         // Section 5: ties broken alphabetically by current username, deterministically.
         EconomyService tied = fresh();
-        tied.set(STEVE, COBBLE, 100);
-        tied.set(ALEX, COBBLE, 100);
-        tied.set(JAMIE, COBBLE, 100);
+        tied.set(STEVE, COIN, 100);
+        tied.set(ALEX, COIN, 100);
+        tied.set(JAMIE, COIN, 100);
         LeaderboardService tiedBoard = board(tied);
-        List<LeaderboardService.Rank> order = tiedBoard.top(COBBLE, 3);
+        List<LeaderboardService.Rank> order = tiedBoard.top(COIN, 3);
         check("equal balances sort alphabetically",
                 order.get(0).player().equals(ALEX)
                         && order.get(1).player().equals(JAMIE)
@@ -730,7 +889,7 @@ public final class EconomyTest {
 
         boolean stable = true;
         for (int i = 0; i < 20; i++) {
-            if (!tiedBoard.top(COBBLE, 3).equals(order)) stable = false;
+            if (!tiedBoard.top(COIN, 3).equals(order)) stable = false;
         }
         check("tie ordering is stable across calls", stable);
 
@@ -740,78 +899,78 @@ public final class EconomyTest {
         for (int i = 0; i < 20; i++) {
             UUID id = UUID.randomUUID();
             names.put(id, "Player" + i);
-            many.set(id, COBBLE, 100);
+            many.set(id, COIN, 100);
         }
         LeaderboardService manyBoard = new LeaderboardService(many, names::get);
         Map<UUID, Boolean> seen = new HashMap<>();
         boolean unique = true;
         for (int page = 0; page < 4; page++) {
-            for (LeaderboardService.Rank row : manyBoard.top(COBBLE, 5, page * 5)) {
+            for (LeaderboardService.Rank row : manyBoard.top(COIN, 5, page * 5)) {
                 if (seen.put(row.player(), true) != null) unique = false;
             }
         }
         check("tied balances paginate without repeats", unique);
         check("tied pagination covers everyone", seen.size() == 20);
 
-        check("offset past the end is empty", manyBoard.top(COBBLE, 5, 999).isEmpty());
-        check("zero limit is empty", manyBoard.top(COBBLE, 0).isEmpty());
-        check("negative offset is empty", manyBoard.top(COBBLE, 5, -1).isEmpty());
+        check("offset past the end is empty", manyBoard.top(COIN, 5, 999).isEmpty());
+        check("zero limit is empty", manyBoard.top(COIN, 0).isEmpty());
+        check("negative offset is empty", manyBoard.top(COIN, 5, -1).isEmpty());
 
         // Section 18: the login count is a parameter, never a hardcoded 3.
-        check("top count is configurable upward", manyBoard.top(COBBLE, 5).size() == 5);
-        check("top count is configurable downward", manyBoard.top(COBBLE, 1).size() == 1);
+        check("top count is configurable upward", manyBoard.top(COIN, 5).size() == 5);
+        check("top count is configurable downward", manyBoard.top(COIN, 1).size() == 1);
 
         // Section 20: identity is the UUID; a rename moves the label, not the account.
         EconomyService renamed = fresh();
-        renamed.set(STEVE, COBBLE, 500);
+        renamed.set(STEVE, COIN, 500);
         Map<UUID, String> mutable = new HashMap<>(NAMES);
         LeaderboardService renameBoard = new LeaderboardService(renamed, mutable::get);
-        int rankBefore = renameBoard.rankOf(STEVE, COBBLE);
+        int rankBefore = renameBoard.rankOf(STEVE, COIN);
         mutable.put(STEVE, "SteveTheBuilder");
         check("a rename does not create a second account",
-                renameBoard.participants(COBBLE) == 1);
-        check("a rename preserves the balance", renamed.getBalance(STEVE, COBBLE) == 500);
+                renameBoard.participants(COIN) == 1);
+        check("a rename preserves the balance", renamed.getBalance(STEVE, COIN) == 500);
         check("a rename preserves the rank",
-                renameBoard.rankOf(STEVE, COBBLE) == rankBefore);
+                renameBoard.rankOf(STEVE, COIN) == rankBefore);
     }
 
     private static void leaderboardMultiCurrency() {
         section("Leaderboards across currencies");
         EconomyService e = fresh();
-        e.set(STEVE, COBBLE, 82_410);
-        e.set(ALEX, COBBLE, 61_290);
-        e.set(JAMIE, COBBLE, 44_912);
-        e.set(TAYLOR, DIAMOND, 91);
-        e.set(STEVE, DIAMOND, 37);
-        e.set(ALEX, DIAMOND, 24);
+        e.set(STEVE, COIN, 82_410);
+        e.set(ALEX, COIN, 61_290);
+        e.set(JAMIE, COIN, 44_912);
+        e.set(TAYLOR, GEM, 91);
+        e.set(STEVE, GEM, 37);
+        e.set(ALEX, GEM, 24);
         LeaderboardService board = board(e);
 
         check("cobblestone ranking is led by the cobblestone holder",
-                board.top(COBBLE, 3).get(0).player().equals(STEVE));
+                board.top(COIN, 3).get(0).player().equals(STEVE));
         check("diamond ranking is led by the diamond holder",
-                board.top(DIAMOND, 3).get(0).player().equals(TAYLOR));
+                board.top(GEM, 3).get(0).player().equals(TAYLOR));
         check("a cobblestone-only player is absent from the diamond board",
-                board.rankOf(JAMIE, DIAMOND) == 0);
+                board.rankOf(JAMIE, GEM) == 0);
         check("a diamond-only player is absent from the cobblestone board",
-                board.rankOf(TAYLOR, COBBLE) == 0);
+                board.rankOf(TAYLOR, COIN) == 0);
         check("the same player holds different ranks in each currency",
-                board.rankOf(STEVE, COBBLE) == 1 && board.rankOf(STEVE, DIAMOND) == 2);
+                board.rankOf(STEVE, COIN) == 1 && board.rankOf(STEVE, GEM) == 2);
 
         // Section 25 of the leaderboard spec: the board tracks the economy live.
-        e.deposit(JAMIE, COBBLE, 100_000);
+        e.deposit(JAMIE, COIN, 100_000);
         check("depositing updates the ranking",
-                board.top(COBBLE, 1).get(0).player().equals(JAMIE));
-        e.withdraw(JAMIE, COBBLE, 100_000);
+                board.top(COIN, 1).get(0).player().equals(JAMIE));
+        e.withdraw(JAMIE, COIN, 100_000);
         check("withdrawing updates the ranking",
-                board.top(COBBLE, 1).get(0).player().equals(STEVE));
+                board.top(COIN, 1).get(0).player().equals(STEVE));
 
-        int alexBefore = board.rankOf(ALEX, DIAMOND);
-        e.transfer(TAYLOR, ALEX, DIAMOND, 80);
-        check("paying updates the sender's rank", board.rankOf(TAYLOR, DIAMOND) == 3);
+        int alexBefore = board.rankOf(ALEX, GEM);
+        e.transfer(TAYLOR, ALEX, GEM, 80);
+        check("paying updates the sender's rank", board.rankOf(TAYLOR, GEM) == 3);
         check("paying updates the recipient's rank",
-                board.rankOf(ALEX, DIAMOND) == 1 && alexBefore == 3);
+                board.rankOf(ALEX, GEM) == 1 && alexBefore == 3);
         check("a diamond payment left the cobblestone board alone",
-                board.top(COBBLE, 1).get(0).player().equals(STEVE));
+                board.top(COIN, 1).get(0).player().equals(STEVE));
     }
 
     // ---- harness ------------------------------------------------------------

@@ -364,13 +364,12 @@ final class SuiteItemBrowser {
     }
 
     /**
-     * Diamond if it is registered, since a suite item is meant to be a step up from
-     * the vanilla catalogue and cobblestone reads as pocket change next to one -- else
-     * whatever currency exists, so a server running a single custom currency still
-     * gets a sane default instead of {@link #add} refusing outright.
+     * Valor if it is registered, since a suite item is meant to be an honour rather than
+     * a commodity; else whatever currency exists, so a server running a single custom
+     * currency still gets a sane default instead of {@link #add} refusing outright.
      */
     private Currency defaultCurrency() {
-        return currencies.byId("diamond")
+        return currencies.byId("valor")
                 .orElseGet(() -> currencies.all().iterator().next());
     }
 

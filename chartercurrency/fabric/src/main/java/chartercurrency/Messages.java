@@ -13,8 +13,8 @@ import net.minecraft.network.chat.MutableComponent;
  * plausibly have shipped in vanilla -- a player should not be able to tell which of
  * the server's messages come from a mod.
  *
- * <p>Currencies are colour-coded, and that is the only decoration: cobblestone grey,
- * diamonds aqua. It reads at a glance in a busy chat and costs no extra words.
+ * <p>Currencies are colour-coded, and that is the only decoration: coin gold, Valor
+ * purple. It reads at a glance in a busy chat and costs no extra words.
  */
 public final class Messages {
 
@@ -29,12 +29,12 @@ public final class Messages {
 
     private Messages() {}
 
-    /** Cobblestone reads as stone, diamonds as diamond. Anything new gets gold. */
+    /** Coin reads as gold, Valor as purple. Anything new gets white. */
     public static ChatFormatting colourOf(Currency currency) {
         return switch (currency.id()) {
-            case "cobblestone" -> ChatFormatting.WHITE;
-            case "diamond" -> ChatFormatting.AQUA;
-            default -> ChatFormatting.GOLD;
+            case "coin" -> ChatFormatting.GOLD;
+            case "valor" -> ChatFormatting.LIGHT_PURPLE;
+            default -> ChatFormatting.WHITE;
         };
     }
 
@@ -74,7 +74,7 @@ public final class Messages {
 
     /** {@code Cobblestone: 12,481} */
     public static MutableComponent balanceLine(Currency currency, long balance) {
-        return body(currency.displayName() + ": ").append(amount(currency, balance));
+        return body(currency.displayName() + ": ").append(priced(currency, balance));
     }
 
     /** A command and what it does, for help panels. */

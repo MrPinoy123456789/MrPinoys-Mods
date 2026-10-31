@@ -21,7 +21,10 @@ public enum TxStatus {
     OVERFLOW,
 
     /** The currency named does not exist on this server. */
-    UNKNOWN_CURRENCY;
+    UNKNOWN_CURRENCY,
+
+    /** The currency cannot be moved between players (Valor). */
+    NOT_PAYABLE;
 
     public boolean ok() {
         return this == OK;

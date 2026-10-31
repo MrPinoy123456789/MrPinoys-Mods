@@ -1,6 +1,7 @@
 package chartercurrency;
 
 import chartercurrency.core.Currency;
+import chartercurrency.core.Denomination;
 import chartercurrency.core.Wallet;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -13,26 +14,28 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * The only class that touches both an inventory and a balance. Everything about item
  * duplication lives here or nowhere.
  *
- * <p>The arithmetic is not here -- it is in {@link Wallet}, in the core module, under
+ * <p>The arithmetic is not here; it is in {@link Wallet}, in the core module, under
  * test. This class reads slots into {@code int[]}, asks Wallet what should happen, and
  * applies the answer. That split is the point: the part that can be wrong is the part
  * that can be tested.
  *
- * <p>Every method takes an {@link Item} rather than assuming cobblestone, which is
- * what lets one implementation serve both currencies and the shop's deliveries.
+ * <p>Stacks are matched with a predicate. A coin is matched by its custom_data marker
+ * (see {@link CoinStacks}); a shop delivery is matched by item. Counting and removing
+ * use the predicate; free-space checks are stricter, because two stacks only merge when
+ * item and components are identical.
  *
  * <p><b>Why slots 0-35 only.</b> The player's main inventory is the first 36 slots
- * (hotbar 0-8, then the three rows) and has been for far longer than the surrounding
- * API has been stable. Armour and offhand indices have moved between versions; relying
- * on {@code getContainerSize()} to mean the same thing on two versions is how a mod
- * starts inserting cobblestone into a helmet slot. The conservative reading costs a
- * player having to move a stack out of their offhand before {@code /bank all} sees it.
- * The failure in the other direction is a dupe.
+ * (hotbar 0-8, then the three rows). Armour and offhand indices have moved between
+ * versions; relying on {@code getContainerSize()} to mean the same thing on two
+ * versions is how a mod starts inserting coins into a helmet slot. The cost is that a
+ * stack in the offhand is not seen by {@code /bank all}. The failure in the other
+ * direction is a dupe.
  */
 public final class ItemBank {
 
@@ -41,22 +44,23 @@ public final class ItemBank {
 
     private ItemBank() {}
 
-    /**
-     * Resolve {@code minecraft:ice} to an item, or empty if the id is not real.
-     *
-     * <p>{@code Identifier} is what 26.1 renamed {@code ResourceLocation} to -- Mojang
-     * adopted the name Yarn had used for years. Any tutorial written before 26.1 calls
-     * it the old name.
-     */
+    /** Resolve {@code minecraft:ice} to an item, or empty if the id is not real. */
     public static Optional<Item> resolve(String itemId) {
+        if (itemId == null) return Optional.empty();
         Identifier id = Identifier.tryParse(itemId);
         if (id == null) return Optional.empty();
         return BuiltInRegistries.ITEM.getOptional(id);
     }
 
-    /** The item backing a currency. Absent only if the registry has no such item. */
+    /**
+     * An item to draw a currency with: its single item, else its largest coin. Empty
+     * for a currency with no item at all (Valor).
+     */
     public static Optional<Item> itemFor(Currency currency) {
-        return resolve(currency.itemId());
+        if (currency.itemId() != null) return resolve(currency.itemId());
+        List<Denomination> coins = currency.largestFirst();
+        if (coins.isEmpty()) return Optional.empty();
+        return resolve(coins.get(0).itemId());
     }
 
     /** Stack size for an item, read from the item rather than assumed to be 64. */
@@ -64,32 +68,66 @@ public final class ItemBank {
         return new ItemStack(item).getMaxStackSize();
     }
 
+    // ---- by item ------------------------------------------------------------
+
     /** How much of this item the player is carrying. */
     public static long count(ServerPlayer player, Item item) {
-        return Wallet.count(counts(player, item));
+        return count(player, stack -> stack.is(item));
     }
 
     /** How much more of this item would fit in the player's main inventory. */
     public static long freeCapacity(ServerPlayer player, Item item) {
-        Inventory inv = player.getInventory();
-        int max = maxStack(item);
-        int empty = 0;
-        List<Integer> partials = new ArrayList<>();
+        return freeCapacity(player, new ItemStack(item));
+    }
 
+    /** Remove exactly {@code amount} of an item, or remove nothing at all. */
+    public static boolean removeExactly(ServerPlayer player, Item item, long amount) {
+        return removeExactly(player, stack -> stack.is(item), amount);
+    }
+
+    // ---- by predicate -------------------------------------------------------
+
+    /** How many matching items the player carries across the main 36 slots. */
+    public static long count(ServerPlayer player, Predicate<ItemStack> match) {
+        return Wallet.count(counts(player, match));
+    }
+
+    /** Completely empty slots in the main 36. */
+    public static int emptySlots(ServerPlayer player) {
+        Inventory inv = player.getInventory();
+        int empty = 0;
         for (int slot = 0; slot < limit(inv); slot++) {
-            ItemStack stack = inv.getItem(slot);
-            if (stack.isEmpty()) {
-                empty++;
-            } else if (stack.is(item)) {
-                partials.add(stack.getCount());
-            }
-            // Anything else contributes nothing and is deliberately not represented.
+            if (inv.getItem(slot).isEmpty()) empty++;
         }
-        return Wallet.freeCapacity(empty, toArray(partials), max);
+        return empty;
     }
 
     /**
-     * Remove exactly {@code amount} of an item, or remove nothing at all.
+     * Room left in stacks that would merge with {@code prototype}: same item and
+     * identical components. A near-identical stack does not merge, so it adds nothing.
+     */
+    public static long partialRoom(ServerPlayer player, ItemStack prototype) {
+        Inventory inv = player.getInventory();
+        int max = prototype.getMaxStackSize();
+        long room = 0;
+        for (int slot = 0; slot < limit(inv); slot++) {
+            ItemStack stack = inv.getItem(slot);
+            if (!stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, prototype)
+                    && stack.getCount() < max) {
+                room += max - stack.getCount();
+            }
+        }
+        return room;
+    }
+
+    /** How many more of {@code prototype} would fit in the main inventory. */
+    public static long freeCapacity(ServerPlayer player, ItemStack prototype) {
+        return Wallet.freeCapacity(emptySlots(player),
+                partialStacks(player, prototype), prototype.getMaxStackSize());
+    }
+
+    /**
+     * Remove exactly {@code amount} of the matching items, or remove nothing at all.
      *
      * <p>All-or-nothing is enforced by {@link Wallet#planRemoval} returning null when
      * the inventory is short. No code path here removes some items and then discovers
@@ -97,14 +135,14 @@ public final class ItemBank {
      *
      * @return true if the items were removed and the caller may now credit the bank
      */
-    public static boolean removeExactly(ServerPlayer player, Item item, long amount) {
+    public static boolean removeExactly(ServerPlayer player, Predicate<ItemStack> match, long amount) {
         Inventory inv = player.getInventory();
 
         List<Integer> slots = new ArrayList<>();
         List<Integer> counts = new ArrayList<>();
         for (int slot = 0; slot < limit(inv); slot++) {
             ItemStack stack = inv.getItem(slot);
-            if (!stack.isEmpty() && stack.is(item)) {
+            if (!stack.isEmpty() && match.test(stack)) {
                 slots.add(slot);
                 counts.add(stack.getCount());
             }
@@ -120,8 +158,8 @@ public final class ItemBank {
             // Re-check the slot rather than trusting the snapshot. Commands run on the
             // server thread so nothing should have moved, but this is the one place
             // where being wrong mints currency, and the check is free.
-            if (!stack.is(item) || stack.getCount() < plan[i]) {
-                CharterCurrencyMod.LOG.error("Inventory changed underneath a deposit for {} -- aborting",
+            if (!match.test(stack) || stack.getCount() < plan[i]) {
+                CharterCurrencyMod.LOG.error("Inventory changed underneath a deposit for {} - aborting",
                         player.getName().getString());
                 return false;
             }
@@ -139,14 +177,15 @@ public final class ItemBank {
         return true;
     }
 
+    // ---- giving -------------------------------------------------------------
+
     /**
      * Give the player {@code amount} of an item. The caller must have already checked
      * {@link #freeCapacity} and debited the bank.
      *
      * <p>Anything that somehow will not fit is dropped at the player's feet rather
-     * than deleted -- the same giveOrDrop rule the other mods in this set use. The
-     * bank has already been debited by this point, so a stack that vanished here would
-     * be currency destroyed with no record.
+     * than deleted: the giveOrDrop rule. The bank has already been debited by this
+     * point, so a stack that vanished here would be currency destroyed with no record.
      *
      * @return how many items had to be dropped rather than placed; 0 in the normal case
      */
@@ -156,43 +195,33 @@ public final class ItemBank {
 
     /**
      * Give the player {@code amount} of an item, stamping {@code patch} onto every
-     * stack handed over. Used by shop listings that sell a component-marked item -- a
-     * Spirit Stone is an echo shard plus {@code custom_data}, and delivering the plain
-     * item would hand over something that does nothing.
-     *
-     * <p>The stack size is read from a patched sample rather than the bare item,
-     * because {@code max_stack_size} is itself a component and a patch is allowed to
-     * change it.
+     * stack handed over. The stack size is read from a patched sample, because
+     * {@code max_stack_size} is itself a component.
      *
      * @param patch components to apply, or null to deliver the plain item
      * @return how many items had to be dropped rather than placed; 0 in the normal case
      */
-    public static long give(ServerPlayer player, Item item, long amount,
-                            DataComponentPatch patch) {
-        int max = maxStack(item, patch);
+    public static long give(ServerPlayer player, Item item, long amount, DataComponentPatch patch) {
+        ItemStack sample = new ItemStack(item, 1);
+        if (patch != null) sample.applyComponents(patch);
+        return give(player, sample, amount);
+    }
+
+    /** Give {@code amount} copies of a prototype stack, dropping what does not fit. */
+    public static long give(ServerPlayer player, ItemStack prototype, long amount) {
+        int max = prototype.getMaxStackSize();
         long[] split = Wallet.splitIntoStacks(amount, max);
         long dropped = 0;
 
         for (long i = 0; i < split[0]; i++) {
-            dropped += insertOrDrop(player, stack(item, max, patch));
+            dropped += insertOrDrop(player, prototype.copyWithCount(max));
         }
         if (split[1] > 0) {
-            dropped += insertOrDrop(player, stack(item, (int) split[1], patch));
+            dropped += insertOrDrop(player, prototype.copyWithCount((int) split[1]));
         }
 
         player.containerMenu.broadcastChanges();
         return dropped;
-    }
-
-    /** Stack size for an item once {@code patch} has been applied to it. */
-    private static int maxStack(Item item, DataComponentPatch patch) {
-        return patch == null ? maxStack(item) : stack(item, 1, patch).getMaxStackSize();
-    }
-
-    private static ItemStack stack(Item item, int count, DataComponentPatch patch) {
-        ItemStack stack = new ItemStack(item, count);
-        if (patch != null) stack.applyComponents(patch);
-        return stack;
     }
 
     private static long insertOrDrop(ServerPlayer player, ItemStack stack) {
@@ -204,14 +233,28 @@ public final class ItemBank {
         return leftover;
     }
 
-    private static int[] counts(ServerPlayer player, Item item) {
+    // ---- internals ----------------------------------------------------------
+
+    private static int[] counts(ServerPlayer player, Predicate<ItemStack> match) {
         Inventory inv = player.getInventory();
         List<Integer> counts = new ArrayList<>();
         for (int slot = 0; slot < limit(inv); slot++) {
             ItemStack stack = inv.getItem(slot);
-            if (!stack.isEmpty() && stack.is(item)) counts.add(stack.getCount());
+            if (!stack.isEmpty() && match.test(stack)) counts.add(stack.getCount());
         }
         return toArray(counts);
+    }
+
+    private static int[] partialStacks(ServerPlayer player, ItemStack prototype) {
+        Inventory inv = player.getInventory();
+        List<Integer> partials = new ArrayList<>();
+        for (int slot = 0; slot < limit(inv); slot++) {
+            ItemStack stack = inv.getItem(slot);
+            if (!stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, prototype)) {
+                partials.add(stack.getCount());
+            }
+        }
+        return toArray(partials);
     }
 
     private static int limit(Inventory inv) {

@@ -103,6 +103,164 @@ public final class Wallet {
         return new long[] {amount / maxStack, amount % maxStack};
     }
 
+    /** The shipped face values, index-aligned with copper, iron, gold. */
+    public static final int[] DEFAULT_FACE_VALUES = {1, 8, 64};
+
+    /**
+     * What a deposit of coin does.
+     *
+     * @param take        coins to remove, per denomination, index-aligned with the
+     *                    counts the caller supplied
+     * @param taken       the Marks those coins are worth
+     * @param change      Marks handed back because exact change was impossible
+     * @param changeCoins the change as coins, index-aligned with the face values
+     */
+    public record DepositPlan(int[] take, long taken, long change, int[] changeCoins) {
+        /** The Marks to credit to the bank: what was taken minus the change. */
+        public long credited() {
+            return taken - change;
+        }
+    }
+
+    /** {@link #planDeposit(int[], int[], long)} with the shipped 1, 8, 64 face values. */
+    public static DepositPlan planDeposit(int[] counts, long amountMarks) {
+        return planDeposit(counts, DEFAULT_FACE_VALUES, amountMarks);
+    }
+
+    /**
+     * Which coins to take for a deposit of {@code amountMarks}.
+     *
+     * <p>Exact change is used when the coins carried can make it. When they cannot (a
+     * player holding only Sovereigns banks 100 Marks), the smallest overpayment is
+     * taken and the difference comes back as change coins. Among plans with the same
+     * total, fewer coins removed wins, then lower denominations first.
+     *
+     * <p>Returns null, never a partial plan, if the player does not carry enough in
+     * total. The caller removes the coins first, credits second.
+     *
+     * @param counts      coins carried, per denomination
+     * @param faceValues  face value of each denomination, index-aligned with counts
+     * @param amountMarks the amount to deposit; must be positive
+     */
+    public static DepositPlan planDeposit(int[] counts, int[] faceValues, long amountMarks) {
+        if (amountMarks <= 0 || counts.length != faceValues.length) return null;
+        long carried = 0;
+        for (int i = 0; i < counts.length; i++) carried += (long) Math.max(0, counts[i]) * faceValues[i];
+        if (carried < amountMarks) return null;
+
+        // Order denominations largest first. The two largest are enumerated; the rest
+        // are filled greedily from below, which for the shipped chain (each face value
+        // divides the next) finds the true minimum overpayment.
+        Integer[] order = new Integer[faceValues.length];
+        for (int i = 0; i < order.length; i++) order[i] = i;
+        java.util.Arrays.sort(order, (a, b) -> Integer.compare(faceValues[b], faceValues[a]));
+
+        long bestTotal = Long.MAX_VALUE;
+        long bestCoins = Long.MAX_VALUE;
+        int[] best = null;
+        int[] trial = new int[counts.length];
+        best = search(counts, faceValues, order, 0, amountMarks, 0L, 0L, trial,
+                new long[] {bestTotal, bestCoins}, best);
+        if (best == null) return null;
+
+        long taken = 0;
+        for (int i = 0; i < best.length; i++) taken += (long) best[i] * faceValues[i];
+        long change = taken - amountMarks;
+        return new DepositPlan(best, taken, change, makeChange(change, faceValues));
+    }
+
+    /**
+     * Recursive enumeration over every denomination but the last (smallest), which is
+     * resolved directly. Bounded by the product of the larger denominations' counts,
+     * which for a 36-slot inventory of three coin types is a few million steps at the
+     * absolute worst and is cut off as soon as a prefix already meets the amount.
+     */
+    private static int[] search(int[] counts, int[] faces, Integer[] order, int depth,
+                                long amount, long sum, long coinsSoFar, int[] trial,
+                                long[] bestRef, int[] best) {
+        int idx = order[depth];
+        boolean last = depth == order.length - 1;
+        int max = Math.max(0, counts[idx]);
+
+        if (last) {
+            long short_ = amount - sum;
+            int use;
+            if (short_ <= 0) {
+                use = 0;
+            } else {
+                long need = (short_ + faces[idx] - 1) / faces[idx];
+                if (need > max) return best;
+                use = (int) need;
+            }
+            trial[idx] = use;
+            long total = sum + (long) use * faces[idx];
+            long coins = coinsSoFar + use;
+            if (total < bestRef[0] || (total == bestRef[0] && coins < bestRef[1])) {
+                bestRef[0] = total;
+                bestRef[1] = coins;
+                best = trial.clone();
+            }
+            trial[idx] = 0;
+            return best;
+        }
+
+        for (int use = 0; use <= max; use++) {
+            long next = sum + (long) use * faces[idx];
+            trial[idx] = use;
+            best = search(counts, faces, order, depth + 1, amount, next, coinsSoFar + use,
+                    trial, bestRef, best);
+            // Once the prefix alone covers the amount, taking more of this
+            // denomination can only overpay further.
+            if (next >= amount) break;
+        }
+        trial[idx] = 0;
+        return best;
+    }
+
+    /**
+     * Greedy split of an amount into coins: largest denomination first. The result is
+     * index-aligned with {@code faceValues}, which may be given in any order.
+     */
+    public static int[] makeChange(long amountMarks, int[] faceValues) {
+        int[] out = new int[faceValues.length];
+        if (amountMarks <= 0) return out;
+        Integer[] order = new Integer[faceValues.length];
+        for (int i = 0; i < order.length; i++) order[i] = i;
+        java.util.Arrays.sort(order, (a, b) -> Integer.compare(faceValues[b], faceValues[a]));
+        long remaining = amountMarks;
+        for (int idx : order) {
+            if (faceValues[idx] <= 0) continue;
+            long n = remaining / faceValues[idx];
+            if (n > Integer.MAX_VALUE) n = Integer.MAX_VALUE;
+            out[idx] = (int) n;
+            remaining -= n * faceValues[idx];
+        }
+        return out;
+    }
+
+    /**
+     * Whether several kinds of stack can all be added to an inventory at once.
+     *
+     * <p>Kinds compete for the same empty slots, so adding up each kind's own free
+     * capacity overstates the room. Each kind first fills the room left in its own
+     * partial stacks, then needs whole empty slots for the rest.
+     *
+     * @param emptySlots completely empty slots
+     * @param partialRoom per kind, how many more fit in stacks already holding that kind
+     * @param needed     per kind, how many are to be added
+     * @param maxStack   stack size, the same for every kind
+     */
+    public static boolean fitsAll(int emptySlots, long[] partialRoom, long[] needed, int maxStack) {
+        if (maxStack <= 0) return false;
+        long slots = 0;
+        for (int i = 0; i < needed.length; i++) {
+            long room = i < partialRoom.length ? Math.max(0, partialRoom[i]) : 0;
+            long rest = needed[i] - room;
+            if (rest > 0) slots += (rest + maxStack - 1) / maxStack;
+        }
+        return slots <= Math.max(0, emptySlots);
+    }
+
     /**
      * Group separators for chat. {@code 12481} becomes {@code 12,481}.
      *
