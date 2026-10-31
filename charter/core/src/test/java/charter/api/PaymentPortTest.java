@@ -45,6 +45,7 @@ public final class PaymentPortTest {
         aMoveChargesThenCreditsAndNeverMints();
         aWithdrawalIsTheProvidersToMake();
         theKingdomViewAnswersByOrganizationId();
+        aLordSpendsWithoutALimitByDefault();
         oldGrantScopesKeepTheirLimit();
     }
 
@@ -155,6 +156,21 @@ public final class PaymentPortTest {
         check("view: every organization is listed by id", view.orgIds().containsAll(List.of(ashfall.toString(), sub.toString())));
         eq("view: an unknown id has no Lord", java.util.Optional.empty(), view.lordOf("org:not-a-uuid"));
         eq("view: and no name", "", view.displayName("nonsense"));
+    }
+
+    static void aLordSpendsWithoutALimitByDefault() {
+        eq("lord: the shipped default is no limit", -1, new charter.config.Knobs().lordSpendLimitMarks);
+        Fixture f = new Fixture();
+        f.knobs.lordSpendLimitMarks = -1;
+        OrgId ashfall = f.found("Ashfall", Preset.LORDSHIP, KRIS, BOB);
+        f.admin(new Deposit(ashfall, 1_000_000));
+        check("lord: spends a huge amount without a vote", f.as(KRIS, new Withdraw(ashfall, 900_000, KRIS)).done());
+        Fixture g = new Fixture();
+        g.knobs.lordSpendLimitMarks = 100;
+        OrgId brine = g.found("Brinewatch", Preset.LORDSHIP, KRIS, BOB);
+        g.admin(new Deposit(brine, 1000));
+        check("lord: the dial still sets a limit when one is wanted", g.as(KRIS, new Withdraw(brine, 100, KRIS)).done());
+        eq("lord: and a spend over it needs a vote", "needs_vote", g.as(KRIS, new Withdraw(brine, 101, KRIS)).reasonKey());
     }
 
     static void oldGrantScopesKeepTheirLimit() {

@@ -197,8 +197,10 @@ public final class Knobs {
     /** Raiders a site can still spawn, over its whole life, near, middle, far. Each raider costs one. */
     public int[] npcSupplyStronghold = {24, 48, 96};
     public int[] npcSupplyOutpost = {6, 9, 12};
-    /** Marks a stronghold's treasury starts with, near, middle, far. A quarter is plundered when it falls. */
+    /** Marks a stronghold's treasury starts with, near, middle, far. The share set by npcPlunderShare is plundered when it falls. */
     public int[] npcTreasuryMarks = {528, 1056, 2112};
+    /** The share of a fallen stronghold's treasury the winner takes, 0 to 1. The rest stays with the dissolved site. */
+    public double npcPlunderShare = 1.0;
     /** How long a faction that voted to break away has to place its Nexus, and a group has to gather, before it lapses. */
     public int breakawayHours = 24;
     /** How long a request to join a faction waits for an answer before it lapses. */
@@ -212,8 +214,12 @@ public final class Knobs {
     /** How long a mercenary waits before taking a different race. */
     public int mercChangeDays = 7;
     public int dormancyDays = 30;
-    /** What a Lordship's Lord may spend in one action without a vote. */
-    public int lordSpendLimitMarks = 1024;
+    /**
+     * What a Lordship's Lord may spend in one action without a vote, in Marks. Negative means no limit, which is the
+     * default for now; the dial stays here for when a limit is wanted. Read when a Lordship is founded, so a kingdom keeps the
+     * limit it was founded with.
+     */
+    public int lordSpendLimitMarks = -1;
     public int orgNameMaxLength = 32;
 
     // ---- justice and contracts ----

@@ -36,7 +36,7 @@ provider says "kingdom" (Renown, Mint tax) it means the top level organization t
 | `keep` | `PlaceNexus`, a keep placed by an organization that already exists | charge `keepPriceMarks` |
 | `outpost` | `PlantCamp` | charge the deposit (`outpostDepositMarks` plus `outpostDepositStepMarks` for each outpost the nation holds) |
 | `outpost_refund` | an outpost lost without a capture | credit the deposit it held |
-| `plunder` | a captured outpost's deposit; a fallen raider stronghold | credit the attackers; for a stronghold, charge the site then credit the winner a quarter of its balance |
+| `plunder` | a captured outpost's deposit; a fallen raider stronghold | credit the attackers; for a stronghold, charge the site then credit the winner its plundered share |
 | `fine` | a custody fine | `chargePlayer` the prisoner (up to what their wallet holds), then credit the fining faction; refused when there is no provider or the prisoner holds no coin |
 | `bail` | `Bail`, a kingdom buys its own member out of another faction's sentence | charge the kingdom, then credit the jailing faction, then the prisoner is freed |
 | `transfer` | `Transfer` | charge the payer, then credit the payee (the credit follows a successful charge) |
@@ -60,7 +60,7 @@ Plunder is Marks taken from a loser's treasury and credited to a winner through 
 1. **A captured outpost's deposit.** When attackers hold an outpost's chunk long enough, the Marks the owner paid as its
    deposit (`Core.depositMarks`) are credited to the attacking organization (reason `plunder`, a plain credit, because those
    Marks left the defender's treasury when the outpost was planted). An outpost whose planting was waived holds 0.
-2. **A raider stronghold that falls.** A quarter of its treasury (`balance / 4`, rounded down) is plundered. Charter charges
+2. **A raider stronghold that falls.** The share of its treasury set by `npcPlunderShare` (all of it by default, rounded down) is plundered. Charter charges
    that amount to the stronghold's organization and credits the winner only if the charge succeeded (reason `plunder`).
    The winner is the top level organization with the most online members within 48 blocks of the stronghold when it falls
    (the fight radius); a tie goes to whichever counted first. If nobody is near, or no provider is installed, nothing is
@@ -94,9 +94,10 @@ only to carry an old limit over and is never an exchange rate. The old action an
 | `keepPriceMarks` | 2048 | `keepPriceDiamonds` 64, which stays for founding with the Nexus item |
 | `outpostDepositMarks` | 256 | `outpostDeposit` 8 |
 | `outpostDepositStepMarks` | 128 | `outpostDepositStep` 4 |
-| `lordSpendLimitMarks` | 1024 | `lordSpendLimitDiamonds` 32 and `lordSpendLimitCobblestone` 2048 |
+| `lordSpendLimitMarks` | -1 (no limit; a number sets one when a kingdom is founded) | `lordSpendLimitDiamonds` 32 and `lordSpendLimitCobblestone` 2048 |
 | `custodyFineCapMarks` | 512 | `custodyFineCapDiamonds` 16 |
 | `bailMarksPerHour` | 32 | new: the price of bail for each hour of the sentence still to run (never above `custodyFineCapMarks`) |
+| `npcPlunderShare` | 1.0 | new: the share of a fallen stronghold's treasury the winner takes |
 | `npcTreasuryMarks` | 528, 1056, 2112 | `npcDiamonds` and `npcCobblestone` |
 
 `npcFallLoot` is gone: the plunder of a fallen stronghold is credited to the winning kingdom through the port.

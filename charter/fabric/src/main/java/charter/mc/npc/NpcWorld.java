@@ -500,13 +500,13 @@ public final class NpcWorld {
     }
 
     /**
-     * A quarter of the fallen site's treasury is plundered by the kingdom with the most members near the site (within the
+     * The share set by {@code npcPlunderShare} (all of it by default) of the fallen site's treasury is plundered by the kingdom with the most members near the site (within the
      * fight radius, online), through the payment port: charged to the site, credited to the winner only if the charge
      * succeeded. With no provider, or nobody near, nothing is taken.
      */
     private static void plunder(CharterRuntime rt, ServerLevel level, BlockPos home, NpcBook.Site site) {
         if (!charter.mc.Treasury.available(rt) || rt.state.org(site.org()).isEmpty()) return;
-        long share = rt.state.payment.balance(site.org().toString()) / 4;
+        long share = (long) (rt.state.payment.balance(site.org().toString()) * Math.max(0, Math.min(1, rt.knobs.npcPlunderShare)));
         if (share <= 0) return;
         Map<OrgId, Integer> near = new java.util.LinkedHashMap<>();
         for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
