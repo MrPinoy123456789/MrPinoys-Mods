@@ -157,6 +157,7 @@ public final class Notices {
                     "org", describe.org(e.to()), "asked", e.asked(), "paid", e.paid()));
             case charter.contract.ContractEvents.Escaped e -> tell(e.at(), faction(e.faction()), Text.get("notice.escaped",
                     "player", describe.player(e.prisoner())));
+            case charter.contract.ContractEvents.Bailed e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.bailed", "org", describe.org(e.payer()), "to", describe.org(e.to())));
             case charter.contract.ContractEvents.Released e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.released", "org", describe.org(e.by())));
             case charter.contract.ContractEvents.Pardoned e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.pardoned", "org", describe.org(e.by())));
             case charter.contract.ContractEvents.PrisonersFreed e -> {

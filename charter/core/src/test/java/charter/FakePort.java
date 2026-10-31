@@ -14,6 +14,7 @@ public final class FakePort implements PaymentPort {
     }
 
     public final Map<String, Long> balances = new HashMap<>();
+    public final Map<java.util.UUID, Long> wallets = new HashMap<>();
     public final List<Call> calls = new ArrayList<>();
 
     @Override
@@ -33,6 +34,19 @@ public final class FakePort implements PaymentPort {
     public void credit(String orgId, long marks, String reason) {
         balances.merge(orgId, marks, Long::sum);
         calls.add(new Call("credit", orgId, marks, reason, true));
+    }
+
+    @Override
+    public long balanceOfPlayer(java.util.UUID player) {
+        return wallets.getOrDefault(player, 0L);
+    }
+
+    @Override
+    public boolean chargePlayer(java.util.UUID player, long marks, String reason) {
+        boolean ok = balanceOfPlayer(player) >= marks;
+        if (ok) wallets.merge(player, -marks, Long::sum);
+        calls.add(new Call("chargePlayer", player.toString(), marks, reason, ok));
+        return ok;
     }
 
     /** The calls of one kind ("charge" or "credit") for one reason, in order. */

@@ -21,7 +21,7 @@ import java.util.Optional;
 public record FineCustody(OrgId faction, PlayerId prisoner, long marks) implements Action {
 
     public static final Reason NO_CURRENCY = new Reason("fines_need_currency", "Fines need a coin currency, and this server has none.");
-    public static final Reason NOTHING_TO_FINE = new Reason("nothing_to_fine", "That player has no kingdom with coin to fine.");
+    public static final Reason NOTHING_TO_FINE = new Reason("nothing_to_fine", "That player holds no coin to fine.");
 
     private List<Term> terms() {
         return List.of(new Term.FineMarks(marks));
@@ -40,7 +40,7 @@ public record FineCustody(OrgId faction, PlayerId prisoner, long marks) implemen
     @Override
     public Outcome check(ActionContext ctx) {
         if (!ctx.hasProvider()) return Outcome.refuse(NO_CURRENCY);
-        if (Justice.finePayer(ctx, faction, prisoner).isEmpty()) return Outcome.refuse(NOTHING_TO_FINE);
+        if (Justice.fineable(ctx, prisoner) <= 0) return Outcome.refuse(NOTHING_TO_FINE);
         Justice.Plan plan = Justice.plan(ctx, faction, prisoner, terms());
         return plan.ok() ? Outcome.OK : Outcome.refuse(plan.refusal());
     }

@@ -14,4 +14,21 @@ public interface PaymentPort {
 
     /** Adds marks (a fine, a deposit, plunder). */
     void credit(String orgId, long marks, String reason);
+
+    /**
+     * Marks a player holds in their own wallet, or 0 when unknown. A provider that keeps player wallets overrides this;
+     * the default says there are none, so Charter treats the player as having no coin (a custody fine is then refused).
+     */
+    default long balanceOfPlayer(java.util.UUID player) {
+        return 0;
+    }
+
+    /**
+     * Takes exactly marks from a player's own wallet or nothing; false (and nothing changes) if short or if the provider
+     * keeps no player wallets, which is the default. Used for custody fines, which Charter then credits to the fining
+     * faction with {@link #credit}.
+     */
+    default boolean chargePlayer(java.util.UUID player, long marks, String reason) {
+        return false;
+    }
 }

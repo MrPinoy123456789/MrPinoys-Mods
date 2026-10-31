@@ -40,6 +40,7 @@ public final class ContractTypes {
                 .register("justice.fine", FineCustody.class)
                 .register("justice.pardon", Pardon.class)
                 .register("justice.release", Release.class)
+                .register("justice.bail", charter.contract.actions.Bail.class)
                 .register("justice.escape", Escape.class)
                 .register("contract.breach", Breach.class)
                 .register("contract.deposit_personal", DepositPersonal.class);

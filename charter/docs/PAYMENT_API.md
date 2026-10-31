@@ -8,7 +8,7 @@ The API is the `charter.api` package of the `core` module. It has no Minecraft i
 
 | Type | What it is |
 |---|---|
-| `PaymentPort` | `balance(orgId)`, `charge(orgId, marks, reason)`, `credit(orgId, marks, reason)`. Server thread only. |
+| `PaymentPort` | `balance(orgId)`, `charge(orgId, marks, reason)`, `credit(orgId, marks, reason)`. Server thread only. Two optional player methods, `balanceOfPlayer(uuid)` and `chargePlayer(uuid, marks, reason)`, default to 0 and false (no player wallets); a provider that keeps wallets overrides them so custody fines can be collected. |
 | `PaymentProvider` | What a provider implements: `port()` and `bind(KingdomView)`. |
 | `KingdomView` | Charter's answers to the provider: `kingdomOf(player)`, `lordOf(orgId)`, `displayName(orgId)`, `orgIds()`. |
 | `NoPayment` | The port used when no provider is installed. |
@@ -37,7 +37,8 @@ provider says "kingdom" (Renown, Mint tax) it means the top level organization t
 | `outpost` | `PlantCamp` | charge the deposit (`outpostDepositMarks` plus `outpostDepositStepMarks` for each outpost the nation holds) |
 | `outpost_refund` | an outpost lost without a capture | credit the deposit it held |
 | `plunder` | a captured outpost's deposit; a fallen raider stronghold | credit the attackers; for a stronghold, charge the site then credit the winner a quarter of its balance |
-| `fine` | a custody fine | charge the prisoner's own kingdom, then credit the fining faction; refused when there is no provider, or the prisoner has no other kingdom holding coin |
+| `fine` | a custody fine | `chargePlayer` the prisoner (up to what their wallet holds), then credit the fining faction; refused when there is no provider or the prisoner holds no coin |
+| `bail` | `Bail`, a kingdom buys its own member out of another faction's sentence | charge the kingdom, then credit the jailing faction, then the prisoner is freed |
 | `transfer` | `Transfer` | charge the payer, then credit the payee (the credit follows a successful charge) |
 | `deposit` | `Deposit`, operators and scenarios only | credit |
 | `npc_treasury` | a raider site is raised | credit `npcTreasuryMarks` for its tier |
@@ -95,7 +96,18 @@ only to carry an old limit over and is never an exchange rate. The old action an
 | `outpostDepositStepMarks` | 128 | `outpostDepositStep` 4 |
 | `lordSpendLimitMarks` | 1024 | `lordSpendLimitDiamonds` 32 and `lordSpendLimitCobblestone` 2048 |
 | `custodyFineCapMarks` | 512 | `custodyFineCapDiamonds` 16 |
-| `custodyFinesFromKingdom` | true | new: whether a fine is charged to the prisoner's kingdom |
+| `bailMarksPerHour` | 32 | new: the price of bail for each hour of the sentence still to run (never above `custodyFineCapMarks`) |
 | `npcTreasuryMarks` | 528, 1056, 2112 | `npcDiamonds` and `npcCobblestone` |
 
 `npcFallLoot` is gone: the plunder of a fallen stronghold is credited to the winning kingdom through the port.
+
+## Fines and bail
+
+A judge may fine a prisoner instead of jailing them. The prisoner pays from their own wallet (`chargePlayer`), up to the cap
+`custodyFineCapMarks`, and the fining faction is credited. With no provider, or a provider with no player wallets, or a
+prisoner holding no coin, a fine is refused and the judge sentences time instead.
+
+A prisoner serving confinement for another faction can be bailed out by their own kingdom (`/charter bail <player>`, the
+`Bail` action). It needs the spend right over the kingdom and a limit covering the price, or a vote. The price is
+`bailMarksPerHour` for each hour of the sentence still to run, capped at `custodyFineCapMarks`. With no provider there is no
+bail and the prisoner serves the time.

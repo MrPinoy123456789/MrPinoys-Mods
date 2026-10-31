@@ -224,8 +224,8 @@ public final class Knobs {
     public int weeklyPunishmentCapHours = 24;
     public int sameFactionSamePlayerCooldownDays = 3;
     public int custodyFineCapMarks = 512;
-    /** Whether a custody fine is charged to the prisoner's own kingdom when it is another kingdom than the fining one. */
-    public boolean custodyFinesFromKingdom = true;
+    /** Marks a kingdom pays, for each hour of a sentence still to run, to buy one of its own members out of it (at most custodyFineCapMarks). */
+    public int bailMarksPerHour = 32;
     public int custodyLapseMinutes = 5;
     public int imposedVassalageCapDays = 14;
     public boolean scaleSentencesWithTimeScale = false;
