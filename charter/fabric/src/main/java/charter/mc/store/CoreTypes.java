@@ -23,6 +23,7 @@ import charter.org.actions.Found;
 import charter.org.actions.InviteMember;
 import charter.org.actions.ChooseMercenaryRace;
 import charter.org.actions.Leave;
+import charter.org.actions.SetRace;
 import charter.org.actions.Rename;
 import charter.siege.SiegeEvents;
 import charter.siege.actions.DepositFood;
@@ -50,6 +51,7 @@ public final class CoreTypes {
                 .register("org.accept_invite", AcceptInvite.class)
                 .register("org.choose_mercenary_race", ChooseMercenaryRace.class)
                 .register("org.leave", Leave.class)
+                .register("org.set_race", SetRace.class)
                 .register("org.found_keep", charter.org.actions.FoundKeep.class)
                 .register("org.create_kingdom", charter.org.actions.CreateKingdom.class)
                 .register("org.appoint_leader", charter.org.actions.AppointLeader.class)

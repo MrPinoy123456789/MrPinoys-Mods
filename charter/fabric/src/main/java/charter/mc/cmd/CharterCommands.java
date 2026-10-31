@@ -249,19 +249,20 @@ public final class CharterCommands {
     private static List<String> mercenaryRaces() {
         if (!CharterServer.running()) return List.of();
         return CharterServer.runtime().state.orgs().stream()
-                .filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom).map(Organization::name).toList();
+                .filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom).map(Organization::raceLabel).toList();
     }
 
     private static int mercenary(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         CharterRuntime rt = CharterServer.runtime();
         String name = StringArgumentType.getString(ctx, "race");
-        Optional<Organization> org = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.name().equalsIgnoreCase(name)).findFirst();
+        Optional<Organization> org = rt.state.orgs().stream()
+                .filter(o -> o.isTopLevel() && (o.raceLabel().equalsIgnoreCase(name) || o.name().equalsIgnoreCase(name))).findFirst();
         if (org.isEmpty()) {
             ctx.getSource().sendFailure(Chat.bad(Text.get("book.merc.unknown", "race", name)));
             return 0;
         }
-        return perform(player, new ChooseMercenaryRace(id(player), org.get().id), Text.get("book.merc.done", "race", org.get().name()));
+        return perform(player, new ChooseMercenaryRace(id(player), org.get().id), Text.get("book.merc.done", "race", org.get().raceLabel()));
     }
 
     private static int invite(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

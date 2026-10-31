@@ -36,6 +36,14 @@ public final class Organization {
     /** True when the kingdom takes members of any race. Otherwise it takes only its own. Set with the mixed option of the admin faction command. */
     public boolean mixedRace;
 
+    /** What the kingdom's race is called (Dwarf, Fae); blank means the kingdom's own name. */
+    public String raceName = "";
+
+    /** The name of this kingdom's race, as players see it. */
+    public String raceLabel() {
+        return raceName == null || raceName.isBlank() ? name() : raceName;
+    }
+
     private String name;
     private String description = "";
     private OrgId parent;

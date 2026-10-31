@@ -204,14 +204,23 @@ public final class CharterState {
     public void join(PlayerId player, OrgId org, long now) {
         PlayerRecord record = player(player);
         // Joining a kingdom that is not mixed makes the player of its race; a mixed kingdom lets them keep their own.
-        if (raceOf(player).isEmpty() || !org(root(org)).map(o -> o.mixedRace).orElse(false)) record.race = root(org);
+        if (raceOf(player).isEmpty() || !org(root(org)).map(o -> o.mixedRace).orElse(false)) {
+            record.race = root(org);
+            record.noRace = false;
+        }
         memberships.put(player, MemberRecord.of(player, org, now));
         treeVersion++;
+    }
+
+    /** The name of a kingdom's race, as players see it. */
+    public String raceLabel(OrgId kingdom) {
+        return org(kingdom).map(Organization::raceLabel).orElse("?");
     }
 
     /** The kingdom whose race this player has: the one they were given, else the kingdom they belong to now. */
     public Optional<OrgId> raceOf(PlayerId player) {
         PlayerRecord record = players.get(player);
+        if (record != null && record.noRace) return Optional.empty();
         if (record != null && record.race != null && orgs.containsKey(record.race)) return Optional.of(record.race);
         return membership(player).map(m -> root(m.org()));
     }
@@ -222,7 +231,7 @@ public final class CharterState {
         if (gone != null) {
             // A member keeps their race when they leave.
             PlayerRecord record = player(player);
-            if (record.race == null || !orgs.containsKey(record.race)) record.race = root(gone.org());
+            if (!record.noRace && (record.race == null || !orgs.containsKey(record.race))) record.race = root(gone.org());
             memberships.remove(player);
             for (Office office : offices(gone.org())) {
                 office.unseat(player);

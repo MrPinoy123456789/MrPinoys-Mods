@@ -46,6 +46,13 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
 - The Mixed Race option (`Organization.mixedRace`, set with `/charter admin faction mixed <kingdom> <on>`) lets a
   kingdom take members who keep their own race. The Freedoms page says which a kingdom is. A leader's own switch for it
   is not built yet. Turning it off again does not change anyone already inside.
+- Players see a race's own name, not its kingdom's: `Organization.raceName` (blank falls back to the kingdom name), set
+  with `/charter admin faction racename <kingdom> <name>` (Azrak Dwarf, Aurelia Human, Azurius Merfolk, Faeloria Fae,
+  Everdelle Fairy).
+- Operators set a race with `/charter admin race <player> <race>` (any kingdom's race, members too, nothing else about
+  the player changes) and remove it with `/charter admin race <player> none` (`SetRace`). A player with no race takes
+  the race of the next kingdom they join, or chooses as a mercenary. Someone who has a race and no organization can be a
+  mercenary of that race.
 - Planned, not designed: an altar that swaps a player's race.
 
 ## Locks on leaders

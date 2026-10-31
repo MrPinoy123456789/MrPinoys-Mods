@@ -9,6 +9,7 @@ import charter.org.actions.Apply;
 import charter.org.actions.ChooseMercenaryRace;
 import charter.org.actions.CreateKingdom;
 import charter.org.actions.Leave;
+import charter.org.actions.SetRace;
 
 import static charter.Check.check;
 import static charter.Check.eq;
@@ -36,6 +37,9 @@ public final class MercenaryTest {
         aMixedKingdomTakesAnyRace();
         leavingKeepsTheRace();
         operatorsSetTheRace();
+        operatorsCanSetAndRemoveARace();
+        aFormerMemberCanBeAMercenaryOfTheirRace();
+        aRaceHasANameOfItsOwn();
     }
 
     private static OrgId kingdom(Fixture f, String name, int x) {
@@ -82,7 +86,7 @@ public final class MercenaryTest {
         eq("3: changing is refused", "race_chosen", f.as(RIA, new ChooseMercenaryRace(RIA, aurelia)).reasonKey());
         f.passDays(365, RIA);
         eq("3: a year later it is still refused", "race_chosen", f.as(RIA, new ChooseMercenaryRace(RIA, aurelia)).reasonKey());
-        eq("3: the same race again is refused too", "race_chosen", f.as(RIA, new ChooseMercenaryRace(RIA, azrak)).reasonKey());
+        check("3: the race she has is always allowed", f.as(RIA, new ChooseMercenaryRace(RIA, azrak)).done());
         check("3: an operator may change it", f.admin(new ChooseMercenaryRace(RIA, aurelia)).done());
         eq("3: now Aurelia", aurelia, f.state.raceOf(RIA).orElseThrow());
     }
@@ -150,5 +154,49 @@ public final class MercenaryTest {
         f.as(RIA, new ChooseMercenaryRace(RIA, azrak));
         check("9: an operator may change a race", f.admin(new ChooseMercenaryRace(RIA, aurelia)).done());
         eq("9: now Aurelia", aurelia, f.state.raceOf(RIA).orElseThrow());
+    }
+
+    static void operatorsCanSetAndRemoveARace() {
+        Fixture f = new Fixture();
+        OrgId azrak = kingdom(f, "Azrak", 0);
+        OrgId aurelia = kingdom(f, "Aurelia", 10);
+        OrgId elder = kingdom(f, "Hey Dol Hollow", 20);
+        f.org(elder).adminKingdom = true;
+        enter(f, LEO, azrak);
+        eq("10: a player cannot set a race", "not_you", f.as(LEO, new SetRace(LEO, aurelia)).reasonKey());
+        check("10: an operator sets a member's race", f.admin(new SetRace(LEO, aurelia)).done());
+        eq("10: now Aurelia", aurelia, f.state.raceOf(LEO).orElseThrow());
+        check("10: he is still in Azrak", f.state.isMember(LEO, azrak));
+        check("10: an operator may give an admin race", f.admin(new SetRace(LEO, elder)).done());
+        eq("10: a missing kingdom is refused", "merc_not_a_race",
+                f.admin(new SetRace(LEO, new OrgId(new java.util.UUID(3, 4)))).reasonKey());
+        check("10: an operator removes the race", f.admin(new SetRace(LEO, null)).done());
+        check("10: he has none, though he belongs to Azrak", f.state.raceOf(LEO).isEmpty());
+        check("10: leaving does not give it back", f.as(LEO, new Leave(LEO)).done() && f.state.raceOf(LEO).isEmpty());
+        check("10: now he may choose one", f.as(LEO, new ChooseMercenaryRace(LEO, azrak)).done());
+        eq("10: Azrak", azrak, f.state.raceOf(LEO).orElseThrow());
+        f.admin(new SetRace(LEO, null));
+        enter(f, LEO, aurelia);
+        eq("10: joining a kingdom gives a raceless player its race", aurelia, f.state.raceOf(LEO).orElseThrow());
+    }
+
+    static void aFormerMemberCanBeAMercenaryOfTheirRace() {
+        Fixture f = new Fixture();
+        OrgId azrak = kingdom(f, "Azrak", 0);
+        OrgId aurelia = kingdom(f, "Aurelia", 10);
+        enter(f, LEO, azrak);
+        f.as(LEO, new Leave(LEO));
+        check("11: he may be a mercenary of the race he has", f.as(LEO, new ChooseMercenaryRace(LEO, azrak)).done());
+        eq("11: but not another", "race_chosen", f.as(LEO, new ChooseMercenaryRace(LEO, aurelia)).reasonKey());
+        f.org(azrak).adminKingdom = true;
+        check("11: even when the race is an admin race", f.as(LEO, new ChooseMercenaryRace(LEO, azrak)).done());
+    }
+
+    static void aRaceHasANameOfItsOwn() {
+        Fixture f = new Fixture();
+        OrgId azrak = kingdom(f, "Azrak", 0);
+        eq("12: without a race name it is the kingdom's name", "Azrak", f.state.raceLabel(azrak));
+        f.org(azrak).raceName = "Dwarf";
+        eq("12: with one it is the race's name", "Dwarf", f.state.raceLabel(azrak));
     }
 }

@@ -90,10 +90,20 @@ public final class LandCommands {
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                                 .executes(LandCommands::appointLeader))))
+                        .then(Commands.literal("race")
+                                .then(Commands.argument("player", StringArgumentType.string())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
+                                        .then(Commands.argument("race", StringArgumentType.string())
+                                                .suggests((c, b) -> SharedSuggestionProvider.suggest(raceNames(), b))
+                                                .executes(LandCommands::setRace))))
                         .then(Commands.literal("admin")
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
                                                 .executes(LandCommands::adminKingdom))))
+                        .then(Commands.literal("racename")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("name", StringArgumentType.string())
+                                                .executes(LandCommands::raceName))))
                         .then(Commands.literal("mixed")
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
@@ -325,6 +335,58 @@ public final class LandCommands {
         if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
         org.adminKingdom = on;
         return ok(ctx, Text.get(on ? "land.admin.kingdom_on" : "land.admin.kingdom_off", "name", org.name()));
+    }
+
+    private static java.util.List<String> raceNames() {
+        java.util.List<String> names = new java.util.ArrayList<>(java.util.List.of("none"));
+        if (CharterServer.running()) {
+            for (var o : CharterServer.runtime().state.orgs()) if (o.isTopLevel() && o.exists() && !o.npc) names.add(o.raceLabel());
+        }
+        return names;
+    }
+
+    /** {@code race <player> <kingdom|none>}: sets the player's race to a kingdom's, or removes it. */
+    private static int setRace(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String raceName = StringArgumentType.getString(ctx, "race");
+        charter.id.OrgId kingdom = null;
+        if (!raceName.equalsIgnoreCase("none")) {
+            var found = rt.state.orgs().stream()
+                    .filter(o -> o.isTopLevel() && (o.raceLabel().equalsIgnoreCase(raceName) || o.name().equalsIgnoreCase(raceName))).findFirst();
+            if (found.isEmpty()) return fail(ctx, Text.get("land.admin.race_unknown", "name", raceName));
+            kingdom = found.get().id;
+        }
+        ServerPlayer online = online(ctx);
+        PlayerId id;
+        String who;
+        if (online != null) {
+            id = new PlayerId(online.getUUID());
+            who = online.getPlainTextName();
+            rt.state.touch(id, who, rt.clock.now());
+        } else {
+            String wanted = StringArgumentType.getString(ctx, "player");
+            var known = rt.state.allPlayers().stream().filter(p -> p.name.equalsIgnoreCase(wanted)).findFirst();
+            if (known.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", wanted));
+            id = known.get().id;
+            who = known.get().name;
+        }
+        Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()), new charter.org.actions.SetRace(id, kingdom));
+        if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
+        return kingdom == null ? ok(ctx, Text.get("land.admin.race_removed", "player", who))
+                : ok(ctx, Text.get("land.admin.race_set", "player", who, "name", rt.state.raceLabel(kingdom)));
+    }
+
+    /** {@code faction racename "<faction>" <name>}: what the kingdom's race is called; none restores the kingdom's own name. */
+    private static int raceName(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        String label = StringArgumentType.getString(ctx, "name").strip();
+        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        var org = found.get();
+        if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
+        org.raceName = label.equalsIgnoreCase("none") ? "" : label;
+        return ok(ctx, Text.get("land.admin.racename_set", "name", org.name(), "race", org.raceLabel()));
     }
 
     private static int mixedRace(CommandContext<CommandSourceStack> ctx) {

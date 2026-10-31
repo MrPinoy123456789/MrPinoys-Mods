@@ -75,7 +75,7 @@ public final class NewcomerPages {
             body.add(BookDialogs.text(Text.get("book.newcomer.intro")));
         }
         Optional<OrgId> race = rt.state.raceOf(me(player));
-        if (race.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(race.get()))));
+        if (race.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.state.raceLabel(race.get()))));
         body.add(BookDialogs.text(Text.get("book.calendar.seasons", "seasons", MemberPages.seasonNames())));
         body.add(BookDialogs.text(Text.get("book.calendar.days")));
         List<ActionButton> buttons = new ArrayList<>();
@@ -97,15 +97,17 @@ public final class NewcomerPages {
         List<DialogBody> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("book.merc.intro")));
         body.add(BookDialogs.text(Text.get("book.merc.rules")));
-        if (current.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(current.get()))));
+        if (current.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.state.raceLabel(current.get()))));
         List<ActionButton> buttons = new ArrayList<>();
-        for (Organization org : rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
-                .sorted(Comparator.comparing(Organization::name)).toList()) {
+        // Someone who already has a race can be a mercenary of it; someone with none chooses from the ordinary kingdoms.
+        List<Organization> offered = current.isPresent() ? rt.state.org(current.get()).stream().toList()
+                : rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
+                        .sorted(Comparator.comparing(Organization::raceLabel)).toList();
+        for (Organization org : offered) {
             OrgId id = org.id;
-            if (current.isPresent()) break;
-            buttons.add(go(player, Text.get("book.merc.take", "race", org.name()), p -> BookRouter.run(p,
+            buttons.add(go(player, Text.get("book.merc.take", "race", org.raceLabel()), p -> BookRouter.run(p,
                     new ChooseMercenaryRace(me(p), id),
-                    line -> mercenary(p, line != null ? line : Text.get("book.merc.done", "race", org.name())))));
+                    line -> mercenary(p, line != null ? line : Text.get("book.merc.done", "race", org.raceLabel())))));
         }
         if (current.isEmpty() && buttons.isEmpty()) body.add(BookDialogs.text(Text.get("book.merc.none")));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.merc.title"), lines(notice, body), buttons,

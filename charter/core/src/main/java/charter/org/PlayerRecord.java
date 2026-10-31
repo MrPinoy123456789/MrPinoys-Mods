@@ -19,6 +19,8 @@ public final class PlayerRecord {
      * leaving a kingdom does not change it, and only an operator can set it again.
      */
     public charter.id.OrgId race;
+    /** True when an operator removed the player's race entirely: they have none, even while they belong to a kingdom. */
+    public boolean noRace;
 
     public PlayerRecord(PlayerId id, String name, long lastSeen) {
         this.id = id;

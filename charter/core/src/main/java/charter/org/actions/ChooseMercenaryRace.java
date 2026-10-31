@@ -16,7 +16,8 @@ import java.util.Optional;
 /**
  * A player with no organization chooses the race of an ordinary kingdom and becomes a mercenary: they may wield that
  * race's weapons, but belong to no kingdom, hold no land and answer to no one. Kingdoms the operators have marked as
- * admin kingdoms cannot be chosen. The player cannot choose again; the race changes only when they join a kingdom that
+ * admin kingdoms cannot be chosen. Someone who already has a race (a former member) can be a mercenary of that race, but
+ * cannot choose another;  the race changes only when they join a kingdom that
  * is not mixed (they take on its race), or when an operator sets it.
  */
 public record ChooseMercenaryRace(PlayerId player, OrgId kingdom) implements Action {
@@ -41,6 +42,8 @@ public record ChooseMercenaryRace(PlayerId player, OrgId kingdom) implements Act
     public Outcome check(ActionContext ctx) {
         if (!ctx.admin() && !player.equals(ctx.player())) return Outcome.refuse(OrgReasons.NOT_YOU);
         if (ctx.state.membership(player).isPresent()) return Outcome.refuse(OrgReasons.MERC_IN_ORG);
+        // A player who already has a race becomes a mercenary of that race, whatever it is.
+        if (ctx.state.raceOf(player).map(kingdom::equals).orElse(false)) return Outcome.OK;
         if (!choosable(ctx, kingdom)) return Outcome.refuse(OrgReasons.MERC_NOT_A_RACE);
         if (!ctx.admin() && ctx.state.raceOf(player).isPresent()) return Outcome.refuse(OrgReasons.RACE_CHOSEN);
         return Outcome.OK;
@@ -48,7 +51,9 @@ public record ChooseMercenaryRace(PlayerId player, OrgId kingdom) implements Act
 
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
-        ctx.state.player(player).race = kingdom;
+        var record = ctx.state.player(player);
+        record.race = kingdom;
+        record.noRace = false;
         return List.of();
     }
 }
