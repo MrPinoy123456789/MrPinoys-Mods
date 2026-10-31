@@ -125,6 +125,7 @@ public final class CharterCurrencyMod implements ModInitializer {
                 System::currentTimeMillis);
         services.catalog = EarnConfigFile.loadCatalog(configDir, EarnConfigFile.defaultsCatalog());
         RenownCommands renownCommands = new RenownCommands(services, treasuryCommands);
+        StatsCommands statsCommands = new StatsCommands(services, configDir, shopConfig, catalog);
 
         loginSnapshot = new LoginSnapshot(leaderboard, currencies, names, settings);
 
@@ -137,6 +138,7 @@ public final class CharterCurrencyMod implements ModInitializer {
             economyCommands.attach(services);
             economyCommands.register(dispatcher);
             renownCommands.register(dispatcher);
+            statsCommands.register(dispatcher);
             new ShopCommands(service, catalog, log, settings).register(dispatcher);
             new AdminCommands(service, currencies, names, log, catalog, shopConfig)
                     .register(dispatcher);
@@ -187,7 +189,10 @@ public final class CharterCurrencyMod implements ModInitializer {
                         leaderboard.participants(currency),
                         economy.totalSupply(currency));
             }
-            LOG.info("Charter Currency ready -- {} shop entries", catalog.size());
+            LOG.info("  Kingdom treasuries: {} Marks held across {} organizations (coin supply {} Marks in all)",
+                    treasury.totalSupply(), treasury.orgIds().size(), statsCommands.coinSupply());
+            LOG.info("Charter Currency ready: {} shop entries, kingdoms from {}",
+                    catalog.size(), kingdoms.activeName());
         });
 
         LOG.info("Charter Currency initialised (server-side only)");

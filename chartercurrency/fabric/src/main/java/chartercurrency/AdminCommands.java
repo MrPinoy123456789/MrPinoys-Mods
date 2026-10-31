@@ -77,6 +77,14 @@ public final class AdminCommands {
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency set <player> <amount> <currency>", "Set a balance"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency add <player> <amount> <currency>", "Add to a balance"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency remove <player> <amount> <currency>", "Remove from a balance"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency earn <player> <source> [level] [run]", "Award Valor and Renown"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency renown add|remove <kingdom|commons> <amount>", "Adjust Renown"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency treasury add|remove <kingdom> <amount>", "Adjust a treasury"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency treasury pay|give <kingdom> <player> <amount> [coin]", "Spend a treasury"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency kingdom list|create|remove|set|lord", "Manual kingdoms (without Charter)"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency mint bind|unbind|list", "Mint blocks"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency stats", "Supply and activity"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency reload", "Reload configuration"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop edit", "Edit the shop in a menu"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop list", "List all shop entries"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop reload", "Reload shop.json"), false);

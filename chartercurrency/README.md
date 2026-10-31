@@ -14,7 +14,7 @@ it currently covers milestones 1 to 3 (the fork, Coin and Valor).
 | 3. Valor | done |
 | 4. Mint and treasury | done (Charter wiring built against a stub of its api; see below) |
 | 5. Earn and Renown | done |
-| 6. Stats and polish | not started |
+| 6. Stats and polish | done |
 
 ## Coin and Valor
 
@@ -135,6 +135,42 @@ for a kingdom until they have been in it 7 days; Valor is unaffected. All of the
 City 4000, Realm 8000, each needing the one before) with a broadcast command only; what
 a tier does belongs to Charter. Placeholders in commands: `%kingdom%`, `%kingdom_name%`,
 `%buyer%`. A command that fails is logged at ERROR and the purchase stands.
+
+## Setting up a server
+
+1. Drop `chartercurrency-0.1.0.jar` in `mods/` next to Fabric API (and Charter, if used).
+   Start once; the config folder `config/chartercurrency/` fills with defaults.
+2. Kingdoms. With Charter installed there is nothing to do: it supplies kingdoms,
+   members and Lords. Without it, as an op: `/chartercurrency kingdom create northreach
+   Northreach`, `kingdom set <player> northreach`, `kingdom lord northreach <player>`.
+3. Mints. Look at a smithing table and run `/chartercurrency mint bind`. Players
+   right-click it with ingots.
+4. Pocket Dungeons: set its `payoutCommand` to
+   `chartercurrency earn %player% dungeon %level%`.
+5. Retune `shop.json` (every starter price is a placeholder) and `earn.json`.
+   `/chartercurrency reload` applies settings, earn, the Renown catalogue and the shop;
+   `currencies.json` needs a restart.
+6. `/chartercurrency stats` shows the coin supply (banked plus treasuries), minting,
+   Mint tax collected and destroyed, Valor by source, and each kingdom's Renown and
+   treasury. Coin still carried in inventories is not counted.
+
+## Config files (`config/chartercurrency/`)
+
+| File | Holds |
+|---|---|
+| `currencies.json` | Coin denominations (items, face values, words) and Valor. The coin marker is not configurable |
+| `settings.json` | Leaderboards, login snapshot, logging, `timezone`, `mint` allowance numbers, `shop.confirmAt` per currency. There is no Mint tax setting: it is fixed at one coin in five |
+| `earn.json` | Earn sources and the Renown rules |
+| `renown_catalog.json` | What Renown buys |
+| `shop.json` | The shop; prices in `coin`, `valor` or both |
+| `kingdoms.json` | The manual kingdom source only; ignored while Charter answers |
+| `mints.json` | Bound Mint blocks |
+| `accounts.json` | Player coin and Valor. Refuses to load over a bad file |
+| `players.json` | Mint state and tax counters, earn caps, probation clocks, daily totals. Refuses to load over a bad file |
+| `kingdoms_state.json` | Per organization: treasury, Renown, purchases, last 500 ledger lines. Refuses to load over a bad file |
+| `transactions.log` | Append-only audit trail of every movement |
+
+All state files are written atomically on a 15 second debounce and at clean shutdown.
 
 ## Building
 
