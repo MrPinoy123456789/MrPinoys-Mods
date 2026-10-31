@@ -61,6 +61,12 @@ public final class CharterState {
     /** Contracts block (M6): contracts, custody, the punishment ledger, players' own deposits, breach marks. */
     public final charter.contract.ContractBook contracts = new charter.contract.ContractBook();
 
+    /**
+     * Where every Mark moves. Never saved: the host installs a provider's port at server start, and with none the cost of
+     * everything is waived ({@link charter.api.NoPayment}).
+     */
+    public charter.api.PaymentPort payment = new charter.api.NoPayment();
+
     private final Map<OrgId, Organization> orgs = new LinkedHashMap<>();
     private final Map<PlayerId, PlayerRecord> players = new LinkedHashMap<>();
     private final Map<PlayerId, MemberRecord> memberships = new LinkedHashMap<>();
