@@ -13,7 +13,6 @@ import charter.mc.war.SiegeWorld;
 import charter.siege.SiegeEvents;
 import charter.siege.WarBook;
 import charter.time.Durations;
-import charter.treasury.Currency;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -98,12 +97,13 @@ public final class WarGameTest {
                 helper.assertTrue(goal.opened, "Capture did not open when the notice ran out");
                 helper.assertTrue(rt.state.core(theirs.id).isPresent(), "The outpost fell the moment capture opened");
                 goal.progress = Durations.minutes(rt.knobs.outpostCaptureMinutes) - Durations.MINUTE / 2;
-                long before = rt.state.org(hawk).orElseThrow().ledger.balance(Currency.DIAMOND);
-                long deposit = theirs.deposit;
+                GamePort port = GamePort.of(rt);
+                long before = port.marks(hawk);
+                long deposit = theirs.depositMarks;
                 SiegeWorld.beforeStep(kit.server, rt);
                 rt.sim.advance(Durations.MINUTE);
                 helper.assertTrue(rt.state.core(theirs.id).isEmpty(), "Holding the chunk did not capture the outpost");
-                helper.assertTrue(rt.state.org(hawk).orElseThrow().ledger.balance(Currency.DIAMOND) == before + deposit,
+                helper.assertTrue(port.marks(hawk) == before + deposit,
                         "The deposit did not go to the attackers");
                 helper.assertTrue(rt.state.history.has(SiegeEvents.OutpostCaptured.class), "The capture was not recorded");
                 helper.assertTrue(kit.level.getBlockState(banner).isAir(),

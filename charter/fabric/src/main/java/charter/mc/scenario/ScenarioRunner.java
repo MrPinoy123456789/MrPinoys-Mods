@@ -231,8 +231,7 @@ public final class ScenarioRunner {
         for (MemberRecord m : List.copyOf(rt.state.members(org))) {
             rt.state.restoreMembership(new MemberRecord(m.player(), m.org(), m.joinedAt() - Durations.days(30), m.roles()));
         }
-        if (f.diamonds > 0) engine(new Deposit(org, Currency.DIAMOND, f.diamonds), "fund " + name);
-        if (f.cobblestone > 0) engine(new Deposit(org, Currency.COBBLESTONE, f.cobblestone), "fund " + name);
+        if (f.marks > 0) engine(new Deposit(org, f.marks), "fund " + name);
         for (Scenario.Office office : f.offices) office(org, office);
         lines.add(Text.get("scenario.faction", "name", name, "count", f.roles.size()));
     }

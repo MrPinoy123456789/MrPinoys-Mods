@@ -192,13 +192,12 @@ public final class NewcomerPages {
 
     // ---- Found your own ----
 
-    private static final int STEPS = 6;
+    private static final int STEPS = 5;
 
     /** Which steps of founding are done by what the player carries now. The last is never done here. */
     public static boolean[] foundSteps(ServerPlayer player) {
         CharterRuntime rt = rt();
         boolean banner = false, named = false, lodestone = false, nexus = false;
-        int diamonds = 0;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
@@ -207,19 +206,9 @@ public final class NewcomerPages {
                 banner = true;
                 if (stack.has(DataComponents.CUSTOM_NAME)) named = true;
             } else if (stack.is(Items.LODESTONE) && !stack.has(DataComponents.CUSTOM_DATA)) lodestone = true;
-            if (stack.is(Items.DIAMOND)) diamonds += stack.getCount();
         }
         // A crafted founding Nexus has already used the banner and the lodestone up.
-        return new boolean[]{banner || nexus, named || nexus, lodestone || nexus, nexus, diamonds >= rt.knobs.keepPriceDiamonds, false};
-    }
-
-    static int diamondsCarried(ServerPlayer player) {
-        int n = 0;
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (stack.is(Items.DIAMOND)) n += stack.getCount();
-        }
-        return n;
+        return new boolean[]{banner || nexus, named || nexus, lodestone || nexus, nexus, false};
     }
 
     public static void found(ServerPlayer player, String notice) {
@@ -229,7 +218,6 @@ public final class NewcomerPages {
         String[] labels = {
                 Text.get("book.found.step_banner"), Text.get("book.found.step_name"), Text.get("book.found.step_lodestone"),
                 Text.get("book.found.step_craft"),
-                Text.get("book.found.step_diamonds", "price", rt.knobs.keepPriceDiamonds, "have", diamondsCarried(player)),
                 Text.get("book.found.step_place")};
         List<DialogBody> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("book.found.intro")));

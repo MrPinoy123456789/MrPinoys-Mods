@@ -151,10 +151,8 @@ public final class SiegeTest {
         w.ashfallMembers.addAll(List.of(others));
         w.ashfall = w.f.found("Ashfall", Preset.LORDSHIP, KRIS, others);
         w.brine = w.f.found("Brinewatch", Preset.LORDSHIP, ZED, ANN, DEN);
-        w.f.as(GIL, new Deposit(w.ashfall, Currency.DIAMOND, 400));
-        w.f.as(GIL, new Deposit(w.ashfall, Currency.COBBLESTONE, 5000));
-        w.f.as(DEN, new Deposit(w.brine, Currency.DIAMOND, 400));
-        w.f.as(DEN, new Deposit(w.brine, Currency.COBBLESTONE, 5000));
+        w.f.admin(new Deposit(w.ashfall, 400));
+        w.f.admin(new Deposit(w.brine, 400));
         w.f.passDays(3.1);
         w.advance(0);
         Outcome placed = w.f.as(KRIS, new PlaceNexus(w.ashfall, ch(0, 0)));
@@ -265,18 +263,18 @@ public final class SiegeTest {
 
     static void aLapseReleasesTheLandAndKeepsTheNation() {
         World w = world();
-        long diamonds = w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND);
+        long diamonds = w.f.marks(w.ashfall);
         int members = w.f.state.members(w.ashfall).size();
         w.advance(Durations.days(15));
         check("K2: the keep is gone", w.f.state.coresOf(w.ashfall).isEmpty());
         check("K2: its claims are released", w.f.state.claimsOf(w.ashfall).stream().noneMatch(c -> c.fixed()));
         check("K2: it is told plainly", w.f.state.history.has(SiegeEvents.KeepLapsed.class));
-        eq("K2: the nation keeps its treasury", diamonds, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
+        eq("K2: the nation keeps its treasury", diamonds, w.f.marks(w.ashfall));
         eq("K2: and its members", members, w.f.state.members(w.ashfall).size());
         check("K2: and is still a nation", w.f.state.org(w.ashfall).map(o -> o.exists()).orElse(false));
         Outcome again = w.f.as(KRIS, new PlaceNexus(w.ashfall, ch(0, 0)));
         check("K2: it may put a new Nexus down: " + again, again.done());
-        eq("K2: and pays the founding price again", diamonds - w.f.knobs.keepPriceDiamonds, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
+        eq("K2: and pays the founding price again", diamonds - w.f.knobs.keepPriceMarks, w.f.marks(w.ashfall));
     }
 
     static void withTheGranaryOffAKeepNeedsNoFood() {
@@ -313,7 +311,7 @@ public final class SiegeTest {
         eq("K3: but only one", charter.land.LandReasons.ONE_OUTPOST.key(), w.f.as(KRIS, new PlantCamp(w.ashfall, ch(50, 0))).reasonKey());
         w.f.as(KRIS, new charter.org.actions.CreateSubOrg(w.ashfall, "Guard", Preset.LORDSHIP, GIL));
         OrgId guard = w.f.state.orgNamed("Guard").orElseThrow().id;
-        w.f.as(KRIS, new Deposit(guard, Currency.DIAMOND, 100));
+        w.f.admin(new Deposit(guard, 100));
         eq("K3: a sub-faction of one is too small for an outpost", charter.land.LandReasons.OUTPOST_TOO_SMALL.key(),
                 w.f.as(GIL, new PlantCamp(guard, ch(60, 0))).reasonKey());
         PlayerId newbie = player("Newbie");
@@ -325,16 +323,16 @@ public final class SiegeTest {
 
     static void anOutpostCostsADepositThatGrowsWithTheNation() {
         World w = world();
-        long start = w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND);
+        long start = w.f.marks(w.ashfall);
         w.f.as(KRIS, new PlantCamp(w.ashfall, ch(40, 0)));
         Core first = w.f.state.coresOf(w.ashfall).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
-        eq("K3: the first outpost of a nation holds the base deposit", (long) w.f.knobs.outpostDeposit, first.deposit);
-        eq("K3: the treasury paid it", start - w.f.knobs.outpostDeposit, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
+        eq("K3: the first outpost of a nation holds the base deposit", (long) w.f.knobs.outpostDepositMarks, first.depositMarks);
+        eq("K3: the treasury paid it", start - w.f.knobs.outpostDepositMarks, w.f.marks(w.ashfall));
         w.f.as(KRIS, new charter.org.actions.CreateSubOrg(w.ashfall, "Guard", Preset.LORDSHIP, GIL));
         OrgId guard = w.f.state.orgNamed("Guard").orElseThrow().id;
-        eq("K3: the next one costs a step more", (long) (w.f.knobs.outpostDeposit + w.f.knobs.outpostDepositStep),
+        eq("K3: the next one costs a step more", (long) (w.f.knobs.outpostDepositMarks + w.f.knobs.outpostDepositStepMarks),
                 charter.land.actions.PlantCamp.deposit(w.f.state, w.f.knobs, guard));
         w.f.admin(new LoseCore(first.id));
-        eq("K3: an outpost lost without a capture gives its deposit back", start, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
+        eq("K3: an outpost lost without a capture gives its deposit back", start, w.f.marks(w.ashfall));
     }
 }

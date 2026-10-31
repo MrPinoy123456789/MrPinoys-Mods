@@ -111,14 +111,19 @@ final class FullState {
         admin(new CreateOffice(oakvale, "Treasurer"));
         Office treasurer = state.officeNamed(oakvale, "Treasurer").orElseThrow();
         admin(new Appoint(oakvale, treasurer.id, alice));
-        admin(new GrantPower(oakvale, Power.SPEND, new Holder.OfOffice(treasurer.id), GrantScope.spendUpTo(100, 5), true, 0));
+        admin(new GrantPower(oakvale, Power.SPEND, new Holder.OfOffice(treasurer.id), new GrantScope(java.util.Map.of(Currency.COBBLESTONE, 100L, Currency.DIAMOND, 5L), null), true, 0));
+        // A grant written before limits were in Marks keeps its old per currency map; this one is a new Marks limit.
         engine.run(new Actor.Player(alice), new GrantPower(oakvale, Power.SPEND, new Holder.OfPlayer(bob),
-                GrantScope.spendUpTo(10, 1), false, now + Durations.days(30)));
+                GrantScope.spendUpTo(160), false, now + Durations.days(30)));
         admin(new GrantPower(oakvale, Power.CLAIM, new Holder.OfOrg(guard), GrantScope.ANY, false, 0));
         state.grants().stream().filter(g -> g.power == Power.CLAIM).findFirst().orElseThrow().revoke(now + 5);
 
-        admin(new Deposit(oakvale, Currency.DIAMOND, 50));
-        admin(new Deposit(oakvale, Currency.COBBLESTONE, 500));
+        // The old item treasury, as an old save holds it: stored, never read.
+        state.org(oakvale).orElseThrow().ledger.add(Currency.DIAMOND, 50);
+        state.org(oakvale).orElseThrow().ledger.add(Currency.COBBLESTONE, 500);
+        // The Marks treasury is the provider's; the port here is a plain in-memory one.
+        state.payment = new TestPort();
+        admin(new Deposit(oakvale, 50));
 
         Organization oak = state.org(oakvale).orElseThrow();
         oak.describe("A village by the river.");
@@ -135,7 +140,7 @@ final class FullState {
         clock.advance(Durations.days(4));
         state.touch(alice, "Alice", clock.now());
         state.touch(bob, "Bob", clock.now());
-        engine.propose(alice, new Withdraw(oakvale, Currency.DIAMOND, 5, bob));
+        engine.propose(alice, new Withdraw(oakvale, 5, bob));
         Outcome renamed = engine.propose(alice, new Rename(oakvale, "Oakvale Commons"));
         engine.cast(bob, ((Outcome.VoteOpened) renamed).vote(), Vote.Ballot.NO);
         Office lord = state.officeNamed(ironhold, "Lord").orElseThrow();
@@ -195,7 +200,7 @@ final class FullState {
         // deposit, a breach mark, and a signed contract carrying every kind of term.
         admin(new charter.contract.actions.Arrest(oakvale, eve, keep.center));
         admin(new charter.contract.actions.Confine(oakvale, eve, Durations.hours(2), keep.id, "cell"));
-        admin(new charter.contract.actions.DepositPersonal(dan, Currency.DIAMOND, 7));
+        state.contracts.vault(dan).add(Currency.DIAMOND, 7);
         charter.contract.Party oakParty = new charter.contract.Party(oakvale, null);
         charter.contract.Party ironParty = new charter.contract.Party(ironhold, null);
         state.contracts.markBreach(ironParty);

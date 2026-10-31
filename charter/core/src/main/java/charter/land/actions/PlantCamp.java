@@ -9,7 +9,6 @@ import charter.id.ChunkKey;
 import charter.id.OrgId;
 import charter.land.LandGraph;
 import charter.land.LandReasons;
-import charter.treasury.Currency;
 
 import java.util.List;
 import java.util.Optional;
@@ -47,28 +46,28 @@ public record PlantCamp(OrgId org, ChunkKey center) implements Action {
             return Outcome.refuse(LandReasons.OUTPOST_TOO_SMALL);
         }
         long price = deposit(ctx.state, ctx.knobs, org);
-        if (organization.ledger.balance(Currency.DIAMOND) < price) {
-            return Outcome.refuse(LandReasons.NO_FUNDS.with("An outpost needs a deposit of " + price + " diamonds and the treasury holds fewer."));
+        if (!ctx.canPay(org, price)) {
+            return Outcome.refuse(LandReasons.NO_FUNDS.with("An outpost needs a deposit of " + price + " Marks and the treasury holds fewer."));
         }
         return Outcome.OK;
     }
 
     /**
      * The deposit this organization pays now: the Nth outpost a nation holds in all, itself and every sub-faction,
-     * costs {@code outpostDeposit} plus {@code outpostDepositStep} for each outpost already held.
+     * costs {@code outpostDepositMarks} plus {@code outpostDepositStepMarks} for each outpost already held.
      */
     public static long deposit(charter.state.CharterState state, charter.config.Knobs knobs, OrgId org) {
         OrgId root = state.root(org);
         long held = state.cores().stream().filter(c -> !c.isKeep() && state.root(c.owner).equals(root)).count();
-        return knobs.outpostDeposit + knobs.outpostDepositStep * held;
+        return knobs.outpostDepositMarks + knobs.outpostDepositStepMarks * held;
     }
 
     @Override
     public List<HistoryEvent> apply(ActionContext ctx) {
         long price = deposit(ctx.state, ctx.knobs, org);
-        ctx.state.org(org).orElseThrow().ledger.take(Currency.DIAMOND, price);
+        ctx.pay(org, price, "outpost");
         List<HistoryEvent> events = new LandGraph(ctx.state, ctx.knobs).plantCamp(org, center, ctx.now);
-        ctx.state.coresOf(org).stream().filter(c -> !c.isKeep() && c.center.equals(center)).findFirst().ifPresent(c -> c.deposit = price);
+        ctx.state.coresOf(org).stream().filter(c -> !c.isKeep() && c.center.equals(center)).findFirst().ifPresent(c -> c.depositMarks = ctx.hasProvider() ? price : 0);
         return events;
     }
 }

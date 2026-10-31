@@ -72,11 +72,9 @@ public final class LandTest {
     static World world() {
         Fixture f = new Fixture();
         OrgId ashfall = f.found("Ashfall", Preset.LORDSHIP, KRIS, BOB, HAL, GIL);
-        f.as(GIL, new Deposit(ashfall, Currency.DIAMOND, 500));
-        f.as(GIL, new Deposit(ashfall, Currency.COBBLESTONE, 5000));
+        f.admin(new Deposit(ashfall, 500));
         OrgId brine = f.found("Brinewatch", Preset.LORDSHIP, ZED, ANN, DEN);
-        f.as(DEN, new Deposit(brine, Currency.DIAMOND, 500));
-        f.as(DEN, new Deposit(brine, Currency.COBBLESTONE, 5000));
+        f.admin(new Deposit(brine, 500));
         return new World(f, ashfall, brine);
     }
 
@@ -131,7 +129,7 @@ public final class LandTest {
         Outcome placed = keep(w, 0, 0);
         check("keep: a Lord with the power places a nexus", placed.done());
         check("keep: the placement is recorded", has(placed, LandEvents.NexusPlaced.class));
-        eq("keep: the price comes out of the treasury", 500L - w.f.knobs.keepPriceDiamonds, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
+        eq("keep: the price comes out of the treasury", 500L - w.f.knobs.keepPriceMarks, w.f.marks(w.ashfall));
         eq("keep: nine chunks are claimed", 9, w.f.state.claimsOf(w.ashfall).size());
         eq("keep: the middle chunk holds the nexus", ClaimKind.KEEP_CORE, at(w, 0, 0).kind());
         eq("keep: the other eight are the ring", 8L, w.f.state.claimsOf(w.ashfall).stream().filter(c -> c.kind() == ClaimKind.KEEP_RING).count());
@@ -186,7 +184,7 @@ public final class LandTest {
         eq("ops only: a player cannot found a kingdom", "founding_closed",
                 f.as(newbie, new charter.org.actions.Found(newbie, "Nowhere", Preset.LORDSHIP)).reasonKey());
         eq("ops only: nor found a keep", "founding_closed",
-                f.as(newbie, new charter.org.actions.FoundKeep(newbie, "Nowhere", "", ch(0, 0), 64)).reasonKey());
+                f.as(newbie, new charter.org.actions.FoundKeep(newbie, "Nowhere", "", ch(0, 0))).reasonKey());
         eq("ops only: a player cannot set one through the operator action", "not_you",
                 f.as(newbie, new charter.org.actions.CreateKingdom("Nowhere", ch(0, 0))).reasonKey());
 
@@ -253,7 +251,7 @@ public final class LandTest {
         eq("inside a claim: nor can a rival's camp", "claimed", w.f.as(ZED, new PlantCamp(w.brine, ch(-1, 1))).reasonKey());
         check("inside a claim: beside it is fine for a rival's camp", w.f.as(ZED, new PlantCamp(w.brine, ch(-2, 0))).done());
         eq("inside a claim: the rival camp is raising", CampPhase.RAISING, coreOf(w, w.brine, ch(-2, 0)).phase());
-                eq("inside a claim: and the outpost holds it", (long) w.f.knobs.outpostDeposit, coreOf(w, w.brine, ch(-2, 0)).deposit);
+                eq("inside a claim: and the outpost holds it", (long) w.f.knobs.outpostDepositMarks, coreOf(w, w.brine, ch(-2, 0)).depositMarks);
 
         // not adjacent
         eq("not adjacent: a claim away from your land is refused", "not_adjacent", claim(w, 10, 10).reasonKey());
@@ -269,8 +267,8 @@ public final class LandTest {
 
         // paying
         World poor = world();
-        poor.f.admin(new charter.treasury.actions.Withdraw(poor.ashfall, Currency.DIAMOND, 450, KRIS));
-        eq("price: setup left the treasury short", 50L, poor.f.org(poor.ashfall).ledger.balance(Currency.DIAMOND));
+        poor.f.admin(new charter.treasury.actions.Withdraw(poor.ashfall, 450, KRIS));
+        eq("price: setup left the treasury short", 50L, poor.f.marks(poor.ashfall));
         eq("price: a keep the treasury cannot pay for is refused", "no_funds", keep(poor, 0, 0).reasonKey());
 
         // authority

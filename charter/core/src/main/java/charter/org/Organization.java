@@ -14,6 +14,8 @@ public final class Organization {
     public final OrgId id;
     public final long foundedAt;
     public final Governance governance;
+    /** The old item treasury. Saved and loaded as it was, never read or spent: balances live in the payment provider. */
+    @Deprecated
     public final Ledger ledger = new Ledger();
     public final People people = new People();
 

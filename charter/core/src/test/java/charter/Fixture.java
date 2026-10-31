@@ -34,10 +34,35 @@ import java.util.UUID;
  */
 public final class Fixture {
 
-    public final Knobs knobs = new Knobs();
+    public final Knobs knobs = testKnobs();
     public final CharterState state = new CharterState();
+    /** Every cost in these tests is paid in Marks through this port; the amounts below are the old item prices, numerically. */
+    public final FakePort port = new FakePort();
     public final Clock.Manual clock = new Clock.Manual(1_800_000_000_000L);
     public final ActionEngine engine = new ActionEngine(state, knobs, clock);
+
+    {
+        state.payment = port;
+        // Stands in for the provider's own give route, which takes a withdrawal out of the treasury.
+        state.history.listen(entry -> {
+            if (entry.event() instanceof charter.treasury.TreasuryEvents.WithdrawnMarks e) port.balances.merge(e.org().toString(), -e.marks(), Long::sum);
+        });
+    }
+
+    private static Knobs testKnobs() {
+        Knobs k = new Knobs();
+        k.keepPriceMarks = 64;
+        k.outpostDepositMarks = 8;
+        k.outpostDepositStepMarks = 4;
+        k.lordSpendLimitMarks = 32;
+        k.custodyFineCapMarks = 16;
+        return k;
+    }
+
+    /** Marks the organization holds in the fake port. */
+    public long marks(OrgId org) {
+        return port.balance(org.toString());
+    }
 
     public static PlayerId player(String name) {
         return new PlayerId(UUID.nameUUIDFromBytes(("player:" + name).getBytes(StandardCharsets.UTF_8)));

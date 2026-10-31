@@ -224,10 +224,11 @@ public final class SiegeSim {
 
     /** The banner goes, the land is released, the deposit is the attackers', and they alone may plant there for a while. */
     private void capture(SiegeRules rules, WarBook.Goal goal, Core outpost, long wall, long now, List<HistoryEvent> events) {
-        long deposit = outpost.deposit;
-        outpost.deposit = 0;
-        state.org(goal.attacker).ifPresent(o -> o.ledger.add(charter.treasury.Currency.DIAMOND, deposit));
-        events.add(new SiegeEvents.OutpostCaptured(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost, outpost.center, deposit));
+        // The deposit left the defender's treasury when the outpost was planted, so the attackers' share is a plain credit.
+        long deposit = outpost.depositMarks;
+        outpost.depositMarks = 0;
+        if (deposit > 0) state.payment.credit(goal.attacker.toString(), deposit, "plunder");
+        events.add(new SiegeEvents.OutpostCaptured(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost, outpost.center, 0, deposit));
         for (var claim : List.copyOf(state.claimsOf(outpost.owner))) {
             if (goal.outpost.equals(claim.core())) state.removeClaim(claim.id);
         }

@@ -7,7 +7,6 @@ import charter.id.ChunkKey;
 import charter.id.PlayerId;
 import charter.org.actions.Found;
 import charter.org.actions.FoundKeep;
-import charter.treasury.Currency;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,31 +27,31 @@ public final class FoundKeepTest {
     }
 
     public static void run() {
-        foundingPaysForTheKeep();
-        changeStaysInTheTreasury();
+        foundingIsFree();
+        foundingChargesAndCreditsNothing();
         everyRefusalChangesNothing();
         eventsComeInOrder();
     }
 
-    static void foundingPaysForTheKeep() {
+    static void foundingIsFree() {
         Fixture f = new Fixture();
         f.seen(KRIS);
-        Outcome done = f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "{banner}", HERE, 64));
+        Outcome done = f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "{banner}", HERE));
         check("1: founded", done.done());
         var org = f.state.orgNamed("Ashfall").orElseThrow();
         eq("1: forming", OrgStatus.FORMING, org.status());
         eq("1: the founder is the Lord", KRIS, f.holder(org.id, Preset.LORD));
         eq("1: nine claims", 9L, f.state.claimsOf(org.id).size() + 0L);
-        eq("1: nothing left in the treasury", 0L, org.ledger.balance(Currency.DIAMOND));
+        eq("1: the founding keep is free, so the port was never touched", 0, f.port.calls.size());
         eq("1: the banner is kept", "{banner}", org.people.banner);
         eq("1: one keep", 1, f.state.coresOf(org.id).size());
     }
 
-    static void changeStaysInTheTreasury() {
+    static void foundingChargesAndCreditsNothing() {
         Fixture f = new Fixture();
         f.seen(KRIS);
-        f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE, 70));
-        eq("2: the change", 6L, f.state.orgNamed("Ashfall").orElseThrow().ledger.balance(Currency.DIAMOND));
+        f.state.payment = new charter.api.NoPayment(m -> { });
+        check("2: with no provider the keep is still founded", f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE)).done());
     }
 
     private static void refused(String what, Fixture f, PlayerId who, FoundKeep action) {
@@ -71,35 +70,33 @@ public final class FoundKeepTest {
     static void everyRefusalChangesNothing() {
         Fixture f = new Fixture();
         f.seen(KRIS, GIL);
-        f.as(GIL, new FoundKeep(GIL, "Taken", "", new ChunkKey(DIM, 100, 100), 64));
-        refused("a taken name", f, KRIS, new FoundKeep(KRIS, "Taken", "", new ChunkKey(DIM, 0, 0), 64));
-        refused("a two letter name", f, KRIS, new FoundKeep(KRIS, "Ab", "", new ChunkKey(DIM, 0, 0), 64));
-        refused("a keep too near another", f, KRIS, new FoundKeep(KRIS, "Near", "", new ChunkKey(DIM, 101, 100), 64));
-        refused("a footprint already claimed", f, KRIS, new FoundKeep(KRIS, "Claimed", "", new ChunkKey(DIM, 100, 101), 64));
-        refused("too few diamonds", f, KRIS, new FoundKeep(KRIS, "Poor", "", new ChunkKey(DIM, 0, 0), 63));
-        refused("already a member", f, GIL, new FoundKeep(GIL, "Second", "", new ChunkKey(DIM, 0, 0), 64));
+        f.as(GIL, new FoundKeep(GIL, "Taken", "", new ChunkKey(DIM, 100, 100)));
+        refused("a taken name", f, KRIS, new FoundKeep(KRIS, "Taken", "", new ChunkKey(DIM, 0, 0)));
+        refused("a two letter name", f, KRIS, new FoundKeep(KRIS, "Ab", "", new ChunkKey(DIM, 0, 0)));
+        refused("a keep too near another", f, KRIS, new FoundKeep(KRIS, "Near", "", new ChunkKey(DIM, 101, 100)));
+        refused("a footprint already claimed", f, KRIS, new FoundKeep(KRIS, "Claimed", "", new ChunkKey(DIM, 100, 101)));
+        refused("already a member", f, GIL, new FoundKeep(GIL, "Second", "", new ChunkKey(DIM, 0, 0)));
 
         Fixture g = new Fixture();
         g.seen(KRIS);
         g.as(KRIS, new Found(KRIS, "Early", Preset.LORDSHIP));
         g.as(KRIS, new charter.org.actions.Leave(KRIS));
         g.passDays(2, KRIS);
-        refused("founding two days after the last", g, KRIS, new FoundKeep(KRIS, "Again", "", new ChunkKey(DIM, 0, 0), 64));
+        refused("founding two days after the last", g, KRIS, new FoundKeep(KRIS, "Again", "", new ChunkKey(DIM, 0, 0)));
     }
 
     static void eventsComeInOrder() {
         Fixture f = new Fixture();
         f.seen(KRIS);
         int before = f.state.history.entries().size();
-        f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE, 64));
+        f.as(KRIS, new FoundKeep(KRIS, "Ashfall", "", HERE));
         List<String> names = new ArrayList<>();
         for (var e : f.state.history.entries().subList(before, f.state.history.entries().size())) {
             names.add(e.event().getClass().getSimpleName());
         }
         int founded = names.indexOf("Founded");
-        int deposited = names.indexOf("Deposited");
         int placed = names.indexOf("NexusPlaced");
-        check("4: Founded, the office, Deposited, NexusPlaced in that order " + names,
-                founded == 0 && names.indexOf("OfficeCreated") > founded && deposited > names.indexOf("OfficeFilled") && placed > deposited);
+        check("4: Founded, the office, NexusPlaced in that order, with no deposit event " + names,
+                founded == 0 && names.indexOf("OfficeCreated") > founded && placed > names.indexOf("OfficeFilled") && !names.contains("Deposited"));
     }
 }

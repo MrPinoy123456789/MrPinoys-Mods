@@ -22,8 +22,13 @@ public final class Core {
     public final long placedAt;
 
     private CampPhase phase;
-    /** Diamonds the owner paid to place this outpost; held by the outpost, not the treasury. Zero for a keep. */
+    /**
+     * The old deposit in diamonds, from before treasuries moved to the payment port. Still saved and loaded as it was;
+     * nothing reads it.
+     */
     public long deposit;
+    /** Marks the owner paid to place this outpost; held by the outpost, not the treasury. Zero for a keep, or when the cost was waived. */
+    public long depositMarks;
 
     /** Siege time the current phase began. */
     private long phaseSince;

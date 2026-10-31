@@ -74,7 +74,7 @@ final class StoreTest {
 
         // Spot checks on what matters most, so a broken comparator cannot hide a loss.
         Vote pending = back.votes().stream().filter(Vote::open).filter(v -> v.kind == Vote.Kind.MOTION).findFirst().orElseThrow();
-        check("store: a pending motion keeps its action", pending.motion.equals(new Withdraw(f.oakvale, Currency.DIAMOND, 5, f.bob)));
+        check("store: a pending motion keeps its action", pending.motion.equals(new Withdraw(f.oakvale, 5, f.bob)));
         check("store: a settled vote keeps its ballots and result",
                 back.votes().stream().anyMatch(v -> v.state() == Vote.State.FAILED && v.ballots().size() == 2));
         check("store: treasury balances read back", back.org(f.oakvale).orElseThrow().ledger.balance(Currency.DIAMOND) == 50);

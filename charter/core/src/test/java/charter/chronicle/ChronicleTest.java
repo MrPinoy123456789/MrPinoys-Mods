@@ -158,6 +158,12 @@ public final class ChronicleTest {
                 IN + "Gil drew 15 diamond from the treasury of Riverside.");
         golden(events, expected, new TreasuryEvents.Transferred(AT, RIVERSIDE, ASHFALL, Currency.COBBLESTONE, 5),
                 IN + "Riverside sent 5 cobblestone to Ashfall.");
+        golden(events, expected, new TreasuryEvents.DepositedMarks(AT, RIVERSIDE, 40),
+                IN + "40 Marks were paid into the treasury of Riverside.");
+        golden(events, expected, new TreasuryEvents.WithdrawnMarks(AT, RIVERSIDE, 15, GIL),
+                IN + "Gil drew 15 Marks from the treasury of Riverside.");
+        golden(events, expected, new TreasuryEvents.TransferredMarks(AT, RIVERSIDE, ASHFALL, 1),
+                IN + "Riverside sent 1 Mark to Ashfall.");
 
         ChronicleRenderer r = renderer(false);
         for (Map.Entry<String, HistoryEvent> e : events.entrySet()) {
@@ -274,8 +280,8 @@ public final class ChronicleTest {
 
         OrgId c = f.found("Riverside", Preset.COMMUNE, kris, gil, cy);
         f.passDays(3, kris, gil, cy);
-        f.as(kris, new Deposit(c, Currency.DIAMOND, 100));
-        f.motion(kris, new Withdraw(c, Currency.DIAMOND, 30, kris), gil, cy);
+        f.admin(new Deposit(c, 100));
+        f.motion(kris, new Withdraw(c, 30, kris), gil, cy);
         f.closeVotes(kris, gil, cy);
         f.motion(gil, new CreateOffice(c, "Treasurer"), kris, cy);
         f.closeVotes(kris, gil, cy);
@@ -293,7 +299,7 @@ public final class ChronicleTest {
         check("sample: it starts with the founding", lines.get(0).endsWith("Kris founded Riverside as a commune."));
         check("sample: the vote is told", lines.stream().anyMatch(l -> l.contains("the vote of Riverside carried")));
         check("sample: the office is told", lines.stream().anyMatch(l -> l.contains("Cy took up the office of Treasurer in Riverside")));
-        check("sample: the spend is told", lines.stream().anyMatch(l -> l.contains("Kris drew 30 diamond from the treasury of Riverside")));
+        check("sample: the spend is told", lines.stream().anyMatch(l -> l.contains("Kris drew 30 Marks from the treasury of Riverside")));
         check("sample: no name is missing", lines.stream().noneMatch(l -> l.contains("unknown") || l.contains("someone") || l.contains("{")));
         // One happening is told once, and joins are brief.
         check("brief: the founding is one line, with no separate office entry",

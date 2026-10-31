@@ -176,11 +176,9 @@ public final class ContractTest {
         w.ashfall = w.f.found("Ashfall", Preset.LORDSHIP, KRIS, GIL, CY);
         w.brine = w.f.found("Brinewatch", Preset.LORDSHIP, ZED, ANN, DEN);
         w.cinder = w.f.found("Cinder", Preset.LORDSHIP, VAL, VIN, WES);
-        w.f.as(GIL, new Deposit(w.ashfall, Currency.DIAMOND, 400));
-        w.f.as(DEN, new Deposit(w.brine, Currency.DIAMOND, 400));
-        w.f.as(VIN, new Deposit(w.cinder, Currency.DIAMOND, 400));
-        w.f.as(GIL, new Deposit(w.ashfall, Currency.COBBLESTONE, 5000));
-        w.f.as(DEN, new Deposit(w.brine, Currency.COBBLESTONE, 5000));
+        w.f.admin(new Deposit(w.ashfall, 400));
+        w.f.admin(new Deposit(w.brine, 400));
+        w.f.admin(new Deposit(w.cinder, 400));
         w.f.passDays(3.1);
         w.adv(0);
         w.f.seen(EVERYONE);
@@ -221,11 +219,9 @@ public final class ContractTest {
         w.arrest(KRIS, w.ashfall, PAT, ch(0, 0));
         eq("S: a confinement under the minimum is refused", ContractReasons.TOO_SHORT.key(),
                 w.confine(KRIS, w.ashfall, PAT, Durations.minutes(10), w.keepA).reasonKey());
-        w.f.as(PAT, new DepositPersonal(PAT, Currency.DIAMOND, 40));
         Outcome bigFine = w.f.as(KRIS, new FineCustody(w.ashfall, PAT, 40));
         check("S: a fine over the cap is accepted, cut", bigFine.done());
-        eq("S: the fine term was cut to 16 diamonds", 16L, w.latest().term(Term.Fine.class).diamonds());
-        eq("S: only 16 diamonds left the deposit", 24L, w.f.state.contracts.vault(PAT).balance(Currency.DIAMOND));
+        eq("S: the fine term was cut to the cap", 16L, w.latest().term(Term.FineMarks.class).marks());
 
         w.arrest(KRIS, w.ashfall, ROB, ch(0, 0));
         ClaimId some = w.f.state.claims().iterator().next().id;
@@ -262,11 +258,11 @@ public final class ContractTest {
         eq("caps: a bond is refused while the knob is off", ContractReasons.BOND_OFF.key(),
                 BasisCaps.check(Basis.CUSTODY, new Term.Tether(H, null), k).refusal().key());
         eq("caps: a zero fine means nothing", ContractReasons.BAD_TERM.key(),
-                BasisCaps.check(Basis.CUSTODY, new Term.Fine(0), k).refusal().key());
+                BasisCaps.check(Basis.CUSTODY, new Term.FineMarks(0), k).refusal().key());
         check("caps: only confinement, bonds and respawn delays count toward the week",
                 new Term.Confinement(H, null, "").countsTowardWeeklyCap() && new Term.Tether(H, null).countsTowardWeeklyCap()
                         && new Term.RespawnDelay(H).countsTowardWeeklyCap()
-                        && !new Term.Banishment(null, H).countsTowardWeeklyCap() && !new Term.Fine(1).countsTowardWeeklyCap());
+                        && !new Term.Banishment(null, H).countsTowardWeeklyCap() && !new Term.FineMarks(1).countsTowardWeeklyCap());
     }
 
     // ---- arrest and custody ----
@@ -296,22 +292,25 @@ public final class ContractTest {
 
     static void testFineAndExecution() {
         World w = world();
-        long brineBefore = w.f.org(w.brine).ledger.balance(Currency.DIAMOND);
-        long ashBefore = w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND);
-        w.f.as(ANN, new DepositPersonal(ANN, Currency.DIAMOND, 5));
+        long brineBefore = w.f.marks(w.brine);
+        long ashBefore = w.f.marks(w.ashfall);
+        eq("fine: the old personal safe is closed", "safe_closed", w.f.as(ANN, new DepositPersonal(ANN, Currency.DIAMOND, 5)).reasonKey());
         w.arrest(KRIS, w.ashfall, ANN, ch(0, 0));
         check("fine: a custody fine goes through", w.f.as(KRIS, new FineCustody(w.ashfall, ANN, 16)).done());
-        var fined = w.f.state.history.of(ContractEvents.Fined.class).getLast();
+        var fined = w.f.state.history.of(ContractEvents.FinedMarks.class).getLast();
         eq("fine: asked 16", 16L, fined.asked());
-        eq("fine: paid only what the prisoner had in their own deposit", 5L, fined.paid());
-        eq("fine: the prisoner's deposit is empty", 0L, w.f.state.contracts.vault(ANN).balance(Currency.DIAMOND));
-        eq("fine: the jailer's treasury gained the 5", ashBefore + 5, w.f.org(w.ashfall).ledger.balance(Currency.DIAMOND));
-        eq("fine: the prisoner's own faction treasury is untouched", brineBefore, w.f.org(w.brine).ledger.balance(Currency.DIAMOND));
+        eq("fine: paid in full from the prisoner's kingdom", 16L, fined.paid());
+        eq("fine: the jailer's treasury gained the 16", ashBefore + 16, w.f.marks(w.ashfall));
+        eq("fine: the prisoner's own kingdom paid it", brineBefore - 16, w.f.marks(w.brine));
+        check("fine: one charge then one credit, in that order", w.f.port.calls("charge", "fine").size() == 1
+                && w.f.port.calls("credit", "fine").size() == 1
+                && w.f.port.calls.indexOf(w.f.port.calls("charge", "fine").get(0)) < w.f.port.calls.indexOf(w.f.port.calls("credit", "fine").get(0)));
         check("fine: an outsider's sentence is marked as one", w.f.state.history.of(ContractEvents.Imposed.class).getLast().outsider());
 
         w.arrest(KRIS, w.ashfall, SAM, ch(0, 0));
-        check("fine: no deposit, nothing paid", w.f.as(KRIS, new FineCustody(w.ashfall, SAM, 10)).done());
-        eq("fine: paid 0", 0L, w.f.state.history.of(ContractEvents.Fined.class).getLast().paid());
+        w.f.port.balances.put(w.brine.toString(), 0L);
+        check("fine: a kingdom with nothing pays nothing", w.f.as(KRIS, new FineCustody(w.ashfall, SAM, 10)).done());
+        eq("fine: paid 0", 0L, w.f.state.history.of(ContractEvents.FinedMarks.class).getLast().paid());
         check("fine: a fine alone leaves the prisoner free", Justice.holding(w.f.state, w.f.knobs, SAM, w.f.engine.now()).isEmpty());
 
         // execution

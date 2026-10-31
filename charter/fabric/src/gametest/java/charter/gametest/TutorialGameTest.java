@@ -82,7 +82,6 @@ public final class TutorialGameTest {
         helper.assertTrue(count(you, s -> s.is(net.minecraft.tags.ItemTags.BANNERS) && LandItems.kindOf(s) == null) == 1, "You were not given a banner");
         helper.assertTrue(count(you, s -> s.is(Items.LODESTONE)) == 1, "You were not given a lodestone");
         helper.assertTrue(count(you, s -> LandItems.WAR_BANNER.equals(LandItems.kindOf(s))) == 1, "You were not given a War Banner");
-        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 72, "You were not given 72 diamonds");
         helper.assertTrue(you.experienceLevel >= 1, "You were given no level for the anvil");
         ItemStack book = first(you, s -> s.is(Items.WRITTEN_BOOK));
         helper.assertTrue(book != null, "You were not given the tutorial book");
@@ -114,17 +113,12 @@ public final class TutorialGameTest {
         helper.assertTrue(rt.state.org(mine).orElseThrow().name().equals(name), "The faction is not named after the banner");
         Core keep = rt.state.coresOf(mine).stream().filter(Core::isKeep).findFirst().orElse(null);
         helper.assertTrue(keep != null, "Placing the Nexus did not raise your keep");
-        helper.assertTrue(count(you, s -> s.is(Items.DIAMOND)) == 8, "The keep did not take exactly its price from the diamonds you carried");
+        helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.snapshot().isEmpty(), "The first keep touched the old item treasury");
 
         // Page 5: the Pay button on the faction page, not a command.
         charter.mc.book.MemberPages.faction(you, null);
-        String pay = charter.mc.Text.get("book.button.pay", "amount", 8, "currency",
-                charter.mc.Describe.currency(charter.treasury.Currency.DIAMOND, 8));
-        String token = charter.mc.cmd.CharterCommands.tokens().newest(you.getUUID(), pay).orElse(null);
-        helper.assertTrue(token != null, "The faction page offers no [" + pay + "] button");
-        charter.mc.cmd.CharterCommands.tokens().take(token, you.getUUID(), System.currentTimeMillis()).orElseThrow().accept(you);
-        helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND) == 8,
-                "The diamonds did not reach the treasury");
+        GamePort port = GamePort.of(rt);
+        port.fund(mine, rt.knobs.outpostDepositMarks + 10_000L);
 
         // Page 4: a chest in the Nexus's chunk.
         BlockPos chest = nexus.offset(2, 0, 0);
@@ -202,7 +196,7 @@ public final class TutorialGameTest {
             rt.sim.advance(charter.time.Durations.MINUTE);
             helper.assertTrue(goal.opened, "Capture did not open");
             goal.progress = charter.time.Durations.minutes(rt.knobs.outpostCaptureMinutes) - charter.time.Durations.MINUTE / 2;
-            long diamonds = rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND);
+            long diamonds = port.marks(mine);
             charter.mc.war.SiegeWorld.beforeStep(server, rt);
             rt.sim.advance(charter.time.Durations.MINUTE);
             helper.assertTrue(rt.state.core(rivalOutpost.id).isEmpty(), "Holding their chunk did not capture the outpost: attackers "
@@ -210,7 +204,7 @@ public final class TutorialGameTest {
                     + ", progress " + goal.progress + ", you at " + you.position() + " chunk " + (you.getBlockX() >> 4) + "," + (you.getBlockZ() >> 4)
                     + ", outpost chunk " + rivalOutpost.center.x() + "," + rivalOutpost.center.z() + ", minDays " + rt.knobs.presenceMinMemberSeconds
                     + ", alive " + you.isAlive() + ", spectator " + you.isSpectator());
-            helper.assertTrue(rt.state.org(mine).orElseThrow().ledger.balance(charter.treasury.Currency.DIAMOND) > diamonds,
+            helper.assertTrue(port.marks(mine) > diamonds,
                     "Their deposit did not reach your treasury");
             rt.knobs.presenceMinMemberSeconds = savedMinSeconds;
 

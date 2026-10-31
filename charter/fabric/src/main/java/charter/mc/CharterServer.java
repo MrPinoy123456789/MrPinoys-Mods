@@ -1,5 +1,6 @@
 package charter.mc;
 
+import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.mc.store.Persistence;
 import charter.time.Durations;
@@ -181,6 +182,13 @@ public final class CharterServer {
         @Override
         public boolean online(PlayerId player) {
             return server != null && server.getPlayerList().getPlayer(player.value()) != null;
+        }
+
+        @Override
+        public boolean payOut(OrgId org, PlayerId to, long marks) {
+            if (server == null) return false;
+            String name = runtime.state.knownPlayer(to).map(p -> p.name).orElse("");
+            return Treasury.payOut(server, org, to, name, marks, online(to));
         }
 
         @Override

@@ -274,9 +274,8 @@ public final class LandCommands {
         if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
         OrgId org = rt.state.membership(id).orElseThrow().org();
         rt.state.setStatus(org, OrgStatus.ACTIVE);
-        var ledger = rt.state.org(org).orElseThrow().ledger;
-        ledger.add(Currency.DIAMOND, rt.knobs.keepPriceDiamonds);
-        ledger.add(Currency.DIAMOND, rt.knobs.outpostDeposit);
+        // The operator's founding grant: the price of a keep and a first outpost, in Marks (nothing happens with no provider).
+        rt.state.payment.credit(org.toString(), (long) rt.knobs.keepPriceMarks + rt.knobs.outpostDepositMarks, "admin_spawn");
         founder.getInventory().add(LandItems.nexus());
         founder.getInventory().add(LandItems.warBanner());
         return ok(ctx, Text.get("land.admin.spawned", "name", name.strip(), "player", founder.getPlainTextName()));

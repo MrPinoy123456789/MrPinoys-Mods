@@ -98,40 +98,40 @@ public final class GovernanceTest {
         Fixture f = new Fixture();
         OrgId c = f.found("Riverside", Preset.COMMUNE, KRIS, GIL, CY, DEE);
         f.passDays(3, KRIS, GIL, CY, DEE);
-        f.as(KRIS, new Deposit(c, Currency.DIAMOND, 100));
+        f.admin(new Deposit(c, 100));
 
         for (PlayerId member : new PlayerId[]{KRIS, GIL, CY, DEE}) {
             eq("A: an unvoted spend by any member is refused as needing a vote", Reason.NEEDS_VOTE.key(),
-                    f.as(member, new Withdraw(c, Currency.DIAMOND, 10, member)).reasonKey());
+                    f.as(member, new Withdraw(c, 10, member)).reasonKey());
         }
-        eq("A: refusals moved nothing", 100L, f.org(c).ledger.balance(Currency.DIAMOND));
+        eq("A: refusals moved nothing", 100L, f.marks(c));
 
-        f.motion(KRIS, new Withdraw(c, Currency.DIAMOND, 30, KRIS), GIL, CY);
+        f.motion(KRIS, new Withdraw(c, 30, KRIS), GIL, CY);
         f.closeVotes(KRIS, GIL, CY, DEE);
-        eq("A: a spend vote that passes moves the ledger", 70L, f.org(c).ledger.balance(Currency.DIAMOND));
+        eq("A: a spend vote that passes moves the ledger", 70L, f.marks(c));
 
         f.motion(GIL, new CreateOffice(c, "Treasurer"), KRIS, CY);
         f.closeVotes(KRIS, GIL, CY, DEE);
         Office treasurer = f.office(c, "Treasurer");
         f.motion(GIL, new Appoint(c, treasurer.id, CY), KRIS, DEE);
-        f.motion(GIL, new GrantPower(c, Power.SPEND, new Holder.OfOffice(treasurer.id), GrantScope.spendUpTo(0, 20), false, 0), KRIS, DEE);
+        f.motion(GIL, new GrantPower(c, Power.SPEND, new Holder.OfOffice(treasurer.id), GrantScope.spendUpTo(20), false, 0), KRIS, DEE);
         f.closeVotes(KRIS, GIL, CY, DEE);
         eq("A: an officer vote fills the office", CY, f.holder(c, "Treasurer"));
-        check("A: the officer can act within the voted power", f.as(CY, new Withdraw(c, Currency.DIAMOND, 15, CY)).done());
-        eq("A: the officer cannot act beyond it", Reason.NEEDS_VOTE.key(), f.as(CY, new Withdraw(c, Currency.DIAMOND, 25, CY)).reasonKey());
-        eq("A: another member still cannot spend", Reason.NEEDS_VOTE.key(), f.as(DEE, new Withdraw(c, Currency.DIAMOND, 5, DEE)).reasonKey());
-        eq("A: the ledger shows exactly the two spends", 55L, f.org(c).ledger.balance(Currency.DIAMOND));
+        check("A: the officer can act within the voted power", f.as(CY, new Withdraw(c, 15, CY)).done());
+        eq("A: the officer cannot act beyond it", Reason.NEEDS_VOTE.key(), f.as(CY, new Withdraw(c, 25, CY)).reasonKey());
+        eq("A: another member still cannot spend", Reason.NEEDS_VOTE.key(), f.as(DEE, new Withdraw(c, 5, DEE)).reasonKey());
+        eq("A: the ledger shows exactly the two spends", 55L, f.marks(c));
     }
 
     static void testBLordship() {
         Fixture f = new Fixture();
         OrgId org = f.found("Ashfall", Preset.LORDSHIP, KRIS, GIL, CY, DEE);
         f.passDays(3, KRIS, GIL, CY, DEE);
-        f.as(GIL, new Deposit(org, Currency.DIAMOND, 200));
-        int limit = f.knobs.lordSpendLimitDiamonds;
+        f.admin(new Deposit(org, 200));
+        int limit = f.knobs.lordSpendLimitMarks;
 
-        check("B: the Lord spends under the limit", f.as(KRIS, new Withdraw(org, Currency.DIAMOND, limit, KRIS)).done());
-        check("B: the Lord is refused over the limit", f.as(KRIS, new Withdraw(org, Currency.DIAMOND, limit + 1, KRIS)).refused());
+        check("B: the Lord spends under the limit", f.as(KRIS, new Withdraw(org, limit, KRIS)).done());
+        check("B: the Lord is refused over the limit", f.as(KRIS, new Withdraw(org, limit + 1, KRIS)).refused());
         check("B: the Lord renames the faction himself", f.as(KRIS, new Rename(org, "Kris Land")).done());
         Office lord = f.office(org, Preset.LORD);
         eq("B: members cannot vote the Lord out", Deciders.NOT_DECIDER.key(), f.engine.propose(GIL, new Vacate(org, lord.id)).reasonKey());
@@ -141,8 +141,8 @@ public final class GovernanceTest {
 
         check("B: the Lord may abdicate", f.as(KRIS, new Vacate(org, lord.id)).done());
         check("B: the office is empty", f.office(org, Preset.LORD).vacant());
-        eq("B: the old Lord's next action is refused", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org, Currency.DIAMOND, 1, KRIS)).reasonKey());
-        eq("B: the treasury paid only the one spend", 200L - limit, f.org(org).ledger.balance(Currency.DIAMOND));
+        eq("B: the old Lord's next action is refused", Reason.NEEDS_VOTE.key(), f.as(KRIS, new Withdraw(org, 1, KRIS)).reasonKey());
+        eq("B: the treasury paid only the one spend", 200L - limit, f.marks(org));
 
         var opened = f.engine.openElection(lord.id, GIL);
         check("B: the members may choose a successor for the empty seat", opened instanceof Outcome.VoteOpened);
@@ -225,12 +225,12 @@ public final class GovernanceTest {
         Fixture f = new Fixture();
         OrgId c = f.found("Riverside", Preset.COMMUNE, KRIS, GIL);
         f.passDays(3, KRIS, GIL);
-        f.as(KRIS, new Deposit(c, Currency.DIAMOND, 10));
-        VoteId id = f.motion(KRIS, new Withdraw(c, Currency.DIAMOND, 10, KRIS));
-        f.admin(new Withdraw(c, Currency.DIAMOND, 5, GIL));
+        f.admin(new Deposit(c, 10));
+        VoteId id = f.motion(KRIS, new Withdraw(c, 10, KRIS));
+        f.admin(new Withdraw(c, 5, GIL));
         f.closeVotes(KRIS, GIL);
         eq("vote: a passed spend the treasury can no longer cover is refused when it runs",
                 Vote.State.REFUSED_AT_EXECUTION, f.vote(id).state());
-        eq("vote: nothing more left the treasury", 5L, f.org(c).ledger.balance(Currency.DIAMOND));
+        eq("vote: nothing more left the treasury", 5L, f.marks(c));
     }
 }

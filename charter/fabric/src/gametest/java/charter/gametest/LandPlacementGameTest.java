@@ -10,7 +10,6 @@ import charter.mc.cmd.CharterCommands;
 import charter.mc.land.Fixtures;
 import charter.mc.land.LandItems;
 import charter.mc.land.Placement;
-import charter.treasury.Currency;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -46,7 +45,8 @@ public final class LandPlacementGameTest {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Keep");
             var org = kit.orgOf(lord);
-            long diamonds = kit.rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND);
+            GamePort.of(kit.rt).fund(org, 10_000);
+            long diamonds = GamePort.of(kit.rt).marks(org);
             ItemStack nexus = kit.hold(lord, LandItems.NEXUS);
             kit.placeOn(lord, nexus, kit.nexusPos());
 
@@ -55,7 +55,7 @@ public final class LandPlacementGameTest {
             helper.assertTrue(kit.rt.state.claimAt(center).map(c -> c.kind() == ClaimKind.KEEP_CORE).orElse(false), "The core chunk is not a keep core");
             long claimed = kit.rt.state.claimsOf(org).stream().filter(c -> c.kind() == ClaimKind.KEEP_CORE || c.kind() == ClaimKind.KEEP_RING).count();
             helper.assertTrue(claimed == 9, "A keep claims nine chunks, found " + claimed);
-            helper.assertTrue(kit.rt.state.org(org).orElseThrow().ledger.balance(Currency.DIAMOND) == diamonds - kit.rt.knobs.keepPriceDiamonds,
+            helper.assertTrue(GamePort.of(kit.rt).marks(org) == diamonds - kit.rt.knobs.keepPriceMarks,
                     "The keep was not paid for from the treasury");
             Core core = kit.rt.state.coresOf(org).get(0);
             helper.assertTrue(Fixtures.of(kit.rt.state).first(core.id, Fixtures.Kind.NEXUS) != null, "The nexus position was not recorded");
@@ -69,8 +69,7 @@ public final class LandPlacementGameTest {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Broke");
             var org = kit.orgOf(lord);
-            var ledger = kit.rt.state.org(org).orElseThrow().ledger;
-            ledger.take(Currency.DIAMOND, ledger.balance(Currency.DIAMOND));
+            GamePort.of(kit.rt);
             ItemStack nexus = kit.hold(lord, LandItems.NEXUS);
             kit.placeOn(lord, nexus, kit.nexusPos());
 
@@ -166,8 +165,7 @@ public final class LandPlacementGameTest {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Poor");
             var org = kit.orgOf(lord);
-            var ledger = kit.rt.state.org(org).orElseThrow().ledger;
-            ledger.take(Currency.DIAMOND, ledger.balance(Currency.DIAMOND));
+            GamePort.of(kit.rt);
             BlockPos spot = kit.pos(-8, 0);
             kit.placeOn(lord, kit.hold(lord, LandItems.WAR_BANNER), spot);
             helper.assertTrue(kit.level.getBlockState(spot).isAir(), "A refused banner stayed in the world");
