@@ -199,36 +199,52 @@ public final class WildRunGameTest {
      * A hostile mob that teleported onto the roof is still inside the layout's bounds but out of reach, so it is
      * discarded; one inside a cell stays. The spawner that tracked it forgets it (owner, 2026-10-31).
      */
-    @GameTest(maxTicks = 600)
+    @GameTest(maxTicks = 900)
     public void mobsOnTheRoofAreDiscardedAndMobsInsideStay(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
         WildDungeons.loadFrom(server);
         WildDungeons.Offering offering = WildDungeons.byId("pocketdungeons:boiler_hall");
         WildState.Lodestone lode = lodestone(level, offering, "w-roof", 1);
-        InstanceRecord record = null;
-        try {
-            InstanceRegistry.usedSlots.add(SLOT);
-            record = WildRun.stampAt(server, level, lode, WildRun.planFor(level, lode, offering), SLOT, ORIGIN);
-            helper.assertTrue(record != null, "stamps");
+        InstanceRegistry.usedSlots.add(SLOT);
+        InstanceRecord record = WildRun.stampAt(server, level, lode, WildRun.planFor(level, lode, offering), SLOT, ORIGIN);
+        helper.assertTrue(record != null, "stamps");
+        // The stamp force loads its chunks, but loading finishes over the following ticks (how many varies with the
+        // layout). An entity added to a chunk that is not loaded yet is neither registered nor found by a query, so the
+        // test polls until the entrance chunk and the one above it are loaded. Players enter long after that.
+        Runnable[] poll = new Runnable[1];
+        int[] waited = {0};
+        poll[0] = () -> {
             BlockPos entrance = record.layout.entrance();
-            var inside = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
-                    net.minecraft.world.entity.EntitySpawnReason.COMMAND);
-            var roof = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
-                    net.minecraft.world.entity.EntitySpawnReason.COMMAND);
-            inside.setPos(entrance.getX() + 0.5, entrance.getY() + 1, entrance.getZ() + 0.5);
-            roof.setPos(entrance.getX() + 0.5, record.layout.bounds().maxY + 3, entrance.getZ() + 0.5);
-            level.addFreshEntity(inside);
-            level.addFreshEntity(roof);
-            WildRun.sweepStrays(level, record);
-            helper.assertTrue(!inside.isRemoved(), "a mob inside a cell stays");
-            helper.assertTrue(roof.isRemoved(), "a mob above the roof is discarded");
-            inside.discard();
-        } finally {
-            cleanUp(level, record);
-            InstanceRegistry.usedSlots.remove(SLOT);
-        }
-        helper.succeed();
+            if (!level.isLoaded(entrance) && waited[0]++ < 300) {
+                helper.runAfterDelay(2, poll[0]);
+                return;
+            }
+            try {
+                var inside = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
+                        net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                var roof = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
+                        net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                inside.setPos(entrance.getX() + 0.5, entrance.getY() + 1, entrance.getZ() + 0.5);
+                int top = (int) Math.ceil(record.layout.bounds().maxY);
+                for (BlockPos cell : record.layout.geometry().cellOrigins()) {
+                    top = Math.max(top, cell.getY() + RoomGeometry.CEILING_Y + 1);
+                }
+                roof.setPos(entrance.getX() + 0.5, top + 4, entrance.getZ() + 0.5);
+                helper.assertTrue(level.isLoaded(entrance), "the entrance chunk loaded within " + waited[0] * 2 + " ticks");
+                level.addFreshEntity(inside);
+                helper.assertTrue(level.addFreshEntity(roof), "the roof mob was added to the level");
+                WildRun.sweepStrays(level, record);
+                helper.assertTrue(!inside.isRemoved(), "a mob inside a cell stays");
+                helper.assertTrue(roof.isRemoved(), "a mob above the roof is discarded (roof at " + roof.position() + ")");
+                inside.discard();
+            } finally {
+                cleanUp(level, record);
+                InstanceRegistry.usedSlots.remove(SLOT);
+            }
+            helper.succeed();
+        };
+        helper.runAfterDelay(2, poll[0]);
     }
 
     /** The watch tick drops a member who is not in the dungeon dimension and leaves the record standing. */
@@ -354,6 +370,31 @@ public final class WildRunGameTest {
             WildRules.clearForTesting();
             WildMode.setActiveForTesting(null);
         }
+        helper.succeed();
+    }
+
+
+    /**
+     * An enderman in the dungeon dimension (stood in for by {@code DungeonWorldRules.everywhere}) cannot teleport: the
+     * private teleport method refuses and the enderman stays where it is.
+     */
+    @GameTest
+    public void endermenCannotTeleportInTheDungeon(GameTestHelper helper) throws ReflectiveOperationException {
+        ServerLevel level = helper.getLevel();
+        var enderman = helper.spawn(net.minecraft.world.entity.EntityTypes.ENDERMAN, new BlockPos(3, 1, 3));
+        var before = enderman.position();
+        var teleport = net.minecraft.world.entity.monster.EnderMan.class.getDeclaredMethod("teleport", double.class,
+                double.class, double.class);
+        teleport.setAccessible(true);
+        DungeonWorldRules.everywhere = true;
+        try {
+            boolean moved = (boolean) teleport.invoke(enderman, before.x + 4, before.y, before.z + 4);
+            helper.assertTrue(!moved, "the dungeon refuses the teleport");
+            helper.assertTrue(enderman.position().equals(before), "the enderman stays where it was");
+        } finally {
+            DungeonWorldRules.everywhere = false;
+        }
+        enderman.discard();
         helper.succeed();
     }
 
