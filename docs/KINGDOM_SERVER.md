@@ -67,6 +67,18 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Entering messages and borders
+
+- `Crossings` tells a player on the action bar when they enter a kingdom ("Entering Azrak, land of the Dwarf"), an
+  outpost, other held land or the wild. It shows when the place changes and once on joining. The `entryMessages` knob
+  turns it off.
+- Borders are particle dust (`Signals`): green for your own kingdom, red for others. They show while holding a compass
+  or war banner, and `/charter borders` toggles them on without a tool (until the player leaves).
+- Xaero maps: a server cannot draw on Xaero's maps by itself. The only route found is Open Parties and Claims (OPAC,
+  Fabric 26.3 build exists): Charter would mirror its claims into OPAC through `OpenPACServerAPI` with OPAC's own
+  protection off, and players would need OPAC on the client. Not built; whether a server-only install is enough, and
+  whether OPAC accepts a made-up owner UUID per kingdom, are unverified. The `areas.json` land map could feed a web map.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check

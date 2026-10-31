@@ -311,4 +311,22 @@ public final class LandProtectionGameTest {
             helper.succeed();
         }
     }
+
+    @GameTest(maxTicks = 100)
+    public void crossingsNameWhereYouAre(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Cross");
+            kit.keep(lord);
+            ServerPlayer walker = kit.outsider();
+            String kingdom = kit.rt.state.org(kit.orgOf(lord)).orElseThrow().name();
+            kit.rt.areas.flush();
+            lord.teleportTo(kit.nexusPos().getX(), kit.y, kit.nexusPos().getZ());
+            String inside = charter.mc.land.Crossings.describe(kit.rt, lord);
+            helper.assertTrue(inside.contains(kingdom), "Standing in a keep names the kingdom: " + inside);
+            walker.teleportTo(kit.border - 4, kit.y, kit.zc);
+            String outside = charter.mc.land.Crossings.describe(kit.rt, walker);
+            helper.assertTrue(outside.contains("wild"), "Standing outside every holding says the wild: " + outside);
+            helper.succeed();
+        }
+    }
 }
