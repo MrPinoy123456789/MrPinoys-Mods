@@ -42,7 +42,7 @@ tasks.processResources {
 val distDir = rootProject.projectDir.parentFile.resolve("dist")
 
 tasks.register<Copy>("dist") {
-    // 26.2 ships unobfuscated, so Loom doesn't register a remapJar task (there's
+    // 26.3 ships unobfuscated, so Loom doesn't register a remapJar task (there's
     // nothing to remap); plain `jar` is already the deployable artifact.
     dependsOn("jar")
     from(layout.buildDirectory.dir("libs"))

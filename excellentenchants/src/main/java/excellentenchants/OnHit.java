@@ -78,7 +78,7 @@ public final class OnHit {
         }
         busy = true;
         try {
-            victim.invulnerableTime = 0;
+            victim.setInvulnerableTime(0);
             victim.hurtServer(level, source, (float) Numbers.thunderDamage(enchantLevel));
         } finally {
             busy = false;
