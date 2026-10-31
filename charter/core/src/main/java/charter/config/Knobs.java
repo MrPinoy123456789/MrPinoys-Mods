@@ -109,6 +109,12 @@ public final class Knobs {
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
     public int keepUpkeepDays = 14;
+    /**
+     * Effects a race gives the people who have it, by race node path (the kingdom's name lower case, as in race:azrak) to
+     * effect ids. Merfolk, the race of Azurius, breathe water and swim like dolphins.
+     */
+    public java.util.Map<String, List<String>> racePassives = new java.util.LinkedHashMap<>(java.util.Map.of(
+            "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace")));
     /** Whether a kingdom's deciders may change its form of government (Lordship, council, Commune). Off: only operators can. */
     public boolean leadersChangeGovernance = true;
     /** Whether anyone may be put into an office, or a new office made, by the people who hold power. Off: only operators, and the members' elections. */

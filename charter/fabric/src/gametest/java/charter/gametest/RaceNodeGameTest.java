@@ -77,4 +77,27 @@ public final class RaceNodeGameTest {
             helper.succeed();
         }
     }
+
+    @GameTest(maxTicks = 100)
+    public void aRaceGivesItsPeopleItsStandingEffect(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer dwarf = kit.faction("Dwarf");
+            ServerPlayer elf = kit.faction("Elf");
+            ServerPlayer merc = kit.outsider();
+            charter.id.OrgId dwarfOrg = kit.orgOf(dwarf);
+            charter.id.PlayerId mercId = new charter.id.PlayerId(merc.getUUID());
+            kit.rt.knobs.racePassives = java.util.Map.of(RaceNodes.slug(kit.rt.state.org(dwarfOrg).orElseThrow().name()),
+                    java.util.List.of("minecraft:water_breathing"));
+            charter.mc.RacePassives.applyTo(dwarf, kit.rt);
+            charter.mc.RacePassives.applyTo(elf, kit.rt);
+            charter.mc.RacePassives.applyTo(merc, kit.rt);
+            helper.assertTrue(dwarf.hasEffect(net.minecraft.world.effect.MobEffects.WATER_BREATHING), "a member of the race has the effect");
+            helper.assertTrue(!elf.hasEffect(net.minecraft.world.effect.MobEffects.WATER_BREATHING), "another race does not");
+            helper.assertTrue(!merc.hasEffect(net.minecraft.world.effect.MobEffects.WATER_BREATHING), "someone with no race does not");
+            kit.rt.engine.run(new charter.engine.Actor.Player(mercId), new charter.org.actions.ChooseMercenaryRace(mercId, dwarfOrg));
+            charter.mc.RacePassives.applyTo(merc, kit.rt);
+            helper.assertTrue(merc.hasEffect(net.minecraft.world.effect.MobEffects.WATER_BREATHING), "a mercenary of the race has it too");
+            helper.succeed();
+        }
+    }
 }

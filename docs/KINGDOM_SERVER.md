@@ -53,6 +53,10 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
   the player changes) and remove it with `/charter admin race <player> none` (`SetRace`). A player with no race takes
   the race of the next kingdom they join, or chooses as a mercenary. Someone who has a race and no organization can be a
   mercenary of that race.
+- Race passives: the `racePassives` knob in `charter.json` maps a race node path to effect ids and `RacePassives`
+  refreshes them every 5 seconds for everyone who has the race, members and mercenaries alike. The default gives the
+  Merfolk (Azurius) Water Breathing and Dolphin's Grace; the effects fade within seconds of losing the race. Other
+  races have none yet; add entries such as `"faeloria": ["minecraft:night_vision"]` to the config to give them some.
 - Planned, not designed: an altar that swaps a player's race.
 
 ## Locks on leaders

@@ -85,6 +85,7 @@ public final class CharterServer {
         if (runtime == null) return;
         runtime.areas.flush();
         ticks++;
+        if (ticks % RacePassives.EVERY_TICKS == 0) RacePassives.apply(s, runtime);
         if (ticks % Math.max(1, runtime.knobs.simStepTicks) != 0) return;
         step();
     }
