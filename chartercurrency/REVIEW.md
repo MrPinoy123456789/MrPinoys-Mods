@@ -1,5 +1,10 @@
 # Adversarial Review Record
 
+> **Background only.** This records the design review of an earlier, larger draft
+> (then called Charter Economy) that also covered claims, kingdoms and war. The
+> owner cut the scope to currency only; `SPEC.md` is the build brief and wins
+> wherever this file disagrees. Section numbers below refer to that earlier draft.
+
 > 2026-10-31. A separate reviewer was briefed as a Minecraft Java lead designer
 > (nation servers, EarthMC, CivCraft, Wynncraft, Hypixel SkyBlock) and told to
 > attack the first draft and check feasibility against this repo. Two passes: the
