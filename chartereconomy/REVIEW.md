@@ -63,3 +63,6 @@ Economy's code inside the new mod, and Cobble Economy itself is not changed.
 The owner also confirmed the 1:8:64 denominations, and that bounties, quizengine
 and chatdonkey are not on the charter server, so the review's four-mod faucet
 refactor is dropped; only pocketdungeons needs its run placeholders.
+Finally, every kingdom keeps the server's current fixed 9x9 plot at every tier, so
+land no longer scales with tier or active citizens. That also settles the
+review's snowball worry for land: size cannot buy territory.

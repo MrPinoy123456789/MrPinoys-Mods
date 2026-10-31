@@ -68,12 +68,13 @@ chatdonkey are not on this server and need no changes.
 4. Renown rules: per player cap, once per run per kingdom, probation, hop wait,
    Commons for kingdomless players.
 5. Renown spend approvals, `/charter ledger`, absent leader succession.
-6. **Claims**: chunk claims with the contiguity rule and per-tier allowance,
-   role permissions and ally pacts, Fabric API event protection for player
-   actions, then the four protection mixins (core tests for the claim map,
-   allowance and permission rules; gametests for each mixin).
+6. **Plots**: one fixed 9x9-chunk plot per kingdom, granted by
+   `/charter admin found`, spacing check, registration of existing kingdoms at
+   their current centres; role permissions and ally pacts; Fabric API event
+   protection for player actions; then the four protection mixins (core tests for
+   the plot map and permission rules; gametests for each mixin).
 7. Borders: action bar on entry, `/charter map`, particle outline.
-8. Ruined kingdoms after 60 days of total inactivity.
+8. Ruined kingdoms after 60 days of total inactivity; `/charter admin revoke`.
 
 ## Phase 5: seasons and polish
 

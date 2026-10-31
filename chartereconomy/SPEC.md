@@ -165,14 +165,17 @@ Starting numbers, all in config and all expected to be retuned:
 
 | Tier | Renown (base) | Coin (base, Sovereigns) | Min active citizens | Unlocks |
 |---|---|---|---|---|
-| Camp | 0 | 4 (founding fee) | 1 | Seat, team colour, chat tag, 9 claim chunks |
-| Hamlet | 300 | 8 | 2 | Kingdom Mint, 16 chunks, seat warp |
-| Village | 900 | 16 | 3 | 25 chunks, kingdom banner on the seat, respawn at the seat |
-| Town | 2,000 | 32 | 4 | 36 chunks, territory aura (Haste I inside claims) |
-| City | 4,000 | 64 | 6 | 49 chunks, second seat warp, kingdom shop listing slot |
-| Realm | 8,000 | 128 | 8 | 64 chunks, one detached outpost claim, Realm title, season crown eligibility in the top bracket |
+| Camp | 0 | 4 (founding fee) | 1 | The 9x9 plot and its protection, seat, team colour, chat tag |
+| Hamlet | 300 | 8 | 2 | Seat warp, a title card when anyone enters the plot, Kingdom Mint |
+| Village | 900 | 16 | 3 | Respawn at the seat, kingdom banner on the seat, ally pacts |
+| Town | 2,000 | 32 | 4 | Haste I inside the plot, a kingdom shop stall |
+| City | 4,000 | 64 | 6 | No natural hostile spawns inside the plot (to verify without a mixin; else swapped for another perk), second warp |
+| Realm | 8,000 | 128 | 8 | Realm title, plot border drawn in the kingdom's colour, season crown eligibility in the top bracket |
 
-Every tier also adds 4 claim chunks per active citizen (section 4.6).
+**Land never grows with tier** (owner, 2026-10-31). Every kingdom has the same
+9x9 plot from Camp to Realm, so tiers buy depth (what the plot does) instead of
+width (how big it is). A kingdom climbs because its people play, and a Realm and a
+Camp still stand on equal ground.
 
 Renown and coin spent on a tier are destroyed. Claims and the in-mod perks are
 applied directly. Anything outside the mod goes out through config command
@@ -209,26 +212,34 @@ Charter Economy is partly a claims mod (owner, 2026-10-31): a kingdom's land is
 part of its charter, not a separate plugin's business. This overrules the
 review's "adopt a claims mod" advice; section 9 records why that is workable.
 
-- **Chunk claims.** A kingdom claims whole chunks with `/charter claim` while
-  standing in them. Allowance: the tier's base chunks plus 4 per active citizen.
-  Claims must touch the kingdom's existing land (no sprawl across the map); a
-  Realm may hold one detached outpost.
-- **Claiming costs coin**, a one-time 8 Crowns per chunk, destroyed. Unclaiming
-  refunds nothing. This is the everyday coin sink for a growing kingdom.
+- **One fixed plot per kingdom: 9 by 9 chunks** (144 by 144 blocks), centred on
+  the seat's chunk, the same for every kingdom at every tier. This is how the
+  Kingdoms server runs today, and the spec keeps it.
+- **Plots are granted, not bought.** A charter is issued by staff
+  (`/charter admin found <name> <leader>` while standing at the centre), which is
+  also what stops alts founding kingdoms to grab land. Plots may not overlap and
+  must keep a 2-chunk gap from each other and from spawn. Existing kingdoms are
+  registered the same way at their current centre, so nobody moves.
+- **No per-chunk price.** With fixed plots there is nothing to buy chunk by chunk,
+  so the coin sinks are building materials in
+  the shop (a fixed plot fills up, so kingdoms build up and build dense), upkeep
+  and tiers (section 6.1). Watch total coin supply closely in the first weeks.
 - **Who may do what** inside a claim, by role, with per-kingdom toggles: build and
   break, open containers, use doors and redstone, hurt animals, ride. Citizens get
   everything by default; outsiders get nothing; **allies** (a kingdom-to-kingdom
   pact, both sides agree) get doors and doors only unless granted more.
-- **Visible borders.** Walking into a claim shows the kingdom's name on the action
+- **Visible borders.** Walking into a plot shows the kingdom's name on the action
   bar in its team colour; `/charter map` prints the surrounding chunks in chat;
-  `/charter claim show` draws the border with particles for 10 seconds.
-- **Kingdomless players** can found a one-person Camp, which is a 9-chunk claim
-  for a single home. A charter is the only way to own land.
+  `/charter plot show` draws the border with particles for 10 seconds.
+- **Kingdomless players** own no protected land. They can still mint, trade, run
+  dungeons and earn Valor; joining a kingdom is how you get a home behind walls.
 - **Protection never lapses for unpaid upkeep** (section 4.4). A kingdom whose
   every member has been inactive for 60 days becomes **ruined**: its claims stay
   protected against building and breaking, but its containers open to anyone. The
-  builds are never deleted; what was left inside becomes loot. Operators can
-  extend or disable this per kingdom.
+  builds are never deleted; what was left inside becomes loot. Because plots are
+  fixed and space near spawn is finite, staff may revoke a ruined charter to free
+  its plot for a new kingdom (`/charter admin revoke`), which also never deletes
+  blocks. Operators can extend or disable the timer per kingdom.
 
 What protection covers, and how:
 
@@ -307,7 +318,7 @@ about a month. Those are the dials to watch.
 
 | Tier of goods | Priced in | Examples |
 |---|---|---|
-| Everyday | Marks | Building blocks (ice, sand, terracotta, quartz), dyes, food |
+| Everyday | Marks | Building blocks (ice, sand, terracotta, quartz, glass, concrete), dyes, food. The biggest coin sink on a fixed-plot server: every kingdom builds up, not out |
 | Working | Crowns | Tools, enchanted books, potions, rockets, services |
 | Capital | Sovereigns | Charter founding and tiers, upkeep, power items: Up Up And Bye Boots, Big Hole Pick and Shovel, Spirit Stones |
 
@@ -331,8 +342,8 @@ Starting prices: 150 for a title, 300 to 600 for trims and patterns, 1,000 to
 ### 6.3 Renown (the charter catalogue)
 
 Charter tiers first. Then perks, bought by the kingdom and paused by unpaid upkeep:
-an extra seat warp, a territory aura upgrade, a kingdom monument banner, an extra
-kingdom shop slot, extra claim chunks beyond the tier allowance.
+an extra seat warp, a plot aura upgrade, a kingdom monument banner, an extra
+kingdom shop stall. Never extra land: the 9x9 plot is the same for everyone.
 
 ## 7. The loops
 
@@ -358,7 +369,8 @@ and the biggest kingdom does not win every season.
 | Kingdom hopping | Renown never follows a player; 7 day wait between kingdoms; no escrow |
 | Leader steals the treasury | Treasury is deposit-only; Renown is spend-only |
 | Upkeep griefing of inactive kingdoms | Unpaid upkeep pauses perks only; protection never lapses |
-| Big kingdom snowball | Costs and upkeep scale with `activeCitizens^0.8`; season brackets by tier |
+| Big kingdom snowball | Every kingdom has the same 9x9 plot, so size cannot buy land; costs and upkeep scale with `activeCitizens^0.8`; season brackets by tier |
+| Land grabs and alt kingdoms | Plots are granted by staff, never bought; fixed spacing; ruined plots can be revoked |
 | Inflation | Every shop, tier, perk and upkeep payment destroys currency; supply is printed at startup and in `/baltop` |
 | Chores | Soft caps with three day carry-over, no weekly hard caps |
 
@@ -404,5 +416,7 @@ Placeholder API (kingdom and title tags in chat), LuckPerms (rank meta).
 3. **Ruined kingdoms:** 60 days of total inactivity opens a kingdom's containers
    but never its blocks. Is that the right line, or should ruined land stay fully
    protected?
-4. **Claim price:** 8 Crowns a chunk, one time. A recurring per-chunk charge would
-   be a stronger sink but is the Towny pattern the review warned about.
+4. **Plot spacing:** a 2-chunk gap between plots and from spawn is a guess. What
+   does the current map use?
+5. **Plots later:** if land ever grows, the clean lever is a Renown perk that adds
+   a ring of chunks, with a hard cap. The spec does not include it for now.
