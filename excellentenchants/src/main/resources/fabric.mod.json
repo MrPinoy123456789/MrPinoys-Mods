@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "excellentenchants",
+  "version": "${version}",
+  "name": "Excellent Enchants",
+  "description": "A server-side Fabric rewrite of the Excellent Enchants plugin: Thunder, Flame Walker, Tunnel, Ghast and Telekinesis, with the plugin's names and numbers. Vanilla clients need nothing installed.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "excellentenchants.ExcellentEnchantsMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

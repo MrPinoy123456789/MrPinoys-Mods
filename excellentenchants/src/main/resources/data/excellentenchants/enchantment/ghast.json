@@ -1,0 +1,23 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "text": "Ghast",
+    "color": "#279CF5"
+  },
+  "effects": {},
+  "exclusive_set": "#excellentenchants:exclusive_set/ghast",
+  "max_cost": {
+    "base": 55,
+    "per_level_above_first": 55
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 2,
+    "per_level_above_first": 55
+  },
+  "slots": [
+    "mainhand"
+  ],
+  "supported_items": "#excellentenchants:bow_crossbow",
+  "weight": 1
+}

@@ -1,0 +1,23 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "text": "Dragon Heart",
+    "color": "#279CF5"
+  },
+  "effects": {},
+  "max_cost": {
+    "base": 7,
+    "per_level_above_first": 11
+  },
+  "max_level": 5,
+  "min_cost": {
+    "base": 2,
+    "per_level_above_first": 11
+  },
+  "primary_items": "#minecraft:enchantable/chest_armor",
+  "slots": [
+    "chest"
+  ],
+  "supported_items": "#excellentenchants:chestplate_elytra",
+  "weight": 2
+}
