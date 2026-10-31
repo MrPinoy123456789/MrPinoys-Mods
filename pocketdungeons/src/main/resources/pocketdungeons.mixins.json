@@ -23,7 +23,8 @@
     "MerchantTradeMixin",
     "TrialSpawnerStateDataAccessor",
     "VaultServerDataAccessor",
-    "MobGoalsAccessor"
+    "MobGoalsAccessor",
+    "EnderManNoTeleportMixin"
   ],
   "injectors": {
     "defaultRequire": 1
