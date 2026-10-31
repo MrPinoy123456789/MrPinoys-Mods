@@ -45,6 +45,14 @@ public class WildDungeonsTest {
         check(parse(good.replace("mine", "long_dungeon")).pathBonus() == WildDungeons.LONG_PATH_BONUS,
                 "a long dungeon walks further");
         check(parse(good).pathBonus() == 0, "a mine adds no path");
+        String bonus = good.replace("\"cooldownMinutes\":60", "\"cooldownMinutes\":60,\"bonusRewards\":"
+                + "[{\"item\":\"minecraft:elytra\",\"count\":1,\"chance\":0.03}]");
+        check(WildDungeons.problems(parse(bonus), (d, n) -> true).isEmpty() && parse(bonus).bonusRewards().size() == 1,
+                "a bonus reward parses");
+        check(!WildDungeons.problems(parse(bonus.replace("0.03", "0")), (d, n) -> true).isEmpty(),
+                "a zero chance is refused");
+        check(!WildDungeons.problems(parse(bonus.replace("minecraft:elytra", "Elytra")), (d, n) -> true).isEmpty(),
+                "a bad item id is refused");
         check(!WildDungeons.problems(parse(good.replace("\"Iron.\"", "\"\"")), (d, n) -> true).isEmpty(),
                 "an empty promise is refused");
         check(!WildDungeons.problems(parse(good.replace("60", "0")), (d, n) -> true).isEmpty(),
@@ -80,6 +88,7 @@ public class WildDungeonsTest {
         check(files.size() >= 4, "found only " + files.size() + " wild offerings");
         java.util.Set<String> types = new java.util.HashSet<>();
         java.util.Set<String> mineVarieties = new java.util.HashSet<>();
+        java.util.Set<String> varieties = new java.util.HashSet<>();
         for (Path file : files) {
             JsonObject json = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
             WildDungeons.Offering offering = WildDungeons.parse(file.getFileName().toString(), json);
@@ -87,6 +96,7 @@ public class WildDungeonsTest {
             check(problems.isEmpty(), file.getFileName() + ": " + problems);
             check(offering.promise().length() <= 40, file.getFileName() + " promise is too long for a menu line");
             types.add(offering.type());
+            varieties.add(offering.variety());
             if (offering.type().equals(WildDungeons.MINE)) {
                 mineVarieties.add(offering.variety());
             }
@@ -95,6 +105,8 @@ public class WildDungeonsTest {
             check(!offering.promise().contains(EM_DASH) && !offering.promise().contains((" " + "-" + "- ")),
                     file.getFileName() + " promise has a dash");
         }
+        check(mineVarieties.contains("dive") && varieties.contains("nether") && varieties.contains("end"),
+                "the dive, nether and end varieties are offered, got " + varieties);
         check(types.containsAll(WildDungeons.TYPES), "all three types are offered, got " + types);
         check(mineVarieties.size() >= 3, "at least three kinds of mine are offered, got " + mineVarieties);
     }

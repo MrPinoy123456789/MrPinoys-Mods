@@ -29,12 +29,16 @@ final class WildDungeons {
 
     /** One offering. {@code dungeon} and {@code node} point into {@code dungeon/*.json}. */
     record Offering(String id, String name, String dungeon, String node, String promise, int cooldownMinutes,
-                    int weight, int minDistance, int maxLevel, String type, String variety) {
+                    int weight, int minDistance, int maxLevel, String type, String variety, List<Bonus> bonusRewards) {
 
         /** An offering with no type: a plain {@link #DUNGEON}. Kept so a test can build one in nine arguments. */
         Offering(String id, String name, String dungeon, String node, String promise, int cooldownMinutes,
                  int weight, int minDistance, int maxLevel) {
-            this(id, name, dungeon, node, promise, cooldownMinutes, weight, minDistance, maxLevel, DUNGEON, "");
+            this(id, name, dungeon, node, promise, cooldownMinutes, weight, minDistance, maxLevel, DUNGEON, "", List.of());
+        }
+
+        Offering {
+            bonusRewards = bonusRewards == null ? List.of() : List.copyOf(bonusRewards);
         }
 
         /** Extra path length on top of the configured range: a long dungeon is a longer walk. */
@@ -42,6 +46,12 @@ final class WildDungeons {
             return LONG_DUNGEON.equals(type) ? LONG_PATH_BONUS : 0;
         }
     }
+
+    /**
+     * An item the clear pays on top of the floor's own rewards (owner, 2026-10-31: the nether and the end are off on
+     * the server, so a wild dungeon is the way to get their items). {@code chance} is 0 to 1 per clear. Paid in phase 3.
+     */
+    record Bonus(String item, int count, double chance) {}
 
     /** The three kinds of offering (owner, 2026-10-31). {@code variety} says which mine, or which dungeon, within one. */
     static final String MINE = "mine";
@@ -120,7 +130,8 @@ final class WildDungeons {
                 number(json, "minDistance", 0),
                 number(json, "maxLevel", 1),
                 json.has("type") ? text(json, "type") : DUNGEON,
-                text(json, "variety"));
+                text(json, "variety"),
+                bonuses(json));
     }
 
     /** Everything wrong with an offering, empty when it is usable. */
@@ -143,6 +154,12 @@ final class WildDungeons {
         }
         if (o.maxLevel() < 1) {
             out.add("maxLevel must be at least 1");
+        }
+        for (Bonus b : o.bonusRewards()) {
+            if (!b.item().matches("[a-z0-9_.-]+:[a-z0-9_./-]+") || b.count() < 1 || b.count() > 64
+                    || !(b.chance() > 0.0 && b.chance() <= 1.0)) {
+                out.add("bad bonus reward " + b);
+            }
         }
         if (!TYPES.contains(o.type())) {
             out.add("type must be one of " + TYPES);
@@ -183,6 +200,22 @@ final class WildDungeons {
             }
         }
         return fit.get(fit.size() - 1);
+    }
+
+    private static List<Bonus> bonuses(JsonObject json) {
+        List<Bonus> out = new ArrayList<>();
+        if (json.has("bonusRewards") && json.get("bonusRewards").isJsonArray()) {
+            for (com.google.gson.JsonElement element : json.getAsJsonArray("bonusRewards")) {
+                if (!element.isJsonObject()) {
+                    out.add(new Bonus("", 0, -1.0));
+                    continue;
+                }
+                JsonObject o = element.getAsJsonObject();
+                double chance = o.has("chance") && o.get("chance").isJsonPrimitive() ? o.get("chance").getAsDouble() : 1.0;
+                out.add(new Bonus(text(o, "item"), number(o, "count", 1), chance));
+            }
+        }
+        return out;
     }
 
     private static String text(JsonObject json, String key) {

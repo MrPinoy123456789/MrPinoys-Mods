@@ -368,6 +368,10 @@ final class WildRun {
         WildState.Lodestone lodestone = state == null ? null : state.get(record.wildId);
         boolean running = lodestone == null || lodestone.phase == WildState.Phase.IN_PROGRESS;
         if (running && !record.members.isEmpty() && record.floor.completed.isEmpty()) {
+            ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
+            if (dungeon != null) {
+                sweepStrays(dungeon, record);
+            }
             Instances.watchSpawnerClears(server, record);
             CapstoneFights.tick(server, record);
             PotionDrip.tick(server, record);
@@ -376,6 +380,37 @@ final class WildRun {
             ProvingWaves.tick(server, record);
         }
         WildRules.tick(server, now);
+    }
+
+    /**
+     * Endermen and the like teleport. In a sealed cell the campaign's bounds test catches one that left the dungeon, but
+     * a mob that lands on top of the roof is still inside the layout's bounds and out of every player's reach, so its
+     * spawner would never reach cooldown (owner, 2026-10-31). A mob counts as in the fight only inside a cell's own
+     * volume; a hostile mob anywhere else in or over the layout is discarded, and spawners forget strays by the same rule.
+     */
+    static void sweepStrays(ServerLevel level, InstanceRecord record) {
+        List<BlockPos> cells = record.layout.geometry().cellOrigins();
+        java.util.function.Predicate<Vec3> inside = pos -> inCell(cells, pos);
+        TrialContent.releaseStrays(level, record.layout.trialSpawners(), inside);
+        net.minecraft.world.phys.AABB over = record.layout.bounds().expandTowards(0.0, 96.0, 0.0);
+        for (net.minecraft.world.entity.Mob mob : level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, over,
+                m -> m instanceof net.minecraft.world.entity.monster.Enemy)) {
+            if (!inside.test(mob.position())) {
+                mob.discard();
+            }
+        }
+    }
+
+    /** Whether a point is inside the column and height of any standing cell (a little below the floor for pits). */
+    static boolean inCell(List<BlockPos> cells, Vec3 pos) {
+        for (BlockPos origin : cells) {
+            if (pos.x >= origin.getX() && pos.x < origin.getX() + RoomGeometry.CELL
+                    && pos.z >= origin.getZ() && pos.z < origin.getZ() + RoomGeometry.CELL
+                    && pos.y >= origin.getY() - 8 && pos.y <= origin.getY() + RoomGeometry.CEILING_Y + 1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Drops members who are offline or no longer in the dungeon dimension; pulls anyone below the void guard back. */

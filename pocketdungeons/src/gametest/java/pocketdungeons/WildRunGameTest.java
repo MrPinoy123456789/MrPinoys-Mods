@@ -105,6 +105,13 @@ public final class WildRunGameTest {
                 if (offering.type().equals(WildDungeons.LONG_DUNGEON) && record.layout.roomCount() < 8) {
                     problems.add(offering.id() + ": a long dungeon has only " + record.layout.roomCount() + " rooms");
                 }
+                for (WildDungeons.Bonus bonus : offering.bonusRewards()) {
+                    var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
+                            net.minecraft.resources.Identifier.parse(bonus.item()));
+                    if (item == Items.AIR) {
+                        problems.add(offering.id() + ": bonus item " + bonus.item() + " does not exist");
+                    }
+                }
                 if (!WildLodestones.hasExit(lode.id, false)) {
                     problems.add(offering.id() + ": no arrival exit block");
                 }
@@ -186,6 +193,42 @@ public final class WildRunGameTest {
             folded = 31 * folded + stack.getItem().hashCode() * 7 + stack.getCount();
         }
         return folded;
+    }
+
+    /**
+     * A hostile mob that teleported onto the roof is still inside the layout's bounds but out of reach, so it is
+     * discarded; one inside a cell stays. The spawner that tracked it forgets it (owner, 2026-10-31).
+     */
+    @GameTest(maxTicks = 600)
+    public void mobsOnTheRoofAreDiscardedAndMobsInsideStay(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        WildDungeons.loadFrom(server);
+        WildDungeons.Offering offering = WildDungeons.byId("pocketdungeons:boiler_hall");
+        WildState.Lodestone lode = lodestone(level, offering, "w-roof", 1);
+        InstanceRecord record = null;
+        try {
+            InstanceRegistry.usedSlots.add(SLOT);
+            record = WildRun.stampAt(server, level, lode, WildRun.planFor(level, lode, offering), SLOT, ORIGIN);
+            helper.assertTrue(record != null, "stamps");
+            BlockPos entrance = record.layout.entrance();
+            var inside = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
+                    net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+            var roof = net.minecraft.world.entity.EntityTypes.ZOMBIE.create(level,
+                    net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+            inside.setPos(entrance.getX() + 0.5, entrance.getY() + 1, entrance.getZ() + 0.5);
+            roof.setPos(entrance.getX() + 0.5, record.layout.bounds().maxY + 3, entrance.getZ() + 0.5);
+            level.addFreshEntity(inside);
+            level.addFreshEntity(roof);
+            WildRun.sweepStrays(level, record);
+            helper.assertTrue(!inside.isRemoved(), "a mob inside a cell stays");
+            helper.assertTrue(roof.isRemoved(), "a mob above the roof is discarded");
+            inside.discard();
+        } finally {
+            cleanUp(level, record);
+            InstanceRegistry.usedSlots.remove(SLOT);
+        }
+        helper.succeed();
     }
 
     /** The watch tick drops a member who is not in the dungeon dimension and leaves the record standing. */
