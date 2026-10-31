@@ -4,6 +4,11 @@
 > Minecraft lead designer pass (`REVIEW.md`); every change that review forced is
 > marked **[R]** below. The build order is in `PLAN.md`.
 >
+> **Mod:** `chartereconomy`, display name **Charter Economy**. One standalone mod
+> owns the whole system: bank, shop, Mint, kingdoms, charters and all three
+> currencies. It is a sibling of `cobbleeconomy`, built the same way, and does not
+> depend on it or change it (owner, 2026-10-31).
+>
 > **Server:** the Kingdoms (charter) server, a separate server from the cobblestone
 > and diamond one (owner, 2026-10-31). Coin replaces cobblestone and diamonds here.
 > Minecraft 26.2, Fabric, JDK 25, server-side only. Vanilla clients install nothing, the same rule as every mod in
@@ -33,7 +38,7 @@ The owner's brief: two currencies for players, one for kingdoms.
 | **Tradeable** | Yes (`/pay`, hand to hand) | No | No (spend-only) |
 | **Earned by** | Minting metal, bounties, quests, trade | Dungeons, events | The same events as Valor, mirrored |
 | **Spent on** | Shop, services, upkeep, player trade | Personal prestige and convenience | Charter tiers, kingdom perks |
-| **Lives in** | `cobbleeconomy` (bank) | `cobbleeconomy` (bank) | `chartereconomy` (new mod) |
+| **Stored as** | Player bank balance | Player bank balance | Kingdom ledger |
 | **Feels like** | Money | A medal | A kingdom's reputation |
 
 ### 2.1 Coin: one currency, three denominations **[R]**
@@ -51,7 +56,7 @@ independent currencies.
   coin at face value. Withdrawing makes change in whatever denominations the
   player asks for (`/withdraw 3 sovereign`, `/withdraw 200 coin` gives the fewest
   coins).
-- **Why a fixed rate is safe here when cobbleeconomy forbids one.** Cobbleeconomy
+- **Why a fixed rate is safe here when Cobble Economy forbids one.** Cobble Economy
   bans exchange rates because cobblestone and diamonds are different goods from
   different sources, so a rate gets arbitraged. Here every denomination comes out
   of the same Mint under the same cap (section 3). A Sovereign is 64 Marks in
@@ -69,8 +74,7 @@ independent currencies.
 
 ### 2.2 Valor: the player's medal
 
-- A `cobbleeconomy` currency with no item: `withdrawable: false`,
-  `payable: false`. It cannot be dropped, sold, given or stolen. That is what keeps
+- A bank balance with no item: it cannot be withdrawn or sent with `/pay`. It cannot be dropped, sold, given or stolen. That is what keeps
   it honest; anything that moves between accounts gets farmed by alts.
 - Shown in `/balance` and on its own `/baltop valor` board, because a medal nobody
   sees is not a medal.
@@ -80,7 +84,7 @@ independent currencies.
 
 ### 2.3 Renown: the kingdom's reputation
 
-- Owned by the new `chartereconomy` mod, stored per kingdom.
+- Stored per kingdom in the charter ledger.
 - **Mirrored, not split** **[R]**. One earning event mints both: Valor to the
   player and Renown to their kingdom. The player's share is never reduced. A
   zero-sum split creates tithe politics ("my kingdom took my reward"), and that is
@@ -107,7 +111,7 @@ copper, iron and gold into their coin) but moves it from the crafting table to a
 
 - A Mint is a **bound block**: a smithing table an operator or a kingdom leader
   binds with `/charter mint bind` (the same pattern as ballot boxes and
-  cobbleeconomy shopkeepers). Right-click opens a chest menu that reads like a
+  Cobble Economy shopkeepers). Right-click opens a chest menu that reads like a
   crafting grid: ingots in, coins out.
 - Mint rates: **1 copper ingot = 1 Mark, 1 iron ingot = 1 Crown, 1 gold ingot =
   1 Sovereign.** The metal is the material cost; which metal you use is a
@@ -128,7 +132,7 @@ copper, iron and gold into their coin) but moves it from the crafting table to a
 - The allowance is **per player, never per kingdom** **[R]**. Tying it to charter
   tier was a snowball: big kingdoms mint more, pay upkeep easily, and grow faster.
 - Every strike is logged with the player, metal, coins and band, and the startup
-  log prints total coin supply, as cobbleeconomy already does.
+  log prints total coin supply, as Cobble Economy does.
 
 ### 3.3 Melting
 
@@ -205,11 +209,11 @@ Every Valor and Renown award goes through one operator-only command:
 /charter earn <player> <source> [level] [run]
 ```
 
-`chartereconomy` owns every anti-abuse rule in one place: caps, probation, run
-de-duplication. It credits Renown to its own ledger and pays Valor by running a
-config command template (`/cobbleeconomy add %player% %valor% valor`), so it never
-imports cobbleeconomy. Faucet mods only need a command template, which is the
-pattern pocketdungeons' `payoutCommand` already uses.
+Charter Economy owns every anti-abuse rule in one place: caps, probation, run
+de-duplication. Valor goes to the player's bank and Renown to their kingdom's
+ledger in the same transaction, so the two can never drift apart. Faucet mods only
+need a command template, which is the pattern pocketdungeons' `payoutCommand`
+already uses; none of them imports Charter Economy.
 
 ### 5.2 Sources and starting numbers
 
@@ -313,6 +317,16 @@ and the biggest kingdom does not win every season.
 | Chores | Soft caps with three day carry-over, no weekly hard caps |
 
 ## 9. Adjacent mods
+
+**Cobble Economy: a sibling, not a dependency.** Charter Economy starts from a copy
+of Cobble Economy's proven pieces (the pure-Java `core` with `Wallet`,
+`EconomyService` and the purchase transaction and their tests; the atomic
+`accounts.json` store; the shop, shop editor and dialogs), renamed into its own
+package and then extended with denominations, markers, Valor, the Mint and
+charters. The suite already prefers a few duplicated files over a shared library
+every mod must version against (`docs/DESIGN.md` §2). The two mods never run on the
+same server, share no config, and Cobble Economy is not changed.
+
 
 **Claims: adopt, do not build.** Protecting land from explosions, pistons, fluids,
 fire and mob griefing has no Fabric API events, so a home-made claims system means

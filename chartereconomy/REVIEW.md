@@ -55,3 +55,8 @@
 | Cut the market tax and the weekly "Valor pledged" board | n/a | Accepted; both removed |
 | Collapse back to cobblestone and diamonds plus one kingdom unit | header | **Overruled.** The charter server is its own economy (owner confirmed 2026-10-31), and the owner asked for metal coins |
 | Adopt a claims mod; building claims needs mixins | 9 | Accepted |
+
+**After the review:** the owner decided the whole system is one standalone mod,
+Charter Economy (`chartereconomy`). The review's "code needed in cobbleeconomy"
+findings above still describe the work, but it now happens in a fork of Cobble
+Economy's code inside the new mod, and Cobble Economy itself is not changed.

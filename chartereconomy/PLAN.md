@@ -5,44 +5,50 @@
 
 ## Where the code lives
 
-| Piece | Mod | Why there |
-|---|---|---|
-| Coin denominations, Valor balance, bank, shop | `cobbleeconomy` | It already is the bank and shop; the charter server uses it by config |
-| Mint, kingdoms, charters, Renown, upkeep, `/charter earn` | `chartereconomy` (new) | Charter-server rules; must not leak into the cobblestone server |
-| Claims | Adopted mod (Open Parties and Claims, pending a 26.2 build) | Protection needs mixins; do not build it |
+Everything is one new mod, `chartereconomy` (**Charter Economy**), in the house
+layout: `core/` (pure Java, no Minecraft on the classpath, tested in about a
+second) and `fabric/` (the mod). JDK 25, Minecraft 26.2,
+`"environment": "server"`, zero mixins. Commands: `/bank`, `/balance`, `/pay`,
+`/shop`, `/buy`, `/baltop` for players, `/charter` for kingdoms and the Mint.
 
-`chartereconomy` never imports `cobbleeconomy`. They meet through coin items (the
-marker) and command templates, the suite's usual contract.
+| Piece | Where |
+|---|---|
+| Coin denominations, Valor, bank, shop | `chartereconomy` (forked from Cobble Economy, then extended) |
+| Mint, kingdoms, charters, Renown, upkeep, `/charter earn` | `chartereconomy` |
+| Claims | An adopted mod (Open Parties and Claims, pending a 26.2 build). Protection needs mixins; do not build it |
 
-## Phase 1: cobbleeconomy learns coin (code, core tested)
+`cobbleeconomy` is not touched; it keeps running the cobblestone server.
 
-1. **P3.6 `currencies.json`**: the currency list moves to config, defaulting to
-   today's two so the cobblestone server is unchanged.
-2. **Marker matching**: a currency (or denomination) may name a `custom_data`
-   marker; `ItemBank` counts, removes and frees space only for stacks carrying it.
-   Withdraw stamps the full component set onto what it hands out.
-3. **Denominations**: a currency may list `{item, marker, components, value}`
-   entries. `Wallet` gains change-making across denominations (core, pure Java,
-   tests for exact change, insufficient change, full inventory rollback).
-4. **Flags**: `withdrawable` and `payable` per currency, and a currency with no
-   item at all (Valor).
-5. Display: mixed denominations with the total in base units.
+## Phase 1: fork the bank and teach it coin (core tested)
+
+1. Copy Cobble Economy's `core` and `fabric` into `chartereconomy`, rename the
+   packages and config folder (`config/chartereconomy/`), and get its 200 core
+   assertions passing under the new name before changing anything.
+2. **Currencies from config** (`currencies.json`): coin and Valor ship as the
+   defaults. Cobblestone and diamonds are removed.
+3. **Marker matching**: a denomination names a `custom_data` marker; the item bank
+   counts, removes and frees space only for stacks carrying it. Withdraw stamps
+   the full component set onto what it hands out.
+4. **Denominations**: coin lists `{item, marker, components, value}` entries.
+   `Wallet` gains change-making across denominations (tests for exact change,
+   insufficient change, full inventory rollback).
+5. **Valor**: a currency with no item; `/withdraw` and `/pay` refuse it.
+6. Display: mixed denominations with the total in Marks.
 
 Done when `/bank all` with a mixed coin inventory credits the right Marks, a plain
 nugget is refused with a clear line, `/withdraw 200 coin` makes the fewest coins,
 and `/pay` on Valor is refused.
 
-## Phase 2: chartereconomy, Mint and earn (new mod)
+## Phase 2: the Mint and `/charter earn`
 
-1. Mod skeleton in the house layout (`core/` pure Java, `fabric/`), JDK 25, 26.2,
-   `"environment": "server"`, zero mixins.
-2. **Mint**: bind a smithing table, chest-menu UI, face-value allowance with bands
+1. **Mint**: bind a smithing table, chest-menu UI, face-value allowance with bands
    and three day carry-over (core tested), strike log, supply line at startup.
-3. **`/charter earn`**: sources and caps from `earn.json`, Valor paid through a
-   command template, Renown to the Commons until kingdoms exist.
+2. **`/charter earn`**: sources and caps from `earn.json`; Valor to the bank,
+   Renown to the Commons until kingdoms exist (phase 4).
+3. **Shop**: the starter catalog in coin and Valor (SPEC section 6).
 
-Done when a player can strike all three coins up to the allowance and a test
-`/charter earn` pays Valor through cobbleeconomy.
+Done when a player can strike all three coins up to the allowance, buy from the
+shop, and a test `/charter earn` pays Valor.
 
 ## Phase 3: faucets speak coin and Valor (small changes in four mods)
 
