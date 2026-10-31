@@ -29,12 +29,16 @@ Three currencies:
 | Earned by | Minting metal at a Mint; trade | Dungeons and events | The same awards as Valor, at the same moment |
 | Spent on | The shop; player trade | The shop (Valor listings) | The Renown catalogue (charter tiers and anything else the owner lists) |
 
+Kingdoms also hold **coin** in a kingdom treasury, filled by the Mint tax
+(section 8.3). That is the same coin currency, not a fourth one.
+
 Mod id `chartercurrency`, display name **Charter Currency**, Java package
 `chartercurrency`, config folder `config/chartercurrency/`.
 
 ## 2. Scope
 
-**In scope:** the three currencies; the bank; the Mint; the earning endpoint and
+**In scope:** the three currencies; the bank; the Mint and its tax; kingdom
+treasuries; the earning endpoint and
 its anti-abuse rules; the shop (coin and Valor prices); the Renown catalogue;
 leaderboards; logs and stats.
 
@@ -123,6 +127,23 @@ between coin and Valor or Renown, ever.
   catalogue (section 7.2) or adjusted by an admin.
 - Each kingdom stores: current balance, lifetime earned, and an append-only
   ledger of every credit and spend.
+
+### 4.4 Kingdom treasury (coin)
+
+- Each kingdom has a coin balance, stored in Marks, filled by the Mint tax and by
+  voluntary deposits.
+- Kingdom leaders (and ops) can withdraw it as physical coin; anyone in the
+  kingdom can deposit. Every movement is in the kingdom's ledger and visible to
+  its members, so a leader can spend it but never quietly.
+- What the kingdom spends it on is the kingdom's business (paying builders,
+  buying from the shop, prizes). This mod only holds it.
+
+| Command | Who | What |
+|---|---|---|
+| `/treasury` | Members, ops | Balance and the last few movements |
+| `/treasury deposit <amount> [denomination]` | Members | Same rules as `/bank` |
+| `/treasury withdraw <amount> [denomination]` | Kingdom leaders, ops | Same rules as `/withdraw` |
+| `/treasury ledger [page]` | Members, ops | Full history (shared with the Renown ledger, filterable by currency) |
 
 ## 5. Bank and player commands
 
@@ -345,7 +366,7 @@ cannot be capped, and recipe ingredients cannot check a marker).
   1 Sovereign.
 - Coins go into the inventory with `giveOrDrop`. A small sound on success (the
   fork has a `Chime` class).
-- Minting is free: no fee.
+- Every strike is taxed for the striker's kingdom (section 8.3).
 - `/mint` anywhere shows the remaining allowance.
 
 ### 8.2 The allowance (counted in Marks of face value, per player)
@@ -369,11 +390,34 @@ cannot be capped, and recipe ingredients cannot check a marker).
   ingots, gives the coins and saves the state.
 
 Line examples:
-- `Struck 12 Iron Crowns. Today: 96 of 192 left at full rate, then 192 at half.`
+- `Struck 10 Iron Crowns: 8 to you, 2 to Northreach. Today: 112 of 192 left at full rate, then 192 at half.`
 - `Half rate now: 2 ingots per coin.`
 - `The Mint is done with you for today. It reopens at midnight.`
 
-### 8.3 Melting
+### 8.3 The Mint tax: 2 of every 10 coins
+
+The kingdom takes 2 of every 10 coins a member strikes. The player keeps 8. The
+rate is fixed in code at 20 percent and **is not configurable** (owner,
+2026-10-31): no config key, no command, no per-kingdom setting.
+
+- **Every fifth coin goes to the kingdom.** Keep a per-player, per-denomination
+  counter that persists between strikes; each coin struck increments it, and every
+  fifth coin is credited to the kingdom's treasury (as its face value in Marks)
+  instead of being given to the player. This is exactly 2 in 10 over time, never
+  rounds, and works for a strike of one Sovereign as well as a stack of copper.
+- **The allowance counts every coin struck, taxed or not.** The tax does not let
+  anyone mint more, and the daily supply cap is unchanged. A player's own take
+  from a full band is about 154 Marks a day, not 192.
+- **Players in no kingdom pay the same 20 percent, and it is destroyed** (never
+  struck). Leaving a kingdom therefore never makes minting cheaper, and there is
+  no server account that piles up coin.
+- The counter belongs to the player, not to the kingdom; it carries across a
+  change of kingdom so nobody can reset it by hopping.
+- The tax is part of the core mint planner:
+  `MintPlan plan(MintState state, int faceValue, int ingotsOffered)` also returns
+  coins to the player, coins to the kingdom and the new tax counter.
+
+### 8.4 Melting
 
 Marked coins still fit the vanilla `9 nuggets -> 1 ingot` recipe. Leave it.
 Blocking it needs a mixin, and it loses value (nine Sovereigns become one gold
@@ -465,8 +509,8 @@ to fill it. `leaders` accepts names or UUIDs; store UUIDs after first resolution
 | File | Holds |
 |---|---|
 | `accounts.json` | Per player: coin (Marks) and Valor. The fork's atomic, debounced store and its refuse-to-overwrite rule |
-| `players.json` | Per player: mint state, per-source soft cap remaining, Renown generated today, last resolved kingdom and since when, last reset day |
-| `kingdoms_state.json` | Per kingdom and Commons: Renown balance, lifetime earned, bought catalog keys, ledger |
+| `players.json` | Per player: mint state and tax counters, per-source soft cap remaining, Renown generated today, last resolved kingdom and since when, last reset day |
+| `kingdoms_state.json` | Per kingdom and Commons: Renown balance, lifetime earned, bought catalog keys; per kingdom: coin treasury in Marks, lifetime Mint tax collected; one ledger for both |
 | `transactions.log` | Append-only: every deposit, withdraw, pay, purchase, strike, earn and Renown purchase, with actor and amounts |
 
 Write all state files the same way the fork writes `accounts.json`.
@@ -479,11 +523,12 @@ Write all state files the same way the fork writes `accounts.json`.
 | `/chartercurrency balance <player>` | Coin and Valor |
 | `/chartercurrency set\|add\|remove <player> <amount> <coin\|valor>` | Same code path as players, never negative |
 | `/chartercurrency renown add\|remove <kingdom\|commons> <amount>` | Logged with the operator's name |
+| `/chartercurrency treasury add\|remove <kingdom> <amount>` | Coin, in Marks. Logged with the operator's name |
 | `/chartercurrency kingdom set <player> <kingdom\|none>` | Manual membership override |
 | `/chartercurrency kingdom list` | Kingdoms, their teams, leaders and member counts as resolved now |
 | `/chartercurrency mint bind\|unbind\|list` | Section 8.1 |
 | `/chartercurrency shop ...` | The fork's shop admin and editor |
-| `/chartercurrency stats` | Coin supply (banked plus a note that carried coin is not counted), Marks minted today and this week, Valor earned today by source, Renown by kingdom |
+| `/chartercurrency stats` | Coin supply (banked plus a note that carried coin is not counted), Marks minted today and this week, Mint tax collected and destroyed, Valor earned today by source, Renown and treasury by kingdom |
 | `/chartercurrency reload` | Reload every config except accounts |
 
 Every admin action is logged with the operator's name. The startup log prints
@@ -499,6 +544,12 @@ Keep every forked test passing under the new names, then add:
 - **Mint planner:** full band first; half band at 2 ingots per coin; no coin
   split across bands; carry-over refills and caps at 576; nothing past the half
   band; an odd ingot left in the half band is not consumed.
+- **Mint tax:** every fifth coin per denomination goes to the kingdom; the
+  counter persists across strikes (strikes of 3 then 2 tax the fifth); exactly 20
+  percent over 1,000 random strikes; allowance counts taxed coins; no kingdom
+  means the fifth coin is destroyed; the counter survives a kingdom change.
+- **Treasury:** deposit and withdraw follow bank rules; only leaders withdraw;
+  never negative under concurrent withdrawals.
 - **Earn rules:** formula with and without level; soft cap halving with minimum
   1; hard cap pays 0 and 0; soft cap carry-over; per player Renown cap; run
   de-duplication with and without `run`, including the top-up to the largest
@@ -528,7 +579,9 @@ owner's go-ahead and following `pocketdungeons/CONVENTIONS.md`.
    3 Sovereigns 1 Crown, and `/pay` moves coin.
 3. **Valor.** Item-less currency; `/withdraw` and `/pay` refuse it; shop
    listings in Valor work.
-4. **Mint.** Bind, strike, allowance, carry-over, messages, `/mint`.
+4. **Mint and treasury.** Bind, strike, allowance, carry-over, the 20 percent
+   tax, kingdom treasuries and `/treasury`, messages, `/mint`. Needs the kingdom
+   resolver from milestone 5, so build that resolver first in this milestone.
 5. **Earn and Renown.** Earn endpoint, caps, run de-duplication, probation,
    Commons, kingdom resolver and manual override, `/renown` commands, catalogue
    with the five tiers.
@@ -555,7 +608,9 @@ Check with `javap` against the Loom cache, as the fork's README shows:
 - Do not add an exchange rate between coin and Valor or Renown.
 - Do not add a crafting recipe that produces coins.
 - Do not let Valor or Renown be withdrawn, paid or transferred.
-- Do not build claims, kingdom management, tier effects, war or upkeep.
+- Do not make the Mint tax configurable.
+- Do not build claims, kingdom management, tier effects, war or upkeep. The
+  treasury holds coin; it does not charge kingdoms anything.
 - Do not modify `cobbleeconomy/` or any other mod (except section 13, with
   permission).
 - Do not add mixins. None are needed. (The fork's dialog mixin may stay only if
