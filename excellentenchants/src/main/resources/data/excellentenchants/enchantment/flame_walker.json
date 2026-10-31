@@ -1,0 +1,23 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "text": "Flame Walker",
+    "color": "#279CF5"
+  },
+  "effects": {},
+  "exclusive_set": "#excellentenchants:exclusive_set/flame_walker",
+  "max_cost": {
+    "base": 7,
+    "per_level_above_first": 27
+  },
+  "max_level": 2,
+  "min_cost": {
+    "base": 2,
+    "per_level_above_first": 27
+  },
+  "slots": [
+    "feet"
+  ],
+  "supported_items": "#minecraft:enchantable/foot_armor",
+  "weight": 1
+}
