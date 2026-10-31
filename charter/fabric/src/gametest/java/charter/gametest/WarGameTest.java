@@ -68,7 +68,7 @@ public final class WarGameTest {
                 Core theirs = outpost(rt, dove);
                 mine.setPhase(CampPhase.ACTIVE, 0);
                 theirs.setPhase(CampPhase.ACTIVE, 0);
-                helper.assertTrue(theirs.deposit > 0, "The defender's outpost holds no deposit");
+                helper.assertTrue(theirs.depositMarks > 0, "The defender's outpost holds no deposit");
 
                 // The War page names the other nation's outpost; the confirm says what it takes; declaring works.
                 WarPages.page(attackerLord, null);

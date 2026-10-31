@@ -23,6 +23,10 @@ final class GamePort implements PaymentPort {
         return balance(org.toString());
     }
 
+    void drain(OrgId org) {
+        balances.remove(org.toString());
+    }
+
     void fund(OrgId org, long marks) {
         balances.merge(org.toString(), marks, Long::sum);
     }

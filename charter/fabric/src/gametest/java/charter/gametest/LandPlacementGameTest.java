@@ -69,7 +69,7 @@ public final class LandPlacementGameTest {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Broke");
             var org = kit.orgOf(lord);
-            GamePort.of(kit.rt);
+            GamePort.of(kit.rt).drain(org);
             ItemStack nexus = kit.hold(lord, LandItems.NEXUS);
             kit.placeOn(lord, nexus, kit.nexusPos());
 
@@ -165,7 +165,7 @@ public final class LandPlacementGameTest {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Poor");
             var org = kit.orgOf(lord);
-            GamePort.of(kit.rt);
+            GamePort.of(kit.rt).drain(org);
             BlockPos spot = kit.pos(-8, 0);
             kit.placeOn(lord, kit.hold(lord, LandItems.WAR_BANNER), spot);
             helper.assertTrue(kit.level.getBlockState(spot).isAir(), "A refused banner stayed in the world");

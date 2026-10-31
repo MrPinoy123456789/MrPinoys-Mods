@@ -50,6 +50,7 @@ final class StoreTest {
         seatsRoundTripAndOldSavesRead();
         raiderWavesRoundTripAndOldSavesRead();
         aSaveFromBeforeProtectedKeepsLoads();
+        theOldItemTreasuryStaysStoredButUnread();
     }
 
     static CharterStore store(Path dir) {
@@ -393,6 +394,51 @@ final class StoreTest {
         charter.history.History history = new charter.history.History();
         int skipped = new charter.mc.store.HistoryFile(dir, Persistence.json(), m -> { }).readInto(history);
         check("old save: the fall events are skipped, not fatal (" + skipped + ")", skipped == 4 && history.size() == 0);
+    }
+
+    /**
+     * Treasuries moved to the payment port, but a save from before it holds item ledgers and per currency spend limits. They
+     * must load, be left alone, save back exactly as they were, and never be read as Marks.
+     */
+    static void theOldItemTreasuryStaysStoredButUnread() throws Exception {
+        Path source = Path.of("src/test/resources/charter/old-protected-keeps");
+        Path dir = Files.createTempDirectory("charter-old-ledger");
+        Files.copy(source.resolve("state.json"), dir.resolve("state.json"));
+        Files.copy(source.resolve("history.jsonl"), dir.resolve("history.jsonl"));
+        FullState f = FullState.build();
+        CharterStore.Loaded loaded = store(dir).load(f.knobs, f.clock.now());
+        CharterState back = loaded.state();
+        check("old ledger: the repairs found are still the four it always had (" + loaded.repairs().count() + ")", loaded.repairs().count() == 4);
+
+        charter.org.Organization oak = back.orgNamed("Oakvale").orElseThrow();
+        check("old ledger: the diamonds and cobblestone load as they were",
+                oak.ledger.balance(charter.treasury.Currency.DIAMOND) == 50 && oak.ledger.balance(charter.treasury.Currency.COBBLESTONE) == 500);
+        check("old ledger: no payment port is reading them", back.payment instanceof charter.api.NoPayment
+                && back.payment.balance(oak.id.toString()) == 0);
+        var spend = back.grants().stream().filter(g -> g.power == Power.SPEND && !g.scope.spendLimitPerAction().isEmpty()).findFirst().orElseThrow();
+        check("old ledger: a spend limit saved per currency keeps its map", spend.scope.spendLimitPerAction().get(charter.treasury.Currency.DIAMOND) == 32L
+                && spend.scope.spendLimitPerAction().get(charter.treasury.Currency.COBBLESTONE) == 2048L);
+        check("old ledger: and its diamond limit stands as the same spend in Marks, not as zero", spend.scope.limit() == 32L * 32L);
+
+        Path again = Files.createTempDirectory("charter-old-ledger-again");
+        store(again).save(back, f.clock.now());
+        JsonObject saved = read(again);
+        JsonObject oakSaved = null;
+        for (var e : saved.getAsJsonObject("orgs").getAsJsonArray("orgs")) {
+            if (e.getAsJsonObject().get("name").getAsString().equals("Oakvale")) oakSaved = e.getAsJsonObject();
+        }
+        check("old ledger: it is saved back untouched", oakSaved != null
+                && oakSaved.getAsJsonObject("ledger").get("DIAMOND").getAsLong() == 50
+                && oakSaved.getAsJsonObject("ledger").get("COBBLESTONE").getAsLong() == 500);
+        boolean scopeKept = false;
+        for (var g : saved.getAsJsonObject("grants").getAsJsonArray("grants")) {
+            var scope = g.getAsJsonObject().getAsJsonObject("scope");
+            if (scope.getAsJsonObject("spendLimitPerAction").has("DIAMOND")
+                    && scope.getAsJsonObject("spendLimitPerAction").get("DIAMOND").getAsLong() == 32) scopeKept = true;
+        }
+        check("old ledger: the per currency limit is saved back too", scopeKept);
+        CharterStore.Loaded twice = store(again).load(f.knobs, f.clock.now());
+        check("old ledger: a second round trip changes nothing", DeepCompare.diff(back, twice.state()).isEmpty());
     }
 
     // ---- json helpers ----

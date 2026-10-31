@@ -6,6 +6,9 @@ breaking blocks. Vanilla clients install nothing. The design is `DESIGN.md`, the
 plan `PLAN.md`, how to build and test `BUILDING.md`, the rules that must never
 break `INVARIANTS.md`.
 
+Charter holds no treasury of its own: every cost is paid in Marks through the payment API
+(`docs/PAYMENT_API.md`), which a currency mod implements. With none installed every cost is waived.
+
 ## Mixins, and why no Fabric API event covers each
 
 The suite rule: every Mixin is listed here with the reason an event would not do.

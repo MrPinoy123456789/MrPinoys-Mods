@@ -40,7 +40,6 @@ public final class StateKingdomView implements KingdomView {
     @Override
     public Optional<UUID> lordOf(String orgId) {
         Optional<Organization> org = find(orgId);
-        if (org.isEmpty()) return Optional.empty();
         if (org.isEmpty() || org.get().governance.deciders == null) return Optional.empty();
         return state.office(org.get().governance.deciders)
                 .filter(office -> !office.holders().isEmpty())

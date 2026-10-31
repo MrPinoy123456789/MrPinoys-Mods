@@ -110,3 +110,8 @@ never break, add it here and to that test.
     repair on load would otherwise drop them and break invariant 21)
 30. **Presence counts only players of standing:** online, not spectators, not AFK,
     and members for at least `presenceMinMemberSeconds`. (SiegeWorldGameTest)
+31. **Marks only move.** A payment between organizations is a charge followed by a credit, and a refused charge
+    stops it; Charter never credits Marks it did not take, except a stronghold's starting treasury, an operator's
+    deposit and a refunded outpost deposit. (PaymentPortTest)
+32. **The old item treasury is closed.** No organization ledger, personal safe or per currency scope ever gains a
+    balance, and what an old save holds is saved back unchanged. (InvariantTest, StoreTest)

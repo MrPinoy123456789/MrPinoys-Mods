@@ -33,6 +33,7 @@ public final class CoreSuite {
         charter.chronicle.ChronicleStoryTest.run();
         charter.siege.SiegeTest.run();
         charter.contract.ContractTest.run();
+        charter.api.PaymentPortTest.run();
         charter.InvariantTest.run();
 
         System.out.println("core: " + Check.passed() + " passed, " + Check.failures().size() + " failed");
