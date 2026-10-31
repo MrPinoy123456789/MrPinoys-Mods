@@ -45,7 +45,6 @@ public record AcceptInvite(PlayerId player, OrgId org) implements Action {
             if (current.get().org().equals(org)) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
             if (!ctx.state.root(current.get().org()).equals(ctx.state.root(org))) return Outcome.refuse(OrgReasons.OTHER_TREE);
         }
-        if (Joining.raceBlocks(ctx, org, player)) return Outcome.refuse(OrgReasons.RACE_MISMATCH);
         return Outcome.OK;
     }
 

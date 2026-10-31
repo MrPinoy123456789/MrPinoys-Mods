@@ -203,7 +203,8 @@ public final class CharterState {
 
     public void join(PlayerId player, OrgId org, long now) {
         PlayerRecord record = player(player);
-        if (raceOf(player).isEmpty()) record.race = root(org);
+        // Joining a kingdom that is not mixed makes the player of its race; a mixed kingdom lets them keep their own.
+        if (raceOf(player).isEmpty() || !org(root(org)).map(o -> o.mixedRace).orElse(false)) record.race = root(org);
         memberships.put(player, MemberRecord.of(player, org, now));
         treeVersion++;
     }
@@ -215,12 +216,6 @@ public final class CharterState {
         return membership(player).map(m -> root(m.org()));
     }
 
-    /** True when the player's race lets them into this kingdom: it is their race, or the kingdom takes any race. */
-    public boolean raceAllows(PlayerId player, OrgId org) {
-        OrgId top = root(org);
-        Optional<OrgId> race = raceOf(player);
-        return race.isEmpty() || race.get().equals(top) || org(top).map(o -> o.mixedRace).orElse(false);
-    }
 
     public void leave(PlayerId player) {
         MemberRecord gone = memberships.get(player);

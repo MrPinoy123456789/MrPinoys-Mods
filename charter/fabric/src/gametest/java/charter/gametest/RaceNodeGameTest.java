@@ -61,12 +61,19 @@ public final class RaceNodeGameTest {
             ServerPlayer dwarf = kit.faction("Dwarf");
             ServerPlayer elf = kit.faction("Elf");
             charter.id.PlayerId id = new charter.id.PlayerId(dwarf.getUUID());
-            String dwarfKingdom = kit.rt.state.org(kit.orgOf(dwarf)).orElseThrow().name();
+            charter.id.OrgId dwarfOrg = kit.orgOf(dwarf);
+            charter.id.OrgId elfOrg = kit.orgOf(elf);
+            String dwarfKingdom = kit.rt.state.org(dwarfOrg).orElseThrow().name();
             kit.rt.engine.run(new charter.engine.Actor.Player(id), new charter.org.actions.Leave(id));
             helper.assertTrue(holds(dwarf, dwarfKingdom), "leaving a kingdom keeps its race");
-            helper.assertTrue(!kit.rt.state.raceAllows(id, kit.orgOf(elf)), "and the other kingdom stays closed to it");
-            kit.rt.state.org(kit.orgOf(elf)).orElseThrow().mixedRace = true;
-            helper.assertTrue(kit.rt.state.raceAllows(id, kit.orgOf(elf)), "unless that kingdom takes any race");
+            kit.rt.state.join(id, elfOrg, kit.rt.clock.now());
+            helper.assertTrue(holds(dwarf, kit.rt.state.org(elfOrg).orElseThrow().name()),
+                    "joining another kingdom makes the player of its race");
+            kit.rt.state.leave(id);
+            kit.rt.state.org(dwarfOrg).orElseThrow().mixedRace = true;
+            kit.rt.state.join(id, dwarfOrg, kit.rt.clock.now());
+            helper.assertTrue(holds(dwarf, kit.rt.state.org(elfOrg).orElseThrow().name()),
+                    "but a mixed kingdom lets them keep their race");
             helper.succeed();
         }
     }

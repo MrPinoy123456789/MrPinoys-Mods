@@ -117,8 +117,7 @@ public final class NewcomerPages {
     public static void join(ServerPlayer player, String notice) {
         if (!alone(player)) return;
         CharterRuntime rt = rt();
-        List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom
-                        && rt.state.raceAllows(me(player), o.id))
+        List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
                 .sorted(Comparator.comparingInt((Organization o) -> rt.state.members(o.id).size()).reversed()).toList();
         List<DialogBody> body = new ArrayList<>();
         List<ActionButton> buttons = new ArrayList<>();
@@ -126,7 +125,6 @@ public final class NewcomerPages {
             body.add(BookDialogs.text(Text.get("book.join.none")));
             if (rt.knobs.playerFounding) buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)));
         }
-        if (rt.state.raceOf(me(player)).isPresent()) body.add(BookDialogs.text(Text.get("book.join.race_note")));
         for (Organization org : orgs.stream().limit(FACTIONS_MAX).toList()) {
             OrgId id = org.id;
             String label = Text.get("book.join.entry", "org", org.name(), "members", rt.state.members(id).size(),

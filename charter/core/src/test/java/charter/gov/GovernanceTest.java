@@ -89,7 +89,6 @@ public final class GovernanceTest {
         eq("found: nobody founds for someone else", OrgReasons.NOT_YOU.key(), f.as(CY, new Found(DEE, "Vel", Preset.COMMUNE)).reasonKey());
 
         OrgId vel = f.found("Vel", Preset.LORDSHIP, CY);
-        f.org(ashfall).mixedRace = true;
         f.as(KRIS, new InviteMember(ashfall, CY));
         eq("membership: joining another tree means leaving first", OrgReasons.OTHER_TREE.key(), f.as(CY, new AcceptInvite(CY, ashfall)).reasonKey());
         check("membership: refused join changes nothing", f.state.isMember(CY, vel));

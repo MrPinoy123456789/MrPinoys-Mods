@@ -40,12 +40,13 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
 - A mercenary is a player with no organization who has chosen a race with the Charter book (Become a mercenary) or
   `/charter merc <kingdom>` (`ChooseMercenaryRace`). They belong to no kingdom, hold no land and are killable anywhere.
   Grouping up is left to the players for now.
-- The race cannot be changed by the player. Operators can set it again with the same action.
+- A player cannot choose a race twice. Joining a kingdom that is not mixed makes them of its race (so a mercenary who
+  is accepted elsewhere swaps race). Operators can also set it with the same action.
 - Admin kingdoms (flag `adminKingdom`, for example Hey Dol Hollow) cannot be chosen as a mercenary race.
-- A kingdom takes only its own race, in asking, invites and admitting. Operators place anyone. The Mixed Race option
-  (`Organization.mixedRace`, set with `/charter admin faction mixed <kingdom> <on>`) lets a kingdom take any race, and
-  the Freedoms page says which a kingdom is. A leader's own switch for it is not built yet.
-- Closing a kingdom again does not remove members already inside.
+- The Mixed Race option (`Organization.mixedRace`, set with `/charter admin faction mixed <kingdom> <on>`) lets a
+  kingdom take members who keep their own race. The Freedoms page says which a kingdom is. A leader's own switch for it
+  is not built yet. Turning it off again does not change anyone already inside.
+- Planned, not designed: an altar that swaps a player's race.
 
 ## Branches and Minecraft versions
 

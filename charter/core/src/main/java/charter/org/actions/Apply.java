@@ -38,7 +38,6 @@ public record Apply(PlayerId player, OrgId org) implements Action {
         if (Joining.closed(ctx, org)) return Outcome.refuse(OrgReasons.CLOSED);
         if (ctx.state.membership(player).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_MEMBER);
         if (ctx.state.joinRequestOf(player).isPresent()) return Outcome.refuse(OrgReasons.ALREADY_ASKING);
-        if (Joining.raceBlocks(ctx, org, player)) return Outcome.refuse(OrgReasons.RACE_MISMATCH);
         return Outcome.OK;
     }
 

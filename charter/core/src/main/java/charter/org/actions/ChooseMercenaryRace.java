@@ -16,8 +16,8 @@ import java.util.Optional;
 /**
  * A player with no organization chooses the race of an ordinary kingdom and becomes a mercenary: they may wield that
  * race's weapons, but belong to no kingdom, hold no land and answer to no one. Kingdoms the operators have marked as
- * admin kingdoms cannot be chosen. The race is kept for good; only an operator can change it. A kingdom that is not
- * mixed takes only members of its own race, so the choice also decides which kingdom the mercenary may join.
+ * admin kingdoms cannot be chosen. The player cannot choose again; the race changes only when they join a kingdom that
+ * is not mixed (they take on its race), or when an operator sets it.
  */
 public record ChooseMercenaryRace(PlayerId player, OrgId kingdom) implements Action {
 

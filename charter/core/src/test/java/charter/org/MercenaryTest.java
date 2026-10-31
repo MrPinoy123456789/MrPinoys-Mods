@@ -8,7 +8,6 @@ import charter.org.actions.Admit;
 import charter.org.actions.Apply;
 import charter.org.actions.ChooseMercenaryRace;
 import charter.org.actions.CreateKingdom;
-import charter.org.actions.InviteMember;
 import charter.org.actions.Leave;
 
 import static charter.Check.check;
@@ -16,8 +15,8 @@ import static charter.Check.eq;
 import static charter.Fixture.player;
 
 /**
- * Race: a mercenary takes one and keeps it; a member gets their kingdom's; a kingdom takes only its own race unless it
- * is mixed; leaving a kingdom does not change a race; admin kingdoms cannot be chosen.
+ * Race: a mercenary takes one; joining a kingdom that is not mixed makes you of its race; a mixed kingdom lets you keep
+ * yours; leaving does not change a race; admin kingdoms cannot be chosen.
  */
 public final class MercenaryTest {
 
@@ -33,10 +32,10 @@ public final class MercenaryTest {
         theRaceCannotBeChanged();
         membersCannotChoose();
         joiningGivesTheKingdomsRace();
-        aKingdomTakesOnlyItsOwnRace();
+        joiningAnotherKingdomChangesTheRace();
         aMixedKingdomTakesAnyRace();
         leavingKeepsTheRace();
-        operatorsPlaceAnyone();
+        operatorsSetTheRace();
     }
 
     private static OrgId kingdom(Fixture f, String name, int x) {
@@ -104,15 +103,16 @@ public final class MercenaryTest {
         eq("5: and it is recorded", azrak, f.state.knownPlayer(LEO).orElseThrow().race);
     }
 
-    static void aKingdomTakesOnlyItsOwnRace() {
+    static void joiningAnotherKingdomChangesTheRace() {
         Fixture f = new Fixture();
         OrgId azrak = kingdom(f, "Azrak", 0);
         OrgId aurelia = kingdom(f, "Aurelia", 10);
-        f.seen(RIA, LEO);
+        f.seen(RIA);
         f.as(RIA, new ChooseMercenaryRace(RIA, azrak));
-        eq("6: a mercenary of another race cannot ask", "race_mismatch", f.as(RIA, new Apply(RIA, aurelia)).reasonKey());
-        check("6: she may ask her own kingdom", f.as(RIA, new Apply(RIA, azrak)).done());
-        check("6: someone with no race may ask any", f.as(LEO, new Apply(LEO, aurelia)).done());
+        enter(f, RIA, aurelia);
+        eq("6: joining another kingdom makes her of its race", aurelia, f.state.raceOf(RIA).orElseThrow());
+        eq("6: and it is recorded", aurelia, f.state.knownPlayer(RIA).orElseThrow().race);
+        eq("6: she cannot choose again", "merc_in_org", f.as(RIA, new ChooseMercenaryRace(RIA, azrak)).reasonKey());
     }
 
     static void aMixedKingdomTakesAnyRace() {
@@ -122,11 +122,12 @@ public final class MercenaryTest {
         f.seen(RIA);
         f.as(RIA, new ChooseMercenaryRace(RIA, azrak));
         f.org(aurelia).mixedRace = true;
-        check("7: a mixed kingdom takes her", f.as(RIA, new Apply(RIA, aurelia)).done());
-        check("7: and admits her", f.admin(new Admit(aurelia, RIA)).done());
+        enter(f, RIA, aurelia);
+        check("7: she is a member", f.state.isMember(RIA, aurelia));
         eq("7: her race is still Azrak", azrak, f.state.raceOf(RIA).orElseThrow());
         f.org(aurelia).mixedRace = false;
         check("7: closing the kingdom does not remove her", f.state.isMember(RIA, aurelia));
+        eq("7: nor change her race", azrak, f.state.raceOf(RIA).orElseThrow());
     }
 
     static void leavingKeepsTheRace() {
@@ -136,18 +137,18 @@ public final class MercenaryTest {
         enter(f, LEO, azrak);
         check("8: Leo leaves", f.as(LEO, new Leave(LEO)).done());
         eq("8: still Azrak", azrak, f.state.raceOf(LEO).orElseThrow());
-        eq("8: so another kingdom is closed to him", "race_mismatch", f.as(LEO, new Apply(LEO, aurelia)).reasonKey());
         eq("8: and he cannot choose again", "race_chosen", f.as(LEO, new ChooseMercenaryRace(LEO, aurelia)).reasonKey());
+        enter(f, LEO, aurelia);
+        eq("8: joining Aurelia makes him of Aurelia", aurelia, f.state.raceOf(LEO).orElseThrow());
     }
 
-    static void operatorsPlaceAnyone() {
+    static void operatorsSetTheRace() {
         Fixture f = new Fixture();
         OrgId azrak = kingdom(f, "Azrak", 0);
         OrgId aurelia = kingdom(f, "Aurelia", 10);
         f.seen(RIA);
         f.as(RIA, new ChooseMercenaryRace(RIA, azrak));
-        f.as(RIA, new Apply(RIA, azrak));
-        f.as(RIA, new Leave(RIA));
-        check("9: an operator can still admit across races when asked", f.admin(new InviteMember(aurelia, RIA)).done());
+        check("9: an operator may change a race", f.admin(new ChooseMercenaryRace(RIA, aurelia)).done());
+        eq("9: now Aurelia", aurelia, f.state.raceOf(RIA).orElseThrow());
     }
 }
