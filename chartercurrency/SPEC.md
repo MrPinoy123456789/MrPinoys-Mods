@@ -626,9 +626,12 @@ Commit after each milestone with the core tests green.
 
 ## 15. Verify against the 26.2 jar before relying on it
 
-**First, settle with the owner how this mod talks to Charter**: what Charter is
-(a mod, a plugin, a datapack), where its code lives, and how it can answer the
-four `KingdomSource` questions in section 6.4. Known so far: Charter identifies
+**First, settle how this mod talks to Charter.** Charter is a mod the owner wrote
+(as are all the mods here). Ask the owner where its code is if it is not in this
+workspace, read how it stores kingdoms, members and the Lord, and implement
+`CharterKingdomSource` against it (section 6.4). If Charter needs a small
+read-only API added to answer those questions, propose it to the owner before
+changing Charter. Known so far: Charter identifies
 kingdoms and members itself, and only the Lord may spend the treasury and buy
 from the Renown catalogue.
 
