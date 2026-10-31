@@ -80,7 +80,7 @@ HTTP and WebSocket clients. Code: `charter.mc.discord`; tests: `DiscordTest`.
 2. Invite the bot to your Discord server with the `bot` and
    `applications.commands` scopes (OAuth2, URL Generator). It needs no channel
    permissions: it only answers its own commands and sends DMs.
-3. Edit `config/charter/discord.json` (written on first start):
+3. Edit `config/charter/discord.json` (written on first start, or copy `discord.example.json` there and fill it in):
 
    | Key | Default | What it does |
    |---|---|---|
