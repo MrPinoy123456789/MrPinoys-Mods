@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "goldgate",
+  "version": "${version}",
+  "name": "Gold Gate",
+  "description": "Zombified piglins drop gold nuggets only when a player (or a tamed wolf's owner) kills them, so lava, fall and other unattended gold farms drop rotten flesh and nothing else.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "server",
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
