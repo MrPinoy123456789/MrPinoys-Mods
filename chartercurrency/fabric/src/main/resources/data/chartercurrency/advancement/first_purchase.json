@@ -1,0 +1,15 @@
+{
+  "parent": "chartercurrency:open_shop",
+  "display": {
+    "icon": { "id": "minecraft:emerald" },
+    "title": { "text": "Charter Currency: First Trade" },
+    "description": { "text": "Buy something from the shop" },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code_triggered": { "trigger": "minecraft:impossible" }
+  }
+}
