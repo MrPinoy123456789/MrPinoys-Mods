@@ -1,0 +1,15 @@
+{
+  "parent": "minecraft:adventure/root",
+  "display": {
+    "icon": { "id": "minecraft:chest" },
+    "title": { "text": "Charter Currency: Window Shopping" },
+    "description": { "text": "Open the server shop -- everything in here is for sale" },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code_triggered": { "trigger": "minecraft:impossible" }
+  }
+}
