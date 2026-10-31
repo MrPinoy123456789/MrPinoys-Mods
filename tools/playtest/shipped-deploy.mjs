@@ -1,6 +1,6 @@
 // Deploys Charter, Foundry and the Foundry content to the shipped kingdom server (Kinetic d212ecae).
 //
-//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--bedrock] [--allow name,name] [--dry]
+//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--bedrock] [--allow name,name] [--set key=value ...] [--dry]
 //
 // Only run it when the owner has asked for a deploy. It refuses to continue if the server's mods are not the same
 // Minecraft version as the jars, if anyone outside --allow is online, or if the server is not running. It backs up
@@ -36,6 +36,14 @@ async function log() {
   }
   return []
 }
+
+// --set key=value (repeatable) changes keys of config/charter/charter.json while the server is stopped; the old file is backed up.
+const sets = args.flatMap((a, i) => (a === '--set' && args[i + 1] ? [args[i + 1]] : [])).map(kv => {
+  const at = kv.indexOf('=')
+  let v = kv.slice(at + 1)
+  try { v = JSON.parse(v) } catch { /* a plain string */ }
+  return [kv.slice(0, at), v]
+})
 
 // Where each piece is built. The worktree layout changes, so the jar folders can be overridden.
 const FOUNDRY = process.env.FOUNDRY_DIR || resolve(root, 'foundry')
@@ -84,6 +92,14 @@ if (!jars.length && !content.length && !bedrock.length) { console.log('nothing t
 // 3. Back up, stop, upload, start.
 const backups = []
 for (const j of jars) if (mods.includes(j.name)) backups.push({ name: j.name.replace('.jar', `.${stamp}.jar`), bytes: await k.read('/mods/' + j.name) })
+let configNew = null
+if (sets.length) {
+  const old = await k.read('/config/charter/charter.json')
+  backups.push({ name: `charter.${stamp}.json`, bytes: old })
+  const cfg = JSON.parse(old.toString('utf8'))
+  for (const [key, v] of sets) cfg[key] = v
+  configNew = Buffer.from(JSON.stringify(cfg, null, 2) + '\n', 'utf8')
+}
 if (backups.length) await k.upload('/mods_backup', backups)
 console.log('backed up', backups.map(b => b.name).join(', ') || 'nothing')
 await k.command('say Restarting in 10 seconds for an update.')
@@ -93,6 +109,7 @@ await k.power('stop')
 for (let i = 0; i < 40 && (await k.state()) !== 'offline'; i++) await sleep(3000)
 if ((await k.state()) !== 'offline') { console.log('did not stop; aborting'); process.exit(1) }
 if (jars.length) await k.upload('/mods', jars)
+if (configNew) await k.upload('/config/charter', [{ name: 'charter.json', bytes: configNew }])
 for (const [dir, list] of [...content, ...bedrock]) if (list.length) await k.upload(dir, list)
 console.log('uploaded')
 await k.power('start')
