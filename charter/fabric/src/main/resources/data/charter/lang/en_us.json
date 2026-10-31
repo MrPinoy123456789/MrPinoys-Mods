@@ -282,6 +282,7 @@
   "entry.wild": "Entering the wild",
   "borders.on": "Borders shown. Say /charter borders again to hide them.",
   "borders.off": "Borders hidden.",
+  "tag.mercenary": "Mercenary",
   "land.admin.mixed_on": "{name} now lets in every race; new members keep their own.",
   "land.admin.mixed_off": "Joining {name} makes people of its race again. Members already inside stay as they are.",
   "land.admin.claims_set": "{name} now has a bonus of {bonus} claims, so it may hold {cap} in all.",

@@ -117,6 +117,13 @@ public final class Knobs {
             "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace")));
     /** Whether players are told on the action bar when they cross into a kingdom, an outpost, held land or the wild. */
     public boolean entryMessages = true;
+    /**
+     * The colour of the [tag] before a player's name, by the kingdom's name in lower case, and "mercenary" for players
+     * with a race and no kingdom. A kingdom with no entry gets no tag. Hex colours.
+     */
+    public java.util.Map<String, String> tagColors = new java.util.LinkedHashMap<>(java.util.Map.of(
+            "everdelle", "#FF69B4", "azurius", "#89CFF0", "faeloria", "#A020F0",
+            "azrak", "#8B5A2B", "aurelia", "#FF8C00", "mercenary", "#8A0303"));
     /** Whether a kingdom's deciders may change its form of government (Lordship, council, Commune). Off: only operators can. */
     public boolean leadersChangeGovernance = true;
     /** Whether anyone may be put into an office, or a new office made, by the people who hold power. Off: only operators, and the members' elections. */
