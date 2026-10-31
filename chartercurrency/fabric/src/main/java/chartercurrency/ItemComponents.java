@@ -19,9 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Some items are not registry entries. A Spirit Stone is {@code minecraft:echo_shard}
  * carrying {@code custom_data}, an {@code item_name} and lore -- naming the echo shard
- * alone would sell a plain shard that does nothing. The {@code wondrous} mod solved the
- * same problem with a dedicated integration file ({@link WondrousShop}) and a mod
- * dependency. This solves it in the config file instead, so the shop can sell a
+ * alone would sell a plain shard that does nothing. This solves it in the config file,
+ * with no mod dependency, so the shop can sell a
  * component-stamped item from any mod without knowing that mod exists.
  *
  * <p>The JSON is the same shape vanilla {@code /give} uses:
