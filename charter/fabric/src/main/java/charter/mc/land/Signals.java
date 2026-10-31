@@ -48,11 +48,22 @@ public final class Signals {
 
     private static long ticks;
 
+    /** Players who asked to see borders without holding a tool. */
+    private static final Set<java.util.UUID> ALWAYS = new HashSet<>();
+
     private Signals() {
     }
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(Signals::tick);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> ALWAYS.remove(handler.player.getUUID()));
+    }
+
+    /** Turns the player's always-on borders on or off and returns whether they are on now. */
+    public static boolean toggleBorders(java.util.UUID player) {
+        if (ALWAYS.remove(player)) return false;
+        ALWAYS.add(player);
+        return true;
     }
 
     private static void tick(MinecraftServer server) {
@@ -94,7 +105,7 @@ public final class Signals {
     private static void borders(MinecraftServer server) {
         CharterRuntime rt = CharterServer.runtime();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!holdsLandTool(player)) continue;
+            if (!holdsLandTool(player) && !ALWAYS.contains(player.getUUID())) continue;
             drawBorders(rt, player);
         }
     }

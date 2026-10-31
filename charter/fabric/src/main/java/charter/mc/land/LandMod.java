@@ -18,6 +18,7 @@ public final class LandMod {
         Fixtures.registerBlock();
         Guard.register();
         Signals.register();
+        Crossings.register();
         LandCommands.register();
         // The runtime is made when the server starts; follow its history once it is up.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {

@@ -115,6 +115,8 @@ public final class Knobs {
      */
     public java.util.Map<String, List<String>> racePassives = new java.util.LinkedHashMap<>(java.util.Map.of(
             "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace")));
+    /** Whether players are told on the action bar when they cross into a kingdom, an outpost, held land or the wild. */
+    public boolean entryMessages = true;
     /** Whether a kingdom's deciders may change its form of government (Lordship, council, Commune). Off: only operators can. */
     public boolean leadersChangeGovernance = true;
     /** Whether anyone may be put into an office, or a new office made, by the people who hold power. Off: only operators, and the members' elections. */

@@ -105,6 +105,7 @@ public final class CharterCommands {
                                 .then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                         .executes(CharterCommands::invite)))
+                        .then(Commands.literal("borders").executes(CharterCommands::borders))
                         .then(Commands.literal("merc")
                                 .then(Commands.argument("race", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(mercenaryRaces(), b))
@@ -243,6 +244,13 @@ public final class CharterCommands {
         int done = perform(player, new Found(id(player), name, preset), Text.get("found.done", "name", name.strip()));
         if (done == 1) Pages.faction(player, CharterServer.runtime());
         return done;
+    }
+
+    private static int borders(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        boolean on = charter.mc.land.Signals.toggleBorders(player.getUUID());
+        player.sendSystemMessage(Chat.good(Text.get(on ? "borders.on" : "borders.off")));
+        return 1;
     }
 
     /** The kingdoms a mercenary may take the race of. */
