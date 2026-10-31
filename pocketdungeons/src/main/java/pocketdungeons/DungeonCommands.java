@@ -50,7 +50,7 @@ final class DungeonCommands {
     static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
             if (WildMode.active()) {
-                dispatcher.register(wildRoot());
+                dispatcher.register(wildRoot(registry));
                 return;
             }
             LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("dungeon")
@@ -69,7 +69,7 @@ final class DungeonCommands {
      * lodestones, {@code exit} is blocked inside a dungeon, and the operator subtree stays. The mode is read once at
      * registration, so switching it takes a restart.
      */
-    private static LiteralArgumentBuilder<CommandSourceStack> wildRoot() {
+    private static LiteralArgumentBuilder<CommandSourceStack> wildRoot(net.minecraft.commands.CommandBuildContext registry) {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("dungeon")
                 .executes(ctx -> {
                     ctx.getSource().getPlayerOrException().sendSystemMessage(
@@ -84,7 +84,7 @@ final class DungeonCommands {
                             player.sendSystemMessage(Component.literal(line).withStyle(ChatFormatting.GRAY));
                             return 0;
                         }));
-        registerAdmin(root);
+        registerAdmin(root, registry);
         return root;
     }
 
