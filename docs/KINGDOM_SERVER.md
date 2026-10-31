@@ -67,6 +67,13 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Coins
+
+`kingdoms:copper_coin`, `kingdoms:iron_coin` and `kingdoms:gold_coin` are plain Foundry items (stack of 64, a drawn 16x16 icon,
+nugget look for clients without the pack). They have no recipes, no mechanics and no value yet; they are the items the
+kingdom currencies will use. Icons come from `foundry/tools/gen_icons.py` (the `COINS` table). Deploy with
+`--content --bedrock`; give one with `/foundry give <player> kingdoms:gold_coin 16`.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check

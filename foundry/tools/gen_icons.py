@@ -149,8 +149,35 @@ ICONS = [("kingdoms", "azrak_pick", pick), ("kingdoms", "aurelia_oathblade", bla
          ("demo", "fairy_wand", wand)]
 
 
+# Coins, the currencies to come: body, rim, shine, and the stamp in the middle.
+COINS = {
+    "copper_coin": ((196, 112, 68), (140, 72, 44), (236, 160, 112), (150, 80, 50)),
+    "iron_coin": ((184, 188, 198), (118, 122, 134), (232, 235, 242), (126, 130, 142)),
+    "gold_coin": ((244, 200, 56), (176, 124, 24), (255, 238, 150), (186, 134, 28)),
+}
+
+
+def coin(body, rim, shine, stamp):
+    img = new()
+    for x in range(16):
+        for y in range(16):
+            d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+            if d <= 6.2:
+                img.putpixel((x, y), (rim if d > 5.0 else body) + (255,))
+    for p in ((4, 6), (4, 5), (5, 4), (6, 3), (5, 5)):
+        dot(img, *p, shine)
+    for p in ((7, 6), (8, 6), (7, 7), (8, 7), (7, 8), (8, 8), (7, 9), (8, 9), (6, 7), (9, 8)):
+        dot(img, *p, stamp)
+    return outline(img)
+
+
 def main():
     count = 0
+    coin_folder = os.path.join(ROOT, "kingdoms", "textures", "item")
+    os.makedirs(coin_folder, exist_ok=True)
+    for name, colours in COINS.items():
+        coin(*colours).save(os.path.join(coin_folder, name + ".png"))
+        count += 1
     for ns, key, draw in ICONS:
         folder = os.path.join(ROOT, ns, "textures", "item")
         os.makedirs(folder, exist_ok=True)

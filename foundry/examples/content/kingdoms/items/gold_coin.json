@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:gold_coin",
+  "display_name": "Gold Coin",
+  "lore": [
+    "Coin of the realm."
+  ],
+  "base_item": "minecraft:gold_nugget",
+  "texture": "kingdoms:item/gold_coin",
+  "stack_size": 64,
+  "rarity": "rare"
+}

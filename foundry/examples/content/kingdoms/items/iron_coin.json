@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:iron_coin",
+  "display_name": "Iron Coin",
+  "lore": [
+    "Coin of the realm."
+  ],
+  "base_item": "minecraft:iron_nugget",
+  "texture": "kingdoms:item/iron_coin",
+  "stack_size": 64,
+  "rarity": "uncommon"
+}

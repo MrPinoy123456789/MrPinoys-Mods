@@ -225,6 +225,22 @@
         }
       }
     ],
+    "minecraft:copper_nugget": [
+      {
+        "type": "definition",
+        "model": "kingdoms:copper_coin",
+        "bedrock_identifier": "kingdoms:copper_coin",
+        "display_name": "Copper Coin",
+        "bedrock_options": {
+          "icon": "kingdoms:copper_coin",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 64
+        }
+      }
+    ],
     "minecraft:blaze_rod": [
       {
         "type": "definition",
@@ -266,6 +282,38 @@
         },
         "components": {
           "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:gold_nugget": [
+      {
+        "type": "definition",
+        "model": "kingdoms:gold_coin",
+        "bedrock_identifier": "kingdoms:gold_coin",
+        "display_name": "Gold Coin",
+        "bedrock_options": {
+          "icon": "kingdoms:gold_coin",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 64
+        }
+      }
+    ],
+    "minecraft:iron_nugget": [
+      {
+        "type": "definition",
+        "model": "kingdoms:iron_coin",
+        "bedrock_identifier": "kingdoms:iron_coin",
+        "display_name": "Iron Coin",
+        "bedrock_options": {
+          "icon": "kingdoms:iron_coin",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 64
         }
       }
     ]

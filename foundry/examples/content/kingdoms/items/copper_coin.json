@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:copper_coin",
+  "display_name": "Copper Coin",
+  "lore": [
+    "Coin of the realm."
+  ],
+  "base_item": "minecraft:copper_nugget",
+  "texture": "kingdoms:item/copper_coin",
+  "stack_size": 64,
+  "rarity": "common"
+}
