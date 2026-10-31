@@ -39,8 +39,22 @@ public final class DiscordConfig {
      * Discord can take up to an hour to show.
      */
     public String guildId = "";
+    /**
+     * Register the commands for every server and for the bot's direct messages, so a player can use /link and
+     * /requests in a DM with the bot. Discord only shows server-registered commands inside that server. When
+     * {@code guildId} is set as well, the old copy of the commands in that server is cleared, so nothing shows twice.
+     * False: the commands exist only in the {@code guildId} server.
+     */
+    public boolean commandsInDms = true;
     /** Message a linked member on Discord when someone asks to join a faction they can take players in to. */
     public boolean notifyJoinRequests = true;
+    /** The same player asking the same faction again within this many minutes is not announced again. 0 turns it off. */
+    public int applicantCooldownMinutes = 60;
+    /**
+     * After a member is messaged, requests that come in for the next this many minutes are held and
+     * announced in one message afterwards. 0 messages every request at once.
+     */
+    public int quietMinutes = 10;
     /** How long a link code from {@code /charter discord link} works. */
     public int linkCodeMinutes = 10;
 
@@ -54,6 +68,8 @@ public final class DiscordConfig {
     public List<String> problems() {
         List<String> out = new ArrayList<>();
         if (linkCodeMinutes < 1 || linkCodeMinutes > 24 * 60) out.add("linkCodeMinutes must be 1 to 1440, was " + linkCodeMinutes);
+        if (applicantCooldownMinutes < 0 || applicantCooldownMinutes > 24 * 60) out.add("applicantCooldownMinutes must be 0 to 1440, was " + applicantCooldownMinutes);
+        if (quietMinutes < 0 || quietMinutes > 24 * 60) out.add("quietMinutes must be 0 to 1440, was " + quietMinutes);
         if (guildId != null && !guildId.isBlank() && !guildId.strip().matches("\\d{5,25}")) {
             out.add("guildId must be the server's numeric id (Developer Mode, right click the server, Copy Server ID), was " + guildId);
         }

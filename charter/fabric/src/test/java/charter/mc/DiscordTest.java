@@ -12,6 +12,7 @@ import charter.mc.discord.DiscordInteractions;
 import charter.mc.discord.DiscordMessages;
 import charter.mc.discord.JoinDesk;
 import charter.mc.discord.LinkBook;
+import charter.mc.discord.NoticeGate;
 import charter.mc.store.Persistence;
 import charter.org.actions.AcceptInvite;
 import charter.org.actions.Apply;
@@ -56,6 +57,7 @@ final class DiscordTest {
         interactionsLinkAndAnswer();
         aLongQueueShowsFiveRows();
         configIsOffUntilTurnedOn();
+        noticesAreNotSpam();
     }
 
     // ---- the link book ----
@@ -336,6 +338,43 @@ final class DiscordTest {
         List<String> names = new ArrayList<>();
         commands.forEach(c -> names.add(c.getAsJsonObject().get("name").getAsString()));
         check("messages: the bot's commands", names.equals(List.of("link", "unlink", "requests")));
+    }
+
+    static void noticesAreNotSpam() throws Exception {
+        long min = 60_000L;
+        PlayerId lord = new PlayerId(UUID.randomUUID());
+        PlayerId other = new PlayerId(UUID.randomUUID());
+        PlayerId applicant = new PlayerId(UUID.randomUUID());
+        OrgId org = new OrgId(UUID.randomUUID());
+        NoticeGate gate = new NoticeGate(60, 10);
+        check("notices: a first request is told", gate.worthTelling(applicant, org, 0));
+        check("notices: the same player asking again is not", !gate.worthTelling(applicant, org, 5 * min));
+        check("notices: after the cooldown they are told again", gate.worthTelling(applicant, org, 61 * min));
+        check("notices: a different faction is told", gate.worthTelling(applicant, new OrgId(UUID.randomUUID()), 62 * min));
+        check("notices: the first message to a member is sent", gate.forMember(lord, 0) == NoticeGate.Verdict.SEND);
+        check("notices: the next within the quiet window is held", gate.forMember(lord, 2 * min) == NoticeGate.Verdict.HELD);
+        check("notices: and the next", gate.forMember(lord, 3 * min) == NoticeGate.Verdict.HELD);
+        check("notices: nothing is due inside the window", gate.due(5 * min).isEmpty());
+        var due = gate.due(11 * min);
+        check("notices: one digest when the window ends, counting both", due.size() == 1 && due.get(lord) == 2);
+        check("notices: the digest is only sent once", gate.due(12 * min).isEmpty());
+        check("notices: a request right after a digest is held", gate.forMember(lord, 12 * min) == NoticeGate.Verdict.HELD);
+        check("notices: another member has their own window", gate.forMember(other, 12 * min) == NoticeGate.Verdict.SEND);
+        gate.setMuted(lord, true);
+        check("notices: a muted member is skipped", gate.forMember(lord, 100 * min) == NoticeGate.Verdict.SKIP);
+        check("notices: muting drops what was waiting", gate.due(200 * min).get(lord) == null);
+        Path dir = Files.createTempDirectory("charter-mutes");
+        gate.save(dir, m -> check("notices: saves cleanly: " + m, false));
+        NoticeGate again = new NoticeGate(60, 10);
+        again.load(dir, m -> check("notices: loads cleanly: " + m, false));
+        check("notices: a mute survives a restart", again.isMuted(lord) && !again.isMuted(other));
+        check("notices: unmuting says it changed", again.setMuted(lord, false) && !again.setMuted(lord, false));
+        NoticeGate off = new NoticeGate(0, 0);
+        check("notices: zero settings tell everything", off.worthTelling(applicant, org, 0) && off.worthTelling(applicant, org, 1)
+                && off.forMember(lord, 0) == NoticeGate.Verdict.SEND && off.forMember(lord, 1) == NoticeGate.Verdict.SEND);
+        DiscordConfig bad = new DiscordConfig();
+        bad.quietMinutes = -1;
+        check("notices: a bad quiet window is a problem", !bad.problems().isEmpty());
     }
 
     static void configIsOffUntilTurnedOn() throws Exception {
