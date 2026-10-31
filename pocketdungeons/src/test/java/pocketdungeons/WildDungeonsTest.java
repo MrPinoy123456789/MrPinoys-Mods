@@ -33,10 +33,18 @@ public class WildDungeonsTest {
     }
 
     private static void validation() {
-        String good = "{\"name\":\"A\",\"dungeon\":\"d\",\"node\":\"n\",\"promise\":\"Iron.\",\"cooldownMinutes\":60}";
+        String good = "{\"type\":\"mine\",\"variety\":\"coal\",\"name\":\"A\",\"dungeon\":\"d\",\"node\":\"n\","
+                + "\"promise\":\"Iron.\",\"cooldownMinutes\":60}";
         check(WildDungeons.problems(parse(good), (d, n) -> true).isEmpty(), "a complete file is usable");
         check(!WildDungeons.problems(parse(good), (d, n) -> false).isEmpty(), "an unknown node is refused");
         check(!WildDungeons.problems(parse("{}"), (d, n) -> true).isEmpty(), "an empty file is refused");
+        check(!WildDungeons.problems(parse(good.replace("mine", "cave")), (d, n) -> true).isEmpty(),
+                "an unknown type is refused");
+        check(!WildDungeons.problems(parse(good.replace("\"coal\"", "\"\"")), (d, n) -> true).isEmpty(),
+                "an empty variety is refused");
+        check(parse(good.replace("mine", "long_dungeon")).pathBonus() == WildDungeons.LONG_PATH_BONUS,
+                "a long dungeon walks further");
+        check(parse(good).pathBonus() == 0, "a mine adds no path");
         check(!WildDungeons.problems(parse(good.replace("\"Iron.\"", "\"\"")), (d, n) -> true).isEmpty(),
                 "an empty promise is refused");
         check(!WildDungeons.problems(parse(good.replace("60", "0")), (d, n) -> true).isEmpty(),
@@ -70,15 +78,25 @@ public class WildDungeonsTest {
             files = walk.filter(p -> p.toString().endsWith(".json")).sorted().toList();
         }
         check(files.size() >= 4, "found only " + files.size() + " wild offerings");
+        java.util.Set<String> types = new java.util.HashSet<>();
+        java.util.Set<String> mineVarieties = new java.util.HashSet<>();
         for (Path file : files) {
             JsonObject json = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
             WildDungeons.Offering offering = WildDungeons.parse(file.getFileName().toString(), json);
             List<String> problems = WildDungeons.problems(offering, WildDungeonsTest::nodeInShippedData);
             check(problems.isEmpty(), file.getFileName() + ": " + problems);
             check(offering.promise().length() <= 40, file.getFileName() + " promise is too long for a menu line");
+            types.add(offering.type());
+            if (offering.type().equals(WildDungeons.MINE)) {
+                mineVarieties.add(offering.variety());
+            }
+            check(offering.type().equals(WildDungeons.LONG_DUNGEON) == (offering.cooldownMinutes() >= 360),
+                    file.getFileName() + ": only a long dungeon cools down for 6 hours or more");
             check(!offering.promise().contains(EM_DASH) && !offering.promise().contains((" " + "-" + "- ")),
                     file.getFileName() + " promise has a dash");
         }
+        check(types.containsAll(WildDungeons.TYPES), "all three types are offered, got " + types);
+        check(mineVarieties.size() >= 3, "at least three kinds of mine are offered, got " + mineVarieties);
     }
 
     private static boolean nodeInShippedData(String dungeon, String node) {

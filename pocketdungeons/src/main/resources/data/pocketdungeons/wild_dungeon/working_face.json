@@ -1,4 +1,6 @@
 {
+  "type": "mine",
+  "variety": "coal",
   "name": "The Working Face",
   "dungeon": "pocketdungeons:endless_mine",
   "node": "working_face",

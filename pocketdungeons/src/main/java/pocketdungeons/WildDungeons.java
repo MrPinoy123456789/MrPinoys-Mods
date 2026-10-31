@@ -29,7 +29,28 @@ final class WildDungeons {
 
     /** One offering. {@code dungeon} and {@code node} point into {@code dungeon/*.json}. */
     record Offering(String id, String name, String dungeon, String node, String promise, int cooldownMinutes,
-                    int weight, int minDistance, int maxLevel) {}
+                    int weight, int minDistance, int maxLevel, String type, String variety) {
+
+        /** An offering with no type: a plain {@link #DUNGEON}. Kept so a test can build one in nine arguments. */
+        Offering(String id, String name, String dungeon, String node, String promise, int cooldownMinutes,
+                 int weight, int minDistance, int maxLevel) {
+            this(id, name, dungeon, node, promise, cooldownMinutes, weight, minDistance, maxLevel, DUNGEON, "");
+        }
+
+        /** Extra path length on top of the configured range: a long dungeon is a longer walk. */
+        int pathBonus() {
+            return LONG_DUNGEON.equals(type) ? LONG_PATH_BONUS : 0;
+        }
+    }
+
+    /** The three kinds of offering (owner, 2026-10-31). {@code variety} says which mine, or which dungeon, within one. */
+    static final String MINE = "mine";
+    static final String DUNGEON = "dungeon";
+    static final String LONG_DUNGEON = "long_dungeon";
+    static final List<String> TYPES = List.of(MINE, DUNGEON, LONG_DUNGEON);
+
+    /** Cells added to the planner's min and max path for a long dungeon. */
+    static final int LONG_PATH_BONUS = 6;
 
     private static volatile Map<String, Offering> current = Map.of();
 
@@ -97,7 +118,9 @@ final class WildDungeons {
                 number(json, "cooldownMinutes", 0),
                 number(json, "weight", 1),
                 number(json, "minDistance", 0),
-                number(json, "maxLevel", 1));
+                number(json, "maxLevel", 1),
+                json.has("type") ? text(json, "type") : DUNGEON,
+                text(json, "variety"));
     }
 
     /** Everything wrong with an offering, empty when it is usable. */
@@ -120,6 +143,12 @@ final class WildDungeons {
         }
         if (o.maxLevel() < 1) {
             out.add("maxLevel must be at least 1");
+        }
+        if (!TYPES.contains(o.type())) {
+            out.add("type must be one of " + TYPES);
+        }
+        if (o.variety().isBlank()) {
+            out.add("variety is empty (which mine or dungeon this is)");
         }
         if (o.dungeon().isBlank() || o.node().isBlank()) {
             out.add("dungeon and node are required");

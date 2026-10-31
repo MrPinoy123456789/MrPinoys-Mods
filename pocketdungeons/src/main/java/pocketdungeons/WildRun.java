@@ -135,8 +135,9 @@ final class WildRun {
         Set<String> baseAffixes = Keystone.dealtAffixes(owner, offer);
         Set<String> bagTags = BagTags.pilgrim(1);
         RunRecipePlan.Refusal[] refusal = new RunRecipePlan.Refusal[1];
-        RunRecipePlan recipePlan = RunRecipePlan.resolve(level.getRandom().nextLong(), offer.level(), baseAffixes,
+        RunRecipePlan resolved = RunRecipePlan.resolve(level.getRandom().nextLong(), offer.level(), baseAffixes,
                 bagTags, new CompoundTag(), refusal);
+        RunRecipePlan recipePlan = resolved == null ? null : resolved.withExtraPath(offering.pathBonus());
         if (recipePlan == null) {
             lastRefusal = refusal[0] != null ? refusal[0].reason : "recipe refused";
             PocketDungeonsMod.LOG.error("Wild lodestone {}: recipe refused: {}", lodestone.id, lastRefusal);

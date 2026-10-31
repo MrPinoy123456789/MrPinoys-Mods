@@ -1,4 +1,6 @@
 {
+  "type": "long_dungeon",
+  "variety": "deepslate",
   "name": "Deep Quarry",
   "dungeon": "pocketdungeons:deepslate",
   "node": "deep_quarry",

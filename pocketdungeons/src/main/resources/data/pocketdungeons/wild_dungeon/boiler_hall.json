@@ -1,4 +1,6 @@
 {
+  "type": "dungeon",
+  "variety": "copper",
   "name": "Boiler Hall",
   "dungeon": "pocketdungeons:copper_works",
   "node": "boiler_hall",

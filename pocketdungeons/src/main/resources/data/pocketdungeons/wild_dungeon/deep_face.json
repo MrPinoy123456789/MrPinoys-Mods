@@ -1,4 +1,6 @@
 {
+  "type": "mine",
+  "variety": "mineshaft",
   "name": "The Deep Face",
   "dungeon": "pocketdungeons:mineshaft",
   "node": "deep_face",

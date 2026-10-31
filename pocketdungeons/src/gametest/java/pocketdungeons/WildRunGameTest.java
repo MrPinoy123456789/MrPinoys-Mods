@@ -101,10 +101,9 @@ public final class WildRunGameTest {
                 if (record.layout.keystoneLevel() != 2) {
                     problems.add(offering.id() + ": level " + record.layout.keystoneLevel());
                 }
-                boolean clearable = !record.layout.trialSpawners().isEmpty()
-                        || FloorObjectives.of(record) != FloorObjective.SPAWNERS;
-                if (!clearable) {
-                    problems.add(offering.id() + ": nothing to clear (no spawners, spawner objective)");
+                // No clear path is required: players bring overworld items to solve a floor (owner, 2026-10-31).
+                if (offering.type().equals(WildDungeons.LONG_DUNGEON) && record.layout.roomCount() < 8) {
+                    problems.add(offering.id() + ": a long dungeon has only " + record.layout.roomCount() + " rooms");
                 }
                 if (!WildLodestones.hasExit(lode.id, false)) {
                     problems.add(offering.id() + ": no arrival exit block");

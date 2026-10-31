@@ -1288,4 +1288,6 @@ fires too early on a floor with an objective instead of spawners; whether the em
 
 Owner notes after phase 2 (2026-10-31): Endless Mine nodes are acceptable offerings, but each offering must be thematic for its type of dungeon (mine, dungeon, long dungeon). Wild mode does not need the campaign's guarantee of a clear path to finishing, because players can bring items from the overworld to solve problems. Not yet built; the type field and what it changes are open.
 
+Owner note (2026-10-31): a special player currency and a kingdom currency are coming, and wild dungeons must be able to reward them. Phase 3 should therefore pay a clear through one reward seam (a single method taking the lodestone, its offering type and variety, the level and the players inside) so the currencies attach in one place; the chests stay the item payout. Not built.
+
 Phase 2 deviations from the plan: the arrival Exit block has no item or text display yet (the jigsaw alone marks it); `wildBlockedCommands` is read but not enforced (it defaults to empty, so nothing is blocked); the clean stop sweep of ground items (task 2.10) waits for `WildSweep` in phase 3; the unclean-stop slot clear relies on `reconcileAfterUncleanShutdown`, as planned.

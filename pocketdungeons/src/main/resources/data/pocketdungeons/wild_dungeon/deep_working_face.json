@@ -1,4 +1,6 @@
 {
+  "type": "mine",
+  "variety": "deep",
   "name": "The Deep Working Face",
   "dungeon": "pocketdungeons:endless_mine_deep",
   "node": "working_face",
