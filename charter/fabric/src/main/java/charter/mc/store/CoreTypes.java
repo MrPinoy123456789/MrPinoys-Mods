@@ -56,6 +56,7 @@ public final class CoreTypes {
                 .register("org.found_keep", charter.org.actions.FoundKeep.class)
                 .register("org.create_kingdom", charter.org.actions.CreateKingdom.class)
                 .register("org.appoint_leader", charter.org.actions.AppointLeader.class)
+                .register("org.add_member", charter.org.actions.AddMember.class)
                 .register("org.secede", charter.org.actions.Secede.class)
                 .register("org.dissolve", charter.org.actions.DissolveOrg.class)
                 .register("npc.spawn", charter.npc.SpawnNpc.class)
