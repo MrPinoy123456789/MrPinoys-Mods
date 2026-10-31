@@ -16,6 +16,8 @@ import charter.mc.CharterRuntime;
 import charter.mc.CharterServer;
 import charter.mc.Text;
 import charter.org.MemberRecord;
+import charter.org.Organization;
+import charter.org.actions.ChooseMercenaryRace;
 import charter.org.actions.Found;
 import charter.org.actions.InviteMember;
 import charter.treasury.Currency;
@@ -34,6 +36,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -102,6 +105,10 @@ public final class CharterCommands {
                                 .then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                         .executes(CharterCommands::invite)))
+                        .then(Commands.literal("merc")
+                                .then(Commands.argument("race", StringArgumentType.string())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(mercenaryRaces(), b))
+                                        .executes(CharterCommands::mercenary)))
                         .then(Commands.literal("grant")
                                 .then(Commands.argument("to", StringArgumentType.string())
                                         .then(Commands.argument("power", StringArgumentType.word())
@@ -236,6 +243,25 @@ public final class CharterCommands {
         int done = perform(player, new Found(id(player), name, preset), Text.get("found.done", "name", name.strip()));
         if (done == 1) Pages.faction(player, CharterServer.runtime());
         return done;
+    }
+
+    /** The kingdoms a mercenary may take the race of. */
+    private static List<String> mercenaryRaces() {
+        if (!CharterServer.running()) return List.of();
+        return CharterServer.runtime().state.orgs().stream()
+                .filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom).map(Organization::name).toList();
+    }
+
+    private static int mercenary(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        CharterRuntime rt = CharterServer.runtime();
+        String name = StringArgumentType.getString(ctx, "race");
+        Optional<Organization> org = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.name().equalsIgnoreCase(name)).findFirst();
+        if (org.isEmpty()) {
+            ctx.getSource().sendFailure(Chat.bad(Text.get("book.merc.unknown", "race", name)));
+            return 0;
+        }
+        return perform(player, new ChooseMercenaryRace(id(player), org.get().id), Text.get("book.merc.done", "race", org.get().name()));
     }
 
     private static int invite(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

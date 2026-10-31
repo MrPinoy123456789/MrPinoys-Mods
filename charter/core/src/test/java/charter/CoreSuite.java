@@ -16,6 +16,7 @@ public final class CoreSuite {
         charter.gov.SeatsTest.run();
         charter.gov.StandingTest.run();
         charter.org.JoinRequestTest.run();
+        charter.org.MercenaryTest.run();
         charter.org.FoundKeepTest.run();
         charter.org.BreakawayTest.run();
         charter.org.DissolveOrgTest.run();

@@ -40,7 +40,7 @@ public final class RaceNodes {
     /** True when the player belongs to the kingdom whose node path is {@code path}. */
     static boolean holds(CharterRuntime rt, PlayerId player, String path) {
         var membership = rt.state.membership(player);
-        if (membership.isEmpty()) return false;
+        if (membership.isEmpty()) return mercenaryHolds(rt, player, path);
         OrgId at = membership.get().org();
         // A member of an outpost or other part belongs to the top level kingdom above it.
         for (int depth = 0; at != null && depth < 16; depth++) {
@@ -50,6 +50,14 @@ public final class RaceNodes {
             at = org.parent();
         }
         return false;
+    }
+
+    /** A mercenary holds the race they chose, while that kingdom still stands and has not become an admin kingdom. */
+    private static boolean mercenaryHolds(CharterRuntime rt, PlayerId player, String path) {
+        OrgId kingdom = rt.state.knownPlayer(player).map(r -> r.mercKingdom).orElse(null);
+        if (kingdom == null) return false;
+        Organization org = rt.state.org(kingdom).orElse(null);
+        return org != null && org.isTopLevel() && org.exists() && !org.adminKingdom && path.equals(slug(org.name()));
     }
 
     /** The node path for a kingdom name: lower case, letters and digits, anything else turned to an underscore. */

@@ -31,6 +31,20 @@ recipes with the lower tier first, unlocked through generated advancements.
 - Bedrock: Geyser cannot read Polymer models. `foundry/tools/gen_bedrock.py` writes the Geyser mappings and the
   Bedrock pack; deploy with `--bedrock`. Geyser needs `enable-custom-content: true` (already set).
 
+## Mercenaries
+
+A mercenary is a player with no organization who has taken the race of an ordinary kingdom. They hold that kingdom's
+`race:<kingdom>` node, so its weapons work for them, but they belong to no kingdom, hold no land and are on their own.
+They are killable anywhere like everyone else. Grouping up is left to the players for now.
+
+- Choose with the Charter book (Become a mercenary) or `/charter merc <kingdom>`. The action is `ChooseMercenaryRace`;
+  the choice lives on `PlayerRecord.mercKingdom` and is saved with the players.
+- Admin kingdoms (flag `adminKingdom`, for example Hey Dol Hollow) cannot be chosen, and the race is lost if its kingdom
+  later becomes an admin kingdom. Operators can set any choice with no wait.
+- A change of race waits `mercChangeDays` (default 7). Joining any organization clears the record; it never stacks on
+  membership and does not return when the member leaves.
+- Operators who make a kingdom an admin kingdom after mercenaries chose it remove the race from them without notice.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check

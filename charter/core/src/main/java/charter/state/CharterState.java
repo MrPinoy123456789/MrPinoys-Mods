@@ -203,6 +203,9 @@ public final class CharterState {
 
     public void join(PlayerId player, OrgId org, long now) {
         memberships.put(player, MemberRecord.of(player, org, now));
+        // Belonging to an organization ends a mercenary's own race; it never stacks on top of one.
+        PlayerRecord record = players.get(player);
+        if (record != null) record.mercKingdom = null;
         treeVersion++;
     }
 

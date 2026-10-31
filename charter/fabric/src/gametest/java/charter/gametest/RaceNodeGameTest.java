@@ -31,4 +31,26 @@ public final class RaceNodeGameTest {
             helper.succeed();
         }
     }
+
+    @GameTest(maxTicks = 100)
+    public void aMercenaryHoldsTheRaceTheyChoseWithoutJoining(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer dwarf = kit.faction("Dwarf");
+            ServerPlayer elf = kit.faction("Elf");
+            ServerPlayer merc = kit.outsider();
+            charter.id.OrgId dwarfOrg = kit.orgOf(dwarf);
+            String dwarfKingdom = kit.rt.state.org(dwarfOrg).orElseThrow().name();
+            String elfKingdom = kit.rt.state.org(kit.orgOf(elf)).orElseThrow().name();
+            charter.id.PlayerId id = new charter.id.PlayerId(merc.getUUID());
+            helper.assertTrue(!holds(merc, dwarfKingdom), "before choosing, no race");
+            var outcome = kit.rt.engine.run(new charter.engine.Actor.Player(id), new charter.org.actions.ChooseMercenaryRace(id, dwarfOrg));
+            helper.assertTrue(outcome.done(), "the choice is accepted");
+            helper.assertTrue(holds(merc, dwarfKingdom), "a mercenary holds the chosen race");
+            helper.assertTrue(!holds(merc, elfKingdom), "and no other");
+            helper.assertTrue(kit.rt.state.membership(id).isEmpty(), "while belonging to no kingdom");
+            kit.rt.state.org(dwarfOrg).orElseThrow().adminKingdom = true;
+            helper.assertTrue(!holds(merc, dwarfKingdom), "the race is lost if its kingdom becomes an admin kingdom");
+            helper.succeed();
+        }
+    }
 }

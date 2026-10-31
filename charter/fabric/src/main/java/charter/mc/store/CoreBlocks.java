@@ -173,6 +173,8 @@ public final class CoreBlocks {
             o.addProperty("name", p.name);
             o.addProperty("lastSeen", p.lastSeen);
             o.addProperty("lastFoundedAt", p.lastFoundedAt);
+            if (p.mercKingdom != null) o.add("mercKingdom", gson.toJsonTree(p.mercKingdom));
+            if (p.mercChosenAt != 0) o.addProperty("mercChosenAt", p.mercChosenAt);
             players.add(o);
         }
         JsonObject root = new JsonObject();
@@ -187,6 +189,8 @@ public final class CoreBlocks {
             p.name = str(o, "name");
             p.lastSeen = num(o, "lastSeen");
             p.lastFoundedAt = num(o, "lastFoundedAt");
+            p.mercKingdom = get(o, "mercKingdom", OrgId.class, gson);
+            p.mercChosenAt = num(o, "mercChosenAt");
         }
     }
 

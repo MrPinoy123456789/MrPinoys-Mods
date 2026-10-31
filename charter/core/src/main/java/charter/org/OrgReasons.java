@@ -26,5 +26,9 @@ public final class OrgReasons {
     public static final Reason RULER_STAYS = new Reason("ruler_stays", "A ruler abdicates before breaking away.");
     public static final Reason NEEDS_GROUP = new Reason("needs_group", "At least two must break away together.");
     public static final Reason FOUNDING_CLOSED = new Reason("founding_closed", "Kingdoms are set by the server's operators for now. Ask one to make yours.");
+    public static final Reason MERC_IN_ORG = new Reason("merc_in_org", "Only a player without an organization can be a mercenary. Leave yours first.");
+    public static final Reason MERC_NOT_A_RACE = new Reason("merc_not_a_race", "That is not a race a mercenary can take.");
+    public static final Reason MERC_SAME = new Reason("merc_same", "You already carry that race.");
+    public static final Reason MERC_COOLDOWN = new Reason("merc_cooldown", "You chose a race too recently to change it.");
     public static final Reason NOT_YOU = new Reason("not_you", "Only that player can do this.");
 }

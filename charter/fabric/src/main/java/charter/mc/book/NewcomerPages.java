@@ -10,6 +10,7 @@ import charter.mc.cmd.Chat;
 import charter.org.JoinRequest;
 import charter.org.Organization;
 import charter.org.actions.Apply;
+import charter.org.actions.ChooseMercenaryRace;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -73,14 +74,46 @@ public final class NewcomerPages {
         } else {
             body.add(BookDialogs.text(Text.get("book.newcomer.intro")));
         }
+        OrgId merc = rt.state.knownPlayer(me(player)).map(r -> r.mercKingdom).orElse(null);
+        if (merc != null && rt.state.org(merc).isPresent()) {
+            body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(merc))));
+        }
         body.add(BookDialogs.text(Text.get("book.calendar.seasons", "seasons", MemberPages.seasonNames())));
         body.add(BookDialogs.text(Text.get("book.calendar.days")));
         List<ActionButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("book.button.join"), p -> join(p, null)));
+        buttons.add(go(player, Text.get("book.button.merc"), p -> mercenary(p, null)));
         // While the operators set the kingdoms, there is no founding to walk a newcomer through.
         if (rt.knobs.playerFounding) buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)));
         buttons.add(go(player, Text.get("book.button.realm"), MemberPages::realmChronicle));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.newcomer.title"), lines(notice, body), buttons, BookDialogs.close()));
+    }
+
+    // ---- Mercenary ----
+
+    /** Take the race of an ordinary kingdom without joining it. Kingdoms the operators keep for themselves are not listed. */
+    public static void mercenary(ServerPlayer player, String notice) {
+        if (!alone(player)) return;
+        CharterRuntime rt = rt();
+        OrgId current = rt.state.knownPlayer(me(player)).map(r -> r.mercKingdom).orElse(null);
+        List<DialogBody> body = new ArrayList<>();
+        body.add(BookDialogs.text(Text.get("book.merc.intro")));
+        body.add(BookDialogs.text(Text.get("book.merc.rules", "days", rt.knobs.mercChangeDays)));
+        if (current != null && rt.state.org(current).isPresent()) {
+            body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.describe.org(current))));
+        }
+        List<ActionButton> buttons = new ArrayList<>();
+        for (Organization org : rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
+                .sorted(Comparator.comparing(Organization::name)).toList()) {
+            OrgId id = org.id;
+            if (id.equals(current)) continue;
+            buttons.add(go(player, Text.get("book.merc.take", "race", org.name()), p -> BookRouter.run(p,
+                    new ChooseMercenaryRace(me(p), id),
+                    line -> mercenary(p, line != null ? line : Text.get("book.merc.done", "race", org.name())))));
+        }
+        if (buttons.isEmpty()) body.add(BookDialogs.text(Text.get("book.merc.none")));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.merc.title"), lines(notice, body), buttons,
+                BookDialogs.back(player, p -> home(p, null))));
     }
 
     // ---- Join a faction ----

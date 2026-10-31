@@ -178,6 +178,8 @@ public final class Knobs {
     public int seatVoteHours = 24;
     public int activeWindowDays = 14;
     public int foundSecedeCooldownDays = 7;
+    /** How long a mercenary waits before taking a different race. */
+    public int mercChangeDays = 7;
     public int dormancyDays = 30;
     /** What a Lordship's Lord may spend in one action without a vote. */
     public int lordSpendLimitDiamonds = 32;
