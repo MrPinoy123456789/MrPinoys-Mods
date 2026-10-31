@@ -60,6 +60,56 @@ Not protected on purpose: mob griefing (endermen, ravagers) follows the vanilla
 - Admin: `/charter admin faction spawn <name> <player>`, `camp raise-now`,
   `perimeter show`, `give`.
 
+## Discord
+
+A built in bot lets a player link their Discord account and answer their
+faction's join requests from Discord. It is off until an operator turns it on, and
+it needs nothing installed beside Charter: it talks to Discord with the JDK's own
+HTTP and WebSocket clients. Code: `charter.mc.discord`; tests: `DiscordTest`.
+
+**Setting it up**
+
+1. In the Discord developer portal, create an application, add a Bot, and copy its
+   token. No privileged intents are needed.
+2. Invite the bot to your Discord server with the `bot` and
+   `applications.commands` scopes (OAuth2, URL Generator). It needs no channel
+   permissions: it only answers its own commands and sends DMs.
+3. Edit `config/charter/discord.json` (written on first start):
+
+   | Key | Default | What it does |
+   |---|---|---|
+   | `enabled` | `false` | Nothing connects until this is true |
+   | `botToken` | `""` | The bot token. Leave blank to read the `CHARTER_DISCORD_TOKEN` environment variable instead |
+   | `guildId` | `""` | Your Discord server's id. Set it and the commands show there at once; blank registers them everywhere, which Discord can take up to an hour to show |
+   | `notifyJoinRequests` | `true` | DM linked members who may take players in when someone asks to join |
+   | `linkCodeMinutes` | `10` | How long a link code works |
+
+4. Restart the server. The log says `Discord connected as <bot name>`.
+
+**Linking (players)**
+
+1. In game, `/charter discord link` shows a six character code (click it to copy).
+2. In Discord, `/link code:<code>`. The reply is only visible to them.
+3. `/charter discord` shows whether you are linked; `/charter discord unlink` in
+   game or `/unlink` in Discord undoes it.
+
+A code works once, runs out after `linkCodeMinutes`, and only the player who
+asked sees it. Five wrong codes from one Discord account make it wait 15 minutes.
+One Discord account per player: linking again replaces the old link. Links are
+kept in the world's `charter/discord-links.json`; codes are not saved.
+
+**Join requests**
+
+`/requests` in Discord lists who asks to join a faction the player may take players
+in to, with **Admit** and **Turn away** buttons (Turn away asks first). The rule is
+the Faction page's own: the `MANAGE_MEMBERS` power, which the Lord of a Lordship
+holds and a faction can grant. Every press runs `Admit` or `Reject` through the
+engine as the linked player, so it is checked at that moment exactly as a click in
+the book would be; a council that decides together gets a proposal, as in game.
+When someone asks to join, each linked member who may answer gets a DM with the
+same buttons. Acting from Discord does not count as being seen in game (the absent
+Lord rule still needs the Lord to log in).
+
 ## The playtest kit
 
 Everything an operator needs for the first session (PLAN.md §12).

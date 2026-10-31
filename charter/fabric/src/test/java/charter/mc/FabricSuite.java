@@ -23,6 +23,7 @@ public final class FabricSuite {
         JusticeTest.run();
         ChronicleBookTest.run();
         ScenarioFilesTest.run();
+        DiscordTest.run();
 
         System.out.println("fabric: " + passed + " passed, " + failures.size() + " failed");
         for (String failure : failures) {

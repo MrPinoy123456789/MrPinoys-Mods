@@ -53,6 +53,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.npc.NpcCommands.register();
         // The Charter book and the founding Nexus.
         charter.mc.book.BookMod.register();
+        // Discord: linked accounts, join requests answered from Discord (off until discord.json enables it).
+        charter.mc.discord.DiscordBridge.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }
