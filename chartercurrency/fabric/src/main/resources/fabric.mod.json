@@ -9,6 +9,9 @@
   "entrypoints": {
     "main": [
       "chartercurrency.CharterCurrencyMod"
+    ],
+    "charter:payment": [
+      "chartercurrency.CharterPaymentProvider"
     ]
   },
   "mixins": [

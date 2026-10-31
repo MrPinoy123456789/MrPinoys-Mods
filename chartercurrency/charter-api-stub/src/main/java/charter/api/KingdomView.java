@@ -1,0 +1,18 @@
+package charter.api;
+
+import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
+
+/** Answers kingdom questions for outside mods. Lookups are by organization id. */
+public interface KingdomView {
+    /** The top level organization (kingdom) the player belongs to, if any. */
+    Optional<String> kingdomOf(UUID player);
+
+    /** The Lord of an organization, if the office is filled. */
+    Optional<UUID> lordOf(String orgId);
+
+    String displayName(String orgId);
+
+    Collection<String> orgIds();
+}

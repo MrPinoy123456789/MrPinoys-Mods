@@ -31,6 +31,10 @@ dependencies {
     // The economy, shaded into the jar. Server owners drop in one file.
     implementation(project(":core"))
     include(project(":core"))
+
+    // Charter's published api, compile time only. The real classes come from Charter at
+    // runtime; the stub module is never shipped (see charter-api-stub/build.gradle.kts).
+    compileOnly(project(":charter-api-stub"))
 }
 
 repositories {

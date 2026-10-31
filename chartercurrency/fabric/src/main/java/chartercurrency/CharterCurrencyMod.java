@@ -113,6 +113,7 @@ public final class CharterCurrencyMod implements ModInitializer {
         MintService mintService = new MintService(book, treasury, settings.mint);
         Services services = new Services(settings, currencies, economy, leaderboard, names, log,
                 treasury, book, mintService, kingdoms, sites);
+        Services.current = services;
         MintListener mintListener = new MintListener(services);
         mintListener.register();
         TreasuryCommands treasuryCommands = new TreasuryCommands(services, mintListener);

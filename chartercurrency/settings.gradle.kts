@@ -21,4 +21,5 @@ pluginManagement {
 rootProject.name = "chartercurrency"
 
 include("core")
+include("charter-api-stub")
 include("fabric")

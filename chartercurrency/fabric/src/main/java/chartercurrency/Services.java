@@ -11,6 +11,9 @@ import chartercurrency.core.Treasury;
 /** The wired-up services, handed to the command classes instead of long constructors. */
 final class Services {
 
+    /** Set once the mod has started; the Charter entrypoint classes read it. */
+    static volatile Services current;
+
     final EconomySettings settings;
     final CurrencyRegistry currencies;
     final EconomyService economy;
