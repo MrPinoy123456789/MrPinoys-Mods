@@ -276,6 +276,7 @@
   "land.admin.racename_set": "The race of {name} is called {race}.",
   "land.admin.race_removed": "{player} has no race now.",
   "land.admin.race_unknown": "{name} is not a race that can be given. Use none to remove a race.",
+  "tag.mercenary": "Mercenary",
   "land.admin.mixed_on": "{name} now lets in every race; new members keep their own.",
   "land.admin.mixed_off": "Joining {name} makes people of its race again. Members already inside stay as they are.",
   "land.admin.claims_set": "{name} now has a bonus of {bonus} claims, so it may hold {cap} in all.",

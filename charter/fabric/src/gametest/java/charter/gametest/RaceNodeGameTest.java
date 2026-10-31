@@ -100,4 +100,28 @@ public final class RaceNodeGameTest {
             helper.succeed();
         }
     }
+
+    @GameTest(maxTicks = 100)
+    public void aPlayerWearsTheirKingdomsTag(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer dwarf = kit.faction("Dwarf");
+            ServerPlayer merc = kit.outsider();
+            ServerPlayer nobody = kit.outsider();
+            charter.id.OrgId dwarfOrg = kit.orgOf(dwarf);
+            String kingdom = kit.rt.state.org(dwarfOrg).orElseThrow().name();
+            kit.rt.knobs.tagColors = java.util.Map.of(kingdom.toLowerCase(java.util.Locale.ROOT), "#FF69B4", "mercenary", "#8A0303");
+            charter.id.PlayerId mercId = new charter.id.PlayerId(merc.getUUID());
+            kit.rt.engine.run(new charter.engine.Actor.Player(mercId), new charter.org.actions.ChooseMercenaryRace(mercId, dwarfOrg));
+            charter.mc.Tags.applyTo(dwarf, kit.rt);
+            charter.mc.Tags.applyTo(merc, kit.rt);
+            charter.mc.Tags.applyTo(nobody, kit.rt);
+            helper.assertTrue(dwarf.getTeam() != null && dwarf.getTeam().getPlayerPrefix().getString().equals("[" + kingdom + "] "),
+                    "a member wears their kingdom's tag: " + (dwarf.getTeam() == null ? "no team" : dwarf.getTeam().getPlayerPrefix().getString()));
+            helper.assertTrue(dwarf.getTeam().getPlayerPrefix().getStyle().getColor().getValue() == 0xFF69B4, "in its colour");
+            helper.assertTrue(merc.getTeam() != null && merc.getTeam().getPlayerPrefix().getString().equals("[Mercenary] "),
+                    "a mercenary wears the Mercenary tag");
+            helper.assertTrue(nobody.getTeam() == null, "someone with no race and no kingdom has none");
+            helper.succeed();
+        }
+    }
 }

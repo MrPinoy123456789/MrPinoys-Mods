@@ -67,6 +67,15 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Name tags
+
+`Tags` puts a coloured [tag] before each player's name in chat, the tab list and over their head, using one scoreboard
+team per tag (names `ct_<kingdom>`, refreshed every 2 seconds). Members wear their kingdom's name, and a player with a
+race and no kingdom wears [Mercenary]. Colours are the `tagColors` knob in `charter.json` (kingdom name in lower case to
+a hex colour, plus `mercenary`); a kingdom with no entry gets no tag. Defaults: Everdelle pink, Azurius baby blue,
+Faeloria purple, Azrak brown, Aurelia orange, Mercenary blood red. Only teams named `ct_*` are touched, so a player on
+another team keeps it. Bedrock players see the tag only if Geyser carries the team prefix, which is unverified.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check
