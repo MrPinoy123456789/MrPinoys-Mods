@@ -63,14 +63,14 @@ final class TreasuryCommands {
                                 .then(Commands.argument("denomination", StringArgumentType.word())
                                         .suggests(words())
                                         .executes(ctx -> withdraw(ctx, "denomination", null))
-                                        .then(Commands.argument("kingdom", StringArgumentType.word())
+                                        .then(Commands.argument("kingdom", StringArgumentType.string())
                                                 .suggests(kingdoms())
                                                 .executes(ctx -> withdraw(ctx, "denomination", "kingdom"))))))
                 .then(Commands.literal("ledger")
                         .executes(ctx -> ledger(ctx, ""))
                         .then(Commands.argument("options", StringArgumentType.greedyString())
                                 .executes(ctx -> ledger(ctx, StringArgumentType.getString(ctx, "options")))))
-                .then(Commands.argument("kingdom", StringArgumentType.word())
+                .then(Commands.argument("kingdom", StringArgumentType.string())
                         .suggests(kingdoms())
                         .executes(ctx -> overview(ctx, "kingdom"))));
     }

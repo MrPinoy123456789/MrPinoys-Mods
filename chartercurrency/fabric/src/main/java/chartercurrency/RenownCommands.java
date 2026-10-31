@@ -83,7 +83,7 @@ final class RenownCommands {
     }
 
     private com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> renownTarget(boolean add) {
-        return Commands.argument("kingdom", StringArgumentType.word())
+        return Commands.argument("kingdom", StringArgumentType.string())
                 .suggests((c, b) -> {
                     List<String> ids = new ArrayList<>(s.kingdoms.source().kingdomIds());
                     ids.add(Treasury.COMMONS);
