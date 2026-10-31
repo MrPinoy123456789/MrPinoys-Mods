@@ -326,6 +326,11 @@ public final class LandProtectionGameTest {
             walker.teleportTo(kit.border - 4, kit.y, kit.zc);
             String outside = charter.mc.land.Crossings.describe(kit.rt, walker);
             helper.assertTrue(outside.contains("wild"), "Standing outside every holding says the wild: " + outside);
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
     public void anOperatorMovesAKeepAndItsNexus(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Mover");

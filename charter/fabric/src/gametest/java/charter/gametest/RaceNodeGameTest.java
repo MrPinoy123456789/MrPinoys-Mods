@@ -112,14 +112,15 @@ public final class RaceNodeGameTest {
             kit.rt.knobs.tagColors = java.util.Map.of(kingdom.toLowerCase(java.util.Locale.ROOT), "#FF69B4", "mercenary", "#8A0303");
             charter.id.PlayerId mercId = new charter.id.PlayerId(merc.getUUID());
             kit.rt.engine.run(new charter.engine.Actor.Player(mercId), new charter.org.actions.ChooseMercenaryRace(mercId, dwarfOrg));
+            // Mock players all share one scoreboard name, so each is checked right after its own pass.
             charter.mc.Tags.applyTo(dwarf, kit.rt);
-            charter.mc.Tags.applyTo(merc, kit.rt);
-            charter.mc.Tags.applyTo(nobody, kit.rt);
             helper.assertTrue(dwarf.getTeam() != null && dwarf.getTeam().getPlayerPrefix().getString().equals("[" + kingdom + "] "),
                     "a member wears their kingdom's tag: " + (dwarf.getTeam() == null ? "no team" : dwarf.getTeam().getPlayerPrefix().getString()));
             helper.assertTrue(dwarf.getTeam().getPlayerPrefix().getStyle().getColor().getValue() == 0xFF69B4, "in its colour");
+            charter.mc.Tags.applyTo(merc, kit.rt);
             helper.assertTrue(merc.getTeam() != null && merc.getTeam().getPlayerPrefix().getString().equals("[Mercenary] "),
                     "a mercenary wears the Mercenary tag");
+            charter.mc.Tags.applyTo(nobody, kit.rt);
             helper.assertTrue(nobody.getTeam() == null, "someone with no race and no kingdom has none");
             helper.succeed();
         }
