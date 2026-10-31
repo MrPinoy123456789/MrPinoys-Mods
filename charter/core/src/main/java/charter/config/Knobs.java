@@ -124,6 +124,12 @@ public final class Knobs {
     public java.util.Map<String, String> tagColors = new java.util.LinkedHashMap<>(java.util.Map.of(
             "everdelle", "#FF69B4", "azurius", "#89CFF0", "faeloria", "#A020F0",
             "azrak", "#8B5A2B", "aurelia", "#FF8C00", "mercenary", "#8A0303"));
+    /** Whether a keep turns away players who are not its members, not at war with it and not operators. */
+    public boolean closedKeeps = false;
+    /** Whether every player sees a glowing line along nearby keep borders without holding anything. */
+    public boolean keepBorderGlow = false;
+    /** Whether a player who has lost their Charter book is given a new one. */
+    public boolean replaceLostBook = true;
     /** Whether a kingdom's deciders may change its form of government (Lordship, council, Commune). Off: only operators can. */
     public boolean leadersChangeGovernance = true;
     /** Whether anyone may be put into an office, or a new office made, by the people who hold power. Off: only operators, and the members' elections. */

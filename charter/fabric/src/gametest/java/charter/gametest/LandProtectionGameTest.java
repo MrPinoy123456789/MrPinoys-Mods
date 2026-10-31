@@ -353,4 +353,44 @@ public final class LandProtectionGameTest {
             helper.succeed();
         }
     }
+
+    @GameTest(maxTicks = 100)
+    public void aClosedKeepTurnsStrangersBack(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Gate");
+            kit.keep(lord);
+            ServerPlayer stranger = kit.outsider();
+            kit.rt.knobs.closedKeeps = true;
+            String dimension = charter.mc.land.Protection.dimension(kit.level);
+            stranger.teleportTo(kit.border - 4, kit.y, kit.zc);
+            charter.mc.land.KeepGate.check(stranger, kit.rt);
+            stranger.teleportTo(kit.nexusPos().getX(), kit.y, kit.nexusPos().getZ());
+            helper.assertTrue(kit.rt.claims.at(dimension, stranger.chunkPosition().x(), stranger.chunkPosition().z()) != null,
+                    "the stranger starts inside the keep");
+            charter.mc.land.KeepGate.check(stranger, kit.rt);
+            helper.assertTrue(kit.rt.claims.at(dimension, stranger.chunkPosition().x(), stranger.chunkPosition().z()) == null,
+                    "a stranger is put back outside the keep");
+            lord.teleportTo(kit.nexusPos().getX(), kit.y, kit.nexusPos().getZ());
+            charter.mc.land.KeepGate.check(lord, kit.rt);
+            helper.assertTrue(kit.rt.claims.at(dimension, lord.chunkPosition().x(), lord.chunkPosition().z()) != null,
+                    "a member stays inside their own keep");
+            kit.rt.knobs.closedKeeps = false;
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void aLostCharterBookIsReplaced(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer player = kit.outsider();
+            player.getInventory().clearContent();
+            helper.assertTrue(!charter.mc.book.BookMod.carriesBook(player), "the player starts with no book");
+            charter.mc.book.BookMod.ensure(player, true);
+            helper.assertTrue(charter.mc.book.BookMod.carriesBook(player), "a book is given");
+            int before = player.getInventory().countItem(net.minecraft.world.item.Items.PAPER);
+            charter.mc.book.BookMod.ensure(player, true);
+            helper.assertTrue(player.getInventory().countItem(net.minecraft.world.item.Items.PAPER) == before, "and not a second one");
+            helper.succeed();
+        }
+    }
 }

@@ -285,6 +285,8 @@
   "borders.off": "Borders hidden.",
   "tag.mercenary": "Mercenary",
   "land.admin.keep_moved": "The keep of {name} now stands at {x}, {y}, {z}. The old Nexus is gone from {ox}, {oy}, {oz}.",
+  "keep.closed": "This keep is closed to strangers.",
+  "book.replaced": "Your Charter book was missing, so here is a new one.",
   "land.admin.mixed_on": "{name} now lets in every race; new members keep their own.",
   "land.admin.mixed_off": "Joining {name} makes people of its race again. Members already inside stay as they are.",
   "land.admin.claims_set": "{name} now has a bonus of {bonus} claims, so it may hold {cap} in all.",

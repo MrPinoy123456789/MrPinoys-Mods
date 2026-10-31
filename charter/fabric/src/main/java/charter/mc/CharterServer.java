@@ -48,6 +48,10 @@ public final class CharterServer {
         ServerLifecycleEvents.AFTER_SAVE.register((s, flush, force) -> save());
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> join(handler.player));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, s) -> charter.mc.land.KeepGate.forget(handler.player.getUUID()));
+        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            if (runtime != null && runtime.knobs.replaceLostBook) charter.mc.book.BookMod.ensure(newPlayer, true);
+        });
     }
 
     /** The running world's Charter. Only while a server is running. */
@@ -87,6 +91,9 @@ public final class CharterServer {
         ticks++;
         if (ticks % RacePassives.EVERY_TICKS == 0) RacePassives.apply(s, runtime);
         if (ticks % Tags.EVERY_TICKS == 0) Tags.apply(s, runtime);
+        if (runtime.knobs.closedKeeps && ticks % charter.mc.land.KeepGate.EVERY_TICKS == 0) charter.mc.land.KeepGate.apply(s, runtime);
+        if (runtime.knobs.keepBorderGlow && ticks % charter.mc.land.KeepBorders.EVERY_TICKS == 0) charter.mc.land.KeepBorders.apply(s, runtime);
+        if (runtime.knobs.replaceLostBook && ticks % 100 == 0) charter.mc.book.BookMod.ensureAll(s);
         if (ticks % Math.max(1, runtime.knobs.simStepTicks) != 0) return;
         step();
     }

@@ -104,6 +104,22 @@ must keep the gap to other keeps (the keep's own old land does not count). Outpo
 back on the usual grace for land without a core. The Chronicle gets one line, "moved its keep from A to B". Walls built
 by hand around the old plot are not moved. Run it while standing near the new spot so the chunk is loaded.
 
+## Closed keeps, border glow and the lost book
+
+All three are server-side, so Java and Bedrock players (through Geyser) see the same thing. Each has a knob in `charter.json`.
+
+- `closedKeeps` (`KeepGate`): a player who is not a member of the keep's kingdom, not at war with it (`WarBook.between`)
+  and not an operator is put back where they last stood outside, or just past the nearest edge, a few times a second.
+  The action bar says "This keep is closed to strangers." Mercenaries count as strangers. Off by default.
+- `keepBorderGlow` (`KeepBorders`): end rod particles along the ground edge of every keep within 40 blocks of a player,
+  with nothing in hand. It replaces the hand-built stone walls. End rod maps cleanly to Bedrock; coloured dust may not,
+  so the line is one colour. Off by default.
+- `replaceLostBook` (on by default): the Charter book is the only way into the menu on console and Bedrock, where there
+  is no typing a command, so a player who carries no book is given one within five seconds and on respawn
+  (`BookMod.ensure`), not only when they next join.
+- Instant villager restock is not in Charter. It is its own small mod, `instantrestock/` (`MrPinoys_InstantRestock`),
+  one mixin, no settings.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check

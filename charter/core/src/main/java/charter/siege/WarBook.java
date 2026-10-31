@@ -53,6 +53,11 @@ public final class WarBook {
         return goals.stream().anyMatch(g -> g.opened && g.outpost.equals(outpost));
     }
 
+    /** True while a declared war names these two nations, either way round. */
+    public boolean between(OrgId x, OrgId y) {
+        return goals.stream().anyMatch(g -> (g.attacker.equals(x) && g.defender.equals(y)) || (g.attacker.equals(y) && g.defender.equals(x)));
+    }
+
     public long openBy(OrgId attacker) {
         return goals.stream().filter(g -> g.attacker.equals(attacker)).count();
     }

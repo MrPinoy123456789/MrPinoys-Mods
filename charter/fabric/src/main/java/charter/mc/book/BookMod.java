@@ -24,16 +24,36 @@ public final class BookMod {
      */
     public static void onJoin(ServerPlayer player) {
         if (!CharterServer.running()) return;
+        ensure(player, false);
+    }
+
+    /** True when the player carries a Charter book anywhere on them. */
+    public static boolean carriesBook(ServerPlayer player) {
         var inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
-            if (CharterBook.isBook(inventory.getItem(i))) return;
+            if (CharterBook.isBook(inventory.getItem(i))) return true;
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if (CharterBook.isBook(player.getItemBySlot(slot))) return;
+            if (CharterBook.isBook(player.getItemBySlot(slot))) return true;
         }
-        ItemStack book = CharterBook.create();
-        giveOrDrop(player, book);
-        player.sendSystemMessage(Component.literal(Text.get("book.given")).withStyle(ChatFormatting.GOLD));
+        return false;
+    }
+
+    /**
+     * Gives the player a book if they carry none. On console and Bedrock the book is the only way into the menu, since
+     * there is no typing a command, so a lost one is replaced at once and not only when they next join.
+     */
+    public static void ensure(ServerPlayer player, boolean lost) {
+        if (carriesBook(player)) return;
+        giveOrDrop(player, CharterBook.create());
+        player.sendSystemMessage(Component.literal(Text.get(lost ? "book.replaced" : "book.given")).withStyle(ChatFormatting.GOLD));
+    }
+
+    /** One pass over everyone online: whoever has no book gets one. */
+    public static void ensureAll(net.minecraft.server.MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.isAlive() && !player.isSpectator()) ensure(player, true);
+        }
     }
 
     /** Into the inventory, or at the player's feet when it does not fit. Null when it fitted. */
