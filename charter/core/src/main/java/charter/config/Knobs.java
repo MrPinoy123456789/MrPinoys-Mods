@@ -62,6 +62,8 @@ public final class Knobs {
     // ---- land and prices ----
     /** What a keep costs, in Marks (about 2048: five days of a ten member kingdom's Mint tax). Paid by the treasury through the payment port. */
     public int keepPriceMarks = 2048;
+    /** Diamonds a founder carries and gives up to found a kingdom with the Charter book's Nexus (items, not a treasury). */
+    public int keepPriceDiamonds = 64;
     public int keepCapacityClaims = 40;
     public int keepRangeHops = 8;
     public int campCapacityClaims = 4;
@@ -77,8 +79,6 @@ public final class Knobs {
      * once, hand-made kingdoms, a Nexus to hand out, notes, the supply and granary tools, and /charter page.
      */
     public boolean devTools = true;
-    /** Whether the operator playtest scenarios (the tutorial, the jail and the rest) can be run with /charter admin scenario. */
-    public boolean scenarios = true;
     /** Whether land can be claimed beside a keep. Off: a keep is its plot and extra land comes only from outposts. */
     public boolean keepClaims = true;
     /** Whether the game may generate structures (dungeons, villages) that overlap land a keep or outpost holds. Off keeps them out. */

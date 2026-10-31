@@ -184,7 +184,7 @@ public final class LandTest {
         eq("ops only: a player cannot found a kingdom", "founding_closed",
                 f.as(newbie, new charter.org.actions.Found(newbie, "Nowhere", Preset.LORDSHIP)).reasonKey());
         eq("ops only: nor found a keep", "founding_closed",
-                f.as(newbie, new charter.org.actions.FoundKeep(newbie, "Nowhere", "", ch(0, 0))).reasonKey());
+                f.as(newbie, new charter.org.actions.FoundKeep(newbie, "Nowhere", "", ch(0, 0), 64)).reasonKey());
         eq("ops only: a player cannot set one through the operator action", "not_you",
                 f.as(newbie, new charter.org.actions.CreateKingdom("Nowhere", ch(0, 0))).reasonKey());
 

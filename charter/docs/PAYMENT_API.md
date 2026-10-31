@@ -46,9 +46,29 @@ provider says "kingdom" (Renown, Mint tax) it means the top level organization t
 provider to pay out with its own console route (`chartercurrency treasury give|pay <orgId> <player> <marks>`, the id
 quoted), which takes the Marks out of the treasury itself. With no provider a withdrawal is refused.
 
-Founding a kingdom's first keep (`FoundKeep`) is free: the new organization has nothing to pay from.
+Founding a kingdom with the Charter book's Nexus (`FoundKeep`) is unchanged: the founder gives up `keepPriceDiamonds` (64)
+diamonds they carry. Those are items the fabric side takes; they never enter a treasury and the port is not called. Admins
+set up the real keeps for now, so this path is rarely used.
 
 Marks only move. Every move between organizations is a charge followed by a credit, and a failed charge stops it.
+
+## Plunder
+
+Plunder is Marks taken from a loser's treasury and credited to a winner through the port. There are three cases.
+
+1. **A captured outpost's deposit.** When attackers hold an outpost's chunk long enough, the Marks the owner paid as its
+   deposit (`Core.depositMarks`) are credited to the attacking organization (reason `plunder`, a plain credit, because those
+   Marks left the defender's treasury when the outpost was planted). An outpost whose planting was waived holds 0.
+2. **A raider stronghold that falls.** A quarter of its treasury (`balance / 4`, rounded down) is plundered. Charter charges
+   that amount to the stronghold's organization and credits the winner only if the charge succeeded (reason `plunder`).
+   The winner is the top level organization with the most online members within 48 blocks of the stronghold when it falls
+   (the fight radius); a tie goes to whichever counted first. If nobody is near, or no provider is installed, nothing is
+   taken and the rest of the treasury is left with the dissolved organization. The old behaviour of spilling diamonds and
+   cobblestone where the site fell is gone, and `npcFallLoot` with it.
+3. **An outpost lost without a capture** is not plunder: its deposit is credited back to its owner (reason `outpost_refund`).
+
+A stronghold starts with `npcTreasuryMarks` for its tier (a credit of reason `npc_treasury`), so the prize is made when the
+site is raised and moves when it falls. Nothing else in Charter makes or takes Marks outside these rules.
 
 ## With no provider
 
@@ -70,7 +90,7 @@ only to carry an old limit over and is never an exchange rate. The old action an
 
 | Knob | Default | Replaces |
 |---|---|---|
-| `keepPriceMarks` | 2048 | `keepPriceDiamonds` 64 |
+| `keepPriceMarks` | 2048 | `keepPriceDiamonds` 64, which stays for founding with the Nexus item |
 | `outpostDepositMarks` | 256 | `outpostDeposit` 8 |
 | `outpostDepositStepMarks` | 128 | `outpostDepositStep` 4 |
 | `lordSpendLimitMarks` | 1024 | `lordSpendLimitDiamonds` 32 and `lordSpendLimitCobblestone` 2048 |

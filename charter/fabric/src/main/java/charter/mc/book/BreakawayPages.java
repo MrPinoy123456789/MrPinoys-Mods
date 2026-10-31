@@ -95,7 +95,7 @@ public final class BreakawayPages {
             } else {
                 body.add(Text.get("book.breakaway.flat_start", "hours", hours));
             }
-            body.add(Text.get("book.breakaway.cost_free"));
+            body.add(Text.get("book.breakaway.cost_diamonds", "price", rt.knobs.keepPriceDiamonds));
             body.add(Text.get("book.breakaway.starter_places"));
             boolean in = group.map(g -> g.members().contains(me)).orElse(false);
             if (!in) {

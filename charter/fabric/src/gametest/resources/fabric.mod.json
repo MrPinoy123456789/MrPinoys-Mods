@@ -17,8 +17,6 @@
       "charter.gametest.GranaryGameTest",
       "charter.gametest.JusticeGameTest",
       "charter.gametest.ChronicleGameTest",
-      "charter.gametest.ScenarioGameTest",
-      "charter.gametest.TutorialGameTest",
       "charter.gametest.BookGameTest",
       "charter.gametest.MemberPagesGameTest",
       "charter.gametest.FoundingGameTest",
