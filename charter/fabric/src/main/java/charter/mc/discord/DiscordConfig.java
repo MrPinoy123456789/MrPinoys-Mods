@@ -39,6 +39,13 @@ public final class DiscordConfig {
      * Discord can take up to an hour to show.
      */
     public String guildId = "";
+    /**
+     * Register the commands for every server and for the bot's direct messages, so a player can use /link and
+     * /requests in a DM with the bot. Discord only shows server-registered commands inside that server. When
+     * {@code guildId} is set as well, the old copy of the commands in that server is cleared, so nothing shows twice.
+     * False: the commands exist only in the {@code guildId} server.
+     */
+    public boolean commandsInDms = true;
     /** Message a linked member on Discord when someone asks to join a faction they can take players in to. */
     public boolean notifyJoinRequests = true;
     /** The same player asking the same faction again within this many minutes is not announced again. 0 turns it off. */

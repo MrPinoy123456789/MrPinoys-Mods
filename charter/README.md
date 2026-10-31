@@ -87,7 +87,8 @@ HTTP and WebSocket clients. Code: `charter.mc.discord`; tests: `DiscordTest`.
    | `enabled` | `false` | Nothing connects until this is true |
    | `botToken` | `""` | The bot token. Leave blank to read the `CHARTER_DISCORD_TOKEN` environment variable instead |
    | `guildId` | `""` | Your Discord server's id. Set it and the commands show there at once; blank registers them everywhere, which Discord can take up to an hour to show |
-   | `notifyJoinRequests` | `true` | DM linked members who may take players in when someone asks to join |
+   | `commandsInDms` | `true` | `/link` and `/requests` also work in a DM with the bot (the commands are registered everywhere, and `guildId`'s server has its own copy cleared). `false` keeps them to the `guildId` server only |
+| `notifyJoinRequests` | `true` | DM linked members who may take players in when someone asks to join |
    | `linkCodeMinutes` | `10` | How long a link code works |
 | `applicantCooldownMinutes` | `60` | The same player asking the same faction again within this long is not announced again. `0` turns it off |
 | `quietMinutes` | `10` | After a member is messaged, requests for the next this long are held and announced in one message. `0` messages every request |
