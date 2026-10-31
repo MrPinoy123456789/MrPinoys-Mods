@@ -55,6 +55,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.book.BookMod.register();
         // Kingdom membership as the permission node race:<kingdom>, for other mods' race items.
         charter.mc.RaceNodes.register();
+        // Discord: linked accounts, join requests answered from Discord (off until discord.json enables it).
+        charter.mc.discord.DiscordBridge.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }
