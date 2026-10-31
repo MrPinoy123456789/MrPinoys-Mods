@@ -130,6 +130,13 @@ public final class Knobs {
     public boolean keepBorderGlow = false;
     /** Whether a player who has lost their Charter book is given a new one. */
     public boolean replaceLostBook = true;
+    /**
+     * Extra effects only for Bedrock players, by race node path. Bedrock has no Dolphin's Grace, so the Merfolk get
+     * Speed II while they are in water instead, with no icon and no particles. An entry is an effect id, optionally
+     * after "water:" (only while the player is in water) and before "#" and an amplifier: {@code water:minecraft:speed#1}.
+     */
+    public java.util.Map<String, List<String>> racePassivesBedrock = new java.util.LinkedHashMap<>(java.util.Map.of(
+            "azurius", List.of("water:minecraft:speed#1")));
     /** Whether a kingdom's deciders may change its form of government (Lordship, council, Commune). Off: only operators can. */
     public boolean leadersChangeGovernance = true;
     /** Whether anyone may be put into an office, or a new office made, by the people who hold power. Off: only operators, and the members' elections. */

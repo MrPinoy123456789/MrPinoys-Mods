@@ -57,6 +57,11 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
   refreshes them every 5 seconds for everyone who has the race, members and mercenaries alike. The default gives the
   Merfolk (Azurius) Water Breathing and Dolphin's Grace; the effects fade within seconds of losing the race. Other
   races have none yet; add entries such as `"faeloria": ["minecraft:night_vision"]` to the config to give them some.
+- Bedrock has no Dolphin's Grace effect, so `racePassivesBedrock` gives Bedrock players of a race extra effects on top of
+  the normal list: by default Azurius gets `water:minecraft:speed#1` (Speed II, only while in water, no icon or
+  particles). Entries read `[water:]<effect id>[#amplifier]`. A Floodgate player is recognised by a UUID with a zero high
+  half. Untested on a real Bedrock client: whether Bedrock swimming speed responds to Speed is the open question; if it
+  does not, change the list in `charter.json` (for example drop it) with no new build.
 - Planned, not designed: an altar that swaps a player's race.
 
 ## Locks on leaders

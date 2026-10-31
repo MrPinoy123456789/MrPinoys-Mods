@@ -39,6 +39,59 @@ public final class RacePassives {
         }
     }
 
+    /** How often the water-only effects are refreshed, in ticks, and how long each lasts: it fades fast on leaving the water. */
+    public static final int WATER_EVERY_TICKS = 10;
+    static final int WATER_LASTS_TICKS = 30;
+
+    /** A Floodgate (Bedrock) player has a UUID whose high half is zero. */
+    public static boolean isBedrock(java.util.UUID id) {
+        return id.getMostSignificantBits() == 0L;
+    }
+
+    /** One entry of the Bedrock list: an effect id, whether it is for water only, and its amplifier. */
+    record Entry(String id, boolean waterOnly, int amplifier) {
+    }
+
+    static Entry parse(String text) {
+        boolean water = text.startsWith("water:");
+        String rest = water ? text.substring("water:".length()) : text;
+        int amp = 0;
+        int hash = rest.indexOf('#');
+        if (hash >= 0) {
+            try {
+                amp = Integer.parseInt(rest.substring(hash + 1));
+            } catch (NumberFormatException bad) {
+                amp = 0;
+            }
+            rest = rest.substring(0, hash);
+        }
+        return new Entry(rest, water, Math.max(0, amp));
+    }
+
+    /** The Bedrock-only effects of this player's race; none for a Java player. */
+    static List<Entry> bedrockEffectsOf(CharterRuntime rt, ServerPlayer player) {
+        if (!isBedrock(player.getUUID())) return List.of();
+        return rt.state.raceOf(new PlayerId(player.getUUID())).flatMap(rt.state::org)
+                .map(org -> rt.knobs.racePassivesBedrock.getOrDefault(RaceNodes.slug(org.name()), List.<String>of()))
+                .orElse(List.of()).stream().map(RacePassives::parse).toList();
+    }
+
+    /** The quick pass: Bedrock players in water get their water-only effects, invisibly. */
+    public static void applyWater(MinecraftServer server, CharterRuntime rt) {
+        if (rt.knobs.racePassivesBedrock.isEmpty()) return;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) applyWaterTo(player, rt);
+    }
+
+    public static void applyWaterTo(ServerPlayer player, CharterRuntime rt) {
+        if (!player.isAlive()) return;
+        for (Entry entry : bedrockEffectsOf(rt, player)) {
+            if (entry.waterOnly() && !player.isInWater()) continue;
+            int lasts = entry.waterOnly() ? WATER_LASTS_TICKS : LASTS_TICKS;
+            BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(entry.id()))
+                    .ifPresent(effect -> player.addEffect(new MobEffectInstance(effect, lasts, entry.amplifier(), true, false, false)));
+        }
+    }
+
     /** The effect ids of this player's race; none when they have no race or it gives none. */
     static List<String> effectsOf(CharterRuntime rt, PlayerId player) {
         return rt.state.raceOf(player).flatMap(rt.state::org)
