@@ -1,6 +1,6 @@
 // Deploys Charter, Foundry and the Foundry content to the shipped kingdom server (Kinetic d212ecae).
 //
-//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--bedrock] [--allow name,name] [--set key=value ...] [--dry]
+//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--bedrock] [--allow name,name] [--set key=value ...] [--jar path ...] [--dry]
 //
 // Only run it when the owner has asked for a deploy. It refuses to continue if the server's mods are not the same
 // Minecraft version as the jars, if anyone outside --allow is online, or if the server is not running. It backs up
@@ -71,6 +71,8 @@ if (others.length) { console.log('other players online; ask the owner first:', o
 const jars = []
 if (has('--foundry')) jars.push({ name: FOUNDRY_JAR, bytes: readFileSync(jarOf(FOUNDRY, FOUNDRY_JAR)) })
 if (has('--charter')) jars.push({ name: CHARTER_JAR, bytes: readFileSync(jarOf(CHARTER, CHARTER_JAR)) })
+// --jar <path> (repeatable): any other mod jar, uploaded under its own file name; an old copy is backed up first.
+for (const path of args.flatMap((a, i) => (a === '--jar' && args[i + 1] ? [args[i + 1]] : []))) jars.push({ name: path.split(/[\/]/).pop(), bytes: readFileSync(path) })
 const ex = resolve(FOUNDRY, 'examples')
 const content = has('--content') ? [
   ['/config/foundry/content/kingdoms/items', files(resolve(ex, 'content/kingdoms/items'), /\.json$/)],
