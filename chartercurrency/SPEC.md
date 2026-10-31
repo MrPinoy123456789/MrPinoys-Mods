@@ -148,24 +148,22 @@ counted in one place.
 - What the kingdom spends it on is the kingdom's business. This mod only holds
   it and moves it when told to by someone with the right.
 
-**Who may withdraw, two routes:**
+**Who may withdraw:** the kingdom's **Lord** only, for now (owner, 2026-10-31),
+plus ops. Who the Lord is comes from Charter (section 6.4). Charter may later
+widen this; when it does, it is a change to the one permission check, nothing
+else.
 
-1. **Charter tells this mod.** A console command Charter (or an admin) runs after
-   its own rights check:
-   `/chartercurrency treasury pay <kingdom> <player> <amount> [denomination]`
-   moves coin from the treasury into that player's bank balance, and
-   `/chartercurrency treasury give <kingdom> <player> <amount> [denomination]`
-   hands it over as physical coin (bank rules: all-or-nothing on space). This is
-   the preferred route once Charter can call it.
-2. **Stand-in until then:** players listed in the kingdom's `leaders` array in
-   `kingdoms.json` (and ops) can use `/treasury withdraw` directly. Remove or
-   ignore this when Charter's route is wired.
+Charter (or an admin) can also move treasury coin with a console command:
+`/chartercurrency treasury pay <kingdom> <player> <amount> [denomination]` moves
+coin into that player's bank balance, and
+`/chartercurrency treasury give <kingdom> <player> <amount> [denomination]` hands
+it over as physical coin (bank rules: all-or-nothing on space).
 
 | Command | Who | What |
 |---|---|---|
 | `/treasury` | Members, ops | Balance and the last few movements |
 | `/treasury deposit <amount> [denomination]` | Members | Same rules as `/bank` |
-| `/treasury withdraw <amount> [denomination]` | `leaders` stand-in, ops | Same rules as `/withdraw` |
+| `/treasury withdraw <amount> [denomination]` | The Lord, ops | Same rules as `/withdraw` |
 | `/treasury ledger [page]` | Members, ops | Full history (shared with the Renown ledger, filterable by currency) |
 
 **Existing Charter treasuries.** If Charter's treasuries already hold coin-like
@@ -273,22 +271,32 @@ the Valor actually paid after caps, then:
 - **No kingdom:** the Renown goes to Commons instead (probation does not apply
   to Commons). It is never held for a kingdom the player joins later.
 
-### 6.4 Which kingdom a player is in
+### 6.4 Kingdoms come from Charter
 
-This mod does not manage kingdoms; it reads membership. `kingdoms.json` lists the
-kingdoms and how to resolve a player to one.
+**Charter is the source of truth** for which kingdoms exist, which kingdom a
+player is in, and who each kingdom's Lord is (owner, 2026-10-31). This mod never
+stores its own copy of membership; it asks Charter every time it needs to know.
 
-**Default resolver: vanilla scoreboard teams.** Each kingdom names the scoreboard
-team its members are on. On every award the mod looks up the player's team on the
-server scoreboard and maps it to a kingdom. No team, or an unlisted team, means no
-kingdom.
+Put every question behind one interface so only one class knows how Charter is
+reached:
 
-**Fallback: manual.** `/chartercurrency kingdom set <player> <kingdom|none>`
-stores an explicit membership that overrides the team lookup. This exists so the
-server works even if the existing kingdom setup does not use teams.
+```java
+interface KingdomSource {
+    Optional<String> kingdomOf(UUID player);   // kingdom id, empty if none
+    Optional<UUID> lordOf(String kingdomId);
+    String displayName(String kingdomId);
+    Collection<String> kingdomIds();
+}
+```
 
-Confirm with the owner which one their current kingdoms use before relying on
-the team resolver (section 14).
+How the `CharterKingdomSource` implementation reaches Charter (a Java API, a
+command, a data file it writes) depends on what Charter is; settle it with the
+owner first (section 15). Until it is wired, ship a `ManualKingdomSource` behind
+the same interface so the rest of the mod can be built and tested: kingdoms,
+members and Lords set by an op with
+`/chartercurrency kingdom set <player> <kingdom|none>` and
+`/chartercurrency kingdom lord <kingdom> <player>`, stored in `kingdoms.json`.
+Core tests use an in-memory fake.
 
 ### 6.5 Player-facing lines
 
@@ -327,7 +335,7 @@ custom-named player head). Every price is a placeholder the owner will retune.
 | `cost` | Renown, destroyed on purchase |
 | `repeatable` | If false, a kingdom can buy it once |
 | `requires` | Optional key that must already be bought |
-| `commands` | Console commands run on purchase. Placeholders: `%kingdom%` (id), `%kingdom_name%`, `%team%`, `%buyer%` |
+| `commands` | Console commands run on purchase. Placeholders: `%kingdom%` (id), `%kingdom_name%`, `%buyer%` |
 
 Ship the charter tiers as entries, with the costs below and only a broadcast
 command each, because what a tier does belongs to the existing kingdom setup, not
@@ -357,8 +365,7 @@ Example entry:
 }
 ```
 
-**Who can buy:** players listed in the kingdom's `leaders` array in
-`kingdoms.json`, and ops. A purchase asks for confirmation (the fork's confirm
+**Who can buy:** the kingdom's Lord (from Charter, section 6.4) and ops. A purchase asks for confirmation (the fork's confirm
 pattern), checks balance and `requires`, deducts, records it, then runs the
 commands. If a command fails, log it loudly and keep the purchase (the Renown is
 spent; an admin can refund with `renown add`). Commons is bought from by ops only.
@@ -369,7 +376,7 @@ spent; an admin can refund with `renown add`). Commons is bought from by ops onl
 |---|---|---|
 | `/renown` | Anyone | Your kingdom's Renown balance, lifetime earned, and what was bought |
 | `/renown catalog` | Anyone | Entries, costs, bought or not, affordable or not |
-| `/renown buy <key>` | Kingdom leaders, ops | Purchase, with confirmation |
+| `/renown buy <key>` | The Lord, ops | Purchase, with confirmation |
 | `/renown ledger [page]` | Members of that kingdom, ops | Recent credits and spends |
 | `/renown top` | Anyone | Kingdoms by lifetime Renown earned |
 
@@ -503,21 +510,18 @@ cannot make plain nuggets into money.
 
 `0` means no cap.
 
-**`kingdoms.json`**
+**`kingdoms.json`**: used only by the `ManualKingdomSource` stand-in (section
+6.4). Once Charter is wired, kingdoms, members and Lords come from Charter and
+this file is ignored.
 
 ```json
 {
-  "resolver": "scoreboard_team",
+  "source": "manual",
   "kingdoms": {
-    "northreach": { "name": "Northreach", "team": "northreach", "leaders": ["Steve"] }
-  },
-  "manual": {}
+    "northreach": { "name": "Northreach", "lord": "uuid", "members": ["uuid"] }
+  }
 }
 ```
-
-Ships with an empty `kingdoms` map and a one-line comment field explaining how
-to fill it. `leaders` accepts names or UUIDs; store UUIDs after first resolution.
-`manual` is written by `/chartercurrency kingdom set`.
 
 **`renown_catalog.json`**: section 7.2. **`shop.json`**: as the fork, prices in
 `coin` or `valor`. **`mints.json`**: bound positions (dimension and block pos).
@@ -554,7 +558,7 @@ Write all state files the same way the fork writes `accounts.json`.
 | `/chartercurrency treasury add\|remove <kingdom> <amount>` | Coin, in Marks. Logged with the operator's name |
 | `/chartercurrency treasury pay\|give <kingdom> <player> <amount> [denomination]` | The route Charter uses to spend a treasury (section 4.4) |
 | `/chartercurrency kingdom set <player> <kingdom\|none>` | Manual membership override |
-| `/chartercurrency kingdom list` | Kingdoms, their teams, leaders and member counts as resolved now |
+| `/chartercurrency kingdom list` | Kingdoms, Lords and member counts as this mod currently sees them (from Charter, or the stand-in) |
 | `/chartercurrency mint bind\|unbind\|list` | Section 8.1 |
 | `/chartercurrency shop ...` | The fork's shop admin and editor |
 | `/chartercurrency stats` | Coin supply (banked plus a note that carried coin is not counted), Marks minted today and this week, Mint tax collected and destroyed, Valor earned today by source, Renown and treasury by kingdom |
@@ -577,7 +581,7 @@ Keep every forked test passing under the new names, then add:
   counter persists across strikes (strikes of 3 then 2 tax the fifth); exactly 20
   percent over 1,000 random strikes; allowance counts taxed coins; no kingdom
   means the fifth coin is destroyed; the counter survives a kingdom change.
-- **Treasury:** deposit and withdraw follow bank rules; only leaders withdraw;
+- **Treasury:** deposit and withdraw follow bank rules; only the Lord withdraws;
   never negative under concurrent withdrawals.
 - **Earn rules:** formula with and without level; soft cap halving with minimum
   1; hard cap pays 0 and 0; soft cap carry-over; per player Renown cap; run
@@ -622,11 +626,11 @@ Commit after each milestone with the core tests green.
 
 ## 15. Verify against the 26.2 jar before relying on it
 
-**First, ask the owner about Charter:** how it identifies a kingdom and a
-player's kingdom, who may spend a kingdom's treasury, and whether it can run a
-console command (for the treasury pay route in section 4.4). If Charter exposes
-membership or leaders, use that in place of the scoreboard resolver and the
-`leaders` list in sections 6.4, 4.4 and 7.2.
+**First, settle with the owner how this mod talks to Charter**: what Charter is
+(a mod, a plugin, a datapack), where its code lives, and how it can answer the
+four `KingdomSource` questions in section 6.4. Known so far: Charter identifies
+kingdoms and members itself, and only the Lord may spend the treasury and buy
+from the Renown catalogue.
 
 Then check:
 
@@ -636,8 +640,6 @@ Check with `javap` against the Loom cache, as the fork's README shows:
 - Reading `custom_data` from an `ItemStack` and testing for a key (the
   component type and accessor names).
 - `UseBlockCallback` return type for "handled, do not open the UI".
-- Server scoreboard: getting a player's team by name
-  (`server.getScoreboard()` and the team lookup for a player's scoreboard name).
 - The inventory and player-list calls the fork's README lists as unverified.
 
 ## 16. Do not
