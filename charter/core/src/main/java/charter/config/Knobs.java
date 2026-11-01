@@ -146,6 +146,11 @@ public final class Knobs {
             "azrak", "#8B5A2B", "aurelia", "#FF8C00", "mercenary", "#8A0303"));
     /** Whether a keep turns away players who are not its members, not at war with it and not operators. */
     public boolean closedKeeps = false;
+    /**
+     * A player with no kingdom and no race (neither a member nor a mercenary) may only look around: they cannot break,
+     * place, use or attack anything, in the wild as well. Operators are exempt. They open the Charter book to choose.
+     */
+    public boolean requireAffiliation = true;
     /** Whether every player sees a glowing line along nearby keep borders without holding anything. */
     public boolean keepBorderGlow = false;
     /** Whether a player who has lost their Charter book is given a new one. */

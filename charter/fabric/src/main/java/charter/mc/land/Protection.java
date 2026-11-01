@@ -117,8 +117,22 @@ public final class Protection {
         return faction(rt, claim.owner);
     }
 
+    /**
+     * A player with no kingdom and no race: the server lets them look around and nothing else until they join a kingdom
+     * or sign on as a mercenary ({@code requireAffiliation}). Operators are exempt.
+     */
+    public static boolean isDrifter(Player player) {
+        CharterRuntime rt = rt();
+        if (rt == null || !rt.knobs.requireAffiliation || !(player instanceof ServerPlayer sp)) return false;
+        PlayerId id = new PlayerId(player.getUUID());
+        if (rt.state.membership(id).isPresent() || rt.state.raceOf(id).isPresent()) return false;
+        return !net.minecraft.commands.Commands.hasPermission(net.minecraft.commands.Commands.LEVEL_GAMEMASTERS)
+                .test(sp.createCommandSourceStack());
+    }
+
     /** May this player build, break or use things at this block? True on unprotected ground. */
     public static boolean mayAct(Player player, Level level, BlockPos pos) {
+        if (isDrifter(player)) return false;
         Claim claim = guardedClaim(level, pos);
         boolean counted = false;
         for (ActorRule rule : ACTOR_RULES) {
@@ -165,9 +179,22 @@ public final class Protection {
         return rt == null ? null : Fixtures.of(rt.state).at(dimension(level), pos.getX(), pos.getY(), pos.getZ());
     }
 
+    /** Tells a drifter what to do, at most once every two seconds. */
+    public static void denyDrifter(ServerPlayer sp) {
+        long now = System.currentTimeMillis();
+        Long last = LAST_WARNED.get(sp.getUUID());
+        if (last != null && now - last < 2000) return;
+        LAST_WARNED.put(sp.getUUID(), now);
+        sp.sendSystemMessage(Component.literal(Text.get("land.drifter")).withStyle(ChatFormatting.RED), true);
+    }
+
     /** Tells a player why not, at most once a second so a held button does not flood chat. */
     public static void deny(Player player, Level level, BlockPos pos) {
         if (!(player instanceof ServerPlayer sp)) return;
+        if (isDrifter(player)) {
+            denyDrifter(sp);
+            return;
+        }
         long now = System.currentTimeMillis();
         Long last = LAST_WARNED.get(sp.getUUID());
         if (last != null && now - last < 1000) return;
