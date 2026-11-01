@@ -82,16 +82,17 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   leggings or boots slot in the inventory. `/charter trinkets` runs the same `/trinkets` as the player, and the Charter
   book home has a Trinkets button. Both need no op level. A permission mod that restricts commands would also have to
   allow `trinkets`.
-- **What other players see.** Nothing, on a vanilla Java client. The patch README says trinkets "won't render visually",
-  and its resource pack holds only screen textures. Worn models come from the Trinkets *client* mod (the Model
-  Attachment API); a resource pack alone cannot draw them on a vanilla client. The four definitions in
-  `foundry/examples/assets/kingdoms/trinkets/` (copied to `config/foundry/assets/kingdoms/trinkets/`, then into
-  Polymer's generated pack) are read only by a client that has Trinkets Updated installed. They target the Foundry ids
-  and are unverified: Polymer may present the item to the client as its base item, in which case they never match.
-- **Bedrock.** Nothing is drawn (Geyser has no worn item mapping). The trinket still works: the slots, the effect and
+- **What other players see.** A vanilla Java client cannot render Trinkets models (the patch README says trinkets
+  "won't render visually"; a resource pack alone cannot draw them). So Foundry draws them itself: `WornDisplays` gives
+  each player one Polymer item display per worn Foundry trinket, turned with the body (cape, pauldron) or the head
+  (circlet, gills) every tick, placed by slot in `WornPlacement` (`head/hat`, `head/face`, `chest/back`, `chest/cape`).
+  It shows the item's own model (the flat sprite today) and hides while the player is invisible, swimming, gliding or
+  asleep. Needs only the Trinkets mod on the server, no client mod. Unverified on a live client: placement, size,
+  facing, whether the wearer sees their own copy in first person, and cost with many players. To move or resize one,
+  edit `WornPlacement`. A client that has the Trinkets mod gets its own render from the definitions in
+  `foundry/examples/assets/kingdoms/trinkets/` too, which may then draw a second copy; delete those files if so.
+- **Bedrock.** The display entities are item displays, which Geyser may translate (unverified); the Trinkets models never reach Bedrock. The trinket still works: the slots, the effect and
   the screen are all server side. Bedrock players open the screen with `/trinkets` as well.
-- **Open choice.** Making a trinket visible to vanilla players needs another approach, such as wearing it in the
-  helmet slot (which uses that slot) or display entities attached to the player (code). Not built.
 
 ## Coins
 

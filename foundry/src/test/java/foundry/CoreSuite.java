@@ -37,6 +37,11 @@ public final class CoreSuite {
     }
 
     private static void bonuses() {
+        check(foundry.core.WornPlacement.of("head/hat").isPresent() && foundry.core.WornPlacement.of("head/hat").get().onHead(),
+                "a hat is drawn on the head");
+        check(foundry.core.WornPlacement.of("chest/cape").isPresent() && !foundry.core.WornPlacement.of("chest/cape").get().onHead(),
+                "a cape is drawn on the body");
+        check(foundry.core.WornPlacement.of("hand/ring").isEmpty(), "an undrawn slot has no placement");
         check(foundry.core.BonusMath.gain(0, 1, 3) == 1, "a plain tool gains the bonus");
         check(foundry.core.BonusMath.gain(3, 1, 3) == 0, "a tool at the cap gains nothing");
         check(foundry.core.BonusMath.gain(2, 3, 3) == 1, "the bonus tops up to the cap only");
