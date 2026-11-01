@@ -78,7 +78,20 @@ public final class NewcomerPages {
         if (race.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.state.raceLabel(race.get()))));
         body.add(BookDialogs.text(Text.get("book.calendar.seasons", "seasons", MemberPages.seasonNames())));
         body.add(BookDialogs.text(Text.get("book.calendar.days")));
-        List<ActionButton> buttons = new ArrayList<>();
+        // Travel first, as on a member's Home; a newcomer has no keep or outpost to go to.
+        List<ActionButton> buttons = new ArrayList<>(TravelButtons.of(player, false, NewcomerPages::home));
+        // An invitation is accepted here: the chat link for it cannot be clicked on Bedrock.
+        for (charter.org.Invite invite : rt.state.invites()) {
+            if (!invite.player().equals(me(player)) || rt.state.org(invite.org()).isEmpty()) continue;
+            OrgId inviter = invite.org();
+            String orgName = rt.describe.org(inviter);
+            buttons.add(go(player, Text.get("book.invite.accept", "org", orgName), p -> BookRouter.run(p,
+                    new charter.org.actions.AcceptInvite(me(p), inviter),
+                    line -> {
+                        if (line != null) home(p, line);
+                        else MemberPages.home(p, Text.get("join.done", "org", orgName));
+                    })));
+        }
         buttons.add(go(player, Text.get("book.button.join"), p -> join(p, null)));
         buttons.add(go(player, Text.get("book.button.merc"), p -> mercenary(p, null)));
         // While the operators set the kingdoms, there is no founding to walk a newcomer through.

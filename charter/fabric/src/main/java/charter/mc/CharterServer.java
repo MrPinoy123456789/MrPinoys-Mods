@@ -98,6 +98,7 @@ public final class CharterServer {
         if (ticks % Tags.EVERY_TICKS == 0) Tags.apply(s, runtime);
         if (runtime.knobs.closedKeeps && ticks % charter.mc.land.KeepGate.EVERY_TICKS == 0) charter.mc.land.KeepGate.apply(s, runtime);
         if (runtime.knobs.keepBorderGlow && ticks % charter.mc.land.KeepBorders.EVERY_TICKS == 0) charter.mc.land.KeepBorders.apply(s, runtime);
+        if (ticks % 20 == 0) charter.mc.book.BookMod.removeExtrasAll(s);
         if (runtime.knobs.replaceLostBook && ticks % 100 == 0) charter.mc.book.BookMod.ensureAll(s);
         if (ticks % Math.max(1, runtime.knobs.simStepTicks) != 0) return;
         step();

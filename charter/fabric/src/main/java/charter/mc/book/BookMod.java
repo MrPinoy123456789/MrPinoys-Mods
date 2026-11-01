@@ -44,9 +44,62 @@ public final class BookMod {
      * there is no typing a command, so a lost one is replaced at once and not only when they next join.
      */
     public static void ensure(ServerPlayer player, boolean lost) {
+        removeExtras(player);
         if (carriesBook(player)) return;
         giveOrDrop(player, CharterBook.create());
         player.sendSystemMessage(Component.literal(Text.get(lost ? "book.replaced" : "book.given")).withStyle(ChatFormatting.GOLD));
+    }
+
+    /**
+     * A player never keeps more than one Charter book. The first one found (hotbar first, then the rest of the
+     * inventory, armour and off hand, and last the stack on the cursor) stays; every other one is deleted. This is
+     * what makes a looted book, or the old one lying where its owner died, harmless. Returns how many were deleted.
+     */
+    public static int removeExtras(ServerPlayer player) {
+        var inventory = player.getInventory();
+        boolean kept = false;
+        ItemStack keeper = null;
+        int removed = 0;
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (!CharterBook.isBook(inventory.getItem(i))) continue;
+            if (!kept) {
+                kept = true;
+                keeper = inventory.getItem(i);
+            } else {
+                inventory.setItem(i, ItemStack.EMPTY);
+                removed++;
+            }
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            // The inventory above may already cover armour and the off hand: the same stack is never counted twice.
+            ItemStack worn = player.getItemBySlot(slot);
+            if (!CharterBook.isBook(worn) || worn == keeper) continue;
+            if (!kept) {
+                kept = true;
+                keeper = worn;
+            } else {
+                player.setItemSlot(slot, ItemStack.EMPTY);
+                removed++;
+            }
+        }
+        if (player.containerMenu != null && CharterBook.isBook(player.containerMenu.getCarried())) {
+            if (kept) {
+                player.containerMenu.setCarried(ItemStack.EMPTY);
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            player.containerMenu.broadcastChanges();
+            player.sendSystemMessage(Component.literal(Text.get("book.duplicate")).withStyle(ChatFormatting.GOLD));
+        }
+        return removed;
+    }
+
+    /** Once a second for everyone online: a second book is deleted, whether or not lost books are replaced. */
+    public static void removeExtrasAll(net.minecraft.server.MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.isAlive() && !player.isSpectator()) removeExtras(player);
+        }
     }
 
     /** One pass over everyone online: whoever has no book gets one. */

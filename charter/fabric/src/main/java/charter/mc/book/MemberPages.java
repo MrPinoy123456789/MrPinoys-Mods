@@ -117,13 +117,19 @@ public final class MemberPages {
             }
         };
         String offices = v.yourOffices().isEmpty() ? Text.get("book.home.no_office") : String.join(", ", v.yourOffices());
-        List<ActionButton> buttons = List.of(
-                go(player, Text.get("book.button.rights"), p -> rights(p, null)),
-                go(player, Text.get("book.button.freedoms"), p -> freedoms(p, null)),
-                go(player, Text.get("book.button.situation"), p -> situation(p, null)),
-                go(player, v.orgName(), p -> faction(p, null)),
-                go(player, Text.get("book.button.war"), p -> WarPages.page(p, null)),
-                go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
+        // Travel comes first: it is what players reach for most, and Bedrock players cannot type /home or /keep.
+        List<ActionButton> buttons = new java.util.ArrayList<>(TravelButtons.of(player, true, MemberPages::home));
+        if (LeaderPages.leads(player)) buttons.add(go(player, Text.get("book.button.leader"), p -> LeaderPages.desk(p, null)));
+        buttons.add(go(player, Text.get("book.button.rights"), p -> rights(p, null)));
+        buttons.add(go(player, Text.get("book.button.freedoms"), p -> freedoms(p, null)));
+        buttons.add(go(player, Text.get("book.button.situation"), p -> situation(p, null)));
+        buttons.add(go(player, v.orgName(), p -> faction(p, null)));
+        buttons.add(go(player, Text.get("book.button.war"), p -> WarPages.page(p, null)));
+        buttons.add(go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
+        buttons.add(go(player, Text.get("book.button.borders"), p -> {
+            boolean on = charter.mc.land.Signals.toggleBorders(p.getUUID());
+            home(p, Text.get(on ? "book.borders.on" : "book.borders.off"));
+        }));
         String tip = formTip(v.form(), deciders(v.org()));
         net.minecraft.network.chat.Component formLine = net.minecraft.network.chat.Component.literal(
                         Text.get("book.home.form", "form", form, "offices", offices))

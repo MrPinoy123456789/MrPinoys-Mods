@@ -143,6 +143,33 @@ public final class BookGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 20)
+    public void aSecondBookIsDeleted(GameTestHelper helper) {
+        ServerPlayer player = emptyHanded(helper);
+        player.getInventory().setItem(3, CharterBook.create());
+        player.getInventory().setItem(20, CharterBook.create());
+        player.getInventory().setItem(21, CharterBook.create());
+        helper.assertTrue(BookMod.removeExtras(player) == 2, "Two extra books were not removed");
+        helper.assertTrue(books(player) == 1, "A player kept " + books(player) + " books");
+        helper.assertTrue(CharterBook.isBook(player.getInventory().getItem(3)), "The first book was not the one kept");
+        helper.assertTrue(BookMod.removeExtras(player) == 0, "A lone book was removed");
+        // A single book in the off hand must survive: it can be seen through both the inventory and the equipment slot.
+        ServerPlayer other = emptyHanded(helper);
+        other.setItemInHand(InteractionHand.OFF_HAND, CharterBook.create());
+        helper.assertTrue(BookMod.removeExtras(other) == 0 && BookMod.carriesBook(other), "An off hand book was deleted");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void travelComesFirstOnTheNewcomerHome(GameTestHelper helper) {
+        ServerPlayer player = emptyHanded(helper);
+        NewcomerPages.home(player, null);
+        List<String> shape = shape(BookDialogs.LAST.get(player.getUUID()));
+        helper.assertTrue(shape.size() > 3 && shape.get(1).startsWith("Go home"), "Travel is not the first button: " + shape);
+        helper.assertTrue(shape.get(2).equals("Go to spawn") && shape.get(3).equals("Go to the hub"), "Spawn and hub do not follow: " + shape);
+        helper.succeed();
+    }
+
     private static ServerPlayer emptyHanded(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) player.getInventory().setItem(i, ItemStack.EMPTY);
