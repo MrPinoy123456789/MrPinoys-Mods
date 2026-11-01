@@ -123,6 +123,11 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   turns at once on your screen and anything from the server arrives a round trip later. The copies everyone else sees
   are smoothed over three ticks, the same as their clients smooth your head and body, so they stay together. The circlet
   still goes to others as a helmet. The gills sit beside the neck, behind the eyes.
+- **Antler circlet.** Just the antlers now (no band, gem or leaves), 10% bigger, rising from the top of the head at the
+  temples. Other players see it as a helmet slot item, which the client draws on the head itself.
+- **Riding displays below the feet (fixed).** A riding display's transformation starts at the top of the player, where
+  the client seats it. Until a viewer's client has seated it (just after it appears, a respawn, a teleport) it stood at
+  the feet, a body height too low; its own position is now the top of the player too.
 - **Facing (fixed 2026-11-01).** A model's front shows toward the display's -z. Body items (cape, wings, pauldron) get a
   half turn so they face out from the back; before the fix the wings were mirrored and the cape showed its lining.
 - **3D models.** Each trinket has a real 3D model, not a flat sprite: `examples/assets/kingdoms/models/item/worn/*.json`

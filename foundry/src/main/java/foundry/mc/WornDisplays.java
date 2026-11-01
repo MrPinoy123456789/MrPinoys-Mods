@@ -476,6 +476,13 @@ public final class WornDisplays {
 
     /** Sets one display's whole transformation from the player's pose right now (see {@link #transformFor}). */
     private static void place(ServerPlayer player, ItemDisplayElement element, WornPlacement p, boolean wearersCopy) {
+        if (p.ride()) {
+            // A riding display's transformation starts at the top of the player, where the client seats a passenger. Until a
+            // viewer's client has seated it (just after it appears, a respawn or a teleport) it stands at its own position,
+            // so that position is put at the top of the player too; otherwise it showed a body height too low, below the feet.
+            double top = player.getBbHeight();
+            if (element.getOffset().y != top) element.setOffset(new net.minecraft.world.phys.Vec3(0, top, 0));
+        }
         foundry.core.BodyYaw body = body(player);
         float tilt = body.capeTilt(player.isCrouching());
         if (wearersCopy) {

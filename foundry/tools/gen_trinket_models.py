@@ -236,18 +236,27 @@ def pauldron():
     ]
 
 
+ANTLER_SCALE = 1.1  # 10% bigger than first drawn
+ANTLER_BASE = (3.1, 14.6, 7.3)  # where the left antler meets the top of the head (the head's top is about y 14.4 to 15)
+
+
+def grown(p, base, k):
+    """A part moved and scaled by k about base (its from, to and rotation origin), so a whole antler grows from its root."""
+    def at(v):
+        return [round(base[i] + (v[i] - base[i]) * k, 4) for i in range(3)]
+    out = dict(p)
+    out["from"], out["to"] = at(p["from"]), at(p["to"])
+    if "rotation" in p:
+        out["rotation"] = dict(p["rotation"], origin=at(p["rotation"]["origin"]))
+    return out
+
+
 def circlet():
-    """A gold band set high on the head with a gem and leaves at the front, and two branching antlers."""
-    band = [
-        part((0.5, 10, 0.5), (15.5, 12, 1.5), "gold"),
-        part((0.5, 10, 14.5), (15.5, 12, 15.5), "gold"),
-        part((0.5, 10, 1.5), (1.5, 12, 14.5), "gold"),
-        part((14.5, 10, 1.5), (15.5, 12, 14.5), "gold"),
-        part((6.4, 9.4, 0.0), (9.6, 12.6, 0.6), "gold_dark"),
-        part((7.1, 10.1, -0.4), (8.9, 11.9, 0.1), "gem"),
-    ]
-    left_leaf = part((4.2, 10.3, 0.2), (6.2, 11.7, 0.5), "leaf", rot=("z", 22.5, (5.2, 11, 0.35)))
+    """Just the antlers: two branching antlers rising from the top of the head, each with a burr at its root, a main beam
+    leaning out, a tine forward, a tine outward, a tine back and a pale tip. No band, gem or leaves."""
+    lift = 2.6  # first drawn on a band at y 12; moved up so the roots sit on top of the head
     left = [
+        part((2.2, 12 - 0.4, 6.4), (4.0, 12.4, 8.2), "antler"),  # the burr where the antler meets the head
         part((2.4, 12, 6.6), (3.8, 15.5, 8.0), "antler", rot=("z", 22.5, (3.1, 12, 7.3))),
         part((1.2, 15, 6.7), (2.4, 19, 7.9), "antler", rot=("z", 22.5, (1.8, 15, 7.3))),
         part((0.2, 18.5, 6.8), (1.2, 21.5, 7.8), "antler_tip", rot=("z", -22.5, (0.7, 18.5, 7.3))),
@@ -255,7 +264,14 @@ def circlet():
         part((-2.0, 16.6, 6.9), (1.4, 17.6, 7.7), "antler_tip", rot=("z", -22.5, (1.4, 17.1, 7.3))),
         part((1.6, 18.8, 8.0), (2.4, 20.6, 10.6), "antler_tip", rot=("x", 22.5, (2, 18.8, 8.0))),
     ]
-    return band + [left_leaf, mirror(left_leaf)] + left + [mirror(p) for p in left]
+    lifted = [grown(p, (0, 0, 0), 1.0) for p in left]
+    for p in lifted:
+        p["from"][1] += lift
+        p["to"][1] += lift
+        if "rotation" in p:
+            p["rotation"]["origin"][1] += lift
+    left = [grown(p, ANTLER_BASE, ANTLER_SCALE) for p in lifted]
+    return left + [mirror(p) for p in left]
 
 
 def gills():
