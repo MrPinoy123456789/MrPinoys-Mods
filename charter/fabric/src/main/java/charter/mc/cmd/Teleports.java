@@ -33,14 +33,15 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * {@code /home}, {@code /keep}, {@code /outpost} and {@code /spawn} (protected keeps, K3). Each waits a few seconds, cancelled by moving
+ * {@code /home}, {@code /keep}, {@code /outpost}, {@code /spawn} and {@code /hub} (protected keeps, K3). {@code /hub} takes anyone
+ * to the Nexus of the admin kingdom, the server's spawn town, whatever kingdom they belong to. Each waits a few seconds, cancelled by moving
  * or taking damage, then takes the player to their bed, their nation's keep, or their organization's outpost in the
  * same dimension. A cooldown follows. {@code /outpost} also costs food from that outpost's supply and is refused when
  * the supply is empty; the other two are free. Charter does not own beds: {@code /home} reads the vanilla spawn point.
  */
 public final class Teleports {
 
-    public enum Kind { HOME, KEEP, OUTPOST, SPAWN }
+    public enum Kind { HOME, KEEP, OUTPOST, SPAWN, HUB }
 
     private record Pending(Kind kind, Vec3 start, int ticksLeft, float health) {
     }
@@ -165,6 +166,13 @@ public final class Teleports {
                 level.getChunk(at.getX() >> 4, at.getZ() >> 4);
                 int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at.getX(), at.getZ());
                 return new Dest(level, at.getX() + 0.5, y, at.getZ() + 0.5, null);
+            }
+            case HUB -> {
+                var hub = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && o.adminKingdom).findFirst();
+                if (hub.isEmpty()) return Text.get("teleport.no_hub");
+                Core keep = rt.state.coresOf(hub.get().id).stream().filter(Core::isKeep).findFirst().orElse(null);
+                if (keep == null) return Text.get("teleport.no_hub");
+                return site(player, keep, Fixtures.Kind.NEXUS, null);
             }
             case KEEP -> {
                 MemberRecord member = rt.state.membership(new charter.id.PlayerId(player.getUUID())).orElse(null);

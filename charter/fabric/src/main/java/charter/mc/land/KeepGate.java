@@ -70,10 +70,14 @@ public final class KeepGate {
         COOLDOWN.put(player.getUUID(), left - 1);
     }
 
-    /** Members of the keep's kingdom, those at war with it, and operators come and go as they please. */
+    /**
+     * Members of the keep's kingdom, those at war with it, and operators come and go as they please. An admin kingdom
+     * is the server's spawn town: everyone may walk in and out of it.
+     */
     static boolean allowed(ServerPlayer player, CharterRuntime rt, OrgId owner) {
         if (Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(player.createCommandSourceStack())) return true;
         OrgId top = rt.state.root(owner);
+        if (rt.state.org(top).map(o -> o.adminKingdom).orElse(false)) return true;
         var membership = rt.state.membership(new PlayerId(player.getUUID()));
         if (membership.isEmpty()) return false;
         OrgId theirs = rt.state.root(membership.get().org());
