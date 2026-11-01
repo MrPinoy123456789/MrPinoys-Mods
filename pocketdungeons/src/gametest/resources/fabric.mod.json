@@ -76,6 +76,7 @@
       "pocketdungeons.BlackoutGameTest",
       "pocketdungeons.WildLodestoneGameTest",
       "pocketdungeons.WildRunGameTest",
+      "pocketdungeons.WildClearGameTest",
       "pocketdungeons.SeamGameTest",
       "pocketdungeons.DeepslatePhasesGameTest",
       "pocketdungeons.HauntFloorGameTest",

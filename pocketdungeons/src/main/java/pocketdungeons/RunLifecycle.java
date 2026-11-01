@@ -1254,62 +1254,61 @@ final class RunLifecycle {
      * @return whether the pad refused
      */
     private static boolean padGatesRefuse(MinecraftServer server, InstanceRecord record, ServerPlayer player) {
+        String refusal = padRefusal(server, record, player.level());
+        if (refusal == null) {
+            return false;
+        }
+        player.sendSystemMessage(Component.literal(refusal).withStyle(ChatFormatting.YELLOW));
+        return true;
+    }
+
+    /**
+     * What still stands between the party and a cleared floor, as the line the pad would say, or {@code null} when
+     * the floor is done. Pure of messaging so the wild watcher can ask it every tick.
+     */
+    static String padRefusal(MinecraftServer server, InstanceRecord record, ServerLevel level) {
         // A floor objective replaces the spawner gate with its own refusal;
         // a fallback objective (its placement could not be made) runs the
         // ordinary spawner gate below.
         if (FloorObjectives.gatesPad(record)) {
             String objectiveRefusal = FloorObjectives.padRefusal(record);
             if (objectiveRefusal != null) {
-                player.sendSystemMessage(Component.literal(objectiveRefusal).withStyle(ChatFormatting.YELLOW));
-                return true;
+                return objectiveRefusal;
             }
         } else {
             // M67: every trial spawner on the floor counts toward the
             // completion gate, not just gated encounter cells. The threshold
             // (default 0.75) lets the player skip some spawners without
             // letting them sprint past the entire floor.
-            Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, player.level());
-            int cleared = TrialContent.countCleared(player.level(), spawners);
+            Set<BlockPos> spawners = TrialContent.activeSpawners(record.layout, level);
+            int cleared = TrialContent.countCleared(level, spawners);
             if (!DifficultyProfile.spawnersCleared(cleared, spawners.size(),
                     PocketDungeonsConfig.spawnerClearThreshold())) {
                 int more = DifficultyProfile.spawnersStillNeeded(cleared, spawners.size(),
                         PocketDungeonsConfig.spawnerClearThreshold());
-                player.sendSystemMessage(Component.literal(
-                        "Not yet: clear " + more + " more trial spawner" + (more == 1 ? "" : "s") + ".")
-                        .withStyle(ChatFormatting.YELLOW));
-                return true;
+                return "Not yet: clear " + more + " more trial spawner" + (more == 1 ? "" : "s") + ".";
             }
         }
         // M11: the boss is the ultimate gated completion for a zone whose
         // capstone is the boss, the same shape as the spawner gate above
         // but for a single mob instead of a fraction of many.
         if (ZoneRules.bossCapstone(record.floor.theme)
-                && BossContent.bossAlive(player.level(), record.layout.terminal())) {
-            player.sendSystemMessage(Component.literal(
-                    "The Drowned Warden still stands. Finish it first.")
-                    .withStyle(ChatFormatting.YELLOW));
-            return true;
+                && BossContent.bossAlive(level, record.layout.terminal())) {
+            return "The Drowned Warden still stands. Finish it first.";
         }
         // Dungeon structure W7a: the Spawner Dungeon's brood gates the pad the same way (the
         // spawners, then the final wave). The Ancient City never gates its pad.
         String broodRefusal = CapstoneFights.padRefusal(server, record);
         if (broodRefusal != null) {
-            player.sendSystemMessage(Component.literal(broodRefusal).withStyle(ChatFormatting.YELLOW));
-            return true;
+            return broodRefusal;
         }
         // Endless Mine: a guardian floor's pad stays shut while its guardian lives.
-        String guardianRefusal = MineGuardians.padRefusal(player.level(), record);
+        String guardianRefusal = MineGuardians.padRefusal(level, record);
         if (guardianRefusal != null) {
-            player.sendSystemMessage(Component.literal(guardianRefusal).withStyle(ChatFormatting.YELLOW));
-            return true;
+            return guardianRefusal;
         }
         // The Proving: every floor's pad stays shut while its wave stands.
-        String waveRefusal = ProvingWaves.padRefusal(player.level(), record);
-        if (waveRefusal != null) {
-            player.sendSystemMessage(Component.literal(waveRefusal).withStyle(ChatFormatting.YELLOW));
-            return true;
-        }
-        return false;
+        return ProvingWaves.padRefusal(level, record);
     }
 
     /** The announce phase of {@link #completeRun}: the verdict line, the floor title and the compass study list. */
@@ -1497,6 +1496,17 @@ final class RunLifecycle {
     private static void placeFloorRewards(MinecraftServer server, ServerLevel level, InstanceRecord record,
                                           DungeonDef tripDef, boolean finishedNow, BlockPos terminalOrigin,
                                           DoorMask.Direction entranceDir, int floorsCleared) {
+        placeFloorRewards(server, level, record, tripDef, finishedNow, terminalOrigin, entranceDir, floorsCleared,
+                List.of());
+    }
+
+    /**
+     * {@link #placeFloorRewards} with extra stacks in the copper chest: the wild clear's bonus rewards ride in the
+     * same chest as the node's promised items.
+     */
+    static void placeFloorRewards(MinecraftServer server, ServerLevel level, InstanceRecord record,
+                                  DungeonDef tripDef, boolean finishedNow, BlockPos terminalOrigin,
+                                  DoorMask.Direction entranceDir, int floorsCleared, List<ItemStack> extraPromised) {
         // J3: omen adds danger only, never reward cuts. The
         // base reward is always three chests, plus the zone's depth bonus on
         // deeper floors.
@@ -1535,10 +1545,19 @@ final class RunLifecycle {
                         ProvingWaves.payingTable(record, floorsCleared,
                                 MineGuardians.payingTable(record, floorsCleared,
                                         completionTheme == null ? null : completionTheme.meta().lootTable))),
-                promisedItems(level, tripDef, record));
+                withExtra(promisedItems(level, tripDef, record), extraPromised));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
         }
+    }
+
+    private static List<ItemStack> withExtra(List<ItemStack> promised, List<ItemStack> extra) {
+        if (extra.isEmpty()) {
+            return promised;
+        }
+        List<ItemStack> all = new ArrayList<>(promised);
+        all.addAll(extra);
+        return all;
     }
 
     /** The stamp phase of {@link #advanceFloor}'s last step: fresh screens and the way home at the new staging room. */

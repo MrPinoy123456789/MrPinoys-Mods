@@ -25,6 +25,8 @@ final class WildText {
     static final String KEEP_WHAT_YOU_CARRY = "You keep what you carry.";
     static final String EXIT_TITLE = "Exit";
     static final String READY = "Ready.";
+    static final String CLEARED = "The place is cleared. Take what is yours and use the Exit when you are ready.";
+    static final String RESET_SOON = "The place is closing soon. Gather your things.";
 
     /** The last stretch of a lodestone's life, in seconds, in which the menu says when it collapses. */
     static final long COLLAPSE_NOTICE_SECONDS = 24L * 3600L;

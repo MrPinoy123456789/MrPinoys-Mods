@@ -56,6 +56,7 @@ public final class PocketDungeonsMod implements ModInitializer {
         WildDungeons.register();
         WildLodestones.register();
         WildRules.register();
+        WildReset.register();
         RitualListener.register();
         SilenceListener.register();
         TrappedCache.register();

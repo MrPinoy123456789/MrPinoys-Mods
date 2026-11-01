@@ -1,0 +1,97 @@
+package pocketdungeons;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * The clear of a wild dungeon: the same gate the campaign pad uses, checked by a watcher instead of a pad. When it
+ * passes, the floor pays like one cleared campaign floor (barrel and copper chest at the far side of the terminal),
+ * the clear Exit block appears, the cooldown starts, and the dungeon stays open until {@link WildReset} closes it.
+ * Nothing here advances the floor or builds a next staging room.
+ */
+final class WildClear {
+
+    /** How often the gate is asked, in ticks; the spawner scan is not free. */
+    static final int CHECK_EVERY = 10;
+
+    private static final java.util.Map<String, Boolean> WARNED = SessionState.clearedAtStop(new java.util.HashMap<>());
+
+    private WildClear() {}
+
+    /**
+     * Whether a floor may auto clear at all. A floor with no spawner, no objective and no boss would pass the gate
+     * the moment someone entered ({@code spawnersCleared} is true for a total of zero), so it never clears.
+     */
+    static boolean hasSomethingToClear(InstanceRecord record, ServerLevel level) {
+        return !TrialContent.activeSpawners(record.layout, level).isEmpty()
+                || FloorObjectives.gatesPad(record)
+                || ZoneRules.bossCapstone(record.floor.theme);
+    }
+
+    /** One watch tick of an in progress wild record. */
+    static void tick(MinecraftServer server, InstanceRecord record, WildState.Lodestone lodestone, long gameTime) {
+        if (lodestone == null || lodestone.phase != WildState.Phase.IN_PROGRESS || record.members.isEmpty()
+                || gameTime % CHECK_EVERY != 0) {
+            return;
+        }
+        ServerLevel level = WildReset.dungeonLevel(server, lodestone.id);
+        if (level == null) {
+            return;
+        }
+        if (!hasSomethingToClear(record, level)) {
+            if (WARNED.putIfAbsent(lodestone.id, Boolean.TRUE) == null) {
+                PocketDungeonsMod.LOG.warn("Wild lodestone {} has no spawner, objective or boss; it will never clear",
+                        lodestone.id);
+            }
+            return;
+        }
+        if (RunLifecycle.padRefusal(server, record, level) == null) {
+            clear(server, level, record, lodestone);
+        }
+    }
+
+    /** Pays the clear and starts the cooldown. Package private so a gametest can force it. */
+    static void clear(MinecraftServer server, ServerLevel level, InstanceRecord record, WildState.Lodestone lodestone) {
+        WildDungeons.Offering offering = WildDungeons.byId(lodestone.dungeon);
+        DungeonDef def = TripView.def(record);
+        BlockPos terminal = record.layout.terminal();
+        DoorMask.Direction entranceDir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminal);
+        List<ItemStack> bonus = WildRewards.rollBonus(offering, level.getRandom());
+        RunLifecycle.placeFloorRewards(server, level, record, def, false, terminal, entranceDir, 1, bonus);
+        BlockPos exit = TrialContent.exitSpot(terminal, entranceDir);
+        WildLodestones.placeExit(level, exit, lodestone.id, true);
+
+        long cooldown = (offering == null ? 60L : offering.cooldownMinutes()) * 60L;
+        lodestone.markCleared(WildClock.now(), cooldown);
+        WildStore.save();
+
+        List<ServerPlayer> players = onlineMembers(server, record);
+        for (ServerPlayer player : players) {
+            player.sendSystemMessage(Component.literal(WildText.CLEARED).withStyle(ChatFormatting.GREEN));
+        }
+        WildRewards.pay(new WildRewards.Payout(lodestone, offering, record.layout.keystoneLevel(), players));
+        PocketDungeonsMod.LOG.info("Wild lodestone {} cleared; reset in {} seconds", lodestone.id, cooldown);
+    }
+
+    static List<ServerPlayer> onlineMembers(MinecraftServer server, InstanceRecord record) {
+        List<ServerPlayer> out = new ArrayList<>();
+        for (UUID member : record.members.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member);
+            if (player != null) {
+                out.add(player);
+            }
+        }
+        return out;
+    }
+}

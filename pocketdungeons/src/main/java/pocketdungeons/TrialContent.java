@@ -1054,6 +1054,11 @@ final class TrialContent {
                 net.minecraft.resources.Identifier.withDefaultNamespace("copper_chest"));
     }
 
+    /** Where the wild clear Exit block stands: the third reward spot, which the rewards leave empty. */
+    static BlockPos exitSpot(BlockPos origin, DoorMask.Direction entranceDir) {
+        return origin.offset(completionSpots(entranceDir)[2]);
+    }
+
     private static BlockPos[] completionSpots(DoorMask.Direction entranceDir) {
         return switch (entranceDir) {
             case NORTH -> new BlockPos[]{new BlockPos(4, 1, 12), new BlockPos(8, 1, 12),
