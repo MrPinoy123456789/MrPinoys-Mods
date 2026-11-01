@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azrak_fortune",
+  "require_permission": "race:azrak",
+  "kind": "fortune",
+  "level": 1,
+  "cap": 3,
+  "targets": [
+    "#minecraft:coal_ores", "#minecraft:iron_ores", "#minecraft:copper_ores", "#minecraft:gold_ores",
+    "#minecraft:lapis_ores", "#minecraft:diamond_ores", "#minecraft:emerald_ores",
+    "minecraft:nether_quartz_ore", "minecraft:nether_gold_ore"
+  ]
+}

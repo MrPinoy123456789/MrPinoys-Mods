@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azurius_looting",
+  "require_permission": "race:azurius",
+  "kind": "looting",
+  "level": 1,
+  "cap": 3,
+  "targets": [
+    "minecraft:drowned", "minecraft:guardian", "minecraft:elder_guardian", "minecraft:squid", "minecraft:glow_squid",
+    "minecraft:cod", "minecraft:salmon", "minecraft:tropical_fish", "minecraft:pufferfish"
+  ]
+}

@@ -44,7 +44,7 @@ Each is a free +1 level, in the style of Fortune I (blocks) or Looting I (mobs).
 
 | Race | Bonus | Applies to |
 |---|---|---|
-| Dwarf | Fortune I | Coal, iron, copper, gold, lapis, diamond, emerald, quartz and stone-tier blocks. Not redstone ore. |
+| Dwarf | Fortune I | Coal, iron, copper, gold, lapis, diamond, emerald, nether quartz and nether gold ores. Not redstone ore. |
 | Fairy | Fortune I and Looting I | Dusts: redstone ore, glowstone blocks, gunpowder (creepers, ghasts, witches) and similar mob dust drops. |
 | Human | Looting I | Farm animals: cow, pig, sheep, chicken, rabbit (meat, leather, wool, feathers). |
 | Fae | Fortune I | Alchemy plants: nether wart, sweet and glow berries, mushrooms, flowers. |
@@ -127,9 +127,16 @@ Charter work: none for the trinkets. The always-on combat passives, if chosen, e
 | Part | State |
 |---|---|
 | Spec | This document |
-| Combat passives (Charter) | In progress; see git log |
-| Gathering passives (Foundry) | In progress; see git log |
+| Combat passives | Rules, knobs and tests done (`charter/core/.../RaceCombat.java`, 25 checks). Game glue written, not compiled (`RaceCombatPassives.java`). |
+| Gathering passives | Definition, parser, drop math and tests done (`foundry/core/Bonus*.java`, 279 core checks pass). Game glue written, not compiled (`foundry/mc/Bonuses.java`). Five race files in `foundry/examples/content/kingdoms/bonuses/` (seven bonuses, Merfolk and Fairy have two each). |
+| Fishing bonus (Merfolk) | Not built. Needs a fish-caught hook; Merfolk currently get mob and sea block bonuses only. |
 | Trinkets and `while_worn` | Not started |
 
-The build environment for this spec had no access to the Fabric Maven host and no JDK 25, so Minecraft-side code was
-written but not compiled there. Pure logic is tested. Compile and gametest before relying on any of it.
+Game glue was written on a build host with no access to the Fabric Maven repository and no JDK 25, so it was not
+compiled or run. The pure rules are tested. Before shipping: run `./gradlew.bat build` and the gametests in `charter`
+and `foundry`, then check on a test server that a Dwarf gets extra ore, a Fairy gets extra gunpowder from a creeper,
+a Fairy takes no fall damage, and a Merfolk mines at normal speed underwater.
+
+How a bonus file reads (`<content>/<namespace>/bonuses/<name>.json`): `require_permission` (the race node),
+`kind` (`fortune` for blocks, `looting` for mobs), `level` (default 1), `cap` (default 3), `targets` (ids or `#tags`)
+and an optional `only_items` list that limits which extra items are granted.

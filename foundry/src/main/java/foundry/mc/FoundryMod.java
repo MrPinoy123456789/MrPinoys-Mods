@@ -80,6 +80,7 @@ public final class FoundryMod implements ModInitializer {
         set = MechanicHost.checkReferences(set);
         set = Furniture.checkPlacers(set);
         set.problems().forEach(p -> LOG.warn("{}", p));
+        Bonuses.reload();
         return set;
     }
 
@@ -155,6 +156,7 @@ public final class FoundryMod implements ModInitializer {
         FoundryCommands.register();
         Swings.register();
         Gate.register();
+        Bonuses.register();
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             Swings.tick(server);
             Bolts.tick(server);
