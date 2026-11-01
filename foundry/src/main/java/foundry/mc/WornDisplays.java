@@ -13,6 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import eu.pb4.polymer.core.api.item.PolymerItemUtils;
+import net.fabricmc.fabric.api.networking.v1.context.PacketContext;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
@@ -22,11 +26,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import java.util.function.Consumer;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
+import org.joml.Matrix4f;
 
 /**
  * Draws worn trinkets for vanilla clients, which cannot render Trinkets models: one item display per trinket,
@@ -70,6 +72,10 @@ public final class WornDisplays {
             return new ClientboundSetEquipmentPacket(owner.getId(), List.of(Pair.of(EquipmentSlot.HEAD, head)));
         }
 
+        ItemStack headStack() {
+            return headStack;
+        }
+
         /** Gives every viewer the player's real helmet back (before a head slot holder goes away). */
         void restoreHead() {
             if (headStack == null) return;
@@ -106,11 +112,11 @@ public final class WornDisplays {
         return s == null ? 0 : s.parts.size();
     }
 
-    /** Test hook: the facing of one of a player's displays right now. */
-    public static Quaternionf rotationOf(UUID player, int index) {
+    /** Test hook: the transformation one of a player's displays was last given, or null. */
+    public static Matrix4f transformOf(UUID player, int index) {
         Shown s = SHOWN.get(player);
         if (s == null || index >= s.parts.size() || s.parts.get(index).element == null) return null;
-        return new Quaternionf(s.parts.get(index).element.getLeftRotation());
+        return transformFor(s.player, s.parts.get(index).place);
     }
 
     /** Test hook: "head_slot" or "display" for one of a player's parts, or null. */
@@ -171,10 +177,27 @@ public final class WornDisplays {
                                 part.place.side(), part.place.scale())
                         + (part.place.hideFromWearer() ? ", hidden from wearer" : "")
                         + (part.headMode ? "" : ", position " + part.holder.getPos()));
+                // What the client is actually sent for this display: the stack after Polymer rewrote it.
+                ItemStack real = part.headMode ? part.holder.headStack() : part.element.getItem();
+                lines.add("    client stack: " + clientView(player, real) + "; display context "
+                        + (part.headMode ? "HEAD (the client draws a helmet slot item with the head transform)"
+                                : part.element.getItemDisplayContext()));
             }
         }
         if (lines.isEmpty()) lines.add("No such player is online.");
         return lines;
+    }
+
+    /** The item as the viewer's client receives it: base item, item_model and custom_model_data after Polymer's rewrite. */
+    public static String clientView(ServerPlayer viewer, ItemStack stack) {
+        try {
+            ItemStack client = PacketContext.supplyWithContext(viewer.connection,
+                    () -> PolymerItemUtils.getPolymerItemStack(stack, PacketContext.get(), viewer.registryAccess()));
+            return BuiltInRegistries.ITEM.getKey(client.getItem()) + " item_model=" + client.get(DataComponents.ITEM_MODEL)
+                    + " custom_model_data=" + client.get(DataComponents.CUSTOM_MODEL_DATA);
+        } catch (RuntimeException e) {
+            return "could not be worked out (" + e + ")";
+        }
     }
 
     /** True when someone has a display up, so the per tick turning has work to do. */
@@ -300,7 +323,10 @@ public final class WornDisplays {
             Holder holder = new Holder(player, place.hideFromWearer(), place.ride(), null);
             ItemDisplayElement element = new ItemDisplayElement(stacks.get(i));
             element.setItemDisplayContext(ItemDisplayContext.FIXED);
-            element.setInterpolationDuration(3);
+            // As Polymer's own entity models do: interpolate the transformation over a tick or two, and smooth the
+            // position over three ticks for a display that is not riding (a rider is moved by the client every frame).
+            element.setInterpolationDuration(2);
+            element.setTeleportDuration(3);
             // Placed before the holder is attached, so the first packet a viewer gets already has the right transform.
             place(player, element, place);
             if (place.ride()) holder.addPassengerElement(element);
@@ -320,27 +346,72 @@ public final class WornDisplays {
         for (Part part : shown.parts) if (part.element != null) place(shown.player, part.element, part.place);
     }
 
-    /** Sets one display's size, position and facing from the player's body (or head) right now. */
+    /** One block in the player model is 16 model pixels at the player's 0.9375 scale. */
+    private static final float PX = 0.9375f / 16f;
+    /** Height of the neck (the head and body pivot) above the feet when standing: 24 model pixels. */
+    static final float NECK = 24 * PX;
+
+    /** Sets one display's whole transformation from the player's pose right now (see {@link #transformFor}). */
     private static void place(ServerPlayer player, ItemDisplayElement element, WornPlacement p) {
-        boolean upright = !player.isInvisible() && player.getPose() != Pose.SWIMMING
-                && player.getPose() != Pose.FALL_FLYING && player.getPose() != Pose.SLEEPING;
-        float scale = upright ? p.scale() : 0f;
-        float yaw = p.onHead() ? player.getYHeadRot() : player.yBodyRot;
-        // Minecraft yaw 0 faces south (+z). "Back" is opposite the facing, "side" is to the player's right.
-        double rad = Math.toRadians(yaw);
-        // A riding display is placed from the player's top (where the client mounts it), so that height is taken off.
-        float up = p.up() - (player.isCrouching() ? 0.25f : 0f) - (p.ride() ? player.getBbHeight() : 0f);
-        Vector3f at = new Vector3f(
-                (float) (Math.sin(rad) * p.back() - Math.cos(rad) * p.side()), up,
-                (float) (-Math.cos(rad) * p.back() - Math.sin(rad) * p.side()));
-        // A back item turns its front away from the player's back; a head item faces the way the head does.
-        // A head item also tips with the head's pitch (positive looks down, which tips the front down).
-        Quaternionf turn = new Quaternionf().rotationY((float) Math.toRadians((p.onHead() ? 0f : 180f) - yaw))
-                .rotateX((float) Math.toRadians(p.onHead() ? player.getXRot() : 0f))
-                .rotateXYZ((float) Math.toRadians(p.rx()), (float) Math.toRadians(p.ry()), (float) Math.toRadians(p.rz()));
-        element.setLeftRotation(turn);
-        element.setScale(new Vector3f(scale, scale, scale));
-        element.setTranslation(at);
+        element.setTransformation(transformFor(player, p));
         element.startInterpolationIfDirty();
+    }
+
+    /**
+     * The display's transformation for this tick, built the way vanilla draws a player (LivingEntityRenderer and the
+     * player renderer's setupRotations), and the way Polymer's own entity models do it (Patbox's model handlers build a
+     * matrix from the entity's body yaw and pose every tick and send it as the display transformation):
+     * <ol>
+     *   <li>start at the display's origin: the feet, or the top of the player for a riding display;</li>
+     *   <li>turn by 180 minus the BODY yaw, so from here +x is the player's right, +y up and +z behind them;</li>
+     *   <li>crouching drops the model 2 pixels; gliding and swimming tip the body forward as vanilla does
+     *       (gliding by up to 90 degrees plus the look pitch, swimming the same and moved down and back);</li>
+     *   <li>a head item then pivots at the neck, turns by the head's yaw relative to the body and tips by the head's
+     *       pitch (crouching lowers the head 4.2 pixels); a body item pivots at the neck too and leans forward half a
+     *       radian about the chest while crouching;</li>
+     *   <li>the placement's up/back/side offset (heights measured from the feet when standing) and extra rotation, and
+     *       a head item is turned to face forward;</li>
+     *   <li>scale, or nothing at all while the player is invisible or asleep.</li>
+     * </ol>
+     */
+    public static Matrix4f transformFor(ServerPlayer player, WornPlacement p) {
+        Matrix4f m = new Matrix4f();
+        if (p.ride()) m.translate(0, -player.getBbHeight(), 0);
+        float body = player.yBodyRot;
+        m.rotateY((float) Math.toRadians(180f - body));
+        boolean crouch = player.isCrouching();
+        if (crouch) m.translate(0, -2 * PX, 0);
+        float pitch = player.getXRot();
+        float swim = player.getSwimAmount(1f);
+        boolean lying = false;
+        if (player.isFallFlying()) {
+            float t = player.getFallFlyingTicks();
+            float k = Math.min(1f, Math.max(0f, t * t / 100f));
+            m.rotateX((float) Math.toRadians(k * (-90f - pitch)));
+            lying = k > 0.5f;
+        } else if (swim > 0f) {
+            float target = player.isInWater() ? -90f - pitch : -90f;
+            m.rotateX((float) Math.toRadians(swim * target));
+            if (player.isVisuallySwimming()) m.translate(0, -1f, 0.3f);
+            lying = swim > 0.5f;
+        }
+        if (p.onHead()) {
+            m.translate(0, NECK - (crouch ? 4.2f * PX : 0f), 0);
+            m.rotateY((float) Math.toRadians(body - player.getYHeadRot()));
+            // Lying down, vanilla tips the head back up by 45 degrees instead of following the look pitch.
+            float headPitch = lying ? -45f : pitch;
+            m.rotateX((float) Math.toRadians(-headPitch));
+        } else {
+            m.translate(0, NECK - (crouch ? 3.2f * PX : 0f), 0);
+            if (crouch) m.rotateX(-0.5f);
+        }
+        m.translate(p.side(), p.up() - NECK, p.back());
+        // The item's front is +z (as in an item frame); a body item shows it outward from the back, a head item forward.
+        if (p.onHead()) m.rotateY((float) Math.PI);
+        m.rotateXYZ((float) Math.toRadians(p.rx()), (float) Math.toRadians(p.ry()), (float) Math.toRadians(p.rz()));
+        boolean shown = !player.isInvisible() && !player.isSleeping();
+        float scale = shown ? p.scale() : 0f;
+        m.scale(scale);
+        return m;
     }
 }

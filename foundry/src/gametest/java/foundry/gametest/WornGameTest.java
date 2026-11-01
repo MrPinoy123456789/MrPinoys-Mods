@@ -182,24 +182,74 @@ public final class WornGameTest {
         });
     }
 
-    /** A head display turns with the head's yaw and tips with its pitch. */
-    @GameTest(maxTicks = 100)
-    public void aHeadDisplayFollowsTheHeadYawAndPitch(GameTestHelper helper) {
+    private static org.joml.Vector3f front(org.joml.Matrix4f m) {
+        return m.transformDirection(new org.joml.Vector3f(0, 0, 1)).normalize();
+    }
+
+    private static boolean near(org.joml.Vector3f v, double x, double y, double z) {
+        return Math.abs(v.x - x) < 0.05 && Math.abs(v.y - y) < 0.05 && Math.abs(v.z - z) < 0.05;
+    }
+
+    /**
+     * Head items follow the head and body items follow the body: with the body turned west (yaw 90) and the head looking
+     * south (yaw 0), the gills face south and the cape's outer face points east (behind a body facing west).
+     */
+    @GameTest(maxTicks = 20)
+    public void headItemsFollowTheHeadAndBodyItemsFollowTheBody(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
-        wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
-        helper.runAfterDelay(15, () -> {
-            wearer.setYHeadRot(90f);
-            wearer.setXRot(30f);
-            helper.runAfterDelay(5, () -> {
-                var q = foundry.mc.WornDisplays.rotationOf(wearer.getUUID(), 0);
-                helper.assertTrue(q != null, "The gills have no display");
-                var expected = new org.joml.Quaternionf().rotationY((float) Math.toRadians(-90)).rotateX((float) Math.toRadians(30));
-                var got = q.transform(new org.joml.Vector3f(0, 0, 1));
-                var want = expected.transform(new org.joml.Vector3f(0, 0, 1));
-                helper.assertTrue(got.distance(want) < 0.05f, "The gills face " + got + " instead of " + want);
-                helper.succeed();
-            });
-        });
+        wearer.yBodyRot = 90f;
+        wearer.setYHeadRot(0f);
+        wearer.setXRot(0f);
+        var gills = foundry.core.WornPlacement.of("head/face").orElseThrow();
+        var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
+        var g = front(foundry.mc.WornDisplays.transformFor(wearer, gills));
+        var c = front(foundry.mc.WornDisplays.transformFor(wearer, cape));
+        helper.assertTrue(near(g, 0, 0, 1), "The gills should face where the head looks (south) but face " + g);
+        helper.assertTrue(near(c, 1, 0, 0), "The cape should face out of the back of a body turned west (east) but faces " + c);
+        wearer.yBodyRot = 0f;
+        var c2 = front(foundry.mc.WornDisplays.transformFor(wearer, cape));
+        helper.assertTrue(near(c2, 0, 0, -1), "Turning the body south should turn the cape to face north but it faces " + c2);
+        helper.succeed();
+    }
+
+    /** A head item tips with the head's pitch: facing west and looking 30 degrees down, the gills face west and down. */
+    @GameTest(maxTicks = 20)
+    public void aHeadItemTipsWithTheHeadPitch(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wearer.yBodyRot = 90f;
+        wearer.setYHeadRot(90f);
+        wearer.setXRot(30f);
+        var g = front(foundry.mc.WornDisplays.transformFor(wearer, foundry.core.WornPlacement.of("head/face").orElseThrow()));
+        helper.assertTrue(near(g, -Math.cos(Math.toRadians(30)), -Math.sin(Math.toRadians(30)), 0), "The gills face " + g);
+        helper.succeed();
+    }
+
+    /** Placements are measured from the feet; crouching lowers a body item and leans it forward, as vanilla's model does. */
+    @GameTest(maxTicks = 20)
+    public void crouchingLowersAndLeansABodyItem(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wearer.yBodyRot = 0f;
+        var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
+        var flat = new foundry.core.WornPlacement(cape.up(), cape.back(), cape.side(), cape.scale(), false, 0f, 0f, 0f, false, false, false);
+        var standing = foundry.mc.WornDisplays.transformFor(wearer, flat).getTranslation(new org.joml.Vector3f());
+        helper.assertTrue(Math.abs(standing.y - cape.up()) < 0.01, "A standing body item should sit at its up height but sits at " + standing.y);
+        wearer.setPose(net.minecraft.world.entity.Pose.CROUCHING);
+        var crouched = foundry.mc.WornDisplays.transformFor(wearer, flat);
+        var at = crouched.getTranslation(new org.joml.Vector3f());
+        var up = crouched.transformDirection(new org.joml.Vector3f(0, 1, 0)).normalize();
+        helper.assertTrue(at.y < standing.y - 0.05, "Crouching did not lower the cape: " + standing.y + " to " + at.y);
+        helper.assertTrue(up.z > 0.3, "Crouching did not lean the cape forward (facing south, its up should tip south): " + up);
+        helper.succeed();
+    }
+
+    /** An invisible player's displays shrink to nothing. */
+    @GameTest(maxTicks = 20)
+    public void anInvisiblePlayersItemsAreHidden(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wearer.setInvisible(true);
+        var m = foundry.mc.WornDisplays.transformFor(wearer, foundry.core.WornPlacement.of("chest/cape").orElseThrow());
+        helper.assertTrue(m.getScale(new org.joml.Vector3f()).length() < 0.001, "An invisible player's cape still shows");
+        helper.succeed();
     }
 
     /** The circlet goes to other players as a helmet while the helmet slot is empty, and falls back to a display under a real helmet. */
@@ -265,6 +315,49 @@ public final class WornGameTest {
         ItemStack wings = new ItemStack(item("kingdoms:fairy_wings"));
         helper.assertTrue(wings.getMaxDamage() == 0, "The wings still have durability");
         helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
+        helper.succeed();
+    }
+
+    /**
+     * The client item definition Foundry builds for a worn item selects the 3D model for every display context the
+     * game can send (all but none), so no context falls through to the flat fallback. (The client's own codecs cannot
+     * be loaded on a server, so this checks the context names against the game's enum instead.)
+     */
+    @GameTest(maxTicks = 20)
+    public void theWornSelectCoversEveryDisplayContext(GameTestHelper helper) throws Exception {
+        var generated = foundry.core.PackFiles.generate(foundry.mc.FoundryMod.loaded());
+        var assets = java.nio.file.Path.of(System.getProperty("foundry.assets"));
+        int checked = 0;
+        for (var def : foundry.mc.FoundryMod.loaded().items().values()) {
+            if (def.wornModel() == null) continue;
+            String json = generated.get(foundry.core.PackFiles.clientItemPath(def.id()));
+            helper.assertTrue(json != null, def.id() + " has no client item definition");
+            var cases = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("model")
+                    .getAsJsonArray("cases").get(0).getAsJsonObject().getAsJsonArray("when");
+            var covered = new java.util.HashSet<String>();
+            cases.forEach(e -> covered.add(e.getAsString()));
+            for (var context : net.minecraft.world.item.ItemDisplayContext.values()) {
+                if (context == net.minecraft.world.item.ItemDisplayContext.NONE) continue;
+                helper.assertTrue(covered.contains(context.getSerializedName()),
+                        def.id() + " select does not cover the " + context.getSerializedName() + " context");
+            }
+            helper.assertTrue(java.nio.file.Files.isRegularFile(assets.resolve(foundry.core.PackFiles.modelPath(def.wornModel()))),
+                    def.id() + " worn model file is missing");
+            checked++;
+        }
+        helper.assertTrue(checked == 5, "Expected five worn items with a worn model but checked " + checked);
+        helper.succeed();
+    }
+
+    /** What a viewer's client receives for a worn item: the base item with item_model naming the Foundry item, so the pack's select applies. */
+    @GameTest(maxTicks = 20)
+    public void theClientIsSentTheItemModelThePackSelectsOn(GameTestHelper helper) {
+        ServerPlayer viewer = player(helper, null);
+        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings"}) {
+            String seen = foundry.mc.WornDisplays.clientView(viewer, new ItemStack(item("kingdoms:" + id)));
+            foundry.mc.FoundryMod.LOG.info("client stack for kingdoms:{}: {}", id, seen);
+            helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
+        }
         helper.succeed();
     }
 }

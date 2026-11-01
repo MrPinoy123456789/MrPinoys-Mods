@@ -546,6 +546,11 @@ public final class CoreSuite {
         var modelVanilla = Validator.validate(java.util.List.of(new Validator.Sourced("staff.json", staff)),
                 java.util.List.of(), i -> true, p -> p.equals("t/models/item/staff.json"), p -> vanillaTexModel, java.util.List.of());
         check(!modelVanilla.hasErrors(), "a model may use vanilla textures without a local file");
+        String offAtlasModel = "{\"textures\":{\"0\":\"t:worn/staff\"}}";
+        var modelOffAtlas = Validator.validate(java.util.List.of(new Validator.Sourced("staff.json", staff)),
+                java.util.List.of(), i -> true, p -> true, p -> offAtlasModel, java.util.List.of());
+        check(modelOffAtlas.problems().stream().anyMatch(p -> p.blocking() && p.message().contains("pink and black")),
+                "a model texture outside textures/item/ and textures/block/ is an error (the client would draw it missing)");
     }
 
     private static void loading() throws Exception {

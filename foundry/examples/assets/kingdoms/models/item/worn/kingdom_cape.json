@@ -1,7 +1,7 @@
 {
   "textures": {
-    "0": "kingdoms:worn/kingdom_cape",
-    "particle": "kingdoms:worn/kingdom_cape"
+    "0": "kingdoms:item/worn/kingdom_cape",
+    "particle": "kingdoms:item/worn/kingdom_cape"
   },
   "elements": [
     {

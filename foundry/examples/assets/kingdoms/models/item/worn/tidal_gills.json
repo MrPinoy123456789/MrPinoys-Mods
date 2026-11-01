@@ -1,7 +1,7 @@
 {
   "textures": {
-    "0": "kingdoms:worn/tidal_gills",
-    "particle": "kingdoms:worn/tidal_gills"
+    "0": "kingdoms:item/worn/tidal_gills",
+    "particle": "kingdoms:item/worn/tidal_gills"
   },
   "elements": [
     {

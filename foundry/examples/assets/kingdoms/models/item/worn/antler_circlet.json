@@ -1,7 +1,7 @@
 {
   "textures": {
-    "0": "kingdoms:worn/antler_circlet",
-    "particle": "kingdoms:worn/antler_circlet"
+    "0": "kingdoms:item/worn/antler_circlet",
+    "particle": "kingdoms:item/worn/antler_circlet"
   },
   "elements": [
     {

@@ -22,6 +22,8 @@ FACE_NAMES = {"north", "east", "south", "west", "up", "down"}
 CONTEXTS = {"none", "thirdperson_lefthand", "thirdperson_righthand", "firstperson_lefthand", "firstperson_righthand",
             "head", "gui", "ground", "fixed", "on_shelf"}
 MAX_ELEMENTS = 32
+# Vanilla 26.3 atlases: items.json takes textures/item/, blocks.json takes textures/block/. A model texture elsewhere is missing.
+ATLAS_FOLDERS = ("item/", "block/")
 
 
 def models():
@@ -44,8 +46,14 @@ def check(ns, name, path):
         model = json.load(f)
     tex = model.get("textures", {})
     for key, ref in tex.items():
-        if not ref.startswith("#") and not os.path.isfile(texture_file(ref)):
+        if ref.startswith("#"):
+            continue
+        if not os.path.isfile(texture_file(ref)):
             problems.append(f"texture {key} -> {ref} has no PNG")
+        path = ref.split(":", 1)[-1]
+        if not path.startswith(ATLAS_FOLDERS):
+            problems.append(f"texture {key} -> {ref} is outside the folders the client stitches for models "
+                            f"({', '.join(ATLAS_FOLDERS)}); it would draw pink and black. Move it under textures/item/.")
     els = model.get("elements", [])
     if not els:
         problems.append("no elements")
@@ -169,7 +177,8 @@ def main():
     shown = []
     for ns, name, path in models():
         model, problems = check(ns, name, path)
-        tex = Image.open(texture_file(next(iter(model["textures"].values())))).convert("RGBA")
+        first = texture_file(next(iter(model["textures"].values())))
+        tex = Image.open(first).convert("RGBA") if os.path.isfile(first) else Image.new("RGBA", (16, 16), (248, 0, 248, 255))
         shown.append((name, model, tex))
         status = "ok" if not problems else "PROBLEMS"
         print(f"{ns}:{name}: {len(model['elements'])} elements, {status}")
