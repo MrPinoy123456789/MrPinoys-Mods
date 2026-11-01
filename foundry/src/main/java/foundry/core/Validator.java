@@ -148,6 +148,14 @@ public final class Validator {
                     ? Ident.parse(value)
                     : Ident.parse("minecraft:" + value);
             if (texture == null || texture.namespace().equals("minecraft")) continue;
+            // The client stitches model textures only from textures/item/ (the items atlas) and textures/block/; a
+            // texture in any other folder draws pink and black in game.
+            if (!texture.path().startsWith("item/") && !texture.path().startsWith("block/")) {
+                problems.add(Problem.error(id.toString(), "model", "The model names texture " + texture
+                        + ", which is outside textures/item/ and textures/block/, so the client would draw it pink and black.",
+                        "Move the PNG under assets/" + texture.namespace() + "/textures/item/ and name it "
+                                + texture.namespace() + ":item/... in the model."));
+            }
             String path = PackFiles.texturePath(texture);
             if (!assetExists.test(path)) {
                 problems.add(Problem.error(id.toString(), "model", "The model names texture " + texture

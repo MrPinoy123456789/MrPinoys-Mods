@@ -1,7 +1,7 @@
 {
   "textures": {
-    "0": "kingdoms:worn/fairy_wings",
-    "particle": "kingdoms:worn/fairy_wings"
+    "0": "kingdoms:item/worn/fairy_wings",
+    "particle": "kingdoms:item/worn/fairy_wings"
   },
   "elements": [
     {

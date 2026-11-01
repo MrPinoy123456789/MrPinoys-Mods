@@ -1,7 +1,7 @@
 {
   "textures": {
-    "0": "kingdoms:worn/forgeman_pauldron",
-    "particle": "kingdoms:worn/forgeman_pauldron"
+    "0": "kingdoms:item/worn/forgeman_pauldron",
+    "particle": "kingdoms:item/worn/forgeman_pauldron"
   },
   "elements": [
     {

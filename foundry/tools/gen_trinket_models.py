@@ -2,7 +2,9 @@
 
 Run from the foundry folder: python tools/gen_trinket_models.py. It writes, under examples/assets/kingdoms:
   models/item/worn/<name>.json   vanilla item models (cuboid elements, per face UVs, rotations, display transforms)
-  textures/worn/<name>.png       one texture per item (see below)
+  textures/item/worn/<name>.png  one texture per item (see below); it must sit under textures/item/ because the
+                                 client only stitches item model textures from there (the items atlas), and a
+                                 texture anywhere else draws pink and black
 Copy both folders into config/foundry/assets/kingdoms on the server, then restart or run /foundry pack build. Each
 item's content file names its model with "worn_model", and Foundry draws it wherever the item is shown (worn display,
 helmet slot, inventory, hand); the flat texture stays as the fallback and as the Bedrock icon. Run tools/check_models.py
@@ -26,7 +28,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(HERE, "..", "examples", "assets", "kingdoms")
 MODELS = os.path.join(ASSETS, "models", "item", "worn")
-TEXTURES = os.path.join(ASSETS, "textures", "worn")
+TEXTURES = os.path.join(ASSETS, "textures", "item", "worn")
 SPRITES = os.path.join(ASSETS, "textures", "item")
 
 ATLAS_W, ATLAS_H = 48, 32
@@ -253,7 +255,7 @@ def main():
     os.makedirs(TEXTURES, exist_ok=True)
     for name, build in MODELS_BUILD.items():
         model = {
-            "textures": {"0": f"kingdoms:worn/{name}", "particle": f"kingdoms:worn/{name}"},
+            "textures": {"0": f"kingdoms:item/worn/{name}", "particle": f"kingdoms:item/worn/{name}"},
             "elements": build(),
             "display": DISPLAY,
         }

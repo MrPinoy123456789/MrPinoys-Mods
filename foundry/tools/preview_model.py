@@ -25,6 +25,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(HERE, "..", "examples", "assets")
 OUT = os.path.join(HERE, "previews")
 
+# The game's missing texture: a 2 by 2 checker of magenta and black. Used for a texture that is absent or outside the
+# folders the client stitches into the atlas (textures/item/ and textures/block/), exactly what a player would see.
+MISSING = np.array([[[248, 0, 248, 255], [0, 0, 0, 255]], [[0, 0, 0, 255], [248, 0, 248, 255]]], dtype=np.uint8).repeat(8, 0).repeat(8, 1)
+
 SHADE = {"up": 1.0, "down": 0.5, "north": 0.8, "south": 0.8, "east": 0.6, "west": 0.6}
 NORMAL = {"up": (0, 1, 0), "down": (0, -1, 0), "north": (0, 0, -1), "south": (0, 0, 1), "east": (1, 0, 0), "west": (-1, 0, 0)}
 
@@ -108,7 +112,8 @@ def face_texture(model, ref, root, cache):
         return None
     if ref not in cache:
         file = texture_file(ref, root)
-        cache[ref] = np.array(Image.open(file).convert("RGBA")) if os.path.isfile(file) else None
+        in_atlas = ref.split(":", 1)[-1].startswith(("item/", "block/"))
+        cache[ref] = np.array(Image.open(file).convert("RGBA")) if os.path.isfile(file) and in_atlas else MISSING
         if cache[ref] is not None and cache[ref].shape[0] > cache[ref].shape[1] and cache[ref].shape[0] % cache[ref].shape[1] == 0 \
                 and os.path.isfile(file + ".mcmeta"):
             cache[ref] = cache[ref][: cache[ref].shape[1]]

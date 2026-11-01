@@ -118,7 +118,7 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   `head/face` default has `rotation` [0, 0, 0] (it was [0, 90, 0] for the sprite). If the mask sits sideways, set a y turn of 90 or -90 in `worn_displays.json`. Head
   displays also tip with the head's pitch (gametested for yaw and pitch).
 - **3D models.** Each trinket has a real 3D model, not a flat sprite: `examples/assets/kingdoms/models/item/worn/*.json`
-  (cuboids with per face UVs, rotations and display transforms) with `examples/assets/kingdoms/textures/worn/*.png`,
+  (cuboids with per face UVs, rotations and display transforms) with `examples/assets/kingdoms/textures/item/worn/*.png`,
   made by `foundry/tools/gen_trinket_models.py` (change a number, re-run). `foundry/tools/check_models.py` validates them
   (every face has a texture, UVs in range, legal rotations, modest cuboid count) and `--preview out.png` draws front,
   side and top silhouettes. An item names its model with `"worn_model"`; Foundry then writes a client item definition
@@ -133,6 +133,23 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   open the inventory (the icon is 3D when the pack is loaded, flat when not), reconnect and accept the server pack,
   Options, Resource Packs, and look for a stale cached copy. Polymer rebuilds the pack on `/foundry pack build` or
   `/polymer generate-pack`; clients fetch it on rejoin.
+- **Pink and black (fixed 2026-11-01).** The client only stitches model textures from `textures/item/` (the items
+  atlas) and `textures/block/`; the worn textures used to sit in `textures/worn/`, so every face drew the missing texture.
+  They now live in `textures/item/worn/` and the models name `kingdoms:item/worn/<id>`. Foundry's validator, `check_models.py`
+  and the preview renderer all treat a model texture outside those folders as an error (the preview draws it pink and
+  black, as the game does). On the server, `config/foundry/assets/kingdoms/textures/worn/` is no longer used.
+- **Following the player (rebuilt 2026-11-01).** Each display gets its whole transformation every tick from
+  `WornDisplays.transformFor`, built the way vanilla draws a player and the way Polymer's own entity models are moved
+  (Patbox's model handlers, for example `PolymerPorts/lovely-snails-patch`, LGPL-3.0: a matrix from the entity's body yaw
+  and pose sent with `setTransformation` and `startInterpolationIfDirty`, interpolation of a tick or two, a teleport
+  duration of three ticks; the idea was followed, no code was copied). Body items (pauldron, cape, wings) turn with the
+  body yaw, head items (gills, circlet as a display) with the head's yaw and pitch about the neck. Crouching lowers the
+  model and leans body items forward half a radian; gliding and swimming tip the body forward as vanilla does (head
+  items then tilt back up 45 degrees); invisible or sleeping players show nothing. A display rides the player when
+  `ride` is on (the client moves it every frame), and otherwise is smoothed over three ticks. Gametests check head
+  against body yaw, head pitch, crouching and invisibility; riding a mount needs nothing extra (the body yaw still
+  applies). Unverified live: how closely the server's body yaw matches what each client draws, and the swimming and
+  gliding poses.
 - **Skins and previews.** The cape, pauldron, circlet and gills are skinned from their own flat sprites (front faces show a
   crop of the sprite, the rest use swatches of its colours). The wings use a painted texture with a real wing silhouette,
   see through membrane, a rim and veins. `foundry/tools/preview_model.py` renders any vanilla item model JSON with its

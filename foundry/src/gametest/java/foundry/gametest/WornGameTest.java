@@ -182,24 +182,74 @@ public final class WornGameTest {
         });
     }
 
-    /** A head display turns with the head's yaw and tips with its pitch. */
-    @GameTest(maxTicks = 100)
-    public void aHeadDisplayFollowsTheHeadYawAndPitch(GameTestHelper helper) {
+    private static org.joml.Vector3f front(org.joml.Matrix4f m) {
+        return m.transformDirection(new org.joml.Vector3f(0, 0, 1)).normalize();
+    }
+
+    private static boolean near(org.joml.Vector3f v, double x, double y, double z) {
+        return Math.abs(v.x - x) < 0.05 && Math.abs(v.y - y) < 0.05 && Math.abs(v.z - z) < 0.05;
+    }
+
+    /**
+     * Head items follow the head and body items follow the body: with the body turned west (yaw 90) and the head looking
+     * south (yaw 0), the gills face south and the cape's outer face points east (behind a body facing west).
+     */
+    @GameTest(maxTicks = 20)
+    public void headItemsFollowTheHeadAndBodyItemsFollowTheBody(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
-        wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
-        helper.runAfterDelay(15, () -> {
-            wearer.setYHeadRot(90f);
-            wearer.setXRot(30f);
-            helper.runAfterDelay(5, () -> {
-                var q = foundry.mc.WornDisplays.rotationOf(wearer.getUUID(), 0);
-                helper.assertTrue(q != null, "The gills have no display");
-                var expected = new org.joml.Quaternionf().rotationY((float) Math.toRadians(-90)).rotateX((float) Math.toRadians(30));
-                var got = q.transform(new org.joml.Vector3f(0, 0, 1));
-                var want = expected.transform(new org.joml.Vector3f(0, 0, 1));
-                helper.assertTrue(got.distance(want) < 0.05f, "The gills face " + got + " instead of " + want);
-                helper.succeed();
-            });
-        });
+        wearer.yBodyRot = 90f;
+        wearer.setYHeadRot(0f);
+        wearer.setXRot(0f);
+        var gills = foundry.core.WornPlacement.of("head/face").orElseThrow();
+        var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
+        var g = front(foundry.mc.WornDisplays.transformFor(wearer, gills));
+        var c = front(foundry.mc.WornDisplays.transformFor(wearer, cape));
+        helper.assertTrue(near(g, 0, 0, 1), "The gills should face where the head looks (south) but face " + g);
+        helper.assertTrue(near(c, 1, 0, 0), "The cape should face out of the back of a body turned west (east) but faces " + c);
+        wearer.yBodyRot = 0f;
+        var c2 = front(foundry.mc.WornDisplays.transformFor(wearer, cape));
+        helper.assertTrue(near(c2, 0, 0, -1), "Turning the body south should turn the cape to face north but it faces " + c2);
+        helper.succeed();
+    }
+
+    /** A head item tips with the head's pitch: facing west and looking 30 degrees down, the gills face west and down. */
+    @GameTest(maxTicks = 20)
+    public void aHeadItemTipsWithTheHeadPitch(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wearer.yBodyRot = 90f;
+        wearer.setYHeadRot(90f);
+        wearer.setXRot(30f);
+        var g = front(foundry.mc.WornDisplays.transformFor(wearer, foundry.core.WornPlacement.of("head/face").orElseThrow()));
+        helper.assertTrue(near(g, -Math.cos(Math.toRadians(30)), -Math.sin(Math.toRadians(30)), 0), "The gills face " + g);
+        helper.succeed();
+    }
+
+    /** Placements are measured from the feet; crouching lowers a body item and leans it forward, as vanilla's model does. */
+    @GameTest(maxTicks = 20)
+    public void crouchingLowersAndLeansABodyItem(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wearer.yBodyRot = 0f;
+        var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
+        var flat = new foundry.core.WornPlacement(cape.up(), cape.back(), cape.side(), cape.scale(), false, 0f, 0f, 0f, false, false, false);
+        var standing = foundry.mc.WornDisplays.transformFor(wearer, flat).getTranslation(new org.joml.Vector3f());
+        helper.assertTrue(Math.abs(standing.y - cape.up()) < 0.01, "A standing body item should sit at its up height but sits at " + standing.y);
+        wearer.setPose(net.minecraft.world.entity.Pose.CROUCHING);
+        var crouched = foundry.mc.WornDisplays.transformFor(wearer, flat);
+        var at = crouched.getTranslation(new org.joml.Vector3f());
+        var up = crouched.transformDirection(new org.joml.Vector3f(0, 1, 0)).normalize();
+        helper.assertTrue(at.y < standing.y - 0.05, "Crouching did not lower the cape: " + standing.y + " to " + at.y);
+        helper.assertTrue(up.z > 0.3, "Crouching did not lean the cape forward (facing south, its up should tip south): " + up);
+        helper.succeed();
+    }
+
+    /** An invisible player's displays shrink to nothing. */
+    @GameTest(maxTicks = 20)
+    public void anInvisiblePlayersItemsAreHidden(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wearer.setInvisible(true);
+        var m = foundry.mc.WornDisplays.transformFor(wearer, foundry.core.WornPlacement.of("chest/cape").orElseThrow());
+        helper.assertTrue(m.getScale(new org.joml.Vector3f()).length() < 0.001, "An invisible player's cape still shows");
+        helper.succeed();
     }
 
     /** The circlet goes to other players as a helmet while the helmet slot is empty, and falls back to a display under a real helmet. */
