@@ -110,7 +110,7 @@ public final class OssuaryFinaleGameTest {
             if (state().elite != null && level.getEntity(state().elite) instanceof Mob b && b.isAlive()) {
                 b.setNoAi(true);
                 b.setNoGravity(true);
-                b.setInvulnerable(true); // nothing in a shared full run may kill it between the test's own blows
+                b.setPermanentlyInvulnerable(true); // nothing in a shared full run may kill it between the test's own blows
             }
         }
 
@@ -147,8 +147,8 @@ public final class OssuaryFinaleGameTest {
     /** A killing blow on the Sexton: the clamp holds him at the next bound, or lets the last phase die. */
     private static void burst(Run run) {
         Mob boss = run.boss();
-        boss.setInvulnerable(false);
-        boss.invulnerableTime = 0;
+        boss.setPermanentlyInvulnerable(false);
+        boss.damageCooldownTime = 0;
         boss.hurtServer(run.level, run.level.damageSources().generic(), 1000.0f);
     }
 

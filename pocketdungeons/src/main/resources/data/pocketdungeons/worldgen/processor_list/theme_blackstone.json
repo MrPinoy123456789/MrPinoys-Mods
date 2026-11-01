@@ -12,7 +12,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:polished_blackstone_bricks"
+            "id": "minecraft:polished_blackstone_bricks"
           }
         },
         {
@@ -24,7 +24,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:blackstone"
+            "id": "minecraft:blackstone"
           }
         },
         {
@@ -36,7 +36,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:shroomlight"
+            "id": "minecraft:shroomlight"
           }
         }
       ]

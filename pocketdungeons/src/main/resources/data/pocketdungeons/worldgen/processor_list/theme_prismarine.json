@@ -12,7 +12,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:prismarine_bricks"
+            "id": "minecraft:prismarine_bricks"
           }
         },
         {
@@ -24,7 +24,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:dark_prismarine"
+            "id": "minecraft:dark_prismarine"
           }
         },
         {
@@ -36,7 +36,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:sea_lantern"
+            "id": "minecraft:sea_lantern"
           }
         }
       ]

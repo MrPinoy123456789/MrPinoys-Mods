@@ -173,7 +173,7 @@ final class RoomBuilderCommands {
         }
 
         BlockPos origin = InstanceRegistry.slotOrigin(slot);
-        StructureTemplateManager manager = level.getStructureManager();
+        StructureTemplateManager manager = level.getStructureTemplateManager();
         Identifier templateId = Identifier.parse(entry.meta.template);
 
         // Place the template at rotation 0, no processors, no jigsaw replacement.
@@ -531,7 +531,7 @@ final class RoomBuilderCommands {
                         return;
                     }
                     BlockPos origin = InstanceRegistry.slotOrigin(slot);
-                    StructureTemplateManager manager = level.getStructureManager();
+                    StructureTemplateManager manager = level.getStructureTemplateManager();
                     Identifier templateId = Identifier.parse(entry.meta.template);
                     StructureTemplate template = manager.get(templateId).orElse(null);
                     if (template == null) {

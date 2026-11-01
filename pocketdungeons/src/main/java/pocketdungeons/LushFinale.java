@@ -281,7 +281,7 @@ final class LushFinale implements FinaleScript {
         if (bat == null) {
             return null;
         }
-        bat.setInvulnerable(true);
+        bat.setPermanentlyInvulnerable(true);
         bat.setInvisible(true);
         bat.setSilent(true);
         bat.setNoAi(true);

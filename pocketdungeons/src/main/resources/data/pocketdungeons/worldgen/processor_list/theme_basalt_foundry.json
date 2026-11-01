@@ -12,7 +12,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "nether_bricks"
+            "id": "nether_bricks"
           }
         },
         {
@@ -24,8 +24,8 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "basalt",
-            "Properties": {
+            "id": "basalt",
+            "properties": {
               "axis": "y"
             }
           }
@@ -39,7 +39,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "blackstone"
+            "id": "blackstone"
           }
         },
         {
@@ -51,7 +51,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "glowstone"
+            "id": "glowstone"
           }
         }
       ]

@@ -175,7 +175,7 @@ public final class LootTagGameTest {
             return;
         }
         JsonObject object = element.getAsJsonObject();
-        if ("minecraft:item".equals(string(object, "type")) && object.has("functions")) {
+        if ("minecraft:item".equals(string(object, "type")) && object.has("modifier")) {
             Item item = BuiltInRegistries.ITEM.getOptional(Identifier.parse(string(object, "name")))
                     .orElse(Items.AIR);
             if (item.getDefaultMaxStackSize() > 1 && hasBareBagTag(object)) {
@@ -187,7 +187,7 @@ public final class LootTagGameTest {
 
     /** A {@code set_components} whose custom data is exactly {@code {pocketdungeons:{bag:1}}}. */
     private static boolean hasBareBagTag(JsonObject entry) {
-        for (JsonElement function : entry.getAsJsonArray("functions")) {
+        for (JsonElement function : entry.getAsJsonArray("modifier")) {
             JsonObject components = function.getAsJsonObject().getAsJsonObject("components");
             JsonObject customData = components == null ? null : components.getAsJsonObject("minecraft:custom_data");
             if (customData != null && customData.size() == 1) {

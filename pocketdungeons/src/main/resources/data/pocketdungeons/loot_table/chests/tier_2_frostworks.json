@@ -16,9 +16,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:cooked_beef",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
@@ -31,9 +31,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:cobblestone",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
@@ -46,9 +46,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:torch",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
@@ -57,19 +57,17 @@
             }
           ],
           "weight": 3,
-          "conditions": [
-            {
-              "condition": "minecraft:random_chance",
-              "chance": 0.34
-            }
-          ]
+          "condition": {
+            "type": "minecraft:random_chance",
+            "chance": 0.34
+          }
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:flint_and_steel",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -79,7 +77,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -93,10 +91,11 @@
           "type": "minecraft:item",
           "name": "minecraft:lapis_lazuli",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }

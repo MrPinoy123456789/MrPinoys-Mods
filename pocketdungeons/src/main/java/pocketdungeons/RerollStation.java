@@ -202,7 +202,7 @@ final class RerollStation {
             return;
         }
 
-        player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.LAPIS_LAZULI), cost,
+        player.getInventory().clearOrCountMatchingItems(stack -> stack.is(Items.LAPIS_LAZULI), false, cost,
                 new SimpleContainer(0));
         held.set(DataComponents.ENCHANTMENTS, result);
 

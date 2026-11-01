@@ -13,7 +13,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:gilded_blackstone"
+            "id": "minecraft:gilded_blackstone"
           }
         },
         {
@@ -25,7 +25,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:polished_blackstone_bricks"
+            "id": "minecraft:polished_blackstone_bricks"
           }
         },
         {
@@ -38,7 +38,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:nether_gold_ore"
+            "id": "minecraft:nether_gold_ore"
           }
         },
         {
@@ -50,8 +50,8 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:basalt",
-            "Properties": {
+            "id": "minecraft:basalt",
+            "properties": {
               "axis": "y"
             }
           }
@@ -65,7 +65,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:blackstone"
+            "id": "minecraft:blackstone"
           }
         },
         {
@@ -78,7 +78,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:crimson_planks"
+            "id": "minecraft:crimson_planks"
           }
         },
         {
@@ -90,7 +90,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:shroomlight"
+            "id": "minecraft:shroomlight"
           }
         }
       ]

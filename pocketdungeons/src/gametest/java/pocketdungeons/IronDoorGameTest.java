@@ -41,7 +41,7 @@ public final class IronDoorGameTest {
         IronDoorLatch.clear();
         BlockPos origin = new BlockPos(7168, 120, 7168);
         force(level, origin, 2, true);
-        java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureManager(),
+        java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureTemplateManager(),
                 origin, Identifier.parse("pocketdungeons:rooms/flooded_hall"), 0, 1L,
                 Identifier.parse("pocketdungeons:theme_deepslate"));
         Situations.apply(
@@ -88,7 +88,7 @@ public final class IronDoorGameTest {
         force(level, near, 3, true);
         try {
             for (BlockPos origin : new BlockPos[]{near, far}) {
-                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                         Identifier.parse("pocketdungeons:rooms/encounter_zombie"), 0, 1L,
                         Identifier.parse("pocketdungeons:theme_deepslate"));
             }

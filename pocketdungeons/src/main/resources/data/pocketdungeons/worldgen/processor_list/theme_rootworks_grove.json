@@ -12,7 +12,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "mossy_cobblestone"
+            "id": "mossy_cobblestone"
           }
         },
         {
@@ -24,7 +24,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "moss_block"
+            "id": "moss_block"
           }
         },
         {
@@ -36,7 +36,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "rooted_dirt"
+            "id": "rooted_dirt"
           }
         },
         {
@@ -48,7 +48,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "shroomlight"
+            "id": "shroomlight"
           }
         }
       ]

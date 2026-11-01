@@ -1,0 +1,24 @@
+{
+  "values": [
+    "#minecraft:planks",
+    "#minecraft:wool",
+    "#minecraft:beds",
+    "#minecraft:doors",
+    "#minecraft:rails",
+    "minecraft:torch",
+    "minecraft:wall_torch",
+    "minecraft:soul_torch",
+    "minecraft:lantern",
+    "minecraft:chest",
+    "minecraft:trapped_chest",
+    "minecraft:barrel",
+    "minecraft:glass",
+    "minecraft:glass_pane",
+    "minecraft:furnace",
+    "minecraft:blast_furnace",
+    "minecraft:smoker",
+    "minecraft:crafting_table",
+    "minecraft:ladder",
+    "minecraft:bookshelf"
+  ]
+}

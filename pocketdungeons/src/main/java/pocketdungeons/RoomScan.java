@@ -104,7 +104,7 @@ final class RoomScan {
             if (state < 0 || state >= palette.size()) {
                 continue;
             }
-            String name = palette.getCompoundOrEmpty(state).getStringOr("Name", "");
+            String name = blockId(palette.getCompoundOrEmpty(state));
             if (WORKSTATIONS.contains(name) || stationIds.contains(name)) {
                 stations.merge(strip(name), 1, Integer::sum);
             }
@@ -206,5 +206,10 @@ final class RoomScan {
 
     static String strip(String id) {
         return id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id;
+    }
+
+    /** A palette entry's block id: {@code id} since 26.3, {@code Name} in templates saved before it. */
+    static String blockId(net.minecraft.nbt.CompoundTag entry) {
+        return entry.getStringOr("id", entry.getStringOr("Name", ""));
     }
 }

@@ -13,9 +13,9 @@
           "type": "minecraft:item",
           "name": "minecraft:leather_helmet",
           "weight": 30,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -38,9 +38,9 @@
           "type": "minecraft:item",
           "name": "minecraft:leather_chestplate",
           "weight": 20,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,

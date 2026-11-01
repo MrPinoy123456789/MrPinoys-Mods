@@ -78,7 +78,7 @@ public final class RoomEditorKit {
         ItemStack kit = createKitItem();
         if (!player.getInventory().add(kit)) {
             // Inventory full: drop the remainder at the player's feet.
-            player.drop(kit, false);
+            player.drop(kit, false, net.minecraft.util.Prediction.SERVER_ONLY);
         }
     }
 

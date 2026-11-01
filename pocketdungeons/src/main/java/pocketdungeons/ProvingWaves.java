@@ -248,7 +248,7 @@ final class ProvingWaves {
         InstanceTeardown.holdCell(level, padOrigin);
         ThemeManifest.Entry theme = ThemeManifest.current().byId(themeId);
         String processors = theme == null ? null : theme.meta().processors;
-        TemplateStamper.place(level, level.getStructureManager(), padOrigin, TemplateStamper.EXIT_HALL,
+        TemplateStamper.place(level, level.getStructureTemplateManager(), padOrigin, TemplateStamper.EXIT_HALL,
                 CellGeometry.rotationToFace(DoorMask.Direction.WEST, CellGeometry.opposite(farWall)),
                 layout.seed() ^ padOrigin.asLong(),
                 processors == null ? null : Identifier.parse(processors));

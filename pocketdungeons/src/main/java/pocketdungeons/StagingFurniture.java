@@ -19,6 +19,8 @@ import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 
 /**
  * The staging room's physical furniture, placed and cleared at runtime: the
@@ -293,11 +295,11 @@ final class StagingFurniture {
             PocketDungeonsMod.LOG.warn("The hall sign at {} did not come with a block entity", pos);
             return;
         }
-        SignText text = new SignText().setColor(DyeColor.WHITE).setHasGlowingText(true);
+        SignText.Mutable edit = SignText.EMPTY.asMutable().setColor(DyeColor.WHITE).setTextGlowing(true);
         for (int i = 0; i < Math.min(4, lines.length); i++) {
-            text = text.setMessage(i, lines[i]);
+            edit.setLine(i, lines[i]);
         }
-        sign.setText(text, true);
+        sign.setText(edit.asImmutable(), SignTextSlot.FRONT);
         sign.setWaxed(true);
         sign.setChanged();
     }
@@ -669,11 +671,12 @@ final class StagingFurniture {
             PocketDungeonsMod.LOG.warn("The lever sign at {} did not come with a block entity", pos);
             return;
         }
-        SignText text = new SignText()
-                .setMessage(LEVER_SIGN_LINE, Component.literal(word))
+        SignText text = SignText.EMPTY.asMutable()
+                .setLine(LEVER_SIGN_LINE, Component.literal(word))
                 .setColor(DyeColor.WHITE)
-                .setHasGlowingText(true);
-        sign.setText(text, true);
+                .setTextGlowing(true)
+                .asImmutable();
+        sign.setText(text, SignTextSlot.FRONT);
         sign.setWaxed(true);
         sign.setChanged();
     }

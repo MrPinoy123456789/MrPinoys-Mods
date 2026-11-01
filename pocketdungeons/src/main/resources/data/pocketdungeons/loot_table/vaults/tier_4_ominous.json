@@ -28,6 +28,7 @@
     },
     {
       "rolls": {
+        "type": "minecraft:uniform",
         "min": 1,
         "max": 2
       },
@@ -36,10 +37,11 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 6,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               }
@@ -50,10 +52,11 @@
           "type": "minecraft:item",
           "name": "minecraft:coal",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 2,
                 "max": 5
               }
@@ -64,10 +67,11 @@
           "type": "minecraft:item",
           "name": "minecraft:lapis_lazuli",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               }
@@ -78,10 +82,11 @@
           "type": "minecraft:item",
           "name": "minecraft:emerald",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }
@@ -92,10 +97,11 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }
@@ -116,12 +122,10 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.5
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.5
+      },
       "entries": [
         {
           "type": "minecraft:item",
@@ -131,12 +135,10 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.5
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.5
+      },
       "entries": [
         {
           "type": "minecraft:item",

@@ -35,7 +35,7 @@ public final class HiddenOreGameTest {
             }
         }
         try {
-            TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+            TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                     Identifier.parse(seam.meta.template), 0, 1L,
                     Identifier.parse("pocketdungeons:theme_rootworks"));
             int placed = 0;

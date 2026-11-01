@@ -3,6 +3,7 @@
   "pools": [
     {
       "rolls": {
+        "type": "minecraft:uniform",
         "min": 2,
         "max": 3
       },
@@ -11,10 +12,11 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 6,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 3,
                 "max": 6
               }
@@ -25,10 +27,11 @@
           "type": "minecraft:item",
           "name": "minecraft:gold_ingot",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 2,
                 "max": 5
               }
@@ -39,10 +42,11 @@
           "type": "minecraft:item",
           "name": "minecraft:lapis_lazuli",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 3,
                 "max": 8
               }
@@ -53,10 +57,11 @@
           "type": "minecraft:item",
           "name": "minecraft:redstone",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 3,
                 "max": 8
               }
@@ -72,10 +77,11 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }
@@ -83,12 +89,10 @@
           ]
         }
       ],
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.3
-        }
-      ]
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.3
+      }
     }
   ]
 }

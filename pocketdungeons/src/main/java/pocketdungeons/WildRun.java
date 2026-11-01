@@ -284,6 +284,10 @@ final class WildRun {
             return;
         }
         InstanceRecord record = liveRecord(lodestoneId);
+        if (record == null && lodestone.phase == WildState.Phase.CLEARED) {
+            say(player, "The place is still settling. Try again later.", ChatFormatting.GRAY);
+            return;
+        }
         if (record == null) {
             String full = refuseNewRecord();
             if (full != null) {
@@ -379,6 +383,7 @@ final class WildRun {
             FloorObjectives.tick(server, record);
             ProvingWaves.tick(server, record);
         }
+        WildClear.tick(server, record, lodestone, server.overworld().getGameTime());
         WildRules.tick(server, now);
     }
 

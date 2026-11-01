@@ -270,7 +270,7 @@ public final class StairRoomGameTest {
     }
 
     private static void stamp(ServerLevel level, BlockPos origin, String room) {
-        TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+        TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                 Identifier.parse("pocketdungeons:rooms/" + room), 0, 1L, null);
     }
 

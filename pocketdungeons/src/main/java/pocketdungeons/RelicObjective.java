@@ -169,7 +169,7 @@ public final class RelicObjective extends FloorObjectives.ObjectiveState {
                 item(id));
         entity.setDeltaMovement(0.0, 0.0, 0.0);
         entity.setUnlimitedLifetime();
-        entity.setInvulnerable(true);
+        entity.setPermanentlyInvulnerable(true);
         level.addFreshEntity(entity);
     }
 
@@ -199,7 +199,7 @@ public final class RelicObjective extends FloorObjectives.ObjectiveState {
                 e -> isRelic(e.getItem()) && id.equals(idOf(e.getItem())))) {
             onGround = true;
             entity.setUnlimitedLifetime();
-            entity.setInvulnerable(true);
+            entity.setPermanentlyInvulnerable(true);
         }
         boolean inPot = PackPots.holdsRelic(server, record, id);
         if (FloorObjectiveRules.relicLost(delivered, held, onGround, inPot)) {

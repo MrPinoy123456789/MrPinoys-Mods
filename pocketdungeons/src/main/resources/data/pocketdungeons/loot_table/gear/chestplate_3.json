@@ -8,9 +8,9 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond_chestplate",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_with_levels",
+              "type": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
                 "min": 25,
@@ -19,7 +19,7 @@
               "options": "#pocketdungeons:random_loot"
             },
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -29,7 +29,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -37,13 +37,11 @@
               }
             },
             {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.02
-                }
-              ],
+              "type": "minecraft:set_components",
+              "condition": {
+                "type": "minecraft:random_chance",
+                "chance": 0.02
+              },
               "components": {
                 "minecraft:trim": {
                   "pattern": "minecraft:shaper",
@@ -52,13 +50,11 @@
               }
             },
             {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.02
-                }
-              ],
+              "type": "minecraft:set_components",
+              "condition": {
+                "type": "minecraft:random_chance",
+                "chance": 0.02
+              },
               "components": {
                 "minecraft:trim": {
                   "pattern": "minecraft:bolt",
@@ -67,13 +63,11 @@
               }
             },
             {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.02
-                }
-              ],
+              "type": "minecraft:set_components",
+              "condition": {
+                "type": "minecraft:random_chance",
+                "chance": 0.02
+              },
               "components": {
                 "minecraft:trim": {
                   "pattern": "minecraft:eye",
@@ -82,13 +76,11 @@
               }
             },
             {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.02
-                }
-              ],
+              "type": "minecraft:set_components",
+              "condition": {
+                "type": "minecraft:random_chance",
+                "chance": 0.02
+              },
               "components": {
                 "minecraft:trim": {
                   "pattern": "minecraft:coast",
@@ -97,13 +89,11 @@
               }
             },
             {
-              "function": "minecraft:set_components",
-              "conditions": [
-                {
-                  "condition": "minecraft:random_chance",
-                  "chance": 0.02
-                }
-              ],
+              "type": "minecraft:set_components",
+              "condition": {
+                "type": "minecraft:random_chance",
+                "chance": 0.02
+              },
               "components": {
                 "minecraft:trim": {
                   "pattern": "minecraft:flow",

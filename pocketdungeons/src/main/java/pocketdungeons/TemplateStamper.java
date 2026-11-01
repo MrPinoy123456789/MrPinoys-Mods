@@ -86,7 +86,7 @@ final class TemplateStamper {
 
     /** The M0 four-room line, unrotated. The {@link StaticLayout} fallback. */
     static void stamp(ServerLevel level, BlockPos instanceOrigin) {
-        StructureTemplateManager manager = level.getStructureManager();
+        StructureTemplateManager manager = level.getStructureTemplateManager();
         place(level, manager, RoomBuilder.cellOrigin(instanceOrigin, 0, 0), ENTRANCE_HALL, 0, 0L);
         place(level, manager, RoomBuilder.cellOrigin(instanceOrigin, 1, 0), ENCOUNTER_ZOMBIE, 0, 0L);
         place(level, manager, RoomBuilder.cellOrigin(instanceOrigin, 2, 0), LOOT_VAULT, 0, 0L);
@@ -196,7 +196,7 @@ final class TemplateStamper {
         List<BlockPos> out = new ArrayList<>();
         for (StructureTemplate.JigsawBlockInfo info : template.getJigsaws(placementPos, rotation)) {
             if (LayoutStamper.SPAWN_NAME.equals(info.name())) {
-                out.add(info.info().pos());
+                out.add(info.pos());
             }
         }
         return out;

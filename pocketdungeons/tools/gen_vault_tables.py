@@ -40,7 +40,7 @@ def entry(name, weight=None, count=None):
     if weight is not None:
         out['weight'] = weight
     if count is not None:
-        out['functions'] = [{'function': 'minecraft:set_count',
+        out['modifier'] = [{'type': 'minecraft:set_count',
                              'count': {'min': count[0], 'max': count[1]}}]
     return out
 
@@ -64,14 +64,14 @@ def vault_table(tier, ominous):
              entry('book', 2),
          ] + ([entry('netherite_ingot', 1)] if tier >= 4 else [])},
         # The one trim pattern, about a third of vaults.
-        {'rolls': 1, 'conditions': [
-            {'condition': 'minecraft:random_chance',
-             'chance': 0.5 if ominous else 0.34}],
+        {'rolls': 1, 'condition':
+            {'type': 'minecraft:random_chance',
+             'chance': 0.5 if ominous else 0.34},
          'entries': [entry('sentry_armor_trim_smithing_template')]},
         # The rare foods: vaults and the finish chests only.
-        {'rolls': 1, 'conditions': [
-            {'condition': 'minecraft:random_chance',
-             'chance': 0.5 if ominous else 0.35}],
+        {'rolls': 1, 'condition':
+            {'type': 'minecraft:random_chance',
+             'chance': 0.5 if ominous else 0.35},
          'entries': [
              entry('golden_apple', 3),
              entry('cake', 2),

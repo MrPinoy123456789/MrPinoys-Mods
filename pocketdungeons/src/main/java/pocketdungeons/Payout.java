@@ -41,7 +41,7 @@ final class Payout {
         player.getInventory().add(stack);
         if (!stack.isEmpty()) {
             int leftover = stack.getCount();
-            player.drop(stack, false);
+            player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
             PocketDungeonsMod.LOG.info("{} could not hold their reward; {} x{} dropped at their feet",
                     player.getName().getString(), stack.getItem(), leftover);
         }

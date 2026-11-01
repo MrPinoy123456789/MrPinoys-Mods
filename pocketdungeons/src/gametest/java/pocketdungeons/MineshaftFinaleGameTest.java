@@ -204,7 +204,7 @@ public final class MineshaftFinaleGameTest {
 
         /** A killing blow: the clamp holds the boss at its next bound. */
         void burst(Mob boss) {
-            boss.invulnerableTime = 0;
+            boss.damageCooldownTime = 0;
             boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
         }
 

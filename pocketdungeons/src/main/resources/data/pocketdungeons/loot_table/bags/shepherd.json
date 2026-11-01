@@ -7,9 +7,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:lead",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 4
             }
           ]
@@ -22,9 +22,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:bone",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 8
             }
           ]
@@ -37,9 +37,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:bread",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 4
             }
           ]

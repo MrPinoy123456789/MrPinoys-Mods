@@ -13,7 +13,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "spruce_planks"
+            "id": "spruce_planks"
           }
         },
         {
@@ -25,7 +25,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "oak_planks"
+            "id": "oak_planks"
           }
         },
         {
@@ -37,7 +37,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "coarse_dirt"
+            "id": "coarse_dirt"
           }
         },
         {
@@ -49,7 +49,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "hay_block"
+            "id": "hay_block"
           }
         },
         {
@@ -61,7 +61,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "lantern"
+            "id": "lantern"
           }
         }
       ]

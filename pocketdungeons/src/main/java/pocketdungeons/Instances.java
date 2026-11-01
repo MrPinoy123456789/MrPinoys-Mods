@@ -735,7 +735,7 @@ final class Instances {
         boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
                 RandomSource.create(level.getRandom().nextLong()));
         if (!placedOwnRoom) {
-            TemplateStamper.place(level, level.getStructureManager(), origin,
+            TemplateStamper.place(level, level.getStructureTemplateManager(), origin,
                     TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
         }
         RoomBuilder.sealDoor(level, origin, mcDirection(lobbyDoorDirection()));
@@ -769,7 +769,7 @@ final class Instances {
         boolean placedOwnRoom = RoomStore.place(level, server, owner, origin, 0,
                 RandomSource.create(level.getRandom().nextLong()));
         if (!placedOwnRoom) {
-            TemplateStamper.place(level, level.getStructureManager(), origin,
+            TemplateStamper.place(level, level.getStructureTemplateManager(), origin,
                     TemplateStamper.ENTRANCE_HALL, 0, level.getRandom().nextLong());
         }
         // Every door slot sealed, not only the two the room usually connects

@@ -13,7 +13,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "andesite"
+            "id": "andesite"
           }
         },
         {
@@ -25,7 +25,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "cobblestone"
+            "id": "cobblestone"
           }
         },
         {
@@ -37,7 +37,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "grass_block"
+            "id": "grass_block"
           }
         },
         {
@@ -49,7 +49,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "oak_log"
+            "id": "oak_log"
           }
         },
         {
@@ -61,7 +61,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "lantern"
+            "id": "lantern"
           }
         }
       ]

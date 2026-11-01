@@ -134,7 +134,7 @@ final class MineGuardianQueen implements MineGuardians.Guardian {
             if (entity instanceof ServerPlayer player) {
                 player.hurtServer(level, level.damageSources().generic(), damage);
                 player.push(0.0, 0.7, 0.0);
-                player.hurtMarked = true;
+                player.syncVelocity = true;
             }
         };
     }
@@ -143,7 +143,7 @@ final class MineGuardianQueen implements MineGuardians.Guardian {
     private static void bury(Mob queen) {
         queen.setNoAi(true);
         queen.setNoGravity(true);
-        queen.setInvulnerable(true);
+        queen.setPermanentlyInvulnerable(true);
         queen.setInvisible(true);
         queen.setSilent(true);
     }
@@ -204,7 +204,7 @@ final class MineGuardianQueen implements MineGuardians.Guardian {
         queen.setPos(centre.getX() + 0.5, centre.getY(), centre.getZ() + 0.5);
         queen.setNoAi(false);
         queen.setNoGravity(false);
-        queen.setInvulnerable(false);
+        queen.setPermanentlyInvulnerable(false);
         queen.setInvisible(false);
         queen.setSilent(false);
         queen.setCustomNameVisible(true);

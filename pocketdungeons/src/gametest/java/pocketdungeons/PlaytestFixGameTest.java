@@ -31,7 +31,7 @@ public final class PlaytestFixGameTest {
         RoomManifest.Entry entry = RoomManifest.current().byName(room);
         BlockPos origin = new BlockPos(24576 + q * 2 * CELL, 120, 24576 + slot * 2 * CELL);
         level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
-        java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureManager(),
+        java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureTemplateManager(),
                 origin, Identifier.parse(entry.meta.template), q, seed);
         RoomContent.apply(
                 new RoomContent.CellSite(level, origin, RoleIds.CORRIDOR, 1, spawns, seed, entry.meta.content),
@@ -501,7 +501,7 @@ public final class PlaytestFixGameTest {
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
             String processors = themes.get(i).meta().processors;
             java.util.List<BlockPos> spawns = TemplateStamper.place(level,
-                    level.getServer().getStructureManager(), origin,
+                    level.getServer().getStructureTemplateManager(), origin,
                     Identifier.parse("pocketdungeons:rooms/kennel_crossing"), 0, 1L,
                     processors == null ? null : Identifier.parse(processors));
             anchors[i] = Situations.apply(
@@ -621,7 +621,7 @@ public final class PlaytestFixGameTest {
         for (int q = 0; q < 4; q++) {
             origins[q] = new BlockPos(24576 + q * 2 * CELL, 120, 24576 + 30 * 2 * CELL);
             level.setChunkForced(origins[q].getX() >> 4, origins[q].getZ() >> 4, true);
-            TemplateStamper.place(level, level.getServer().getStructureManager(), origins[q],
+            TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origins[q],
                     Identifier.parse("pocketdungeons:rooms/collapsing_bridge"), q, 1L);
             Ordeals.arm(CollapsingBridgeOrdeal.INSTANCE, level, origins[q]);
         }

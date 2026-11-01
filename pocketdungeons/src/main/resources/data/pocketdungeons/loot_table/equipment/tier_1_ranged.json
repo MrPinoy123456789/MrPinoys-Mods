@@ -19,9 +19,9 @@
           "type": "minecraft:item",
           "name": "minecraft:bow",
           "weight": 60,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -38,9 +38,9 @@
           "type": "minecraft:item",
           "name": "minecraft:crossbow",
           "weight": 15,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,

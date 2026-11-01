@@ -251,7 +251,7 @@ public final class FrostFinaleGameTest {
             ServerPlayer player = helper.makeMockServerPlayerInLevel();
             this.member = player;
             player.setGameMode(GameType.SURVIVAL);
-            player.setInvulnerable(true);
+            player.setPermanentlyInvulnerable(true);
             BlockPos origin = helper.absolutePos(BlockPos.ZERO);
             PlanGeometry geometry = PlanGeometry.of(origin, List.of(new PlanCell(0, 0)));
             InstanceLayout layout = new InstanceLayout(origin, geometry, origin.offset(3, 1, 3), 0.0f,

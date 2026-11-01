@@ -13,7 +13,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "mossy_stone_bricks"
+            "id": "mossy_stone_bricks"
           }
         },
         {
@@ -26,7 +26,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "moss_block"
+            "id": "moss_block"
           }
         },
         {
@@ -38,7 +38,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "mossy_cobblestone"
+            "id": "mossy_cobblestone"
           }
         },
         {
@@ -51,7 +51,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "moss_block"
+            "id": "moss_block"
           }
         },
         {
@@ -64,7 +64,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "clay"
+            "id": "clay"
           }
         },
         {
@@ -77,7 +77,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "rooted_dirt"
+            "id": "rooted_dirt"
           }
         },
         {
@@ -89,7 +89,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "moss_block"
+            "id": "moss_block"
           }
         },
         {
@@ -102,8 +102,8 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "azalea_leaves",
-            "Properties": {
+            "id": "azalea_leaves",
+            "properties": {
               "persistent": "true"
             }
           }
@@ -117,7 +117,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "mossy_cobblestone"
+            "id": "mossy_cobblestone"
           }
         },
         {
@@ -129,7 +129,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "shroomlight"
+            "id": "shroomlight"
           }
         }
       ]

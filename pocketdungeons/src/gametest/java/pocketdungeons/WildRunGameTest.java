@@ -368,7 +368,7 @@ public final class WildRunGameTest {
         ServerLevel level = helper.getLevel();
         var enderman = helper.spawn(net.minecraft.world.entity.EntityTypes.ENDERMAN, new BlockPos(3, 1, 3));
         var before = enderman.position();
-        var teleport = net.minecraft.world.entity.monster.EnderMan.class.getDeclaredMethod("teleport", double.class,
+        var teleport = net.minecraft.world.entity.monster.Enderman.class.getDeclaredMethod("teleport", double.class,
                 double.class, double.class);
         teleport.setAccessible(true);
         DungeonWorldRules.everywhere = true;

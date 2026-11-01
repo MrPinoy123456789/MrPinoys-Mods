@@ -258,7 +258,7 @@ public final class HandlerGameTest {
             BlockPos origin = new BlockPos(8192 + q * 2 * RoomGeometry.CELL, 120, 8192);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
             try {
-                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/rising_lava"), q, 1L);
                 boolean westOpen = level.getBlockState(ConnectorGeometry.wallPos(origin,
                         DoorMask.Direction.WEST, RoomGeometry.DOOR_MIN, 1)).isAir();
@@ -411,7 +411,7 @@ public final class HandlerGameTest {
             BlockPos origin = new BlockPos(4096 + q * 2 * RoomGeometry.CELL, 120, 4096);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
             try {
-                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/collapsing_bridge"), q, 1L);
                 Ordeals.arm(CollapsingBridgeOrdeal.INSTANCE, level, origin);
                 helper.assertTrue(Ordeals.isActive(CollapsingBridgeOrdeal.INSTANCE, origin),
@@ -464,7 +464,7 @@ public final class HandlerGameTest {
                 level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, true);
             }
             try {
-                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/blaze_cellar"), q, 1L);
                 helper.assertTrue(ReturnPathValidator.validate(level, origin, 2),
                         "blaze_cellar has a climbable return path at " + q + " quarter turns");
@@ -491,7 +491,7 @@ public final class HandlerGameTest {
                 level.setChunkForced((origin.getX() + dx) >> 4, origin.getZ() >> 4, true);
             }
             try {
-                TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/sump"), q, 1L);
                 helper.assertTrue(ReturnPathValidator.validate(level, origin, 2),
                         "sump has a climbable return path at " + q + " quarter turns");
@@ -522,7 +522,7 @@ public final class HandlerGameTest {
             BlockPos origin = new BlockPos(4096 + r * 2 * RoomGeometry.CELL, 120, 4096 + 7 * RoomGeometry.CELL);
             origins.add(origin);
             level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
-            TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+            TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                     net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/" + rooms[r]), 1, 1L);
             helper.assertTrue(ReturnPathValidator.validate(level, origin, 2), rooms[r] + " starts open");
             java.util.List<BlockPos> holes = new java.util.ArrayList<>();
@@ -596,7 +596,7 @@ public final class HandlerGameTest {
                 }
                 try {
                     java.util.List<BlockPos> spawns = TemplateStamper.place(level,
-                            level.getServer().getStructureManager(), origin,
+                            level.getServer().getStructureTemplateManager(), origin,
                             net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/" + id),
                             q, 1L, net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
                     BlockPos anchor = Situations.apply(
@@ -635,7 +635,7 @@ public final class HandlerGameTest {
             }
             try {
                 java.util.List<BlockPos> spawns = TemplateStamper.place(level,
-                        level.getServer().getStructureManager(), origin,
+                        level.getServer().getStructureTemplateManager(), origin,
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/kennel_crossing"),
                         q, 1L, net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
                 BlockPos anchor = Situations.apply(
@@ -695,7 +695,7 @@ public final class HandlerGameTest {
                         net.minecraft.world.entity.decoration.ItemFrame.class, box)) {
                     old.discard();
                 }
-                TemplateStamper.place(level, level.getServer().getStructureManager(), origins[i],
+                TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origins[i],
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/rotation_lock"), q, 1L);
                 java.util.List<net.minecraft.world.entity.decoration.ItemFrame> frames =
                         level.getEntitiesOfClass(net.minecraft.world.entity.decoration.ItemFrame.class, box);
@@ -794,7 +794,7 @@ public final class HandlerGameTest {
                     stamps++;
                     level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
                     try {
-                        TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                        TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                                 net.minecraft.resources.Identifier.parse(entry.meta.template), q, 1L);
                         String label = entry.name + " approached from " + gate.directionTo(from)
                                 + " (rolled " + rolled + ", placed " + q + ")";
@@ -1014,7 +1014,7 @@ public final class HandlerGameTest {
         BlockPos origin = new BlockPos(8192, 120, 14336);
         level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
         try {
-            java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureManager(),
+            java.util.List<BlockPos> spawns = TemplateStamper.place(level, level.getServer().getStructureTemplateManager(),
                     origin, net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/tripwire_hall"), 1, 1L);
             Situations.apply(
                     new RoomContent.CellSite(level, origin, RoleIds.CORRIDOR, 1, spawns, 1L, "tripwire_hall"),
@@ -1054,7 +1054,7 @@ public final class HandlerGameTest {
         }
         helper.runAfterDelay(20, () -> {
             for (int q = 0; q < 4; q++) {
-                TemplateStamper.place(level, level.getServer().getStructureManager(), origins[q],
+                TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origins[q],
                         net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/tripwire_hall"), q, 1L);
             }
         });
@@ -1144,7 +1144,7 @@ public final class HandlerGameTest {
                         6144 + row * 2 * RoomGeometry.CELL);
                 level.setChunkForced(origin.getX() >> 4, origin.getZ() >> 4, true);
                 try {
-                    TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+                    TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                             net.minecraft.resources.Identifier.parse(entry.meta.template), q, 1L);
                     if (!ReturnPathValidator.validate(level, origin, entry.meta.spanY)) {
                         failures.add(entry.name + " at " + q + " quarter turns");
@@ -1406,7 +1406,7 @@ public final class HandlerGameTest {
         // sweep and the stamp wait for it.
         helper.runAfterDelay(20, () -> {
             clearRoomEntities(level, origin);
-            TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+            TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                     net.minecraft.resources.Identifier.parse("pocketdungeons:rooms/tripwire_hall"), 0, 1L,
                     net.minecraft.resources.Identifier.parse("pocketdungeons:theme_deepslate"));
         });

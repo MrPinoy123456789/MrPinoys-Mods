@@ -16,9 +16,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:coal",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 2,
@@ -31,9 +31,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:oak_planks",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 2,
@@ -46,9 +46,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:torch",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 2,
@@ -57,19 +57,17 @@
             }
           ],
           "weight": 4,
-          "conditions": [
-            {
-              "condition": "minecraft:random_chance",
-              "chance": 0.34
-            }
-          ]
+          "condition": {
+            "type": "minecraft:random_chance",
+            "chance": 0.34
+          }
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
@@ -82,9 +80,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:stone_pickaxe",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -94,7 +92,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,

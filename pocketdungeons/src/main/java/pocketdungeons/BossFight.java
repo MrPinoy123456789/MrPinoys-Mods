@@ -122,7 +122,7 @@ final class BossFight {
                 return;
             }
             staggerEnd = -1;
-            boss.setInvulnerable(false);
+            boss.setPermanentlyInvulnerable(false);
             boss.setNoAi(false);
             phases.get(phase).enter(ctx, boss);
             return;
@@ -133,7 +133,7 @@ final class BossFight {
         }
         phase++;
         staggerEnd = ctx.tickCount() + PocketDungeonsConfig.bossPhaseStaggerSeconds() * 20L;
-        boss.setInvulnerable(true);
+        boss.setPermanentlyInvulnerable(true);
         boss.setNoAi(true);
         List<String> lines = phases.get(phase).lines();
         if (!lines.isEmpty()) {

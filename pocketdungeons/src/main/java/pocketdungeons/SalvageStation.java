@@ -535,7 +535,7 @@ final class SalvageStation {
             menu.getSlot(0).set(item);
             menu.broadcastChanges();
         } else {
-            player.getInventory().placeItemBackInInventory(item);
+            player.getInventory().placeItemBackInInventory(item, net.minecraft.util.Prediction.SERVER_ONLY);
         }
     }
 
@@ -655,9 +655,9 @@ final class SalvageStation {
                 continue;
             }
             if (player.isRemoved() || player.hasDisconnected()) {
-                player.drop(stack, false);
+                player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
             } else {
-                player.getInventory().placeItemBackInInventory(stack);
+                player.getInventory().placeItemBackInInventory(stack, net.minecraft.util.Prediction.SERVER_ONLY);
             }
         }
     }

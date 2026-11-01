@@ -7,9 +7,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:bow",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -28,9 +28,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:arrow",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 12
             }
           ]
@@ -43,9 +43,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:arrow",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 8
             }
           ]
@@ -58,9 +58,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:bread",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 4
             }
           ]

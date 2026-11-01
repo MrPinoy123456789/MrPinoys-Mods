@@ -13,9 +13,9 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_helmet",
           "weight": 30,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -28,9 +28,9 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond_helmet",
           "weight": 15,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -53,9 +53,9 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_chestplate",
           "weight": 15,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -68,9 +68,9 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond_chestplate",
           "weight": 10,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,

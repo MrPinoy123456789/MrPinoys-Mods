@@ -6,6 +6,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
@@ -150,10 +152,11 @@ final class CowParlourSpecs {
                     RoomDsl.put(level, o, 8, 1, 6, Blocks.OAK_SIGN.defaultBlockState()
                             .setValue(BlockStateProperties.ROTATION_16, 0));
                     if (level.getBlockEntity(o.offset(8, 1, 6)) instanceof SignBlockEntity sign) {
-                        SignText text = sign.getFrontText()
-                                .setMessage(0, Component.literal("Specimen 0"))
-                                .setMessage(1, Component.literal("(do not feed)"));
-                        sign.setText(text, true);
+                        SignText text = sign.getText(SignTextSlot.FRONT).asMutable()
+                                .setLine(0, Component.literal("Specimen 0"))
+                                .setLine(1, Component.literal("(do not feed)"))
+                                .asImmutable();
+                        sign.setText(text, SignTextSlot.FRONT);
                     }
                     // Attendant cells get bedding; the aisle side a churn and a cauldron.
                     RoomDsl.put(level, o, 2, 1, 1, HAY);

@@ -252,7 +252,7 @@ final class OssuaryFinale implements FinaleScript {
             }
             BlockPos spot = spots[n++ % spots.length];
             mob.setNoAi(false);
-            mob.setInvulnerable(false);
+            mob.setPermanentlyInvulnerable(false);
             mob.removeEffect(MobEffects.INVISIBILITY);
             mob.setInvisible(false);
             mob.setSilent(false);
@@ -279,7 +279,7 @@ final class OssuaryFinale implements FinaleScript {
             return null;
         }
         mob.setNoAi(true);
-        mob.setInvulnerable(true);
+        mob.setPermanentlyInvulnerable(true);
         // The bare invisible flag is recomputed from active effects every tick, so a sleeper must wear the effect.
         mob.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
         mob.setInvisible(true);

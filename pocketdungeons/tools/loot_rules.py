@@ -288,17 +288,12 @@ def rewrite_table(rel_path, table):
         # folded into torch inherits the rule here, post-rename.
         if context in ('chest', 'supply'):
             if len(entries) == 1 and entries[0].get('name') == 'minecraft:torch':
-                if not any(c.get('condition') == 'minecraft:random_chance'
-                           for c in new_pool.get('conditions', [])):
-                    new_pool['conditions'] = (new_pool.get('conditions') or []) + [
-                        {'condition': 'minecraft:random_chance', 'chance': 0.34}]
+                if 'condition' not in new_pool:
+                    new_pool['condition'] = {'type': 'minecraft:random_chance', 'chance': 0.34}
             else:
                 for entry in entries:
-                    if (entry.get('name') == 'minecraft:torch'
-                            and not any(c.get('condition') == 'minecraft:random_chance'
-                                        for c in entry.get('conditions', []))):
-                        entry['conditions'] = (entry.get('conditions') or []) + [
-                            {'condition': 'minecraft:random_chance', 'chance': 0.34}]
+                    if entry.get('name') == 'minecraft:torch' and 'condition' not in entry:
+                        entry['condition'] = {'type': 'minecraft:random_chance', 'chance': 0.34}
         pools.append(new_pool)
     out['pools'] = pools
     return out
