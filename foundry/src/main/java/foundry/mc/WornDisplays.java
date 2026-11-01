@@ -69,6 +69,12 @@ public final class WornDisplays {
         return s == null ? 0 : s.parts.size();
     }
 
+    /** Test hook: the facing of one of a player's displays right now. */
+    public static Quaternionf rotationOf(UUID player, int index) {
+        Shown s = SHOWN.get(player);
+        return s == null || index >= s.parts.size() ? null : new Quaternionf(s.parts.get(index).element.getLeftRotation());
+    }
+
     /**
      * Test hook: does for one viewer what Polymer's entity tracking does when a player comes into range (the harness's
      * mock players are never tracked by each other, so the real call cannot be exercised there).
@@ -104,6 +110,10 @@ public final class WornDisplays {
                     }
                 });
             }
+            var chest = player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
+            lines.add(name + " chest slot: " + (chest.isEmpty() ? "empty" : net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getKey(chest.getItem()) + (chest.getItem() instanceof FoundryItem w && w.def() != null && w.def().glider()
+                    ? " (wings, drawn by the client as an elytra)" : "")));
             Shown shown = SHOWN.get(player.getUUID());
             lines.add(name + ": wears " + (worn.isEmpty() ? "no Foundry trinkets" : String.join(", ", worn))
                     + "; " + (shown == null ? 0 : shown.parts.size()) + " displays");
@@ -259,7 +269,9 @@ public final class WornDisplays {
                 (float) (Math.sin(rad) * p.back() - Math.cos(rad) * p.side()), up,
                 (float) (-Math.cos(rad) * p.back() - Math.sin(rad) * p.side()));
         // A back item turns its front away from the player's back; a head item faces the way the head does.
+        // A head item also tips with the head's pitch (positive looks down, which tips the front down).
         Quaternionf turn = new Quaternionf().rotationY((float) Math.toRadians((p.onHead() ? 0f : 180f) - yaw))
+                .rotateX((float) Math.toRadians(p.onHead() ? player.getXRot() : 0f))
                 .rotateXYZ((float) Math.toRadians(p.rx()), (float) Math.toRadians(p.ry()), (float) Math.toRadians(p.rz()));
         element.setLeftRotation(turn);
         element.setScale(new Vector3f(scale, scale, scale));

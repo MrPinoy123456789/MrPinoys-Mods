@@ -37,7 +37,7 @@ public record WornPlacement(float up, float back, float side, float scale, boole
     public static Table defaults() {
         Map<String, WornPlacement> slots = new LinkedHashMap<>();
         slots.put("head/hat", new WornPlacement(2.0f, 0f, 0f, 0.8f, true, 0f, 0f, 0f, false));
-        slots.put("head/face", new WornPlacement(1.62f, -0.3f, 0f, 0.5f, true, 0f, 0f, 0f, true));
+        slots.put("head/face", new WornPlacement(1.62f, -0.3f, 0f, 0.5f, true, 0f, 90f, 0f, true));
         slots.put("chest/back", new WornPlacement(1.1f, 0.25f, 0f, 0.6f, false, 0f, 0f, 0f, false));
         slots.put("chest/cape", new WornPlacement(0.95f, 0.22f, 0f, 1.1f, false, 0f, 0f, 0f, false));
         return new Table(Map.copyOf(slots), Map.of());

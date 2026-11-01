@@ -107,8 +107,22 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   where it sits: no display line means "not created" (no placement for that slot, or Trinkets absent); a line with the
   right watchers but nothing on screen means "created but not visible" (try larger `up`, `back`, `side` or `scale`).
   The harness cannot make mock players track each other, so Polymer's real tracking of other players is unverified.
-- **Bedrock.** The display entities are item displays, which Geyser may translate (unverified); the Trinkets models never reach Bedrock. The trinket still works: the slots, the effect and
-  the screen are all server side. Bedrock players open the screen with `/trinkets` as well.
+- **Gills facing.** The gills are a flat sprite and showed edge on (across the face and back of the head), so the
+  `head/face` default now has `rotation` [0, 90, 0]. If they look mirrored, use -90; if they were never wrong, 0. Head
+  displays also tip with the head's pitch (gametested for yaw and pitch).
+- **Wings.** The Fairy Wings are an elytra item with the elytra equipment asset, glider and chest slot components, so a
+  vanilla client draws an elytra on the body only while they are in the **chest armour slot** (not a Trinkets slot,
+  and not under a chestplate). `/foundry worn list` prints the chest slot item and says "wings" when it is one.
+- **Cape.** The cape is found in `chest/cape` and has a placement (gametested: one display per cape). It sits behind
+  the body, so look from behind; if `/foundry worn list` shows the display with watchers and nothing is on screen, raise
+  `back` or `scale` for `chest/cape` in `worn_displays.json`.
+- **Bedrock.** Nothing is drawn. Geyser (current master) lists `text_display` as required entity metadata but
+  `item_display` and `block_display` as not required, so Polymer's item displays are almost certainly not translated;
+  I found no Geyser option to attach a worn model to a player either. The trinket itself still works for Bedrock
+  players, and they open the screen with `/trinkets`. Possible routes (none built): a Geyser custom item mapping plus an
+  attachable in the Bedrock pack and mirroring the trinket into the real head or chest slot for Bedrock players only
+  (medium effort, confusing inventory); an invisible armor stand wearing the item that Geyser does translate (medium,
+  but it needs the item mapped and may look wrong); or accepting nothing.
 
 ## Coins
 

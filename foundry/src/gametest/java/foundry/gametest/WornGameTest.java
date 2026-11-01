@@ -182,4 +182,22 @@ public final class WornGameTest {
             helper.succeed();
         });
     }
+
+    /** A hat turns with the head's yaw and tips with its pitch: its front follows where the head looks. */
+    @GameTest(maxTicks = 100)
+    public void aHeadDisplayFollowsTheHeadYawAndPitch(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        helper.runAfterDelay(15, () -> {
+            wearer.setYHeadRot(90f);
+            wearer.setXRot(30f);
+            helper.runAfterDelay(5, () -> {
+                var front = foundry.mc.WornDisplays.rotationOf(wearer.getUUID(), 0).transform(new org.joml.Vector3f(0, 0, 1));
+                // Facing west (yaw 90) and looking 30 degrees down: (-cos30, -sin30, 0).
+                helper.assertTrue(Math.abs(front.x + Math.cos(Math.toRadians(30))) < 0.05 && Math.abs(front.y + Math.sin(Math.toRadians(30))) < 0.05
+                        && Math.abs(front.z) < 0.05, "The hat faces " + front + " instead of west and down");
+                helper.succeed();
+            });
+        });
+    }
 }
