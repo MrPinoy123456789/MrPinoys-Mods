@@ -96,12 +96,12 @@ public final class PocketDungeonsConfig {
      * Wild mode: the side of the square cells that give each wild lodestone room, in blocks. A
      * lodestone sits at a random point inside its cell.
      */
-    private static final Knob<Integer> WILD_GRID_SIZE = integer("wildGridSize", 1500, v -> v >= 256, "must be >= 256");
+    private static final Knob<Integer> WILD_GRID_SIZE = integer("wildGridSize", 800, v -> v >= 256, "must be >= 256");
     /** Wild mode: the least distance in blocks between two active wild lodestones. */
-    private static final Knob<Integer> WILD_MIN_SEPARATION = integer("wildMinSeparation", 600,
+    private static final Knob<Integer> WILD_MIN_SEPARATION = integer("wildMinSeparation", 350,
             v -> v >= 0, "must be >= 0");
     /** Wild mode: how many wild lodestones the server keeps in the world at once. */
-    private static final Knob<Integer> WILD_TARGET_ACTIVE = integer("wildTargetActive", 12,
+    private static final Knob<Integer> WILD_TARGET_ACTIVE = integer("wildTargetActive", 30,
             v -> v >= 0, "must be >= 0");
     /**
      * Wild mode: the most live wild dungeons at once; entering one past this is refused with a try

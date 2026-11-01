@@ -97,7 +97,7 @@ public final class WildClearGameTest {
             BlockPos terminal = record.layout.terminal();
             DoorMask.Direction dir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminal);
             BlockPos exit = TrialContent.exitSpot(terminal, dir);
-            helper.assertTrue(level.getBlockState(exit).is(Blocks.JIGSAW), "the clear Exit jigsaw stands");
+            helper.assertTrue(level.getBlockState(exit).is(Blocks.BEDROCK), "the clear Exit marker stands");
             helper.assertTrue(WildLodestones.hasExit(lode.id, true), "the clear Exit is registered");
             helper.assertTrue(lode.phase == WildState.Phase.CLEARED, "the lodestone is cleared");
             helper.assertTrue(lode.resetAt > lode.clearedAt, "the cooldown runs");
@@ -298,7 +298,7 @@ public final class WildClearGameTest {
         InstanceRecord record = null;
         try {
             WildLodestones.stamp(level, site);
-            helper.assertTrue(level.getBlockState(site).is(Blocks.JIGSAW), "the entrance stands before the collapse");
+            helper.assertTrue(level.getBlockState(site).is(Blocks.BEDROCK), "the entrance stands before the collapse");
             record = stamp(helper, lode, 23);
             lode.markInProgress();
             WildCollapse.collapse(server, lode);
@@ -306,7 +306,7 @@ public final class WildClearGameTest {
             helper.assertTrue(state.retired().size() == 1 && state.retired().get(0).id().equals(lode.id),
                     "it is on the retired list");
             helper.assertTrue(WildRun.liveRecord(lode.id) == null, "the dungeon is closed");
-            helper.assertTrue(!level.getBlockState(site).is(Blocks.JIGSAW), "the entrance jigsaw is gone");
+            helper.assertTrue(!level.getBlockState(site).is(Blocks.BEDROCK), "the entrance marker is gone");
         } finally {
             WildReset.setDungeonForTesting(lode.id, null);
             WildMode.setActiveForTesting(null);
@@ -333,7 +333,7 @@ public final class WildClearGameTest {
             helper.assertTrue(placed.level >= 1 && placed.expiresAt > placed.createdAt, "level and lifespan are set");
             helper.assertTrue(state.atEntrance(placed.dimension, placed.x, placed.y, placed.z) == placed,
                     "the entrance is found by its position");
-            helper.assertTrue(level.getBlockState(new BlockPos(placed.x, placed.y, placed.z)).is(Blocks.JIGSAW),
+            helper.assertTrue(level.getBlockState(new BlockPos(placed.x, placed.y, placed.z)).is(Blocks.BEDROCK),
                     "the entrance jigsaw stands");
         } finally {
             WildStore.setForTesting(null);

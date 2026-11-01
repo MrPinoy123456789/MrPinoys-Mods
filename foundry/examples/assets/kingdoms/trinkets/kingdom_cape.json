@@ -1,0 +1,46 @@
+{
+  "priority": 0,
+  "target": [
+    "kingdoms:kingdom_cape"
+  ],
+  "render": [
+    {
+      "type": "item",
+      "model_part": "body",
+      "display_context": "none",
+      "offset": [
+        0,
+        0,
+        -1
+      ],
+      "transformation": {
+        "translation": [
+          0,
+          -0.1,
+          -0.02
+        ],
+        "left_rotation": {
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "angle": 3.141
+        },
+        "scale": [
+          0.9,
+          0.9,
+          0.9
+        ],
+        "right_rotation": {
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "angle": 0
+        }
+      }
+    }
+  ]
+}

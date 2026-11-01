@@ -126,6 +126,8 @@ public final class MemberPages {
         buttons.add(go(player, v.orgName(), p -> faction(p, null)));
         buttons.add(go(player, Text.get("book.button.war"), p -> WarPages.page(p, null)));
         buttons.add(go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
+        buttons.add(BookDialogs.act(player, Text.get("book.button.trinkets"), null,
+                p -> charter.mc.cmd.LandCommands.trinkets(p)));
         buttons.add(go(player, Text.get("book.button.borders"), p -> {
             boolean on = charter.mc.land.Signals.toggleBorders(p.getUUID());
             home(p, Text.get(on ? "book.borders.on" : "book.borders.off"));

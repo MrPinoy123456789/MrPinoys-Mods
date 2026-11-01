@@ -53,6 +53,7 @@ final class LandKit implements AutoCloseable {
     final int zc;
     final int y = 100;
     private final List<OrgId> orgs = new ArrayList<>();
+    private final boolean affiliationWas;
     private int counter;
 
     LandKit(GameTestHelper helper) {
@@ -60,6 +61,9 @@ final class LandKit implements AutoCloseable {
         this.level = helper.getLevel();
         this.server = level.getServer();
         this.rt = CharterServer.runtime();
+        // Most land tests act as a player with no kingdom; the affiliation rule has its own tests.
+        this.affiliationWas = rt.knobs.requireAffiliation;
+        rt.knobs.requireAffiliation = false;
         // Every kit pays in Marks through a funded in-memory port; the admin spawn credits each faction it founds.
         GamePort.of(rt);
         int slot = next++;
@@ -158,6 +162,7 @@ final class LandKit implements AutoCloseable {
             for (Claim claim : List.copyOf(rt.state.claimsOf(org))) rt.state.removeClaim(claim.id);
         }
         rt.claims.rebuild();
+        rt.knobs.requireAffiliation = affiliationWas;
         for (int cx = rx; cx <= rx + 4; cx++) {
             for (int cz = rz - 1; cz <= rz + 1; cz++) level.setChunkForced(cx, cz, false);
         }

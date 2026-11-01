@@ -7,7 +7,9 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
@@ -96,8 +98,12 @@ final class WildCommands {
         all.sort(Comparator.comparing(l -> l.id));
         source.sendSuccess(() -> Component.literal(all.size() + " wild lodestone(s)"), false);
         for (WildState.Retired r : state.retired()) {
-            source.sendSuccess(() -> Component.literal("collapsed " + r.id() + " at " + r.x() + "," + r.y() + ","
-                    + r.z() + (r.chests().isEmpty() ? "" : " lost and found: " + r.chests().size() + " chest(s)")), false);
+            // The first lost and found chest if there is one, else the old entrance.
+            int[] at = r.chests().isEmpty() ? new int[] {r.x(), r.y(), r.z()} : r.chests().get(0);
+            String go = "/execute in " + r.dimension() + " run tp @s " + at[0] + " " + at[1] + " " + at[2];
+            String text = "collapsed " + r.id() + " at " + r.x() + "," + r.y() + "," + r.z()
+                    + (r.chests().isEmpty() ? "" : " lost and found: " + r.chests().size() + " chest(s)");
+            source.sendSuccess(() -> clickable(text, go), false);
         }
         for (WildState.Lodestone l : all) {
             StringBuilder line = new StringBuilder(l.id).append(" ").append(l.x).append(",").append(l.y).append(",")
@@ -110,9 +116,18 @@ final class WildCommands {
             if (!l.lostAndFound.isEmpty()) {
                 line.append(" lost and found: ").append(l.lostAndFound.size()).append(" chest(s)");
             }
-            source.sendSuccess(() -> Component.literal(line.toString()), false);
+            String go = "/dungeon admin wild tp " + l.id;
+            source.sendSuccess(() -> clickable(line.toString(), go), false);
         }
         return all.size();
+    }
+
+    /** A line that runs {@code command} when clicked, with the command shown on hover. */
+    private static Component clickable(String text, String command) {
+        return Component.literal(text).withStyle(style -> style
+                .withColor(ChatFormatting.AQUA)
+                .withClickEvent(new ClickEvent.RunCommand(command))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to run " + command))));
     }
 
     private static int tp(CommandSourceStack source, String id) {

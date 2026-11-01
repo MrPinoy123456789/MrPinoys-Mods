@@ -8,6 +8,7 @@
   ],
   "base_item": "minecraft:nautilus_shell",
   "texture": "kingdoms:item/tidal_gills",
+  "worn_model": "kingdoms:item/worn/tidal_gills",
   "stack_size": 1,
   "rarity": "rare",
   "keep_on_death": true,

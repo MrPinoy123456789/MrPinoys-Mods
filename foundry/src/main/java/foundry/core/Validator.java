@@ -70,6 +70,18 @@ public final class Validator {
                     checkModelTextures(d.id(), path, assetText.apply(path), assetExists, problems);
                 }
             }
+            if (d.wornModel() != null) {
+                String path = PackFiles.modelPath(d.wornModel());
+                if (d.texture() == null && d.model() == null) {
+                    problems.add(Problem.error(id, "worn_model", "A worn_model needs a texture or model to fall back on.",
+                            "Add a texture field for the flat look used where the 3D model is not shown."));
+                } else if (!assetExists.test(path)) {
+                    problems.add(Problem.error(id, "worn_model", "No model file found at assets/" + path + ".",
+                            "Add that file, or remove worn_model."));
+                } else {
+                    checkModelTextures(d.id(), path, assetText.apply(path), assetExists, problems);
+                }
+            }
             if (d.texture() != null && !assetExists.test(PackFiles.texturePath(d.texture()))) {
                 problems.add(Problem.error(id, "texture", "No texture found at assets/" + PackFiles.texturePath(d.texture()) + ".",
                         "Add a 16 by 16 PNG at that path, or fix the texture id."));
@@ -136,6 +148,14 @@ public final class Validator {
                     ? Ident.parse(value)
                     : Ident.parse("minecraft:" + value);
             if (texture == null || texture.namespace().equals("minecraft")) continue;
+            // The client stitches model textures only from textures/item/ (the items atlas) and textures/block/; a
+            // texture in any other folder draws pink and black in game.
+            if (!texture.path().startsWith("item/") && !texture.path().startsWith("block/")) {
+                problems.add(Problem.error(id.toString(), "model", "The model names texture " + texture
+                        + ", which is outside textures/item/ and textures/block/, so the client would draw it pink and black.",
+                        "Move the PNG under assets/" + texture.namespace() + "/textures/item/ and name it "
+                                + texture.namespace() + ":item/... in the model."));
+            }
             String path = PackFiles.texturePath(texture);
             if (!assetExists.test(path)) {
                 problems.add(Problem.error(id.toString(), "model", "The model names texture " + texture
