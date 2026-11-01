@@ -1,0 +1,120 @@
+# Races: passives, trinkets and gathering bonuses
+
+Status: draft spec, 2026-11-01. Nothing here is built. Written from the owner's brainstorm; every number is a
+starting point to tune.
+
+Scope: the five races of the kingdom server (Azrak Dwarf, Aurelia Human, Azurius Merfolk, Faeloria Fae, Everdelle
+Fairy). Charter owns who is which race (`race:<kingdom>` permission nodes, `RaceNodes`). Foundry owns items, triggers
+and the drop hooks. Foundry never depends on Charter; it only asks for permission nodes.
+
+## 1. Template
+
+Every race has the same five lines.
+
+| Slot | Rule |
+|---|---|
+| Gathering passive | A free level of Fortune or Looting on one resource family that no other race owns. It exists to make kingdoms trade. |
+| Combat passive | Works on a different axis from every other race's combat passive. |
+| Trinket | One worn item, visibly modelled, that carries the race's signature mechanic. |
+| Weapon | Already exists for Dwarf, Merfolk, Fae and Fairy. Human has none yet. |
+| Identity | Height, vision and a line of flavour. |
+
+Active abilities from the brainstorm are out of scope for this pass.
+
+## 2. Fairies and Fae must stay apart
+
+The brainstorm made them too alike (both small, winged, Blindness tricksters, both healers). The split:
+
+| | Fairy | Fae |
+|---|---|---|
+| Identity | Tiny, fast, airborne support | Human-sized, grounded, deceptive control |
+| Movement | Flight, the only race with it | Average; Jump Boost in green biomes |
+| Height | 1.2 blocks | 1.8 blocks |
+| Vision | Normal | Night Vision |
+| Gathering | Dusts (section 3) | Alchemy plants (section 3) |
+| Combat | Evasion | Deception |
+| Trinket | Wings | Antler circlet |
+
+Fairy Mischief changes from Blindness plus Slowness to something airborne (a short blink, or a dust cloud that makes
+enemies miss), so it no longer overlaps Fae Trickery. Mushroom Ring exempts "fae-kind" without naming fairies.
+
+## 3. Gathering passives
+
+Each is a free +1 level, in the style of Fortune I (blocks) or Looting I (mobs). All five are the same strength.
+
+| Race | Bonus | Applies to |
+|---|---|---|
+| Dwarf | Fortune I | Coal, iron, copper, gold, lapis, diamond, emerald, quartz and stone-tier blocks. Not redstone ore. |
+| Fairy | Fortune I and Looting I | Dusts: redstone ore, glowstone blocks, gunpowder (creepers, ghasts, witches) and similar mob dust drops. |
+| Human | Looting I | Farm animals: cow, pig, sheep, chicken, rabbit (meat, leather, wool, feathers). |
+| Fae | Fortune I | Alchemy plants: nether wart, sweet and glow berries, mushrooms, flowers. |
+| Merfolk | Looting I | Water things: guardians, elder guardians, drowned, squid, glow squid, plus a bonus on fish and sea blocks (prismarine, kelp, sea pickles). No books. |
+
+Rules:
+- Each resource has one owner. Redstone ore belongs to Fairy, so it is off the Dwarf list.
+- The bonus adds to the player's own tool enchantment and is capped at level III. A Fortune III pick gains nothing.
+- The bonus applies only to a player who holds the race's permission node. Mercenaries and members alike.
+- Brewing mob drops (blaze rods, ghast tears, spider eyes) stay out of Fae; they are plants only.
+- The lists live in JSON so they can change without Java.
+
+Why free levels and not bigger numbers: a bonus drives trade only if other players cannot easily get the resource
+themselves. Equal, modest bonuses on separate families keep any one race from being the obvious pick.
+
+## 4. Combat passives (draft)
+
+| Race | Combat passive | Axis |
+|---|---|---|
+| Dwarf | Bedrock Stance: knockback resistance while sneaking | Defense |
+| Merfolk | Strength and Resistance while in water | Terrain power |
+| Human | Rally: damage bonus when allies are nearby | Team |
+| Fae | Glamour: hostile mobs do not target first | Deception |
+| Fairy | Featherlight: no fall damage and a dodge chance | Evasion |
+
+Open: whether a combat passive is always on (Charter `racePassives`) or bound to the trinket (Foundry).
+
+## 5. Trinkets
+
+Each race has one worn trinket with its own model, so a race is recognisable at a glance.
+
+| Race | Trinket | Carries |
+|---|---|---|
+| Dwarf | Forgeman's Pauldron | Dwarf signature mechanic |
+| Merfolk | Tidal Gills | Water Breathing and Dolphin's Grace (moved out of `racePassives` into the item) |
+| Human | Signet or circlet | Open: Human needs a distinct identity |
+| Fae | Antler circlet | Glamour |
+| Fairy | Wings | Flight |
+
+Each trinket works only for its race (permission gated); anyone else can wear it as decoration.
+
+### Worn slot, two options
+
+- Trinkets (Patbox): a separate slot, so wings do not cost the chest slot. Costs a dependency. Support for Minecraft
+  26.3 is unconfirmed and must be checked first.
+- Vanilla equippable slot: the wing item sits in the chest slot and uses the game's glider ability, so flight needs no
+  extra mod. Costs the chestplate.
+
+Plan: build the `while_worn` trigger against a small worn-items interface so either back end can be chosen later.
+
+## 6. What Foundry needs
+
+Foundry today has four held-item triggers (`on_use`, `on_hit_entity`, `on_swing`, `on_bolt_hit`) and `apply_effect`
+already takes `require_permission` and `exclude_permission`.
+
+New work:
+1. A `while_worn` trigger, plus a worn-items interface (Trinkets or vanilla slots behind it).
+2. A block-drop hook (Fortune style) and a mob-drop hook (Looting style) from Fabric API loot events. No Mixins (D6).
+3. A fish hook for the Merfolk bonus.
+4. Race lists in JSON, one file per race.
+5. A flight mechanism for the Fairy wings (glider component or a fly-ability toggle).
+6. Bedrock: custom item mappings exist (`foundry/examples/bedrock/custom_mappings/foundry.json`). A worn model may not
+   show for Bedrock players without a resource pack; verify before promising it.
+
+Charter work: none for the trinkets. The always-on combat passives, if chosen, extend `racePassives`.
+
+## 7. Open questions
+
+1. Is each combat passive always on, or bound to the trinket?
+2. Trinkets mod or vanilla slots? Check Trinkets on 26.3 first.
+3. What gives Humans a distinct trinket and a weapon?
+4. Which Merfolk effects stay in `racePassives` after Tidal Gills takes Water Breathing and Dolphin's Grace?
+5. Foundry's README says 26.2 while master is the 26.3 line; confirm the Foundry target before any build work.
