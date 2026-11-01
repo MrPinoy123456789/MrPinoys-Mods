@@ -153,3 +153,7 @@ gametests, then merge to master before deploying so master never lags the server
 - The panel's version switch installs vanilla and deletes the Fabric launcher; never use it. The launcher was rebuilt with Fabric's installer.
 - Bedrock joins only through Geyser with `bedrock.transport: both` and the WebRTC settings; see the owner's Server Manual.
 - Rollback material in the server root: `world-before-26.3.tar.gz`, `/mods_26.2_set`, and `/mods_backup` (jars before each deploy).
+
+## Moving the lodestone
+
+`/charter nexus move` moves a kingdom's lodestone to where its Lord stands, anywhere inside the keep's nine chunks. The keep, its land and its core chunk (vault, granary, lectern) stay where they are; only the lodestone block and its record move, and the keep teleport and the jail follow it. The Lord, anyone with the place-core power, and operators may do it. It is refused outside the keep, for a player with no kingdom, and while the keep is open to attack.
