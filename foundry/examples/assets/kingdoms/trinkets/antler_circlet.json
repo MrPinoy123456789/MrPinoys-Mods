@@ -1,0 +1,46 @@
+{
+  "priority": 0,
+  "target": [
+    "kingdoms:antler_circlet"
+  ],
+  "render": [
+    {
+      "type": "item",
+      "model_part": "head",
+      "display_context": "none",
+      "offset": [
+        0,
+        1,
+        0
+      ],
+      "transformation": {
+        "translation": [
+          0,
+          -0.15,
+          0
+        ],
+        "left_rotation": {
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "angle": 0
+        },
+        "scale": [
+          0.7,
+          0.7,
+          0.7
+        ],
+        "right_rotation": {
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "angle": 0
+        }
+      }
+    }
+  ]
+}

@@ -72,6 +72,27 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Race trinkets: opening the screen and how they look
+
+Four race trinkets (Tidal Gills, Forgeman's Pauldron, Kingdom Cape, Antler Circlet) sit in Trinkets Updated slots; the
+Fairy Wings are an elytra in the chest slot and show on every client.
+
+- **Opening the Trinkets screen.** Any player, op or not, can use `/trinkets` (the patch registers it with no permission
+  check), `/trinkets compact` to switch between the compact and flat layouts, or right click a helmet, chestplate,
+  leggings or boots slot in the inventory. `/charter trinkets` runs the same `/trinkets` as the player, and the Charter
+  book home has a Trinkets button. Both need no op level. A permission mod that restricts commands would also have to
+  allow `trinkets`.
+- **What other players see.** Nothing, on a vanilla Java client. The patch README says trinkets "won't render visually",
+  and its resource pack holds only screen textures. Worn models come from the Trinkets *client* mod (the Model
+  Attachment API); a resource pack alone cannot draw them on a vanilla client. The four definitions in
+  `foundry/examples/assets/kingdoms/trinkets/` (copied to `config/foundry/assets/kingdoms/trinkets/`, then into
+  Polymer's generated pack) are read only by a client that has Trinkets Updated installed. They target the Foundry ids
+  and are unverified: Polymer may present the item to the client as its base item, in which case they never match.
+- **Bedrock.** Nothing is drawn (Geyser has no worn item mapping). The trinket still works: the slots, the effect and
+  the screen are all server side. Bedrock players open the screen with `/trinkets` as well.
+- **Open choice.** Making a trinket visible to vanilla players needs another approach, such as wearing it in the
+  helmet slot (which uses that slot) or display entities attached to the player (code). Not built.
+
 ## Coins
 
 `kingdoms:copper_coin`, `kingdoms:iron_coin` and `kingdoms:gold_coin` are plain Foundry items (stack of 64, a drawn 16x16 icon,
