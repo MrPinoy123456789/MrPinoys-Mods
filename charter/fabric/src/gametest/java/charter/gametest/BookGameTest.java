@@ -170,6 +170,14 @@ public final class BookGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 20)
+    public void aDeathDropNeverHoldsTheBook(GameTestHelper helper) {
+        ServerPlayer player = emptyHanded(helper);
+        player.getInventory().setItem(2, CharterBook.create());
+        helper.assertTrue(BookMod.vanish(player) == 1 && !BookMod.carriesBook(player), "The book was not removed before death");
+        helper.succeed();
+    }
+
     private static ServerPlayer emptyHanded(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) player.getInventory().setItem(i, ItemStack.EMPTY);

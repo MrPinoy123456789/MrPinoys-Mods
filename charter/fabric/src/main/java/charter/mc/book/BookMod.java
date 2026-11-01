@@ -114,7 +114,31 @@ public final class BookMod {
         return player.getInventory().add(stack) ? null : player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
     }
 
+    /** Deletes every Charter book a player carries, so none is dropped on death. Returns how many. */
+    public static int vanish(ServerPlayer player) {
+        int n = 0;
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (CharterBook.isBook(inventory.getItem(i))) {
+                inventory.setItem(i, ItemStack.EMPTY);
+                n++;
+            }
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (CharterBook.isBook(player.getItemBySlot(slot))) {
+                player.setItemSlot(slot, ItemStack.EMPTY);
+                n++;
+            }
+        }
+        return n;
+    }
+
     public static void register() {
+        // Before the death loot is dropped: the book never lies on the ground, and respawn hands out a fresh one.
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayer player) vanish(player);
+            return true;
+        });
         Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, Identifier.fromNamespaceAndPath("charter", "nexus"),
                 NexusRecipe.SERIALIZER);
         CharterBook.register();
