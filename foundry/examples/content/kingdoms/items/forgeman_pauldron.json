@@ -3,14 +3,30 @@
   "id": "kingdoms:forgeman_pauldron",
   "display_name": "Forgeman's Pauldron",
   "lore": [
-    "Worn on the shoulder. The mark of a Dwarf of Azrak, for show."
+    "Worn on the shoulder. Dwarves of Azrak mine a little faster while they wear it (Haste I).",
+    "Anyone else may wear it as an ornament."
   ],
   "base_item": "minecraft:iron_ingot",
   "texture": "kingdoms:item/forgeman_pauldron",
   "stack_size": 1,
   "rarity": "uncommon",
   "keep_on_death": true,
+  "require_permission": "race:azrak",
+  "locked_message": "Only the Dwarves of Azrak feel the forge in this.",
   "worn_slots": [
     "chest/back"
+  ],
+  "mechanics": [
+    {
+      "trigger": "while_worn",
+      "name": "Forgeman's Pauldron",
+      "actions": [
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:haste",
+          "duration": 60
+        }
+      ]
+    }
   ]
 }
