@@ -1,124 +1,279 @@
-# Charter book: UI plan for a controller player on Bedrock
+# Charter book: Bedrock first UI plan
 
-Audience: whoever builds it next. Written 2026-11-01 after a read of every page in `charter/fabric/src/main/java/charter/mc/book/`.
+Audience: whoever builds it next. Written 2026-11-01 after a read of every page in
+`charter/fabric/src/main/java/charter/mc/book/`. Revised the same day to aim for the best possible Bedrock
+experience; every rule here also makes the book better on Java.
 
 ## The player this is for
 
-An Xbox player on Bedrock (through Geyser and Floodgate). Assume all of this at once:
+An Xbox player on Bedrock, joining through Geyser and Floodgate, holding a controller. Design for all of this at once:
 
-- No slash commands, no typing a command, and typing anything at all means an on-screen keyboard. Avoid it.
-- No hover. Tooltips and hover text do not exist on a controller.
-- No clickable chat. Every `Chat.act` and `Chat.run` link in chat is dead to them.
-- Chat is hidden by default on console. Anything important said only in chat is lost.
-- Every screen is a round trip: press, wait, read, press Back. Fewer screens and fewer buttons is better.
-- B closes or goes back. The book already makes the exit button run on Esc, so B works. Keep that rule.
-- The book item is the only door. It must always be in the inventory, and exactly one of it.
+- **No commands.** No slash commands, and typing anything means an on-screen keyboard. Treat typing as a failure.
+- **No hover.** Tooltips and hover text do not exist on a controller.
+- **No clickable chat.** Every `Chat.act` and `Chat.run` link is dead to them.
+- **No chat, mostly.** Chat is hidden by default on console. Anything said only in chat is lost.
+- **Every press costs.** Each screen is press, wait, read, press. Count presses; fewer always wins.
+- **B is Back.** B (and Esc on Java) must always go one step back, never lose work, never do something.
+- **Small, wide screens.** A TV seen from a couch, sometimes split screen. Short labels, short bodies, big targets.
+- **The book is the only door.** It is always in the inventory, exactly one of it, and easy to reach.
 
-## Done in this change (code)
+Half the server plays like this. If a screen works for them it works for Java players too, who simply get there faster.
+
+## Done already (Phase 1, code)
 
 | Item | What changed |
 |---|---|
-| One book only | `BookMod.removeExtras` deletes every book after the first, once a second for everyone online, and on join and respawn. It runs even when `replaceLostBook` is off. A looted or old death-drop book is deleted from whoever already has one. |
+| One book only | `BookMod.removeExtras` deletes every book after the first, once a second for everyone online, and on join and respawn. It runs even when `replaceLostBook` is off. |
 | Death drop | `BookMod.vanish` deletes the book just before death loot drops (`ALLOW_DEATH`), so it never lies on the ground. Respawn hands out a fresh one. |
-| Travel at the top | Home (bed), Keep, Outpost, Spawn, Hub are the first buttons of the member Home and of the newcomer Home (a newcomer has no keep or outpost). A refusal shows above the same page; a start closes the screen so the player can hold still. |
-| Leader's Desk | One button on the member Home, shown only to officers (`LeaderPages.leads`). Holds: requests to join, invite a player, give a power, take Marks from the treasury, who decides, votes and elections, war, move the Nexus. Names are picked from dropdowns, never typed. |
+| Travel at the top | Home (bed), Keep, Outpost, Spawn, Hub are the first buttons of the member Home; a newcomer gets Home, Spawn and Hub. |
+| Leader's Desk | One button on the member Home, shown only to officers (`LeaderPages.leads`): requests, invite, grant, treasury, who decides, votes, war, move the Nexus. |
 | Borders | A button on Home replaces `/charter borders`. |
-| Accept an invitation | A button on the newcomer Home. Before this, an invite could only be accepted through a chat link, so a Bedrock player could never join by invitation. |
+| Accept an invitation | A button on the newcomer Home. Before it, an invite could only be accepted through a chat link. |
 
-## Still typed only (not in the book yet)
+Phase 1 was written without a working Gradle in the sandbox. The first job of the next phase is `./gradlew build` and
+fixing whatever it finds.
 
-Everything a player or leader can still only do with a slash command:
+## The big decision: native Bedrock forms
 
-- Justice for leaders: `/charter justice sentence`, `bail`, `cell mark|remove|list`, `safe deposit`, and the pardon, confine, bond and fine links (all chat links today). Plan: a Justice section on the Leader's Desk, same dropdown pattern.
-- `/charter map`: draws in chat. Plan: a map dialog (see Phase 3).
-- `/charter vote`, `/charter vault`: covered by Situation and the new treasury screen; the commands can stay.
-- `/charter discord link|unlink|notify`: needs a screen if Discord matters to Bedrock players.
-- `/charter found <name> <preset>`: the book teaches founding but cannot do it. Off while `playerFounding` is false on the live server, so low priority.
-- Race-weapon or other-mod commands: out of scope here.
+Today every screen is a Java dialog (`net.minecraft.server.dialog`), and Geyser translates it for Bedrock. That
+works, but a translation is the floor, not the ceiling: no button icons, body text flattened into one block, and
+every press travels as a typed `/charter act <token>` command through Geyser.
 
-## Findings, page by page
+The shipped server runs Floodgate in the same JVM, and Floodgate exposes Bedrock's own forms (the Cumulus API:
+`SimpleForm`, `ModalForm`, `CustomForm`, sent with `FloodgateApi.getInstance().sendForm(uuid, form)`).
 
-Priority: P1 broken or confusing for a controller player now, P2 clumsy, P3 polish.
+**Recommendation: one screen model, two renderers.**
 
-### All pages
+```
+BookScreen (title, status lines, buttons with icon, inputs, exit)
+   ├── JavaDialogRenderer    -> the vanilla dialog, as today (Java players, and Bedrock when Floodgate is absent)
+   └── BedrockFormRenderer   -> a Floodgate Cumulus form (Bedrock players when Floodgate is present)
+```
 
-1. **P1 Hover is load bearing.** The form line on Home, "Hover over a name" on Rights, Freedoms and the faction page, and every `book.tip.*` explain jargon only on hover. Console players never see it. Fix: a "What do these words mean?" page (Glossary) reached by one button, and a one line plain explanation written into the page where it matters. Delete "Hover over..." sentences.
-2. **P1 Success looks like failure.** `BookDialogs.withNotice` paints every notice red, including "You invited Bob". Fix: a `Notice(ok, text)` so success is green and refusal is red. Callers pass a string today, so add `okNotice` helpers and migrate page by page.
-3. **P1 Chat links.** `Pages.java` and `CharterServer` send join request, vote and invite prompts as clickable chat lines. Fix: on every such event also (a) set the book's lore to show a count ("2 waiting"), (b) send an action bar line "Open your Charter book", and (c) keep the chat line for Java players.
-4. **P2 Too much text above the buttons.** Home shows four paragraphs (form line, hint, seasons, days) before any button. On a console screen the buttons start below the fold. Fix: one status line on Home, calendar behind a Calendar button.
-5. **P2 Long lists.** Joining lists up to 20 factions, votes up to 20 candidates, a Commune's "who decides" up to 9 forms. Fix: pages of 6 with Next and Previous, and the selected item first.
-6. **P2 Labels that say nothing.** "Yes" and "No" on confirmations (Reject, Break away, Leave). Fix: verbs, "Turn Bob away" and "Keep Bob waiting"; "Leave Azrak" and "Stay".
-7. **P3 Titles repeat the body.** Several pages open with a title and a body line that says the same thing. Cut the body line.
+- Pages stop building `Dialog` objects and build a `BookScreen` instead. `BookDialogs.show` picks the renderer:
+  Floodgate loaded and `FloodgateApi.isFloodgatePlayer(uuid)` true means a native form; anything else means a dialog.
+- Floodgate is a soft dependency: `compileOnly` in Gradle, and every call behind
+  `FabricLoader.getInstance().isModLoaded("floodgate")` in one adapter class, so Charter still runs without it and its
+  tests never need it.
+- Mapping:
+  - A list of buttons becomes a `SimpleForm`. Each button can carry an icon (`FormImage.Type.PATH`, a vanilla
+    texture such as `textures/items/bed_red` or `textures/items/compass_item`).
+  - A confirmation becomes a `ModalForm` (exactly two buttons, which is all a confirm needs).
+  - A form with inputs becomes a `CustomForm` with a dropdown, slider, step slider or toggle.
+  - Closing the form (B, or the X) runs the screen's exit action. Floodgate reports it as a closed response.
+- The response arrives as a Java callback in the server, so the button runs the page's `Consumer<ServerPlayer>`
+  directly: no token command, no chance of a stale token, no command echo. The callback must still re-check
+  everything (live state, the player's powers), exactly as the token path does today.
+- `BookDialogs.LAST` keeps recording the `BookScreen`, so gametests stay renderer-agnostic.
+- A knob `bedrockNativeForms` (default true) turns the native path off without a release, in case a Floodgate
+  update breaks it.
 
-### Home (member)
+Why it is worth it: icons on every button turn a wall of words into something a player reads at a glance from the
+couch; a `ModalForm` makes a confirm unmistakable; sliders replace typed numbers; and the B button is native. Java
+gains too: the screen model forces every page into the same small shape, and it is easy to test.
 
-- Order now: Travel, Leader's Desk (officers), Rights, Freedoms, Situation, faction page, War, Chronicle, Borders.
-- P2 Rights, Freedoms and Situation are three read only pages. Merge into one "Where I stand" page with three headed sections (My powers, What others do for me, My status and votes). Saves two round trips.
-- P2 The faction page button is the faction's own name; players do not know that it is a button. Label it "My faction: Azrak".
-- P2 Move Leave out of Freedoms (it sits next to a joke "Break away" label). Put Leave and Break away on one "Leave or break away" page at the bottom of Home, clearly last, with the cooldown said before the confirm.
+Fallback if the native path is rejected: keep dialogs, apply every other rule below. They still hold.
 
-### Newcomer home
+## Rules for every screen
 
-- Now: Travel, invitation buttons, Join, Mercenary, Found (if allowed), Realm Chronicle.
-- P2 The body shows the calendar too. Same cut as Home.
-- P2 Join lists "Azrak (12 members, a lordship)". The form of rule means little; lead with the race and one plain sentence of what joining gives.
-- P2 Found your own is a checklist with no buttons except Back. Where founding is allowed, add "Check again" so a player does not leave and reopen to refresh it.
+Write these into `BookScreen` so a page cannot break them.
 
-### Faction page
+1. **At most 8 buttons** on a screen, the exit not counted. More than 8 items means paging (6 per page, then More).
+2. **Labels at most 24 characters.** Verb first: "Go to your keep", "Admit Bob". No coordinates in a label.
+3. **Body at most 3 short lines.** One status line is better. Detail goes behind a button.
+4. **Things that need the player come first,** right under travel. A screen with nothing to do says so in one line.
+5. **No hover, anywhere.** If a word needs explaining, explain it in the body or behind "What does this mean?".
+6. **No typing** except a free text name, and there is no such field for players today. Players are chosen from
+   buttons (8 or fewer) or a dropdown (more); numbers come from presets or a slider.
+7. **Exit is always Back,** except on Home where it is Close. B runs it. It never changes anything.
+8. **After a press, land on the page it came from** with the result on top: green for done, red for refused. Never
+   leave a player on a blank screen.
+9. **Confirm only what cannot be undone** (leave, declare war, reject, break away, move the Nexus). The confirm
+   says the consequence in one line and its button is the verb: "Leave Azrak", not "Yes".
+10. **Grey, do not hide, a temporary no.** "Go to your keep (12s)" during a cooldown. Hide what can never apply
+    (no outpost button for a faction with no outpost).
+11. **Icons on Bedrock buttons,** one per button, chosen from vanilla textures so no resource pack is needed.
 
-- P1 It mixes information (members, treasury, keep) with leader actions (admit, turn away, elect, propose). The actions now live on the Leader's Desk; strip the buttons from the faction page for non officers and keep it a read only summary with one "Open Leader's Desk" button for officers.
-- P2 The member list is one long comma run. Cap at 12 names and add "and N more", with a members page behind a button.
+## Feedback outside the book
 
-### Votes and elections
+Chat is the worst channel for a console player. Use, in this order:
 
-- P2 Reaching a vote needs Situation then the vote. Show a count on Home ("Votes waiting: 2") and put it near the top when above zero.
-- P3 A closed vote's page has only Back. Fine.
+- **Action bar** for short results and prompts ("Hold still: 3", "You are home").
+- **Boss bar** for anything that counts down: teleport warm-up, a war capture timer, a vote closing. Bedrock draws
+  boss bars well and they need no reading time.
+- **Title and subtitle** only for rare, big moments (you joined a faction, war declared on you).
+- **Sounds** as a cue: a soft chime when something needs you, the UI click on a result.
+- **The book itself** (below).
+- **Chat** last, and only as a copy for Java players, with its clickable links kept for them.
 
-### War
+## The book item
 
-- P2 The page explains the rules in three long paragraphs before the target list. Put targets first, the rules behind "How war works".
-- P2 Target buttons read "Name the outpost of X at -240, 880". Coordinates mean little on a console. Add distance and direction ("about 300 blocks north") and keep coordinates secondary.
-- P3 Confirm screen is four paragraphs. Keep the three facts that matter: how long before capture opens, how long to hold the chunk, what a lapse costs.
+- **Hotbar slot.** Give the book into the last hotbar slot (9) when it is free, otherwise the first free hotbar
+  slot, otherwise the inventory. A book in the hotbar is one press away.
+- **It tells you when you are needed.** When something waits for the player (a vote, a join request, an
+  invitation, a war on your outpost), set the glint (`ENCHANTMENT_GLINT_OVERRIDE`) and add the count to the name:
+  "Charter (2 need you)". Lore lists what: "1 vote, 1 request". Refresh on a slow tick, only for players whose
+  counts changed, and only touch the one stack.
+- **Opens from anywhere.** Use in the main hand opens it today, and on a block that has no use of its own. Keep that.
+- Confirm on a real Bedrock client that the paper drawn as a writable book reads as a book in the hotbar, and that
+  the glint shows.
+
+## Information architecture
+
+Depth at most two from Home. Every leaf has Back to its parent.
+
+### Member Home
+
+Body: one line. "Azrak, a lordship. You are a member." (Bedrock icon on the form title is not possible; the body line
+carries it.)
+
+| # | Button | Icon (Bedrock) | Shown when |
+|---|---|---|---|
+| 1 | Go home (your bed) | `textures/items/bed_red` | always (greyed with reason if no bed) |
+| 2 | Go to your keep | `textures/blocks/lodestone_top` | the nation has a keep |
+| 3 | Go to your outpost | `textures/items/banner_pattern` | the faction has an outpost |
+| 4 | Go to spawn | `textures/items/compass_item` | always |
+| 5 | Go to the hub | `textures/items/ender_pearl` | a hub exists |
+| 6 | Needs you (N) | `textures/items/bell` or `book_writable` | N above zero |
+| 7 | Leader's Desk | `textures/items/gold_ingot` | officers |
+| 8 | Where I stand | `textures/items/book_normal` | always |
+| 9 | My faction | `textures/items/banner` | always |
+| 10 | More | `textures/items/paper` | always |
+
+That is more than 8 for an officer with everything. Fold rule: travel stays as one block at the top (the owner asked
+for it), and when the total passes 8, "My faction" moves under More. Check the final count in a gametest.
+
+**More:** War, Chronicle, Calendar, Show or hide borders, What do these words mean?, Leave or break away (last).
+
+### Needs you
+
+One list, newest first, each a button straight to the thing: "Vote: raise taxes", "Bob asks to join", "Invite
+from Azrak", "War on your outpost". Pressing one opens it; acting on it returns here; when the list is empty it says
+"Nothing needs you." and Back.
+
+### Where I stand
+
+Replaces Rights, Freedoms and Situation (three read only pages, three round trips). Three short sections with
+headings: What you may do, Who decides for you, Your status (time in faction, held, banished, owed, respawn delay).
+Each section capped at 4 lines with "See all" behind a button when longer.
+
+### My faction
+
+Read only summary: members (first 12, "and N more" opens a paged list), empty offices, treasury, keep, elections
+running. Officers see one extra button: Leader's Desk.
+
+### Leader's Desk
+
+| Button | What it opens |
+|---|---|
+| Requests to join (N) | One button per applicant; each opens Admit or Turn away (ModalForm). |
+| Invite a player | Online players with no faction as buttons (8 or fewer) or a dropdown. |
+| Give a power | Step 1: power group buttons (Members, Money, Land and war, Justice). Step 2: the power. Step 3: who. |
+| Treasury | Balance, then Take: presets 1, 10, 64 and a slider up to the balance. |
+| Justice | Sentence, bail, cells, safe deposit, pardon: each a short flow of buttons, no typing. |
+| Who decides | As today. |
+| War | Targets first (named by direction and distance: "Faeloria outpost, 300 north"), rules behind How war works. |
+| Move the Nexus here | ModalForm; the body says whether you stand inside the keep right now. |
+
+### Newcomer Home
+
+Body: one line ("You belong to no kingdom." or "Waiting for Azrak to answer.").
+
+Buttons: travel (home, spawn, hub), then any invitations ("Join Azrak (invited)"), then Choose a kingdom, Become a
+mercenary, Found your own (only if founding is on), More (Realm Chronicle, Calendar, words).
+
+**Choose a kingdom:** one button per kingdom, labelled with its race ("Azrak, the Dwarves"); the kingdom page says in
+three lines what joining gives (race, keep, who rules) and has Ask to join.
+
+**Mercenary:** race buttons first, one line of rules, then a ModalForm: "Become a Fae mercenary? You cannot choose
+again." with buttons "Become a Fae" and "Back".
+
+### Votes
+
+The vote page: the question, time left, your ballot. Buttons Yes, No, Abstain, or one per candidate (paged). After
+casting, back to Needs you with "Your vote is cast." in green.
 
 ### Chronicle
 
-- P1 Opens a real written book through a packet (`BookReading`). Whether Geyser translates `ClientboundOpenBookPacket` for Bedrock is unverified. Test on a real Xbox. If it fails: render the Chronicle as dialog pages, six entries per page, with Next and Previous.
-- P2 Realm Chronicle is on the newcomer Home only; members cannot reach it. Add it to the Chronicle page as a choice between faction and realm.
+Opens as a written book today (`BookReading`, a packet trick). Whether Geyser shows it on Bedrock is unverified.
+Build the Chronicle as paged screens (6 entries per page, Next and Previous) for Bedrock players regardless; Java
+keeps the written book, which reads better there.
 
-### Mercenary
+### Map
 
-- P2 Three paragraphs, then one button per race. Put the buttons first and the rules in one short line, then a confirm that names the race ("You cannot choose again").
+Replaces `/charter map` for the book: a 9 by 9 grid drawn as text rows in the body (one coloured glyph per chunk,
+you in the middle), with North, South, East, West buttons. Check it fits a console screen; if not, 7 by 7.
 
-### Break away
+## Travel, done right
 
-- P2 Eight paragraphs before the single button. A controller player will not read them. Reduce to: who comes with you, what it costs, how long, then the button. Move the rest behind "More".
+- A press closes the screen and shows a boss bar: "Going to your keep. Hold still." filling over the warm-up.
+  Moving or taking damage empties it with "Moved, so you stay." on the action bar.
+- Arrival: action bar line and a sound.
+- Before the press: the label already says why it cannot work ("Go to your outpost (no food)") through a public
+  `Teleports.refusal(player, kind)`; pressing a greyed button shows the full reason on top of Home.
+- Outpost costs food: say it on the button only when it matters ("Go to your outpost (4 food)").
 
-### Travel feedback
+## Text
 
-- P1 The hold still message and the "you are home" line go to chat. Send both to the action bar as well, with a visible countdown.
-- P2 Buttons fail after the press ("no outpost"). Show the reason before the press: grey the label ("Go to your outpost (still being raised)") by asking `Teleports` for the refusal when building the page. Needs a public `Teleports.refusal(player, kind)`.
-- P2 `/outpost` costs food from the outpost store. Say so on the button ("costs 4 food") so it is not a surprise.
+All player text follows the house dash rule and the `player-text` skill's spirit: few words, the next action, no
+jargon. Specific cuts already found:
 
-### Leader's Desk (new, to refine)
+- Delete every "Hover over..." sentence (`book.rights.intro`, `book.freedoms.intro`, `book.home.form_hint`,
+  `book.tip.hint`).
+- `book.borders.on` style lines that say "Say /charter ..." must not reach a book screen; book screens get their own
+  keys without commands in them.
+- `BookDialogs.withNotice` paints every notice red, including successes. Replace with a result that knows ok or
+  refused.
 
-- P2 Grant lists 15 powers by their internal names. Group them (Members, Money, Land and war, Justice) and use the same plain words as the Rights page.
-- P2 Invite lists only online players with no faction. Add "Invite someone who is offline" only if a dropdown of known names is acceptable (no typing).
-- P3 Move the Nexus has no preview. Add a line saying whether the player is standing inside the keep.
+## Still typed only
 
-### The item
+After this plan nothing a player needs is typed only. Left as commands on purpose:
 
-- P2 Name and lore are fixed. Make the lore dynamic: "Votes: 2. Requests: 1." (updated on a slow tick for players whose counts changed). It is the only badge a console player can see without opening anything.
-- P3 The book is paper drawn as a writable book. Bedrock shows the Java model name through the Geyser mapping; confirm it reads as a book in the hotbar.
+- `/charter found <name> <preset>`: off on the live server (`playerFounding` false). If it is turned on, founding
+  needs a name, which is the one place a Bedrock keyboard is acceptable.
+- `/charter discord link|unlink|notify`: add to More only if Bedrock players use Discord linking.
+- Operator tools (`/charter admin ...`): operators play on Java; `AdminPages` already covers them.
 
 ## Build order
 
-1. Phase 1, done: one book, travel, Leader's Desk, borders, accept invite.
-2. Phase 2, small and safe: green and red notices; verb labels on confirms; remove "Hover over" text; action bar for travel; dynamic lore with counts; cut the Home body to one line.
-3. Phase 3, medium: merge Rights, Freedoms and Situation into "Where I stand"; paging helper (`BookDialogs.paged`) for the long lists; Leave and Break away page; Justice section on the Leader's Desk; map dialog.
-4. Phase 4, needs a live Bedrock check: Chronicle as dialog pages if the written book fails.
+1. **Phase 1, done:** one book, death vanish, travel, Leader's Desk, borders, accept invite.
+2. **Phase 2, the frame:** `BookScreen` model and the rules enforced in it; `JavaDialogRenderer` producing exactly
+   today's dialogs; green and red results; port every page to `BookScreen` without changing what it shows. Gametests
+   still pass. This is the risky refactor; do it alone.
+3. **Phase 3, Bedrock native:** `BedrockFormRenderer` behind the soft Floodgate dependency and the knob; icons; B
+   runs exit; callbacks re-check state.
+4. **Phase 4, the new layout:** Home and Newcomer Home as specified, Needs you, Where I stand, More, My faction,
+   Leader's Desk complete (Justice, grouped powers, treasury presets), confirms as verbs, paging.
+5. **Phase 5, outside the book:** boss bar travel, action bar results, book glint and counts, hotbar slot, sounds.
+6. **Phase 6, needs a live Bedrock client:** Chronicle and map as paged screens tuned on a real console; icon choices
+   checked on screen.
 
-## How to check each phase
+## How to check
 
-- Gametests in `BookGameTest`: button order of each Home, one-book rule, every page ends with an exit button (rule already enforced by `BookDialogs.list`).
-- Live, on an Xbox or Bedrock client through Geyser: open every screen with a controller only; count presses to reach Home, a teleport, an invite and a vote; confirm Esc/B always goes back; confirm nothing needed a hover or a chat click.
+- **Gametests** (`BookGameTest`): every screen has at most 8 buttons and an exit; labels at most 24 characters; Home
+  order (travel first, Needs you next); one-book rule; death vanish; leader gating; a refused press lands on the same
+  page with a red line, a successful one with a green line.
+- **Press budget,** measured on a real controller from the book in hand:
+
+  | Task | Presses, at most |
+  |---|---|
+  | Go to your keep | 2 (use book, press) |
+  | Vote on something waiting | 3 |
+  | Accept an invitation | 2 |
+  | Admit a player (leader) | 4 |
+  | Take Marks from the treasury (leader) | 4 |
+
+- **Live,** on an Xbox or a Bedrock client through Geyser: every screen with a controller only; B always backs out;
+  nothing needs a hover, a chat click, or the keyboard; icons show; the boss bar shows during travel.
 - Deploy only through the `deploy-shipped-server` skill and its approvals. This work does not authorize a deploy.
+
+## Risks and open questions
+
+- **Floodgate API version.** Pin the Cumulus and Floodgate API versions that match the Geyser and Floodgate on the
+  server; check `docs/KINGDOM_SERVER.md` and the server's mods folder before choosing.
+- **Geyser dialog fidelity.** If native forms are turned off, Bedrock sees Geyser's translation. Check on a real
+  client how it renders body text, long lists and inputs, and that Esc maps to the exit.
+- **Texture paths.** Bedrock texture names differ from Java ids (`bed_red`, `compass_item`). Each icon must be checked
+  once on a client; a wrong path shows a blank square, not an error.
+- **Glint on paper.** Verify Geyser carries `ENCHANTMENT_GLINT_OVERRIDE` to Bedrock; if not, the name count alone
+  carries the signal.
