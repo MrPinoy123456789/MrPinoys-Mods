@@ -41,3 +41,6 @@ tools/playtest/.remote/
 
 # Python generator bytecode
 pocketdungeons/tools/__pycache__/
+
+# Foundry gametests write the /trinketview toggle here
+foundry/examples/worn_self_view.json
