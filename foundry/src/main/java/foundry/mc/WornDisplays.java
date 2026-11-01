@@ -46,6 +46,8 @@ public final class WornDisplays {
 
         @Override
         public boolean startWatching(ServerGamePacketListenerImpl connection) {
+            // Geyser cannot translate Polymer's item_display (it throws per packet on 26.3), so Bedrock players never get one.
+            if (foundry.core.Floodgate.isBedrock(connection.getPlayer().getUUID())) return false;
             if (hideFromOwner && connection.getPlayer() == owner) return false;
             return super.startWatching(connection);
         }

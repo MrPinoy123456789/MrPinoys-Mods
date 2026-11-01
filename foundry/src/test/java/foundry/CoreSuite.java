@@ -41,6 +41,8 @@ public final class CoreSuite {
                 "a hat is drawn on the head");
         check(foundry.core.WornPlacement.of("chest/cape").isPresent() && !foundry.core.WornPlacement.of("chest/cape").get().onHead(),
                 "a cape is drawn on the body");
+        check(foundry.core.Floodgate.isBedrock(new java.util.UUID(0L, 12345L)) && !foundry.core.Floodgate.isBedrock(java.util.UUID.randomUUID()),
+                "a zero high half is a Floodgate Bedrock player, a random Java UUID is not");
         check(foundry.core.WornPlacement.of("hand/ring").isEmpty(), "an undrawn slot has no placement");
         var tuned = foundry.core.WornPlacement.parse(
                 "{\"slots\":{\"chest/back\":{\"scale\":0.9}},\"items\":{\"kingdoms:x\":{\"slot\":\"chest/back\",\"up\":1.4,\"rotation\":[0,90,0]}}}");

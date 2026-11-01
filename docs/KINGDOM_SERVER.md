@@ -116,7 +116,7 @@ Fairy Wings are an elytra in the chest slot and show on every client.
 - **Cape.** The cape is found in `chest/cape` and has a placement (gametested: one display per cape). It sits behind
   the body, so look from behind; if `/foundry worn list` shows the display with watchers and nothing is on screen, raise
   `back` or `scale` for `chest/cape` in `worn_displays.json`.
-- **Bedrock.** Nothing is drawn. Geyser (current master) lists `text_display` as required entity metadata but
+- **Bedrock.** Nothing is drawn, on purpose: the live log showed Geyser throwing `Missing ID 73 in Java registry minecraft:entity_type` for every item display it was sent (it cannot translate `item_display` on 26.3), so `WornDisplays` never sends displays to a Floodgate player (UUID high half zero). Geyser (current master) lists `text_display` as required entity metadata but
   `item_display` and `block_display` as not required, so Polymer's item displays are almost certainly not translated;
   I found no Geyser option to attach a worn model to a player either. The trinket itself still works for Bedrock
   players, and they open the screen with `/trinkets`. Possible routes (none built): a Geyser custom item mapping plus an
