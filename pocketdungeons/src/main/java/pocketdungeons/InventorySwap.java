@@ -907,7 +907,7 @@ public final class InventorySwap {
             throw e;
         }
         if (!overflow.isEmpty()) {
-            player.drop(overflow, false);
+            player.drop(overflow, false, net.minecraft.util.Prediction.SERVER_ONLY);
         }
         log.setStash(player.getUUID(), StashRecord.NONE);
         slots.flush();

@@ -1398,7 +1398,7 @@ final class DungeonCommands {
                 : Identifier.parse(entry.meta.processors);
         for (int q = 0; q < 4; q++) {
             BlockPos cellOrigin = base.offset(q * RoomGeometry.CELL, 0, 0);
-            List<BlockPos> spawns = TemplateStamper.place(level, level.getStructureManager(),
+            List<BlockPos> spawns = TemplateStamper.place(level, level.getStructureTemplateManager(),
                     cellOrigin, Identifier.parse(entry.meta.template),
                     q, 0L, processorList);
 

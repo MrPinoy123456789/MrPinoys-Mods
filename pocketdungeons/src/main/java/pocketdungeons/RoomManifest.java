@@ -141,7 +141,7 @@ final class RoomManifest {
             rejections.add("overworld is not loaded");
             return new RoomManifest(Map.of(), rejections);
         }
-        StructureTemplateManager manager = level.getStructureManager();
+        StructureTemplateManager manager = level.getStructureTemplateManager();
 
         Map<Identifier, Resource> resources = rm.listResources(
                 resourcePath, id -> id.getPath().endsWith(".json"));
@@ -377,8 +377,8 @@ final class RoomManifest {
             if (!DOOR_NAME.equals(info.name())) {
                 continue;
             }
-            BlockPos pos = info.info().pos();
-            BlockState state = info.info().state();
+            BlockPos pos = info.pos();
+            BlockState state = info.state();
             Direction edge = RoomGeometry.wallDirection(pos.getX(), pos.getZ());
             if (edge == null) {
                 throw new IllegalStateException("door jigsaw at " + pos.toShortString()
@@ -396,7 +396,7 @@ final class RoomManifest {
         // Validate every canonical slot on each edge that has any door jigsaw.
         Map<BlockPos, JigsawBlockInfo> byPos = new HashMap<>();
         for (JigsawBlockInfo info : doorJigsaws) {
-            byPos.put(info.info().pos(), info);
+            byPos.put(info.pos(), info);
         }
         int mask = 0;
         for (int story = 0; story < stories; story++) {
@@ -409,7 +409,7 @@ final class RoomManifest {
                         throw new IllegalStateException("partial door on " + edge
                                 + " wall: missing jigsaw at " + pos.toShortString());
                     }
-                    Direction facing = JigsawBlock.getFrontFacing(info.info().state());
+                    Direction facing = JigsawBlock.getFrontFacing(info.state());
                     if (facing != edge) {
                         throw new IllegalStateException("partial door on " + edge
                                 + " wall: jigsaw at " + pos.toShortString() + " faces " + facing);

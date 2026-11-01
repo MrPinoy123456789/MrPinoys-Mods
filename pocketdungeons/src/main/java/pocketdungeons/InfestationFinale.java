@@ -61,7 +61,7 @@ final class InfestationFinale implements FinaleScript {
         if (entity instanceof ServerPlayer player) {
             player.hurtServer(level, level.damageSources().generic(), InfestationRules.EMERGE_DAMAGE);
             player.push(0.0, 0.7, 0.0);
-            player.hurtMarked = true;
+            player.syncVelocity = true;
         }
     };
 
@@ -349,7 +349,7 @@ final class InfestationFinale implements FinaleScript {
         boss.setTarget(null);
         boss.setNoAi(true);
         boss.setNoGravity(true);
-        boss.setInvulnerable(true);
+        boss.setPermanentlyInvulnerable(true);
         boss.setInvisible(true);
         boss.setSilent(true);
         boss.setCustomNameVisible(false);
@@ -365,7 +365,7 @@ final class InfestationFinale implements FinaleScript {
         }
         boss.setNoAi(false);
         boss.setNoGravity(false);
-        boss.setInvulnerable(false);
+        boss.setPermanentlyInvulnerable(false);
         boss.setInvisible(false);
         boss.setSilent(false);
         boss.setCustomNameVisible(true);
@@ -379,7 +379,7 @@ final class InfestationFinale implements FinaleScript {
     private static void unburrowFlags(Mob boss) {
         boss.setNoAi(false);
         boss.setNoGravity(false);
-        boss.setInvulnerable(false);
+        boss.setPermanentlyInvulnerable(false);
         boss.setInvisible(false);
         boss.setSilent(false);
     }

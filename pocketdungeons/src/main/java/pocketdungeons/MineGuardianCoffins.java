@@ -141,7 +141,7 @@ final class MineGuardianCoffins implements MineGuardians.Guardian {
         MineGuardians.tag(sleeper, terminal);
         setup.accept(sleeper);
         sleeper.setNoAi(true);
-        sleeper.setInvulnerable(true);
+        sleeper.setPermanentlyInvulnerable(true);
         // The bare invisible flag is recomputed from active effects every tick, so a sleeper must wear the effect.
         sleeper.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, MobEffectInstance.INFINITE_DURATION,
                 0, false, false, false));
@@ -251,7 +251,7 @@ final class MineGuardianCoffins implements MineGuardians.Guardian {
             return;
         }
         mob.setNoAi(false);
-        mob.setInvulnerable(false);
+        mob.setPermanentlyInvulnerable(false);
         mob.removeEffect(MobEffects.INVISIBILITY);
         mob.setInvisible(false);
         mob.setSilent(false);

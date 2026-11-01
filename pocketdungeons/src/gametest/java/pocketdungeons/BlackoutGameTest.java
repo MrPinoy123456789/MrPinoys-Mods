@@ -45,7 +45,7 @@ public final class BlackoutGameTest {
                 }
             }
         }
-        TemplateStamper.place(level, level.getServer().getStructureManager(), origin,
+        TemplateStamper.place(level, level.getServer().getStructureTemplateManager(), origin,
                 Identifier.parse(entry.meta.template), 0, 1L, null);
     }
 

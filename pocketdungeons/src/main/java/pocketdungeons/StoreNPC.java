@@ -125,7 +125,7 @@ final class StoreNPC {
                 .withLevel(VillagerData.MAX_VILLAGER_LEVEL));
         villager.addTag(STORE_TAG);
         villager.setPersistenceRequired();
-        villager.setInvulnerable(true);
+        villager.setPermanentlyInvulnerable(true);
         // PD-141: a free villager wandered into the next room. The shopkeeper
         // stands where it spawns and still turns to face a customer.
         villager.setNoAi(true);

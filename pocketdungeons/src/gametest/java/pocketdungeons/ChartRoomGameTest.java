@@ -116,9 +116,9 @@ public final class ChartRoomGameTest {
                 BlockPos signPos = StagingFurniture.hallFrontPos(o, wall, along, 1);
                 helper.assertTrue(level.getBlockEntity(signPos) instanceof SignBlockEntity, "slot " + slot + " has a sign");
                 SignBlockEntity sign = (SignBlockEntity) level.getBlockEntity(signPos);
-                helper.assertValueEqual(sign.getFrontText().getMessage(0, false).getString(), "Uncharted",
+                helper.assertValueEqual(sign.getText(net.minecraft.world.level.block.entity.SignTextSlot.FRONT).getMessages(false).get(0).getString(), "Uncharted",
                         "the sign says Uncharted on slot " + slot);
-                helper.assertTrue(!sign.getFrontText().getMessage(1, false).getString().isEmpty(),
+                helper.assertTrue(!sign.getText(net.minecraft.world.level.block.entity.SignTextSlot.FRONT).getMessages(false).get(1).getString().isEmpty(),
                         "and names the door's theme on slot " + slot);
             }
             List<Entity> parts = level.getEntitiesOfClass(Entity.class, CellGeometry.cellBounds(o),

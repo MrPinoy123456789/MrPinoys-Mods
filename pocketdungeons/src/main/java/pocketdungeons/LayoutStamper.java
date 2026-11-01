@@ -155,7 +155,7 @@ final class LayoutStamper {
                                           DungeonDef.LootBand lootBand, NodeStamper.Context nodeCtx,
                                           Set<BlockPos> nodesOut) {
         PlanGeometry geometry = PlanGeometry.of(origin, plan.cells());
-        StructureTemplateManager manager = level.getStructureManager();
+        StructureTemplateManager manager = level.getStructureTemplateManager();
         RoomManifest manifest = RoomManifest.current();
         DifficultyProfile profile = DifficultyProfile.of(plan.criticalPath().size(), keystoneLevel, lootBand);
         PlanCell entranceCell = plan.entrance();
@@ -271,7 +271,7 @@ final class LayoutStamper {
         StampRun(StampParams p) {
             this.params = p;
             DungeonPlan plan = p.plan();
-            this.manager = p.level().getStructureManager();
+            this.manager = p.level().getStructureTemplateManager();
             this.manifest = RoomManifest.current();
             // M61: the deepest any room in this layout reaches below its own cell
             // floor, so PlanGeometry.bounds can extend down to cover lower stories

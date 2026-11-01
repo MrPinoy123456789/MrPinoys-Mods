@@ -349,7 +349,7 @@ final class LibrarianNPC {
                 .withLevel(VillagerData.MAX_VILLAGER_LEVEL));
         villager.addTag(LIBRARIAN_TAG);
         villager.setPersistenceRequired();
-        villager.setInvulnerable(true);
+        villager.setPermanentlyInvulnerable(true);
         villager.setCustomName(Component.literal("Librarian"));
         villager.setCustomNameVisible(true);
         villager.setOffers(buildOffers(level, owner));
@@ -386,7 +386,7 @@ final class LibrarianNPC {
             villager.setPos(lecternPos.getX() + 0.5, lecternPos.getY(), lecternPos.getZ() + 0.5);
         }
         // Re-apply invulnerability and persistence in case something stripped them.
-        villager.setInvulnerable(true);
+        villager.setPermanentlyInvulnerable(true);
         villager.setPersistenceRequired();
         // Re-apply the librarian profession so vanilla job-site claiming
         // cannot turn the librarian into a cleric or other profession while

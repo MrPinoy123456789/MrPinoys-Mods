@@ -462,7 +462,7 @@ final class HerobrineFight {
         state.rescueStart = server.getTickCount();
         Entity found = state.steve == null ? null : level.getEntity(state.steve);
         if (found instanceof Zombie steve) {
-            steve.setInvulnerable(true);
+            steve.setPermanentlyInvulnerable(true);
             steve.setNoAi(true);
             steve.setTarget(null);
         }
@@ -561,7 +561,7 @@ final class HerobrineFight {
         alex.setComponent(DataComponents.PROFILE, ResolvableProfile.createResolved(new GameProfile(ALEX_PROFILE, "Alex")));
         alex.setCustomName(Component.literal("Alex").withStyle(ChatFormatting.AQUA));
         alex.setCustomNameVisible(true);
-        alex.setInvulnerable(true);
+        alex.setPermanentlyInvulnerable(true);
         alex.setSilent(true);
         alex.addTag(ALEX_TAG);
         alex.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.RECOVERY_COMPASS));

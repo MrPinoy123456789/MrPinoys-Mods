@@ -222,7 +222,7 @@ public final class LushFinaleGameTest {
 
         /** A killing blow: the spine's clamp holds the boss at its next bound, or lets the last phase die. */
         void burst(Mob boss) {
-            boss.invulnerableTime = 0;
+            boss.setInvulnerableTime(0);
             boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
         }
 

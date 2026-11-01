@@ -50,7 +50,7 @@ public final class BossFightClampGameTest {
         @SuppressWarnings("removal")
         ServerPlayer member = helper.makeMockServerPlayerInLevel();
         member.setGameMode(GameType.SURVIVAL);
-        member.setInvulnerable(true);
+        member.setPermanentlyInvulnerable(true);
         BlockPos origin = helper.absolutePos(BlockPos.ZERO);
         BlockPos where = helper.absolutePos(new BlockPos(1, 2, 1));
         member.teleportTo(level, where.getX() + 0.5, where.getY(), where.getZ() + 0.5, Set.of(), 0.0F, 0.0F, false);
@@ -87,7 +87,7 @@ public final class BossFightClampGameTest {
             FinaleWave.step(server, level, record, FINALE, List.of(member), false, "Test Room");
             helper.assertTrue(script.armed.equals(List.of(0, 1)), "phase two armed after the stagger");
             // Second killing blow: held at the 1/3 bound.
-            boss.invulnerableTime = 0;
+            boss.setInvulnerableTime(0);
             boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
             helper.assertTrue(boss.isAlive() && Math.abs(boss.getHealth() - boss.getMaxHealth() / 3.0f) < 0.01f,
                     "a killing blow in phase two holds at the one third bound");
@@ -96,7 +96,7 @@ public final class BossFightClampGameTest {
             FinaleWave.step(server, level, record, FINALE, List.of(member), false, "Test Room");
             helper.assertTrue(script.armed.equals(List.of(0, 1, 2)), "phase three armed");
             // The last phase can die.
-            boss.invulnerableTime = 0;
+            boss.setInvulnerableTime(0);
             boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
             helper.assertTrue(!boss.isAlive(), "the last phase dies to a killing blow");
         } finally {

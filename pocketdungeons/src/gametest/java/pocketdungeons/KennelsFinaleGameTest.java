@@ -223,7 +223,7 @@ public final class KennelsFinaleGameTest {
             ServerPlayer player = helper.makeMockServerPlayerInLevel();
             this.member = player;
             player.setGameMode(GameType.SURVIVAL);
-            player.setInvulnerable(true);
+            player.setPermanentlyInvulnerable(true);
             BlockPos where = helper.absolutePos(new BlockPos(1, 2, 1));
             player.teleportTo(level, where.getX() + 0.5, where.getY(), where.getZ() + 0.5, Set.of(), 0.0F, 0.0F,
                     false);
@@ -264,7 +264,7 @@ public final class KennelsFinaleGameTest {
         /** A killing blow on the Alpha: the spine's clamp holds it at its next bound. */
         void burst() {
             Mob alpha = alpha();
-            alpha.invulnerableTime = 0;
+            alpha.setInvulnerableTime(0);
             alpha.hurtServer(level, level.damageSources().generic(), 1000.0f);
         }
 
