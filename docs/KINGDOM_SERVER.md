@@ -125,6 +125,7 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   that shows the 3D model in every display context (worn display, helmet slot, inventory, hand, item frame) and keeps
   the flat texture as the fallback and as the Bedrock icon. Only a live client shows the real look and whether a
   rotation direction needs flipping (the cape flare, the antler lean).
+- **Skins.** The cape, pauldron, circlet and gills are skinned from their own flat sprites (the model's front faces show a crop of the sprite, the rest use swatches of its colours), so they read like the item art. The wings use the elytra texture from the CC BY-NC-SA 4.0 pack "Fairy Wings Elytra" (credit in `foundry/examples/assets/CREDITS.md`; non-commercial only).
 - **Wings.** The Fairy Wings now go in the **cape slot** (`chest/cape`, which has room for two so the Human cape and the
   wings never clash; the slot is widened by `data/trinkets/slots/chest/cape.json`). They are race locked and have no
   durability, so they never wear out. Trinkets Updated treats a glider item in a trinket slot as a glider on the server

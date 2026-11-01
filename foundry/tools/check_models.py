@@ -128,7 +128,9 @@ def hull(points):
 
 def average(texture, uv):
     w, h = texture.size
-    x0, y0, x1, y1 = (int(uv[0] / 16 * w), int(uv[1] / 16 * h), max(int(uv[2] / 16 * w), 1), max(int(uv[3] / 16 * h), 1))
+    ua, ub = sorted((uv[0], uv[2]))
+    va, vb = sorted((uv[1], uv[3]))
+    x0, y0, x1, y1 = (int(ua / 16 * w), int(va / 16 * h), max(int(ub / 16 * w), int(ua / 16 * w) + 1), max(int(vb / 16 * h), int(va / 16 * h) + 1))
     px = [texture.getpixel((x, y)) for x in range(x0, x1) for y in range(y0, y1)]
     n = max(len(px), 1)
     return tuple(sum(p[i] for p in px) // n for i in range(3))
