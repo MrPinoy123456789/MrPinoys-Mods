@@ -309,7 +309,7 @@ public final class MemberPages {
         if (outcome instanceof Outcome.Refused(Reason reason)) {
             vote(player, id, BookRouter.refusal(reason));
         } else {
-            situation(player, Text.get("book.vote.cast"));
+            situation(player, BookResult.ok(Text.get("book.vote.cast")));
         }
     }
 
@@ -411,7 +411,7 @@ public final class MemberPages {
         if (outcome instanceof Outcome.Refused(Reason reason)) {
             faction(player, BookRouter.refusal(reason));
         } else if (outcome instanceof Outcome.VoteOpened(VoteId id)) {
-            vote(player, id, Text.get("book.faction.election_opened"));
+            vote(player, id, BookResult.ok(Text.get("book.faction.election_opened")));
         } else {
             faction(player, null);
         }
@@ -506,7 +506,7 @@ public final class MemberPages {
                     buttons.add(go(player, choiceText(n, how), p -> {
                         Outcome outcome = rt().engine.propose(me(p), new SetSeats(v.org(), deciders.id, n, how));
                         whoDecidesMembers(p, outcome instanceof Outcome.Refused(Reason reason) ? BookRouter.refusal(reason)
-                                : Text.get("book.decides.proposed"));
+                                : BookResult.ok(Text.get("book.decides.proposed")));
                     }));
                 }
             }

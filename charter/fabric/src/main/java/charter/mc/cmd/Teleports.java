@@ -124,8 +124,8 @@ public final class Teleports {
         if (PENDING.containsKey(player.getUUID())) return Text.get("teleport.already_waiting");
         long wait = READY_AT.getOrDefault(player.getUUID(), 0L) - rt.clock.now();
         if (wait > 0) return Text.get("teleport.cooldown", "seconds", (wait + 999) / 1000);
-        Object found = destination(player, kind);
-        if (found instanceof String refusal) return refusal;
+        Object found = destination(player, kind, false);
+        if (found instanceof Refusal refusal) return refusal.text();
         if (rt.knobs.teleportWarmupSeconds <= 0) return finish(player, kind);
         PENDING.put(player.getUUID(), new Pending(kind, player.position(), rt.knobs.teleportWarmupSeconds * 20, player.getHealth()));
         player.sendSystemMessage(Chat.line(Text.get("teleport.hold_still", "seconds", rt.knobs.teleportWarmupSeconds)));
@@ -135,8 +135,8 @@ public final class Teleports {
     /** Takes the player there now: the destination is read again, food is taken, the cooldown starts. */
     private static String finish(ServerPlayer player, Kind kind) {
         CharterRuntime rt = CharterServer.runtime();
-        Object found = destination(player, kind);
-        if (found instanceof String refusal) return refusal;
+        Object found = destination(player, kind, false);
+        if (found instanceof Refusal refusal) return refusal.text();
         Dest dest = (Dest) found;
         if (kind == Kind.OUTPOST) takeFood(rt, dest.outpost());
         player.teleportTo(dest.level(), dest.x(), dest.y(), dest.z(), Set.of(), player.getYRot(), player.getXRot(), true);
@@ -145,65 +145,100 @@ public final class Teleports {
         return null;
     }
 
-    /** A {@link Dest}, or the String that says why not. */
-    private static Object destination(ServerPlayer player, Kind kind) {
+    /** Why a journey cannot start: the lang key (its {@code .short} form labels the button) and the full line. */
+    private record Refusal(String key, String text) {
+    }
+
+    private static Refusal no(String key) {
+        return new Refusal(key, Text.get(key));
+    }
+
+    /**
+     * What a travel button should say before it is pressed: whether it is shown at all (a keep for a nation that has
+     * none never applies, so no button) and the short reason it is greyed for now, or null when it would work. It
+     * reads state only; unlike a press it never loads a chunk.
+     */
+    public record Option(boolean shown, String why) {
+    }
+
+    public static Option option(ServerPlayer player, Kind kind) {
+        if (!CharterServer.running()) return new Option(true, null);
+        CharterRuntime rt = CharterServer.runtime();
+        if (PENDING.containsKey(player.getUUID())) return new Option(true, Text.get("teleport.already_waiting.short"));
+        long wait = READY_AT.getOrDefault(player.getUUID(), 0L) - rt.clock.now();
+        if (wait > 0) return new Option(true, Text.get("teleport.cooldown.short", "seconds", (wait + 999) / 1000));
+        if (destination(player, kind, true) instanceof Refusal refusal) {
+            boolean never = switch (kind) {
+                case HUB -> refusal.key().equals("teleport.no_hub");
+                case KEEP -> refusal.key().equals("teleport.no_org") || refusal.key().equals("teleport.no_keep");
+                case OUTPOST -> refusal.key().equals("teleport.no_org") || refusal.key().equals("teleport.no_outpost");
+                default -> false;
+            };
+            return new Option(!never, Text.get(refusal.key() + ".short"));
+        }
+        return new Option(true, null);
+    }
+
+    /** A {@link Dest}, or the {@link Refusal} that says why not. {@code cheap} reads state only: no chunk is loaded. */
+    private static Object destination(ServerPlayer player, Kind kind, boolean cheap) {
         CharterRuntime rt = CharterServer.runtime();
         switch (kind) {
             case HOME -> {
                 var respawn = player.getRespawnConfig();
-                if (respawn == null) return Text.get("teleport.no_bed");
+                if (respawn == null) return no("teleport.no_bed");
                 var data = respawn.respawnData();
                 ServerLevel level = levelOf(player, data.dimension().identifier().toString());
-                if (level == null) return Text.get("teleport.no_bed");
-                if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return Text.get("teleport.other_dimension");
-                if (!level.getBlockState(data.pos()).is(BlockTags.BEDS)) return Text.get("teleport.no_bed");
+                if (level == null) return no("teleport.no_bed");
+                if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return no("teleport.other_dimension");
+                if (!(cheap && !level.isLoaded(data.pos())) && !level.getBlockState(data.pos()).is(BlockTags.BEDS)) return no("teleport.no_bed");
                 return new Dest(level, data.pos().getX() + 0.5, data.pos().getY() + 0.6, data.pos().getZ() + 0.5, null);
             }
             case SPAWN -> {
                 ServerLevel level = player.level().getServer().overworld();
-                if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return Text.get("teleport.other_dimension");
+                if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return no("teleport.other_dimension");
                 BlockPos at = level.getRespawnData().pos();
+                if (cheap) return new Dest(level, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, null);
                 level.getChunk(at.getX() >> 4, at.getZ() >> 4);
                 int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at.getX(), at.getZ());
                 return new Dest(level, at.getX() + 0.5, y, at.getZ() + 0.5, null);
             }
             case HUB -> {
                 var hub = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && o.adminKingdom).findFirst();
-                if (hub.isEmpty()) return Text.get("teleport.no_hub");
+                if (hub.isEmpty()) return no("teleport.no_hub");
                 Core keep = rt.state.coresOf(hub.get().id).stream().filter(Core::isKeep).findFirst().orElse(null);
-                if (keep == null) return Text.get("teleport.no_hub");
-                return site(player, keep, Fixtures.Kind.NEXUS, null);
+                if (keep == null) return no("teleport.no_hub");
+                return site(player, keep, Fixtures.Kind.NEXUS, null, cheap);
             }
             case KEEP -> {
                 MemberRecord member = rt.state.membership(new charter.id.PlayerId(player.getUUID())).orElse(null);
-                if (member == null) return Text.get("teleport.no_org");
+                if (member == null) return no("teleport.no_org");
                 OrgId nation = rt.state.root(member.org());
                 Core keep = rt.state.coresOf(nation).stream().filter(Core::isKeep).findFirst().orElse(null);
-                if (keep == null) return Text.get("teleport.no_keep");
-                return site(player, keep, Fixtures.Kind.NEXUS, null);
+                if (keep == null) return no("teleport.no_keep");
+                return site(player, keep, Fixtures.Kind.NEXUS, null, cheap);
             }
             default -> {
                 MemberRecord member = rt.state.membership(new charter.id.PlayerId(player.getUUID())).orElse(null);
-                if (member == null) return Text.get("teleport.no_org");
+                if (member == null) return no("teleport.no_org");
                 Core outpost = rt.state.coresOf(member.org()).stream().filter(c -> !c.isKeep()).findFirst().orElse(null);
-                if (outpost == null) return Text.get("teleport.no_outpost");
-                if (!outpost.activeCamp()) return Text.get("teleport.outpost_raising");
+                if (outpost == null) return no("teleport.no_outpost");
+                if (!outpost.activeCamp()) return no("teleport.outpost_raising");
                 if (rt.state.siege.store(outpost.id).provisions.totalItems() < rt.knobs.outpostTeleportFood) {
-                    return Text.get("teleport.outpost_empty");
+                    return no("teleport.outpost_empty");
                 }
-                return site(player, outpost, Fixtures.Kind.BANNER, outpost.id);
+                return site(player, outpost, Fixtures.Kind.BANNER, outpost.id, cheap);
             }
         }
     }
 
-    private static Object site(ServerPlayer player, Core core, Fixtures.Kind kind, CoreId outpost) {
+    private static Object site(ServerPlayer player, Core core, Fixtures.Kind kind, CoreId outpost, boolean cheap) {
         CharterRuntime rt = CharterServer.runtime();
         Fixtures.Fixture fixture = Fixtures.of(rt.state).first(core.id, kind);
-        if (fixture == null) return Text.get("teleport.nowhere");
+        if (fixture == null) return no("teleport.nowhere");
         ServerLevel level = levelOf(player, fixture.dimension());
-        if (level == null) return Text.get("teleport.nowhere");
-        if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return Text.get("teleport.other_dimension");
-        level.getChunk(fixture.x() >> 4, fixture.z() >> 4);
+        if (level == null) return no("teleport.nowhere");
+        if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return no("teleport.other_dimension");
+        if (!cheap) level.getChunk(fixture.x() >> 4, fixture.z() >> 4);
         return new Dest(level, fixture.x() + 0.5, fixture.y() + 1.0, fixture.z() + 0.5, outpost);
     }
 

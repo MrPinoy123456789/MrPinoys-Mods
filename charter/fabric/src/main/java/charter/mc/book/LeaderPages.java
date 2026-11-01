@@ -16,8 +16,11 @@ import charter.mc.Describe;
 import charter.mc.Text;
 import charter.mc.Treasury;
 import charter.org.MemberRecord;
+import charter.org.actions.Admit;
 import charter.org.actions.InviteMember;
+import charter.org.actions.Reject;
 import charter.treasury.actions.Withdraw;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -25,17 +28,31 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
- * The Leader's Desk: every management command a lord or other officer needs, in one page of the book, for players
- * who cannot type {@code /charter invite}, {@code grant}, {@code vault withdraw} or {@code nexus move}. Each screen
- * takes its choices from dropdowns (names are picked, never typed) and runs the same action the command runs, so a
- * rule lives in one place. Whether a power is really held is still decided by the engine on every press.
+ * The Leader's Desk: every management command a lord or other officer needs, in pages of the book, for players who
+ * cannot type {@code /charter invite}, {@code grant}, {@code vault withdraw} or {@code nexus move}. Names are picked from
+ * buttons (or a dropdown when there are many), numbers from presets or a slider; nothing is typed. Each page runs the
+ * same action the command runs, so a rule lives in one place: the desk only decides what to show, and whether a power
+ * is really held is decided by the engine on every press.
  */
 public final class LeaderPages {
 
-    private static final int NAME_MAX = 32;
-    private static final int AMOUNT_MAX = 9;
+    private static final int PRESETS_MAX = 100_000;
+    private static final long[] PRESETS = {1, 10, 64};
+
+    /** The powers a leader can give, grouped as the pages show them. Every power but AMEND and DISSOLVE is in exactly one. */
+    public record Group(String key, List<Power> powers) {
+    }
+
+    public static final List<Group> GROUPS = List.of(
+            new Group("members", List.of(Power.MANAGE_MEMBERS, Power.APPOINT, Power.CREATE_SUBORG)),
+            new Group("money", List.of(Power.SPEND, Power.GRANARY_DEPOSIT, Power.GRANARY_WITHDRAW)),
+            new Group("land_war", List.of(Power.PLACE_CORE, Power.CLAIM, Power.RAISE_CAMP, Power.GARRISON, Power.DECLARE_WAR)),
+            new Group("justice", List.of(Power.ARREST, Power.JUDGE, Power.PARDON)),
+            new Group("treaties", List.of(Power.NEGOTIATE)));
 
     private LeaderPages() {
     }
@@ -48,7 +65,7 @@ public final class LeaderPages {
         return new PlayerId(player.getUUID());
     }
 
-    private static BookButton go(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> page) {
+    private static BookButton go(ServerPlayer player, String label, Consumer<ServerPlayer> page) {
         return BookDialogs.act(player, label, null, page);
     }
 
@@ -58,8 +75,14 @@ public final class LeaderPages {
         Optional<Standing.View> view = Standing.of(rt.state, rt.engine, me(player), rt.clock.now());
         if (view.isEmpty()) return false;
         if (!view.get().yourOffices().isEmpty()) return true;
+        return holds(player, view.get().org(), Power.MANAGE_MEMBERS);
+    }
+
+    /** Whether the player holds the power now. Only decides what is shown: the engine decides what is allowed. */
+    static boolean holds(ServerPlayer player, OrgId org, Power power) {
+        CharterRuntime rt = rt();
         return new AuthorityResolver(rt.state, rt.clock.now())
-                .resolve(new Who.AsPlayer(me(player)), view.get().org(), Power.MANAGE_MEMBERS, ScopeNeed.NONE, false).ok();
+                .resolve(new Who.AsPlayer(me(player)), org, power, ScopeNeed.NONE, false).ok();
     }
 
     /** The org the player belongs to, or null after sending them to the newcomer home. */
@@ -82,21 +105,99 @@ public final class LeaderPages {
             MemberPages.home(player, Text.get("book.leader.not_a_leader"));
             return;
         }
-        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
-        body.add(BookDialogs.text(Text.get("book.leader.intro")));
-        long asking = rt.state.joinRequests().stream().filter(r -> r.org().equals(org)).count();
+        long now = rt.clock.now();
+        boolean admit = holds(player, org, Power.MANAGE_MEMBERS);
         List<BookButton> buttons = new ArrayList<>();
-        buttons.add(go(player, Text.get(asking > 0 ? "book.leader.requests_n" : "book.leader.requests", "n", asking),
-                p -> MemberPages.faction(p, null)));
-        buttons.add(go(player, Text.get("book.leader.invite"), p -> invite(p, null)));
-        buttons.add(go(player, Text.get("book.leader.grant"), p -> grant(p, null)));
-        if (Treasury.available(rt)) buttons.add(go(player, Text.get("book.leader.withdraw"), p -> withdraw(p, null)));
-        buttons.add(go(player, Text.get("book.faction.who_decides"), p -> MemberPages.whoDecides(p, null)));
-        buttons.add(go(player, Text.get("book.leader.votes"), p -> MemberPages.situation(p, null)));
-        buttons.add(go(player, Text.get("book.war.title"), p -> WarPages.page(p, null)));
-        buttons.add(go(player, Text.get("book.leader.nexus"), p -> nexus(p, null)));
-        BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.title"), BookDialogs.withNotice(notice, body), buttons,
+        List<PlayerId> asking = askers(org);
+        if (admit && !asking.isEmpty()) {
+            buttons.add(go(player, Text.get("book.leader.requests_n", "n", asking.size()), p -> {
+                List<PlayerId> now2 = askers(org);
+                if (now2.size() == 1) request(p, now2.get(0), false);
+                else requests(p, null);
+            }).icon(BookIcons.JOIN));
+        }
+        if (admit) buttons.add(go(player, Text.get("book.leader.invite"), p -> invite(p, null)).icon(BookIcons.JOIN));
+        buttons.add(go(player, Text.get("book.leader.grant"), p -> grant(p, null)).icon(BookIcons.LEADER));
+        if (Treasury.available(rt) && holds(player, org, Power.SPEND)) {
+            buttons.add(go(player, Text.get("book.leader.treasury"), p -> treasury(p, null)).icon(BookIcons.TREASURY));
+        }
+        if (holds(player, org, Power.ARREST) || holds(player, org, Power.JUDGE) || holds(player, org, Power.PARDON)) {
+            buttons.add(go(player, Text.get("book.leader.justice"), p -> JusticePages.home(p, null)).icon(BookIcons.JUSTICE));
+        }
+        if (rt.engine.eligibleVoters(org, now).contains(me(player))) {
+            buttons.add(go(player, Text.get("book.leader.decides"), p -> MemberPages.whoDecides(p, null)).icon(BookIcons.STAND));
+        }
+        if (holds(player, org, Power.DECLARE_WAR)) {
+            buttons.add(go(player, Text.get("book.war.title"), p -> WarPages.page(p, null)).icon(BookIcons.WAR));
+        }
+        if (hasKeep(org) && holds(player, org, Power.PLACE_CORE)) {
+            buttons.add(go(player, Text.get("book.leader.nexus"), p -> nexus(p, null)).icon(BookIcons.KEEP));
+        }
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.title"),
+                BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.leader.intro")))), buttons,
                 BookDialogs.back(player, p -> MemberPages.home(p, null))));
+    }
+
+    private static boolean hasKeep(OrgId org) {
+        CharterRuntime rt = rt();
+        return rt.state.coresOf(rt.state.root(org)).stream().anyMatch(c -> c.isKeep());
+    }
+
+    private static List<PlayerId> askers(OrgId org) {
+        List<PlayerId> out = new ArrayList<>();
+        for (var request : rt().state.joinRequests()) if (request.org().equals(org)) out.add(request.player());
+        return out;
+    }
+
+    // ---- Requests to join ----
+
+    public static void requests(ServerPlayer player, String notice) {
+        OrgId org = org(player);
+        if (org == null) return;
+        List<BookButton> buttons = new ArrayList<>();
+        for (PlayerId applicant : askers(org)) {
+            buttons.add(go(player, BookDialogs.clip(rt().describe.player(applicant), BookScreen.MAX_LABEL), p -> request(p, applicant, false))
+                    .icon(BookIcons.JOIN));
+        }
+        List<Component> body = new ArrayList<>();
+        body.add(BookDialogs.text(Text.get(buttons.isEmpty() ? "book.leader.requests_none" : "book.leader.requests_intro")));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.requests"), BookDialogs.withNotice(notice, body), buttons,
+                BookDialogs.back(player, p -> desk(p, null))));
+    }
+
+    /**
+     * One applicant: Admit, or Turn away (which asks first). A list, not a two button question, because the exit of a
+     * question is what B runs, and B must never admit or turn anyone away.
+     */
+    public static void request(ServerPlayer player, PlayerId applicant, boolean fromNeeds) {
+        OrgId org = org(player);
+        if (org == null) return;
+        CharterRuntime rt = rt();
+        BiConsumer<ServerPlayer, String> after = fromNeeds ? NeedsPages::page : LeaderPages::requests;
+        if (rt.state.joinRequest(org, applicant).isEmpty()) {
+            after.accept(player, Text.get("book.leader.request_gone"));
+            return;
+        }
+        String name = rt.describe.player(applicant);
+        String shown = BookDialogs.clip(name, 14);
+        BookButton admit = go(player, Text.get("book.button.admit", "player", shown), p -> BookRouter.run(p, new Admit(org, applicant),
+                line -> after.accept(p, BookResult.of(line, Text.get("book.faction.admitted", "player", name))))).icon(BookIcons.YES);
+        BookButton turn = go(player, Text.get("book.button.reject", "player", shown), p -> confirmReject(p, applicant, fromNeeds)).icon(BookIcons.NO);
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.request_title"),
+                List.of(BookDialogs.text(Text.get("book.faction.asks", "player", name))), List.of(admit, turn),
+                BookDialogs.back(player, p -> after.accept(p, null))));
+    }
+
+    private static void confirmReject(ServerPlayer player, PlayerId applicant, boolean fromNeeds) {
+        OrgId org = org(player);
+        if (org == null) return;
+        String name = rt().describe.player(applicant);
+        BiConsumer<ServerPlayer, String> after = fromNeeds ? NeedsPages::page : LeaderPages::requests;
+        BookButton yes = go(player, Text.get("book.button.reject", "player", BookDialogs.clip(name, 14)), p -> BookRouter.run(p,
+                new Reject(org, applicant), line -> after.accept(p, BookResult.of(line, Text.get("book.faction.rejected", "player", name)))));
+        BookButton no = BookDialogs.back(player, p -> request(p, applicant, fromNeeds));
+        BookDialogs.show(player, BookDialogs.confirm(Text.get("book.reject.title"),
+                List.of(BookDialogs.text(Text.get("book.reject.confirm", "player", name))), yes, no));
     }
 
     // ---- Invite ----
@@ -105,99 +206,136 @@ public final class LeaderPages {
         OrgId org = org(player);
         if (org == null) return;
         CharterRuntime rt = rt();
-        List<String> ids = new ArrayList<>();
-        List<String> shown = new ArrayList<>();
+        List<ServerPlayer> free = new ArrayList<>();
         for (ServerPlayer other : player.level().getServer().getPlayerList().getPlayers()) {
-            if (other == player || rt.state.membership(me(other)).isPresent()) continue;
-            ids.add(other.getUUID().toString());
-            shown.add(clip(other.getPlainTextName()));
+            if (other != player && rt.state.membership(me(other)).isEmpty()) free.add(other);
         }
         BookButton back = BookDialogs.back(player, p -> desk(p, null));
-        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
-        if (ids.isEmpty()) {
+        List<Component> body = new ArrayList<>();
+        if (free.isEmpty()) {
             body.add(BookDialogs.text(Text.get("book.leader.invite_none")));
             BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.invite"), BookDialogs.withNotice(notice, body), List.of(), back));
             return;
         }
         body.add(BookDialogs.text(Text.get("book.leader.invite_intro")));
+        if (free.size() <= BookScreen.MAX_BUTTONS) {
+            List<BookButton> buttons = new ArrayList<>();
+            for (ServerPlayer other : free) {
+                PlayerId target = me(other);
+                String name = other.getPlainTextName();
+                buttons.add(go(player, Text.get("book.leader.invite_one", "player", BookDialogs.clip(name, 17)), p -> sendInvite(p, target, name))
+                        .icon(BookIcons.JOIN));
+            }
+            BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.invite"), BookDialogs.withNotice(notice, body), buttons, back));
+            return;
+        }
+        List<String> ids = new ArrayList<>();
+        List<String> shown = new ArrayList<>();
+        for (ServerPlayer other : free) {
+            ids.add(other.getUUID().toString());
+            shown.add(BookDialogs.clip(other.getPlainTextName(), 32));
+        }
         List<BookInput> inputs = List.of(BookDialogs.choice("who", Text.get("book.leader.invite_who"), ids, shown));
         BookButton submit = BookDialogs.submit(player, Text.get("book.leader.invite_send"), null, inputs, form -> {
             ServerPlayer p = form.player();
-            Optional<List<String>> values = FormValues.split(form.raw(), 1);
-            Optional<PlayerId> target = values.flatMap(v -> parse(v.get(0)));
+            Optional<PlayerId> target = FormValues.split(form.raw(), 1).flatMap(v -> parse(v.get(0)));
             if (target.isEmpty()) {
                 invite(p, Text.get("book.leader.form_bad"));
                 return;
             }
-            OrgId now = org(p);
-            if (now == null) return;
-            String name = rt().describe.player(target.get());
-            BookRouter.run(p, new InviteMember(now, target.get()),
-                    line -> invite(p, BookResult.of(line, Text.get("invite.done", "player", name))));
+            sendInvite(p, target.get(), rt().describe.player(target.get()));
         });
         BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.invite"), BookDialogs.withNotice(notice, body), inputs, submit, back));
     }
 
-    // ---- Give a power ----
+    private static void sendInvite(ServerPlayer p, PlayerId target, String name) {
+        OrgId now = org(p);
+        if (now == null) return;
+        BookRouter.run(p, new InviteMember(now, target), line -> invite(p, BookResult.of(line, Text.get("invite.done", "player", name))));
+    }
+
+    // ---- Give a power: group, then power, then who ----
 
     public static void grant(ServerPlayer player, String notice) {
+        if (org(player) == null) return;
+        List<BookButton> buttons = new ArrayList<>();
+        for (Group group : GROUPS) {
+            buttons.add(go(player, Text.get("book.grant.group." + group.key()), p -> grantPowers(p, group, null)).icon(BookIcons.LEADER));
+        }
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.grant"),
+                BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.leader.grant_intro")))), buttons,
+                BookDialogs.back(player, p -> desk(p, null))));
+    }
+
+    private static void grantPowers(ServerPlayer player, Group group, String notice) {
+        if (org(player) == null) return;
+        List<BookButton> buttons = new ArrayList<>();
+        for (Power power : group.powers()) {
+            buttons.add(go(player, Text.get("book.grant.power." + power.name().toLowerCase(Locale.ROOT)), p -> grantTo(p, power, null)));
+        }
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.grant.group." + group.key()),
+                BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.grant.pick_power")))), buttons,
+                BookDialogs.back(player, p -> grant(p, null))));
+    }
+
+    private static void grantTo(ServerPlayer player, Power power, String notice) {
         OrgId org = org(player);
         if (org == null) return;
         CharterRuntime rt = rt();
-        List<String> powerIds = new ArrayList<>();
-        List<String> powerShown = new ArrayList<>();
-        for (Power power : Power.values()) {
-            // "Changing or ending the charter" names no action that exists, so it is not offered.
-            if (power == Power.AMEND || power == Power.DISSOLVE) continue;
-            powerIds.add(power.name());
-            powerShown.add(Describe.power(power));
-        }
-        List<String> toIds = new ArrayList<>();
-        List<String> toShown = new ArrayList<>();
+        List<String> ids = new ArrayList<>();
+        List<String> shown = new ArrayList<>();
         for (Office office : rt.state.offices(org)) {
-            toIds.add("o:" + office.name);
-            toShown.add(clip(office.name));
+            ids.add("o:" + office.name);
+            shown.add(BookDialogs.clip(office.name, BookScreen.MAX_LABEL));
         }
         for (MemberRecord m : rt.state.members(org)) {
-            toIds.add("p:" + m.player().value());
-            toShown.add(clip(rt.describe.player(m.player())));
+            ids.add("p:" + m.player().value());
+            shown.add(BookDialogs.clip(rt.describe.player(m.player()), BookScreen.MAX_LABEL));
         }
-        BookButton back = BookDialogs.back(player, p -> desk(p, null));
-        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
-        if (toIds.isEmpty()) {
-            body.add(BookDialogs.text(Text.get("book.leader.grant_none")));
-            BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.grant"), BookDialogs.withNotice(notice, body), List.of(), back));
+        BookButton back = BookDialogs.back(player, p -> grantPowers(p, groupOf(power), null));
+        String title = Text.get("book.grant.power." + power.name().toLowerCase(Locale.ROOT));
+        List<Component> body = List.of(BookDialogs.text(Text.get(ids.isEmpty() ? "book.leader.grant_none" : "book.grant.pick_who")));
+        if (ids.isEmpty()) {
+            BookDialogs.show(player, BookDialogs.list(title, BookDialogs.withNotice(notice, body), List.of(), back));
             return;
         }
-        body.add(BookDialogs.text(Text.get("book.leader.grant_intro")));
-        List<BookInput> inputs = List.of(
-                BookDialogs.choice("power", Text.get("book.leader.grant_power"), powerIds, powerShown),
-                BookDialogs.choice("to", Text.get("book.leader.grant_to"), toIds, toShown));
+        if (ids.size() <= BookScreen.MAX_BUTTONS) {
+            List<BookButton> buttons = new ArrayList<>();
+            for (int i = 0; i < ids.size(); i++) {
+                String id = ids.get(i);
+                buttons.add(go(player, shown.get(i), p -> giveTo(p, power, id)));
+            }
+            BookDialogs.show(player, BookDialogs.list(title, BookDialogs.withNotice(notice, body), buttons, back));
+            return;
+        }
+        List<BookInput> inputs = List.of(BookDialogs.choice("to", Text.get("book.leader.grant_to"), ids, shown));
         BookButton submit = BookDialogs.submit(player, Text.get("book.leader.grant_send"), null, inputs, form -> {
-            ServerPlayer p = form.player();
-            Optional<List<String>> values = FormValues.split(form.raw(), 2);
-            OrgId now = org(p);
-            if (now == null) return;
-            Optional<Power> power = values.flatMap(v -> power(v.get(0)));
-            Optional<Holder> to = values.flatMap(v -> holder(now, v.get(1)));
-            if (power.isEmpty() || to.isEmpty()) {
-                grant(p, Text.get("book.leader.form_bad"));
+            Optional<String> id = FormValues.split(form.raw(), 1).map(v -> v.get(0));
+            if (id.isEmpty()) {
+                grantTo(form.player(), power, Text.get("book.leader.form_bad"));
                 return;
             }
-            String done = Text.get("grant.done", "to", rt().describe.holder(to.get()), "power", Describe.power(power.get()));
-            BookRouter.run(p, new charter.grant.actions.GrantPower(now, power.get(), to.get(), GrantScope.ANY, false, 0),
-                    line -> grant(p, BookResult.of(line, done)));
+            giveTo(form.player(), power, id.get());
         });
-        BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.grant"), BookDialogs.withNotice(notice, body), inputs, submit, back));
+        BookDialogs.show(player, BookDialogs.form(title, BookDialogs.withNotice(notice, body), inputs, submit, back));
     }
 
-    private static Optional<Power> power(String id) {
-        try {
-            Power power = Power.valueOf(id.toUpperCase(Locale.ROOT));
-            return power == Power.AMEND || power == Power.DISSOLVE ? Optional.empty() : Optional.of(power);
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
+    private static void giveTo(ServerPlayer p, Power power, String id) {
+        OrgId now = org(p);
+        if (now == null) return;
+        Optional<Holder> to = holder(now, id);
+        if (to.isEmpty()) {
+            grantTo(p, power, Text.get("book.leader.form_bad"));
+            return;
         }
+        String done = Text.get("grant.done", "to", rt().describe.holder(to.get()), "power", Describe.power(power));
+        BookRouter.run(p, new charter.grant.actions.GrantPower(now, power, to.get(), GrantScope.ANY, false, 0),
+                line -> grantPowers(p, groupOf(power), BookResult.of(line, done)));
+    }
+
+    static Group groupOf(Power power) {
+        for (Group group : GROUPS) if (group.powers().contains(power)) return group;
+        throw new IllegalArgumentException("no grant group for " + power);
     }
 
     private static Optional<Holder> holder(OrgId org, String id) {
@@ -209,49 +347,89 @@ public final class LeaderPages {
         return Optional.empty();
     }
 
-    // ---- The treasury ----
+    // ---- The treasury: presets are one press, a slider handles any other amount ----
 
-    public static void withdraw(ServerPlayer player, String notice) {
+    public static void treasury(ServerPlayer player, String notice) {
         OrgId org = org(player);
         if (org == null) return;
         CharterRuntime rt = rt();
         BookButton back = BookDialogs.back(player, p -> desk(p, null));
-        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
-        String balance = Treasury.balance(rt, org);
-        body.add(BookDialogs.text(balance == null ? Text.get("book.leader.withdraw_empty")
-                : Text.get("book.faction.treasury", "balances", balance)));
-        List<BookInput> inputs = List.of(BookDialogs.textInput("amount", Text.get("book.leader.withdraw_amount"), "1", AMOUNT_MAX));
+        List<Component> body = new ArrayList<>();
+        if (!Treasury.available(rt)) {
+            body.add(BookDialogs.text(Text.get("vault.no_currency")));
+            BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.treasury"), BookDialogs.withNotice(notice, body), List.of(), back));
+            return;
+        }
+        long balance = rt.state.payment.balance(org.toString());
+        body.add(BookDialogs.text(balance <= 0 ? Text.get("book.leader.withdraw_empty")
+                : Text.get("book.faction.treasury", "balances", Treasury.balance(rt, org))));
+        List<BookButton> buttons = new ArrayList<>();
+        for (long marks : PRESETS) {
+            if (marks > balance) continue;
+            buttons.add(go(player, Text.get("book.leader.take", "n", marks), p -> take(p, (int) marks)).icon(BookIcons.TREASURY));
+        }
+        if (balance >= 2) buttons.add(go(player, Text.get("book.leader.take_other"), p -> takeSlider(p, null)).icon(BookIcons.TREASURY));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.treasury"), BookDialogs.withNotice(notice, body), buttons, back));
+    }
+
+    private static void take(ServerPlayer p, int marks) {
+        OrgId now = org(p);
+        if (now == null) return;
+        if (!Treasury.available(rt())) {
+            treasury(p, Text.get("vault.no_currency"));
+            return;
+        }
+        BookRouter.run(p, new Withdraw(now, marks, me(p)),
+                line -> treasury(p, BookResult.of(line, Text.get("vault.withdrawn", "amount", marks))));
+    }
+
+    private static void takeSlider(ServerPlayer player, String notice) {
+        OrgId org = org(player);
+        if (org == null) return;
+        long balance = rt().state.payment.balance(org.toString());
+        BookButton back = BookDialogs.back(player, p -> treasury(p, null));
+        if (balance < 2) {
+            treasury(player, null);
+            return;
+        }
+        int max = (int) Math.min(balance, PRESETS_MAX);
+        List<BookInput> inputs = List.of(new BookInput.Slider("amount", Text.get("book.leader.withdraw_amount"), 1, max, 1, Math.min(10, max)));
         BookButton submit = BookDialogs.submit(player, Text.get("book.leader.withdraw_send"), null, inputs, form -> {
-            ServerPlayer p = form.player();
             var amount = FormValues.split(form.raw(), 1).map(v -> v.get(0)).filter(FormValues::clean)
                     .map(FormValues::integer).filter(java.util.OptionalInt::isPresent).map(java.util.OptionalInt::getAsInt);
-            OrgId now = org(p);
-            if (now == null) return;
             if (amount.isEmpty() || amount.get() < 1) {
-                withdraw(p, Text.get("book.leader.form_bad"));
+                takeSlider(form.player(), Text.get("book.leader.form_bad"));
                 return;
             }
-            if (!Treasury.available(rt())) {
-                withdraw(p, Text.get("vault.no_currency"));
-                return;
-            }
-            int n = amount.get();
-            BookRouter.run(p, new Withdraw(now, n, me(p)), line -> withdraw(p, BookResult.of(line, Text.get("vault.withdrawn", "amount", n))));
+            take(form.player(), amount.get());
         });
-        BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.withdraw"), BookDialogs.withNotice(notice, body), inputs, submit, back));
+        BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.take_other"),
+                BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.faction.treasury", "balances", Treasury.balance(rt(), org))))),
+                inputs, submit, back));
     }
 
     // ---- Move the Nexus ----
 
     public static void nexus(ServerPlayer player, String notice) {
-        if (org(player) == null) return;
+        OrgId org = org(player);
+        if (org == null) return;
         BookButton yes = BookDialogs.act(player, Text.get("book.leader.nexus_yes"), null, p -> {
             String problem = charter.mc.land.NexusMove.move(p);
             desk(p, BookResult.of(problem, Text.get("nexus_move.done")));
         });
         BookButton no = BookDialogs.back(player, p -> desk(p, null));
-        BookDialogs.show(player, BookDialogs.confirm(Text.get("book.leader.nexus"),
-                BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.leader.nexus_intro")))), yes, no));
+        List<Component> body = List.of(BookDialogs.text(Text.get("book.leader.nexus_intro")),
+                BookDialogs.text(Text.get(insideKeep(player, org) ? "book.leader.nexus_inside" : "book.leader.nexus_outside")));
+        BookDialogs.show(player, BookDialogs.confirm(Text.get("book.leader.nexus"), BookDialogs.withNotice(notice, body), yes, no));
+    }
+
+    /** Whether the player stands on the chunks of their nation's keep right now. */
+    static boolean insideKeep(ServerPlayer player, OrgId org) {
+        CharterRuntime rt = rt();
+        var keep = rt.state.coresOf(rt.state.root(org)).stream().filter(c -> c.isKeep()).findFirst();
+        if (keep.isEmpty() || !(player.level() instanceof net.minecraft.server.level.ServerLevel level)) return false;
+        var claim = rt.state.claimAt(charter.mc.land.Placement.chunkOf(level, player.blockPosition()));
+        return claim.isPresent() && claim.get().core().equals(keep.get().id);
     }
 
     // ---- helpers ----
@@ -262,9 +440,5 @@ public final class LeaderPages {
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }
-    }
-
-    private static String clip(String name) {
-        return name.length() <= NAME_MAX ? name : name.substring(0, NAME_MAX - 3) + "...";
     }
 }
