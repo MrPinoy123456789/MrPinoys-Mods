@@ -326,17 +326,22 @@ def wings_model():
     """Four flat wings and nothing else (no spine between them). Each plate stands in the plane of the back and is then
     turned about the vertical by WING_SWEEP where it meets the back, tips away from the body, so from above the wings make a V. Each plate has a
     front and a back face."""
+    # A flat plate seen from behind shows its texture mirrored, so each plate's two faces carry mirror image uvs: the
+    # wing's outline then matches the plate from both sides (with one uv on both faces, the side away from the viewer
+    # showed the wing pointing the wrong way).
+    def mirrored(uv):
+        return [uv[2], uv[1], uv[0], uv[3]]
+
     def plate(frm, to, uv, origin):
         return {"from": list(frm), "to": list(to),
                 "rotation": {"origin": list(origin), "axis": "y", "angle": WING_SWEEP},
-                "faces": {"north": {"uv": uv, "texture": "#0"}, "south": {"uv": uv, "texture": "#0"}}}
+                "faces": {"north": {"uv": list(uv), "texture": "#0"}, "south": {"uv": mirrored(uv), "texture": "#0"}}}
 
     def flip(el):
         f, t = el["from"], el["to"]
         r = el["rotation"]
-        n = {"north": {"uv": [el["faces"]["north"]["uv"][2], el["faces"]["north"]["uv"][1],
-                              el["faces"]["north"]["uv"][0], el["faces"]["north"]["uv"][3]], "texture": "#0"}}
-        n["south"] = dict(n["north"])
+        n = {"north": {"uv": mirrored(el["faces"]["north"]["uv"]), "texture": "#0"},
+             "south": {"uv": mirrored(el["faces"]["south"]["uv"]), "texture": "#0"}}
         return {"from": [16 - t[0], f[1], f[2]], "to": [16 - f[0], t[1], t[2]], "faces": n,
                 "rotation": {"origin": [16 - r["origin"][0], r["origin"][1], r["origin"][2]], "axis": r["axis"], "angle": -r["angle"]}}
 

@@ -167,11 +167,18 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   draws a texture outside the atlas folders pink and black, as the game would; `tools/previews/contact_sheet.png` shows all
   five.
 - **Wings.** The Fairy Wings go in the **cape slot** (`chest/cape`, which has room for two, so the Human cape and the wings
-  never clash). They are race locked and never wear out. Trinkets Updated already lets a glider in a trinket slot glide
-  on the server; `Wings` starts the glide for a Fairy who holds jump while falling, and stops anyone else. The four wings
-  are painted already tipped (upper up and out, lower down and out), and each swings 22.5 degrees back from the spine,
-  so from above they open in a V instead of lying flat on the back. Unverified live: that the client accepts a glide the
-  server started (if not, the wings still glide worn in the chest slot).
+  never clash). They are race locked and never wear out. Java: Trinkets Updated already lets a glider in a trinket slot
+  glide on the server; `Wings` starts the glide for a Fairy who holds jump while falling, and stops anyone else.
+  Bedrock: the Bedrock client only glides with an elytra in its own chest slot, and Geyser (2.12,
+  `SessionPlayerEntity.canStartGliding`) checks the chest item is `minecraft:elytra` with the glider component before it
+  forwards "start gliding"; neither knows Trinkets slots, so Bedrock Fairies could not glide. Now a Bedrock player
+  wearing allowed wings with an empty chest slot is shown a stand in elytra named "Fairy Wings" in their own chest slot
+  (display only: the server never holds it, so taking or dropping it is undone, and it is re-sent every two seconds).
+  It goes when the wings come off, a chestplate goes on or the player dies. A Bedrock player in a chestplate cannot glide
+  with the wings and is told so once. The four wings are painted already tipped and swing 22.5 degrees back from the
+  back in a V; each plate's two faces carry mirror image uvs so the wing outline is right from the front and the back.
+  Unverified live: Bedrock gliding (needs a Bedrock Fairy to try), and that a Java client accepts a glide the server
+  started.
 - **Cape.** The Kingdom Cape is the vanilla cape: the same 10 by 16 by 1 box, hung from the top of the back, and the
   vanilla 64 by 32 cape texture layout, so any cape PNG drawn for vanilla can replace
   `textures/item/worn/kingdom_cape.png`. It swings back the way vanilla's cape layer swings (6 degrees at rest, more as it

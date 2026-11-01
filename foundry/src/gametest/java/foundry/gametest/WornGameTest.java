@@ -378,6 +378,31 @@ public final class WornGameTest {
         });
     }
 
+    /**
+     * Bedrock gliding needs an elytra in the chest slot on the Bedrock side, so a Bedrock Fairy wearing the wings with an
+     * empty chest slot is shown a stand in elytra; never a Java player, never with a chestplate on, never when dead.
+     * The chest slot index is the inventory screen's (5 head, 6 chest).
+     */
+    @GameTest(maxTicks = 60)
+    public void onlyBedrockWingWearersAreShownAStandInElytra(GameTestHelper helper) {
+        helper.assertTrue(foundry.mc.Wings.standInWanted(true, true, true, true), "A Bedrock Fairy with an empty chest gets no stand in");
+        helper.assertFalse(foundry.mc.Wings.standInWanted(false, true, true, true), "A Java player would get a stand in");
+        helper.assertFalse(foundry.mc.Wings.standInWanted(true, true, false, true), "A Bedrock player in a chestplate would get a stand in");
+        helper.assertFalse(foundry.mc.Wings.standInWanted(true, false, true, true), "A Bedrock player without allowed wings would get a stand in");
+        helper.assertFalse(foundry.mc.Wings.standInWanted(true, true, true, false), "A dead Bedrock player would get a stand in");
+        ServerPlayer fairy = player(helper, "race:everdelle");
+        wear(fairy, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.Wings.isWinged(fairy.getUUID()), "The Java Fairy is not winged");
+            helper.assertFalse(foundry.mc.Wings.showsStandIn(fairy.getUUID()), "A Java Fairy was sent a stand in elytra");
+            fairy.setItemSlot(EquipmentSlot.CHEST, new ItemStack(net.minecraft.world.item.Items.IRON_CHESTPLATE));
+            boolean chestIsSix = fairy.inventoryMenu.getSlot(6).getItem().is(net.minecraft.world.item.Items.IRON_CHESTPLATE);
+            fairy.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
+            helper.assertTrue(chestIsSix, "Slot 6 of the inventory screen is not the chest slot");
+            helper.succeed();
+        });
+    }
+
     /** The cape and the wings both fit the cape slot at once (the slot has room for two). */
     @GameTest(maxTicks = 60)
     public void theCapeAndTheWingsShareTheCapeSlot(GameTestHelper helper) {
