@@ -1,6 +1,6 @@
 // Deploys Charter, Foundry and the Foundry content to the shipped kingdom server (Kinetic d212ecae).
 //
-//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--bedrock] [--allow name,name] [--set key=value ...] [--jar path ...] [--dry]
+//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--worn] [--bedrock] [--allow name,name] [--set key=value ...] [--jar path ...] [--dry]
 //
 // Only run it when the owner has asked for a deploy. It refuses to continue if the server's mods are not the same
 // Minecraft version as the jars, if anyone outside --allow is online, or if the server is not running. It backs up
@@ -82,14 +82,21 @@ const content = has('--content') ? [
   ['/config/foundry/assets/kingdoms/textures/item', files(resolve(ex, 'assets/kingdoms/textures/item'), /\.png$/)],
   ['/config/foundry/assets/demo/textures/item', files(resolve(ex, 'assets/demo/textures/item'), /^fairy_wand.*\.png$/)],
 ] : []
+// --worn: the 3D worn trinket models, their textures (in the items atlas folder) and the worn display placements.
+const worn = has('--worn') ? [
+  ['/config/foundry/assets/kingdoms/models/item/worn', files(resolve(ex, 'assets/kingdoms/models/item/worn'), /\.json$/)],
+  ['/config/foundry/assets/kingdoms/textures/item/worn', files(resolve(ex, 'assets/kingdoms/textures/item/worn'), /\.png$/)],
+  ['/config/foundry', files(resolve(ex, 'config'), /^worn_displays\.json$/)],
+] : []
 const bedrock = has('--bedrock') ? [
   ['/config/Geyser-Fabric/custom_mappings', files(resolve(ex, 'bedrock/custom_mappings'), /\.json$/)],
   ['/config/Geyser-Fabric/packs', files(resolve(ex, 'bedrock'), /\.mcpack$/)],
 ] : []
 console.log('jars:', jars.map(j => `${j.name} ${j.bytes.length}`).join(', ') || 'none',
-  '| content folders:', content.length, '| bedrock folders:', bedrock.length)
+  '| content folders:', content.length, '| worn folders:', worn.map(([d, l]) => `${d} (${l.length})`).join(', ') || 'none',
+  '| bedrock folders:', bedrock.length)
 if (has('--dry')) { console.log('dry run; nothing changed'); process.exit(0) }
-if (!jars.length && !content.length && !bedrock.length) { console.log('nothing to deploy; pass --foundry, --charter, --content or --bedrock'); process.exit(1) }
+if (!jars.length && !content.length && !worn.length && !bedrock.length) { console.log('nothing to deploy; pass --foundry, --charter, --content, --worn or --bedrock'); process.exit(1) }
 
 // 3. Back up, stop, upload, start.
 const backups = []
@@ -112,7 +119,7 @@ for (let i = 0; i < 40 && (await k.state()) !== 'offline'; i++) await sleep(3000
 if ((await k.state()) !== 'offline') { console.log('did not stop; aborting'); process.exit(1) }
 if (jars.length) await k.upload('/mods', jars)
 if (configNew) await k.upload('/config/charter', [{ name: 'charter.json', bytes: configNew }])
-for (const [dir, list] of [...content, ...bedrock]) if (list.length) await k.upload(dir, list)
+for (const [dir, list] of [...content, ...worn, ...bedrock]) if (list.length) await k.upload(dir, list)
 console.log('uploaded')
 await k.power('start')
 let lines = []
