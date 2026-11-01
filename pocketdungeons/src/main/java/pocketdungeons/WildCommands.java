@@ -72,11 +72,12 @@ final class WildCommands {
             return fail(source, "No wild dungeon offering fits. Loaded: " + WildDungeons.all().size() + ".");
         }
         int lodestoneLevel = levelOverride > 0 ? levelOverride
-                : Math.min(offering.maxLevel(), 1 + (int) (distance / 400.0));
+                : WildLevel.of(distance, offering.maxLevel());
         long now = WildClock.now();
-        long lifespan = PocketDungeonsConfig.wildLifespanDays() * 86400L;
-        WildState.Lodestone lodestone = new WildState.Lodestone(state.nextId(), WildLodestones.dimensionKey(level),
-                pos.getX(), pos.getY(), pos.getZ(), offering.id(), lodestoneLevel, now, now + lifespan);
+        String newId = state.nextId();
+        WildState.Lodestone lodestone = new WildState.Lodestone(newId, WildLodestones.dimensionKey(level),
+                pos.getX(), pos.getY(), pos.getZ(), offering.id(), lodestoneLevel, now,
+                WildLifespan.expiresAt(now, PocketDungeonsConfig.wildLifespanDays(), newId));
         WildLodestones.stamp(level, pos);
         state.add(lodestone);
         WildStore.save();
@@ -94,6 +95,10 @@ final class WildCommands {
         List<WildState.Lodestone> all = new ArrayList<>(state.all());
         all.sort(Comparator.comparing(l -> l.id));
         source.sendSuccess(() -> Component.literal(all.size() + " wild lodestone(s)"), false);
+        for (WildState.Retired r : state.retired()) {
+            source.sendSuccess(() -> Component.literal("collapsed " + r.id() + " at " + r.x() + "," + r.y() + ","
+                    + r.z() + (r.chests().isEmpty() ? "" : " lost and found: " + r.chests().size() + " chest(s)")), false);
+        }
         for (WildState.Lodestone l : all) {
             StringBuilder line = new StringBuilder(l.id).append(" ").append(l.x).append(",").append(l.y).append(",")
                     .append(l.z).append(" ").append(l.dungeon).append(" L").append(l.level).append(" ")

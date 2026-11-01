@@ -280,4 +280,64 @@ public final class WildClearGameTest {
         helper.assertTrue(cobble == 80 && merged.size() == 3, "80 cobblestone in two stacks plus the diamond: " + merged);
         helper.succeed();
     }
+
+    /** A collapse closes the dungeon, turns the entrance to rubble and retires the lodestone. */
+    @SuppressWarnings("removal")
+    @GameTest(maxTicks = 600)
+    public void aCollapseClosesTheDungeonAndRetiresTheLodestone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        WildDungeons.loadFrom(server);
+        BlockPos site = helper.absolutePos(new BlockPos(2, 1, 2));
+        WildState.Lodestone lode = lodestone(level, "pocketdungeons:boiler_hall", "w-collapse", site);
+        WildState state = new WildState();
+        state.add(lode);
+        WildStore.setForTesting(state);
+        WildMode.setActiveForTesting(true);
+        WildReset.setDungeonForTesting(lode.id, level);
+        InstanceRecord record = null;
+        try {
+            WildLodestones.stamp(level, site);
+            helper.assertTrue(level.getBlockState(site).is(Blocks.JIGSAW), "the entrance stands before the collapse");
+            record = stamp(helper, lode, 23);
+            lode.markInProgress();
+            WildCollapse.collapse(server, lode);
+            helper.assertTrue(state.get(lode.id) == null, "the lodestone is gone from the live list");
+            helper.assertTrue(state.retired().size() == 1 && state.retired().get(0).id().equals(lode.id),
+                    "it is on the retired list");
+            helper.assertTrue(WildRun.liveRecord(lode.id) == null, "the dungeon is closed");
+            helper.assertTrue(!level.getBlockState(site).is(Blocks.JIGSAW), "the entrance jigsaw is gone");
+        } finally {
+            WildReset.setDungeonForTesting(lode.id, null);
+            WildMode.setActiveForTesting(null);
+            WildStore.setForTesting(null);
+            cleanUp(level, record);
+        }
+        helper.succeed();
+    }
+
+    /** The top up places a ruin, records the lodestone with a lifespan and a level by distance. */
+    @SuppressWarnings("removal")
+    @GameTest
+    public void theTopUpPlacesARuinAndRecordsIt(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        WildDungeons.loadFrom(server);
+        WildState state = new WildState();
+        WildStore.setForTesting(state);
+        try {
+            BlockPos at = helper.absolutePos(new BlockPos(2, 1, 2));
+            BlockPos spawn = at.offset(-1000, 0, 0);
+            WildState.Lodestone placed = WildTopUp.place(level, state, at.getX(), at.getZ(), spawn);
+            helper.assertTrue(placed != null && state.size() == 1, "one lodestone was recorded");
+            helper.assertTrue(placed.level >= 1 && placed.expiresAt > placed.createdAt, "level and lifespan are set");
+            helper.assertTrue(state.atEntrance(placed.dimension, placed.x, placed.y, placed.z) == placed,
+                    "the entrance is found by its position");
+            helper.assertTrue(level.getBlockState(new BlockPos(placed.x, placed.y, placed.z)).is(Blocks.JIGSAW),
+                    "the entrance jigsaw stands");
+        } finally {
+            WildStore.setForTesting(null);
+        }
+        helper.succeed();
+    }
 }

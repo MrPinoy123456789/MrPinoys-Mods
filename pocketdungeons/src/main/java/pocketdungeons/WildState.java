@@ -114,7 +114,11 @@ final class WildState {
         }
     }
 
+    /** A collapsed lodestone: only where its lost and found chests stand is kept, so ops can still find them. */
+    record Retired(String id, String dimension, int x, int y, int z, List<int[]> chests) {}
+
     private final Map<String, Lodestone> lodestones = new LinkedHashMap<>();
+    private final List<Retired> retired = new ArrayList<>();
     private final Map<UUID, String> lastLodestone = new HashMap<>();
     private long nextId = 1L;
 
@@ -129,6 +133,18 @@ final class WildState {
 
     Lodestone remove(String id) {
         return lodestones.remove(id);
+    }
+
+    /** Removes a lodestone and keeps its lost and found positions on the retired list. */
+    void retire(String id) {
+        Lodestone l = lodestones.remove(id);
+        if (l != null) {
+            retired.add(new Retired(l.id, l.dimension, l.x, l.y, l.z, new ArrayList<>(l.lostAndFound)));
+        }
+    }
+
+    List<Retired> retired() {
+        return List.copyOf(retired);
     }
 
     Lodestone get(String id) {
@@ -199,6 +215,26 @@ final class WildState {
             list.add(o);
         }
         root.add("lodestones", list);
+        JsonArray gone = new JsonArray();
+        for (Retired r : retired) {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", r.id());
+            o.addProperty("dimension", r.dimension());
+            o.addProperty("x", r.x());
+            o.addProperty("y", r.y());
+            o.addProperty("z", r.z());
+            JsonArray chests = new JsonArray();
+            for (int[] c : r.chests()) {
+                JsonArray triple = new JsonArray();
+                triple.add(c[0]);
+                triple.add(c[1]);
+                triple.add(c[2]);
+                chests.add(triple);
+            }
+            o.add("chests", chests);
+            gone.add(o);
+        }
+        root.add("retired", gone);
         JsonObject players = new JsonObject();
         for (Map.Entry<UUID, String> e : lastLodestone.entrySet()) {
             players.addProperty(e.getKey().toString(), e.getValue());
@@ -231,6 +267,18 @@ final class WildState {
                     l.lostAndFound.add(new int[] {t.get(0).getAsInt(), t.get(1).getAsInt(), t.get(2).getAsInt()});
                 }
                 state.lodestones.put(l.id, l);
+            }
+            if (root.has("retired")) {
+                for (JsonElement element : root.getAsJsonArray("retired")) {
+                    JsonObject o = element.getAsJsonObject();
+                    List<int[]> chests = new ArrayList<>();
+                    for (JsonElement chest : o.getAsJsonArray("chests")) {
+                        JsonArray t = chest.getAsJsonArray();
+                        chests.add(new int[] {t.get(0).getAsInt(), t.get(1).getAsInt(), t.get(2).getAsInt()});
+                    }
+                    state.retired.add(new Retired(o.get("id").getAsString(), o.get("dimension").getAsString(),
+                            o.get("x").getAsInt(), o.get("y").getAsInt(), o.get("z").getAsInt(), chests));
+                }
             }
             for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("players").entrySet()) {
                 state.lastLodestone.put(UUID.fromString(e.getKey()), e.getValue().getAsString());
