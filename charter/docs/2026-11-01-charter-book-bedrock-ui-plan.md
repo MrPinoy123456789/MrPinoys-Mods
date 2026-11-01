@@ -19,6 +19,7 @@ An Xbox player on Bedrock (through Geyser and Floodgate). Assume all of this at 
 | Item | What changed |
 |---|---|
 | One book only | `BookMod.removeExtras` deletes every book after the first, once a second for everyone online, and on join and respawn. It runs even when `replaceLostBook` is off. A looted or old death-drop book is deleted from whoever already has one. |
+| Death drop | `BookMod.vanish` deletes the book just before death loot drops (`ALLOW_DEATH`), so it never lies on the ground. Respawn hands out a fresh one. |
 | Travel at the top | Home (bed), Keep, Outpost, Spawn, Hub are the first buttons of the member Home and of the newcomer Home (a newcomer has no keep or outpost). A refusal shows above the same page; a start closes the screen so the player can hold still. |
 | Leader's Desk | One button on the member Home, shown only to officers (`LeaderPages.leads`). Holds: requests to join, invite a player, give a power, take Marks from the treasury, who decides, votes and elections, war, move the Nexus. Names are picked from dropdowns, never typed. |
 | Borders | A button on Home replaces `/charter borders`. |
