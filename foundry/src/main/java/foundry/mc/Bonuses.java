@@ -118,7 +118,7 @@ final class Bonuses {
 
     private static boolean matchesEntity(BonusDef def, EntityType<?> type) {
         return matches(def.targets(), BuiltInRegistries.ENTITY_TYPE.getKey(type).toString(),
-                tag -> type.is(TagKey.create(Registries.ENTITY_TYPE, Identifier.parse(tag))));
+                tag -> type.builtInRegistryHolder().is(TagKey.create(Registries.ENTITY_TYPE, Identifier.parse(tag))));
     }
 
     private static boolean matches(List<String> targets, String id, java.util.function.Predicate<String> inTag) {
