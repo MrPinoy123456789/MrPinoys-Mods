@@ -12,12 +12,13 @@ import json
 import os
 import uuid
 import zipfile
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.join(HERE, "..", "examples")
 OUT = os.path.join(BASE, "bedrock")
 PACK_NAME = "Foundry Items"
-# Fixed ids so a rebuilt pack replaces the old one on a player's device instead of stacking.
+# Fixed ids so a rebuilt pack replaces the old one on a player's device instead of stacking; the version (below) follows the content.
 PACK_UUID = "5b0e6d0e-2a0a-4c63-9f1d-6e0f0a7c1001"
 MODULE_UUID = "5b0e6d0e-2a0a-4c63-9f1d-6e0f0a7c1002"
 
@@ -75,13 +76,19 @@ def main():
         json.dump({"format_version": 2, "items": mappings}, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
+    item_texture = {"resource_pack_name": PACK_NAME, "texture_name": "atlas.items", "texture_data": pack_textures}
+    # A Bedrock client keeps a pack it has downloaded and only fetches it again when the version changes. The version
+    # comes from the pack's own content, so adding or changing a texture changes it and players get the new icons.
+    crc = zlib.crc32(json.dumps(item_texture, sort_keys=True).encode("utf8"))
+    for name, data in sorted(files.items()):
+        crc = zlib.crc32(name.encode("utf8") + data, crc)
+    version = [1, (crc >> 16) & 0xFFFF, crc & 0xFFFF]
     manifest = {
         "format_version": 2,
         "header": {"name": PACK_NAME, "description": "Textures for Foundry items", "uuid": PACK_UUID,
-                   "version": [1, 0, 0], "min_engine_version": [1, 21, 0]},
-        "modules": [{"type": "resources", "uuid": MODULE_UUID, "version": [1, 0, 0]}],
+                   "version": version, "min_engine_version": [1, 21, 0]},
+        "modules": [{"type": "resources", "uuid": MODULE_UUID, "version": version}],
     }
-    item_texture = {"resource_pack_name": PACK_NAME, "texture_name": "atlas.items", "texture_data": pack_textures}
     pack = os.path.join(OUT, "foundry_bedrock.mcpack")
     with zipfile.ZipFile(pack, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest, indent=2))
