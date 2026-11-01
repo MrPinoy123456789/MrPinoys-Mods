@@ -15,9 +15,11 @@ import java.util.Optional;
  * {@code back} is behind the player (negative is in front), {@code side} is to the player's right. {@code rotation} is
  * extra degrees about x, y and z on top of facing. {@code onHead} follows the head's yaw instead of the body's.
  * {@code hideFromWearer} keeps the display off the wearer's own client (for something that would block their view).
+ * {@code headSlot} shows the item to other players as if worn in the helmet slot (no lag, only while the real helmet slot is
+ * empty; otherwise the display is used). {@code ride} mounts the display on the player so the client moves it every frame.
  */
 public record WornPlacement(float up, float back, float side, float scale, boolean onHead, float rx, float ry, float rz,
-                            boolean hideFromWearer) {
+                            boolean hideFromWearer, boolean headSlot, boolean ride) {
 
     /** The table read from {@code config/foundry/worn_displays.json}: slot entries, then per item overrides. */
     public record Table(Map<String, WornPlacement> slots, Map<String, WornPlacement> items) {
@@ -31,15 +33,15 @@ public record WornPlacement(float up, float back, float side, float scale, boole
     /** The result of reading a file: the table, and what was wrong with it (the table is the defaults if unreadable). */
     public record Parsed(Table table, List<String> problems) {}
 
-    private static final WornPlacement BASE = new WornPlacement(1.0f, 0f, 0f, 0.6f, false, 0f, 0f, 0f, false);
+    private static final WornPlacement BASE = new WornPlacement(1.0f, 0f, 0f, 0.6f, false, 0f, 0f, 0f, false, false, true);
 
     /** Built in values, used when the file is absent; they match the shipped example file. */
     public static Table defaults() {
         Map<String, WornPlacement> slots = new LinkedHashMap<>();
-        slots.put("head/hat", new WornPlacement(2.0f, 0f, 0f, 0.8f, true, 0f, 0f, 0f, false));
-        slots.put("head/face", new WornPlacement(1.62f, -0.3f, 0f, 0.5f, true, 0f, 90f, 0f, true));
-        slots.put("chest/back", new WornPlacement(1.1f, 0.25f, 0f, 0.6f, false, 0f, 0f, 0f, false));
-        slots.put("chest/cape", new WornPlacement(0.95f, 0.22f, 0f, 1.1f, false, 0f, 0f, 0f, false));
+        slots.put("head/hat", new WornPlacement(2.0f, 0f, 0f, 0.8f, true, 0f, 0f, 0f, false, true, true));
+        slots.put("head/face", new WornPlacement(1.62f, -0.3f, 0f, 0.5f, true, 0f, 90f, 0f, true, false, true));
+        slots.put("chest/back", new WornPlacement(1.1f, 0.25f, 0f, 0.6f, false, 0f, 0f, 0f, false, false, true));
+        slots.put("chest/cape", new WornPlacement(0.95f, 0.22f, 0f, 1.1f, false, 0f, 0f, 0f, false, false, true));
         return new Table(Map.copyOf(slots), Map.of());
     }
 
@@ -52,7 +54,7 @@ public record WornPlacement(float up, float back, float side, float scale, boole
      * Parses the file. Shape: {@code {"slots": {"head/hat": {"up": 2.0, ...}}, "items": {"kingdoms:x": {...}}}}. An
      * entry may leave any field out; a slot entry then takes the built in default for that slot (or a plain default),
      * and an item entry takes its slot's values, so one number can be tuned alone. Fields: up, back, side, scale,
-     * on_head, rotation [x, y, z], hide_from_wearer. A bad file gives the defaults and a problem line.
+     * on_head, rotation [x, y, z], hide_from_wearer, head_slot, ride. A bad file gives the defaults and a problem line.
      */
     public static Parsed parse(String json) {
         List<String> problems = new ArrayList<>();
@@ -101,7 +103,9 @@ public record WornPlacement(float up, float back, float side, float scale, boole
             return new WornPlacement(num(o, "up", base.up), num(o, "back", base.back), num(o, "side", base.side),
                     num(o, "scale", base.scale), o.has("on_head") ? o.get("on_head").getAsBoolean() : base.onHead,
                     rot[0], rot[1], rot[2],
-                    o.has("hide_from_wearer") ? o.get("hide_from_wearer").getAsBoolean() : base.hideFromWearer);
+                    o.has("hide_from_wearer") ? o.get("hide_from_wearer").getAsBoolean() : base.hideFromWearer,
+                    o.has("head_slot") ? o.get("head_slot").getAsBoolean() : base.headSlot,
+                    o.has("ride") ? o.get("ride").getAsBoolean() : base.ride);
         } catch (RuntimeException ex) {
             problems.add("worn_displays.json: " + name + " has a value of the wrong type (" + ex.getMessage() + ")");
             return base;

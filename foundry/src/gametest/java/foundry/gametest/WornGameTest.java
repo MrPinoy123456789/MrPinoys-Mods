@@ -170,33 +170,62 @@ public final class WornGameTest {
     public void anObserverReceivesTheDisplays(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         ServerPlayer observer = player(helper, null);
-        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        wear(wearer, "chest/back", new ItemStack(item("kingdoms:forgeman_pauldron")));
         helper.runAfterDelay(25, () -> {
             foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
             foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
             var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
             helper.assertTrue(watchers.size() == 1, "Expected one display but found " + watchers.size());
-            helper.assertTrue(watchers.get(0).contains(wearer.getUUID()), "The wearer is not watching their circlet: " + watchers);
-            helper.assertTrue(watchers.get(0).contains(observer.getUUID()), "The observer is not watching the circlet: " + watchers);
-            helper.assertTrue(watchers.get(0).size() == 2, "The circlet is sent more than once: " + watchers);
+            helper.assertTrue(watchers.get(0).contains(wearer.getUUID()), "The wearer is not watching their pauldron: " + watchers);
+            helper.assertTrue(watchers.get(0).contains(observer.getUUID()), "The observer is not watching the pauldron: " + watchers);
+            helper.assertTrue(watchers.get(0).size() == 2, "The pauldron is sent more than once: " + watchers);
             helper.succeed();
         });
     }
 
-    /** A hat turns with the head's yaw and tips with its pitch: its front follows where the head looks. */
+    /** A head display turns with the head's yaw and tips with its pitch. */
     @GameTest(maxTicks = 100)
     public void aHeadDisplayFollowsTheHeadYawAndPitch(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
-        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
         helper.runAfterDelay(15, () -> {
             wearer.setYHeadRot(90f);
             wearer.setXRot(30f);
             helper.runAfterDelay(5, () -> {
-                var front = foundry.mc.WornDisplays.rotationOf(wearer.getUUID(), 0).transform(new org.joml.Vector3f(0, 0, 1));
-                // Facing west (yaw 90) and looking 30 degrees down: (-cos30, -sin30, 0).
-                helper.assertTrue(Math.abs(front.x + Math.cos(Math.toRadians(30))) < 0.05 && Math.abs(front.y + Math.sin(Math.toRadians(30))) < 0.05
-                        && Math.abs(front.z) < 0.05, "The hat faces " + front + " instead of west and down");
+                var q = foundry.mc.WornDisplays.rotationOf(wearer.getUUID(), 0);
+                helper.assertTrue(q != null, "The gills have no display");
+                var expected = new org.joml.Quaternionf().rotationY((float) Math.toRadians(-90)).rotateX((float) Math.toRadians(30))
+                        .rotateY((float) Math.toRadians(90));
+                var got = q.transform(new org.joml.Vector3f(0, 0, 1));
+                var want = expected.transform(new org.joml.Vector3f(0, 0, 1));
+                helper.assertTrue(got.distance(want) < 0.05f, "The gills face " + got + " instead of " + want);
                 helper.succeed();
+            });
+        });
+    }
+
+    /** The circlet goes to other players as a helmet while the helmet slot is empty, and falls back to a display under a real helmet. */
+    @GameTest(maxTicks = 160)
+    public void theCircletIsAHelmetForViewersUnlessARealHelmetIsWorn(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        ServerPlayer observer = player(helper, null);
+        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)), "The circlet is not sent as a helmet");
+            foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
+            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID()).get(0);
+            helper.assertTrue(watchers.contains(observer.getUUID()) && !watchers.contains(wearer.getUUID()),
+                    "The helmet packet should go to the observer and not the wearer: " + watchers);
+            wearer.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.IRON_HELMET));
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue("display".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)),
+                        "Under a real helmet the circlet should fall back to a display");
+                wearer.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
+                helper.runAfterDelay(25, () -> {
+                    helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)),
+                            "Taking the helmet off should send the circlet as a helmet again");
+                    helper.succeed();
+                });
             });
         });
     }

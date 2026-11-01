@@ -107,6 +107,13 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   where it sits: no display line means "not created" (no placement for that slot, or Trinkets absent); a line with the
   right watchers but nothing on screen means "created but not visible" (try larger `up`, `back`, `side` or `scale`).
   The harness cannot make mock players track each other, so Polymer's real tracking of other players is unverified.
+- **No lag.** Two settings in `worn_displays.json`, per slot or item. `head_slot` (default on for `head/hat`, the
+  circlet) sends the item to other players as if it were in the helmet slot (a per viewer equipment packet), so it
+  follows the head exactly; the real helmet slot is never changed, the wearer is not sent it, and it falls back to a
+  display while a real helmet is worn and returns when it comes off. `ride` (default on for the displays) mounts the
+  display on the player as a virtual passenger, so the client moves it every frame instead of waiting for position
+  packets; heights are then measured from the player's top, which Foundry handles. Set either to false to go back to the
+  old behaviour if something looks wrong. Both are unverified on a live client.
 - **Gills facing.** The gills are a flat sprite and showed edge on (across the face and back of the head), so the
   `head/face` default now has `rotation` [0, 90, 0]. If they look mirrored, use -90; if they were never wrong, 0. Head
   displays also tip with the head's pitch (gametested for yaw and pitch).

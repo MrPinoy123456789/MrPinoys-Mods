@@ -1,5 +1,6 @@
 package foundry.mc;
 
+import com.mojang.datafixers.util.Pair;
 import eu.pb4.polymer.virtualentity.api.ElementHolder;
 import eu.pb4.polymer.virtualentity.api.attachment.EntityAttachment;
 import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
@@ -12,9 +13,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import java.util.function.Consumer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -34,14 +41,41 @@ public final class WornDisplays {
     private static final int CONFIG_EVERY = 40;
     private static final String FILE = "worn_displays.json";
 
-    /** A holder that can refuse to show itself to the wearer. */
+    /**
+     * A holder that can refuse to show itself to the wearer. A riding holder also tells each new viewer that its
+     * displays are passengers of the player (the client then moves them with the player every frame). A head slot holder
+     * has no displays: it puts the item in the helmet slot of each viewer's copy of the player.
+     */
     private static final class Holder extends ElementHolder {
         private final ServerPlayer owner;
         private final boolean hideFromOwner;
+        private final boolean ride;
+        private final ItemStack headStack;
 
-        Holder(ServerPlayer owner, boolean hideFromOwner) {
+        Holder(ServerPlayer owner, boolean hideFromOwner, boolean ride, ItemStack headStack) {
             this.owner = owner;
             this.hideFromOwner = hideFromOwner;
+            this.ride = ride;
+            this.headStack = headStack;
+        }
+
+        @Override
+        protected void startWatchingExtraPackets(ServerGamePacketListenerImpl connection,
+                                                 Consumer<Packet<ClientGamePacketListener>> out) {
+            if (headStack != null) out.accept(equipment(headStack));
+            else if (ride) out.accept(new ClientboundSetPassengersPacket(owner));
+        }
+
+        private Packet<ClientGamePacketListener> equipment(ItemStack head) {
+            return new ClientboundSetEquipmentPacket(owner.getId(), List.of(Pair.of(EquipmentSlot.HEAD, head)));
+        }
+
+        /** Gives every viewer the player's real helmet back (before a head slot holder goes away). */
+        void restoreHead() {
+            if (headStack == null) return;
+            for (ServerGamePacketListenerImpl c : new ArrayList<>(getWatchingPlayers())) {
+                if (c.isAcceptingMessages()) c.send(equipment(owner.getItemBySlot(EquipmentSlot.HEAD)));
+            }
         }
 
         @Override
@@ -53,8 +87,9 @@ public final class WornDisplays {
         }
     }
 
+    /** {@code element} is null for a head slot part, which draws nothing itself. */
     private record Part(Holder holder, EntityAttachment attachment, ItemDisplayElement element, WornPlacement place,
-                        String item, String slot) {}
+                        String item, String slot, boolean headMode) {}
 
     private record Shown(ServerPlayer player, String signature, List<Part> parts) {}
 
@@ -74,7 +109,14 @@ public final class WornDisplays {
     /** Test hook: the facing of one of a player's displays right now. */
     public static Quaternionf rotationOf(UUID player, int index) {
         Shown s = SHOWN.get(player);
-        return s == null || index >= s.parts.size() ? null : new Quaternionf(s.parts.get(index).element.getLeftRotation());
+        if (s == null || index >= s.parts.size() || s.parts.get(index).element == null) return null;
+        return new Quaternionf(s.parts.get(index).element.getLeftRotation());
+    }
+
+    /** Test hook: "head_slot" or "display" for one of a player's parts, or null. */
+    public static String modeOf(UUID player, int index) {
+        Shown s = SHOWN.get(player);
+        return s == null || index >= s.parts.size() ? null : s.parts.get(index).headMode ? "head_slot" : "display";
     }
 
     /**
@@ -121,12 +163,14 @@ public final class WornDisplays {
                     + "; " + (shown == null ? 0 : shown.parts.size()) + " displays");
             if (shown == null) continue;
             for (Part part : shown.parts) {
-                lines.add("  " + part.item + " in " + part.slot + ": watched by "
+                lines.add("  " + part.item + " in " + part.slot + " ("
+                        + (part.headMode ? "helmet slot packet" : part.place.ride() ? "display riding the player" : "display")
+                        + "): watched by "
                         + part.holder.getWatchingPlayers().stream().map(c -> c.getPlayer().getGameProfile().name()).sorted().toList()
                         + ", at " + String.format("up %.2f back %.2f side %.2f scale %.2f", part.place.up(), part.place.back(),
                                 part.place.side(), part.place.scale())
                         + (part.place.hideFromWearer() ? ", hidden from wearer" : "")
-                        + ", position " + part.holder.getPos());
+                        + (part.headMode ? "" : ", position " + part.holder.getPos()));
             }
         }
         if (lines.isEmpty()) lines.add("No such player is online.");
@@ -189,7 +233,15 @@ public final class WornDisplays {
             });
         }
         if (SHOWN.isEmpty()) return;
-        for (Shown shown : SHOWN.values()) turn(shown);
+        for (Shown shown : new ArrayList<>(SHOWN.values())) {
+            // A head slot part needs the real helmet slot empty: rebuild at once when that changes.
+            boolean headEmpty = shown.player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
+            if (shown.parts.stream().anyMatch(part -> part.place.headSlot() && part.headMode != headEmpty)) {
+                rescan(shown.player);
+                continue;
+            }
+            turn(shown);
+        }
     }
 
     static void clear() {
@@ -200,6 +252,7 @@ public final class WornDisplays {
 
     private static void destroy(Shown s) {
         for (Part part : s.parts) {
+            part.holder.restoreHead();
             part.attachment.destroy();
             part.holder.destroy();
         }
@@ -224,7 +277,8 @@ public final class WornDisplays {
                 }
             });
         }
-        String signature = tableVersion + "|" + player.level().dimension() + "|"
+        boolean headEmpty = player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
+        String signature = tableVersion + "|" + player.level().dimension() + "|" + headEmpty + "|"
                 + stacks.stream().map(s -> s.getItem().toString()).toList();
         Shown cur = SHOWN.get(player.getUUID());
         if (cur != null && (cur.player != player || !cur.signature.equals(signature))) {
@@ -236,18 +290,26 @@ public final class WornDisplays {
         List<Part> parts = new ArrayList<>();
         for (int i = 0; i < stacks.size(); i++) {
             WornPlacement place = places.get(i);
-            Holder holder = new Holder(player, place.hideFromWearer());
+            if (place.headSlot() && headEmpty) {
+                // Shown to other players as a helmet, so it moves with the head exactly. Never to the wearer.
+                Holder holder = new Holder(player, true, false, stacks.get(i));
+                parts.add(new Part(holder, EntityAttachment.ofTicking(holder, player), null, place, ids.get(i),
+                        slotNames.get(i), true));
+                continue;
+            }
+            Holder holder = new Holder(player, place.hideFromWearer(), place.ride(), null);
             ItemDisplayElement element = new ItemDisplayElement(stacks.get(i));
             element.setItemDisplayContext(ItemDisplayContext.FIXED);
             element.setInterpolationDuration(3);
             // Placed before the holder is attached, so the first packet a viewer gets already has the right transform.
             place(player, element, place);
-            holder.addElement(element);
+            if (place.ride()) holder.addPassengerElement(element);
+            else holder.addElement(element);
             EntityAttachment attachment = EntityAttachment.ofTicking(holder, player);
             // Polymer shows an attachment only to players tracking the entity, and nobody tracks themselves, so the wearer
             // is added by hand (the Holder refuses when the placement hides it from them).
             if (player.connection != null) holder.startWatching(player.connection);
-            parts.add(new Part(holder, attachment, element, place, ids.get(i), slotNames.get(i)));
+            parts.add(new Part(holder, attachment, element, place, ids.get(i), slotNames.get(i), false));
         }
         Shown shown = new Shown(player, signature, parts);
         SHOWN.put(player.getUUID(), shown);
@@ -255,7 +317,7 @@ public final class WornDisplays {
 
     /** Places every display of one player for this tick. */
     private static void turn(Shown shown) {
-        for (Part part : shown.parts) place(shown.player, part.element, part.place);
+        for (Part part : shown.parts) if (part.element != null) place(shown.player, part.element, part.place);
     }
 
     /** Sets one display's size, position and facing from the player's body (or head) right now. */
@@ -266,7 +328,8 @@ public final class WornDisplays {
         float yaw = p.onHead() ? player.getYHeadRot() : player.yBodyRot;
         // Minecraft yaw 0 faces south (+z). "Back" is opposite the facing, "side" is to the player's right.
         double rad = Math.toRadians(yaw);
-        float up = p.up() - (player.isCrouching() ? 0.25f : 0f);
+        // A riding display is placed from the player's top (where the client mounts it), so that height is taken off.
+        float up = p.up() - (player.isCrouching() ? 0.25f : 0f) - (p.ride() ? player.getBbHeight() : 0f);
         Vector3f at = new Vector3f(
                 (float) (Math.sin(rad) * p.back() - Math.cos(rad) * p.side()), up,
                 (float) (-Math.cos(rad) * p.back() - Math.sin(rad) * p.side()));
