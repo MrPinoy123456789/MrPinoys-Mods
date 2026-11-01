@@ -143,6 +143,34 @@ public final class WildLodestoneGameTest {
         helper.succeed();
     }
 
+    @SuppressWarnings("removal")
+    @GameTest
+    public void aChunkLoadOnlyQueuesTheMarkerWorkAndTheNextTickDoesIt(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(7, 2, 7));
+        WildState state = new WildState();
+        state.add(lodestone(level, pos));
+        WildMode.setActiveForTesting(true);
+        WildStore.setForTesting(state);
+        try {
+            level.setBlock(pos, Blocks.JIGSAW.defaultBlockState(), 3);
+            if (level.getBlockEntity(pos) instanceof JigsawBlockEntity jigsaw) {
+                jigsaw.setName(Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, "wild_entrance"));
+            }
+            WildLodestones.onChunkLoad(level, level.getChunkAt(pos), false);
+            // The load event must not touch the world: a block lookup there hangs the server thread on the chunk being loaded.
+            helper.assertTrue(level.getBlockState(pos).is(Blocks.JIGSAW), "the load event itself changes nothing");
+            WildLodestones.drainPendingMarkers();
+            helper.assertTrue(level.getBlockState(pos).is(Blocks.BEDROCK), "the queued work turns it into bedrock");
+        } finally {
+            WildMode.setActiveForTesting(null);
+            WildStore.setForTesting(null);
+            WildMarkerDisplays.detach(level, pos);
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+        }
+        helper.succeed();
+    }
+
     @GameTest(maxTicks = 120)
     public void aMarkerLosesItsDisplayWhenTheBlockIsBroken(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
