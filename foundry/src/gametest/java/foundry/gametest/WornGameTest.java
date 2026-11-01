@@ -70,7 +70,6 @@ public final class WornGameTest {
         helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
         helper.assertTrue(wings.has(DataComponents.EQUIPPABLE)
                 && wings.get(DataComponents.EQUIPPABLE).slot() == EquipmentSlot.CHEST, "The wings do not go in the chest slot");
-        helper.assertTrue(wings.getMaxDamage() > 0, "The wings do not wear out");
         helper.succeed();
     }
 
@@ -194,8 +193,7 @@ public final class WornGameTest {
             helper.runAfterDelay(5, () -> {
                 var q = foundry.mc.WornDisplays.rotationOf(wearer.getUUID(), 0);
                 helper.assertTrue(q != null, "The gills have no display");
-                var expected = new org.joml.Quaternionf().rotationY((float) Math.toRadians(-90)).rotateX((float) Math.toRadians(30))
-                        .rotateY((float) Math.toRadians(90));
+                var expected = new org.joml.Quaternionf().rotationY((float) Math.toRadians(-90)).rotateX((float) Math.toRadians(30));
                 var got = q.transform(new org.joml.Vector3f(0, 0, 1));
                 var want = expected.transform(new org.joml.Vector3f(0, 0, 1));
                 helper.assertTrue(got.distance(want) < 0.05f, "The gills face " + got + " instead of " + want);
@@ -228,5 +226,45 @@ public final class WornGameTest {
                 });
             });
         });
+    }
+
+    /** Wings worn in the cape slot let a Fairy glide, and a player of no race is marked as wearing wings they cannot use. */
+    @GameTest(maxTicks = 100)
+    public void wingsInTheCapeSlotAreForFairies(GameTestHelper helper) {
+        ServerPlayer fairy = player(helper, "race:everdelle");
+        ServerPlayer other = player(helper, null);
+        wear(fairy, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
+        wear(other, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.Wings.isWinged(fairy.getUUID()) && !foundry.mc.Wings.isDenied(fairy.getUUID()),
+                    "A Fairy wearing the wings is not marked as winged");
+            helper.assertTrue(foundry.mc.Wings.isDenied(other.getUUID()) && !foundry.mc.Wings.isWinged(other.getUUID()),
+                    "A player of no race is not marked as wearing wings they cannot use");
+            fairy.setOnGround(false);
+            helper.assertTrue(fairy.tryToStartFallFlying(), "A Fairy wearing the wings in the cape slot cannot start gliding");
+            helper.succeed();
+        });
+    }
+
+    /** The cape and the wings both fit the cape slot at once (the slot has room for two). */
+    @GameTest(maxTicks = 60)
+    public void theCapeAndTheWingsShareTheCapeSlot(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        var attachment = TrinketsApi.getAttachment(wearer);
+        var first = attachment.getSlotAccess("chest/cape", 0, false);
+        var second = attachment.getSlotAccess("chest/cape", 1, false);
+        helper.assertTrue(first != null && second != null, "The cape slot has no second place");
+        helper.assertTrue(first.set(new ItemStack(item("kingdoms:kingdom_cape"))), "The first cape slot refused the cape");
+        helper.assertTrue(second.set(new ItemStack(item("kingdoms:fairy_wings"))), "The second cape slot refused the wings");
+        helper.succeed();
+    }
+
+    /** The wings never wear out and still have the elytra's parts. */
+    @GameTest(maxTicks = 20)
+    public void theWingsNeverWearOut(GameTestHelper helper) {
+        ItemStack wings = new ItemStack(item("kingdoms:fairy_wings"));
+        helper.assertTrue(wings.getMaxDamage() == 0, "The wings still have durability");
+        helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
+        helper.succeed();
     }
 }

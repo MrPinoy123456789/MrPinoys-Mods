@@ -8,6 +8,7 @@
   ],
   "base_item": "minecraft:iron_ingot",
   "texture": "kingdoms:item/forgeman_pauldron",
+  "worn_model": "kingdoms:item/worn/forgeman_pauldron",
   "stack_size": 1,
   "rarity": "uncommon",
   "keep_on_death": true,

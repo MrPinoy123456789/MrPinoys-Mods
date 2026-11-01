@@ -70,6 +70,18 @@ public final class Validator {
                     checkModelTextures(d.id(), path, assetText.apply(path), assetExists, problems);
                 }
             }
+            if (d.wornModel() != null) {
+                String path = PackFiles.modelPath(d.wornModel());
+                if (d.texture() == null && d.model() == null) {
+                    problems.add(Problem.error(id, "worn_model", "A worn_model needs a texture or model to fall back on.",
+                            "Add a texture field for the flat look used where the 3D model is not shown."));
+                } else if (!assetExists.test(path)) {
+                    problems.add(Problem.error(id, "worn_model", "No model file found at assets/" + path + ".",
+                            "Add that file, or remove worn_model."));
+                } else {
+                    checkModelTextures(d.id(), path, assetText.apply(path), assetExists, problems);
+                }
+            }
             if (d.texture() != null && !assetExists.test(PackFiles.texturePath(d.texture()))) {
                 problems.add(Problem.error(id, "texture", "No texture found at assets/" + PackFiles.texturePath(d.texture()) + ".",
                         "Add a 16 by 16 PNG at that path, or fix the texture id."));

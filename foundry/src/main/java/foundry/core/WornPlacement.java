@@ -37,12 +37,15 @@ public record WornPlacement(float up, float back, float side, float scale, boole
 
     /** Built in values, used when the file is absent; they match the shipped example file. */
     public static Table defaults() {
+        // Sized for the 3D worn models: 16 model units are half a block at scale 1.
         Map<String, WornPlacement> slots = new LinkedHashMap<>();
-        slots.put("head/hat", new WornPlacement(2.0f, 0f, 0f, 0.8f, true, 0f, 0f, 0f, false, true, true));
-        slots.put("head/face", new WornPlacement(1.62f, -0.3f, 0f, 0.5f, true, 0f, 90f, 0f, true, false, true));
-        slots.put("chest/back", new WornPlacement(1.1f, 0.25f, 0f, 0.6f, false, 0f, 0f, 0f, false, false, true));
-        slots.put("chest/cape", new WornPlacement(0.95f, 0.22f, 0f, 1.1f, false, 0f, 0f, 0f, false, false, true));
-        return new Table(Map.copyOf(slots), Map.of());
+        slots.put("head/hat", new WornPlacement(1.65f, 0f, 0f, 1.15f, true, 0f, 0f, 0f, false, true, true));
+        slots.put("head/face", new WornPlacement(1.62f, -0.31f, 0f, 1.1f, true, 0f, 0f, 0f, true, false, true));
+        slots.put("chest/back", new WornPlacement(1.38f, 0f, 0.38f, 0.9f, false, 0f, 0f, 0f, false, false, true));
+        slots.put("chest/cape", new WornPlacement(1.0f, 0.26f, 0f, 1.6f, false, 0f, 0f, 0f, false, false, true));
+        Map<String, WornPlacement> items = new LinkedHashMap<>();
+        items.put("kingdoms:fairy_wings", new WornPlacement(1.2f, 0.34f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true));
+        return new Table(Map.copyOf(slots), Map.copyOf(items));
     }
 
     /** The same placement as {@link Table#find} against the built in defaults. */

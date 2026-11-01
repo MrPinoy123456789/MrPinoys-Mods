@@ -114,12 +114,24 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   display on the player as a virtual passenger, so the client moves it every frame instead of waiting for position
   packets; heights are then measured from the player's top, which Foundry handles. Set either to false to go back to the
   old behaviour if something looks wrong. Both are unverified on a live client.
-- **Gills facing.** The gills are a flat sprite and showed edge on (across the face and back of the head), so the
-  `head/face` default now has `rotation` [0, 90, 0]. If they look mirrored, use -90; if they were never wrong, 0. Head
+- **Gills facing.** The gills showed edge on as a flat sprite; the 3D mask now has no extra turn, so the
+  `head/face` default has `rotation` [0, 0, 0] (it was [0, 90, 0] for the sprite). If the mask sits sideways, set a y turn of 90 or -90 in `worn_displays.json`. Head
   displays also tip with the head's pitch (gametested for yaw and pitch).
-- **Wings.** The Fairy Wings are an elytra item with the elytra equipment asset, glider and chest slot components, so a
-  vanilla client draws an elytra on the body only while they are in the **chest armour slot** (not a Trinkets slot,
-  and not under a chestplate). `/foundry worn list` prints the chest slot item and says "wings" when it is one.
+- **3D models.** Each trinket has a real 3D model, not a flat sprite: `examples/assets/kingdoms/models/item/worn/*.json`
+  (cuboids with per face UVs, rotations and display transforms) with `examples/assets/kingdoms/textures/worn/*.png`,
+  made by `foundry/tools/gen_trinket_models.py` (change a number, re-run). `foundry/tools/check_models.py` validates them
+  (every face has a texture, UVs in range, legal rotations, modest cuboid count) and `--preview out.png` draws front,
+  side and top silhouettes. An item names its model with `"worn_model"`; Foundry then writes a client item definition
+  that shows the 3D model in every display context (worn display, helmet slot, inventory, hand, item frame) and keeps
+  the flat texture as the fallback and as the Bedrock icon. Only a live client shows the real look and whether a
+  rotation direction needs flipping (the cape flare, the antler lean).
+- **Wings.** The Fairy Wings now go in the **cape slot** (`chest/cape`, which has room for two so the Human cape and the
+  wings never clash; the slot is widened by `data/trinkets/slots/chest/cape.json`). They are race locked and have no
+  durability, so they never wear out. Trinkets Updated treats a glider item in a trinket slot as a glider on the server
+  (a gametest shows it answering yes), but a vanilla client only asks to glide when its own chest slot holds one, so
+  `Wings` starts the glide for a Fairy who holds jump while falling and stops a player of no race who glides with them.
+  Unverified live: that the client accepts a glide the server started (if not, the wings still glide worn in the chest
+  slot, where they keep the elytra parts). `/foundry worn list` shows the wings display like any other.
 - **Cape.** The cape is found in `chest/cape` and has a placement (gametested: one display per cape). It sits behind
   the body, so look from behind; if `/foundry worn list` shows the display with watchers and nothing is on screen, raise
   `back` or `scale` for `chest/cape` in `worn_displays.json`.

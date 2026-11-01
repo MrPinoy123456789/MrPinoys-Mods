@@ -46,18 +46,24 @@ public final class CoreSuite {
                 "head_slot and ride can be turned off per slot");
         check(foundry.core.WornPlacement.of("head/hat").get().headSlot() && foundry.core.WornPlacement.of("chest/cape").get().ride()
                 && !foundry.core.WornPlacement.of("head/face").get().headSlot(), "the hat is a helmet by default, the gills are not");
+        var worn = com.google.gson.JsonParser.parseString(foundry.core.PackFiles.withWornModel(
+                Ident.parse("kingdoms:item/x"), Ident.parse("kingdoms:item/worn/x"))).getAsJsonObject().getAsJsonObject("model");
+        check(worn.get("type").getAsString().equals("minecraft:select") && worn.get("property").getAsString().equals("minecraft:display_context")
+                && worn.getAsJsonObject("fallback").get("model").getAsString().equals("kingdoms:item/x")
+                && worn.getAsJsonArray("cases").get(0).getAsJsonObject().getAsJsonArray("when").size() == 9,
+                "a worn model is a display context select with the flat model as the fallback");
         check(foundry.core.Floodgate.isBedrock(new java.util.UUID(0L, 12345L)) && !foundry.core.Floodgate.isBedrock(java.util.UUID.randomUUID()),
                 "a zero high half is a Floodgate Bedrock player, a random Java UUID is not");
         check(foundry.core.WornPlacement.of("hand/ring").isEmpty(), "an undrawn slot has no placement");
         var tuned = foundry.core.WornPlacement.parse(
-                "{\"slots\":{\"chest/back\":{\"scale\":0.9}},\"items\":{\"kingdoms:x\":{\"slot\":\"chest/back\",\"up\":1.4,\"rotation\":[0,90,0]}}}");
+                "{\"slots\":{\"chest/back\":{\"scale\":0.7}},\"items\":{\"kingdoms:x\":{\"slot\":\"chest/back\",\"up\":1.4,\"rotation\":[0,90,0]}}}");
         check(tuned.problems().isEmpty(), "a tuned worn display file has no problems");
-        check(tuned.table().find("kingdoms:other", "chest/back").get().scale() == 0.9f
-                && tuned.table().find("kingdoms:other", "chest/back").get().back() == 0.25f,
+        check(tuned.table().find("kingdoms:other", "chest/back").get().scale() == 0.7f
+                && tuned.table().find("kingdoms:other", "chest/back").get().side() == 0.38f,
                 "a slot entry changes one number and keeps the rest of its defaults");
         check(tuned.table().find("kingdoms:x", "chest/back").get().up() == 1.4f
                 && tuned.table().find("kingdoms:x", "chest/back").get().ry() == 90f
-                && tuned.table().find("kingdoms:x", "chest/back").get().back() == 0.25f,
+                && tuned.table().find("kingdoms:x", "chest/back").get().side() == 0.38f,
                 "an item entry overrides its slot and inherits the rest");
         check(foundry.core.WornPlacement.parse("not json").problems().size() == 1
                 && foundry.core.WornPlacement.parse("not json").table().find("", "head/hat").isPresent(),

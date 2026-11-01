@@ -31,6 +31,19 @@ public final class PackFiles {
         return def.model() != null || def.texture() != null;
     }
 
+    /** Every display context except {@code none}: the 3D model shows wherever the item is drawn. */
+    static final String[] CONTEXTS = {"gui", "ground", "fixed", "head", "on_shelf", "firstperson_righthand", "firstperson_lefthand",
+            "thirdperson_righthand", "thirdperson_lefthand"};
+
+    /** A client item definition that draws the 3D worn model in every context and the flat model only as the fallback. */
+    public static String withWornModel(Ident flat, Ident worn) {
+        StringBuilder when = new StringBuilder();
+        for (String c : CONTEXTS) when.append(when.length() == 0 ? "" : ",").append('"').append(c).append('"');
+        return "{\"model\":{\"type\":\"minecraft:select\",\"property\":\"minecraft:display_context\",\"cases\":[{\"when\":["
+                + when + "],\"model\":{\"type\":\"minecraft:model\",\"model\":\"" + worn
+                + "\"}}],\"fallback\":{\"type\":\"minecraft:model\",\"model\":\"" + flat + "\"}}}\n";
+    }
+
     public static Map<String, String> generate(ContentSet set) {
         Map<String, String> out = new TreeMap<>();
         for (ItemDef def : set.items().values()) {
@@ -42,8 +55,9 @@ public final class PackFiles {
                 out.put(modelPath(modelId), "{\"parent\":\"minecraft:item/" + (def.handheld() ? "handheld" : "generated") + "\",\"textures\":{\"layer0\":\""
                         + def.texture() + "\"}}\n");
             }
-            out.put(clientItemPath(def.id()),
-                    "{\"model\":{\"type\":\"minecraft:model\",\"model\":\"" + modelId + "\"}}\n");
+            out.put(clientItemPath(def.id()), def.wornModel() == null
+                    ? "{\"model\":{\"type\":\"minecraft:model\",\"model\":\"" + modelId + "\"}}\n"
+                    : withWornModel(modelId, def.wornModel()));
         }
         return out;
     }

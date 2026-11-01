@@ -8,6 +8,7 @@
   ],
   "base_item": "minecraft:gold_nugget",
   "texture": "kingdoms:item/antler_circlet",
+  "worn_model": "kingdoms:item/worn/antler_circlet",
   "stack_size": 1,
   "rarity": "uncommon",
   "keep_on_death": true,
