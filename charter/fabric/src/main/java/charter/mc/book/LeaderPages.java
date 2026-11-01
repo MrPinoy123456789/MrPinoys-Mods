@@ -18,9 +18,6 @@ import charter.mc.Treasury;
 import charter.org.MemberRecord;
 import charter.org.actions.InviteMember;
 import charter.treasury.actions.Withdraw;
-import net.minecraft.server.dialog.ActionButton;
-import net.minecraft.server.dialog.Input;
-import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -51,7 +48,7 @@ public final class LeaderPages {
         return new PlayerId(player.getUUID());
     }
 
-    private static ActionButton go(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> page) {
+    private static BookButton go(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> page) {
         return BookDialogs.act(player, label, null, page);
     }
 
@@ -85,10 +82,10 @@ public final class LeaderPages {
             MemberPages.home(player, Text.get("book.leader.not_a_leader"));
             return;
         }
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("book.leader.intro")));
         long asking = rt.state.joinRequests().stream().filter(r -> r.org().equals(org)).count();
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get(asking > 0 ? "book.leader.requests_n" : "book.leader.requests", "n", asking),
                 p -> MemberPages.faction(p, null)));
         buttons.add(go(player, Text.get("book.leader.invite"), p -> invite(p, null)));
@@ -115,16 +112,16 @@ public final class LeaderPages {
             ids.add(other.getUUID().toString());
             shown.add(clip(other.getPlainTextName()));
         }
-        ActionButton back = BookDialogs.back(player, p -> desk(p, null));
-        List<DialogBody> body = new ArrayList<>();
+        BookButton back = BookDialogs.back(player, p -> desk(p, null));
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         if (ids.isEmpty()) {
             body.add(BookDialogs.text(Text.get("book.leader.invite_none")));
             BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.invite"), BookDialogs.withNotice(notice, body), List.of(), back));
             return;
         }
         body.add(BookDialogs.text(Text.get("book.leader.invite_intro")));
-        List<Input> inputs = List.of(BookDialogs.choice("who", Text.get("book.leader.invite_who"), ids, shown));
-        ActionButton submit = BookDialogs.submit(player, Text.get("book.leader.invite_send"), null, inputs, form -> {
+        List<BookInput> inputs = List.of(BookDialogs.choice("who", Text.get("book.leader.invite_who"), ids, shown));
+        BookButton submit = BookDialogs.submit(player, Text.get("book.leader.invite_send"), null, inputs, form -> {
             ServerPlayer p = form.player();
             Optional<List<String>> values = FormValues.split(form.raw(), 1);
             Optional<PlayerId> target = values.flatMap(v -> parse(v.get(0)));
@@ -136,7 +133,7 @@ public final class LeaderPages {
             if (now == null) return;
             String name = rt().describe.player(target.get());
             BookRouter.run(p, new InviteMember(now, target.get()),
-                    line -> invite(p, line != null ? line : Text.get("invite.done", "player", name)));
+                    line -> invite(p, BookResult.of(line, Text.get("invite.done", "player", name))));
         });
         BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.invite"), BookDialogs.withNotice(notice, body), inputs, submit, back));
     }
@@ -165,18 +162,18 @@ public final class LeaderPages {
             toIds.add("p:" + m.player().value());
             toShown.add(clip(rt.describe.player(m.player())));
         }
-        ActionButton back = BookDialogs.back(player, p -> desk(p, null));
-        List<DialogBody> body = new ArrayList<>();
+        BookButton back = BookDialogs.back(player, p -> desk(p, null));
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         if (toIds.isEmpty()) {
             body.add(BookDialogs.text(Text.get("book.leader.grant_none")));
             BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.grant"), BookDialogs.withNotice(notice, body), List.of(), back));
             return;
         }
         body.add(BookDialogs.text(Text.get("book.leader.grant_intro")));
-        List<Input> inputs = List.of(
+        List<BookInput> inputs = List.of(
                 BookDialogs.choice("power", Text.get("book.leader.grant_power"), powerIds, powerShown),
                 BookDialogs.choice("to", Text.get("book.leader.grant_to"), toIds, toShown));
-        ActionButton submit = BookDialogs.submit(player, Text.get("book.leader.grant_send"), null, inputs, form -> {
+        BookButton submit = BookDialogs.submit(player, Text.get("book.leader.grant_send"), null, inputs, form -> {
             ServerPlayer p = form.player();
             Optional<List<String>> values = FormValues.split(form.raw(), 2);
             OrgId now = org(p);
@@ -189,7 +186,7 @@ public final class LeaderPages {
             }
             String done = Text.get("grant.done", "to", rt().describe.holder(to.get()), "power", Describe.power(power.get()));
             BookRouter.run(p, new charter.grant.actions.GrantPower(now, power.get(), to.get(), GrantScope.ANY, false, 0),
-                    line -> grant(p, line != null ? line : done));
+                    line -> grant(p, BookResult.of(line, done)));
         });
         BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.grant"), BookDialogs.withNotice(notice, body), inputs, submit, back));
     }
@@ -218,13 +215,13 @@ public final class LeaderPages {
         OrgId org = org(player);
         if (org == null) return;
         CharterRuntime rt = rt();
-        ActionButton back = BookDialogs.back(player, p -> desk(p, null));
-        List<DialogBody> body = new ArrayList<>();
+        BookButton back = BookDialogs.back(player, p -> desk(p, null));
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         String balance = Treasury.balance(rt, org);
         body.add(BookDialogs.text(balance == null ? Text.get("book.leader.withdraw_empty")
                 : Text.get("book.faction.treasury", "balances", balance)));
-        List<Input> inputs = List.of(BookDialogs.textInput("amount", Text.get("book.leader.withdraw_amount"), "1", AMOUNT_MAX));
-        ActionButton submit = BookDialogs.submit(player, Text.get("book.leader.withdraw_send"), null, inputs, form -> {
+        List<BookInput> inputs = List.of(BookDialogs.textInput("amount", Text.get("book.leader.withdraw_amount"), "1", AMOUNT_MAX));
+        BookButton submit = BookDialogs.submit(player, Text.get("book.leader.withdraw_send"), null, inputs, form -> {
             ServerPlayer p = form.player();
             var amount = FormValues.split(form.raw(), 1).map(v -> v.get(0)).filter(FormValues::clean)
                     .map(FormValues::integer).filter(java.util.OptionalInt::isPresent).map(java.util.OptionalInt::getAsInt);
@@ -239,7 +236,7 @@ public final class LeaderPages {
                 return;
             }
             int n = amount.get();
-            BookRouter.run(p, new Withdraw(now, n, me(p)), line -> withdraw(p, line != null ? line : Text.get("vault.withdrawn", "amount", n)));
+            BookRouter.run(p, new Withdraw(now, n, me(p)), line -> withdraw(p, BookResult.of(line, Text.get("vault.withdrawn", "amount", n))));
         });
         BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.withdraw"), BookDialogs.withNotice(notice, body), inputs, submit, back));
     }
@@ -248,11 +245,11 @@ public final class LeaderPages {
 
     public static void nexus(ServerPlayer player, String notice) {
         if (org(player) == null) return;
-        ActionButton yes = BookDialogs.act(player, Text.get("book.leader.nexus_yes"), null, p -> {
+        BookButton yes = BookDialogs.act(player, Text.get("book.leader.nexus_yes"), null, p -> {
             String problem = charter.mc.land.NexusMove.move(p);
-            desk(p, problem != null ? problem : Text.get("nexus_move.done"));
+            desk(p, BookResult.of(problem, Text.get("nexus_move.done")));
         });
-        ActionButton no = BookDialogs.back(player, p -> desk(p, null));
+        BookButton no = BookDialogs.back(player, p -> desk(p, null));
         BookDialogs.show(player, BookDialogs.confirm(Text.get("book.leader.nexus"),
                 BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.leader.nexus_intro")))), yes, no));
     }

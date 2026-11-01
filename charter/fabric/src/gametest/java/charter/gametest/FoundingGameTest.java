@@ -176,7 +176,7 @@ public final class FoundingGameTest {
             helper.assertTrue(kit.rt.state.joinRequest(org, id(newcomer)).isPresent(), "Asking to join left no request");
             var page = BookDialogs.LAST.get(newcomer.getUUID());
             var text = new java.util.ArrayList<String>();
-            for (var b : page.common().body()) if (b instanceof net.minecraft.server.dialog.body.PlainMessage m) text.add(m.contents().getString());
+            text.addAll(page.bodyText());
             String all = String.join(" ", text);
             helper.assertTrue(all.contains(Text.get("book.join.who_decides")), "The faction page does not say who decides: " + all);
             helper.assertTrue(!all.toLowerCase().contains("gives away") && !all.toLowerCase().contains("garrison"),

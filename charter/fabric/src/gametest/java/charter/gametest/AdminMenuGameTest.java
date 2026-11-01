@@ -4,12 +4,10 @@ import charter.id.OrgId;
 import charter.mc.Text;
 import charter.mc.book.AdminPages;
 import charter.mc.book.BookDialogs;
+import charter.mc.book.BookScreen;
 import charter.mc.cmd.CharterCommands;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.dialog.ConfirmationDialog;
-import net.minecraft.server.dialog.Dialog;
-import net.minecraft.server.dialog.body.PlainMessage;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -41,29 +39,27 @@ public final class AdminMenuGameTest {
         forms.take(token, player.getUUID(), System.currentTimeMillis()).orElseThrow().accept(new CharterCommands.Form(player, raw));
     }
 
-    private static Dialog shown(GameTestHelper helper, ServerPlayer player, String what) {
-        Dialog dialog = BookDialogs.LAST.get(player.getUUID());
+    private static BookScreen shown(GameTestHelper helper, ServerPlayer player, String what) {
+        BookScreen dialog = BookDialogs.LAST.get(player.getUUID());
         helper.assertTrue(dialog != null, "No dialog was sent for " + what);
         helper.assertTrue(!BookDialogs.buttons(dialog).isEmpty(), "The " + what + " dialog has no button");
         return dialog;
     }
 
     private static String title(GameTestHelper helper, ServerPlayer player) {
-        return shown(helper, player, "the page").common().title().getString();
+        return shown(helper, player, "the page").title();
     }
 
     private static String body(ServerPlayer player) {
-        Dialog dialog = BookDialogs.LAST.get(player.getUUID());
+        BookScreen dialog = BookDialogs.LAST.get(player.getUUID());
         List<String> out = new ArrayList<>();
-        for (var b : dialog.common().body()) {
-            if (b instanceof PlainMessage m) out.add(m.contents().getString());
-        }
+        out.addAll(dialog.bodyText());
         return String.join("\n", out);
     }
 
     private static boolean hasButton(ServerPlayer player, String label) {
         return BookDialogs.buttons(BookDialogs.LAST.get(player.getUUID())).stream()
-                .anyMatch(b -> b.button().label().getString().equals(label));
+                .anyMatch(b -> b.label().equals(label));
     }
 
     @GameTest(maxTicks = 200)
@@ -124,7 +120,7 @@ public final class AdminMenuGameTest {
 
             // The claim bonus form: a good value is applied through the real command.
             press(helper, op, Text.get("admin.kingdom.button.bonus"));
-            helper.assertTrue(shown(helper, op, "the bonus form").common().inputs().size() == 1, "The bonus form should have one input");
+            helper.assertTrue(shown(helper, op, "the bonus form").inputs().size() == 1, "The bonus form should have one input");
             submit(helper, op, Text.get("admin.bonus.button"), "=7");
             helper.assertTrue(org.claimBonus == 7, "The bonus form did not set the bonus: " + org.claimBonus);
             helper.assertTrue(title(helper, op).equals(name), "The bonus form did not return to the kingdom page");
@@ -149,7 +145,7 @@ public final class AdminMenuGameTest {
 
             // Dissolving asks first, and Keep it changes nothing.
             press(helper, op, Text.get("admin.kingdom.button.dissolve"));
-            helper.assertTrue(BookDialogs.LAST.get(op.getUUID()) instanceof ConfirmationDialog, "Dissolve did not ask for confirmation");
+            helper.assertTrue(BookDialogs.LAST.get(op.getUUID()).kind() == BookScreen.Kind.CONFIRM, "Dissolve did not ask for confirmation");
             press(helper, op, Text.get("admin.dissolve.no"));
             helper.assertTrue(kit.rt.state.org(id).orElseThrow().exists(), "Keep it dissolved the kingdom");
             helper.assertTrue(title(helper, op).equals(name), "Keep it did not return to the kingdom page");
@@ -172,7 +168,7 @@ public final class AdminMenuGameTest {
             helper.assertTrue(!body(op).isBlank(), "Saving showed no answer");
 
             press(helper, op, Text.get("admin.tools.button.vote"));
-            helper.assertTrue(shown(helper, op, "the vote form").common().inputs().size() == 1, "The vote form should have one input");
+            helper.assertTrue(shown(helper, op, "the vote form").inputs().size() == 1, "The vote form should have one input");
             submit(helper, op, Text.get("admin.vote.button"), "=999999");
             helper.assertTrue(body(op).contains("999999"), "A missing vote was not reported: " + body(op));
 
@@ -189,7 +185,7 @@ public final class AdminMenuGameTest {
             // The new kingdom form starts at the operator's position and refuses a blank name.
             AdminPages.open(op);
             press(helper, op, Text.get("admin.menu.button.create"));
-            helper.assertTrue(shown(helper, op, "the create form").common().inputs().size() == 4, "The create form should have four inputs");
+            helper.assertTrue(shown(helper, op, "the create form").inputs().size() == 4, "The create form should have four inputs");
             int before = kit.rt.state.orgs().size();
             submit(helper, op, Text.get("admin.create.button"), "= | 0 | 64 | 0");
             helper.assertTrue(kit.rt.state.orgs().size() == before, "A blank name made a kingdom");

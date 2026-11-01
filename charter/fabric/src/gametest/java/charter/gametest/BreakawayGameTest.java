@@ -54,7 +54,7 @@ public final class BreakawayGameTest {
             // The button on the Freedoms page, then the page, then the confirm.
             MemberPages.freedoms(gil, null);
             press(helper, gil, Text.get("book.breakaway.button"));
-            helper.assertTrue(BookDialogs.LAST.get(gil.getUUID()).common().title().getString().equals(Text.get("book.breakaway.title")),
+            helper.assertTrue(BookDialogs.LAST.get(gil.getUUID()).title().equals(Text.get("book.breakaway.title")),
                     "The button did not open the Break away page");
             press(helper, gil, Text.get("book.breakaway.start"));
             press(helper, gil, Text.get("book.button.yes"));
@@ -88,7 +88,7 @@ public final class BreakawayGameTest {
             MemberPages.freedoms(gil, null);
             press(helper, gil, Text.get("book.leave.button"));
             helper.assertTrue(kit.rt.state.isMember(id(gil), org), "Pressing Leave left at once, with no confirm");
-            String shown = BookDialogs.LAST.get(gil.getUUID()).common().title().getString();
+            String shown = BookDialogs.LAST.get(gil.getUUID()).title();
             helper.assertTrue(shown.equals(Text.get("book.leave.title", "org", kit.rt.describe.org(org))), "The Leave button did not open the confirm: " + shown);
             press(helper, gil, Text.get("book.leave.yes"));
             helper.assertTrue(kit.rt.state.membership(id(gil)).isEmpty(), "Confirming did not leave the faction");

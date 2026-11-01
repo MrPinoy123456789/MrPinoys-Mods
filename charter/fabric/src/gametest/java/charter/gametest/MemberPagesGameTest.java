@@ -14,6 +14,7 @@ import charter.id.VoteId;
 import charter.mc.CharterRuntime;
 import charter.mc.Text;
 import charter.mc.book.BookDialogs;
+import charter.mc.book.BookScreen;
 import charter.mc.book.MemberPages;
 import charter.mc.cmd.CharterCommands;
 import charter.org.actions.AcceptInvite;
@@ -23,8 +24,6 @@ import charter.org.actions.InviteMember;
 import charter.org.actions.Rename;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.dialog.Dialog;
-import net.minecraft.server.dialog.body.PlainMessage;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -67,16 +66,14 @@ public final class MemberPagesGameTest {
     }
 
     private static List<String> body(ServerPlayer player) {
-        Dialog dialog = BookDialogs.LAST.get(player.getUUID());
+        BookScreen dialog = BookDialogs.LAST.get(player.getUUID());
         List<String> out = new ArrayList<>();
-        for (var b : dialog.common().body()) {
-            if (b instanceof PlainMessage m) out.add(m.contents().getString());
-        }
+        out.addAll(dialog.bodyText());
         return out;
     }
 
     private static void hasButton(GameTestHelper helper, ServerPlayer player, String page) {
-        Dialog dialog = BookDialogs.LAST.get(player.getUUID());
+        BookScreen dialog = BookDialogs.LAST.get(player.getUUID());
         helper.assertTrue(dialog != null, "The " + page + " page sent no dialog");
         helper.assertTrue(!BookDialogs.buttons(dialog).isEmpty(), "The " + page + " page has no button");
     }
@@ -202,7 +199,7 @@ public final class MemberPagesGameTest {
             ServerPlayer plain = member(kit, org);
             MemberPages.whoDecides(plain, null);
             helper.assertTrue(BookDialogs.buttons(BookDialogs.LAST.get(plain.getUUID())).stream()
-                    .noneMatch(b -> b.button().label().getString().equals(Text.get("book.decides.to_lordship"))),
+                    .noneMatch(b -> b.label().equals(Text.get("book.decides.to_lordship"))),
                     "A member who is not a decider was offered the deciders' changes");
             helper.assertTrue(body(plain).stream().anyMatch(l -> l.contains("you can break away")),
                     "A member who is not a decider was not told who decides: " + body(plain));
@@ -244,7 +241,7 @@ public final class MemberPagesGameTest {
             MemberPages.faction(lord, null);
             press(helper, lord, Text.get("book.button.reject", "player", name));
             helper.assertTrue(kit.rt.state.joinRequest(org, id(second)).isPresent(), "Reject acted before the confirm screen");
-            helper.assertTrue(BookDialogs.LAST.get(lord.getUUID()) instanceof net.minecraft.server.dialog.ConfirmationDialog,
+            helper.assertTrue(BookDialogs.LAST.get(lord.getUUID()).kind() == BookScreen.Kind.CONFIRM,
                     "Reject showed no confirm screen");
             press(helper, lord, Text.get("book.button.yes"));
             helper.assertTrue(kit.rt.state.joinRequest(org, id(second)).isEmpty(), "The confirmed Reject left the request");

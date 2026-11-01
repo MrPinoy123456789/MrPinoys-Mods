@@ -14,8 +14,6 @@ import charter.org.actions.ChooseMercenaryRace;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.dialog.ActionButton;
-import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
@@ -47,11 +45,11 @@ public final class NewcomerPages {
         return new PlayerId(player.getUUID());
     }
 
-    private static ActionButton go(ServerPlayer player, String label, Consumer<ServerPlayer> page) {
+    private static BookButton go(ServerPlayer player, String label, Consumer<ServerPlayer> page) {
         return BookDialogs.act(player, label, null, page);
     }
 
-    private static List<DialogBody> lines(String notice, List<DialogBody> body) {
+    private static List<net.minecraft.network.chat.Component> lines(String notice, List<net.minecraft.network.chat.Component> body) {
         return BookDialogs.withNotice(notice, body);
     }
 
@@ -67,7 +65,7 @@ public final class NewcomerPages {
     public static void home(ServerPlayer player, String notice) {
         if (!alone(player)) return;
         CharterRuntime rt = rt();
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         Optional<JoinRequest> asked = rt.state.joinRequestOf(me(player));
         if (asked.isPresent()) {
             body.add(BookDialogs.text(Text.get("book.newcomer.waiting", "org", rt.describe.org(asked.get().org()))));
@@ -79,7 +77,7 @@ public final class NewcomerPages {
         body.add(BookDialogs.text(Text.get("book.calendar.seasons", "seasons", MemberPages.seasonNames())));
         body.add(BookDialogs.text(Text.get("book.calendar.days")));
         // Travel first, as on a member's Home; a newcomer has no keep or outpost to go to.
-        List<ActionButton> buttons = new ArrayList<>(TravelButtons.of(player, false, NewcomerPages::home));
+        List<BookButton> buttons = new ArrayList<>(TravelButtons.of(player, false, NewcomerPages::home));
         // An invitation is accepted here: the chat link for it cannot be clicked on Bedrock.
         for (charter.org.Invite invite : rt.state.invites()) {
             if (!invite.player().equals(me(player)) || rt.state.org(invite.org()).isEmpty()) continue;
@@ -89,7 +87,7 @@ public final class NewcomerPages {
                     new charter.org.actions.AcceptInvite(me(p), inviter),
                     line -> {
                         if (line != null) home(p, line);
-                        else MemberPages.home(p, Text.get("join.done", "org", orgName));
+                        else MemberPages.home(p, BookResult.ok(Text.get("join.done", "org", orgName)));
                     })));
         }
         buttons.add(go(player, Text.get("book.button.join"), p -> join(p, null)));
@@ -107,11 +105,11 @@ public final class NewcomerPages {
         if (!alone(player)) return;
         CharterRuntime rt = rt();
         Optional<OrgId> current = rt.state.raceOf(me(player));
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("book.merc.intro")));
         body.add(BookDialogs.text(Text.get("book.merc.rules")));
         if (current.isPresent()) body.add(BookDialogs.text(Text.get("book.merc.status", "race", rt.state.raceLabel(current.get()))));
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         // Someone who already has a race can be a mercenary of it; someone with none chooses from the ordinary kingdoms.
         List<Organization> offered = current.isPresent() ? rt.state.org(current.get()).stream().toList()
                 : rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
@@ -120,7 +118,7 @@ public final class NewcomerPages {
             OrgId id = org.id;
             buttons.add(go(player, Text.get("book.merc.take", "race", org.raceLabel()), p -> BookRouter.run(p,
                     new ChooseMercenaryRace(me(p), id),
-                    line -> mercenary(p, line != null ? line : Text.get("book.merc.done", "race", org.raceLabel())))));
+                    line -> mercenary(p, BookResult.of(line, Text.get("book.merc.done", "race", org.raceLabel()))))));
         }
         if (current.isEmpty() && buttons.isEmpty()) body.add(BookDialogs.text(Text.get("book.merc.none")));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.merc.title"), lines(notice, body), buttons,
@@ -134,8 +132,8 @@ public final class NewcomerPages {
         CharterRuntime rt = rt();
         List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
                 .sorted(Comparator.comparingInt((Organization o) -> rt.state.members(o.id).size()).reversed()).toList();
-        List<DialogBody> body = new ArrayList<>();
-        List<ActionButton> buttons = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         if (orgs.isEmpty()) {
             body.add(BookDialogs.text(Text.get("book.join.none")));
             if (rt.knobs.playerFounding) buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)));
@@ -170,7 +168,7 @@ public final class NewcomerPages {
         }
         long now = rt.clock.now();
         Standing.View v = Standing.asNewcomer(rt.state, rt.engine, id, now);
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         long keeps = rt.state.coresOf(id).stream().filter(c -> c.isKeep()).count();
         String formTip = MemberPages.formTip(v.form(),
                 rt.state.org(id).map(o -> o.governance.deciders).flatMap(rt.state::office).orElse(null));
@@ -191,13 +189,13 @@ public final class NewcomerPages {
         // Say plainly what a member can and cannot do about their ruler.
         body.add(BookDialogs.text(Text.get(v.form() == Standing.Form.COMMUNE ? "book.join.commune_rule"
                 : rt.knobs.playerFounding ? "book.join.no_vote" : "book.join.no_vote_set")));
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         Optional<JoinRequest> asked = rt.state.joinRequestOf(me(player));
         if (asked.isPresent() && asked.get().org().equals(id)) {
             body.add(BookDialogs.text(Text.get("book.join.waiting")));
         } else if (asked.isEmpty()) {
             buttons.add(go(player, Text.get("book.button.ask"), p -> BookRouter.run(p, new Apply(me(p), id),
-                    line -> faction(p, id, line != null ? line : Text.get("book.join.asked", "org", rt.describe.org(id))))));
+                    line -> faction(p, id, BookResult.of(line, Text.get("book.join.asked", "org", rt.describe.org(id)))))));
         }
         BookDialogs.show(player, BookDialogs.list(v.orgName(), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> join(p, null))));
@@ -244,7 +242,7 @@ public final class NewcomerPages {
                 Text.get("book.found.step_craft"),
                 Text.get("book.found.step_diamonds", "price", rt.knobs.keepPriceDiamonds, "have", diamondsCarried(player)),
                 Text.get("book.found.step_place")};
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("book.found.intro")));
         boolean current = true;
         for (int i = 0; i < STEPS; i++) {

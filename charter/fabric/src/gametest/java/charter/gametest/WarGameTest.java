@@ -6,6 +6,7 @@ import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.Text;
 import charter.mc.book.BookDialogs;
+import charter.mc.book.BookScreen;
 import charter.mc.book.WarPages;
 import charter.mc.cmd.CharterCommands;
 import charter.mc.land.LandItems;
@@ -16,8 +17,6 @@ import charter.time.Durations;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.dialog.Dialog;
-import net.minecraft.server.dialog.body.PlainMessage;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 
@@ -39,11 +38,9 @@ public final class WarGameTest {
     }
 
     private static List<String> body(ServerPlayer player) {
-        Dialog dialog = BookDialogs.LAST.get(player.getUUID());
+        BookScreen dialog = BookDialogs.LAST.get(player.getUUID());
         List<String> out = new ArrayList<>();
-        for (var b : dialog.common().body()) {
-            if (b instanceof PlainMessage m) out.add(m.contents().getString());
-        }
+        out.addAll(dialog.bodyText());
         return out;
     }
 

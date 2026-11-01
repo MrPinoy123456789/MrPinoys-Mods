@@ -2,7 +2,6 @@ package charter.mc.book;
 
 import charter.mc.Text;
 import charter.mc.cmd.Teleports;
-import net.minecraft.server.dialog.ActionButton;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -21,8 +20,8 @@ final class TravelButtons {
     }
 
     /** Everyone can go home to a bed, to spawn and to the hub; only a member has a keep and an outpost. */
-    static List<ActionButton> of(ServerPlayer player, boolean member, BiConsumer<ServerPlayer, String> page) {
-        List<ActionButton> out = new ArrayList<>();
+    static List<BookButton> of(ServerPlayer player, boolean member, BiConsumer<ServerPlayer, String> page) {
+        List<BookButton> out = new ArrayList<>();
         out.add(button(player, Teleports.Kind.HOME, "book.travel.home", page));
         if (member) {
             out.add(button(player, Teleports.Kind.KEEP, "book.travel.keep", page));
@@ -33,7 +32,7 @@ final class TravelButtons {
         return out;
     }
 
-    private static ActionButton button(ServerPlayer player, Teleports.Kind kind, String label, BiConsumer<ServerPlayer, String> page) {
+    private static BookButton button(ServerPlayer player, Teleports.Kind kind, String label, BiConsumer<ServerPlayer, String> page) {
         return BookDialogs.act(player, Text.get(label), null, p -> {
             String refusal = Teleports.start(p, kind);
             if (refusal != null) page.accept(p, refusal);

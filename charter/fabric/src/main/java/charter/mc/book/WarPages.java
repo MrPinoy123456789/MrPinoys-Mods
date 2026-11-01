@@ -12,8 +12,6 @@ import charter.mc.cmd.Chat;
 import charter.org.MemberRecord;
 import charter.siege.WarBook;
 import charter.siege.actions.DeclareWar;
-import net.minecraft.server.dialog.ActionButton;
-import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -63,7 +61,7 @@ public final class WarPages {
         List<Core> mine = rt.state.cores().stream()
                 .filter(c -> !c.isKeep() && c.activeCamp() && rt.state.root(c.owner).equals(nation)).toList();
         var land = new charter.land.LandGraph(rt.state, rt.knobs);
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         if (mine.isEmpty()) {
             body.add(Text.get("book.war.need_outpost"));
         } else {
@@ -83,7 +81,7 @@ public final class WarPages {
             }
             if (shown == 0) body.add(Text.get("book.war.no_targets"));
         }
-        List<DialogBody> text = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> text = new ArrayList<>();
         for (String line : body) text.add(BookDialogs.text(line));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.war.title"), BookDialogs.withNotice(notice, text), buttons,
                 BookDialogs.back(player, p -> MemberPages.home(p, null))));
@@ -123,20 +121,20 @@ public final class WarPages {
         Core from = rt.state.cores().stream().filter(c -> !c.isKeep() && c.activeCamp() && rt.state.root(c.owner).equals(nation)
                 && land.touching(c, target)).findFirst().orElse(null);
         CoreId fromId = from == null ? null : from.id;
-        List<DialogBody> body = List.of(
+        List<net.minecraft.network.chat.Component> body = List.of(
                 BookDialogs.text(Text.get("book.war.confirm", "org", org, "site", rt.describe.core(outpost),
                         "from", from == null ? "?" : rt.describe.core(from.id))),
                 BookDialogs.text(Text.get("book.war.confirm_skin")),
                 BookDialogs.text(Text.get("book.war.confirm_notice", "hours", rt.knobs.warGoalNoticeHours, "minutes", rt.knobs.outpostCaptureMinutes,
                         "total", rt.knobs.warGoalHours)),
                 BookDialogs.text(Text.get("book.war.confirm_lapse", "days", rt.knobs.truceDays)));
-        ActionButton yes = BookDialogs.act(player, Text.get("book.war.declare_yes"), null, p -> {
+        BookButton yes = BookDialogs.act(player, Text.get("book.war.declare_yes"), null, p -> {
             OrgId n = nation(p);
             if (n == null) {
                 page(p, null);
                 return;
             }
-            BookRouter.run(p, new DeclareWar(n, outpost, fromId), line -> page(p, line != null ? line : Text.get("book.war.declared")));
+            BookRouter.run(p, new DeclareWar(n, outpost, fromId), line -> page(p, BookResult.of(line, Text.get("book.war.declared"))));
         });
         BookDialogs.show(player, BookDialogs.confirm(Text.get("book.war.title"), body, yes, BookDialogs.back(player, p -> page(p, null))));
     }

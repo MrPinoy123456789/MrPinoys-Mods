@@ -1,6 +1,7 @@
 package charter.gametest;
 
 import charter.mc.book.BookDialogs;
+import charter.mc.book.BookScreen;
 import charter.mc.book.BookMod;
 import charter.mc.book.CharterBook;
 import charter.mc.book.MemberPages;
@@ -12,7 +13,6 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.dialog.Dialog;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -40,10 +40,10 @@ public final class BookGameTest {
     }
 
     /** The title and the button labels, which is all a test can see of a dialog. */
-    private static List<String> shape(Dialog dialog) {
+    private static List<String> shape(BookScreen dialog) {
         List<String> out = new ArrayList<>();
-        out.add(dialog.common().title().getString());
-        for (var button : BookDialogs.buttons(dialog)) out.add(button.button().label().getString());
+        out.add(dialog.title());
+        for (var button : BookDialogs.buttons(dialog)) out.add(button.label());
         return out;
     }
 
@@ -189,12 +189,12 @@ public final class BookGameTest {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         BookDialogs.LAST.remove(player.getUUID());
         command(player, "charter");
-        Dialog byCommand = BookDialogs.LAST.get(player.getUUID());
+        BookScreen byCommand = BookDialogs.LAST.get(player.getUUID());
         helper.assertTrue(byCommand != null, "/charter sent no dialog");
         BookDialogs.LAST.remove(player.getUUID());
         player.setItemInHand(InteractionHand.MAIN_HAND, CharterBook.create());
         CharterBook.use(player, InteractionHand.MAIN_HAND);
-        Dialog byBook = BookDialogs.LAST.get(player.getUUID());
+        BookScreen byBook = BookDialogs.LAST.get(player.getUUID());
         helper.assertTrue(byBook != null, "The book sent no dialog");
         helper.assertTrue(shape(byCommand).equals(shape(byBook)), "The command and the book differ: " + shape(byCommand) + " and " + shape(byBook));
 
@@ -217,8 +217,8 @@ public final class BookGameTest {
             b.setItemInHand(InteractionHand.MAIN_HAND, book);
             BookDialogs.LAST.remove(b.getUUID());
             CharterBook.use(b, InteractionHand.MAIN_HAND);
-            String titleA = BookDialogs.LAST.get(a.getUUID()).common().title().getString();
-            String titleB = BookDialogs.LAST.get(b.getUUID()).common().title().getString();
+            String titleA = BookDialogs.LAST.get(a.getUUID()).title();
+            String titleB = BookDialogs.LAST.get(b.getUUID()).title();
             helper.assertTrue(titleA.equals(kit.rt.describe.org(kit.orgOf(a))), "Home A is not about faction A: " + titleA);
             helper.assertTrue(titleB.equals(kit.rt.describe.org(kit.orgOf(b))), "Home B is not about faction B: " + titleB);
             helper.assertTrue(!titleA.equals(titleB), "Both players saw the same faction");

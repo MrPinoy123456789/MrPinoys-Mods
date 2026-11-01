@@ -21,6 +21,7 @@
       "charter.gametest.JusticeGameTest",
       "charter.gametest.ChronicleGameTest",
       "charter.gametest.BookGameTest",
+      "charter.gametest.BookScreenGameTest",
       "charter.gametest.MemberPagesGameTest",
       "charter.gametest.FoundingGameTest",
       "charter.gametest.BreakawayGameTest",

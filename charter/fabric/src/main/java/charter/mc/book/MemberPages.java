@@ -31,8 +31,6 @@ import charter.org.MemberRecord;
 import charter.org.Organization;
 import charter.org.actions.Admit;
 import charter.org.actions.Reject;
-import net.minecraft.server.dialog.ActionButton;
-import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -71,8 +69,8 @@ public final class MemberPages {
     }
 
     /** Each item is a plain String or a styled Component, shown as its own paragraph. */
-    private static List<DialogBody> lines(String notice, List<?> lines) {
-        List<DialogBody> body = new ArrayList<>();
+    private static List<net.minecraft.network.chat.Component> lines(String notice, List<?> lines) {
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         for (Object line : lines) {
             if (line instanceof net.minecraft.network.chat.Component c) body.add(BookDialogs.text(c));
             else body.add(BookDialogs.text(String.valueOf(line)));
@@ -90,7 +88,7 @@ public final class MemberPages {
         };
     }
 
-    private static ActionButton go(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> page) {
+    private static BookButton go(ServerPlayer player, String label, java.util.function.Consumer<ServerPlayer> page) {
         return BookDialogs.act(player, label, null, page);
     }
 
@@ -118,7 +116,7 @@ public final class MemberPages {
         };
         String offices = v.yourOffices().isEmpty() ? Text.get("book.home.no_office") : String.join(", ", v.yourOffices());
         // Travel comes first: it is what players reach for most, and Bedrock players cannot type /home or /keep.
-        List<ActionButton> buttons = new java.util.ArrayList<>(TravelButtons.of(player, true, MemberPages::home));
+        List<BookButton> buttons = new java.util.ArrayList<>(TravelButtons.of(player, true, MemberPages::home));
         if (LeaderPages.leads(player)) buttons.add(go(player, Text.get("book.button.leader"), p -> LeaderPages.desk(p, null)));
         buttons.add(go(player, Text.get("book.button.rights"), p -> rights(p, null)));
         buttons.add(go(player, Text.get("book.button.freedoms"), p -> freedoms(p, null)));
@@ -130,7 +128,7 @@ public final class MemberPages {
                 p -> charter.mc.cmd.LandCommands.trinkets(p)));
         buttons.add(go(player, Text.get("book.button.borders"), p -> {
             boolean on = charter.mc.land.Signals.toggleBorders(p.getUUID());
-            home(p, Text.get(on ? "book.borders.on" : "book.borders.off"));
+            home(p, BookResult.ok(Text.get(on ? "book.borders.on" : "book.borders.off")));
         }));
         String tip = formTip(v.form(), deciders(v.org()));
         net.minecraft.network.chat.Component formLine = net.minecraft.network.chat.Component.literal(
@@ -194,7 +192,7 @@ public final class MemberPages {
         if (v.form() != Standing.Form.COMMUNE) {
             body.add(Text.get(breakaway ? "book.freedoms.no_vote" : "book.freedoms.no_vote_set"));
         }
-        List<ActionButton> exits = new ArrayList<>();
+        List<BookButton> exits = new ArrayList<>();
         exits.add(BookDialogs.act(player, Text.get("book.leave.button"), null, p -> leaveConfirm(p)));
         if (breakaway) exits.add(BreakawayPages.button(player));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body), exits,
@@ -205,14 +203,14 @@ public final class MemberPages {
     static void leaveConfirm(ServerPlayer player) {
         if (!member(player)) return;
         Standing.View v = view(player).orElseThrow();
-        ActionButton yes = BookDialogs.act(player, Text.get("book.leave.yes"), null, p -> {
+        BookButton yes = BookDialogs.act(player, Text.get("book.leave.yes"), null, p -> {
             PlayerId me = me(p);
             BookRouter.run(p, new charter.org.actions.Leave(me), line -> {
                 if (line != null) freedoms(p, line);
-                else NewcomerPages.home(p, Text.get("leave.done", "org", v.orgName()));
+                else NewcomerPages.home(p, BookResult.ok(Text.get("leave.done", "org", v.orgName())));
             });
         });
-        ActionButton no = BookDialogs.back(player, p -> freedoms(p, null));
+        BookButton no = BookDialogs.back(player, p -> freedoms(p, null));
         BookDialogs.show(player, BookDialogs.confirm(Text.get("book.leave.title", "org", v.orgName()),
                 List.of(BookDialogs.text(Text.get("book.leave.confirm", "org", v.orgName())),
                         BookDialogs.text(Text.get("book.leave.cooldown", "days", rt().knobs.foundSecedeCooldownDays))), yes, no));
@@ -248,7 +246,7 @@ public final class MemberPages {
             owed.forEach((item, n) -> things.add(n + " " + item.substring(item.indexOf(':') + 1).replace('_', ' ')));
             body.add(Text.get("book.situation.owed", "list", String.join(", ", things)));
         }
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         for (VoteId id : v.votesWaiting()) {
             Optional<Vote> vote = rt.state.vote(id);
             if (vote.isEmpty()) continue;
@@ -276,7 +274,7 @@ public final class MemberPages {
                 : Text.get("book.vote.closed", "result", Text.get("vote.state." + vote.state().name().toLowerCase(java.util.Locale.ROOT))));
         Vote.Ballot yours = vote.ballots().get(me);
         if (yours != null) body.add(Text.get("book.vote.yours", "ballot", ballotText(rt, yours)));
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         if (vote.open() && vote.electorate.contains(me)) {
             if (vote.kind == Vote.Kind.ELECTION) {
                 int shown = 0;
@@ -365,7 +363,7 @@ public final class MemberPages {
             body.add(Text.get("book.faction.no_keep"));
         }
 
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         for (Vote vote : rt.state.votes()) {
             if (!vote.open() || !vote.org.equals(org)) continue;
             VoteId id = vote.id;
@@ -380,7 +378,7 @@ public final class MemberPages {
                 String name = d.player(applicant);
                 body.add(Text.get("book.faction.asks", "player", name));
                 buttons.add(go(player, Text.get("book.button.admit", "player", name), p -> BookRouter.run(p, new Admit(org, applicant),
-                        line -> faction(p, line != null ? line : Text.get("book.faction.admitted", "player", name)))));
+                        line -> faction(p, BookResult.of(line, Text.get("book.faction.admitted", "player", name))))));
                 buttons.add(go(player, Text.get("book.button.reject", "player", name), p -> confirmReject(p, org, applicant)));
             }
         }
@@ -401,9 +399,9 @@ public final class MemberPages {
 
     private static void confirmReject(ServerPlayer player, OrgId org, PlayerId applicant) {
         String name = rt().describe.player(applicant);
-        ActionButton yes = BookDialogs.act(player, Text.get("book.button.yes"), null, p -> BookRouter.run(p,
-                new Reject(org, applicant), line -> faction(p, line != null ? line : Text.get("book.faction.rejected", "player", name))));
-        ActionButton no = BookDialogs.back(player, p -> faction(p, null));
+        BookButton yes = BookDialogs.act(player, Text.get("book.button.yes"), null, p -> BookRouter.run(p,
+                new Reject(org, applicant), line -> faction(p, BookResult.of(line, Text.get("book.faction.rejected", "player", name)))));
+        BookButton no = BookDialogs.back(player, p -> faction(p, null));
         BookDialogs.show(player, BookDialogs.confirm(Text.get("book.reject.title"),
                 List.of(BookDialogs.text(Text.get("book.reject.confirm", "player", name))), yes, no));
     }
@@ -448,7 +446,7 @@ public final class MemberPages {
             return;
         }
         List<String> body = new ArrayList<>();
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         if (deciders != null && deciders.holds(me(player))) {
             body.add(Text.get("book.decides.own"));
             body.add(Text.get("book.decides.now", "now", choiceText(deciders.seats(), deciders.deciding())));
@@ -474,7 +472,7 @@ public final class MemberPages {
         Standing.View v = view(player).orElseThrow();
         Office deciders = deciders(v.org());
         if (deciders == null) return;
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         for (int n = 2; n <= 5; n++) {
             if (n == deciders.seats() && how == deciders.deciding()) continue;
             int seats = n;
@@ -488,7 +486,7 @@ public final class MemberPages {
     /** The office changes its own form: a lone Lord at once, a council by a majority of its seats. */
     private static void changeForm(ServerPlayer player, OrgId org, OfficeId office, int seats, Office.Deciding how) {
         BookRouter.run(player, new SetSeats(org, office, seats, how),
-                line -> whoDecides(player, line != null ? line : Text.get("book.decides.changed")));
+                line -> whoDecides(player, BookResult.of(line, Text.get("book.decides.changed"))));
     }
 
     /** A Commune only: its members vote on its form. */
@@ -498,7 +496,7 @@ public final class MemberPages {
         Office deciders = deciders(v.org());
         List<String> body = new ArrayList<>();
         body.add(Text.get("book.decides.intro"));
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         if (deciders != null && deciders.seats() == 0) {
             for (int seats = 1; seats <= 5; seats++) {
                 for (Office.Deciding deciding : Office.Deciding.values()) {
