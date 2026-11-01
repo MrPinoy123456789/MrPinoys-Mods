@@ -50,7 +50,7 @@ def item(name, weight=None, count=None):
     if weight is not None:
         entry['weight'] = weight
     if count is not None:
-        entry['functions'] = [{'function': 'minecraft:set_count',
+        entry['modifier'] = [{'type': 'minecraft:set_count',
                                'count': {'min': count[0], 'max': count[1]}}]
     return entry
 

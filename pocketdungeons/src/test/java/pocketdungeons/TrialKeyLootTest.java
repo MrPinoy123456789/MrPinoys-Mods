@@ -69,7 +69,7 @@ public class TrialKeyLootTest {
             if (obj.has("type") && "minecraft:item".equals(obj.get("type").getAsString())
                     && obj.has("name") && KEYS.contains(obj.get("name").getAsString())) {
                 found++;
-                JsonArray functions = obj.getAsJsonArray("functions");
+                JsonArray functions = obj.getAsJsonArray("modifier");
                 if (functions != null && !functions.isEmpty()) {
                     dressed.add(file + " (" + obj.get("name").getAsString() + ")");
                 }

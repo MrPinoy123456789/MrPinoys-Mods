@@ -8,9 +8,9 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond_pickaxe",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_with_levels",
+              "type": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
                 "min": 25,
@@ -19,7 +19,7 @@
               "options": "#pocketdungeons:random_loot"
             },
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -29,7 +29,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -42,9 +42,9 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond_axe",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_with_levels",
+              "type": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
                 "min": 25,
@@ -53,7 +53,7 @@
               "options": "#pocketdungeons:random_loot"
             },
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -63,7 +63,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,
@@ -76,9 +76,9 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond_shovel",
           "weight": 2,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_with_levels",
+              "type": "minecraft:enchant_with_levels",
               "levels": {
                 "type": "minecraft:uniform",
                 "min": 25,
@@ -87,7 +87,7 @@
               "options": "#pocketdungeons:random_loot"
             },
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -97,7 +97,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0.1,

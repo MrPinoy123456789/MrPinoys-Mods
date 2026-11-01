@@ -192,6 +192,7 @@ final class Bags {
                 .create(LootContextParamSets.CHEST);
         ObjectArrayList<ItemStack> rolled = level.getServer().reloadableRegistries()
                 .getLootTable(key).getRandomItems(params, level.getRandom().nextLong());
+        PocketDungeonsMod.LOG.info("DEBUGKIT {} -> {}", key.identifier(), rolled);
         return new ArrayList<>(rolled);
     }
 

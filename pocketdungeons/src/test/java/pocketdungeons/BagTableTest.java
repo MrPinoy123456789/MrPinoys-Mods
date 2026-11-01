@@ -294,13 +294,13 @@ public class BagTableTest {
     }
 
     private static boolean hasBagTag(JsonObject entry) {
-        JsonArray functions = entry.getAsJsonArray("functions");
+        JsonArray functions = entry.getAsJsonArray("modifier");
         if (functions == null) {
             return false;
         }
         for (JsonElement element : functions) {
             JsonObject function = element.getAsJsonObject();
-            if (!"minecraft:set_components".equals(string(function, "function"))) {
+            if (!"minecraft:set_components".equals(string(function, "type"))) {
                 continue;
             }
             JsonObject components = function.getAsJsonObject("components");

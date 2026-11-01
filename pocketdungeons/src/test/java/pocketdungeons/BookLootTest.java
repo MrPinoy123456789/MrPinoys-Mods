@@ -45,7 +45,7 @@ public class BookLootTest {
             JsonObject object = node.getAsJsonObject();
             if (object.has("name") && object.get("name").isJsonPrimitive()
                     && "minecraft:enchanted_book".equals(object.get("name").getAsString())
-                    && object.has("functions") && object.get("functions").toString().contains("enchant_with_levels")) {
+                    && object.has("modifier") && object.get("modifier").toString().contains("enchant_with_levels")) {
                 throw new AssertionError(table + ": minecraft:enchanted_book enchanted with enchant_with_levels "
                         + "rolls a blank book; name minecraft:book instead");
             }

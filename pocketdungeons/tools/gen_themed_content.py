@@ -126,25 +126,25 @@ def item_entry(name, weight, count=None, damage=False, custom_data=None):
     functions = []
     if count is not None:
         if isinstance(count, tuple):
-            functions.append({'function': 'minecraft:set_count',
+            functions.append({'type': 'minecraft:set_count',
                               'count': {'type': 'minecraft:uniform',
                                         'min': count[0], 'max': count[1]}})
         else:
-            functions.append({'function': 'minecraft:set_count', 'count': count})
+            functions.append({'type': 'minecraft:set_count', 'count': count})
     mine = {'bag': 1} if 'minecraft:' + name in UNSTACKABLE or custom_data else {}
     if custom_data:
         mine.update(custom_data)
     components = {'minecraft:custom_data': {'pocketdungeons': mine}} if mine else {}
     if components:
-        functions.append({'function': 'minecraft:set_components',
+        functions.append({'type': 'minecraft:set_components',
                           'components': components})
     if damage:
-        functions.append({'function': 'minecraft:set_damage',
+        functions.append({'type': 'minecraft:set_damage',
                           'damage': {'type': 'minecraft:uniform',
                                      'min': 0.1, 'max': 0.6}})
     entry = {'type': 'minecraft:item', 'name': 'minecraft:' + name}
     if functions:
-        entry['functions'] = functions
+        entry['modifier'] = functions
     if weight is not None:
         entry['weight'] = weight
     return entry

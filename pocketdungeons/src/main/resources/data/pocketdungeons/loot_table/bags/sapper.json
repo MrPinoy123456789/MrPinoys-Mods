@@ -7,9 +7,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:tnt",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 3
             }
           ]
@@ -22,9 +22,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:flint_and_steel",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -43,9 +43,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:stone_pickaxe",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -64,9 +64,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:bread",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 8
             }
           ]

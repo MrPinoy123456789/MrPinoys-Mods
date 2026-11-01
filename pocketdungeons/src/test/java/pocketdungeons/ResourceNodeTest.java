@@ -340,10 +340,10 @@ public class ResourceNodeTest {
                         if (entry.has("name") && entry.get("name").getAsString().equals("minecraft:torch")) {
                             tables++;
                             JsonObject carrier = pool.getAsJsonArray("entries").size() == 1 ? pool : entry;
-                            check(carrier.has("conditions"), file.getFileName() + ": torch has a chance condition");
-                            JsonObject cond = carrier.getAsJsonArray("conditions").get(0).getAsJsonObject();
+                            check(carrier.has("condition"), file.getFileName() + ": torch has a chance condition");
+                            JsonObject cond = carrier.getAsJsonObject("condition");
                             double chance = cond.get("chance").getAsDouble();
-                            check(cond.get("condition").getAsString().equals("minecraft:random_chance")
+                            check(cond.get("type").getAsString().equals("minecraft:random_chance")
                                     && chance > 0.3 && chance < 0.4, file.getFileName() + ": about a third");
                         }
                     }

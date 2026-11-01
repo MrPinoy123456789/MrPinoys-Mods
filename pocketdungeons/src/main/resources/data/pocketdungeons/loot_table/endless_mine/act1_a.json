@@ -2,16 +2,24 @@
   "type": "minecraft:chest",
   "pools": [
     {
-      "rolls": { "type": "minecraft:uniform", "min": 2, "max": 3 },
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 2,
+        "max": 3
+      },
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:coal",
           "weight": 6,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 3, "max": 6 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 3,
+                "max": 6
+              }
             }
           ]
         },
@@ -19,10 +27,14 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 3 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
             }
           ]
         },
@@ -30,10 +42,14 @@
           "type": "minecraft:item",
           "name": "minecraft:copper_ingot",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 2, "max": 4 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 4
+              }
             }
           ]
         },
@@ -41,10 +57,14 @@
           "type": "minecraft:item",
           "name": "minecraft:cobblestone",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 4, "max": 10 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 4,
+                "max": 10
+              }
             }
           ]
         },
@@ -52,10 +72,14 @@
           "type": "minecraft:item",
           "name": "minecraft:torch",
           "weight": 2,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 2, "max": 4 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 4
+              }
             }
           ]
         }

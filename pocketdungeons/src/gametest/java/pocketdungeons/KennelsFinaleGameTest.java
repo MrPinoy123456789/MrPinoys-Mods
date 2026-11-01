@@ -264,7 +264,7 @@ public final class KennelsFinaleGameTest {
         /** A killing blow on the Alpha: the spine's clamp holds it at its next bound. */
         void burst() {
             Mob alpha = alpha();
-            alpha.setInvulnerableTime(0);
+            alpha.damageCooldownTime = 0;
             alpha.hurtServer(level, level.damageSources().generic(), 1000.0f);
         }
 

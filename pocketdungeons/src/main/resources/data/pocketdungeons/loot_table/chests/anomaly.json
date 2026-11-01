@@ -3,20 +3,18 @@
   "pools": [
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.3
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.3
+      },
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:diamond",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
@@ -29,9 +27,9 @@
           "type": "minecraft:item",
           "name": "minecraft:emerald",
           "weight": 2,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
@@ -44,20 +42,18 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.25
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.25
+      },
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:echo_shard",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -68,7 +64,7 @@
               }
             },
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "Sandstone Shell",
                 "italic": false,
@@ -77,7 +73,7 @@
               "target": "custom_name"
             },
             {
-              "function": "minecraft:set_lore",
+              "type": "minecraft:set_lore",
               "mode": "replace_all",
               "lore": [
                 {
@@ -93,9 +89,9 @@
           "type": "minecraft:item",
           "name": "minecraft:echo_shard",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -106,7 +102,7 @@
               }
             },
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "Deepslate Shell",
                 "italic": false,
@@ -115,7 +111,7 @@
               "target": "custom_name"
             },
             {
-              "function": "minecraft:set_lore",
+              "type": "minecraft:set_lore",
               "mode": "replace_all",
               "lore": [
                 {

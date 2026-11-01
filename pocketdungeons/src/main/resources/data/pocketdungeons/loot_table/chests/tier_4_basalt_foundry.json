@@ -12,10 +12,14 @@
           "type": "minecraft:item",
           "name": "minecraft:lapis_lazuli",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -32,9 +36,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:cobblestone",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,

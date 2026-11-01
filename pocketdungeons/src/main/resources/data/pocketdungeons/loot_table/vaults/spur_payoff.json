@@ -2,16 +2,24 @@
   "type": "minecraft:chest",
   "pools": [
     {
-      "rolls": { "type": "minecraft:uniform", "min": 2, "max": 3 },
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 2,
+        "max": 3
+      },
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 8,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 3 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
             }
           ]
         },
@@ -19,10 +27,14 @@
           "type": "minecraft:item",
           "name": "minecraft:emerald",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -30,10 +42,14 @@
           "type": "minecraft:item",
           "name": "minecraft:arrow",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 3, "max": 6 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 3,
+                "max": 6
+              }
             }
           ]
         },
@@ -41,10 +57,14 @@
           "type": "minecraft:item",
           "name": "minecraft:bread",
           "weight": 6,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 2, "max": 4 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 4
+              }
             }
           ]
         },
@@ -52,9 +72,9 @@
           "type": "minecraft:item",
           "name": "minecraft:stone_pickaxe",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -65,7 +85,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0,
@@ -78,9 +98,9 @@
           "type": "minecraft:item",
           "name": "minecraft:stone_axe",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_data": {
                   "pocketdungeons": {
@@ -91,7 +111,7 @@
               }
             },
             {
-              "function": "minecraft:set_damage",
+              "type": "minecraft:set_damage",
               "damage": {
                 "type": "minecraft:uniform",
                 "min": 0,

@@ -2,16 +2,24 @@
   "type": "minecraft:chest",
   "pools": [
     {
-      "rolls": { "type": "minecraft:uniform", "min": 1, "max": 2 },
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 1,
+        "max": 2
+      },
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:bread",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 3 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
             }
           ]
         },
@@ -19,10 +27,14 @@
           "type": "minecraft:item",
           "name": "minecraft:cooked_beef",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 3 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
             }
           ]
         },
@@ -30,37 +42,47 @@
           "type": "minecraft:item",
           "name": "minecraft:bread",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 3 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:torch",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ],
-          "conditions": [
-            {
-              "condition": "minecraft:random_chance",
-              "chance": 0.34
-            }
-          ]
+          "condition": {
+            "type": "minecraft:random_chance",
+            "chance": 0.34
+          }
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:cobblestone",
           "weight": 13,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -68,10 +90,14 @@
           "type": "minecraft:item",
           "name": "minecraft:cobblestone",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 5, "max": 13 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 5,
+                "max": 13
+              }
             }
           ]
         },
@@ -79,10 +105,14 @@
           "type": "minecraft:item",
           "name": "minecraft:cobblestone",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 4, "max": 10 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 4,
+                "max": 10
+              }
             }
           ]
         },
@@ -90,10 +120,14 @@
           "type": "minecraft:item",
           "name": "minecraft:cobblestone",
           "weight": 3,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 2, "max": 5 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 5
+              }
             }
           ]
         },
@@ -101,10 +135,14 @@
           "type": "minecraft:item",
           "name": "minecraft:oak_log",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -112,10 +150,14 @@
           "type": "minecraft:item",
           "name": "minecraft:oak_planks",
           "weight": 14,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 2, "max": 4 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 4
+              }
             }
           ]
         },
@@ -123,10 +165,14 @@
           "type": "minecraft:item",
           "name": "minecraft:bread",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -134,20 +180,28 @@
           "type": "minecraft:item",
           "name": "minecraft:bread",
           "weight": 4,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:diamond",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 1 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 1
+              }
             }
           ],
           "weight": 9
@@ -156,10 +210,14 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 10,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 4 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 4
+              }
             }
           ]
         },
@@ -167,10 +225,14 @@
           "type": "minecraft:item",
           "name": "minecraft:coal",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -178,10 +240,14 @@
           "type": "minecraft:item",
           "name": "minecraft:emerald",
           "weight": 7,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -189,10 +255,14 @@
           "type": "minecraft:item",
           "name": "minecraft:arrow",
           "weight": 2,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 3, "max": 9 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 3,
+                "max": 9
+              }
             }
           ]
         },
@@ -205,10 +275,14 @@
           "type": "minecraft:item",
           "name": "minecraft:book",
           "weight": 2,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_with_levels",
-              "levels": { "type": "minecraft:uniform", "min": 20, "max": 30 }
+              "type": "minecraft:enchant_with_levels",
+              "levels": {
+                "type": "minecraft:uniform",
+                "min": 20,
+                "max": 30
+              }
             }
           ]
         },
@@ -221,10 +295,14 @@
           "type": "minecraft:item",
           "name": "minecraft:lapis_lazuli",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
-              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
             }
           ]
         },
@@ -237,12 +315,10 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.08
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.08
+      },
       "entries": [
         {
           "type": "minecraft:item",

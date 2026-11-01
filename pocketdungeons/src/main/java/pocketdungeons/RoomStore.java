@@ -222,7 +222,7 @@ final class RoomStore {
             return true;
         }
         for (int i = 0; i < palette.size(); i++) {
-            String name = palette.getCompoundOrEmpty(i).getStringOr("Name", "");
+            String name = blockId(palette.getCompoundOrEmpty(i));
             if (!name.equals("minecraft:air")) {
                 return false;
             }
@@ -421,5 +421,10 @@ final class RoomStore {
             PocketDungeonsMod.LOG.error("Could not read room blob {}", path, e);
             return null;
         }
+    }
+
+    /** A palette entry's block id: {@code id} since 26.3, {@code Name} in templates saved before it. */
+    static String blockId(net.minecraft.nbt.CompoundTag entry) {
+        return entry.getStringOr("id", entry.getStringOr("Name", ""));
     }
 }

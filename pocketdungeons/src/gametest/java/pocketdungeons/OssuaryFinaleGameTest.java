@@ -148,7 +148,7 @@ public final class OssuaryFinaleGameTest {
     private static void burst(Run run) {
         Mob boss = run.boss();
         boss.setPermanentlyInvulnerable(false);
-        boss.setInvulnerableTime(0);
+        boss.damageCooldownTime = 0;
         boss.hurtServer(run.level, run.level.damageSources().generic(), 1000.0f);
     }
 

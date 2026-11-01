@@ -87,7 +87,7 @@ public final class BossFightClampGameTest {
             FinaleWave.step(server, level, record, FINALE, List.of(member), false, "Test Room");
             helper.assertTrue(script.armed.equals(List.of(0, 1)), "phase two armed after the stagger");
             // Second killing blow: held at the 1/3 bound.
-            boss.setInvulnerableTime(0);
+            boss.damageCooldownTime = 0;
             boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
             helper.assertTrue(boss.isAlive() && Math.abs(boss.getHealth() - boss.getMaxHealth() / 3.0f) < 0.01f,
                     "a killing blow in phase two holds at the one third bound");
@@ -96,7 +96,7 @@ public final class BossFightClampGameTest {
             FinaleWave.step(server, level, record, FINALE, List.of(member), false, "Test Room");
             helper.assertTrue(script.armed.equals(List.of(0, 1, 2)), "phase three armed");
             // The last phase can die.
-            boss.setInvulnerableTime(0);
+            boss.damageCooldownTime = 0;
             boss.hurtServer(level, level.damageSources().generic(), 1000.0f);
             helper.assertTrue(!boss.isAlive(), "the last phase dies to a killing blow");
         } finally {

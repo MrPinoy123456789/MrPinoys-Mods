@@ -32,7 +32,7 @@ public class ChestPlankLootTest {
             if (planks == null) {
                 throw new AssertionError(table + " has no minecraft:oak_planks entry");
             }
-            JsonObject count = planks.getAsJsonArray("functions").get(0).getAsJsonObject().getAsJsonObject("count");
+            JsonObject count = planks.getAsJsonArray("modifier").get(0).getAsJsonObject().getAsJsonObject("count");
             if (count.get("min").getAsInt() != 2 || count.get("max").getAsInt() != 4) {
                 throw new AssertionError(table + ": planks come 2 to 4 at a time, found " + count);
             }
