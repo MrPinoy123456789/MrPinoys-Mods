@@ -1,0 +1,12 @@
+{
+  "type": "mine",
+  "variety": "dive",
+  "name": "The Dive",
+  "dungeon": "pocketdungeons:endless_mine_chart",
+  "node": "the_dive",
+  "promise": "Iron. Gold. Lapis. Redstone.",
+  "cooldownMinutes": 300,
+  "weight": 4,
+  "minDistance": 3000,
+  "maxLevel": 10
+}

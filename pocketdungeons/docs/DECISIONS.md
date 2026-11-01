@@ -1322,3 +1322,80 @@ Whether players right-click the icons at all; whether a new player knows the TNT
 whether the icon row reads from the middle of the room; whether a last floor's long row stays readable.
 
 **Status: approved (owner, 2026-10-23, option A), built and integrated into `master`. Live check L120 remains owed.**
+
+## 2026-10-30: Wild lodestones (overworld dungeon mode)
+
+Approved by the owner on 2026-10-30 after a propose-and-pick round (option A, one clock per lodestone). A server runs
+this mode instead of the campaign; the campaign systems are switched off, and only the dungeon generation is shared.
+Nothing is built.
+
+The player's sentence: *I find a dungeon out in the wild that promises good resources. If I build an outpost beside it
+I can clear it every time it is ready, and anyone who wants it has to get past my wall.*
+
+### The model
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| Mode | `mode: wild` is a server wide config switch; only wild mode runs on the Charter server | new config knob, `PocketDungeonsConfig` |
+| Lodestone | A tagged jigsaw block in the overworld. Survival players cannot break it and explosions do not destroy it | new `WildLodestones` |
+| Exit block | A second tagged jigsaw inside the dungeon, same look, returns the player to the lodestone. One stands where players arrive; a second, with an emblem reading Exit, appears at the clear | new `WildLodestones` |
+| Menu | Right click either block: a dialog with the dungeon, its promise, its state and the Enter or Leave button | `DialogScreens`, `DialogRouter` |
+| Dungeon | One shared live instance per lodestone, one floor, a fixed dungeon definition. No parties | `Instances`, `DungeonDef` |
+| Inventory | Never stashed, swapped or wiped. The dungeon is an extension of the overworld | `InventorySwap` bypassed in wild mode |
+| PvP | On inside. A few seconds of spawn protection after entering | new `WildRules` |
+| Claims | None inside. Charter is set to overworld only claims by a separate task, not by this mod | Charter, not this mod |
+| Placement | Scattered at random, not on a lattice: cells of 1500 blocks give each lodestone room, the spot is random anywhere in its cell, only some cells are filled, and two lodestones never sit closer than a minimum. Also in already generated chunks, skipping claimed or built over spots | new `WildPlacement` |
+| Lifespan | About a week. Then the dungeon collapses and a new lodestone appears somewhere else | `WildPlacement`, `WildLodestones` |
+| Cooldown | Per lodestone, shared by everyone. Starts the moment the clear exit block appears; a longer promise means a longer cooldown | `WildLodestones` |
+
+### Rules
+
+1. **States.** Each lodestone is Ready, In progress, or Cooling. The menu shows the state and how long is left in plain
+   words (`Iron. Ready in 2h.`).
+2. **Clear signal.** There is no single event for "dungeon cleared" today. The closest thing is `RunLifecycle.padGatesRefuse`,
+   the check the terminal pad runs when a player steps on it (spawners, boss, brood, guardian, wave). Wild mode runs that same
+   check on a timer with nobody on the pad, and the first time it passes the dungeon is cleared. The check is split out of
+   `completeRun` so both paths share it.
+3. **The clear.** In the campaign a clear calls `advanceFloor`, which places the floor rewards (`placeFloorRewards`), seals the
+   far wall and stamps the next staging room (the doors room). Wild mode does the first and skips the other two: it places the
+   reward chests and, beside them, an exit block that looks like the one players came in by, with an emblem that reads Exit.
+   Right click opens the same kind of dialog as the lodestone, with Leave. **Placing the exit block starts the cooldown.**
+   The dungeon stays open and enterable for the whole cooldown; leftover chests are first come first served. When the
+   cooldown ends, a 120 second warning goes out, everyone is moved out, and the dungeon resets: chests and hidden ore
+   refresh from the existing loot tables, ground items go to lost and found, and the next entry builds a fresh seed
+   (owner, 2026-10-30).
+4. **Death.** Vanilla death: your items drop where you die. The dungeon stays open until the cooldown ends, so you can go
+   back for them, and a killer can take them. A chat warning goes out two minutes before any reset or collapse.
+5. **Collapse.** Whatever is on the ground when the dungeon collapses goes into a lost and found chest outside, next to the
+   old lodestone. When a chest is full, another is placed beside it.
+6. **Leave a failed run.** Nothing special. Walk out through the exit block, or die and respawn as normal.
+7. **Reaching it.** The exit blocks are the way out: `/dungeon exit` is blocked inside, and ender pearls and chorus fruit are
+   blocked. Normal teleport commands (`/tpa`, `/home`) are not blocked (owner, 2026-10-30). Disconnecting inside is an accepted
+   escape for v1, and trial keys found inside may be taken home (owner, 2026-10-30). A player who logs out inside and logs back in after a reset is sent to the lodestone outside.
+8. **Finding it.** Players find lodestones by exploring. Ops get a command that lists them and teleports to one.
+9. **Scaling.** Level scales with distance from world spawn. Mob counts scale with the players inside when spawners fire.
+10. **Camping.** Spawn protection lasts a few seconds. The exit block is not otherwise protected.
+
+### Supersedes
+
+Nothing. This is a separate mode; the campaign decisions stay as they are for servers running the campaign.
+
+### Knobs
+
+`mode` (`campaign` or `wild`), the grid spacing, the lifespan (days), the base cooldown and the cooldown per promise tier,
+the reset warning (seconds), the spawn protection (seconds).
+
+### Open until played
+
+Whether a week is the right lifespan; whether long cooldowns make the outposts worth building or just the walls; whether
+an unclaimed lodestone near spawn gets farmed to nothing before anyone settles; whether the lost and found chest outlasts
+the old lodestone or needs its own lifespan; how the exit block camping feels; whether `padGatesRefuse` as the clear check
+fires too early on a floor with an objective instead of spawners; whether the emblem needs the Glyph system (approved, not built, 2026-10-21) or a plain item display above the block is enough for v1.
+
+**Status: phases 0 to 2 built on `feature/wild-lodestones`, phases 3 to 5 not built (2026-10-31).** Plan: `docs/plans/2026-10-30-wild-lodestones-plan.md`. Keystone audit: `docs/plans/2026-10-30-wild-lodestones-audit.md`.
+
+Owner notes after phase 2 (2026-10-31): Endless Mine nodes are acceptable offerings, but each offering must be thematic for its type of dungeon (mine, dungeon, long dungeon). Wild mode does not need the campaign's guarantee of a clear path to finishing, because players can bring items from the overworld to solve problems. Not yet built; the type field and what it changes are open.
+
+Owner note (2026-10-31): a special player currency and a kingdom currency are coming, and wild dungeons must be able to reward them. Phase 3 should therefore pay a clear through one reward seam (a single method taking the lodestone, its offering type and variety, the level and the players inside) so the currencies attach in one place; the chests stay the item payout. Not built.
+
+Phase 2 deviations from the plan: the arrival Exit block has no item or text display yet (the jigsaw alone marks it); `wildBlockedCommands` is read but not enforced (it defaults to empty, so nothing is blocked); the clean stop sweep of ground items (task 2.10) waits for `WildSweep` in phase 3; the unclean-stop slot clear relies on `reconcileAfterUncleanShutdown`, as planned.

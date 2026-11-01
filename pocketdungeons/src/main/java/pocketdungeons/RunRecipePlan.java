@@ -279,6 +279,16 @@ final class RunRecipePlan {
         return pathBonus;
     }
 
+    /** Wild lodestones: the same plan with {@code extra} more path length (a long dungeon). */
+    RunRecipePlan withExtraPath(int extra) {
+        if (extra == 0) {
+            return this;
+        }
+        return new RunRecipePlan(ominous, feral, completionStudyList, boundedSupply, endlessMine,
+                pathBonus + extra, weightedRooms, guaranteedRooms, seed, offerLevel, affixNames, partyCapabilities,
+                revision, activeRecipes);
+    }
+
     /**
      * A legible summary of the active effects, for staff logging.
      */
