@@ -13,6 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import eu.pb4.polymer.core.api.item.PolymerItemUtils;
+import net.fabricmc.fabric.api.networking.v1.context.PacketContext;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
@@ -68,6 +72,10 @@ public final class WornDisplays {
 
         private Packet<ClientGamePacketListener> equipment(ItemStack head) {
             return new ClientboundSetEquipmentPacket(owner.getId(), List.of(Pair.of(EquipmentSlot.HEAD, head)));
+        }
+
+        ItemStack headStack() {
+            return headStack;
         }
 
         /** Gives every viewer the player's real helmet back (before a head slot holder goes away). */
@@ -171,10 +179,27 @@ public final class WornDisplays {
                                 part.place.side(), part.place.scale())
                         + (part.place.hideFromWearer() ? ", hidden from wearer" : "")
                         + (part.headMode ? "" : ", position " + part.holder.getPos()));
+                // What the client is actually sent for this display: the stack after Polymer rewrote it.
+                ItemStack real = part.headMode ? part.holder.headStack() : part.element.getItem();
+                lines.add("    client stack: " + clientView(player, real) + "; display context "
+                        + (part.headMode ? "HEAD (the client draws a helmet slot item with the head transform)"
+                                : part.element.getItemDisplayContext()));
             }
         }
         if (lines.isEmpty()) lines.add("No such player is online.");
         return lines;
+    }
+
+    /** The item as the viewer's client receives it: base item, item_model and custom_model_data after Polymer's rewrite. */
+    public static String clientView(ServerPlayer viewer, ItemStack stack) {
+        try {
+            ItemStack client = PacketContext.supplyWithContext(viewer.connection,
+                    () -> PolymerItemUtils.getPolymerItemStack(stack, PacketContext.get(), viewer.registryAccess()));
+            return BuiltInRegistries.ITEM.getKey(client.getItem()) + " item_model=" + client.get(DataComponents.ITEM_MODEL)
+                    + " custom_model_data=" + client.get(DataComponents.CUSTOM_MODEL_DATA);
+        } catch (RuntimeException e) {
+            return "could not be worked out (" + e + ")";
+        }
     }
 
     /** True when someone has a display up, so the per tick turning has work to do. */

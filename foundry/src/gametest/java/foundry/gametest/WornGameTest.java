@@ -267,4 +267,47 @@ public final class WornGameTest {
         helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
         helper.succeed();
     }
+
+    /**
+     * The client item definition Foundry builds for a worn item selects the 3D model for every display context the
+     * game can send (all but none), so no context falls through to the flat fallback. (The client's own codecs cannot
+     * be loaded on a server, so this checks the context names against the game's enum instead.)
+     */
+    @GameTest(maxTicks = 20)
+    public void theWornSelectCoversEveryDisplayContext(GameTestHelper helper) throws Exception {
+        var generated = foundry.core.PackFiles.generate(foundry.mc.FoundryMod.loaded());
+        var assets = java.nio.file.Path.of(System.getProperty("foundry.assets"));
+        int checked = 0;
+        for (var def : foundry.mc.FoundryMod.loaded().items().values()) {
+            if (def.wornModel() == null) continue;
+            String json = generated.get(foundry.core.PackFiles.clientItemPath(def.id()));
+            helper.assertTrue(json != null, def.id() + " has no client item definition");
+            var cases = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("model")
+                    .getAsJsonArray("cases").get(0).getAsJsonObject().getAsJsonArray("when");
+            var covered = new java.util.HashSet<String>();
+            cases.forEach(e -> covered.add(e.getAsString()));
+            for (var context : net.minecraft.world.item.ItemDisplayContext.values()) {
+                if (context == net.minecraft.world.item.ItemDisplayContext.NONE) continue;
+                helper.assertTrue(covered.contains(context.getSerializedName()),
+                        def.id() + " select does not cover the " + context.getSerializedName() + " context");
+            }
+            helper.assertTrue(java.nio.file.Files.isRegularFile(assets.resolve(foundry.core.PackFiles.modelPath(def.wornModel()))),
+                    def.id() + " worn model file is missing");
+            checked++;
+        }
+        helper.assertTrue(checked == 5, "Expected five worn items with a worn model but checked " + checked);
+        helper.succeed();
+    }
+
+    /** What a viewer's client receives for a worn item: the base item with item_model naming the Foundry item, so the pack's select applies. */
+    @GameTest(maxTicks = 20)
+    public void theClientIsSentTheItemModelThePackSelectsOn(GameTestHelper helper) {
+        ServerPlayer viewer = player(helper, null);
+        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings"}) {
+            String seen = foundry.mc.WornDisplays.clientView(viewer, new ItemStack(item("kingdoms:" + id)));
+            foundry.mc.FoundryMod.LOG.info("client stack for kingdoms:{}: {}", id, seen);
+            helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
+        }
+        helper.succeed();
+    }
 }

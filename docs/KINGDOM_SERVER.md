@@ -125,6 +125,14 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   that shows the 3D model in every display context (worn display, helmet slot, inventory, hand, item frame) and keeps
   the flat texture as the fallback and as the Bedrock icon. Only a live client shows the real look and whether a
   rotation direction needs flipping (the cape flare, the antler lean).
+- **If the 3D models do not show.** `/foundry worn list` now also prints, per display, the stack the client is sent
+  (base item, `item_model`, `custom_model_data`) and the display context. A gametest asserts the client gets
+  `item_model=kingdoms:<id>` for all five items (for example `minecraft:iron_ingot` + `kingdoms:forgeman_pauldron`), and
+  another that the pack's select covers every display context the game has (all but `none`). So the server side is
+  proven; if a player still sees the flat sprite, their client is not using the current pack. Check: hold the item and
+  open the inventory (the icon is 3D when the pack is loaded, flat when not), reconnect and accept the server pack,
+  Options, Resource Packs, and look for a stale cached copy. Polymer rebuilds the pack on `/foundry pack build` or
+  `/polymer generate-pack`; clients fetch it on rejoin.
 - **Skins.** The cape, pauldron, circlet and gills are skinned from their own flat sprites (the model's front faces show a crop of the sprite, the rest use swatches of its colours), so they read like the item art. The wings use the elytra texture from the CC BY-NC-SA 4.0 pack "Fairy Wings Elytra" (credit in `foundry/examples/assets/CREDITS.md`; non-commercial only).
 - **Wings.** The Fairy Wings now go in the **cape slot** (`chest/cape`, which has room for two so the Human cape and the
   wings never clash; the slot is widened by `data/trinkets/slots/chest/cape.json`). They are race locked and have no
