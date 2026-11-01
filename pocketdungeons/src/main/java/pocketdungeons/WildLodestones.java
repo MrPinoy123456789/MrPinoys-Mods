@@ -1,11 +1,10 @@
 package pocketdungeons;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.FrontAndTop;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -13,28 +12,28 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.JigsawBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.JigsawBlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.BlockHitResult;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The blocks of wild mode (decision 2026-10-30): the entrance ruin with its jigsaw block in the overworld, and the Exit
- * jigsaws inside a dungeon. A jigsaw is bedrock hard and blast proof in survival (hardness -1, resistance 3600000), so
- * players cannot break one and explosions do nothing to it.
+ * The blocks of wild mode (decision 2026-10-30): the entrance ruin with its marker block in the overworld, and the Exit
+ * markers inside a dungeon. A marker is a plain {@code minecraft:bedrock} block (hardness -1, blast proof), so players
+ * cannot break one and explosions do nothing to it, and it carries no block entity, so there is nothing to edit.
+ *
+ * <p>It used to be a jigsaw block, but the vanilla client opens the jigsaw editor itself, on its own prediction, for an
+ * operator in creative; the server cannot cancel that, whatever a use callback returns. A bedrock block gives the client
+ * nothing to open. Java clients are shown a virtual {@code minecraft:jigsaw} over it ({@link WildMarkerDisplays}) when
+ * Polymer is installed; Bedrock players see the bedrock. Wild jigsaws from earlier builds are converted when their
+ * chunk loads, and the old click guard stays for any that are missed.
  *
  * <p>The saved {@link WildState}, not the block's name, says which lodestone an entrance belongs to. The exit blocks live
  * inside a record that is memory only, so their positions are kept in {@link #EXITS} and cleared at teardown.
  */
 final class WildLodestones {
-
-    static final String NAME_ENTRANCE = "wild_entrance";
-    static final String NAME_EXIT_ARRIVAL = "wild_exit_arrival";
-    static final String NAME_EXIT_CLEAR = "wild_exit_clear";
 
     /** Which lodestone an Exit block belongs to, and whether it is the clear exit. */
     record ExitRef(String lodestoneId, boolean clear) {}
@@ -45,6 +44,57 @@ final class WildLodestones {
 
     static void register() {
         UseBlockCallback.EVENT.register(WildLodestones::onUse);
+        ServerChunkEvents.CHUNK_LOAD.register(WildLodestones::onChunkLoad);
+        ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> {
+            if (POLYMER) {
+                WildMarkerDisplays.dropChunk(level, chunk.getPos());
+            }
+        });
+    }
+
+    /** Whether the Polymer virtual entity library is installed, so markers can show as jigsaws. */
+    static final boolean POLYMER = FabricLoader.getInstance().isModLoaded("polymer-virtual-entity");
+
+    private static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean generated) {
+        WildState state = WildStore.state();
+        if (state == null || !WildMode.active()) {
+            return;
+        }
+        String dimension = dimensionKey(level);
+        for (WildState.Lodestone l : state.all()) {
+            if (l.dimension.equals(dimension) && (l.x >> 4) == chunk.getPos().x() && (l.z >> 4) == chunk.getPos().z()) {
+                ensureMarker(level, new BlockPos(l.x, l.y, l.z));
+            }
+        }
+    }
+
+    /** After the state loads: fixes up every lodestone whose chunk is already loaded (the chunk events came first). */
+    static void ensureAll(MinecraftServer server) {
+        WildState state = WildStore.state();
+        if (state == null) {
+            return;
+        }
+        for (WildState.Lodestone l : state.all()) {
+            for (ServerLevel level : server.getAllLevels()) {
+                BlockPos pos = new BlockPos(l.x, l.y, l.z);
+                if (dimensionKey(level).equals(l.dimension) && level.hasChunkAt(pos)) {
+                    ensureMarker(level, pos);
+                }
+            }
+        }
+    }
+
+    /**
+     * Brings the entrance at {@code pos} up to date: a wild jigsaw from an earlier build becomes bedrock, and a bedrock
+     * entrance gets its jigsaw lookalike if it has none.
+     */
+    static void ensureMarker(ServerLevel level, BlockPos pos) {
+        if (isWildJigsaw(level, pos)) {
+            level.setBlock(pos, Blocks.BEDROCK.defaultBlockState(), 3);
+        }
+        if (POLYMER && level.getBlockState(pos).is(Blocks.BEDROCK)) {
+            WildMarkerDisplays.attach(level, pos);
+        }
     }
 
     static String dimensionKey(Level level) {
@@ -58,7 +108,8 @@ final class WildLodestones {
             return InteractionResult.PASS;
         }
         BlockPos pos = hit.getBlockPos();
-        if (!level.getBlockState(pos).is(Blocks.JIGSAW)) {
+        boolean marker = level.getBlockState(pos).is(Blocks.BEDROCK);
+        if (!marker && !level.getBlockState(pos).is(Blocks.JIGSAW)) {
             return InteractionResult.PASS;
         }
         ExitRef exit = EXITS.get(pos);
@@ -66,9 +117,9 @@ final class WildLodestones {
         WildState.Lodestone entrance = state == null ? null
                 : state.atEntrance(dimensionKey(level), pos.getX(), pos.getY(), pos.getZ());
         if (exit == null && entrance == null) {
-            // A wild jigsaw the server no longer tracks (after a restart, a collapsed lodestone, an Exit whose dungeon was
-            // torn down) must still never open the vanilla jigsaw editor, for an operator in creative either.
-            return isWildJigsaw(level, pos) ? InteractionResult.SUCCESS_SERVER : InteractionResult.PASS;
+            // A wild jigsaw from an earlier build that the server no longer tracks must still never open the vanilla
+            // jigsaw editor. (A client may open it by itself anyway; the chunk load converts these to bedrock.)
+            return !marker && isWildJigsaw(level, pos) ? InteractionResult.SUCCESS_SERVER : InteractionResult.PASS;
         }
         // Both hands fire; only the main hand opens the screen, but neither may fall through to the vanilla jigsaw editor.
         if (hand == InteractionHand.MAIN_HAND) {
@@ -115,7 +166,7 @@ final class WildLodestones {
         level.setBlock(pos.offset(2, 0, 2), Blocks.MOSSY_STONE_BRICKS.defaultBlockState(), 3);
         level.setBlock(pos.offset(2, 1, 2), Blocks.CRACKED_STONE_BRICKS.defaultBlockState(), 3);
         level.setBlock(pos.offset(2, 2, -2), Blocks.COBWEB.defaultBlockState(), 3);
-        placeJigsaw(level, pos, NAME_ENTRANCE);
+        placeMarker(level, pos);
     }
 
     /** Turns the ruin to rubble and removes the jigsaw (a collapse). */
@@ -130,6 +181,9 @@ final class WildLodestones {
                 }
             }
         }
+        if (POLYMER) {
+            WildMarkerDisplays.detach(level, pos);
+        }
         level.setBlock(pos, Blocks.COBBLESTONE.defaultBlockState(), 3);
         level.setBlock(pos.offset(-2, 0, -2), Blocks.COBBLESTONE.defaultBlockState(), 3);
         level.setBlock(pos.offset(2, 0, 2), Blocks.COBBLESTONE_SLAB.defaultBlockState(), 3);
@@ -139,7 +193,7 @@ final class WildLodestones {
 
     /** Places an Exit jigsaw inside a dungeon and remembers it for the click handler. */
     static void placeExit(ServerLevel level, BlockPos pos, String lodestoneId, boolean clear) {
-        placeJigsaw(level, pos, clear ? NAME_EXIT_CLEAR : NAME_EXIT_ARRIVAL);
+        placeMarker(level, pos);
         EXITS.put(pos.immutable(), new ExitRef(lodestoneId, clear));
     }
 
@@ -162,19 +216,13 @@ final class WildLodestones {
         return EXITS.get(pos);
     }
 
-    // ---- the jigsaw itself ------------------------------------------------------
+    // ---- the marker block itself -------------------------------------------------
 
-    private static void placeJigsaw(ServerLevel level, BlockPos pos, String name) {
-        BlockState state = Blocks.JIGSAW.defaultBlockState().setValue(JigsawBlock.ORIENTATION, FrontAndTop.UP_NORTH);
-        level.setBlock(pos, state, 3);
-        BlockEntity be = level.getBlockEntity(pos);
-        if (be instanceof JigsawBlockEntity jigsaw) {
-            jigsaw.setName(Identifier.fromNamespaceAndPath(PocketDungeonsMod.MOD_ID, name));
-            jigsaw.setTarget(JigsawBlockEntity.EMPTY_ID);
-            jigsaw.setPool(ResourceKey.create(Registries.TEMPLATE_POOL, JigsawBlockEntity.EMPTY_ID));
-            jigsaw.setFinalState("minecraft:air");
-            jigsaw.setJoint(JigsawBlockEntity.JointType.ALIGNED);
-            jigsaw.setChanged();
+    /** A bedrock block with, for Java clients, a jigsaw shown over it. Replaces whatever stood at {@code pos}. */
+    private static void placeMarker(ServerLevel level, BlockPos pos) {
+        level.setBlock(pos, Blocks.BEDROCK.defaultBlockState(), 3);
+        if (POLYMER) {
+            WildMarkerDisplays.attach(level, pos);
         }
     }
 }
