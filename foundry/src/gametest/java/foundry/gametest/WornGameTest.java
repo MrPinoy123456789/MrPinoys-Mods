@@ -74,12 +74,32 @@ public final class WornGameTest {
         helper.succeed();
     }
 
-    @GameTest(maxTicks = 20)
-    public void theOrnamentsFitTheirSlots(GameTestHelper helper) {
-        ServerPlayer player = player(helper, null);
-        wear(player, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
-        wear(player, "chest/back", new ItemStack(item("kingdoms:forgeman_pauldron")));
-        wear(player, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
-        helper.succeed();
+    /** Wears one trinket as its race and as a player with no race; only the race gets the effect. */
+    private static void raceOnly(GameTestHelper helper, String item, String slot, String node,
+            net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect) {
+        ServerPlayer race = player(helper, node);
+        ServerPlayer other = player(helper, null);
+        wear(race, slot, new ItemStack(item(item)));
+        wear(other, slot, new ItemStack(item(item)));
+        helper.runAfterDelay(45, () -> {
+            helper.assertTrue(race.hasEffect(effect), "The wearer of the right race got no effect from " + item);
+            helper.assertFalse(other.hasEffect(effect), "A player of no race got the effect from " + item);
+            helper.succeed();
+        });
+    }
+
+    @GameTest(maxTicks = 100)
+    public void theForgemansPauldronHastensOnlyDwarves(GameTestHelper helper) {
+        raceOnly(helper, "kingdoms:forgeman_pauldron", "chest/back", "race:azrak", MobEffects.HASTE);
+    }
+
+    @GameTest(maxTicks = 100)
+    public void theKingdomCapeBringsLuckOnlyToHumans(GameTestHelper helper) {
+        raceOnly(helper, "kingdoms:kingdom_cape", "chest/cape", "race:aurelia", MobEffects.LUCK);
+    }
+
+    @GameTest(maxTicks = 100)
+    public void theAntlerCircletGivesNightVisionOnlyToTheFae(GameTestHelper helper) {
+        raceOnly(helper, "kingdoms:antler_circlet", "head/hat", "race:faeloria", MobEffects.NIGHT_VISION);
     }
 }

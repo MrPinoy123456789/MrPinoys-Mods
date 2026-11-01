@@ -3,14 +3,30 @@
   "id": "kingdoms:kingdom_cape",
   "display_name": "Kingdom Cape",
   "lore": [
-    "Worn on the back. A cape in your kingdom's colours, for show."
+    "Worn on the back. Humans of Aurelia find a little more luck on the road while they wear it (Luck I).",
+    "Anyone else may wear it as an ornament."
   ],
   "base_item": "minecraft:white_banner",
   "texture": "kingdoms:item/kingdom_cape",
   "stack_size": 1,
   "rarity": "uncommon",
   "keep_on_death": true,
+  "require_permission": "race:aurelia",
+  "locked_message": "Only the Humans of Aurelia carry the road in this cape.",
   "worn_slots": [
     "chest/cape"
+  ],
+  "mechanics": [
+    {
+      "trigger": "while_worn",
+      "name": "Kingdom Cape",
+      "actions": [
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:luck",
+          "duration": 60
+        }
+      ]
+    }
   ]
 }

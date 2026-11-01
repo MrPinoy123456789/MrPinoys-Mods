@@ -16,7 +16,7 @@ Every race has the same five lines.
 | Gathering passive | A free level of Fortune or Looting on one resource family that no other race owns. It exists to make kingdoms trade. |
 | Combat passive | Works on a different axis from every other race's combat passive. |
 | Trinket | One worn item, visibly modelled, that carries the race's signature mechanic. |
-| Weapon | Already exists for Dwarf, Merfolk, Fae and Fairy. Human has none yet. |
+| Weapon | All five races have one: the Azrak pick, the Aurelia oathblade, the Azurius trident, the Faeloria staff and the Everdelle wand, three tiers each. |
 | Identity | Height, vision and a line of flavour. |
 
 Active abilities from the brainstorm are out of scope for this pass.
@@ -85,10 +85,10 @@ Each race has one worn trinket with its own model, so a race is recognisable at 
 
 | Race | Trinket | Carries |
 |---|---|---|
-| Dwarf | Forgeman's Pauldron | Cosmetic for now |
+| Dwarf | Forgeman's Pauldron | Haste I for Dwarves of Azrak |
 | Merfolk | Tidal Gills | Water Breathing and Dolphin's Grace (moved out of `racePassives` into the item) |
-| Human | Kingdom cape | Cosmetic for now; shows the wearer's kingdom |
-| Fae | Antler circlet | Cosmetic for now |
+| Human | Kingdom cape | Luck I for Humans of Aurelia (anyone else wears it as decoration) |
+| Fae | Antler circlet | Night Vision for the Fae of Faeloria |
 | Fairy | Wings | Flight |
 
 Each trinket works only for its race (permission gated); anyone else can wear it as decoration.
@@ -118,7 +118,7 @@ Charter work: none for the trinkets. The always-on combat passives, if chosen, e
 
 Answered in writing on 2026-11-01. Items marked OWNER need a decision before the work continues.
 
-1. Human gameplay: the kingdom cape is cosmetic. Rally is the only Human mechanic until a Human weapon exists. No change.
+1. Human gameplay: the Aurelia oathblade exists, so Humans have Rally, a weapon and a cape with Luck I. Answered 2026-11-01: nothing more is planned before the server ships.
 2. Which Merfolk effects stay in `racePassives` once Tidal Gills takes Water Breathing and Dolphin's Grace? Both stay until the trinket works on a live server. The Bedrock Speed II stand in (`racePassivesBedrock`) stays too: a worn trinket cannot carry it, since it exists only because Bedrock has no Dolphin's Grace.
 3. Glamour is approximate. The target is cleared on a 10 tick timer, so a mob can glance at a Fae for up to half a second. No mod can prevent targeting without a Mixin. Not tuned stronger. Needs a play test; the knobs are `faeGlamourRange` and `faeGlamourGraceTicks`.
 4. Combat numbers stay mild: Dwarf 0.4 knockback resistance only while sneaking, Merfolk +1.5 attack damage only in water, Human +0.5 per ally (3 at most, so +1.5), Fairy 8 percent dodge on melee hits and no fall damage, Fae 6 block Glamour. All are knobs in `charter.json` and `raceCombat = false` turns every one off. Unchanged.
@@ -139,7 +139,7 @@ Answered in writing on 2026-11-01. Items marked OWNER need a decision before the
 | Fairy Mischief | Changed on 2026-11-01. The bolt now hurts and lifts its target off the ground (Levitation, 30, 40 and 50 ticks by tier, with a cloud) instead of blinding and slowing, so it no longer overlaps Fae Trickery. All three wand tiers; `WandGameTest` was updated to match (the old test checked for blindness and slowness, which the spec removed). |
 | Trinket art | Five 16 by 16 sprites in `foundry/examples/assets/kingdoms/textures/item/`, the five items point at them, and the Bedrock mappings and pack were regenerated with `tools/gen_bedrock.py` (26 items). Plain placeholder art, easy to replace. |
 | Fishing bonus (Merfolk) | Not built. Fabric API has no fish caught event (checked the entity events, loot, item and interaction modules of 0.165.0+26.3). See section 7 for the option. |
-| Trinkets and `while_worn` | Built and gametested in Foundry with Trinkets Updated 4.2.1+26.3. The `while_worn` trigger fires once a second for a Foundry item worn in a Trinkets slot (or an armour slot, as a fallback when the mod is absent). Five items in `foundry/examples/content/kingdoms/items/`: `tidal_gills` (Water Breathing and Dolphin's Grace for Merfolk only), `fairy_wings` (an elytra, see section 7), and the cosmetic `kingdom_cape`, `forgeman_pauldron` and `antler_circlet`. `data/trinkets/entities/foundry_player.json` gives players the four slots they need. 47 Foundry gametests pass. Not tried with a real client or the Polymer patch. |
+| Trinkets and `while_worn` | Built and gametested in Foundry with Trinkets Updated 4.2.1+26.3. The `while_worn` trigger fires once a second for a Foundry item worn in a Trinkets slot (or an armour slot, as a fallback when the mod is absent). Five items in `foundry/examples/content/kingdoms/items/`: `tidal_gills` (Water Breathing and Dolphin's Grace for Merfolk only), `fairy_wings` (an elytra, see section 7), and `kingdom_cape` (Luck I for Humans), `forgeman_pauldron` (Haste I for Dwarves) and `antler_circlet` (Night Vision for the Fae), each for its own race only and decoration for anyone else. `data/trinkets/entities/foundry_player.json` gives players the four slots they need. 47 Foundry gametests pass. Not tried with a real client or the Polymer patch. |
 
 Still to check on a live server: that a Dwarf gets extra ore, a Fairy extra gunpowder, a Fairy takes no fall damage and a Merfolk mines at normal speed underwater, with real clients. The gametests use mock players.
 
