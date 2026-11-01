@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Keeps the world stocked with wild lodestones (plan 4.2 and 4.3): every 100 ticks at most one placement attempt when
- * fewer than {@code wildTargetActive} stand. A candidate point comes from {@link WildPlacement}; it must keep its
+ * Keeps the world stocked with wild lodestones (plan 4.2 and 4.3): every 100 ticks a few placement attempts when
+ * fewer than {@code wildTargetActive} stand (several attempts per pass), always inside the world border. A candidate point comes from {@link WildPlacement}; it must keep its
  * distance from spawn and from every other lodestone, stay off claimed land, and pass the world checks (open dry
  * ground, not under a tree, no player building nearby). A rejected cell tries a different point next time. Overworld
  * only.
@@ -32,6 +32,10 @@ import java.util.Random;
 final class WildTopUp {
 
     static final int EVERY = 100;
+    /** Placement attempts per pass while below the target; rejected cells are common, so one try is too few. */
+    static final int ATTEMPTS_PER_PASS = 6;
+    /** Blocks kept between a lodestone and the world border. */
+    static final int BORDER_MARGIN = 48;
     /** Blocks around a point that must be free of player built blocks (a 9 by 9 area). */
     static final int BUILDER_RADIUS = 4;
     /** Claim buffer in blocks: a 9 by 9 chunk neighbourhood at most. */
@@ -63,7 +67,9 @@ final class WildTopUp {
         if (state == null || state.size() >= PocketDungeonsConfig.wildTargetActive()) {
             return;
         }
-        attempt(server, server.overworld(), state);
+        for (int i = 0; i < ATTEMPTS_PER_PASS && state.size() < PocketDungeonsConfig.wildTargetActive(); i++) {
+            attempt(server, server.overworld(), state);
+        }
     }
 
     /** One placement attempt. Returns the lodestone placed, or {@code null}. Package private for the gametest. */
@@ -71,8 +77,17 @@ final class WildTopUp {
         BlockPos spawn = server.overworld().getRespawnData().pos();
         int grid = PocketDungeonsConfig.wildGridSize();
         int radius = PocketDungeonsConfig.wildMaxRadius();
-        int cellX = WildPlacement.cellOf(spawn.getX() + RANDOM.nextInt(2 * radius + 1) - radius, grid);
-        int cellZ = WildPlacement.cellOf(spawn.getZ() + RANDOM.nextInt(2 * radius + 1) - radius, grid);
+        // Sample only inside the world border, so no attempt is wasted outside it.
+        net.minecraft.world.level.border.WorldBorder border = level.getWorldBorder();
+        int loX = Math.max(spawn.getX() - radius, (int) Math.ceil(border.getMinX()) + BORDER_MARGIN);
+        int hiX = Math.min(spawn.getX() + radius, (int) Math.floor(border.getMaxX()) - BORDER_MARGIN);
+        int loZ = Math.max(spawn.getZ() - radius, (int) Math.ceil(border.getMinZ()) + BORDER_MARGIN);
+        int hiZ = Math.min(spawn.getZ() + radius, (int) Math.floor(border.getMaxZ()) - BORDER_MARGIN);
+        if (hiX < loX || hiZ < loZ) {
+            return null;
+        }
+        int cellX = WildPlacement.cellOf(loX + RANDOM.nextInt(hiX - loX + 1), grid);
+        int cellZ = WildPlacement.cellOf(loZ + RANDOM.nextInt(hiZ - loZ + 1), grid);
         long key = ClaimSource.pack(cellX, cellZ);
         for (WildState.Lodestone existing : state.all()) {
             if (WildPlacement.cellOf(existing.x, grid) == cellX && WildPlacement.cellOf(existing.z, grid) == cellZ) {
@@ -94,6 +109,9 @@ final class WildTopUp {
         if (!WildPlacement.withinRing(x, z, spawn.getX(), spawn.getZ(), PocketDungeonsConfig.wildMinSpawnDistance(),
                 PocketDungeonsConfig.wildMaxRadius())) {
             return "outside the ring";
+        }
+        if (!level.getWorldBorder().isWithinBounds(x, z, BORDER_MARGIN)) {
+            return "outside the world border";
         }
         List<int[]> others = new ArrayList<>();
         for (WildState.Lodestone l : state.all()) {
