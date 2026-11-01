@@ -122,6 +122,8 @@
   "teleport.done.keep": "You are at your keep.",
   "teleport.done.outpost": "You are at your outpost. The trip cost it some food.",
   "teleport.done.spawn": "You are at spawn.",
+  "teleport.done.hub": "Welcome to the hub.",
+  "teleport.no_hub": "This server has no hub yet.",
   "outpost.inspect": "The outpost of {org}. It holds a deposit of {deposit} Marks.",
   "notice.war_declared_on_you": "{org} declared war on your outpost {site}. Capture cannot begin for {time}. Stock it and be ready to stand in its chunk.",
   "notice.war_declared_by_you": "You declared war on {org} to capture {site}. Capture cannot begin for {time}.",

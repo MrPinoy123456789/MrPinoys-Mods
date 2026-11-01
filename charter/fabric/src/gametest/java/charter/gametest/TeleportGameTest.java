@@ -69,6 +69,30 @@ public final class TeleportGameTest {
     }
 
     @GameTest(maxTicks = 100)
+    public void hubTakesAnyoneToTheAdminKingdomAndItsKeepIsOpenToThem(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper); Knobs k = new Knobs(0, 30)) {
+            ServerPlayer lord = kit.faction("Hub");
+            kit.keep(lord);
+            ServerPlayer stranger = kit.outsider();
+            Teleports.reset();
+            helper.assertTrue(Teleports.start(stranger, Teleports.Kind.HUB) != null, "/hub worked with no admin kingdom");
+            kit.rt.state.org(kit.orgOf(lord)).orElseThrow().adminKingdom = true;
+            kit.rt.knobs.closedKeeps = true;
+            helper.assertTrue(Teleports.start(stranger, Teleports.Kind.HUB) == null, "A stranger was refused the hub");
+            BlockPos nexus = kit.nexusPos();
+            helper.assertTrue(Math.abs(stranger.getX() - (nexus.getX() + 0.5)) < 1 && Math.abs(stranger.getZ() - (nexus.getZ() + 0.5)) < 1,
+                    "The stranger did not arrive at the hub: " + stranger.position());
+            charter.mc.land.KeepGate.check(stranger, kit.rt);
+            String dimension = charter.mc.land.Protection.dimension(kit.level);
+            helper.assertTrue(kit.rt.claims.at(dimension, stranger.chunkPosition().x(), stranger.chunkPosition().z()) != null,
+                    "The closed-keep gate turned a visitor out of the hub");
+            kit.rt.knobs.closedKeeps = false;
+            Teleports.reset();
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
     public void outpostCostsFoodAndIsRefusedWhenTheSupplyIsEmpty(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper); Knobs k = new Knobs(0, 0)) {
             ServerPlayer lord = kit.faction("Post");

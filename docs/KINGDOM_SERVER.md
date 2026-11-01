@@ -157,3 +157,7 @@ gametests, then merge to master before deploying so master never lags the server
 ## Moving the lodestone
 
 `/charter nexus move` moves a kingdom's lodestone to where its Lord stands, anywhere inside the keep's nine chunks. The keep, its land and its core chunk (vault, granary, lectern) stay where they are; only the lodestone block and its record move, and the keep teleport and the jail follow it. The Lord, anyone with the place-core power, and operators may do it. It is refused outside the keep, for a player with no kingdom, and while the keep is open to attack.
+
+## The hub
+
+The admin kingdom is the server's spawn town. `/hub` (also `/charter hub`) takes anyone to its Nexus, whatever kingdom they belong to, after the usual teleport wait and cooldown. Its keep is never closed to visitors, even with `closedKeeps` on; the land is still protected, so only the kingdom and operators build there. With more than one admin kingdom the first one is the hub.
