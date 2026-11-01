@@ -45,6 +45,7 @@ final class WildLodestones {
     static void register() {
         UseBlockCallback.EVENT.register(WildLodestones::onUse);
         ServerChunkEvents.CHUNK_LOAD.register(WildLodestones::onChunkLoad);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> drainPendingMarkers());
         ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> {
             if (POLYMER) {
                 WildMarkerDisplays.dropChunk(level, chunk.getPos());
@@ -52,10 +53,28 @@ final class WildLodestones {
         });
     }
 
+    private record PendingMarker(ServerLevel level, BlockPos pos) {}
+
+    private static final java.util.List<PendingMarker> PENDING_MARKERS = new java.util.ArrayList<>();
+
+    /** Brings the markers whose chunk finished loading up to date, one tick after the load event. */
+    static void drainPendingMarkers() {
+        if (PENDING_MARKERS.isEmpty()) {
+            return;
+        }
+        java.util.List<PendingMarker> now = new java.util.ArrayList<>(PENDING_MARKERS);
+        PENDING_MARKERS.clear();
+        for (PendingMarker m : now) {
+            if (m.level().hasChunkAt(m.pos())) {
+                ensureMarker(m.level(), m.pos());
+            }
+        }
+    }
+
     /** Whether the Polymer virtual entity library is installed, so markers can show as jigsaws. */
     static final boolean POLYMER = FabricLoader.getInstance().isModLoaded("polymer-virtual-entity");
 
-    private static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean generated) {
+    static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean generated) {
         WildState state = WildStore.state();
         if (state == null || !WildMode.active()) {
             return;
@@ -63,7 +82,9 @@ final class WildLodestones {
         String dimension = dimensionKey(level);
         for (WildState.Lodestone l : state.all()) {
             if (l.dimension.equals(dimension) && (l.x >> 4) == chunk.getPos().x() && (l.z >> 4) == chunk.getPos().z()) {
-                ensureMarker(level, new BlockPos(l.x, l.y, l.z));
+                // Not now: the chunk is still being finished, and asking the level for a block here waits on this very chunk
+                // and hangs the server thread until the watchdog stops the server. The next tick is safe.
+                PENDING_MARKERS.add(new PendingMarker(level, new BlockPos(l.x, l.y, l.z)));
             }
         }
     }
