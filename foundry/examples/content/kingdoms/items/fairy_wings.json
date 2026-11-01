@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:fairy_wings",
+  "display_name": "Fairy Wings",
+  "lore": [
+    "Worn in the chest slot like an elytra, and glides like one.",
+    "Only the Fairies of Everdelle can glide with them, and the wings wear out as they fly. Mend them as you would an elytra."
+  ],
+  "base_item": "minecraft:elytra",
+  "stack_size": 1,
+  "durability": 432,
+  "rarity": "rare",
+  "keep_on_death": true,
+  "glider": true,
+  "require_permission": "race:everdelle",
+  "locked_message": "Only the Fairies of Everdelle can glide with these wings."
+}

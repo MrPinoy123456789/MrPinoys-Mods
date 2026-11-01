@@ -16,6 +16,8 @@ dependencies {
     implementation("net.fabricmc.fabric-api:fabric-api:0.165.0+26.3")
     // The server ships polymer-bundled; compile against it, never shade it.
     implementation("eu.pb4:polymer-bundled:0.18.5+26.3")
+    // Worn slots for trinkets (Patbox's Trinkets Updated). Foundry starts without it, so it is never shaded into the jar.
+    implementation("eu.pb4:trinkets:4.2.1+26.3")
 }
 java {
     withSourcesJar()

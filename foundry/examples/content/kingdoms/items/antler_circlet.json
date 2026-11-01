@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:antler_circlet",
+  "display_name": "Antler Circlet",
+  "lore": [
+    "Worn on the head. The mark of the Fae of Faeloria, for show."
+  ],
+  "base_item": "minecraft:gold_nugget",
+  "stack_size": 1,
+  "rarity": "uncommon",
+  "keep_on_death": true,
+  "worn_slots": ["head/hat"]
+}

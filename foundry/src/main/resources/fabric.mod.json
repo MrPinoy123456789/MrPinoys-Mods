@@ -12,5 +12,8 @@
     "java": ">=25",
     "fabric-api": "*",
     "polymer-core": ">=0.18.5"
+  },
+  "suggests": {
+    "trinkets_updated": ">=4.2.1"
   }
 }
