@@ -42,6 +42,22 @@ public final class CoreSuite {
         check(foundry.core.WornPlacement.of("chest/cape").isPresent() && !foundry.core.WornPlacement.of("chest/cape").get().onHead(),
                 "a cape is drawn on the body");
         check(foundry.core.WornPlacement.of("hand/ring").isEmpty(), "an undrawn slot has no placement");
+        var tuned = foundry.core.WornPlacement.parse(
+                "{\"slots\":{\"chest/back\":{\"scale\":0.9}},\"items\":{\"kingdoms:x\":{\"slot\":\"chest/back\",\"up\":1.4,\"rotation\":[0,90,0]}}}");
+        check(tuned.problems().isEmpty(), "a tuned worn display file has no problems");
+        check(tuned.table().find("kingdoms:other", "chest/back").get().scale() == 0.9f
+                && tuned.table().find("kingdoms:other", "chest/back").get().back() == 0.25f,
+                "a slot entry changes one number and keeps the rest of its defaults");
+        check(tuned.table().find("kingdoms:x", "chest/back").get().up() == 1.4f
+                && tuned.table().find("kingdoms:x", "chest/back").get().ry() == 90f
+                && tuned.table().find("kingdoms:x", "chest/back").get().back() == 0.25f,
+                "an item entry overrides its slot and inherits the rest");
+        check(foundry.core.WornPlacement.parse("not json").problems().size() == 1
+                && foundry.core.WornPlacement.parse("not json").table().find("", "head/hat").isPresent(),
+                "a broken worn display file reports a problem and falls back to the defaults");
+        check(!foundry.core.WornPlacement.parse("{\"slots\":{\"head/hat\":{\"rotation\":[1]}}}").problems().isEmpty(),
+                "a bad rotation is reported");
+        check(foundry.core.WornPlacement.of("head/face").get().hideFromWearer(), "the face display hides from its wearer");
         check(foundry.core.BonusMath.gain(0, 1, 3) == 1, "a plain tool gains the bonus");
         check(foundry.core.BonusMath.gain(3, 1, 3) == 0, "a tool at the cap gains nothing");
         check(foundry.core.BonusMath.gain(2, 3, 3) == 1, "the bonus tops up to the cap only");

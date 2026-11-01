@@ -83,14 +83,22 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   book home has a Trinkets button. Both need no op level. A permission mod that restricts commands would also have to
   allow `trinkets`.
 - **What other players see.** A vanilla Java client cannot render Trinkets models (the patch README says trinkets
-  "won't render visually"; a resource pack alone cannot draw them). So Foundry draws them itself: `WornDisplays` gives
-  each player one Polymer item display per worn Foundry trinket, turned with the body (cape, pauldron) or the head
-  (circlet, gills) every tick, placed by slot in `WornPlacement` (`head/hat`, `head/face`, `chest/back`, `chest/cape`).
-  It shows the item's own model (the flat sprite today) and hides while the player is invisible, swimming, gliding or
-  asleep. Needs only the Trinkets mod on the server, no client mod. Unverified on a live client: placement, size,
-  facing, whether the wearer sees their own copy in first person, and cost with many players. To move or resize one,
-  edit `WornPlacement`. A client that has the Trinkets mod gets its own render from the definitions in
-  `foundry/examples/assets/kingdoms/trinkets/` too, which may then draw a second copy; delete those files if so.
+  "won't render visually"; a resource pack alone cannot draw them). So Foundry draws them itself (`WornDisplays`): one
+  Polymer item display per worn Foundry trinket, turned with the body (cape, pauldron) or head (circlet, gills). No
+  client mod is needed, only Trinkets on the server. It shows the item's own model (a flat sprite today), appears
+  while the trinket is in its slot, and goes on unequip, death, logout, a new player object or a dimension change.
+  It is hidden while the player is invisible, swimming, gliding or asleep. Worn trinkets are looked for every 10
+  ticks and the per tick turning runs only while someone wears one. The gills are hidden from their own wearer (they
+  sit in front of the eyes); the rest show to everyone including the wearer in third person.
+- **Tuning it live.** `config/foundry/worn_displays.json` (shipped example: `foundry/examples/config/worn_displays.json`)
+  sets `up`, `back`, `side` (blocks from the feet; back is behind, side is to the player's right), `scale`,
+  `on_head`, `rotation` [x, y, z] degrees and `hide_from_wearer`, per slot under `slots` and per item under `items`
+  (an item entry names its `slot` and inherits it). Any field can be left out. Foundry checks the file every two
+  seconds and re-places everyone's displays when it changes, with no restart; a file with a problem logs a warning and
+  the last good placements stay. Without the file the built in defaults apply.
+  Unverified on a live client: how each item looks and sits, size and facing, and cost with many players. A client with
+  the Trinkets mod also gets its own render from `foundry/examples/assets/kingdoms/trinkets/` and may show a second
+  copy; delete those files if so.
 - **Bedrock.** The display entities are item displays, which Geyser may translate (unverified); the Trinkets models never reach Bedrock. The trinket still works: the slots, the effect and
   the screen are all server side. Bedrock players open the screen with `/trinkets` as well.
 

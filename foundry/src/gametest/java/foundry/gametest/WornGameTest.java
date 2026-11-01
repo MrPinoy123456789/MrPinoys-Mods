@@ -102,4 +102,50 @@ public final class WornGameTest {
     public void theAntlerCircletGivesNightVisionOnlyToTheFae(GameTestHelper helper) {
         raceOnly(helper, "kingdoms:antler_circlet", "head/hat", "race:faeloria", MobEffects.NIGHT_VISION);
     }
+
+    /** A worn trinket gets a display on the player, and taking it off removes the display. */
+    @GameTest(maxTicks = 100)
+    public void aWornTrinketIsDrawnAndRemovedOnUnequip(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, "race:azrak");
+        wear(wearer, "chest/back", new ItemStack(item("kingdoms:forgeman_pauldron")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "The pauldron has no display on its wearer");
+            TrinketsApi.getAttachment(wearer).getSlotAccess("chest/back", 0, false).set(ItemStack.EMPTY);
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 0, "The display stayed after the pauldron came off");
+                helper.succeed();
+            });
+        });
+    }
+
+    /** The display is not tied to the race lock (it is decoration), and a trinket in the pack draws nothing. */
+    @GameTest(maxTicks = 100)
+    public void aTrinketInThePackIsNotDrawn(GameTestHelper helper) {
+        ServerPlayer carrier = player(helper, null);
+        carrier.getInventory().add(new ItemStack(item("kingdoms:kingdom_cape")));
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(carrier.getUUID()) == 0, "A cape in the pack was drawn");
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "A worn cape was not drawn for a player of no race");
+            helper.succeed();
+        });
+    }
+
+    /** Wearing two trinkets draws two displays; dying removes them. */
+    @GameTest(maxTicks = 120)
+    public void displaysFollowTheWearerThroughDeath(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 2, "Two worn trinkets did not make two displays");
+            wearer.setHealth(0f);
+            helper.assertFalse(wearer.isAlive(), "The wearer is still alive after their health went to zero");
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 0, "The displays stayed after the wearer died");
+                helper.succeed();
+            });
+        });
+    }
 }
