@@ -1,7 +1,7 @@
 # FURNITURE_DECISION (D3 verification record)
 
 Date: 2026-10-29. Status: **approved by the owner 2026-10-29**. No furniture code exists; this record only
-verifies the D3 proposal against `polymer-virtual-entity 0.17.5+26.2` (the resolved jar, inspected with `javap`).
+verifies the D3 proposal against `polymer-virtual-entity 0.18.5+26.3` (the resolved jar, inspected with `javap`).
 
 ## What was actually built (2026-10-29, supersedes the barrier design below)
 

@@ -1,7 +1,7 @@
 # Races: passives, trinkets and gathering bonuses
 
-Status: draft spec, 2026-11-01. Nothing here is built. Written from the owner's brainstorm; every number is a
-starting point to tune.
+Status: spec, 2026-11-01, owner decisions folded in. Target is Minecraft 26.3. Build order: passives first (gathering
+in Foundry, combat in Charter), then trinkets. Every number is a starting point to tune.
 
 Scope: the five races of the kingdom server (Azrak Dwarf, Aurelia Human, Azurius Merfolk, Faeloria Fae, Everdelle
 Fairy). Charter owns who is which race (`race:<kingdom>` permission nodes, `RaceNodes`). Foundry owns items, triggers
@@ -60,17 +60,24 @@ Rules:
 Why free levels and not bigger numbers: a bonus drives trade only if other players cannot easily get the resource
 themselves. Equal, modest bonuses on separate families keep any one race from being the obvious pick.
 
-## 4. Combat passives (draft)
+## 4. Combat passives
 
-| Race | Combat passive | Axis |
-|---|---|---|
-| Dwarf | Bedrock Stance: knockback resistance while sneaking | Defense |
-| Merfolk | Strength and Resistance while in water | Terrain power |
-| Human | Rally: damage bonus when allies are nearby | Team |
-| Fae | Glamour: hostile mobs do not target first | Deception |
-| Fairy | Featherlight: no fall damage and a dodge chance | Evasion |
+Always on, and deliberately mild. They are knobs in Charter (`charter.json`), so a weak number is one edit away.
 
-Open: whether a combat passive is always on (Charter `racePassives`) or bound to the trinket (Foundry).
+| Race | Combat passive | Axis | Shipped number |
+|---|---|---|---|
+| Dwarf | Bedrock Stance: knockback resistance while sneaking | Defense | +0.4 knockback resistance (0 to 1 scale) |
+| Merfolk | Tidewrath: extra melee damage while in water | Terrain power | +1.5 attack damage (about Strength I's half) |
+| Human | Rally: extra melee damage for each nearby member of your own kingdom | Team | +0.5 per ally within 8 blocks, 3 allies at most |
+| Fae | Glamour: hostile mobs lose interest at range | Deception | Mobs farther than 6 blocks drop their target; for 10 s after the Fae attacks, they do not |
+| Fairy | Featherlight: no fall damage and a small dodge | Evasion | No fall damage; 8% chance to dodge a melee hit |
+
+Merfolk also mine at normal speed while submerged (vanilla slows submerged mining to a fifth). This is a utility, not
+combat: they already dominate the water, so it only removes the penalty and gives nothing extra.
+
+Glamour is the loosest fit. Vanilla has no event for a mob choosing a target and Foundry and Charter use no Mixins, so
+Glamour clears the target of nearby hostile mobs on a short timer instead of preventing it. A mob can still notice a
+Fae for an instant.
 
 ## 5. Trinkets
 
@@ -78,22 +85,18 @@ Each race has one worn trinket with its own model, so a race is recognisable at 
 
 | Race | Trinket | Carries |
 |---|---|---|
-| Dwarf | Forgeman's Pauldron | Dwarf signature mechanic |
+| Dwarf | Forgeman's Pauldron | Cosmetic for now |
 | Merfolk | Tidal Gills | Water Breathing and Dolphin's Grace (moved out of `racePassives` into the item) |
-| Human | Signet or circlet | Open: Human needs a distinct identity |
-| Fae | Antler circlet | Glamour |
+| Human | Kingdom cape | Cosmetic for now; shows the wearer's kingdom |
+| Fae | Antler circlet | Cosmetic for now |
 | Fairy | Wings | Flight |
 
 Each trinket works only for its race (permission gated); anyone else can wear it as decoration.
 
-### Worn slot, two options
+### Worn slot
 
-- Trinkets (Patbox): a separate slot, so wings do not cost the chest slot. Costs a dependency. Support for Minecraft
-  26.3 is unconfirmed and must be checked first.
-- Vanilla equippable slot: the wing item sits in the chest slot and uses the game's glider ability, so flight needs no
-  extra mod. Costs the chestplate.
-
-Plan: build the `while_worn` trigger against a small worn-items interface so either back end can be chosen later.
+Decided: Patbox's Trinkets, a separate slot so wings do not cost the chest slot. A 26.3 build exists. The `while_worn`
+trigger still sits behind a small worn-items interface, so a vanilla equipment slot stays possible as a fallback.
 
 ## 6. What Foundry needs
 
@@ -113,8 +116,20 @@ Charter work: none for the trinkets. The always-on combat passives, if chosen, e
 
 ## 7. Open questions
 
-1. Is each combat passive always on, or bound to the trinket?
-2. Trinkets mod or vanilla slots? Check Trinkets on 26.3 first.
-3. What gives Humans a distinct trinket and a weapon?
-4. Which Merfolk effects stay in `racePassives` after Tidal Gills takes Water Breathing and Dolphin's Grace?
-5. Foundry's README says 26.2 while master is the 26.3 line; confirm the Foundry target before any build work.
+1. Human gameplay: the kingdom cape is cosmetic. Rally is the only Human mechanic until a Human weapon exists.
+2. Which Merfolk effects stay in `racePassives` once Tidal Gills takes Water Breathing and Dolphin's Grace? Until the
+   trinket exists they stay, so nothing is lost.
+3. Bedrock players: a worn trinket model may not show without a resource pack. Verify before promising it.
+4. Glamour is approximate (section 4). Say so if a mob that glances at a Fae is not acceptable.
+
+## 8. Build status
+
+| Part | State |
+|---|---|
+| Spec | This document |
+| Combat passives (Charter) | In progress; see git log |
+| Gathering passives (Foundry) | In progress; see git log |
+| Trinkets and `while_worn` | Not started |
+
+The build environment for this spec had no access to the Fabric Maven host and no JDK 25, so Minecraft-side code was
+written but not compiled there. Pure logic is tested. Compile and gametest before relying on any of it.
