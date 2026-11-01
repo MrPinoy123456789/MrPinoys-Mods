@@ -307,20 +307,28 @@ public final class WornGameTest {
         helper.succeed();
     }
 
-    /** The circlet goes to other players as a helmet; a wearer who asks to see their trinkets gets a display copy of it. */
-    @GameTest(maxTicks = 60)
-    public void theCircletWearerSeesTheirOwnCopy(GameTestHelper helper) {
+    /**
+     * The antlers go to other players as a helmet, and to their wearer as a helmet in their own helmet slot (client
+     * only), so the wearer sees them on their head in third person and not in first person. No floating copy is made for
+     * them even with /trinketview on. A real helmet takes the slot back.
+     */
+    @GameTest(maxTicks = 80)
+    public void theAntlerWearerGetsThemAsTheirOwnHelmet(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         foundry.mc.WornDisplays.setSelfView(wearer.getUUID(), true);
         wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
         helper.runAfterDelay(25, () -> {
             var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
             foundry.mc.WornDisplays.setSelfView(wearer.getUUID(), false);
-            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "The circlet counts as more than one trinket");
-            helper.assertTrue(watchers.size() == 2, "Expected the helmet part and the wearer's copy, found " + watchers);
-            helper.assertTrue(!watchers.get(0).contains(wearer.getUUID()) && watchers.get(1).contains(wearer.getUUID()),
-                    "The wearer should get the display copy and not the helmet packet: " + watchers);
-            helper.succeed();
+            helper.assertTrue(watchers.size() == 1 && !watchers.get(0).contains(wearer.getUUID()),
+                    "Only the helmet part for others should exist, with no floating copy for the wearer: " + watchers);
+            helper.assertTrue(foundry.mc.WornDisplays.showsOwnHelmet(wearer.getUUID()), "The wearer is not shown the antlers as their helmet");
+            helper.assertTrue(wearer.getItemBySlot(EquipmentSlot.HEAD).isEmpty(), "The server's own helmet slot was changed");
+            wearer.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.IRON_HELMET));
+            helper.runAfterDelay(15, () -> {
+                helper.assertFalse(foundry.mc.WornDisplays.showsOwnHelmet(wearer.getUUID()), "A real helmet did not take the slot back");
+                helper.succeed();
+            });
         });
     }
 

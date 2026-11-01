@@ -286,6 +286,7 @@ public final class WornDisplays {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 online.add(player.getUUID());
                 rescan(player);
+                ownHelmet(player, now);
             }
             SHOWN.entrySet().removeIf(e -> {
                 if (online.contains(e.getKey())) return false;
@@ -294,6 +295,7 @@ public final class WornDisplays {
             });
             BODY.keySet().removeIf(id -> !online.contains(id));
             BODY_TICK.keySet().removeIf(id -> !online.contains(id));
+            OWN_HELMET.removeIf(id -> !online.contains(id));
         }
         if (SHOWN.isEmpty()) return;
         for (Shown shown : new ArrayList<>(SHOWN.values())) {
@@ -301,6 +303,7 @@ public final class WornDisplays {
             boolean headEmpty = shown.player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
             if (shown.parts.stream().anyMatch(part -> part.place.headSlot() && part.headMode != headEmpty)) {
                 rescan(shown.player);
+                ownHelmet(shown.player, now);
                 continue;
             }
         }
@@ -311,6 +314,7 @@ public final class WornDisplays {
         SHOWN.clear();
         BODY.clear();
         BODY_TICK.clear();
+        OWN_HELMET.clear();
         fileStamp = Long.MIN_VALUE;
     }
 
@@ -367,7 +371,7 @@ public final class WornDisplays {
             }
             // The wearer's own copy, only for a player who asked to see their trinkets (/trinketview): the client draws
             // everything attached to a player even in first person, and never tells the server which view it is in.
-            if (seesOwn && !place.hideFromWearer()) parts.add(display(player, stacks.get(i), place, ids.get(i), slotNames.get(i), true));
+            if (seesOwn && !headMode && !place.hideFromWearer()) parts.add(display(player, stacks.get(i), place, ids.get(i), slotNames.get(i), true));
         }
         Shown shown = new Shown(player, signature, parts);
         SHOWN.put(player.getUUID(), shown);
@@ -395,6 +399,46 @@ public final class WornDisplays {
         // copy is given to them by hand.
         if (wearersCopy && player.connection != null) holder.startWatching(player.connection);
         return new Part(holder, attachment, element, place, id, slot, false);
+    }
+
+    // ---- the wearer's own head slot item ----
+
+    /** Players whose own client is being shown their head slot trinket as a helmet. */
+    private static final java.util.Set<UUID> OWN_HELMET = new java.util.HashSet<>();
+    /** The helmet slot of the player's own inventory screen (5 head, 6 chest, 7 legs, 8 feet). */
+    static final int HEAD_SLOT = net.minecraft.world.inventory.InventoryMenu.ARMOR_SLOT_START;
+
+    /** True while this player's own client is shown their head slot trinket as a helmet (for tests and checks). */
+    public static boolean showsOwnHelmet(UUID player) {
+        return OWN_HELMET.contains(player);
+    }
+
+    /**
+     * A head slot trinket (the antlers) is also put in the wearer's own helmet slot, on their client only, so their game
+     * draws it on their own head: exact, and hidden in first person like any helmet. The server's inventory is not
+     * touched, so the item cannot be taken or dropped (the server's resync undoes that, and it is sent again every two
+     * seconds). The real helmet slot item is sent back when the trinket comes off, a real helmet goes on, the player dies
+     * or the placement hides it from its wearer. Not for Bedrock players.
+     */
+    private static void ownHelmet(ServerPlayer player, int now) {
+        UUID id = player.getUUID();
+        Shown shown = SHOWN.get(id);
+        Part head = shown == null || shown.player != player ? null
+                : shown.parts.stream().filter(Part::headMode).findFirst().orElse(null);
+        boolean want = head != null && !head.place.hideFromWearer() && player.isAlive()
+                && !foundry.core.Floodgate.isBedrock(id);
+        if (want) {
+            if (OWN_HELMET.add(id) || now % 40 == 0) sendOwnSlot(player, HEAD_SLOT, head.holder.headStack());
+        } else if (OWN_HELMET.remove(id)) {
+            sendOwnSlot(player, HEAD_SLOT, player.inventoryMenu.getSlot(HEAD_SLOT).getItem().copy());
+        }
+    }
+
+    /** Tells only this player's client what is in one slot of their own inventory screen. */
+    private static void sendOwnSlot(ServerPlayer player, int slot, ItemStack stack) {
+        if (player.connection == null) return;
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket(
+                player.inventoryMenu.containerId, player.inventoryMenu.getStateId(), slot, stack));
     }
 
     // ---- seeing your own trinkets ----

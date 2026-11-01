@@ -124,7 +124,11 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   are smoothed over three ticks, the same as their clients smooth your head and body, so they stay together. The circlet
   still goes to others as a helmet. The gills sit beside the neck, behind the eyes.
 - **Antler circlet.** Just the antlers now (no band, gem or leaves), 10% bigger, rising from the top of the head at the
-  temples. Other players see it as a helmet slot item, which the client draws on the head itself.
+  temples. Other players see it as a helmet slot item, which the client draws on the head itself. Its wearer gets it the
+  same way: it is put in their own helmet slot on their client only, so their game draws it on their head in third person
+  and hides it in first person like any helmet. They will see it in the helmet slot of their inventory screen; the
+  server's inventory is untouched, so it cannot be taken or dropped, and a real helmet takes the slot back. Not for
+  Bedrock players (their own copy follows `/trinketview` like the other trinkets).
 - **Riding displays below the feet (fixed).** A riding display's transformation starts at the top of the player, where
   the client seats it. Until a viewer's client has seated it (just after it appears, a respawn, a teleport) it stood at
   the feet, a body height too low; its own position is now the top of the player too.
