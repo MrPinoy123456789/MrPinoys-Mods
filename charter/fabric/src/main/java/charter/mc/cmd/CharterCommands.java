@@ -104,6 +104,7 @@ public final class CharterCommands {
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                         .executes(CharterCommands::invite)))
                         .then(Commands.literal("borders").executes(CharterCommands::borders))
+                        .then(Commands.literal("nexus").then(Commands.literal("move").executes(CharterCommands::moveNexus)))
                         .then(Commands.literal("merc")
                                 .then(Commands.argument("race", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(mercenaryRaces(), b))
@@ -239,6 +240,18 @@ public final class CharterCommands {
         int done = perform(player, new Found(id(player), name, preset), Text.get("found.done", "name", name.strip()));
         if (done == 1) Pages.faction(player, CharterServer.runtime());
         return done;
+    }
+
+    /** {@code /charter nexus move}: the kingdom's lodestone moves to where the Lord stands, inside the keep. */
+    private static int moveNexus(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        String problem = charter.mc.land.NexusMove.move(player);
+        if (problem != null) {
+            player.sendSystemMessage(Chat.bad(problem));
+            return 0;
+        }
+        player.sendSystemMessage(Chat.good(Text.get("nexus_move.done")));
+        return 1;
     }
 
     private static int borders(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

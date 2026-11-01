@@ -12,6 +12,7 @@
       "charter.gametest.StoreGameTest",
       "charter.gametest.VoteCommandGameTest",
       "charter.gametest.LandPlacementGameTest",
+      "charter.gametest.NexusMoveGameTest",
       "charter.gametest.LandProtectionGameTest",
       "charter.gametest.LandHazardsGameTest",
       "charter.gametest.GranaryGameTest",
