@@ -28,6 +28,10 @@ final class FoundryCommands {
                         .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
                         .then(Commands.literal("list").executes(ctx -> list(ctx.getSource())))
                         .then(Commands.literal("validate").executes(ctx -> validate(ctx.getSource())))
+                        .then(Commands.literal("worn").then(Commands.literal("list")
+                                .executes(ctx -> worn(ctx.getSource(), null))
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> worn(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))))
                         .then(Commands.literal("reload").executes(ctx -> reload(ctx.getSource())))
                         .then(Commands.literal("pack").then(Commands.literal("status")
                                 .executes(ctx -> packStatus(ctx.getSource())))
@@ -51,6 +55,12 @@ final class FoundryCommands {
                                                                 EntityArgument.getPlayer(ctx, "target"),
                                                                 IdentifierArgument.getId(ctx, "id").toString(),
                                                                 IntegerArgumentType.getInteger(ctx, "count")))))))));
+    }
+
+    /** Debug: each player's worn trinkets and the displays drawn for them, with who is receiving them. */
+    private static int worn(CommandSourceStack src, ServerPlayer only) {
+        for (String line : WornDisplays.describe(src.getServer(), only)) src.sendSuccess(() -> Component.literal(line), false);
+        return 1;
     }
 
     private static int help(CommandSourceStack src) {

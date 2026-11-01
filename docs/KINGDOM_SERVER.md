@@ -99,6 +99,14 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   Unverified on a live client: how each item looks and sits, size and facing, and cost with many players. A client with
   the Trinkets mod also gets its own render from `foundry/examples/assets/kingdoms/trinkets/` and may show a second
   copy; delete those files if so.
+- **Why the wearer saw nothing at first, and the check command.** Polymer sends an attached display only to players
+  tracking the entity, and nobody tracks themselves, so the wearer never got their own displays (a lone player saw
+  nothing in F5). `WornDisplays` now adds the wearer by hand, except for a placement with `hide_from_wearer`. Each
+  display is also placed before it is attached, so the first packet already has its size and position. `/foundry worn
+  list [player]` (op) prints each player's worn Foundry trinkets, the displays made for them, who receives each one and
+  where it sits: no display line means "not created" (no placement for that slot, or Trinkets absent); a line with the
+  right watchers but nothing on screen means "created but not visible" (try larger `up`, `back`, `side` or `scale`).
+  The harness cannot make mock players track each other, so Polymer's real tracking of other players is unverified.
 - **Bedrock.** The display entities are item displays, which Geyser may translate (unverified); the Trinkets models never reach Bedrock. The trinket still works: the slots, the effect and
   the screen are all server side. Bedrock players open the screen with `/trinkets` as well.
 

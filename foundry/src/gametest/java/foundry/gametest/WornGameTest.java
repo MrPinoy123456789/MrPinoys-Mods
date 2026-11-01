@@ -148,4 +148,38 @@ public final class WornGameTest {
             });
         });
     }
+
+    /** The wearer receives their own displays (nobody tracks themselves), except the gills, which hide from them. */
+    @GameTest(maxTicks = 100)
+    public void theWearerIsWatchingTheirOwnDisplaysExceptTheGills(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
+        wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
+        var name = wearer.getUUID();
+        helper.runAfterDelay(25, () -> {
+            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
+            helper.assertTrue(watchers.size() == 2, "Expected two displays but found " + watchers.size());
+            long self = watchers.stream().filter(w -> w.contains(name)).count();
+            helper.assertTrue(self == 1, "Exactly one display (the cape) should reach the wearer, but " + self + " do: " + watchers);
+            helper.succeed();
+        });
+    }
+
+    /** A viewer that Polymer starts tracking receives the display once, alongside the wearer who already has it. */
+    @GameTest(maxTicks = 120)
+    public void anObserverReceivesTheDisplays(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        ServerPlayer observer = player(helper, null);
+        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        helper.runAfterDelay(25, () -> {
+            foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
+            foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
+            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
+            helper.assertTrue(watchers.size() == 1, "Expected one display but found " + watchers.size());
+            helper.assertTrue(watchers.get(0).contains(wearer.getUUID()), "The wearer is not watching their circlet: " + watchers);
+            helper.assertTrue(watchers.get(0).contains(observer.getUUID()), "The observer is not watching the circlet: " + watchers);
+            helper.assertTrue(watchers.get(0).size() == 2, "The circlet is sent more than once: " + watchers);
+            helper.succeed();
+        });
+    }
 }
