@@ -323,8 +323,8 @@ WING_SWEEP = 22.5            # degrees each wing swings back from the plane of t
 
 
 def wings_model():
-    """Four flat wings on a small spine. Each plate stands in the plane of the back and is then turned about the
-    vertical by WING_SWEEP at the spine, tips away from the body, so from above the wings make a V. Each plate has a
+    """Four flat wings and nothing else (no spine between them). Each plate stands in the plane of the back and is then
+    turned about the vertical by WING_SWEEP where it meets the back, tips away from the body, so from above the wings make a V. Each plate has a
     front and a back face."""
     def plate(frm, to, uv, origin):
         return {"from": list(frm), "to": list(to),
@@ -342,12 +342,9 @@ def wings_model():
 
     upper = plate((9, 8, 7.7), (25, 28, 7.9), WING_UPPER, (9, 8, 7.8))
     lower = plate((9, -4, 7.75), (21, 8, 7.95), WING_LOWER, (9, 8, 7.8))
-    # the spine borrows a patch of the upper wing's rim near its base, where it is solid colour
-    spine = {"from": [7, 5, 7.2], "to": [9, 13, 8.8], "faces": {f: {"uv": list(SPINE_UV), "texture": "#0"} for f in FACES}}
-    return [spine, upper, lower, flip(upper), flip(lower)]
+    return [upper, lower, flip(upper), flip(lower)]
 
 
-SPINE_UV = [0.5, 9.25, 1.0, 9.5]  # filled in by paint_wings: a solid rim patch near the upper wing's base
 
 
 def paint_wings():
@@ -399,9 +396,6 @@ def paint_wings():
     wing((0, 0, 32, 40), (2, 38), 62, 40, 9.5)
     # lower wing: base near the top left of its box, pointing down and out at -48 degrees
     wing((32, 0, 56, 24), (34, 2), -48, 29, 7.0)
-    for py in range(37, 38):  # the spine patch: rim colour at the upper wing's base (uv 0.5..1, 9.25..9.5)
-        for px in range(2, 4):
-            img.putpixel((px, py), rim + (255,))
     return img
 
 
