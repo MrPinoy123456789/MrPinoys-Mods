@@ -52,6 +52,7 @@ final class Bonuses {
         BonusParser.Loaded loaded = BonusParser.load(FoundryMod.contentRoot());
         loaded.problems().forEach(p -> FoundryMod.LOG.warn("{}", p));
         defs = loaded.bonuses();
+        FoundryMod.LOG.info("Foundry: {} gathering bonuses loaded from {}", defs.size(), FoundryMod.contentRoot());
     }
 
     static void register() {
@@ -64,7 +65,7 @@ final class Bonuses {
     }
 
     private static void blockBroken(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state, BlockEntity blockEntity) {
-        if (defs.isEmpty() || player.isCreative()) return;
+        if (defs.isEmpty() || creative(player)) return;
         ItemStack tool = player.getMainHandItem();
         if (enchantLevel(level, tool, Enchantments.SILK_TOUCH) > 0) return;
         int toolLevel = enchantLevel(level, tool, Enchantments.FORTUNE);
@@ -81,7 +82,7 @@ final class Bonuses {
     }
 
     private static void mobKilled(ServerLevel level, ServerPlayer player, LivingEntity mob, DamageSource source) {
-        if (defs.isEmpty() || player.isCreative()) return;
+        if (defs.isEmpty() || creative(player)) return;
         int weaponLevel = enchantLevel(level, player.getMainHandItem(), Enchantments.LOOTING);
         for (BonusDef def : defs.values()) {
             if (def.kind() != BonusDef.Kind.LOOTING || !holds(player, def) || !matchesEntity(def, mob.getType())) continue;
@@ -100,6 +101,11 @@ final class Bonuses {
                 if (extra > 0) spawn(level, pos, stack.copyWithCount(extra));
             }));
         }
+    }
+
+    /** The player's game mode itself: the gametest mock player answers isCreative() true whatever its mode. */
+    private static boolean creative(ServerPlayer player) {
+        return player.gameMode.getGameModeForPlayer() == net.minecraft.world.level.GameType.CREATIVE;
     }
 
     private static boolean holds(ServerPlayer player, BonusDef def) {
