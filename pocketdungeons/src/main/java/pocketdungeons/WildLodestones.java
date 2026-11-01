@@ -66,7 +66,9 @@ final class WildLodestones {
         WildState.Lodestone entrance = state == null ? null
                 : state.atEntrance(dimensionKey(level), pos.getX(), pos.getY(), pos.getZ());
         if (exit == null && entrance == null) {
-            return InteractionResult.PASS;
+            // A wild jigsaw the server no longer tracks (after a restart, a collapsed lodestone, an Exit whose dungeon was
+            // torn down) must still never open the vanilla jigsaw editor, for an operator in creative either.
+            return isWildJigsaw(level, pos) ? InteractionResult.SUCCESS_SERVER : InteractionResult.PASS;
         }
         // Both hands fire; only the main hand opens the screen, but neither may fall through to the vanilla jigsaw editor.
         if (hand == InteractionHand.MAIN_HAND) {
@@ -80,6 +82,13 @@ final class WildLodestones {
             }
         }
         return InteractionResult.SUCCESS_SERVER;
+    }
+
+    /** Whether this jigsaw is one of ours: its name is {@code pocketdungeons:wild_*}. */
+    static boolean isWildJigsaw(Level level, BlockPos pos) {
+        return level.getBlockEntity(pos) instanceof JigsawBlockEntity jigsaw
+                && PocketDungeonsMod.MOD_ID.equals(jigsaw.getName().getNamespace())
+                && jigsaw.getName().getPath().startsWith("wild_");
     }
 
     // ---- the entrance ruin --------------------------------------------------

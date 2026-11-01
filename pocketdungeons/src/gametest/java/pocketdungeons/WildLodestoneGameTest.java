@@ -110,6 +110,32 @@ public final class WildLodestoneGameTest {
 
     @SuppressWarnings("removal")
     @GameTest
+    public void aForgottenWildJigsawStillNeverOpensTheVanillaEditor(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(6, 2, 6));
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(GameType.CREATIVE);
+        player.teleportTo(level, pos.getX() + 0.5, pos.getY(), pos.getZ() + 3.5, Set.of(), 0F, 0F, false);
+        WildMode.setActiveForTesting(true);
+        WildStore.setForTesting(new WildState());
+        try {
+            WildLodestones.placeExit(level, pos, "w-forgotten", false);
+            WildLodestones.forgetExits("w-forgotten");
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false);
+            helper.assertValueEqual(UseBlockCallback.EVENT.invoker().interact(player, level,
+                    InteractionHand.MAIN_HAND, hit), InteractionResult.SUCCESS_SERVER, "main hand on a forgotten Exit");
+            helper.assertValueEqual(UseBlockCallback.EVENT.invoker().interact(player, level,
+                    InteractionHand.OFF_HAND, hit), InteractionResult.SUCCESS_SERVER, "off hand on a forgotten Exit");
+        } finally {
+            WildMode.setActiveForTesting(null);
+            WildStore.setForTesting(null);
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+        }
+        helper.succeed();
+    }
+
+    @SuppressWarnings("removal")
+    @GameTest
     public void eachStateBuildsItsScreen(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
