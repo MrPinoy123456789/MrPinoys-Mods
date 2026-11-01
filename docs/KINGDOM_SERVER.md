@@ -49,8 +49,8 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
 - Players see a race's own name, not its kingdom's: `Organization.raceName` (blank falls back to the kingdom name), set
   with `/charter admin faction racename <kingdom> <name>` (Azrak Dwarf, Aurelia Human, Azurius Merfolk, Faeloria Fae,
   Everdelle Fairy).
-- Operators set a race with `/charter admin race <player> <race>` (any kingdom's race, members too, nothing else about
-  the player changes) and remove it with `/charter admin race <player> none` (`SetRace`). A player with no race takes
+- Operators set a race with `/charter admin faction race <player> <race>` (any kingdom's race, members too, nothing else about
+  the player changes) and remove it with `/charter admin faction race <player> none` (`SetRace`). A player with no race takes
   the race of the next kingdom they join, or chooses as a mercenary. Someone who has a race and no organization can be a
   mercenary of that race.
 - Race passives: the `racePassives` knob in `charter.json` maps a race node path to effect ids and `RacePassives`
