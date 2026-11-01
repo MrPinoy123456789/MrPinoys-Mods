@@ -154,6 +154,7 @@ public final class FoundryMod implements ModInitializer {
         updateOrphans(set);
         FoundryDatapack.init(set);
         FoundryCommands.register();
+        WornDisplays.registerCommand();
         Swings.register();
         Gate.register();
         Bonuses.register();

@@ -177,7 +177,7 @@ def render(model, root, yaw, pitch, size=288, scale=8.0):
     return Image.fromarray(img, "RGBA")
 
 
-VIEWS = [("front", 0, 0), ("back", 180, 0), ("side", 90, 0), ("three quarters", 35, -25)]
+VIEWS = [("front", 0, 0), ("back", 180, 0), ("side", 90, 0), ("three quarters", 35, -25), ("top", 0, -89)]
 
 
 def sheet(model, root, label):

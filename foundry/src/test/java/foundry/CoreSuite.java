@@ -52,6 +52,32 @@ public final class CoreSuite {
                 && worn.getAsJsonObject("fallback").get("model").getAsString().equals("kingdoms:item/x")
                 && worn.getAsJsonArray("cases").get(0).getAsJsonObject().getAsJsonArray("when").size() == 9,
                 "a worn model is a display context select with the flat model as the fallback");
+        // The body as clients draw it: walking east (+x) with the head looking south, the body turns toward the walk
+        // but stops 50 degrees from the head; the server's own body yaw would have stayed with the head.
+        var walker = new foundry.core.BodyYaw();
+        for (int t = 0; t <= 30; t++) walker.update(t * 0.2, 64, 0, 0f, false, false);
+        check(Math.abs(walker.yaw() - (-50f)) < 0.5f, "walking east while looking south turns the body to the 50 degree limit, got " + walker.yaw());
+        var backwards = new foundry.core.BodyYaw();
+        for (int t = 0; t <= 30; t++) backwards.update(0, 64, -t * 0.2, 0f, false, false);
+        check(Math.abs(backwards.yaw()) < 0.5f, "walking backwards keeps the body facing forward, got " + backwards.yaw());
+        var turner = new foundry.core.BodyYaw();
+        turner.update(0, 64, 0, 0f, false, false);
+        for (int t = 0; t < 30; t++) turner.update(0, 64, 0, 120f, false, false);
+        check(Math.abs(turner.yaw() - 70f) < 0.5f, "standing still and turning the head 120 drags the body to within 50, got " + turner.yaw());
+        var spinner = new foundry.core.BodyYaw();
+        for (int t = 0; t <= 10; t++) spinner.update(0, 64, 0, t * 10f, false, false);
+        check(Math.abs(spinner.headAhead(100f, 3f) - 130f) < 1f && spinner.yawAhead(3f) > spinner.yaw() + 20f,
+                "turning 10 degrees a tick, the wearer's copy is drawn 3 ticks ahead (head 130, body well ahead)");
+        check(Math.abs(spinner.headAhead(100f, 30f) - 145f) < 0.01f, "prediction never runs more than 45 degrees ahead");
+        var caped = new foundry.core.BodyYaw();
+        for (int t = 0; t <= 10; t++) caped.update(0, 64, t * 0.25, 0f, false, false);
+        check(caped.capeTilt(false) > 30f, "a cape trails back while walking forward, tilt " + caped.capeTilt(false));
+        var still = new foundry.core.BodyYaw();
+        for (int t = 0; t <= 10; t++) still.update(0, 64, 0, 0f, false, false);
+        check(Math.abs(still.capeTilt(false) - 6f) < 0.01f && Math.abs(still.capeTilt(true) - 31f) < 0.01f,
+                "a still cape hangs at 6 degrees, 31 crouching");
+        check(foundry.core.WornPlacement.parse("{\"slots\":{\"chest/cape\":{\"swing\":false}}}").table().find("", "chest/cape").get().swing() == false,
+                "swing can be turned off per slot");
         check(foundry.core.Floodgate.isBedrock(new java.util.UUID(0L, 12345L)) && !foundry.core.Floodgate.isBedrock(java.util.UUID.randomUUID()),
                 "a zero high half is a Floodgate Bedrock player, a random Java UUID is not");
         check(foundry.core.WornPlacement.of("hand/ring").isEmpty(), "an undrawn slot has no placement");
@@ -70,7 +96,8 @@ public final class CoreSuite {
                 "a broken worn display file reports a problem and falls back to the defaults");
         check(!foundry.core.WornPlacement.parse("{\"slots\":{\"head/hat\":{\"rotation\":[1]}}}").problems().isEmpty(),
                 "a bad rotation is reported");
-        check(foundry.core.WornPlacement.of("head/face").get().hideFromWearer(), "the face display hides from its wearer");
+        check(!foundry.core.WornPlacement.of("head/face").get().hideFromWearer() && !foundry.core.WornPlacement.of("head/hat").get().hideFromWearer(),
+                "the gills and the circlet are shown to their wearer (nothing sits in front of the eyes)");
         check(foundry.core.BonusMath.gain(0, 1, 3) == 1, "a plain tool gains the bonus");
         check(foundry.core.BonusMath.gain(3, 1, 3) == 0, "a tool at the cap gains nothing");
         check(foundry.core.BonusMath.gain(2, 3, 3) == 1, "the bonus tops up to the cap only");
