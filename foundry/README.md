@@ -1,6 +1,6 @@
 # Foundry
 
-A server-side Fabric mod for Minecraft 26.2. Content creators describe custom items (later furniture, recipes,
+A server-side Fabric mod for Minecraft 26.3. Content creators describe custom items (later furniture, recipes,
 sounds and more) in JSON files; the mod registers them through Polymer so vanilla clients can use them with only a
 resource pack. No client mod, no Java per item. There is no editor UI: Claude Code skills and a validator are the
 authoring interface.
@@ -43,7 +43,7 @@ data reload (see `docs/DECISIONS.md` D8).
 ./gradlew.bat runServer    # dev server; needs run/eula.txt with eula=true
 ```
 
-The jar is `build/libs/MrPinoys_Foundry-0.1.0.jar`. The server must also have `polymer-bundled 0.17.5+26.2`;
+The jar is `build/libs/MrPinoys_Foundry-0.1.0.jar`. The server must also have `polymer-bundled 0.18.5+26.3`;
 Foundry never shades it.
 
 ## What works (verified 2026-10-29)
@@ -59,7 +59,7 @@ Foundry never shades it.
 
 ## Verified by the owner in a vanilla client (2026-10-29)
 
-On a local dev server (`runServer`, offline mode) with an unmodded 26.2 client: the pack loaded, `/foundry give` of
+On a local dev server (`runServer`, offline mode) with an unmodded 26.2 client (before the move to 26.3; recheck on 26.3): the pack loaded, `/foundry give` of
 `demo:glow_gem` and `demo:crystal_sword` worked, and the owner reported that it works. The report was a single "it works";
 the exact look of each item and the sound were not itemised. Not tried: the Kinetic test server, a remote client over
 the public address, or an upgrade over an existing world.

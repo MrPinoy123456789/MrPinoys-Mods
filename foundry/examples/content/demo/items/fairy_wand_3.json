@@ -4,7 +4,7 @@
   "display_name": "Fairy Wand III",
   "lore": [
     "Left click: a sparkle bolt, 5 damage.",
-    "Right click: Mischief, a bolt that hurts, blinds and slows. 16s recharge.",
+    "Right click: Mischief, a bolt that hurts and lifts its target off the ground for a moment. 16s recharge.",
     "Sneak and right click: Healing Light, regeneration for players nearby. 65s recharge.",
     "Fully upgraded."
   ],
@@ -104,15 +104,8 @@
         },
         {
           "type": "apply_effect",
-          "effect": "minecraft:blindness",
-          "duration": 100,
-          "amplifier": 0,
-          "target": "hit"
-        },
-        {
-          "type": "apply_effect",
-          "effect": "minecraft:slowness",
-          "duration": 100,
+          "effect": "minecraft:levitation",
+          "duration": 50,
           "amplifier": 0,
           "target": "hit"
         },
@@ -120,6 +113,13 @@
           "type": "spawn_particles",
           "particle": "minecraft:witch",
           "count": 16,
+          "spread": 0.4,
+          "target": "hit"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:cloud",
+          "count": 12,
           "spread": 0.4,
           "target": "hit"
         }

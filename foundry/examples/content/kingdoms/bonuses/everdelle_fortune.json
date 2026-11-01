@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:everdelle_fortune",
+  "require_permission": "race:everdelle",
+  "kind": "fortune",
+  "level": 1,
+  "cap": 3,
+  "targets": ["#minecraft:redstone_ores", "minecraft:glowstone"]
+}

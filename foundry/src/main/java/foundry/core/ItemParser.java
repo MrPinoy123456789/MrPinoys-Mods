@@ -85,9 +85,32 @@ public final class ItemParser {
         var mechanics = foundry.core.mechanics.MechanicParser.parse(source, id == null ? source : id.toString(),
                 o.get("mechanics"), problems);
 
+        List<String> wornSlots = new ArrayList<>();
+        if (o.has("worn_slots")) {
+            if (!o.get("worn_slots").isJsonArray()) {
+                problems.add(Problem.error(source, "worn_slots", "worn_slots must be a list of slot names.",
+                        "Use [\"chest/cape\"]; slots are group/name, such as head/face, chest/cape or legs/belt."));
+            } else {
+                for (JsonElement e : (JsonArray) o.get("worn_slots")) {
+                    String slot = e.isJsonPrimitive() ? e.getAsString() : "";
+                    if (!slot.matches("[a-z0-9_]+/[a-z0-9_]+")) {
+                        problems.add(Problem.error(source, "worn_slots", "\"" + slot + "\" is not a slot name.",
+                                "Use group/name in lowercase, such as chest/cape."));
+                    } else {
+                        wornSlots.add(slot);
+                    }
+                }
+            }
+        }
+        boolean glider = o.has("glider") && o.get("glider").getAsBoolean();
+        if (wornSlots.isEmpty() && mechanics.stream().anyMatch(m -> m.trigger() == foundry.core.mechanics.Trigger.WHILE_WORN)) {
+            problems.add(Problem.error(source, "mechanics", "A while_worn mechanic needs worn_slots.",
+                    "Add \"worn_slots\": [\"head/face\"] so the item can be worn."));
+        }
+
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
         return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, attackDamage, attackSpeed,
-                requirePermission, lockedMessage, keepOnDeath, handheld, List.copyOf(mechanics)),
+                requirePermission, lockedMessage, keepOnDeath, handheld, List.copyOf(mechanics), List.copyOf(wornSlots), glider),
                 problems);
     }
 

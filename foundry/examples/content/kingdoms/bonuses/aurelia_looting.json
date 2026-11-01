@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:aurelia_looting",
+  "require_permission": "race:aurelia",
+  "kind": "looting",
+  "level": 1,
+  "cap": 3,
+  "targets": ["minecraft:cow", "minecraft:pig", "minecraft:sheep", "minecraft:chicken", "minecraft:rabbit", "minecraft:mooshroom"]
+}

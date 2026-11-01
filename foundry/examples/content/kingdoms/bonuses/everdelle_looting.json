@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:everdelle_looting",
+  "require_permission": "race:everdelle",
+  "kind": "looting",
+  "level": 1,
+  "cap": 3,
+  "targets": ["minecraft:creeper", "minecraft:ghast", "minecraft:witch"],
+  "only_items": ["minecraft:gunpowder", "minecraft:glowstone_dust", "minecraft:redstone"]
+}

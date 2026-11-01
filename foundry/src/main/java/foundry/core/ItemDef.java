@@ -32,16 +32,24 @@ public record ItemDef(
         String lockedMessage,
         boolean keepOnDeath,
         boolean handheld,
-        List<foundry.core.mechanics.MechanicDef> mechanics) {
+        List<foundry.core.mechanics.MechanicDef> mechanics,
+        List<String> wornSlots,
+        boolean glider) {
 
     public ItemDef withMechanics(List<foundry.core.mechanics.MechanicDef> replacement) {
         return new ItemDef(schemaVersion, id, displayName, lore, baseItem, model, texture, stackSize, durability, glint,
-                rarity, attackDamage, attackSpeed, requirePermission, lockedMessage, keepOnDeath, handheld, replacement);
+                rarity, attackDamage, attackSpeed, requirePermission, lockedMessage, keepOnDeath, handheld, replacement,
+                wornSlots, glider);
     }
 
     /** True when the item is locked to holders of a permission node. */
     public boolean locked() {
         return !requirePermission.isEmpty();
+    }
+
+    /** True when the item can sit in a worn slot (a trinket). */
+    public boolean worn() {
+        return !wornSlots.isEmpty();
     }
 
     /** True when the item brings its own melee numbers. */

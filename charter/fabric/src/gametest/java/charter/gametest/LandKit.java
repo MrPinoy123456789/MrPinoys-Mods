@@ -102,8 +102,12 @@ final class LandKit implements AutoCloseable {
 
     /** Founds a funded lordship through {@code /charter admin faction spawn}. The founder is its Lord. */
     ServerPlayer faction(String label) {
+        return factionNamed("T" + Long.toString(System.nanoTime() & 0xFFFFFFFFL, 36) + label + (counter++));
+    }
+
+    /** Founds a funded lordship with exactly this name (a race is named by its kingdom), its founder the Lord. */
+    ServerPlayer factionNamed(String name) {
         ServerPlayer founder = outsider();
-        String name = "T" + Long.toString(System.nanoTime() & 0xFFFFFFFFL, 36) + label + (counter++);
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),
                 "charter admin faction spawn \"" + name + "\" " + founder.getUUID());
         OrgId org = rt.state.orgNamed(name).map(o -> o.id).orElse(null);

@@ -116,6 +116,25 @@ public final class Knobs {
      */
     public java.util.Map<String, List<String>> racePassives = new java.util.LinkedHashMap<>(java.util.Map.of(
             "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace")));
+    // ---- race combat passives (always on, kept mild; see docs/RACES.md) ----
+    /** Master switch for the race combat passives below. Off: no race gets any of them. */
+    public boolean raceCombat = true;
+    /** Dwarf (Azrak) Bedrock Stance: knockback resistance, 0 to 1, while the player sneaks. */
+    public double dwarfSneakKnockbackResist = 0.4;
+    /** Merfolk (Azurius) Tidewrath: extra melee attack damage while the player is in water. */
+    public double merfolkWaterDamageBonus = 1.5;
+    /** Human (Aurelia) Rally: extra melee attack damage for each nearby member of the same kingdom. */
+    public double humanRallyPerAlly = 0.5;
+    /** Rally counts at most this many allies. */
+    public int humanRallyMaxAllies = 3;
+    /** Rally counts allies within this many blocks. */
+    public double humanRallyRadius = 8;
+    /** Fae (Faeloria) Glamour: hostile mobs farther than this many blocks lose their target. */
+    public double faeGlamourRange = 6;
+    /** Glamour stops this many ticks after the Fae last attacked, so a Fae who fights is seen. */
+    public int faeGlamourGraceTicks = 200;
+    /** Fairy (Everdelle) Featherlight: the chance, 0 to 1, to dodge one melee hit. Fairies also take no fall damage. */
+    public double fairyDodgeChance = 0.08;
     /** Whether players are told on the action bar when they cross into a kingdom, an outpost, held land or the wild. */
     public boolean entryMessages = true;
     /**

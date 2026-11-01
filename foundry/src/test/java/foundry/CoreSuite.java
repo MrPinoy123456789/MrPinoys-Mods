@@ -32,7 +32,50 @@ public final class CoreSuite {
         charging();
         weaponTiers();
         itemLocks();
+        bonuses();
         System.out.println("CoreSuite OK, " + checks + " checks");
+    }
+
+    private static void bonuses() {
+        check(foundry.core.BonusMath.gain(0, 1, 3) == 1, "a plain tool gains the bonus");
+        check(foundry.core.BonusMath.gain(3, 1, 3) == 0, "a tool at the cap gains nothing");
+        check(foundry.core.BonusMath.gain(2, 3, 3) == 1, "the bonus tops up to the cap only");
+        check(foundry.core.BonusMath.gain(4, 1, 3) == 0, "a tool above the cap is never lowered");
+        check(foundry.core.BonusMath.fortuneExtra(1, 2, 0.1) == 2, "a low roll doubles a Fortune I drop");
+        check(foundry.core.BonusMath.fortuneExtra(1, 2, 0.5) == 0, "a high roll adds nothing");
+        check(foundry.core.BonusMath.fortuneExtra(0, 2, 0.0) == 0, "no gain, no extra");
+        check(foundry.core.BonusMath.lootingExtra(1, 0.0) == 0 && foundry.core.BonusMath.lootingExtra(1, 0.99) == 1,
+                "Looting I adds 0 or 1");
+        check(foundry.core.BonusMath.lootingExtra(2, 0.99) == 2, "Looting II reaches 2");
+        String good = "{\"id\":\"kingdoms:azrak_fortune\",\"require_permission\":\"race:azrak\",\"kind\":\"fortune\","
+                + "\"targets\":[\"minecraft:iron_ore\",\"#minecraft:coal_ores\"]}";
+        var r = foundry.core.BonusParser.parse("t.json", good);
+        check(r.def() != null && r.problems().isEmpty(), "a minimal bonus parses");
+        check(r.def().level() == 1 && r.def().cap() == 3, "level defaults to 1 and cap to 3");
+        check(r.def().kind() == foundry.core.BonusDef.Kind.FORTUNE && r.def().targets().size() == 2, "kind and targets read");
+        check(foundry.core.BonusParser.parse("t.json", good.replace("fortune", "luck")).def() == null, "an unknown kind is refused");
+        check(foundry.core.BonusParser.parse("t.json", good.replace("race:azrak", "azrak")).def() == null, "a bad node is refused");
+        check(foundry.core.BonusParser.parse("t.json", good.replace("[\"minecraft:iron_ore\",\"#minecraft:coal_ores\"]", "[]")).def() == null,
+                "empty targets are refused");
+        check(foundry.core.BonusParser.parse("t.json", good.replace("}", ",\"level\":9}")).def() == null, "level 9 is refused");
+        check(foundry.core.BonusParser.parse("t.json", good.replace("}", ",\"only_items\":[\"#a:b\"]}")).def() == null,
+                "a tag in only_items is refused");
+        check(foundry.core.BonusParser.parse("t.json", "[1]").def() == null, "a non-object file is refused");
+        var shipped = foundry.core.BonusParser.load(java.nio.file.Path.of("examples/content"));
+        check(shipped.problems().isEmpty(), "the example race bonuses have no problems: " + shipped.problems());
+        check(shipped.bonuses().size() == 7, "the example content holds seven race bonuses, got " + shipped.bonuses().size());
+        try {
+            java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("bonus");
+            java.nio.file.Path folder = dir.resolve("kingdoms").resolve("bonuses");
+            java.nio.file.Files.createDirectories(folder);
+            java.nio.file.Files.writeString(folder.resolve("a.json"), good);
+            java.nio.file.Files.writeString(folder.resolve("b.json"), good);
+            var loaded = foundry.core.BonusParser.load(dir);
+            check(loaded.bonuses().size() == 1, "two files with one id load one");
+            check(loaded.problems().stream().anyMatch(foundry.core.Problem::blocking), "and the duplicate is reported");
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static void check(boolean ok, String what) {

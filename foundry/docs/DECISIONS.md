@@ -8,12 +8,12 @@ Status: approved by the owner. A web editor ("Studio") is deferred. Claude Code 
 validator reports problems in plain language, and `/foundry give` is the preview. Keep the content format and the
 validator editor-agnostic so an editor can be added later without changing either.
 
-## D2 (2026-10-29): Polymer bundled, built against, never shaded
+## D2 (2026-10-29, updated 2026-11-01 to 26.3): Polymer bundled, built against, never shaded
 
-Target: Minecraft 26.2, Fabric Loader 0.19.3, Fabric API 0.156.0+26.2, Java 25, `polymer-bundled 0.17.5+26.2`
-(the version on the owner's server). Foundry compiles against it and declares `polymer-core >=0.17.5` in
-`fabric.mod.json`. Polymer 0.18.x targets 26.3 and is not used. SGUI is not in the bundle; add `sgui` only when
-menus are built (task F8).
+Target: Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.165.0+26.3, Java 25, `polymer-bundled 0.18.5+26.3`
+(what `build.gradle.kts` pins). Foundry compiles against it and declares `polymer-core >=0.18.5` in
+`fabric.mod.json`. The first record named 26.2 and polymer 0.17.5; the workspace has since moved to 26.3. SGUI is not
+in the bundle; add `sgui` only when menus are built (task F8).
 
 ## D3 (2026-10-29, approved): furniture representation
 
@@ -51,7 +51,7 @@ and owner approval. The same applies to NMS-style internals.
 
 ## D8 (2026-10-29): how Foundry recipes reach the recipe manager
 
-Finding: in 26.2 `RecipeManager` fills itself from data pack JSON during reload, and its `apply` and `prepare` are
+Finding: in 26.3 `RecipeManager` fills itself from data pack JSON during reload, and its `apply` and `prepare` are
 protected; there is no public call to add a recipe, and Fabric's recipe API only adds ingredient types. Without a
 Mixin the only paths found are data-pack based:
 1. Write vanilla-format recipe JSON into a data pack that is enabled for the world (a `datapacks/` folder pack needs
@@ -81,7 +81,7 @@ below into the next. They are written by `tools/gen_weapons.py`, so rebalancing 
 that went into it:
 - Melee numbers are item fields (`attack_damage`, `attack_speed`) applied as attribute modifiers, because a custom
   item otherwise punches for 1 whatever its look.
-- Armour piercing is vanilla `indirect_magic` damage, which bypasses armour in 26.2 data. A bonus after a swing lands
+- Armour piercing is vanilla `indirect_magic` damage, which bypasses armour in 26.3 data (checked on 26.2, recheck on 26.3). A bonus after a swing lands
   inside the target's hit window, so `damage` has `ignore_hit_delay` to clear it first.
 - Hold to charge follows the bow: the client sees a `consumable` component with the bow animation and a very long time,
   so it never finishes by itself; the server decides at release. The mechanic is armed when the hold starts, so
