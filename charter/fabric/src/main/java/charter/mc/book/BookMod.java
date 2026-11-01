@@ -142,6 +142,10 @@ public final class BookMod {
         Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, Identifier.fromNamespaceAndPath("charter", "nexus"),
                 NexusRecipe.SERIALIZER);
         CharterBook.register();
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> BookDialogs.LAST.remove(handler.player.getUUID()));
+        FloodgateAdapter.installIfPresent();
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            BookDialogs.LAST.remove(handler.player.getUUID());
+            BedrockForms.forget(handler.player.getUUID());
+        });
     }
 }

@@ -29,6 +29,11 @@ public final class FormValues {
         return out.toString();
     }
 
+    /** The text a form sends back for these values, the inverse of {@link #split}. Bedrock forms build it themselves. */
+    public static String join(List<String> values) {
+        return PREFIX + String.join(SEPARATOR, values);
+    }
+
     /** The values in order, trimmed, or empty when the count is not the one the page asked for. */
     public static Optional<List<String>> split(String raw, int expected) {
         if (raw == null || !raw.startsWith(PREFIX)) return Optional.empty();
@@ -48,11 +53,18 @@ public final class FormValues {
         return true;
     }
 
+    /** A whole number: digits, or a slider's "5.0" (a number range sends a float). Anything else is empty. */
     public static OptionalInt integer(String value) {
+        String text = value.strip();
         try {
-            return OptionalInt.of(Integer.parseInt(value.strip()));
+            return OptionalInt.of(Integer.parseInt(text));
         } catch (NumberFormatException e) {
-            return OptionalInt.empty();
+            try {
+                double d = Double.parseDouble(text);
+                return d == Math.rint(d) && Math.abs(d) < Integer.MAX_VALUE ? OptionalInt.of((int) d) : OptionalInt.empty();
+            } catch (NumberFormatException again) {
+                return OptionalInt.empty();
+            }
         }
     }
 

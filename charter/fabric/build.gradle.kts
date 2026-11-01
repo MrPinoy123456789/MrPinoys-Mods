@@ -12,6 +12,9 @@ base {
 
 repositories {
     maven("https://maven.nucleoid.xyz/") { name = "Nucleoid" }
+    // Floodgate and Cumulus, compile only: the shipped server carries Floodgate, and Charter runs without it.
+    maven("https://repo.opencollab.dev/maven-releases/") { name = "OpenCollabReleases" }
+    maven("https://repo.opencollab.dev/maven-snapshots/") { name = "OpenCollabSnapshots" }
 }
 
 dependencies {
@@ -24,6 +27,10 @@ dependencies {
     // chest window. Plain implementation, as in ballot: 26.x is unobfuscated.
     implementation("eu.pb4:sgui:2.2.1+26.3")
     include("eu.pb4:sgui:2.2.1+26.3")
+
+    // Bedrock forms (BedrockForms, FloodgateAdapter). Never bundled: the server's own Floodgate provides them at run time.
+    compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")
+    compileOnly("org.geysermc.cumulus:cumulus:1.1.2")
 
     implementation(project(":core"))
     include(project(":core"))

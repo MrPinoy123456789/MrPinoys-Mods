@@ -45,6 +45,7 @@ public final class BookDialogs {
             if (strict) throw new IllegalStateException(what);
             charter.mc.CharterMod.LOG.warn(what);
         }
+        if (BedrockForms.show(player, screen)) return;
         JavaDialogRenderer.show(player, screen);
     }
 

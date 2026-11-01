@@ -16,6 +16,10 @@ public sealed interface BookInput {
     record Choice(String key, String label, List<String> ids, List<String> shown) implements BookInput {
     }
 
+    /** A slider over whole numbers; the value is the number as digits. Java draws a number range, Bedrock a slider. */
+    record Slider(String key, String label, int min, int max, int step, int initial) implements BookInput {
+    }
+
     /** A one-line text box. */
     record Text(String key, String label, String initial, int maxLength) implements BookInput {
     }

@@ -151,6 +151,11 @@ public final class Knobs {
      * place, use or attack anything, in the wild as well. Operators are exempt. They open the Charter book to choose.
      */
     public boolean requireAffiliation = true;
+    /**
+     * Bedrock players (through Floodgate) get the book as native forms with button icons. Off sends them the same
+     * dialogs a Java player sees, translated by Geyser. A switch in case a Floodgate update breaks the forms.
+     */
+    public boolean bedrockNativeForms = true;
     /** Whether every player sees a glowing line along nearby keep borders without holding anything. */
     public boolean keepBorderGlow = false;
     /** Whether a player who has lost their Charter book is given a new one. */

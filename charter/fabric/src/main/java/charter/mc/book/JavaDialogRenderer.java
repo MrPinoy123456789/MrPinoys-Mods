@@ -21,6 +21,7 @@ import net.minecraft.server.dialog.action.ParsedTemplate;
 import net.minecraft.server.dialog.action.StaticAction;
 import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.dialog.body.PlainMessage;
+import net.minecraft.server.dialog.input.NumberRangeInput;
 import net.minecraft.server.dialog.input.SingleOptionInput;
 import net.minecraft.server.dialog.input.TextInput;
 import net.minecraft.server.level.ServerPlayer;
@@ -97,6 +98,9 @@ final class JavaDialogRenderer {
             switch (in) {
                 case BookInput.Text t -> out.add(new Input(t.key(), new TextInput(WIDE, Component.literal(t.label()), true,
                         t.initial(), t.maxLength(), Optional.empty())));
+                case BookInput.Slider sl -> out.add(new Input(sl.key(), new NumberRangeInput(WIDE, Component.literal(sl.label()),
+                        "options.generic_value", new NumberRangeInput.RangeInfo(sl.min(), sl.max(),
+                        Optional.of((float) sl.initial()), Optional.of((float) sl.step())))));
                 case BookInput.Choice c -> {
                     List<SingleOptionInput.Entry> entries = new ArrayList<>();
                     for (int i = 0; i < c.ids().size(); i++) {
