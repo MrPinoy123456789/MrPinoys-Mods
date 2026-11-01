@@ -3,16 +3,19 @@
   "id": "kingdoms:fairy_wings",
   "display_name": "Fairy Wings",
   "lore": [
-    "Worn in the chest slot like an elytra, and glides like one.",
-    "Only the Fairies of Everdelle can glide with them, and the wings wear out as they fly. Mend them as you would an elytra."
+    "Worn in the cape slot. Open the Trinkets screen with /trinkets, or the Charter book.",
+    "Only the Fairies of Everdelle can glide with them, like an elytra, and the wings never wear out."
   ],
   "base_item": "minecraft:elytra",
   "texture": "kingdoms:item/fairy_wings",
+  "worn_model": "kingdoms:item/worn/fairy_wings",
   "stack_size": 1,
-  "durability": 432,
   "rarity": "rare",
   "keep_on_death": true,
   "glider": true,
   "require_permission": "race:everdelle",
-  "locked_message": "Only the Fairies of Everdelle can glide with these wings."
+  "locked_message": "Only the Fairies of Everdelle can glide with these wings.",
+  "worn_slots": [
+    "chest/cape"
+  ]
 }

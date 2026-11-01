@@ -72,6 +72,78 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Race trinkets: opening the screen and how they look
+
+Four race trinkets (Tidal Gills, Forgeman's Pauldron, Kingdom Cape, Antler Circlet) sit in Trinkets Updated slots; the
+Fairy Wings are an elytra in the chest slot and show on every client.
+
+- **Opening the Trinkets screen.** Any player, op or not, can use `/trinkets` (the patch registers it with no permission
+  check), `/trinkets compact` to switch between the compact and flat layouts, or right click a helmet, chestplate,
+  leggings or boots slot in the inventory. `/charter trinkets` runs the same `/trinkets` as the player, and the Charter
+  book home has a Trinkets button. Both need no op level. A permission mod that restricts commands would also have to
+  allow `trinkets`.
+- **What other players see.** A vanilla Java client cannot render Trinkets models (the patch README says trinkets
+  "won't render visually"; a resource pack alone cannot draw them). So Foundry draws them itself (`WornDisplays`): one
+  Polymer item display per worn Foundry trinket, turned with the body (cape, pauldron) or head (circlet, gills). No
+  client mod is needed, only Trinkets on the server. It shows the item's own model (a flat sprite today), appears
+  while the trinket is in its slot, and goes on unequip, death, logout, a new player object or a dimension change.
+  It is hidden while the player is invisible, swimming, gliding or asleep. Worn trinkets are looked for every 10
+  ticks and the per tick turning runs only while someone wears one. The gills are hidden from their own wearer (they
+  sit in front of the eyes); the rest show to everyone including the wearer in third person.
+- **Tuning it live.** `config/foundry/worn_displays.json` (shipped example: `foundry/examples/config/worn_displays.json`)
+  sets `up`, `back`, `side` (blocks from the feet; back is behind, side is to the player's right), `scale`,
+  `on_head`, `rotation` [x, y, z] degrees and `hide_from_wearer`, per slot under `slots` and per item under `items`
+  (an item entry names its `slot` and inherits it). Any field can be left out. Foundry checks the file every two
+  seconds and re-places everyone's displays when it changes, with no restart; a file with a problem logs a warning and
+  the last good placements stay. Without the file the built in defaults apply.
+  Unverified on a live client: how each item looks and sits, size and facing, and cost with many players. A client with
+  the Trinkets mod also gets its own render from `foundry/examples/assets/kingdoms/trinkets/` and may show a second
+  copy; delete those files if so.
+- **Why the wearer saw nothing at first, and the check command.** Polymer sends an attached display only to players
+  tracking the entity, and nobody tracks themselves, so the wearer never got their own displays (a lone player saw
+  nothing in F5). `WornDisplays` now adds the wearer by hand, except for a placement with `hide_from_wearer`. Each
+  display is also placed before it is attached, so the first packet already has its size and position. `/foundry worn
+  list [player]` (op) prints each player's worn Foundry trinkets, the displays made for them, who receives each one and
+  where it sits: no display line means "not created" (no placement for that slot, or Trinkets absent); a line with the
+  right watchers but nothing on screen means "created but not visible" (try larger `up`, `back`, `side` or `scale`).
+  The harness cannot make mock players track each other, so Polymer's real tracking of other players is unverified.
+- **No lag.** Two settings in `worn_displays.json`, per slot or item. `head_slot` (default on for `head/hat`, the
+  circlet) sends the item to other players as if it were in the helmet slot (a per viewer equipment packet), so it
+  follows the head exactly; the real helmet slot is never changed, the wearer is not sent it, and it falls back to a
+  display while a real helmet is worn and returns when it comes off. `ride` (default on for the displays) mounts the
+  display on the player as a virtual passenger, so the client moves it every frame instead of waiting for position
+  packets; heights are then measured from the player's top, which Foundry handles. Set either to false to go back to the
+  old behaviour if something looks wrong. Both are unverified on a live client.
+- **Gills facing.** The gills showed edge on as a flat sprite; the 3D mask now has no extra turn, so the
+  `head/face` default has `rotation` [0, 0, 0] (it was [0, 90, 0] for the sprite). If the mask sits sideways, set a y turn of 90 or -90 in `worn_displays.json`. Head
+  displays also tip with the head's pitch (gametested for yaw and pitch).
+- **3D models.** Each trinket has a real 3D model, not a flat sprite: `examples/assets/kingdoms/models/item/worn/*.json`
+  (cuboids with per face UVs, rotations and display transforms) with `examples/assets/kingdoms/textures/worn/*.png`,
+  made by `foundry/tools/gen_trinket_models.py` (change a number, re-run). `foundry/tools/check_models.py` validates them
+  (every face has a texture, UVs in range, legal rotations, modest cuboid count) and `--preview out.png` draws front,
+  side and top silhouettes. An item names its model with `"worn_model"`; Foundry then writes a client item definition
+  that shows the 3D model in every display context (worn display, helmet slot, inventory, hand, item frame) and keeps
+  the flat texture as the fallback and as the Bedrock icon. Only a live client shows the real look and whether a
+  rotation direction needs flipping (the cape flare, the antler lean).
+- **Skins.** The cape, pauldron, circlet and gills are skinned from their own flat sprites (the model's front faces show a crop of the sprite, the rest use swatches of its colours), so they read like the item art. The wings use the elytra texture from the CC BY-NC-SA 4.0 pack "Fairy Wings Elytra" (credit in `foundry/examples/assets/CREDITS.md`; non-commercial only).
+- **Wings.** The Fairy Wings now go in the **cape slot** (`chest/cape`, which has room for two so the Human cape and the
+  wings never clash; the slot is widened by `data/trinkets/slots/chest/cape.json`). They are race locked and have no
+  durability, so they never wear out. Trinkets Updated treats a glider item in a trinket slot as a glider on the server
+  (a gametest shows it answering yes), but a vanilla client only asks to glide when its own chest slot holds one, so
+  `Wings` starts the glide for a Fairy who holds jump while falling and stops a player of no race who glides with them.
+  Unverified live: that the client accepts a glide the server started (if not, the wings still glide worn in the chest
+  slot, where they keep the elytra parts). `/foundry worn list` shows the wings display like any other.
+- **Cape.** The cape is found in `chest/cape` and has a placement (gametested: one display per cape). It sits behind
+  the body, so look from behind; if `/foundry worn list` shows the display with watchers and nothing is on screen, raise
+  `back` or `scale` for `chest/cape` in `worn_displays.json`.
+- **Bedrock.** Nothing is drawn, on purpose: the live log showed Geyser throwing `Missing ID 73 in Java registry minecraft:entity_type` for every item display it was sent (it cannot translate `item_display` on 26.3), so `WornDisplays` never sends displays to a Floodgate player (UUID high half zero). Geyser (current master) lists `text_display` as required entity metadata but
+  `item_display` and `block_display` as not required, so Polymer's item displays are almost certainly not translated;
+  I found no Geyser option to attach a worn model to a player either. The trinket itself still works for Bedrock
+  players, and they open the screen with `/trinkets`. Possible routes (none built): a Geyser custom item mapping plus an
+  attachable in the Bedrock pack and mirroring the trinket into the real head or chest slot for Bedrock players only
+  (medium effort, confusing inventory); an invisible armor stand wearing the item that Geyser does translate (medium,
+  but it needs the item mapped and may look wrong); or accepting nothing.
+
 ## Coins
 
 `kingdoms:copper_coin`, `kingdoms:iron_coin` and `kingdoms:gold_coin` are plain Foundry items (stack of 64, a drawn 16x16 icon,

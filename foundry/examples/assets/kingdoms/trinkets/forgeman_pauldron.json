@@ -1,0 +1,46 @@
+{
+  "priority": 0,
+  "target": [
+    "kingdoms:forgeman_pauldron"
+  ],
+  "render": [
+    {
+      "type": "item",
+      "model_part": "right_arm",
+      "display_context": "none",
+      "offset": [
+        1,
+        1,
+        0
+      ],
+      "transformation": {
+        "translation": [
+          0.12,
+          -0.1,
+          0
+        ],
+        "left_rotation": {
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "angle": 0
+        },
+        "scale": [
+          0.45,
+          0.45,
+          0.45
+        ],
+        "right_rotation": {
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "angle": 0
+        }
+      }
+    }
+  ]
+}

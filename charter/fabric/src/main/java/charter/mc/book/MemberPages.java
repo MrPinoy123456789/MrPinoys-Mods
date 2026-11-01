@@ -123,7 +123,9 @@ public final class MemberPages {
                 go(player, Text.get("book.button.situation"), p -> situation(p, null)),
                 go(player, v.orgName(), p -> faction(p, null)),
                 go(player, Text.get("book.button.war"), p -> WarPages.page(p, null)),
-                go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
+                go(player, Text.get("book.button.chronicle"), p -> chronicle(p)),
+                BookDialogs.act(player, Text.get("book.button.trinkets"), null,
+                        p -> charter.mc.cmd.LandCommands.trinkets(p)));
         String tip = formTip(v.form(), deciders(v.org()));
         net.minecraft.network.chat.Component formLine = net.minecraft.network.chat.Component.literal(
                         Text.get("book.home.form", "form", form, "offices", offices))

@@ -34,12 +34,13 @@ public record ItemDef(
         boolean handheld,
         List<foundry.core.mechanics.MechanicDef> mechanics,
         List<String> wornSlots,
-        boolean glider) {
+        boolean glider,
+        Ident wornModel) {
 
     public ItemDef withMechanics(List<foundry.core.mechanics.MechanicDef> replacement) {
         return new ItemDef(schemaVersion, id, displayName, lore, baseItem, model, texture, stackSize, durability, glint,
                 rarity, attackDamage, attackSpeed, requirePermission, lockedMessage, keepOnDeath, handheld, replacement,
-                wornSlots, glider);
+                wornSlots, glider, wornModel);
     }
 
     /** True when the item is locked to holders of a permission node. */

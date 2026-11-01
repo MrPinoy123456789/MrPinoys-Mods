@@ -1,0 +1,11 @@
+{
+  "slots": {
+    "head/hat": { "up": 1.65, "back": 0.0, "side": 0.0, "scale": 1.15, "on_head": true, "rotation": [0, 0, 0], "hide_from_wearer": false, "head_slot": true, "ride": true },
+    "head/face": { "up": 1.62, "back": -0.31, "side": 0.0, "scale": 1.1, "on_head": true, "rotation": [0, 0, 0], "hide_from_wearer": true, "head_slot": false, "ride": true },
+    "chest/back": { "up": 1.38, "back": 0.0, "side": 0.38, "scale": 0.9, "on_head": false, "rotation": [0, 0, 0], "hide_from_wearer": false, "head_slot": false, "ride": true },
+    "chest/cape": { "up": 1.0, "back": 0.26, "side": 0.0, "scale": 1.6, "on_head": false, "rotation": [0, 0, 0], "hide_from_wearer": false, "head_slot": false, "ride": true }
+  },
+  "items": {
+    "kingdoms:fairy_wings": { "slot": "chest/cape", "up": 1.2, "back": 0.34, "scale": 1.3 }
+  }
+}

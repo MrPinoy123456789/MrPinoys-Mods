@@ -39,6 +39,7 @@ public final class ItemParser {
         Ident base = identField(o, "base_item", true, source, problems);
         Ident model = identField(o, "model", false, source, problems);
         Ident texture = identField(o, "texture", false, source, problems);
+        Ident wornModel = identField(o, "worn_model", false, source, problems);
         if (model != null && texture != null) {
             problems.add(Problem.error(source, "texture", "An item cannot have both model and texture.",
                     "Keep texture to let Foundry build a flat model, or keep model to use your own."));
@@ -110,7 +111,7 @@ public final class ItemParser {
 
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
         return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, attackDamage, attackSpeed,
-                requirePermission, lockedMessage, keepOnDeath, handheld, List.copyOf(mechanics), List.copyOf(wornSlots), glider),
+                requirePermission, lockedMessage, keepOnDeath, handheld, List.copyOf(mechanics), List.copyOf(wornSlots), glider, wornModel),
                 problems);
     }
 

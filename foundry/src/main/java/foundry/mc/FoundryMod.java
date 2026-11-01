@@ -161,15 +161,19 @@ public final class FoundryMod implements ModInitializer {
             Swings.tick(server);
             Bolts.tick(server);
             WornItems.tick(server);
+            if (WornItems.trinkets()) WornDisplays.tick(server);
+            if (WornItems.trinkets()) Wings.tick(server);
         });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             Swings.clear();
             Bolts.clear();
             Charging.clear();
             Gate.clear();
+            WornDisplays.clear();
+            Wings.clear();
         });
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                Charging.forget(handler.getPlayer().getUUID()));
+                { Charging.forget(handler.getPlayer().getUUID()); Wings.forget(handler.getPlayer().getUUID()); });
         PackBuilds.markBaseline();
         LOG.info("Foundry: {} items registered, {} problems", FoundryItems.all().size(), set.problems().size());
     }

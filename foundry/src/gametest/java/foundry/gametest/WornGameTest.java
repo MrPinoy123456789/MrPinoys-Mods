@@ -70,7 +70,6 @@ public final class WornGameTest {
         helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
         helper.assertTrue(wings.has(DataComponents.EQUIPPABLE)
                 && wings.get(DataComponents.EQUIPPABLE).slot() == EquipmentSlot.CHEST, "The wings do not go in the chest slot");
-        helper.assertTrue(wings.getMaxDamage() > 0, "The wings do not wear out");
         helper.succeed();
     }
 
@@ -101,5 +100,171 @@ public final class WornGameTest {
     @GameTest(maxTicks = 100)
     public void theAntlerCircletGivesNightVisionOnlyToTheFae(GameTestHelper helper) {
         raceOnly(helper, "kingdoms:antler_circlet", "head/hat", "race:faeloria", MobEffects.NIGHT_VISION);
+    }
+
+    /** A worn trinket gets a display on the player, and taking it off removes the display. */
+    @GameTest(maxTicks = 100)
+    public void aWornTrinketIsDrawnAndRemovedOnUnequip(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, "race:azrak");
+        wear(wearer, "chest/back", new ItemStack(item("kingdoms:forgeman_pauldron")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "The pauldron has no display on its wearer");
+            TrinketsApi.getAttachment(wearer).getSlotAccess("chest/back", 0, false).set(ItemStack.EMPTY);
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 0, "The display stayed after the pauldron came off");
+                helper.succeed();
+            });
+        });
+    }
+
+    /** The display is not tied to the race lock (it is decoration), and a trinket in the pack draws nothing. */
+    @GameTest(maxTicks = 100)
+    public void aTrinketInThePackIsNotDrawn(GameTestHelper helper) {
+        ServerPlayer carrier = player(helper, null);
+        carrier.getInventory().add(new ItemStack(item("kingdoms:kingdom_cape")));
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(carrier.getUUID()) == 0, "A cape in the pack was drawn");
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "A worn cape was not drawn for a player of no race");
+            helper.succeed();
+        });
+    }
+
+    /** Wearing two trinkets draws two displays; dying removes them. */
+    @GameTest(maxTicks = 120)
+    public void displaysFollowTheWearerThroughDeath(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 2, "Two worn trinkets did not make two displays");
+            wearer.setHealth(0f);
+            helper.assertFalse(wearer.isAlive(), "The wearer is still alive after their health went to zero");
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 0, "The displays stayed after the wearer died");
+                helper.succeed();
+            });
+        });
+    }
+
+    /** The wearer receives their own displays (nobody tracks themselves), except the gills, which hide from them. */
+    @GameTest(maxTicks = 100)
+    public void theWearerIsWatchingTheirOwnDisplaysExceptTheGills(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
+        wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
+        var name = wearer.getUUID();
+        helper.runAfterDelay(25, () -> {
+            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
+            helper.assertTrue(watchers.size() == 2, "Expected two displays but found " + watchers.size());
+            long self = watchers.stream().filter(w -> w.contains(name)).count();
+            helper.assertTrue(self == 1, "Exactly one display (the cape) should reach the wearer, but " + self + " do: " + watchers);
+            helper.succeed();
+        });
+    }
+
+    /** A viewer that Polymer starts tracking receives the display once, alongside the wearer who already has it. */
+    @GameTest(maxTicks = 120)
+    public void anObserverReceivesTheDisplays(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        ServerPlayer observer = player(helper, null);
+        wear(wearer, "chest/back", new ItemStack(item("kingdoms:forgeman_pauldron")));
+        helper.runAfterDelay(25, () -> {
+            foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
+            foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
+            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
+            helper.assertTrue(watchers.size() == 1, "Expected one display but found " + watchers.size());
+            helper.assertTrue(watchers.get(0).contains(wearer.getUUID()), "The wearer is not watching their pauldron: " + watchers);
+            helper.assertTrue(watchers.get(0).contains(observer.getUUID()), "The observer is not watching the pauldron: " + watchers);
+            helper.assertTrue(watchers.get(0).size() == 2, "The pauldron is sent more than once: " + watchers);
+            helper.succeed();
+        });
+    }
+
+    /** A head display turns with the head's yaw and tips with its pitch. */
+    @GameTest(maxTicks = 100)
+    public void aHeadDisplayFollowsTheHeadYawAndPitch(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
+        helper.runAfterDelay(15, () -> {
+            wearer.setYHeadRot(90f);
+            wearer.setXRot(30f);
+            helper.runAfterDelay(5, () -> {
+                var q = foundry.mc.WornDisplays.rotationOf(wearer.getUUID(), 0);
+                helper.assertTrue(q != null, "The gills have no display");
+                var expected = new org.joml.Quaternionf().rotationY((float) Math.toRadians(-90)).rotateX((float) Math.toRadians(30));
+                var got = q.transform(new org.joml.Vector3f(0, 0, 1));
+                var want = expected.transform(new org.joml.Vector3f(0, 0, 1));
+                helper.assertTrue(got.distance(want) < 0.05f, "The gills face " + got + " instead of " + want);
+                helper.succeed();
+            });
+        });
+    }
+
+    /** The circlet goes to other players as a helmet while the helmet slot is empty, and falls back to a display under a real helmet. */
+    @GameTest(maxTicks = 160)
+    public void theCircletIsAHelmetForViewersUnlessARealHelmetIsWorn(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        ServerPlayer observer = player(helper, null);
+        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)), "The circlet is not sent as a helmet");
+            foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
+            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID()).get(0);
+            helper.assertTrue(watchers.contains(observer.getUUID()) && !watchers.contains(wearer.getUUID()),
+                    "The helmet packet should go to the observer and not the wearer: " + watchers);
+            wearer.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.IRON_HELMET));
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue("display".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)),
+                        "Under a real helmet the circlet should fall back to a display");
+                wearer.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
+                helper.runAfterDelay(25, () -> {
+                    helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)),
+                            "Taking the helmet off should send the circlet as a helmet again");
+                    helper.succeed();
+                });
+            });
+        });
+    }
+
+    /** Wings worn in the cape slot let a Fairy glide, and a player of no race is marked as wearing wings they cannot use. */
+    @GameTest(maxTicks = 100)
+    public void wingsInTheCapeSlotAreForFairies(GameTestHelper helper) {
+        ServerPlayer fairy = player(helper, "race:everdelle");
+        ServerPlayer other = player(helper, null);
+        wear(fairy, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
+        wear(other, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.Wings.isWinged(fairy.getUUID()) && !foundry.mc.Wings.isDenied(fairy.getUUID()),
+                    "A Fairy wearing the wings is not marked as winged");
+            helper.assertTrue(foundry.mc.Wings.isDenied(other.getUUID()) && !foundry.mc.Wings.isWinged(other.getUUID()),
+                    "A player of no race is not marked as wearing wings they cannot use");
+            fairy.setOnGround(false);
+            helper.assertTrue(fairy.tryToStartFallFlying(), "A Fairy wearing the wings in the cape slot cannot start gliding");
+            helper.succeed();
+        });
+    }
+
+    /** The cape and the wings both fit the cape slot at once (the slot has room for two). */
+    @GameTest(maxTicks = 60)
+    public void theCapeAndTheWingsShareTheCapeSlot(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        var attachment = TrinketsApi.getAttachment(wearer);
+        var first = attachment.getSlotAccess("chest/cape", 0, false);
+        var second = attachment.getSlotAccess("chest/cape", 1, false);
+        helper.assertTrue(first != null && second != null, "The cape slot has no second place");
+        helper.assertTrue(first.set(new ItemStack(item("kingdoms:kingdom_cape"))), "The first cape slot refused the cape");
+        helper.assertTrue(second.set(new ItemStack(item("kingdoms:fairy_wings"))), "The second cape slot refused the wings");
+        helper.succeed();
+    }
+
+    /** The wings never wear out and still have the elytra's parts. */
+    @GameTest(maxTicks = 20)
+    public void theWingsNeverWearOut(GameTestHelper helper) {
+        ItemStack wings = new ItemStack(item("kingdoms:fairy_wings"));
+        helper.assertTrue(wings.getMaxDamage() == 0, "The wings still have durability");
+        helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
+        helper.succeed();
     }
 }

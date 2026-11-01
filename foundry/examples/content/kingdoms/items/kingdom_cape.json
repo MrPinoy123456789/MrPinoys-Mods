@@ -8,6 +8,7 @@
   ],
   "base_item": "minecraft:white_banner",
   "texture": "kingdoms:item/kingdom_cape",
+  "worn_model": "kingdoms:item/worn/kingdom_cape",
   "stack_size": 1,
   "rarity": "uncommon",
   "keep_on_death": true,
