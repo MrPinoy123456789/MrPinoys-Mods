@@ -133,7 +133,11 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   open the inventory (the icon is 3D when the pack is loaded, flat when not), reconnect and accept the server pack,
   Options, Resource Packs, and look for a stale cached copy. Polymer rebuilds the pack on `/foundry pack build` or
   `/polymer generate-pack`; clients fetch it on rejoin.
-- **Skins.** The cape, pauldron, circlet and gills are skinned from their own flat sprites (the model's front faces show a crop of the sprite, the rest use swatches of its colours), so they read like the item art. The wings use the elytra texture from the CC BY-NC-SA 4.0 pack "Fairy Wings Elytra" (credit in `foundry/examples/assets/CREDITS.md`; non-commercial only).
+- **Skins and previews.** The cape, pauldron, circlet and gills are skinned from their own flat sprites (front faces show a
+  crop of the sprite, the rest use swatches of its colours). The wings use a painted texture with a real wing silhouette,
+  see through membrane, a rim and veins. `foundry/tools/preview_model.py` renders any vanilla item model JSON with its
+  textures from front, back, side and three quarters (it follows vanilla's face order, uv rules and element rotations,
+  and was checked against vanilla's anvil and lantern models); `tools/previews/contact_sheet.png` shows all five.
 - **Wings.** The Fairy Wings now go in the **cape slot** (`chest/cape`, which has room for two so the Human cape and the
   wings never clash; the slot is widened by `data/trinkets/slots/chest/cape.json`). They are race locked and have no
   durability, so they never wear out. Trinkets Updated treats a glider item in a trinket slot as a glider on the server
