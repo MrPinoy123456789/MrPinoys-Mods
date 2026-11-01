@@ -51,14 +51,33 @@ public final class WornDisplays {
     private static final class Holder extends ElementHolder {
         private final ServerPlayer owner;
         private final boolean hideFromOwner;
+        private final boolean onlyOwner;
         private final boolean ride;
         private final ItemStack headStack;
+        private ItemDisplayElement element;
+        private WornPlacement place;
 
-        Holder(ServerPlayer owner, boolean hideFromOwner, boolean ride, ItemStack headStack) {
+        Holder(ServerPlayer owner, boolean hideFromOwner, boolean onlyOwner, boolean ride, ItemStack headStack) {
             this.owner = owner;
             this.hideFromOwner = hideFromOwner;
+            this.onlyOwner = onlyOwner;
             this.ride = ride;
             this.headStack = headStack;
+        }
+
+        void drive(ItemDisplayElement element, WornPlacement place) {
+            this.element = element;
+            this.place = place;
+        }
+
+        /**
+         * Polymer ticks the holder from the player's own entity tracker, just before it sends this tick's changes, so the
+         * transformation set here goes out in the same tick (as Polymer's own entity models do it, in onTick).
+         */
+        @Override
+        protected void onTick() {
+            if (element != null && place != null && !owner.isRemoved()) place(owner, element, place);
+            super.onTick();
         }
 
         @Override
@@ -89,6 +108,7 @@ public final class WornDisplays {
             // Geyser cannot translate Polymer's item_display (it throws per packet on 26.3), so Bedrock players never get one.
             if (foundry.core.Floodgate.isBedrock(connection.getPlayer().getUUID())) return false;
             if (hideFromOwner && connection.getPlayer() == owner) return false;
+            if (onlyOwner && connection.getPlayer() != owner) return false;
             return super.startWatching(connection);
         }
     }
@@ -106,10 +126,27 @@ public final class WornDisplays {
 
     private WornDisplays() {}
 
-    /** How many displays this player has on right now (for tests). */
+    /** How many worn trinkets this player has drawn right now (for tests); a helmet slot item with its wearer's copy is one. */
     public static int shownFor(UUID player) {
         Shown s = SHOWN.get(player);
-        return s == null ? 0 : s.parts.size();
+        return s == null ? 0 : (int) s.parts.stream().map(Part::item).distinct().count();
+    }
+
+    /** Each player's body yaw and cape motion as the clients see them (see BodyYaw), fed once a tick. */
+    private static final Map<UUID, foundry.core.BodyYaw> BODY = new HashMap<>();
+    private static final Map<UUID, Integer> BODY_TICK = new HashMap<>();
+
+    /** The player's body as clients draw it, brought up to this tick. */
+    public static foundry.core.BodyYaw body(ServerPlayer player) {
+        foundry.core.BodyYaw body = BODY.computeIfAbsent(player.getUUID(), id -> new foundry.core.BodyYaw());
+        var server = player.level().getServer();
+        int now = server == null ? 0 : server.getTickCount();
+        Integer last = BODY_TICK.get(player.getUUID());
+        if (last == null || last != now) {
+            BODY_TICK.put(player.getUUID(), now);
+            body.update(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.isSwinging(), player.isBlocking());
+        }
+        return body;
     }
 
     /** Test hook: the transformation one of a player's displays was last given, or null. */
@@ -254,6 +291,8 @@ public final class WornDisplays {
                 destroy(e.getValue());
                 return true;
             });
+            BODY.keySet().removeIf(id -> !online.contains(id));
+            BODY_TICK.keySet().removeIf(id -> !online.contains(id));
         }
         if (SHOWN.isEmpty()) return;
         for (Shown shown : new ArrayList<>(SHOWN.values())) {
@@ -263,13 +302,14 @@ public final class WornDisplays {
                 rescan(shown.player);
                 continue;
             }
-            turn(shown);
         }
     }
 
     static void clear() {
         SHOWN.values().forEach(WornDisplays::destroy);
         SHOWN.clear();
+        BODY.clear();
+        BODY_TICK.clear();
         fileStamp = Long.MIN_VALUE;
     }
 
@@ -313,24 +353,27 @@ public final class WornDisplays {
         List<Part> parts = new ArrayList<>();
         for (int i = 0; i < stacks.size(); i++) {
             WornPlacement place = places.get(i);
-            if (place.headSlot() && headEmpty) {
-                // Shown to other players as a helmet, so it moves with the head exactly. Never to the wearer.
-                Holder holder = new Holder(player, true, false, stacks.get(i));
+            boolean headMode = place.headSlot() && headEmpty;
+            if (headMode) {
+                // Shown to other players as a helmet, so it moves with the head exactly. The wearer's own client cannot be
+                // sent that (it would put a ghost helmet in their inventory), so the wearer gets a display copy below.
+                Holder holder = new Holder(player, true, false, false, stacks.get(i));
                 parts.add(new Part(holder, EntityAttachment.ofTicking(holder, player), null, place, ids.get(i),
                         slotNames.get(i), true));
-                continue;
             }
-            Holder holder = new Holder(player, place.hideFromWearer(), place.ride(), null);
+            if (headMode && place.hideFromWearer()) continue;
+            Holder holder = new Holder(player, place.hideFromWearer(), headMode, place.ride(), null);
             ItemDisplayElement element = new ItemDisplayElement(stacks.get(i));
             element.setItemDisplayContext(ItemDisplayContext.FIXED);
             // As Polymer's own entity models do: interpolate the transformation over a tick or two, and smooth the
             // position over three ticks for a display that is not riding (a rider is moved by the client every frame).
-            element.setInterpolationDuration(2);
+            element.setInterpolationDuration(1);
             element.setTeleportDuration(3);
             // Placed before the holder is attached, so the first packet a viewer gets already has the right transform.
             place(player, element, place);
             if (place.ride()) holder.addPassengerElement(element);
             else holder.addElement(element);
+            holder.drive(element, place);
             EntityAttachment attachment = EntityAttachment.ofTicking(holder, player);
             // Polymer shows an attachment only to players tracking the entity, and nobody tracks themselves, so the wearer
             // is added by hand (the Holder refuses when the placement hides it from them).
@@ -341,11 +384,6 @@ public final class WornDisplays {
         SHOWN.put(player.getUUID(), shown);
     }
 
-    /** Places every display of one player for this tick. */
-    private static void turn(Shown shown) {
-        for (Part part : shown.parts) if (part.element != null) place(shown.player, part.element, part.place);
-    }
-
     /** One block in the player model is 16 model pixels at the player's 0.9375 scale. */
     private static final float PX = 0.9375f / 16f;
     /** Height of the neck (the head and body pivot) above the feet when standing: 24 model pixels. */
@@ -353,12 +391,14 @@ public final class WornDisplays {
 
     /** Sets one display's whole transformation from the player's pose right now (see {@link #transformFor}). */
     private static void place(ServerPlayer player, ItemDisplayElement element, WornPlacement p) {
-        element.setTransformation(transformFor(player, p));
+        foundry.core.BodyYaw body = body(player);
+        element.setTransformation(transform(player, p, body.yaw(), body.capeTilt(player.isCrouching())));
         element.startInterpolationIfDirty();
     }
 
     /**
-     * The display's transformation for this tick, built the way vanilla draws a player (LivingEntityRenderer and the
+     * The display's transformation for this tick, with the server's own body yaw (the live displays use the client
+     * style body from {@link #body} instead, see {@link foundry.core.BodyYaw}), built the way vanilla draws a player (LivingEntityRenderer and the
      * player renderer's setupRotations), and the way Polymer's own entity models do it (Patbox's model handlers build a
      * matrix from the entity's body yaw and pose every tick and send it as the display transformation):
      * <ol>
@@ -370,14 +410,19 @@ public final class WornDisplays {
      *       pitch (crouching lowers the head 4.2 pixels); a body item pivots at the neck too and leans forward half a
      *       radian about the chest while crouching;</li>
      *   <li>the placement's up/back/side offset (heights measured from the feet when standing) and extra rotation, and
-     *       a head item is turned to face forward;</li>
+     *       a head item is turned to face forward; a swinging item (the cape) hangs from that point and swings back by
+     *       the cape tilt;</li>
      *   <li>scale, or nothing at all while the player is invisible or asleep.</li>
      * </ol>
      */
     public static Matrix4f transformFor(ServerPlayer player, WornPlacement p) {
+        return transform(player, p, player.yBodyRot, 6f);
+    }
+
+    /** {@link #transformFor} with the body yaw and cape tilt given (the live displays pass the client style ones). */
+    public static Matrix4f transform(ServerPlayer player, WornPlacement p, float body, float capeTilt) {
         Matrix4f m = new Matrix4f();
         if (p.ride()) m.translate(0, -player.getBbHeight(), 0);
-        float body = player.yBodyRot;
         m.rotateY((float) Math.toRadians(180f - body));
         boolean crouch = player.isCrouching();
         if (crouch) m.translate(0, -2 * PX, 0);
@@ -406,6 +451,12 @@ public final class WornDisplays {
             if (crouch) m.rotateX(-0.5f);
         }
         m.translate(p.side(), p.up() - NECK, p.back());
+        if (p.swing() && !p.onHead()) {
+            // Hung from its top edge here and swung back like vanilla's cape, then dropped by half its height
+            // (16 model units are half a block at scale 1, so half the item is a quarter block times the scale).
+            m.rotateX((float) Math.toRadians(-capeTilt));
+            m.translate(0, -0.25f * p.scale(), 0);
+        }
         // The item's front is +z (as in an item frame); a body item shows it outward from the back, a head item forward.
         if (p.onHead()) m.rotateY((float) Math.PI);
         m.rotateXYZ((float) Math.toRadians(p.rx()), (float) Math.toRadians(p.ry()), (float) Math.toRadians(p.rz()));

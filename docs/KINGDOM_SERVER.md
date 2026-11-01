@@ -114,9 +114,11 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   display on the player as a virtual passenger, so the client moves it every frame instead of waiting for position
   packets; heights are then measured from the player's top, which Foundry handles. Set either to false to go back to the
   old behaviour if something looks wrong. Both are unverified on a live client.
-- **Gills facing.** The gills showed edge on as a flat sprite; the 3D mask now has no extra turn, so the
-  `head/face` default has `rotation` [0, 0, 0] (it was [0, 90, 0] for the sprite). If the mask sits sideways, set a y turn of 90 or -90 in `worn_displays.json`. Head
-  displays also tip with the head's pitch (gametested for yaw and pitch).
+- **What the wearer sees.** Everything shows on its wearer in third person now. The gills are frills on both sides of the
+  neck and jaw, outside the head and behind the eyes, so nothing blocks the view. The circlet still goes to other
+  players as a helmet (exact, no lag), and its wearer gets a display copy of it (a helmet packet to yourself would put a
+  ghost helmet in your inventory). In first person the circlet's band can show at the top of the screen; set
+  `hide_from_wearer` on `head/hat` if that bothers anyone.
 - **3D models.** Each trinket has a real 3D model, not a flat sprite: `examples/assets/kingdoms/models/item/worn/*.json`
   (cuboids with per face UVs, rotations and display transforms) with `examples/assets/kingdoms/textures/item/worn/*.png`,
   made by `foundry/tools/gen_trinket_models.py` (change a number, re-run). `foundry/tools/check_models.py` validates them
@@ -138,33 +140,37 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   They now live in `textures/item/worn/` and the models name `kingdoms:item/worn/<id>`. Foundry's validator, `check_models.py`
   and the preview renderer all treat a model texture outside those folders as an error (the preview draws it pink and
   black, as the game does). On the server, `config/foundry/assets/kingdoms/textures/worn/` is no longer used.
-- **Following the player (rebuilt 2026-11-01).** Each display gets its whole transformation every tick from
-  `WornDisplays.transformFor`, built the way vanilla draws a player and the way Polymer's own entity models are moved
-  (Patbox's model handlers, for example `PolymerPorts/lovely-snails-patch`, LGPL-3.0: a matrix from the entity's body yaw
-  and pose sent with `setTransformation` and `startInterpolationIfDirty`, interpolation of a tick or two, a teleport
-  duration of three ticks; the idea was followed, no code was copied). Body items (pauldron, cape, wings) turn with the
-  body yaw, head items (gills, circlet as a display) with the head's yaw and pitch about the neck. Crouching lowers the
-  model and leans body items forward half a radian; gliding and swimming tip the body forward as vanilla does (head
-  items then tilt back up 45 degrees); invisible or sleeping players show nothing. A display rides the player when
-  `ride` is on (the client moves it every frame), and otherwise is smoothed over three ticks. Gametests check head
-  against body yaw, head pitch, crouching and invisibility; riding a mount needs nothing extra (the body yaw still
-  applies). Unverified live: how closely the server's body yaw matches what each client draws, and the swimming and
-  gliding poses.
-- **Skins and previews.** The cape, pauldron, circlet and gills are skinned from their own flat sprites (front faces show a
-  crop of the sprite, the rest use swatches of its colours). The wings use a painted texture with a real wing silhouette,
-  see through membrane, a rim and veins. `foundry/tools/preview_model.py` renders any vanilla item model JSON with its
-  textures from front, back, side and three quarters (it follows vanilla's face order, uv rules and element rotations,
-  and was checked against vanilla's anvil and lantern models); `tools/previews/contact_sheet.png` shows all five.
-- **Wings.** The Fairy Wings now go in the **cape slot** (`chest/cape`, which has room for two so the Human cape and the
-  wings never clash; the slot is widened by `data/trinkets/slots/chest/cape.json`). They are race locked and have no
-  durability, so they never wear out. Trinkets Updated treats a glider item in a trinket slot as a glider on the server
-  (a gametest shows it answering yes), but a vanilla client only asks to glide when its own chest slot holds one, so
-  `Wings` starts the glide for a Fairy who holds jump while falling and stops a player of no race who glides with them.
-  Unverified live: that the client accepts a glide the server started (if not, the wings still glide worn in the chest
-  slot, where they keep the elytra parts). `/foundry worn list` shows the wings display like any other.
-- **Cape.** The cape is found in `chest/cape` and has a placement (gametested: one display per cape). It sits behind
-  the body, so look from behind; if `/foundry worn list` shows the display with watchers and nothing is on screen, raise
-  `back` or `scale` for `chest/cape` in `worn_displays.json`.
+- **Following the player (rebuilt again 2026-11-01).** The server's own body yaw is wrong for this: just before each
+  player tick it copies the position into the "last position" (`ServerGamePacketListenerImpl.tickPlayer`), so it never
+  sees the player walk and its body only trails the head, while every client turns the body toward the walking
+  direction. So `foundry.core.BodyYaw` repeats the client's rule (`LivingEntity.tick` and `tickHeadTurn`: aim at the walk
+  direction, turned round when walking backwards, ease 30% a tick, never more than 50 degrees from the head, 15 while
+  blocking) from the positions Foundry sees each tick, and keeps the cape's trailing point as `Player.moveCloak` does.
+  Each display's whole transformation is then built every tick in the holder's own `onTick` (as Polymer's entity models
+  do, so it goes out in the same tick) by `WornDisplays.transform`, the way vanilla draws a player: body items turn with
+  that body yaw, head items pivot at the neck and follow the head's yaw and pitch, crouching lowers and leans, gliding
+  and swimming tip the body forward, invisible or sleeping players show nothing. Interpolation is one tick; riding
+  displays are moved by the client every frame. Core checks cover the body rule (walking sideways, backwards, turning in
+  place) and the cape swing; gametests cover head against body, pitch, crouching, the cape hang and invisibility. The
+  approach follows Patbox's Polymer model handlers (LGPL-3.0), no code copied. Unverified live: how it looks in motion.
+- **Textures and previews.** Every face of every cuboid now has its own painted tile at 4 texels per model unit, made
+  by the part's material (brushed iron, bronze, leather with stitching, engraved gold, a faceted gem, ringed antler,
+  ridged shell, see through fins) with grain, highlights and bevelled edges. The cape has a gold border and a crowned
+  emblem with a darker lining; the wings shade from rose to pale blue with branching veins. `foundry/tools/preview_model.py`
+  renders any vanilla item model with its textures from five sides (checked against vanilla's anvil and lantern) and
+  draws a texture outside the atlas folders pink and black, as the game would; `tools/previews/contact_sheet.png` shows all
+  five.
+- **Wings.** The Fairy Wings go in the **cape slot** (`chest/cape`, which has room for two, so the Human cape and the wings
+  never clash). They are race locked and never wear out. Trinkets Updated already lets a glider in a trinket slot glide
+  on the server; `Wings` starts the glide for a Fairy who holds jump while falling, and stops anyone else. The four wings
+  are painted already tipped (upper up and out, lower down and out), and each swings 22.5 degrees back from the spine,
+  so from above they open in a V instead of lying flat on the back. Unverified live: that the client accepts a glide the
+  server started (if not, the wings still glide worn in the chest slot).
+- **Cape.** The Kingdom Cape is the vanilla cape: the same 10 by 16 by 1 box, hung from the top of the back, and the
+  vanilla 64 by 32 cape texture layout, so any cape PNG drawn for vanilla can replace
+  `textures/item/worn/kingdom_cape.png`. It swings back the way vanilla's cape layer swings (6 degrees at rest, more as it
+  trails a player moving forward or falling, 25 more crouching). It is a display, not the client's own cape: a server
+  cannot give a vanilla player a real cape, which comes signed from Mojang's profile servers.
 - **Bedrock.** Nothing is drawn, on purpose: the live log showed Geyser throwing `Missing ID 73 in Java registry minecraft:entity_type` for every item display it was sent (it cannot translate `item_display` on 26.3), so `WornDisplays` never sends displays to a Floodgate player (UUID high half zero). Geyser (current master) lists `text_display` as required entity metadata but
   `item_display` and `block_display` as not required, so Polymer's item displays are almost certainly not translated;
   I found no Geyser option to attach a worn model to a player either. The trinket itself still works for Bedrock

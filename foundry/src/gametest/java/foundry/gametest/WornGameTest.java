@@ -148,9 +148,9 @@ public final class WornGameTest {
         });
     }
 
-    /** The wearer receives their own displays (nobody tracks themselves), except the gills, which hide from them. */
+    /** The wearer receives their own displays (nobody tracks themselves); the gills sit beside the neck now, so they show too. */
     @GameTest(maxTicks = 100)
-    public void theWearerIsWatchingTheirOwnDisplaysExceptTheGills(GameTestHelper helper) {
+    public void theWearerIsWatchingTheirOwnDisplays(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
         wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
@@ -159,7 +159,7 @@ public final class WornGameTest {
             var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
             helper.assertTrue(watchers.size() == 2, "Expected two displays but found " + watchers.size());
             long self = watchers.stream().filter(w -> w.contains(name)).count();
-            helper.assertTrue(self == 1, "Exactly one display (the cape) should reach the wearer, but " + self + " do: " + watchers);
+            helper.assertTrue(self == 2, "Both displays (cape and gills) should reach the wearer, but " + self + " do: " + watchers);
             helper.succeed();
         });
     }
@@ -186,6 +186,10 @@ public final class WornGameTest {
         return m.transformDirection(new org.joml.Vector3f(0, 0, 1)).normalize();
     }
 
+    private static org.joml.Vector3f flat(org.joml.Vector3f v) {
+        return new org.joml.Vector3f(v.x, 0, v.z).normalize();
+    }
+
     private static boolean near(org.joml.Vector3f v, double x, double y, double z) {
         return Math.abs(v.x - x) < 0.05 && Math.abs(v.y - y) < 0.05 && Math.abs(v.z - z) < 0.05;
     }
@@ -203,11 +207,12 @@ public final class WornGameTest {
         var gills = foundry.core.WornPlacement.of("head/face").orElseThrow();
         var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
         var g = front(foundry.mc.WornDisplays.transformFor(wearer, gills));
-        var c = front(foundry.mc.WornDisplays.transformFor(wearer, cape));
+        // the cape hangs tilted (vanilla's 6 degrees at rest), so only its horizontal facing is compared
+        var c = flat(front(foundry.mc.WornDisplays.transformFor(wearer, cape)));
         helper.assertTrue(near(g, 0, 0, 1), "The gills should face where the head looks (south) but face " + g);
         helper.assertTrue(near(c, 1, 0, 0), "The cape should face out of the back of a body turned west (east) but faces " + c);
         wearer.yBodyRot = 0f;
-        var c2 = front(foundry.mc.WornDisplays.transformFor(wearer, cape));
+        var c2 = flat(front(foundry.mc.WornDisplays.transformFor(wearer, cape)));
         helper.assertTrue(near(c2, 0, 0, -1), "Turning the body south should turn the cape to face north but it faces " + c2);
         helper.succeed();
     }
@@ -230,7 +235,7 @@ public final class WornGameTest {
         ServerPlayer wearer = player(helper, null);
         wearer.yBodyRot = 0f;
         var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
-        var flat = new foundry.core.WornPlacement(cape.up(), cape.back(), cape.side(), cape.scale(), false, 0f, 0f, 0f, false, false, false);
+        var flat = new foundry.core.WornPlacement(cape.up(), cape.back(), cape.side(), cape.scale(), false, 0f, 0f, 0f, false, false, false, false);
         var standing = foundry.mc.WornDisplays.transformFor(wearer, flat).getTranslation(new org.joml.Vector3f());
         helper.assertTrue(Math.abs(standing.y - cape.up()) < 0.01, "A standing body item should sit at its up height but sits at " + standing.y);
         wearer.setPose(net.minecraft.world.entity.Pose.CROUCHING);
@@ -240,6 +245,41 @@ public final class WornGameTest {
         helper.assertTrue(at.y < standing.y - 0.05, "Crouching did not lower the cape: " + standing.y + " to " + at.y);
         helper.assertTrue(up.z > 0.3, "Crouching did not lean the cape forward (facing south, its up should tip south): " + up);
         helper.succeed();
+    }
+
+    /**
+     * The cape hangs from the top of the back and swings back as it trails: with more tilt its bottom edge moves further
+     * behind the player and rises. Facing south, "behind" is north (negative z).
+     */
+    @GameTest(maxTicks = 20)
+    public void theCapeHangsFromTheBackAndSwingsBack(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
+        helper.assertTrue(cape.swing(), "The cape slot does not swing");
+        var still = foundry.mc.WornDisplays.transform(wearer, cape, 0f, 6f);
+        var trailing = foundry.mc.WornDisplays.transform(wearer, cape, 0f, 60f);
+        // the cape's middle, in the display's own space, is the origin; its bottom edge is a quarter block below (8 model units at the fixed display scale)
+        var bottomStill = still.transformPosition(new org.joml.Vector3f(0, -0.25f, 0));
+        var bottomTrailing = trailing.transformPosition(new org.joml.Vector3f(0, -0.25f, 0));
+        helper.assertTrue(bottomTrailing.z < bottomStill.z - 0.2f, "A trailing cape's hem did not move behind the player: "
+                + bottomStill + " to " + bottomTrailing);
+        helper.assertTrue(bottomTrailing.y > bottomStill.y + 0.1f, "A trailing cape's hem did not rise: " + bottomStill + " to " + bottomTrailing);
+        helper.succeed();
+    }
+
+    /** The circlet goes to other players as a helmet, and its wearer gets a display copy so they can see it on themselves. */
+    @GameTest(maxTicks = 60)
+    public void theCircletWearerSeesTheirOwnCopy(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        helper.runAfterDelay(25, () -> {
+            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "The circlet counts as more than one trinket");
+            helper.assertTrue(watchers.size() == 2, "Expected the helmet part and the wearer's copy, found " + watchers);
+            helper.assertTrue(!watchers.get(0).contains(wearer.getUUID()) && watchers.get(1).contains(wearer.getUUID()),
+                    "The wearer should get the display copy and not the helmet packet: " + watchers);
+            helper.succeed();
+        });
     }
 
     /** An invisible player's displays shrink to nothing. */
@@ -359,5 +399,23 @@ public final class WornGameTest {
             helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
         }
         helper.succeed();
+    }
+
+    /** MEASUREMENT (temporary): what the server knows about yaw when a player turns with real rotation packets. */
+    @GameTest(maxTicks = 80)
+    public void measureTurning(GameTestHelper helper) {
+        ServerPlayer p = player(helper, null);
+        int[] tick = {0};
+        String[] log = {""};
+        for (int t = 1; t <= 60; t++) {
+            final int at = t;
+            helper.runAfterDelay(t, () -> {
+                if (at == 5) p.connection.handleMovePlayer(new net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.Rot(90f, 0f, true, false));
+                if (at == 30) p.connection.handleMovePlayer(new net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.Rot(200f, 20f, true, false));
+                if (at % 3 == 0 || at == 5 || at == 6 || at == 30 || at == 31)
+                    foundry.mc.FoundryMod.LOG.info("MEASURE t={} yRot={} yHeadRot={} yBodyRot={} xRot={}", at, p.getYRot(), p.getYHeadRot(), p.yBodyRot, p.getXRot());
+                if (at == 60) helper.succeed();
+            });
+        }
     }
 }
