@@ -115,6 +115,17 @@ final class LayoutStamper {
     }
 
     /**
+     * Wild lodestones (task 2.12): stamps a whole plan, entrance cell included, with a theme, a loot band and a node
+     * context but no owner room and no standing neighbours.
+     */
+    static InstanceLayout stampWild(ServerLevel level, BlockPos origin, DungeonPlan plan, int keystoneLevel,
+                                    Set<String> affixes, String theme, DungeonDef.LootBand lootBand,
+                                    NodeStamper.Context nodeCtx) {
+        return stamp(new StampParams(level, origin, plan, keystoneLevel, affixes, null, false, theme,
+                Set.of(), lootBand, nodeCtx));
+    }
+
+    /**
      * (M56) Stamps only the entrance cell of the plan, for the door preview.
      * The entrance cell's template and room content are placed, but no
      * connectors, no bedrock envelope, and no owner room overlay. The caller

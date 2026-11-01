@@ -713,6 +713,19 @@ public final class InventorySwap {
         // per player per tick after the first.
         InventoryJournal.recoverIfNeeded(server, log, player);
         StashRecord stash = log.stashOf(player.getUUID());
+        if (WildMode.active()) {
+            // Wild mode never stashes or swaps: the dungeon is an extension of the overworld. A player stashed by an
+            // earlier campaign still gets their own inventory back the first time they stand outside the dungeon.
+            if (stash.stashed() && !inVoid) {
+                try {
+                    leaveVoid(server, log, player, stash);
+                } catch (RuntimeException e) {
+                    PocketDungeonsMod.LOG.error("Inventory restore failed for {} ({})",
+                            player.getName().getString(), player.getUUID(), e);
+                }
+            }
+            return;
+        }
         if (invariantHolds(inVoid, stash.stashed())) {
             // This is the common case and the only branch most ticks ever
             // reach, and it is also the deduplication: a second call for the
@@ -981,6 +994,10 @@ public final class InventorySwap {
      */
     static void liftCursorBeforeCrossing(MinecraftServer server, ServerPlayer player,
                                          ResourceKey<Level> destination) {
+        if (WildMode.active()) {
+            // No inventory is stashed in wild mode, so the cursor stack just travels with the player.
+            return;
+        }
         if (!player.level().dimension().equals(dungeonLevel) || destination.equals(dungeonLevel)) {
             return;
         }

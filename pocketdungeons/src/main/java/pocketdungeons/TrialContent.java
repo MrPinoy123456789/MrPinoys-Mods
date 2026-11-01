@@ -449,6 +449,12 @@ final class TrialContent {
      * cannot wander back in.
      */
     static void releaseStrays(ServerLevel level, Set<BlockPos> spawners, AABB bounds) {
+        releaseStrays(level, spawners, bounds::contains);
+    }
+
+    /** As {@link #releaseStrays(ServerLevel, Set, AABB)}, with the caller deciding what counts as still in the fight. */
+    static void releaseStrays(ServerLevel level, Set<BlockPos> spawners,
+                              java.util.function.Predicate<net.minecraft.world.phys.Vec3> inside) {
         for (BlockPos pos : spawners) {
             if (!(level.getBlockEntity(pos) instanceof TrialSpawnerBlockEntity spawner)) {
                 continue;
@@ -458,7 +464,7 @@ final class TrialContent {
             List<java.util.UUID> strays = new ArrayList<>();
             for (java.util.UUID id : waiting) {
                 Entity entity = level.getEntity(id);
-                if (entity == null || !bounds.contains(entity.position())) {
+                if (entity == null || !inside.test(entity.position())) {
                     strays.add(id);
                     if (entity != null) {
                         entity.discard();

@@ -91,6 +91,11 @@ public final class LandCommands {
                                                 .then(Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                         .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                                 .executes(LandCommands::moveKeep))))))
+                        .then(Commands.literal("add")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("player", StringArgumentType.string())
+                                                .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
+                                                .executes(LandCommands::addMember))))
                         .then(Commands.literal("leader")
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .then(Commands.argument("player", StringArgumentType.string())
@@ -342,6 +347,32 @@ public final class LandCommands {
         rt.claims.rebuild();
         return ok(ctx, Text.get("land.admin.keep_moved", "name", org.name(), "x", nexus.getX(), "y", nexus.getY(), "z", nexus.getZ(),
                 "ox", old.getX(), "oy", old.getY(), "oz", old.getZ()));
+    }
+
+    /** {@code faction add "<faction>" <player>}: the player joins the kingdom as an ordinary member. */
+    private static int addMember(CommandContext<CommandSourceStack> ctx) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        ServerPlayer online = online(ctx);
+        PlayerId id;
+        String who;
+        if (online != null) {
+            id = new PlayerId(online.getUUID());
+            who = online.getPlainTextName();
+            rt.state.touch(id, who, rt.clock.now());
+        } else {
+            String wanted = StringArgumentType.getString(ctx, "player");
+            var known = rt.state.allPlayers().stream().filter(p -> p.name.equalsIgnoreCase(wanted)).findFirst();
+            if (known.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", wanted));
+            id = known.get().id;
+            who = known.get().name;
+        }
+        Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()),
+                new charter.org.actions.AddMember(found.get().id, id));
+        if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
+        return ok(ctx, Text.get("land.admin.added", "player", who, "name", found.get().name()));
     }
 
     /** {@code faction leader "<faction>" <player>}: the player joins the kingdom and takes the Lord's seat. */
