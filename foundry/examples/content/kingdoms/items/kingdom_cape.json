@@ -6,8 +6,11 @@
     "Worn on the back. A cape in your kingdom's colours, for show."
   ],
   "base_item": "minecraft:white_banner",
+  "texture": "kingdoms:item/kingdom_cape",
   "stack_size": 1,
   "rarity": "uncommon",
   "keep_on_death": true,
-  "worn_slots": ["chest/cape"]
+  "worn_slots": [
+    "chest/cape"
+  ]
 }

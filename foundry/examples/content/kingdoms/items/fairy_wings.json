@@ -7,6 +7,7 @@
     "Only the Fairies of Everdelle can glide with them, and the wings wear out as they fly. Mend them as you would an elytra."
   ],
   "base_item": "minecraft:elytra",
+  "texture": "kingdoms:item/fairy_wings",
   "stack_size": 1,
   "durability": 432,
   "rarity": "rare",

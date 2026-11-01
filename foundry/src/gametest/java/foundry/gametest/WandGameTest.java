@@ -119,15 +119,16 @@ public final class WandGameTest {
     }
 
     @GameTest
-    public void aMischiefBoltBlindsAndSlowsWhatItHits(GameTestHelper helper) {
+    public void aMischiefBoltLiftsWhatItHits(GameTestHelper helper) {
         var player = holder(helper, 1.5, 1.5);
         LivingEntity zombie = helper.spawn(EntityTypes.ZOMBIE, 1, 2, 4);
         ((net.minecraft.world.entity.Mob) zombie).setNoAi(true);
         wand().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
         helper.runAfterDelay(12, () -> {
-            helper.assertTrue(zombie.hasEffect(MobEffects.BLINDNESS), "blinded");
-            helper.assertTrue(zombie.hasEffect(MobEffects.SLOWNESS), "slowed");
-            helper.assertTrue(!player.hasEffect(MobEffects.BLINDNESS), "the caster is untouched");
+            helper.assertTrue(zombie.hasEffect(MobEffects.LEVITATION), "lifted off the ground");
+            helper.assertTrue(!zombie.hasEffect(MobEffects.BLINDNESS) && !zombie.hasEffect(MobEffects.SLOWNESS),
+                    "Mischief no longer blinds or slows (the Fae own deception)");
+            helper.assertTrue(!player.hasEffect(MobEffects.LEVITATION), "the caster is untouched");
             helper.succeed();
         });
     }
@@ -139,7 +140,7 @@ public final class WandGameTest {
         ((net.minecraft.world.entity.Mob) zombie).setNoAi(true);
         wand().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
         helper.runAfterDelay(12, () -> {
-            helper.assertTrue(!zombie.hasEffect(MobEffects.BLINDNESS), "Mischief reaches six blocks, not ten");
+            helper.assertTrue(!zombie.hasEffect(MobEffects.LEVITATION), "Mischief reaches six blocks, not ten");
             helper.succeed();
         });
     }

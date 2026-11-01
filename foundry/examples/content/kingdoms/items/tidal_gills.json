@@ -7,19 +7,30 @@
     "Anyone else may wear it as an ornament."
   ],
   "base_item": "minecraft:nautilus_shell",
+  "texture": "kingdoms:item/tidal_gills",
   "stack_size": 1,
   "rarity": "rare",
   "keep_on_death": true,
   "require_permission": "race:azurius",
   "locked_message": "Only the Merfolk of Azurius can draw breath through these.",
-  "worn_slots": ["head/face"],
+  "worn_slots": [
+    "head/face"
+  ],
   "mechanics": [
     {
       "trigger": "while_worn",
       "name": "Tidal Gills",
       "actions": [
-        { "type": "apply_effect", "effect": "minecraft:water_breathing", "duration": 60 },
-        { "type": "apply_effect", "effect": "minecraft:dolphins_grace", "duration": 60 }
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:water_breathing",
+          "duration": 60
+        },
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:dolphins_grace",
+          "duration": 60
+        }
       ]
     }
   ]

@@ -6,8 +6,11 @@
     "Worn on the shoulder. The mark of a Dwarf of Azrak, for show."
   ],
   "base_item": "minecraft:iron_ingot",
+  "texture": "kingdoms:item/forgeman_pauldron",
   "stack_size": 1,
   "rarity": "uncommon",
   "keep_on_death": true,
-  "worn_slots": ["chest/back"]
+  "worn_slots": [
+    "chest/back"
+  ]
 }
