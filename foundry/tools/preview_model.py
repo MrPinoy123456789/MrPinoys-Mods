@@ -72,6 +72,19 @@ def rotate_point(p, rot):
     return v + o
 
 
+def extra_atlas_textures():
+    """Vanilla textures our pack adds to the items atlas (assets/minecraft/atlases/items.json single sources)."""
+    file = os.path.join(ASSETS, "minecraft", "atlases", "items.json")
+    if not os.path.isfile(file):
+        return set()
+    with open(file, encoding="utf8") as f:
+        return {s["resource"] for s in json.load(f).get("sources", []) if s.get("type") in ("minecraft:single", "single")}
+
+
+# Vanilla textures are not in our assets; point VANILLA_ASSETS at an extracted client jar's assets folder to see them.
+VANILLA = os.environ.get("VANILLA_ASSETS", "")
+
+
 def texture_file(ref, root):
     ns, path = ref.split(":") if ":" in ref else ("minecraft", ref)
     return os.path.join(root, ns, "textures", path + ".png")
@@ -112,7 +125,10 @@ def face_texture(model, ref, root, cache):
         return None
     if ref not in cache:
         file = texture_file(ref, root)
-        in_atlas = ref.split(":", 1)[-1].startswith(("item/", "block/"))
+        full = ref if ":" in ref else "minecraft:" + ref
+        if full.startswith("minecraft:") and not os.path.isfile(file) and VANILLA:
+            file = texture_file(full, VANILLA)
+        in_atlas = ref.split(":", 1)[-1].startswith(("item/", "block/")) or full in extra_atlas_textures()
         cache[ref] = np.array(Image.open(file).convert("RGBA")) if os.path.isfile(file) and in_atlas else MISSING
         if cache[ref] is not None and cache[ref].shape[0] > cache[ref].shape[1] and cache[ref].shape[0] % cache[ref].shape[1] == 0 \
                 and os.path.isfile(file + ".mcmeta"):
@@ -227,7 +243,8 @@ def main():
             folder = os.path.join(ASSETS, ns, "models", "item", "worn")
             if os.path.isdir(folder):
                 for name in sorted(os.listdir(folder)):
-                    if name.endswith(".json"):
+                    # the "antlers on a helmet" models use vanilla textures; render one by path with VANILLA_ASSETS set
+                    if name.endswith(".json") and "_on_" not in name:
                         targets.append((os.path.join(folder, name), name[:-5]))
     sheets = []
     for path, name in targets:

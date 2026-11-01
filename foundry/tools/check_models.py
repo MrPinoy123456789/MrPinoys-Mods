@@ -35,6 +35,15 @@ def models():
                     yield ns, name[:-5], os.path.join(folder, name)
 
 
+def extra_atlas_textures():
+    """Vanilla textures our pack adds to the items atlas (assets/minecraft/atlases/items.json single sources)."""
+    file = os.path.join(ASSETS, "minecraft", "atlases", "items.json")
+    if not os.path.isfile(file):
+        return set()
+    with open(file, encoding="utf8") as f:
+        return {s["resource"] for s in json.load(f).get("sources", []) if s.get("type") in ("minecraft:single", "single")}
+
+
 def texture_file(ref):
     ns, path = ref.split(":") if ":" in ref else ("minecraft", ref)
     return os.path.join(ASSETS, ns, "textures", path + ".png")
@@ -45,8 +54,17 @@ def check(ns, name, path):
     with open(path, encoding="utf8") as f:
         model = json.load(f)
     tex = model.get("textures", {})
+    extra = extra_atlas_textures()
     for key, ref in tex.items():
         if ref.startswith("#"):
+            continue
+        full = ref if ":" in ref else "minecraft:" + ref
+        if full.startswith("minecraft:"):
+            # a vanilla texture: it is in the game, not in our assets; it must be in an atlas the client stitches
+            path = full.split(":", 1)[1]
+            if not path.startswith(ATLAS_FOLDERS) and full not in extra:
+                problems.append(f"texture {key} -> {ref} is a vanilla texture outside the items atlas; add it to "
+                                f"assets/minecraft/atlases/items.json or it draws pink and black")
             continue
         if not os.path.isfile(texture_file(ref)):
             problems.append(f"texture {key} -> {ref} has no PNG")
@@ -177,7 +195,7 @@ def main():
     shown = []
     for ns, name, path in models():
         model, problems = check(ns, name, path)
-        first = texture_file(next(iter(model["textures"].values())))
+        first = texture_file(next(v for v in model["textures"].values() if not v.startswith("minecraft:")))
         tex = Image.open(first).convert("RGBA") if os.path.isfile(first) else Image.new("RGBA", (16, 16), (248, 0, 248, 255))
         shown.append((name, model, tex))
         status = "ok" if not problems else "PROBLEMS"

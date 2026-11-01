@@ -6,6 +6,7 @@
   "description": "Data-driven custom content for vanilla clients, built on Polymer.",
   "environment": "server",
   "entrypoints": { "main": ["foundry.mc.FoundryMod"] },
+  "mixins": ["foundry.mixins.json"],
   "depends": {
     "fabricloader": ">=0.19.3",
     "minecraft": "26.3",

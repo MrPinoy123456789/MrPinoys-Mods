@@ -82,11 +82,14 @@ const content = has('--content') ? [
   ['/config/foundry/assets/kingdoms/textures/item', files(resolve(ex, 'assets/kingdoms/textures/item'), /\.png$/)],
   ['/config/foundry/assets/demo/textures/item', files(resolve(ex, 'assets/demo/textures/item'), /^fairy_wand.*\.png$/)],
 ] : []
-// --worn: the 3D worn trinket models, their textures (in the items atlas folder) and the worn display placements.
+// --worn: the 3D worn trinket models, their textures (in the items atlas folder), the worn display placements, the
+// client item definitions of the antlers on each helmet and the atlas file that adds the vanilla helmet textures.
 const worn = has('--worn') ? [
   ['/config/foundry/assets/kingdoms/models/item/worn', files(resolve(ex, 'assets/kingdoms/models/item/worn'), /\.json$/)],
   ['/config/foundry/assets/kingdoms/textures/item/worn', files(resolve(ex, 'assets/kingdoms/textures/item/worn'), /\.png$/)],
   ['/config/foundry', files(resolve(ex, 'config'), /^worn_displays\.json$/)],
+  ['/config/foundry/assets/kingdoms/items', files(resolve(ex, 'assets/kingdoms/items'), /\.json$/)],
+  ['/config/foundry/assets/minecraft/atlases', files(resolve(ex, 'assets/minecraft/atlases'), /\.json$/)],
 ] : []
 const bedrock = has('--bedrock') ? [
   ['/config/Geyser-Fabric/custom_mappings', files(resolve(ex, 'bedrock/custom_mappings'), /\.json$/)],

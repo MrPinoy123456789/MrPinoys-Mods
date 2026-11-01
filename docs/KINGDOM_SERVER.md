@@ -123,12 +123,17 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   turns at once on your screen and anything from the server arrives a round trip later. The copies everyone else sees
   are smoothed over three ticks, the same as their clients smooth your head and body, so they stay together. The circlet
   still goes to others as a helmet. The gills sit beside the neck, behind the eyes.
-- **Antler circlet.** Just the antlers now (no band, gem or leaves), 10% bigger, rising from the top of the head at the
-  temples. Other players see it as a helmet slot item, which the client draws on the head itself. Its wearer gets it the
-  same way: it is put in their own helmet slot on their client only, so their game draws it on their head in third person
-  and hides it in first person like any helmet. They will see it in the helmet slot of their inventory screen; the
-  server's inventory is untouched, so it cannot be taken or dropped, and a real helmet takes the slot back. Not for
-  Bedrock players (their own copy follows `/trinketview` like the other trinkets).
+- **Antler circlet.** Just the antlers (no band, gem or leaves), 10% bigger, rising from the top of the head at the
+  temples. They are served on the head to everyone, the wearer included, as a head item the client draws on the head
+  itself (exact, and hidden in first person like any helmet): the antlers alone with no helmet on, or with a vanilla
+  helmet on, a copy of that helmet with its equipment asset removed and its model set to "antlers on that helmet"
+  (`kingdoms:antler_circlet_on_<material>`: the vanilla helmet shell from the vanilla armour texture with the antlers on
+  top; leather keeps its dye, enchanted helmets keep their glint, trims do not show). The real helmet is never touched.
+  The vanilla armour textures reach the items atlas through `assets/minecraft/atlases/items.json` (Polymer merges atlas
+  files), so nothing of Mojang's is copied. Under a head item that is not a vanilla helmet (a pumpkin, a skull) the
+  antlers fall back to a display. The wearer's copy sits in the helmet slot of their own inventory screen. Every served
+  copy is marked, and `CreativeSlotGuard` (a server mixin) refuses a marked item sent back by a creative client, which is
+  how a second pair appeared before; the Bedrock stand in elytra is marked too. Not for Bedrock wearers.
 - **Riding displays below the feet (fixed).** A riding display's transformation starts at the top of the player, where
   the client seats it. Until a viewer's client has seated it (just after it appears, a respawn, a teleport) it stood at
   the feet, a body height too low; its own position is now the top of the player too.

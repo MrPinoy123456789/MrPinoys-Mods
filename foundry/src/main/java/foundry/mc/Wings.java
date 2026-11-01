@@ -111,7 +111,8 @@ public final class Wings {
     private static ItemStack standIn() {
         ItemStack stack = new ItemStack(Items.ELYTRA);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal("Fairy Wings"));
-        return stack;
+        // marked, so a creative Bedrock player cannot turn this copy into a real elytra (CreativeSlotGuard)
+        return HeadVisual.marked(stack);
     }
 
     /** Tells only this player's client what is in their chest slot; the server's own inventory is not touched. */

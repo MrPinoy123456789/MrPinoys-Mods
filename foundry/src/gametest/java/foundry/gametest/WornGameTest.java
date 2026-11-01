@@ -308,25 +308,35 @@ public final class WornGameTest {
     }
 
     /**
-     * The antlers go to other players as a helmet, and to their wearer as a helmet in their own helmet slot (client
-     * only), so the wearer sees them on their head in third person and not in first person. No floating copy is made for
-     * them even with /trinketview on. A real helmet takes the slot back.
+     * The antlers are served on the head to everyone, the wearer included: alone with no helmet, and on a copy of the
+     * player's own helmet when one is worn (equipment asset removed, item model "antlers on iron"), while the real
+     * helmet stays exactly as it was. Every served copy is marked.
      */
     @GameTest(maxTicks = 80)
-    public void theAntlerWearerGetsThemAsTheirOwnHelmet(GameTestHelper helper) {
+    public void theAntlersAreServedOnTheHeadWithOrWithoutAHelmet(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
-        foundry.mc.WornDisplays.setSelfView(wearer.getUUID(), true);
         wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
         helper.runAfterDelay(25, () -> {
-            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
-            foundry.mc.WornDisplays.setSelfView(wearer.getUUID(), false);
-            helper.assertTrue(watchers.size() == 1 && !watchers.get(0).contains(wearer.getUUID()),
-                    "Only the helmet part for others should exist, with no floating copy for the wearer: " + watchers);
-            helper.assertTrue(foundry.mc.WornDisplays.showsOwnHelmet(wearer.getUUID()), "The wearer is not shown the antlers as their helmet");
+            var alone = foundry.mc.WornDisplays.headItemFor(wearer.getUUID());
+            helper.assertTrue(alone != null && alone.is(item("kingdoms:antler_circlet")) && foundry.mc.HeadVisual.isMarked(alone),
+                    "With no helmet the marked antlers should be served on the head, got " + alone);
+            helper.assertTrue(foundry.mc.WornDisplays.showsOwnHelmet(wearer.getUUID()), "The wearer is not shown the antlers on their own head");
             helper.assertTrue(wearer.getItemBySlot(EquipmentSlot.HEAD).isEmpty(), "The server's own helmet slot was changed");
-            wearer.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.IRON_HELMET));
-            helper.runAfterDelay(15, () -> {
-                helper.assertFalse(foundry.mc.WornDisplays.showsOwnHelmet(wearer.getUUID()), "A real helmet did not take the slot back");
+            ItemStack iron = new ItemStack(net.minecraft.world.item.Items.IRON_HELMET);
+            wearer.setItemSlot(EquipmentSlot.HEAD, iron);
+            helper.runAfterDelay(5, () -> {
+                var combined = foundry.mc.WornDisplays.headItemFor(wearer.getUUID());
+                helper.assertTrue(combined != null && combined.is(net.minecraft.world.item.Items.IRON_HELMET),
+                        "With an iron helmet on, a copy of it should be served, got " + combined);
+                helper.assertTrue(!combined.has(net.minecraft.core.component.DataComponents.EQUIPPABLE)
+                        || combined.get(net.minecraft.core.component.DataComponents.EQUIPPABLE) == null,
+                        "The served copy still has its equipment asset, so it would be drawn as plain armour");
+                helper.assertTrue(String.valueOf(combined.get(net.minecraft.core.component.DataComponents.ITEM_MODEL)).equals("kingdoms:antler_circlet_on_iron"),
+                        "The served copy has the wrong model: " + combined.get(net.minecraft.core.component.DataComponents.ITEM_MODEL));
+                helper.assertTrue(foundry.mc.HeadVisual.isMarked(combined), "The served copy is not marked");
+                var real = wearer.getItemBySlot(EquipmentSlot.HEAD);
+                helper.assertTrue(real.has(net.minecraft.core.component.DataComponents.EQUIPPABLE) && !foundry.mc.HeadVisual.isMarked(real),
+                        "The real helmet was changed");
                 helper.succeed();
             });
         });
@@ -342,30 +352,47 @@ public final class WornGameTest {
         helper.succeed();
     }
 
-    /** The circlet goes to other players as a helmet while the helmet slot is empty, and falls back to a display under a real helmet. */
+    /** The antlers go to other players on the head; under a head item that is not a helmet (a pumpkin) they become a display. */
     @GameTest(maxTicks = 160)
-    public void theCircletIsAHelmetForViewersUnlessARealHelmetIsWorn(GameTestHelper helper) {
+    public void theAntlersFallBackToADisplayUnderAPumpkin(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         ServerPlayer observer = player(helper, null);
         wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
         helper.runAfterDelay(25, () -> {
-            helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)), "The circlet is not sent as a helmet");
+            helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)), "The antlers are not served on the head");
             foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
             var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID()).get(0);
             helper.assertTrue(watchers.contains(observer.getUUID()) && !watchers.contains(wearer.getUUID()),
-                    "The helmet packet should go to the observer and not the wearer: " + watchers);
-            wearer.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.IRON_HELMET));
-            helper.runAfterDelay(25, () -> {
+                    "The head item packet should go to the observer (the wearer gets theirs in their own slot): " + watchers);
+            wearer.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.CARVED_PUMPKIN));
+            helper.runAfterDelay(5, () -> {
                 helper.assertTrue("display".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)),
-                        "Under a real helmet the circlet should fall back to a display");
+                        "Under a pumpkin the antlers should fall back to a display");
+                helper.assertFalse(foundry.mc.WornDisplays.showsOwnHelmet(wearer.getUUID()), "The pumpkin was replaced on the wearer's own head");
                 wearer.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
-                helper.runAfterDelay(25, () -> {
+                helper.runAfterDelay(5, () -> {
                     helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)),
-                            "Taking the helmet off should send the circlet as a helmet again");
+                            "Taking the pumpkin off should serve the antlers on the head again");
                     helper.succeed();
                 });
             });
         });
+    }
+
+    /** In creative the client is trusted with item stacks, so a served copy sent back must be refused, and a real item not. */
+    @GameTest(maxTicks = 20)
+    public void creativeCannotTurnAServedCopyIntoARealItem(GameTestHelper helper) {
+        ServerPlayer p = player(helper, null);
+        p.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+        ItemStack copy = new ItemStack(item("kingdoms:antler_circlet"));
+        net.minecraft.world.item.component.CustomData.update(net.minecraft.core.component.DataComponents.CUSTOM_DATA, copy,
+                tag -> tag.putBoolean(foundry.mc.HeadVisual.MARK, true));
+        p.connection.handleSetCreativeModeSlot(new net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket(36, copy));
+        helper.assertTrue(p.getInventory().getItem(0).isEmpty(), "A marked copy became a real item in creative");
+        p.connection.handleSetCreativeModeSlot(new net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket(36,
+                new ItemStack(net.minecraft.world.item.Items.STONE)));
+        helper.assertTrue(p.getInventory().getItem(0).is(net.minecraft.world.item.Items.STONE), "A normal creative item was refused");
+        helper.succeed();
     }
 
     /** Wings worn in the cape slot let a Fairy glide, and a player of no race is marked as wearing wings they cannot use. */

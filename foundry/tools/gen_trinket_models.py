@@ -442,6 +442,70 @@ def mirror_front_to_back(el):
     return out
 
 
+# ---- the antlers on a helmet ----
+# A helmet is drawn by the armour layer only when its equippable component names an equipment asset; any other head item
+# is drawn by the head layer as its item model, at 0.625 scale, so a 16 unit model is exactly the 10 pixel helmet shell
+# around the 8 pixel head. So the server can serve a copy of the player's helmet without the asset and with one of these
+# models: the vanilla helmet shell, textured from the vanilla armour texture, with the antlers on top. One model per
+# helmet material. The vanilla armour textures are added to the items atlas by assets/minecraft/atlases/items.json
+# (Polymer merges atlas files), so nothing of Mojang's is copied into the pack.
+HELMET_MATERIALS = ["leather", "chainmail", "iron", "gold", "diamond", "netherite", "turtle_scute", "copper"]
+HELMETS = os.path.join(ASSETS, "items")
+ATLAS = os.path.join(HERE, "..", "examples", "assets", "minecraft", "atlases", "items.json")
+
+# The head part of the vanilla armour texture (64 by 32, box layout at 0,0 for an 8 by 8 by 8 box), as model uvs (0 to 16):
+# a pixel x is u = x / 4, a pixel y is v = y / 2. The front, sides and back keep the texture's own orientation; the top is
+# turned so its front edge meets the front face.
+HELMET_UV = {
+    "north": [2, 4, 4, 8],   # front, pixels (8,8)-(16,16)
+    "east": [0, 4, 2, 8],    # the wearer's right, pixels (0,8)-(8,16)
+    "west": [4, 4, 6, 8],    # the wearer's left, pixels (16,8)-(24,16)
+    "south": [6, 4, 8, 8],   # back, pixels (24,8)-(32,16)
+    "up": [4, 4, 2, 0],      # top, pixels (8,0)-(16,8)
+    "down": [6, 0, 4, 4],    # bottom, pixels (16,0)-(24,8)
+}
+
+
+def helmet_shell(texture_key, tinted, grow=0.0):
+    faces = {}
+    for face, uv in HELMET_UV.items():
+        faces[face] = {"uv": list(uv), "texture": texture_key}
+        if tinted:
+            faces[face]["tintindex"] = 0
+    return {"from": [-grow, -grow, -grow], "to": [16 + grow, 16 + grow, 16 + grow], "faces": faces}
+
+
+def write_helmets(antler_elements):
+    os.makedirs(HELMETS, exist_ok=True)
+    sources = []
+    for mat in HELMET_MATERIALS:
+        textures = {"0": "kingdoms:item/worn/antler_circlet", "1": f"minecraft:entity/equipment/humanoid/{mat}",
+                    "particle": f"minecraft:entity/equipment/humanoid/{mat}"}
+        sources.append({"type": "minecraft:single", "resource": f"minecraft:entity/equipment/humanoid/{mat}"})
+        elements = [helmet_shell("#1", mat == "leather")]
+        if mat == "leather":
+            # the undyed overlay (the leather helmet's trim), a hair outside the dyed shell so the two never flicker
+            textures["2"] = "minecraft:entity/equipment/humanoid/leather_overlay"
+            sources.append({"type": "minecraft:single", "resource": "minecraft:entity/equipment/humanoid/leather_overlay"})
+            elements.append(helmet_shell("#2", False, grow=0.02))
+        model = {"textures": textures, "elements": elements + antler_elements, "display": DISPLAY}
+        name = f"antler_circlet_on_{mat}"
+        with open(os.path.join(MODELS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
+            json.dump(model, f, indent=2)
+            f.write("\n")
+        item = {"model": {"type": "minecraft:model", "model": f"kingdoms:item/worn/{name}"}}
+        if mat == "leather":
+            item["model"]["tints"] = [{"type": "minecraft:dye", "default": -6265536}]
+        with open(os.path.join(HELMETS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
+            json.dump(item, f, indent=2)
+            f.write("\n")
+    os.makedirs(os.path.dirname(ATLAS), exist_ok=True)
+    with open(ATLAS, "w", encoding="utf8", newline="\n") as f:
+        json.dump({"sources": sources}, f, indent=2)
+        f.write("\n")
+    print("antlers on", len(HELMET_MATERIALS), "helmet materials, atlas sources", len(sources))
+
+
 def main():
     os.makedirs(MODELS, exist_ok=True)
     os.makedirs(TEXTURES, exist_ok=True)
@@ -463,6 +527,7 @@ def main():
             f.write("\n")
         texture.save(os.path.join(TEXTURES, name + ".png"))
         print(name, len(elements), "elements,", f"{texture.width}x{texture.height}")
+    write_helmets(built["antler_circlet"][0])
 
 
 if __name__ == "__main__":

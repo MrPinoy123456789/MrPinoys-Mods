@@ -95,6 +95,14 @@ public final class WornDisplays {
             return headStack;
         }
 
+        /** Sends the head item again to everyone watching (vanilla's own helmet updates can replace it). */
+        void resendHead() {
+            if (headStack == null) return;
+            for (ServerGamePacketListenerImpl c : new ArrayList<>(getWatchingPlayers())) {
+                if (c.isAcceptingMessages()) c.send(equipment(headStack));
+            }
+        }
+
         /** Gives every viewer the player's real helmet back (before a head slot holder goes away). */
         void restoreHead() {
             if (headStack == null) return;
@@ -117,7 +125,11 @@ public final class WornDisplays {
     private record Part(Holder holder, EntityAttachment attachment, ItemDisplayElement element, WornPlacement place,
                         String item, String slot, boolean headMode) {}
 
-    private record Shown(ServerPlayer player, String signature, List<Part> parts) {}
+    private record Shown(ServerPlayer player, String signature, List<Part> parts, int headHash) {}
+
+    private static int headHash(ServerPlayer player) {
+        return ItemStack.hashItemAndComponents(player.getItemBySlot(EquipmentSlot.HEAD));
+    }
 
     private static final Map<UUID, Shown> SHOWN = new HashMap<>();
     private static volatile WornPlacement.Table table = WornPlacement.defaults();
@@ -299,13 +311,16 @@ public final class WornDisplays {
         }
         if (SHOWN.isEmpty()) return;
         for (Shown shown : new ArrayList<>(SHOWN.values())) {
-            // A head slot part needs the real helmet slot empty: rebuild at once when that changes.
-            boolean headEmpty = shown.player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
-            if (shown.parts.stream().anyMatch(part -> part.place.headSlot() && part.headMode != headEmpty)) {
+            // A head slot part serves the real helmet with the trinket on it, so rebuild at once when the helmet changes
+            // in any way (on, off, damaged, dyed). This runs after the player's tick, so it goes out after vanilla's own
+            // helmet update and replaces it on every client.
+            if (shown.parts.stream().anyMatch(part -> part.place.headSlot())
+                    && headHash(shown.player) != shown.headHash) {
                 rescan(shown.player);
                 ownHelmet(shown.player, now);
                 continue;
             }
+            if (now % 40 == 0) shown.parts.forEach(part -> part.holder.resendHead());
         }
     }
 
@@ -345,9 +360,10 @@ public final class WornDisplays {
                 }
             });
         }
-        boolean headEmpty = player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
+        ItemStack realHead = player.getItemBySlot(EquipmentSlot.HEAD);
+        int headHash = ItemStack.hashItemAndComponents(realHead);
         boolean seesOwn = selfView(player.getUUID());
-        String signature = tableVersion + "|" + player.level().dimension() + "|" + headEmpty + "|" + seesOwn + "|"
+        String signature = tableVersion + "|" + player.level().dimension() + "|" + headHash + "|" + seesOwn + "|"
                 + stacks.stream().map(s -> s.getItem().toString()).toList();
         Shown cur = SHOWN.get(player.getUUID());
         if (cur != null && (cur.player != player || !cur.signature.equals(signature))) {
@@ -359,11 +375,13 @@ public final class WornDisplays {
         List<Part> parts = new ArrayList<>();
         for (int i = 0; i < stacks.size(); i++) {
             WornPlacement place = places.get(i);
-            boolean headMode = place.headSlot() && headEmpty;
+            ItemStack onHead = place.headSlot() ? HeadVisual.combine(realHead, stacks.get(i)) : null;
+            boolean headMode = onHead != null;
             if (headMode) {
-                // Shown to other players as a helmet, so it moves with the head exactly (a helmet packet to the wearer
-                // themselves would put a ghost helmet in their inventory, so their own copy, if any, is a display).
-                Holder holder = new Holder(player, true, false, false, stacks.get(i));
+                // Drawn on the head by every client as a head item: the trinket alone, or the player's own helmet with the
+                // trinket on it. Other players get it as their copy of this player's helmet; the wearer gets it in their
+                // own helmet slot (ownHelmet), so it is hidden in first person like any helmet.
+                Holder holder = new Holder(player, true, false, false, onHead);
                 parts.add(new Part(holder, EntityAttachment.ofTicking(holder, player), null, place, ids.get(i),
                         slotNames.get(i), true));
             } else {
@@ -373,7 +391,7 @@ public final class WornDisplays {
             // everything attached to a player even in first person, and never tells the server which view it is in.
             if (seesOwn && !headMode && !place.hideFromWearer()) parts.add(display(player, stacks.get(i), place, ids.get(i), slotNames.get(i), true));
         }
-        Shown shown = new Shown(player, signature, parts);
+        Shown shown = new Shown(player, signature, parts, headHash);
         SHOWN.put(player.getUUID(), shown);
     }
 
@@ -408,17 +426,26 @@ public final class WornDisplays {
     /** The helmet slot of the player's own inventory screen (5 head, 6 chest, 7 legs, 8 feet). */
     static final int HEAD_SLOT = net.minecraft.world.inventory.InventoryMenu.ARMOR_SLOT_START;
 
+    /** Test hook: the item served on this player's head (the trinket, or their helmet with it on), or null. */
+    public static ItemStack headItemFor(UUID player) {
+        Shown s = SHOWN.get(player);
+        if (s == null) return null;
+        return s.parts.stream().filter(Part::headMode).map(part -> part.holder.headStack()).findFirst().orElse(null);
+    }
+
     /** True while this player's own client is shown their head slot trinket as a helmet (for tests and checks). */
     public static boolean showsOwnHelmet(UUID player) {
         return OWN_HELMET.contains(player);
     }
 
     /**
-     * A head slot trinket (the antlers) is also put in the wearer's own helmet slot, on their client only, so their game
-     * draws it on their own head: exact, and hidden in first person like any helmet. The server's inventory is not
-     * touched, so the item cannot be taken or dropped (the server's resync undoes that, and it is sent again every two
-     * seconds). The real helmet slot item is sent back when the trinket comes off, a real helmet goes on, the player dies
-     * or the placement hides it from its wearer. Not for Bedrock players.
+     * The head item (the antlers, or the player's helmet with the antlers on it, see {@link HeadVisual}) is also put in
+     * the wearer's own helmet slot, on their client only, so their game draws it on their own head: exact, and hidden in
+     * first person like any helmet. The server's inventory is not touched. In survival every click is checked by the
+     * server, so the copy cannot be taken; in creative the client is trusted, so the copy carries a mark and
+     * {@code CreativeSlotGuard} refuses any marked item a client sends back (that is how a second pair appeared). It is
+     * sent again every two seconds, and the real helmet slot item is sent back when the trinket comes off, the player
+     * dies or the placement hides it from its wearer. Not for Bedrock players.
      */
     private static void ownHelmet(ServerPlayer player, int now) {
         UUID id = player.getUUID();

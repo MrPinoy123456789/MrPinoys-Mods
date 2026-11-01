@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "foundry.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "CreativeSlotGuard"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
