@@ -6,12 +6,12 @@
         {
           "input_predicate": {"predicate_type": "minecraft:block_match", "block": "minecraft:stone_bricks"},
           "location_predicate": {"predicate_type": "minecraft:always_true"},
-          "output_state": {"Name": "minecraft:oxidized_cut_copper"}
+          "output_state": {"id": "minecraft:oxidized_cut_copper"}
         },
         {
           "input_predicate": {"predicate_type": "minecraft:block_match", "block": "minecraft:polished_andesite"},
           "location_predicate": {"predicate_type": "minecraft:always_true"},
-          "output_state": {"Name": "minecraft:dark_prismarine"}
+          "output_state": {"id": "minecraft:dark_prismarine"}
         }
       ]
     }

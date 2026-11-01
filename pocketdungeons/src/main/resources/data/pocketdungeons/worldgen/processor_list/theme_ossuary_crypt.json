@@ -12,7 +12,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "bone_block"
+            "id": "bone_block"
           }
         },
         {
@@ -24,7 +24,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "polished_blackstone"
+            "id": "polished_blackstone"
           }
         },
         {
@@ -36,7 +36,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "gilded_blackstone"
+            "id": "gilded_blackstone"
           }
         },
         {
@@ -48,7 +48,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "soul_lantern"
+            "id": "soul_lantern"
           }
         }
       ]

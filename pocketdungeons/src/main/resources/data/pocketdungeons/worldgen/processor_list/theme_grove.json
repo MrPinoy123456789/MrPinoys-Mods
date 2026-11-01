@@ -12,8 +12,8 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:oak_log",
-            "Properties": {
+            "id": "minecraft:oak_log",
+            "properties": {
               "axis": "y"
             }
           }
@@ -27,8 +27,8 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:grass_block",
-            "Properties": {
+            "id": "minecraft:grass_block",
+            "properties": {
               "snowy": "false"
             }
           }
@@ -42,8 +42,8 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:oak_leaves",
-            "Properties": {
+            "id": "minecraft:oak_leaves",
+            "properties": {
               "distance": "1",
               "persistent": "true",
               "waterlogged": "false"
@@ -59,7 +59,7 @@
             "predicate_type": "minecraft:always_true"
           },
           "output_state": {
-            "Name": "minecraft:sea_lantern"
+            "id": "minecraft:sea_lantern"
           }
         }
       ]
