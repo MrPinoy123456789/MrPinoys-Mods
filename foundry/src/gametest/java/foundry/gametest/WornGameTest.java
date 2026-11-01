@@ -148,23 +148,38 @@ public final class WornGameTest {
         });
     }
 
-    /** The wearer receives their own displays (nobody tracks themselves); the gills sit beside the neck now, so they show too. */
+    /**
+     * The wearer does not see their own trinkets unless they ask (/trinketview), because the game draws anything attached
+     * to them in first person too. With it on they get their own copies, which nobody else receives.
+     */
     @GameTest(maxTicks = 100)
-    public void theWearerIsWatchingTheirOwnDisplays(GameTestHelper helper) {
+    public void theWearerSeesTheirOwnTrinketsOnlyWhenTheyAsk(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
+        ServerPlayer observer = player(helper, null);
         wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
         wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
-        var name = wearer.getUUID();
+        var me = wearer.getUUID();
         helper.runAfterDelay(25, () -> {
-            var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
-            helper.assertTrue(watchers.size() == 2, "Expected two displays but found " + watchers.size());
-            long self = watchers.stream().filter(w -> w.contains(name)).count();
-            helper.assertTrue(self == 2, "Both displays (cape and gills) should reach the wearer, but " + self + " do: " + watchers);
+            var hidden = foundry.mc.WornDisplays.watchers(me);
+            helper.assertTrue(hidden.size() == 2 && hidden.stream().noneMatch(w -> w.contains(me)),
+                    "By default no display should reach its wearer: " + hidden);
+            foundry.mc.WornDisplays.setSelfView(me, true);
+            foundry.mc.WornDisplays.refresh(wearer);
+            foundry.mc.WornDisplays.startTracking(me, observer);
+            var shown = foundry.mc.WornDisplays.watchers(me);
+            long own = shown.stream().filter(w -> w.contains(me)).count();
+            long forObserver = shown.stream().filter(w -> w.contains(observer.getUUID())).count();
+            foundry.mc.WornDisplays.setSelfView(me, false);
+            helper.assertTrue(shown.size() == 4, "Expected two copies for others and two for the wearer, found " + shown);
+            helper.assertTrue(own == 2, "Both of the wearer's own copies should reach them, but " + own + " do: " + shown);
+            helper.assertTrue(forObserver == 2, "The observer should get only the two copies for others, but gets " + forObserver);
+            helper.assertTrue(shown.stream().noneMatch(w -> w.contains(me) && w.contains(observer.getUUID())),
+                    "No display may go to both the wearer and someone else: " + shown);
             helper.succeed();
         });
     }
 
-    /** A viewer that Polymer starts tracking receives the display once, alongside the wearer who already has it. */
+    /** A viewer that Polymer starts tracking receives the display once; the wearer does not get it. */
     @GameTest(maxTicks = 120)
     public void anObserverReceivesTheDisplays(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
@@ -175,15 +190,16 @@ public final class WornGameTest {
             foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
             var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
             helper.assertTrue(watchers.size() == 1, "Expected one display but found " + watchers.size());
-            helper.assertTrue(watchers.get(0).contains(wearer.getUUID()), "The wearer is not watching their pauldron: " + watchers);
             helper.assertTrue(watchers.get(0).contains(observer.getUUID()), "The observer is not watching the pauldron: " + watchers);
-            helper.assertTrue(watchers.get(0).size() == 2, "The pauldron is sent more than once: " + watchers);
+            helper.assertTrue(!watchers.get(0).contains(wearer.getUUID()), "The wearer got their own pauldron by default: " + watchers);
+            helper.assertTrue(watchers.get(0).size() == 1, "The pauldron is sent more than once: " + watchers);
             helper.succeed();
         });
     }
 
     private static org.joml.Vector3f front(org.joml.Matrix4f m) {
-        return m.transformDirection(new org.joml.Vector3f(0, 0, 1)).normalize();
+        // a model's front (its north face) shows toward the display's -z
+        return m.transformDirection(new org.joml.Vector3f(0, 0, -1)).normalize();
     }
 
     private static org.joml.Vector3f flat(org.joml.Vector3f v) {
@@ -267,13 +283,15 @@ public final class WornGameTest {
         helper.succeed();
     }
 
-    /** The circlet goes to other players as a helmet, and its wearer gets a display copy so they can see it on themselves. */
+    /** The circlet goes to other players as a helmet; a wearer who asks to see their trinkets gets a display copy of it. */
     @GameTest(maxTicks = 60)
     public void theCircletWearerSeesTheirOwnCopy(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
+        foundry.mc.WornDisplays.setSelfView(wearer.getUUID(), true);
         wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
         helper.runAfterDelay(25, () -> {
             var watchers = foundry.mc.WornDisplays.watchers(wearer.getUUID());
+            foundry.mc.WornDisplays.setSelfView(wearer.getUUID(), false);
             helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "The circlet counts as more than one trinket");
             helper.assertTrue(watchers.size() == 2, "Expected the helmet part and the wearer's copy, found " + watchers);
             helper.assertTrue(!watchers.get(0).contains(wearer.getUUID()) && watchers.get(1).contains(wearer.getUUID()),

@@ -114,11 +114,17 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   display on the player as a virtual passenger, so the client moves it every frame instead of waiting for position
   packets; heights are then measured from the player's top, which Foundry handles. Set either to false to go back to the
   old behaviour if something looks wrong. Both are unverified on a live client.
-- **What the wearer sees.** Everything shows on its wearer in third person now. The gills are frills on both sides of the
-  neck and jaw, outside the head and behind the eyes, so nothing blocks the view. The circlet still goes to other
-  players as a helmet (exact, no lag), and its wearer gets a display copy of it (a helmet packet to yourself would put a
-  ghost helmet in your inventory). In first person the circlet's band can show at the top of the screen; set
-  `hide_from_wearer` on `head/hat` if that bothers anyone.
+- **What the wearer sees (`/trinketview`).** By default you do not see your own trinkets; everyone else does. The client
+  draws anything attached to a player even in first person (it skips only the camera player itself,
+  `LevelExtractor.extractVisibleEntities`) and never tells the server which view it is in, so a server cannot hide them
+  in first person only. `/trinketview` (anyone, no op) toggles your own copies on or off, remembered in
+  `config/foundry/worn_self_view.json`; with it on they show in first person too. Your own copies are separate displays
+  sent only to you, drawn ahead by your ping plus a tick (at most six ticks, at most 45 degrees), because your own model
+  turns at once on your screen and anything from the server arrives a round trip later. The copies everyone else sees
+  are smoothed over three ticks, the same as their clients smooth your head and body, so they stay together. The circlet
+  still goes to others as a helmet. The gills sit beside the neck, behind the eyes.
+- **Facing (fixed 2026-11-01).** A model's front shows toward the display's -z. Body items (cape, wings, pauldron) get a
+  half turn so they face out from the back; before the fix the wings were mirrored and the cape showed its lining.
 - **3D models.** Each trinket has a real 3D model, not a flat sprite: `examples/assets/kingdoms/models/item/worn/*.json`
   (cuboids with per face UVs, rotations and display transforms) with `examples/assets/kingdoms/textures/item/worn/*.png`,
   made by `foundry/tools/gen_trinket_models.py` (change a number, re-run). `foundry/tools/check_models.py` validates them

@@ -19,6 +19,8 @@ public final class BodyYaw {
     private double x, y, z;
     private double cloakX, cloakY, cloakZ;
     private boolean started;
+    private float lastHead;
+    private float bodyRate, headRate;
 
     /** Feeds one tick. headYaw is the player's yRot (their head), swinging and blocking as the player is now. */
     public float update(double px, double py, double pz, float headYaw, boolean swinging, boolean blocking) {
@@ -27,8 +29,10 @@ public final class BodyYaw {
             yaw = headYaw;
             x = px; y = py; z = pz;
             cloakX = px; cloakY = py; cloakZ = pz;
+            lastHead = headYaw;
             return yaw;
         }
+        float before = yaw;
         double dx = px - x, dz = pz - z;
         float target = yaw;
         if (dx * dx + dz * dz > 0.0025f) {
@@ -41,6 +45,10 @@ public final class BodyYaw {
         float head = wrap(headYaw - yaw);
         float max = blocking ? 15f : 50f;
         if (Math.abs(head) > max) yaw += head - Math.signum(head) * max;
+        // how fast the body and head are turning, in degrees a tick, smoothed over a couple of ticks
+        bodyRate = bodyRate * 0.5f + wrap(yaw - before) * 0.5f;
+        headRate = headRate * 0.5f + wrap(headYaw - lastHead) * 0.5f;
+        lastHead = headYaw;
         x = px; y = py; z = pz;
         // Player.moveCloak: snap if it fell far behind, otherwise chase a quarter of the way.
         if (Math.abs(px - cloakX) > 10 || Math.abs(py - cloakY) > 10 || Math.abs(pz - cloakZ) > 10) {
@@ -55,6 +63,16 @@ public final class BodyYaw {
 
     public float yaw() {
         return yaw;
+    }
+
+    /** The body yaw this many ticks ahead if it keeps turning as it is, at most 45 degrees ahead. */
+    public float yawAhead(float ticks) {
+        return yaw + clamp(bodyRate * ticks, -45f, 45f);
+    }
+
+    /** The head yaw this many ticks ahead if it keeps turning as it is, at most 45 degrees ahead. */
+    public float headAhead(float headYaw, float ticks) {
+        return headYaw + clamp(headRate * ticks, -45f, 45f);
     }
 
     /**
