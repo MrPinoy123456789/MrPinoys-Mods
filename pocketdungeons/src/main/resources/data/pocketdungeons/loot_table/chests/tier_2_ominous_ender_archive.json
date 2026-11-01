@@ -70,10 +70,7 @@
           "functions": [
             {
               "function": "minecraft:set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
+              "count": { "type": "minecraft:uniform", "min": 1, "max": 2 }
             }
           ]
         },
