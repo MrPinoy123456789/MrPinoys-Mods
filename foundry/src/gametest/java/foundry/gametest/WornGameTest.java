@@ -202,6 +202,11 @@ public final class WornGameTest {
         return m.transformDirection(new org.joml.Vector3f(0, 0, -1)).normalize();
     }
 
+    /** A back model is built mirrored front to back, so its outer face is its +z. */
+    private static org.joml.Vector3f outward(org.joml.Matrix4f m) {
+        return m.transformDirection(new org.joml.Vector3f(0, 0, 1)).normalize();
+    }
+
     private static org.joml.Vector3f flat(org.joml.Vector3f v) {
         return new org.joml.Vector3f(v.x, 0, v.z).normalize();
     }
@@ -224,12 +229,31 @@ public final class WornGameTest {
         var cape = foundry.core.WornPlacement.of("chest/cape").orElseThrow();
         var g = front(foundry.mc.WornDisplays.transformFor(wearer, gills));
         // the cape hangs tilted (vanilla's 6 degrees at rest), so only its horizontal facing is compared
-        var c = flat(front(foundry.mc.WornDisplays.transformFor(wearer, cape)));
+        var c = flat(outward(foundry.mc.WornDisplays.transformFor(wearer, cape)));
         helper.assertTrue(near(g, 0, 0, 1), "The gills should face where the head looks (south) but face " + g);
         helper.assertTrue(near(c, 1, 0, 0), "The cape should face out of the back of a body turned west (east) but faces " + c);
         wearer.yBodyRot = 0f;
-        var c2 = flat(front(foundry.mc.WornDisplays.transformFor(wearer, cape)));
+        var c2 = flat(outward(foundry.mc.WornDisplays.transformFor(wearer, cape)));
         helper.assertTrue(near(c2, 0, 0, -1), "Turning the body south should turn the cape to face north but it faces " + c2);
+        helper.succeed();
+    }
+
+    /**
+     * Left and right are never swapped: a back model's +x (the pauldron's lames, the right wing) stays on the player's
+     * right. Facing south, the player's right is west (-x); facing east, it is south (+z).
+     */
+    @GameTest(maxTicks = 20)
+    public void backItemsKeepLeftAndRight(GameTestHelper helper) {
+        ServerPlayer wearer = player(helper, null);
+        var pauldron = foundry.core.WornPlacement.of("chest/back").orElseThrow();
+        wearer.yBodyRot = 0f;
+        var right = flat(foundry.mc.WornDisplays.transformFor(wearer, pauldron).transformDirection(new org.joml.Vector3f(1, 0, 0)));
+        helper.assertTrue(near(right, -1, 0, 0), "Facing south, the pauldron's outward side should point west but points " + right);
+        wearer.yBodyRot = -90f;
+        var right2 = flat(foundry.mc.WornDisplays.transformFor(wearer, pauldron).transformDirection(new org.joml.Vector3f(1, 0, 0)));
+        helper.assertTrue(near(right2, 0, 0, 1), "Facing east, the pauldron's outward side should point south but points " + right2);
+        var at = foundry.mc.WornDisplays.transformFor(wearer, pauldron).getTranslation(new org.joml.Vector3f());
+        helper.assertTrue(at.z > 0.2f, "Facing east, the pauldron should sit on the right (south) shoulder but sits at " + at);
         helper.succeed();
     }
 

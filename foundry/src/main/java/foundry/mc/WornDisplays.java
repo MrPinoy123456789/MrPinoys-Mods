@@ -504,7 +504,7 @@ public final class WornDisplays {
      *       pitch (crouching lowers the head 4.2 pixels); a body item pivots at the neck too and leans forward half a
      *       radian about the chest while crouching;</li>
      *   <li>the placement's up/back/side offset (heights measured from the feet when standing) and extra rotation, and
-     *       a body item is turned to face out from the back; a swinging item (the cape) hangs from that point and swings back by
+     *       a back item's model is already mirrored to face out from the back; a swinging item (the cape) hangs from that point and swings back by
      *       the cape tilt;</li>
      *   <li>scale, or nothing at all while the player is invisible or asleep.</li>
      * </ol>
@@ -557,10 +557,11 @@ public final class WornDisplays {
             m.rotateX((float) Math.toRadians(-capeTilt));
             m.translate(0, -0.25f * p.scale(), 0);
         }
-        // A model's front (its north face) shows toward the display's -z. A head item keeps that, so it faces forward with
-        // the head; a body item is given a half turn so its front faces out from the back (found in game: without it the
-        // wings and the cape showed their inner side outward).
-        if (!p.onHead()) m.rotateY((float) Math.PI);
+        // A display shows a model as it is: its north face toward the display's -z, its +x to the display's +x. Here -z is
+        // forward and +x is the player's right, so a head model faces forward. Back models (pauldron, cape, wings) are
+        // built mirrored front to back by tools/gen_trinket_models.py so their outer face looks out from the back. A half
+        // turn here instead would also swap left and right (found in game: the wings crossed over and the pauldron's lames
+        // pointed at the neck).
         m.rotateXYZ((float) Math.toRadians(p.rx()), (float) Math.toRadians(p.ry()), (float) Math.toRadians(p.rz()));
         boolean shown = !player.isInvisible() && !player.isSleeping();
         float scale = shown ? p.scale() : 0f;

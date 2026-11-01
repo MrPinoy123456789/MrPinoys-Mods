@@ -405,6 +405,28 @@ def paint_wings():
     return img
 
 
+# Models worn on the back. An item display shows a model as it is: its north face (-z) toward the display's -z, its +x
+# to the display's +x. A body display sits behind the player with its -z toward their back, so these models are built
+# front first as usual and then mirrored front to back (never turned, which would also swap left and right), so their
+# outer face looks out from the back while the pauldron's lames still point out over the arm.
+BACK_ITEMS = {"forgeman_pauldron", "kingdom_cape", "fairy_wings"}
+
+
+def mirror_front_to_back(el):
+    """The element reflected across the z = 8 plane: north and south faces swap, and turns about x or y reverse."""
+    f, t = el["from"], el["to"]
+    out = {"from": [f[0], f[1], 16 - t[2]], "to": [t[0], t[1], 16 - f[2]], "faces": {}}
+    swap = {"north": "south", "south": "north"}
+    for name, face in el["faces"].items():
+        out["faces"][swap.get(name, name)] = face
+    if "rotation" in el:
+        r = el["rotation"]
+        o = list(r["origin"])
+        o[2] = 16 - o[2]
+        out["rotation"] = {"origin": o, "axis": r["axis"], "angle": -r["angle"] if r["axis"] in ("x", "y") else r["angle"]}
+    return out
+
+
 def main():
     os.makedirs(MODELS, exist_ok=True)
     os.makedirs(TEXTURES, exist_ok=True)
@@ -414,6 +436,8 @@ def main():
     built["kingdom_cape"] = (cape_model(), paint_cape())
     built["fairy_wings"] = (wings_model(), paint_wings())
     for name, (elements, texture) in built.items():
+        if name in BACK_ITEMS:
+            elements = [mirror_front_to_back(e) for e in elements]
         model = {
             "textures": {"0": f"kingdoms:item/worn/{name}", "particle": f"kingdoms:item/worn/{name}"},
             "elements": elements,
