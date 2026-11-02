@@ -10,6 +10,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,19 +28,31 @@ public final class PadGameTest {
     private static final String PADS = "charter-gametest:pads_alone";
     private static final String PADS_WAIT = "charter-gametest:pads_wait";
 
-    /** Sets the teleport wait and cooldown for one test and puts them back after. */
+    /**
+     * Sets the teleport wait and cooldown for one test. The tests of a batch overlap, so the values from before the
+     * first of them are kept and put back only when the last one still open closes.
+     */
     private static final class Knobs implements AutoCloseable {
+        private static int open;
+        private static int warmup;
+        private static int cooldown;
         final charter.config.Knobs knobs = charter.mc.CharterServer.runtime().knobs;
-        final int warmup = knobs.teleportWarmupSeconds;
-        final int cooldown = knobs.teleportCooldownSeconds;
+        private boolean closed;
 
         Knobs(int warmupSeconds, int cooldownSeconds) {
+            if (open++ == 0) {
+                warmup = knobs.teleportWarmupSeconds;
+                cooldown = knobs.teleportCooldownSeconds;
+            }
             knobs.teleportWarmupSeconds = warmupSeconds;
             knobs.teleportCooldownSeconds = cooldownSeconds;
         }
 
         @Override
         public void close() {
+            if (closed) return;
+            closed = true;
+            if (--open > 0) return;
             knobs.teleportWarmupSeconds = warmup;
             knobs.teleportCooldownSeconds = cooldown;
         }
@@ -216,6 +229,8 @@ public final class PadGameTest {
             helper.assertTrue(Pads.fired(lord) == 1, "A rider's pad did not fire: " + Pads.fired(lord) + ", pig at " + pig.position());
             helper.assertTrue("".equals(Pads.answer(lord)), "The rider was refused: " + Pads.answer(lord));
             helper.assertTrue(atNexus(kit, lord), "The rider did not arrive at the Nexus: " + lord.position());
+            helper.assertTrue(!lord.isPassenger() && pig.position().distanceTo(Vec3.atBottomCenterOf(pad.above())) < 1.5,
+                    "The mount did not stay behind on the pad: riding " + lord.isPassenger() + ", pig at " + pig.position());
         }).run();
     }
 
