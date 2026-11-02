@@ -137,6 +137,45 @@ public final class WildRunGameTest {
         helper.succeed();
     }
 
+    /**
+     * Every shipped offering also stamps with Blackout added. A room with no content id once made the Blackout cell
+     * choice throw (asking an immutable set about null), so a wild deep_quarry with Blackout could never be built.
+     */
+    @GameTest(maxTicks = 1200)
+    public void everyOfferingStampsUnderBlackout(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        WildDungeons.loadFrom(server);
+        List<String> problems = new ArrayList<>();
+        for (WildDungeons.Offering offering : WildDungeons.all()) {
+            InstanceRecord record = null;
+            try {
+                WildState.Lodestone lode = lodestone(level, offering, "b-" + offering.id(), 2);
+                WildRun.PlannedFloor planned = WildRun.planFor(level, lode, offering);
+                if (planned == null) {
+                    problems.add(offering.id() + ": no plan (" + WildRun.lastRefusal() + ")");
+                    continue;
+                }
+                Set<String> affixes = new LinkedHashSet<>(planned.affixes());
+                affixes.add(AffixIds.BLACKOUT);
+                WildRun.PlannedFloor dark = new WildRun.PlannedFloor(planned.offer(), planned.plan(), planned.theme(),
+                        Set.copyOf(affixes), planned.themeId(), planned.record());
+                InstanceRegistry.usedSlots.add(slotOf(4));
+                record = WildRun.stampAt(server, level, lode, dark, slotOf(4), originOf(4));
+                if (record == null) {
+                    problems.add(offering.id() + ": no record under Blackout (" + WildRun.lastRefusal() + ")");
+                }
+            } catch (RuntimeException e) {
+                problems.add(offering.id() + ": " + e);
+            } finally {
+                cleanUp(level, record);
+                InstanceRegistry.usedSlots.remove(slotOf(4));
+            }
+        }
+        helper.assertTrue(problems.isEmpty(), "Blackout stamping problems: " + problems);
+        helper.succeed();
+    }
+
     /** Two players share one record, leave keeps the record up and loses nothing, even from a full pack and cursor. */
     @SuppressWarnings("removal")
     @GameTest(maxTicks = 600)

@@ -26,6 +26,7 @@ public class BlackoutTest {
         manifest();
         cells();
         light();
+        leverOrdeal();
         System.out.println("BlackoutTest passed");
     }
 
@@ -137,6 +138,18 @@ public class BlackoutTest {
         // Dark removes every light, so the existing removal logic does the work.
         List<int[]> lights = List.of(new int[]{1, 1, 1}, new int[]{2, 1, 1}, new int[]{3, 1, 1});
         check(DungeonLight.removals(DungeonRoomMeta.LIGHT_DARK, lights).size() == 3, "dark removes every light");
+    }
+
+    /** A room with no content id is not a lever Ordeal, and asking must not throw (the w6 stamping crash). */
+    private static void leverOrdeal() {
+        check(!DungeonLight.isLeverOrdeal(null), "a room with no content is not a lever Ordeal");
+        check(DungeonLight.isLeverOrdeal("rising_lava"), "rising lava is a lever Ordeal");
+        check(!DungeonLight.isLeverOrdeal("store"), "a store is not a lever Ordeal");
+        List<PlanCell> cells = List.of(new PlanCell(0, 0), new PlanCell(1, 0), new PlanCell(2, 0), new PlanCell(3, 0));
+        String[] contents = {null, null, "rising_lava", null};
+        Set<PlanCell> dark = DungeonLight.blackoutCells(cells, cells.get(0), cells.get(3),
+                cell -> DungeonLight.isLeverOrdeal(contents[cell.x()]), 1.0, 7L);
+        check(dark.equals(Set.of(cells.get(1))), "rooms with no content can go dark beside a lever Ordeal: " + dark);
     }
 
     private static void check(boolean ok, String what) {

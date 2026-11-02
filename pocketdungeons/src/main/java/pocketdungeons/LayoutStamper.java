@@ -786,7 +786,7 @@ final class LayoutStamper {
         return DungeonLight.blackoutCells(plan.cells(), plan.entrance(), plan.terminal(), cell -> {
             RoomManifest.Entry entry = entryAt(manifest, plan, cell);
             return entry != null && (entry.meta.requiresLight
-                    || DungeonLight.LEVER_ORDEAL_CONTENT.contains(entry.meta.content));
+                    || DungeonLight.isLeverOrdeal(entry.meta.content));
         }, fraction, plan.seed());
     }
 

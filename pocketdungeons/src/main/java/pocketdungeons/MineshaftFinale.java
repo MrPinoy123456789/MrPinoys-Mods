@@ -163,7 +163,7 @@ final class MineshaftFinale implements FinaleScript {
             if (room != null) {
                 RoomManifest.Entry entry = entryOf(room.id());
                 if (entry == null || entry.meta.requiresLight
-                        || DungeonLight.LEVER_ORDEAL_CONTENT.contains(entry.meta.content)) {
+                        || DungeonLight.isLeverOrdeal(entry.meta.content)) {
                     continue;
                 }
                 minY = entry.meta.spanY > 1 ? -RoomGeometry.storyOffset(entry.meta.spanY) : 0;
