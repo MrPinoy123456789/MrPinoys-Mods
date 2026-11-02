@@ -156,6 +156,8 @@ public final class Knobs {
      * dialogs a Java player sees, translated by Geyser. A switch in case a Floodgate update breaks the forms.
      */
     public boolean bedrockNativeForms = true;
+    /** Operators are given an Admin Book (the operators' menu as an item) when they join or respawn without one. */
+    public boolean opsGetAdminBook = true;
     /** Whether every player sees a glowing line along nearby keep borders without holding anything. */
     public boolean keepBorderGlow = false;
     /** Whether a player who has lost their Charter book is given a new one. */

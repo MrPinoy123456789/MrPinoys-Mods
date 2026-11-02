@@ -8,7 +8,6 @@ import charter.mc.CharterServer;
 import charter.mc.Text;
 import charter.mc.store.Repairs;
 import charter.org.MemberRecord;
-import charter.org.PlayerRecord;
 import charter.time.Durations;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -57,9 +56,13 @@ final class AdminCommands {
                                 .then(Commands.argument("days", IntegerArgumentType.integer(0, 3650)).executes(AdminCommands::age))))
                 .then(Commands.literal("vote")
                         .then(Commands.literal("close")
-                                .then(Commands.argument("number", LongArgumentType.longArg(1)).executes(AdminCommands::closeVote))))
+                                .then(Commands.argument("number", LongArgumentType.longArg(1))
+                                        .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(CharterServer.running()
+                                                ? rt().state.votes().stream().filter(Vote::open).map(v -> String.valueOf(Pages.number(v))).toList()
+                                                : List.of(), b))
+                                        .executes(AdminCommands::closeVote))))
                 .then(Commands.literal("dissolve")
-                        .then(Commands.argument("faction", StringArgumentType.string()).executes(AdminCommands::dissolve)))
+                        .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions).executes(AdminCommands::dissolve)))
                 .then(Commands.literal("repair").executes(AdminCommands::repair))
                 .then(Commands.literal("areas").executes(AdminCommands::areas))
                 .then(Commands.literal("save").executes(AdminCommands::save));
@@ -114,9 +117,7 @@ final class AdminCommands {
     private static int age(CommandContext<CommandSourceStack> ctx) {
         String name = StringArgumentType.getString(ctx, "player");
         int days = IntegerArgumentType.getInteger(ctx, "days");
-        Optional<PlayerRecord> player = rt().state.allPlayers().stream()
-                .filter(p -> p.name.equalsIgnoreCase(name) || p.id.value().toString().equalsIgnoreCase(name)).findFirst();
-        Optional<MemberRecord> membership = player.flatMap(p -> rt().state.membership(p.id));
+        Optional<MemberRecord> membership = Resolve.player(ctx.getSource().getServer(), rt(), name).flatMap(p -> rt().state.membership(p.id()));
         if (membership.isEmpty()) return fail(ctx, Text.get("admin.not_member", "player", name));
         MemberRecord m = membership.get();
         rt().state.restoreMembership(new MemberRecord(m.player(), m.org(), m.joinedAt() - Durations.days(days), m.roles()));
@@ -135,7 +136,7 @@ final class AdminCommands {
     /** Dissolves a faction and its sub-factions: the world is cleaned first (Nexus blocks, granary links), then the rules run. */
     private static int dissolve(CommandContext<CommandSourceStack> ctx) {
         String name = StringArgumentType.getString(ctx, "faction");
-        var found = rt().state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt(), name);
         if (found.isEmpty()) return fail(ctx, Text.get("admin.dissolve_none", "name", name));
         var doomed = charter.org.actions.DissolveOrg.subtree(rt().state, found.get().id);
         int members = 0, keeps = 0, claims = 0;

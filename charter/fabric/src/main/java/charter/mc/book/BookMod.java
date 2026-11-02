@@ -27,6 +27,7 @@ public final class BookMod {
     public static void onJoin(ServerPlayer player) {
         if (!CharterServer.running()) return;
         ensure(player, false);
+        AdminBook.ensure(player);
     }
 
     /** True when the player carries a Charter book anywhere on them. */
@@ -104,7 +105,9 @@ public final class BookMod {
     /** Once a second for everyone online: a second book is deleted, whether or not lost books are replaced. */
     public static void removeExtrasAll(net.minecraft.server.MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (player.isAlive() && !player.isSpectator()) removeExtras(player);
+            if (!player.isAlive() || player.isSpectator()) continue;
+            removeExtras(player);
+            AdminBook.police(player);
         }
     }
 
@@ -231,12 +234,16 @@ public final class BookMod {
     public static void register() {
         // Before the death loot is dropped: the book never lies on the ground, and respawn hands out a fresh one.
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
-            if (entity instanceof ServerPlayer player) vanish(player);
+            if (entity instanceof ServerPlayer player) {
+                vanish(player);
+                AdminBook.vanish(player);
+            }
             return true;
         });
         Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, Identifier.fromNamespaceAndPath("charter", "nexus"),
                 NexusRecipe.SERIALIZER);
         CharterBook.register();
+        AdminBook.register();
         FloodgateAdapter.installIfPresent();
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             BookDialogs.LAST.remove(handler.player.getUUID());
