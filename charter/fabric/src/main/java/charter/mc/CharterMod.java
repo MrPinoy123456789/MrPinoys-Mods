@@ -59,6 +59,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.pad.Pads.register();
         // Terminals: right-click one (a lectern, a keep's Nexus) to open the Charter menu without the book.
         charter.mc.terminal.Terminals.register();
+        // The kingdom map for Xaero's maps, sent only to players who run the Charter Maps client mod.
+        charter.mc.map.MapSync.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }

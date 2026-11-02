@@ -1105,5 +1105,18 @@
   "rank.cmd.moved": "Moved the rank of {rank}.",
   "rank.cmd.given": "{player} is now {rank}.",
   "rank.cmd.power_on": "The rank of {rank} may now {power}.",
-  "rank.cmd.power_off": "The rank of {rank} may no longer {power}."
+  "rank.cmd.power_off": "The rank of {rank} may no longer {power}.",
+  "mapmarker.added": "Map marker {id} added at {x}, {y}, {z} in {dimension}.",
+  "mapmarker.added_timed": "It goes in {minutes} minute(s).",
+  "mapmarker.bad_colour": "Unknown colour {colour}. Use six hex digits such as FFAA00, or one of: {names}.",
+  "mapmarker.refused": "That marker was refused. An id is at most 64 characters and a label at most 128; at most 256 markers stand at once.",
+  "mapmarker.removed": "Map marker {id} removed.",
+  "mapmarker.none": "There is no map marker {id}.",
+  "mapmarker.list_none": "No map markers. {players} player(s) receive the kingdom map.",
+  "mapmarker.list_head": "{count} map marker(s). {players} player(s) receive the kingdom map.",
+  "mapmarker.list_line": "{id} ({kind}): {label} at {x}, {y}, {z} in {dimension}, {left}",
+  "mapmarker.never": "no expiry",
+  "mapmarker.left": "{left} left",
+  "mapmarker.sync_off": "mapSyncEnabled is off in charter.json, so nobody is sent the kingdom map.",
+  "mapmarker.markers_off": "mapSyncMarkers is off in charter.json, so markers are not sent with the kingdom map."
 }

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "charter_xaero",
+  "version": "${version}",
+  "name": "Charter Maps",
+  "description": "Shows the kingdoms of a Charter server on Xaero's World Map and Minimap: coloured land with borders, keeps, outposts and map markers. Does nothing on other servers or without Xaero's maps.",
+  "authors": [
+    "MrPinoy123456789"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "charterxaero.CharterMapsClient"
+    ]
+  },
+  "mixins": [
+    "charter_xaero.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "xaeroworldmap": ">=1.47.0",
+    "xaerominimap": ">=26.6.0"
+  }
+}

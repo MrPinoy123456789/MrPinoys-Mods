@@ -114,6 +114,13 @@ public final class Knobs {
     public boolean terminalCues = true;
     /** Whether founding or moving a keep puts a lectern terminal beside its Nexus. */
     public boolean keepTerminals = true;
+    /**
+     * Whether players who run the Charter Maps client mod are sent the kingdom map (held land, keeps, outposts) for
+     * Xaero's World Map and Minimap. Players without the mod, and Bedrock players, are never sent anything either way.
+     */
+    public boolean mapSyncEnabled = true;
+    /** Whether map markers (supply drops, {@code /charter admin mapmarker}) go out with the kingdom map. */
+    public boolean mapSyncMarkers = true;
     /** Who is handed the Charter book automatically: "everyone", "newcomers" (no kingdom and no race) or "none". */
     public String bookGivenTo = "everyone";
     /** Minutes a lifted Nexus lodestone may be carried before it goes back to where it stood. */

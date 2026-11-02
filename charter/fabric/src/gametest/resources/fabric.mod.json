@@ -41,7 +41,8 @@
       "charter.gametest.TerminalGameTest",
       "charter.gametest.BookRulesGameTest",
       "charter.gametest.NexusLiftGameTest",
-      "charter.gametest.RankGameTest"
+      "charter.gametest.RankGameTest",
+      "charter.gametest.MapSyncGameTest"
     ]
   },
   "mixins": [

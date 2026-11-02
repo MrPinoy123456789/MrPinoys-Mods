@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "package": "charterxaero.mixin",
+  "plugin": "charterxaero.mixin.XaeroMixinPlugin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "WorldMapRegistryMixin",
+    "MinimapRegistryMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

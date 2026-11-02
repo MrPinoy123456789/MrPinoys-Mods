@@ -92,6 +92,7 @@ public final class CharterServer {
         if (runtime == null) return;
         runtime.areas.flush();
         ticks++;
+        charter.mc.map.MapSync.tick(s, runtime, ticks);
         if (ticks % RacePassives.EVERY_TICKS == 0) RacePassives.apply(s, runtime);
         if (ticks % RacePassives.WATER_EVERY_TICKS == 0) RacePassives.applyWater(s, runtime);
         if (ticks % RaceCombatPassives.EVERY_TICKS == 0) RaceCombatPassives.apply(s, runtime);
@@ -125,6 +126,7 @@ public final class CharterServer {
 
     private static void stop() {
         if (runtime == null) return;
+        charter.mc.map.MapSync.stop();
         runtime.save();
         runtime.close();
         runtime = null;
@@ -146,6 +148,7 @@ public final class CharterServer {
         }
         give(player);
         charter.mc.book.BookMod.onJoin(player);
+        charter.mc.map.MapSync.join(player);
     }
 
     /** Hands over whatever the treasury owes this player; what does not fit stays owed. */
