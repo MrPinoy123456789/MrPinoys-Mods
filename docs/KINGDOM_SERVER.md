@@ -210,6 +210,28 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   cloth hanging from it beside the pole, so it shows full on from the left and right; three silver bands across its top,
   the crowned skull below, silver rings where it is laced to the pole.
 
+- Bedrock and the Fae (2026-11-02): a Bedrock client cannot hold and release the Faeloria staff, so for Bedrock players a
+  tap casts Bramble Burst by itself after the same one second while the staff stays in hand (switching away fizzles it),
+  and a tap aimed at the ground or a wall now casts too (Geyser sends it only as a block click). The Bedrock race look
+  skins now carry the empty armour bones (helmet, bodyArmor, belt, arm armour, leggings, boots, cape) a Bedrock skin
+  needs for worn armour to show, so a helmet shows with the antlers, beard, fins or cap. A Fae is taught the leaf wing
+  double jump (a chat line each login and an action bar hint near the top of a plain jump, at most every 30 s) until
+  they have done one; who has learned it is kept in `config/foundry/double_jump_learned.json`.
+- Casters and left click (2026-11-02): a left click that lands on a mob or a block with a wand or staff in hand casts its
+  bolt (once per click), on Java and Bedrock alike. A controller crosshair rests on the ground or locks onto mobs, so
+  before this an Xbox Fae's left click almost never cast the Thorn Bolt.
+- Bedrock recipe book (2026-11-02): every Foundry item mapping now has a Bedrock `creative_category` (race weapons
+  under equipment, the rest under items). Bedrock only lists a recipe in its recipe book when the result has one, so the
+  weapon upgrade recipes were missing for Bedrock players. A side effect: the items also show in the Bedrock creative
+  inventory (creative mode only). Ship with `--bedrock` (the mappings file) and restart.
+- Recharge feedback (2026-11-02): holding a race weapon with something recharging shows an ability line on the action
+  bar ("Thorn Bolt  ·  Bramble Burst 9s  ·  Glamour", ready ones green, recharging ones grey), and a press on recharge
+  brings it up instead of doing nothing. An ability with a recharge of 5 s or more plays a soft chime to that player
+  alone and shows "<name> ready" when it comes back. While a charged ability (Bramble Burst) recharges, that player's
+  copy of the staff is not marked usable, so their client draws no bow pose for a press that cannot fire. A double jump
+  or swim dash pressed too soon answers with "Leaf wings 1.2s" or "Swim dash 0.8s" and a soft sound. All of it is
+  action bar and sound, so Bedrock players get it too. The caster left click bolts are now named (Thorn Bolt, Sparkle Bolt).
+
 Full notes and where this differs from the earlier race spec: `docs/RACES.md`, section 7a.
 
 ## Race looks and traits (replaced the race trinkets, 2026-11-01)

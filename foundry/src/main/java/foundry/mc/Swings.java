@@ -28,13 +28,28 @@ public final class Swings {
 
     static void register() {
         AttackEntityCallback.EVENT.register((player, level, hand, entity, hit) -> {
-            if (player instanceof ServerPlayer sp) suppress(sp);
+            if (player instanceof ServerPlayer sp) attacked(sp);
             return InteractionResult.PASS;
         });
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
-            if (player instanceof ServerPlayer sp) suppress(sp);
+            if (player instanceof ServerPlayer sp) attacked(sp);
             return InteractionResult.PASS;
         });
+    }
+
+    /**
+     * An attack that landed on a mob or a block. With a caster in hand (an item whose left click casts and that has no
+     * hit of its own: the wands and staffs) the attack is the cast, so the bolt flies whatever the crosshair was on. A
+     * controller or touch player's crosshair rests on the ground or locks onto a mob most of the time, so before this a
+     * Bedrock Fae's left click almost never cast. Either way the swing that comes with it is not a second left click.
+     */
+    static void attacked(ServerPlayer player) {
+        long now = player.level().getServer().getTickCount();
+        boolean fresh = now - SUPPRESSED_AT.getOrDefault(player.getUUID(), Long.MIN_VALUE / 2) > WINDOW;
+        suppress(player);
+        if (fresh && player.getMainHandItem().getItem() instanceof FoundryItem item && item.castsOnAttack()) {
+            item.fire(Trigger.ON_SWING, player, null);
+        }
     }
 
     /** Marks the player's current swing as belonging to another action. */

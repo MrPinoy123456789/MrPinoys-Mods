@@ -62,7 +62,46 @@ final class FoundryItem extends SimplePolymerItem {
         if (context.getPlayer() instanceof ServerPlayer locked && !Gate.check(locked, def())) return InteractionResult.FAIL;
         var furniture = Furniture.forItem(ident);
         if (furniture != null && Furniture.place(context, furniture)) return InteractionResult.SUCCESS;
+        // A Bedrock player's right click on a block reaches the server only as a click on that block: Geyser sends no
+        // separate use, so a staff aimed at the ground or a wall did nothing. Java clients send the use as well, after
+        // this, so for them the block click stays a plain block click.
+        if (furniture == null && context.getPlayer() instanceof ServerPlayer sp && foundry.core.Floodgate.isBedrock(sp.getUUID())) {
+            InteractionResult used = bedrockUse(sp, context.getHand());
+            if (used != null) {
+                USED_ON.put(sp.getUUID(), (long) sp.level().getServer().getTickCount());
+                return used;
+            }
+        }
         return super.useOn(context);
+    }
+
+    /** When a Bedrock player's block click last ran this item's use, so a use in the same tick is not run twice. */
+    private static final java.util.Map<java.util.UUID, Long> USED_ON = new java.util.HashMap<>();
+
+    /**
+     * A use by a Bedrock player: a charged mechanic starts a cast that fires by itself after its charge time (Charging),
+     * anything else fires at once. Null when the item has nothing to do on use.
+     */
+    private InteractionResult bedrockUse(ServerPlayer sp, InteractionHand hand) {
+        var list = mechanics();
+        if (Charging.casting(sp.getUUID())) return InteractionResult.CONSUME;
+        int armed = MechanicHost.armedCharge(contentId, list, sp);
+        if (armed >= 0) {
+            var m = list.get(armed);
+            Charging.cast(sp, new Charging.Cast(contentId, armed, sp.level().getServer().getTickCount() + m.chargeTicks(), hand));
+            String what = m.name() == null || m.name().isBlank() ? "spell" : m.name();
+            sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Casting " + what + "... keep it in hand"), true);
+            return InteractionResult.CONSUME;
+        }
+        if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
+        if (hasCharge()) AbilityBar.poke(sp);
+        return null;
+    }
+
+    /** Fires the charged mechanic a Bedrock cast armed (Charging.tick). True when it ran. */
+    boolean fireCast(ServerPlayer sp, int index) {
+        if (!Gate.allowed(sp, def())) return false;
+        return MechanicHost.fireCharged(contentId, mechanics(), index, sp);
     }
 
     @Override
@@ -71,6 +110,12 @@ final class FoundryItem extends SimplePolymerItem {
             // Right click makes the server swing the arm; that swing is not a left click.
             Swings.suppress(sp);
             if (!Gate.check(sp, def())) return InteractionResult.FAIL;
+            if (foundry.core.Floodgate.isBedrock(sp.getUUID())) {
+                Long at = USED_ON.remove(sp.getUUID());
+                if (at != null && at == sp.level().getServer().getTickCount()) return InteractionResult.CONSUME;
+                InteractionResult used = bedrockUse(sp, hand);
+                return used != null ? used : super.use(level, player, hand);
+            }
             var list = mechanics();
             // A charged mechanic starts a hold, and fires when it is released after long enough.
             int armed = MechanicHost.armedCharge(contentId, list, sp);
@@ -81,6 +126,8 @@ final class FoundryItem extends SimplePolymerItem {
                 return InteractionResult.CONSUME;
             }
             if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
+            // Nothing could run (a charged ability recharging): answer with the ability line instead of silence.
+            if (hasCharge()) AbilityBar.poke(sp);
         }
         return super.use(level, player, hand);
     }
@@ -107,6 +154,23 @@ final class FoundryItem extends SimplePolymerItem {
             }
         }
         super.inventoryTick(stack, level, entity, slot);
+    }
+
+    /** True for a caster: its left click casts (on_swing) and it has no hit of its own (on_hit_entity). */
+    boolean castsOnAttack() {
+        var list = mechanics();
+        return list.stream().anyMatch(m -> m.trigger() == Trigger.ON_SWING)
+                && list.stream().noneMatch(m -> m.trigger() == Trigger.ON_HIT_ENTITY);
+    }
+
+    /** True when the charged ability is recharging for the player this packet goes to. */
+    private boolean rechargingFor(PacketContext context) {
+        if (context == null) return false;
+        var profile = context.get(PacketContext.GAME_PROFILE);
+        var server = context.get(PacketContext.SERVER_INSTANCE);
+        if (profile == null || server == null) return false;
+        ServerPlayer viewer = server.getPlayerList().getPlayer(profile.id());
+        return viewer != null && MechanicHost.chargeRecharging(contentId, mechanics(), viewer);
     }
 
     private boolean hasCharge() {
@@ -150,8 +214,10 @@ final class FoundryItem extends SimplePolymerItem {
             var attributes = stack.get(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS);
             if (attributes != null) out.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, attributes);
         }
-        // Held for a "long" time on the client, so it never finishes by itself; the server decides at release.
-        if (hasCharge()) out.set(net.minecraft.core.component.DataComponents.CONSUMABLE, CHARGE_LOOK);
+        // Held for a "long" time on the client, so it never finishes by itself; the server decides at release. While the
+        // charged ability recharges for the player this copy is for, it is left off, so their client draws no pose for a
+        // press that cannot do anything (AbilityBar resends the inventory when it starts and when it is back).
+        if (hasCharge() && !rechargingFor(context)) out.set(net.minecraft.core.component.DataComponents.CONSUMABLE, CHARGE_LOOK);
     }
 
     @Override

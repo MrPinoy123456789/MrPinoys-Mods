@@ -209,9 +209,102 @@ public final class WeaponsGameTest {
             staff.releaseUsing(player.getMainHandItem(), helper.getLevel(), player, 0);
             helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 1, "released after a second it fires the burst");
             player.stopUsingItem();
+            helper.assertTrue(foundry.mc.AbilityBar.tracking(player.getUUID()), "the ability line tracks the burst's recharge");
+            helper.assertTrue(foundry.mc.AbilityBar.poseHidden(player), "while it recharges the staff draws no pose");
             // The recharge now blocks a new hold.
             staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
             helper.assertTrue(!player.isUsingItem(), "on cooldown a right click starts no hold");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Bedrock client never says it let go of an item Bedrock does not see as usable, so a hold would never end. A
+     * Bedrock tap casts instead: nothing at once, no hold, and the burst fires by itself after the same second.
+     */
+    @GameTest(maxTicks = 120)
+    public void aBedrockTapCastsTheBurstByItselfAfterTheChargeTime(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        foundry.core.Floodgate.treatAsBedrock(player.getUUID(), true);
+        var staff = item("kingdoms:faeloria_staff_1");
+        staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        helper.assertTrue(!player.isUsingItem(), "a Bedrock tap starts no hold");
+        helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 0, "nothing fires at once");
+        staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        // The bolt may hit the test's walls a few ticks after it flies, so watch every tick for the most seen at once.
+        int[] most = {0};
+        helper.onEachTick(() -> most[0] = Math.max(most[0], Bolts.liveFor(player.getUUID())));
+        helper.runAfterDelay(30, () -> {
+            helper.assertValueEqual(most[0], 1, "the cast fired once, a second tap while casting adds nothing");
+            staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+            int before = most[0];
+            most[0] = 0;
+            helper.runAfterDelay(30, () -> {
+                helper.assertValueEqual(most[0], 0, "on cooldown a tap casts nothing (before " + before + ")");
+                foundry.core.Floodgate.treatAsBedrock(player.getUUID(), false);
+                helper.succeed();
+            });
+        });
+    }
+
+    /** Geyser turns a Bedrock right click aimed at a block into a block click only; the staff must still cast, once. */
+    @GameTest(maxTicks = 120)
+    public void aBedrockClickOnTheGroundStillCastsAndOnlyOnce(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        foundry.core.Floodgate.treatAsBedrock(player.getUUID(), true);
+        var staff = item("kingdoms:faeloria_staff_1");
+        var below = helper.absolutePos(new net.minecraft.core.BlockPos(1, 1, 1));
+        var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(below),
+                net.minecraft.core.Direction.UP, below, false);
+        var result = staff.useOn(new net.minecraft.world.item.context.UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+        helper.assertTrue(result.consumesAction(), "a click on the ground with the staff is taken as a cast: " + result);
+        staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        int[] most = {0};
+        helper.onEachTick(() -> most[0] = Math.max(most[0], Bolts.liveFor(player.getUUID())));
+        helper.runAfterDelay(30, () -> {
+            helper.assertValueEqual(most[0], 1, "the cast fired once");
+            foundry.core.Floodgate.treatAsBedrock(player.getUUID(), false);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A controller's crosshair sits on the ground or locks onto a mob, so a left click with a caster mostly lands on a block
+     * or a mob, which the plain swing watch ignores. With a staff or wand in hand that attack is the cast, and only one.
+     */
+    @GameTest(maxTicks = 120)
+    public void aStaffAttackOnAMobOrTheGroundCastsTheThornBolt(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        Mob zombie = still(helper, 1, 2, 3);
+        int before = Bolts.liveFor(player.getUUID());
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker()
+                .interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, zombie, null);
+        helper.assertValueEqual(Bolts.liveFor(player.getUUID()), before + 1, "hitting a mob with the staff casts the thorn bolt");
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker()
+                .interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, zombie, null);
+        helper.assertValueEqual(Bolts.liveFor(player.getUUID()), before + 1, "a second hit in the same moment casts nothing more");
+        helper.runAfterDelay(20, () -> {
+            int now = Bolts.liveFor(player.getUUID());
+            var ground = helper.absolutePos(new net.minecraft.core.BlockPos(1, 1, 1));
+            net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.invoker()
+                    .interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, ground, net.minecraft.core.Direction.UP);
+            helper.assertValueEqual(Bolts.liveFor(player.getUUID()), now + 1, "a left click on the ground with the staff casts too");
+            helper.succeed();
+        });
+    }
+
+    /** A cast fizzles when the staff leaves the hand before it fires, as a drawn bow does. */
+    @GameTest(maxTicks = 120)
+    public void aBedrockCastFizzlesWhenTheStaffLeavesTheHand(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        foundry.core.Floodgate.treatAsBedrock(player.getUUID(), true);
+        item("kingdoms:faeloria_staff_1").use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        int[] most = {0};
+        helper.onEachTick(() -> most[0] = Math.max(most[0], Bolts.liveFor(player.getUUID())));
+        helper.runAfterDelay(30, () -> {
+            helper.assertValueEqual(most[0], 0, "the cast fizzled");
+            foundry.core.Floodgate.treatAsBedrock(player.getUUID(), false);
             helper.succeed();
         });
     }

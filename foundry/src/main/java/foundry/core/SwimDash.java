@@ -11,13 +11,29 @@ package foundry.core;
 public final class SwimDash {
     private boolean held;
     private long readyAt = Long.MIN_VALUE;
+    private boolean refused;
 
     /** Feeds one tick and answers whether to dash now. {@code swimming} is in the water and swimming. */
     public boolean tick(boolean jumpHeld, boolean swimming, long now, int cooldown) {
         boolean pressed = jumpHeld && !held;
         held = jumpHeld;
-        if (!swimming || !pressed || now < readyAt) return false;
+        refused = false;
+        if (!swimming || !pressed) return false;
+        if (now < readyAt) {
+            refused = true;
+            return false;
+        }
         readyAt = now + cooldown;
         return true;
+    }
+
+    /** True when this tick's press would have been a dash but the cooldown had not run out. */
+    public boolean refused() {
+        return refused;
+    }
+
+    /** Ticks until the next dash is allowed (0 when ready). */
+    public long waiting(long now) {
+        return Math.max(0, readyAt - now);
     }
 }

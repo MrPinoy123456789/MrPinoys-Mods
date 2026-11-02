@@ -57,6 +57,10 @@ public final class SwimDash {
             boolean swimming = player.isInWater() && player.isAlive() && !player.isPassenger() && !player.isSpectator()
                     && (player.isSwimming() || input.sprint());
             if (state.tick(input.jump(), swimming, now, cooldown)) dash(player);
+            else if (state.refused()) {
+                AbilityBar.notYet(player, "Swim dash", state.waiting(now),
+                        net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.FISH_SWIM));
+            }
         }
     }
 

@@ -66,11 +66,12 @@ public final class MechanicHost implements MechanicRunner.Host {
             if (m.charged()) continue; // fires on release, through fireCharged
             if (trigger == Trigger.ON_BOLT_HIT && !m.tag().equals(tag)) continue;
             var outcome = RUNNER.fire(player.getStringUUID(), contentId, i, m, host);
-            if (outcome == MechanicRunner.Outcome.RAN) any = true;
-            if (outcome == MechanicRunner.Outcome.ON_COOLDOWN && !m.name().isEmpty()) {
-                long left = RUNNER.cooldownLeft(player.getStringUUID(), contentId, i, host.nowTick());
-                player.sendSystemMessage(Component.literal(m.name() + " is recharging: " + ((left + 19) / 20) + "s"), true);
+            if (outcome == MechanicRunner.Outcome.RAN) {
+                any = true;
+                AbilityBar.started(player, contentId, i, m);
             }
+            // A press on recharge answers with the ability line (what is ready, and when the rest is back).
+            if (outcome == MechanicRunner.Outcome.ON_COOLDOWN && !m.name().isEmpty()) AbilityBar.poke(player);
             if (outcome == MechanicRunner.Outcome.RATE_LIMITED || outcome == MechanicRunner.Outcome.REENTERED) {
                 FoundryMod.LOG.warn("Foundry: mechanic {} #{} refused ({}) for {}.", contentId, i, outcome,
                         player.getName().getString());
@@ -101,7 +102,22 @@ public final class MechanicHost implements MechanicRunner.Host {
         MechanicDef m = mechanics.get(index);
         MechanicHost host = new MechanicHost(player, null, contentId);
         var outcome = RUNNER.fire(player.getStringUUID(), contentId, index, m, host, false);
+        if (outcome == MechanicRunner.Outcome.RAN) AbilityBar.started(player, contentId, index, m);
         return outcome == MechanicRunner.Outcome.RAN;
+    }
+
+    /** Ticks until this player may use mechanic {@code index} of {@code contentId} again (0 when ready). */
+    static long cooldownLeft(String contentId, int index, ServerPlayer player) {
+        return RUNNER.cooldownLeft(player.getStringUUID(), contentId, index, player.level().getServer().getTickCount());
+    }
+
+    /** True while one of the item's charged right click abilities is recharging for this player. */
+    static boolean chargeRecharging(String contentId, List<MechanicDef> mechanics, ServerPlayer player) {
+        for (int i = 0; i < mechanics.size(); i++) {
+            MechanicDef m = mechanics.get(i);
+            if (m.trigger() == Trigger.ON_USE && m.charged() && cooldownLeft(contentId, i, player) > 0) return true;
+        }
+        return false;
     }
 
     @Override
