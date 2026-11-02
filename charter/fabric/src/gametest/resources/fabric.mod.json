@@ -30,7 +30,9 @@
       "charter.gametest.TeleportGameTest",
       "charter.gametest.WarGameTest",
       "charter.gametest.RaceNodeGameTest",
-      "charter.gametest.AdminMenuGameTest"
+      "charter.gametest.AdminMenuGameTest",
+      "charter.gametest.SpawnRulesGameTest",
+      "charter.gametest.KingdomExplosionsGameTest"
     ]
   },
   "mixins": [

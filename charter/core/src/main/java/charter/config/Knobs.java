@@ -170,6 +170,19 @@ public final class Knobs {
     public boolean keepGranary = true;
     /** Days of food left at which every member is warned, largest first. */
     public int[] keepWarnDays = {7, 3, 1};
+    /**
+     * Whether explosions (TNT, creepers, fireballs, withers, end crystals, beds and respawn anchors, wind charges, any
+     * modded source) may break or ignite blocks on claimed land: keeps, outposts and every other claim, whether or not the
+     * claim is protected at the time. Off: no explosion changes a claimed block, the owner's own included. The wild is
+     * unchanged, and so is the damage an explosion does to entities.
+     */
+    public boolean explosionsInKingdoms = false;
+
+    // ---- the spawn: an admin kingdom's land ----
+    /** Master switch for {@link #spawnRules}. Off: an admin kingdom's land is protected like any other kingdom's. */
+    public boolean spawnRulesEnabled = true;
+    /** What is switched off on an admin kingdom's land for everyone but operators. */
+    public SpawnRuleSet spawnRules = new SpawnRuleSet();
 
     // ---- camps (S) ----
     public double campBurnPerHour = 30;
@@ -302,6 +315,7 @@ public final class Knobs {
         if (simStepTicks < 1) out.add("simStepTicks must be at least 1.");
         if (voteDurationHours < 1) out.add("voteDurationHours must be at least 1.");
         if (keepRadiusChunks < 1) out.add("keepRadiusChunks must be at least 1.");
+        if (spawnRules == null) out.add("spawnRules must be a section of rules, not null.");
         return out;
     }
 }

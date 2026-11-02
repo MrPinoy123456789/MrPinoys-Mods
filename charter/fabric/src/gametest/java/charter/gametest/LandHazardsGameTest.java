@@ -48,6 +48,9 @@ public final class LandHazardsGameTest {
 
     @GameTest(maxTicks = 100)
     public void explosionsSpareAKeepButNotNeutralGround(GameTestHelper helper) {
+        // The owner's own TNT works only while explosions in kingdoms are allowed; the knob is restored in this same tick.
+        boolean was = charter.mc.CharterServer.runtime().knobs.explosionsInKingdoms;
+        charter.mc.CharterServer.runtime().knobs.explosionsInKingdoms = true;
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Boom");
             kit.keep(lord);
@@ -74,6 +77,8 @@ public final class LandHazardsGameTest {
                     "The owner's own TNT could not break blocks in their keep");
             helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).is(Blocks.LODESTONE), "The nexus did not survive");
             helper.succeed();
+        } finally {
+            charter.mc.CharterServer.runtime().knobs.explosionsInKingdoms = was;
         }
     }
 

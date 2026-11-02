@@ -87,6 +87,8 @@ public final class TeleportGameTest {
             helper.assertTrue(kit.rt.claims.at(dimension, stranger.chunkPosition().x(), stranger.chunkPosition().z()) != null,
                     "The closed-keep gate turned a visitor out of the hub");
             kit.rt.knobs.closedKeeps = false;
+            kit.rt.state.org(kit.orgOf(lord)).orElseThrow().adminKingdom = false;
+            charter.mc.land.SpawnRules.refresh();
             Teleports.reset();
             helper.succeed();
         }

@@ -1,6 +1,7 @@
 package charter.mc.mixin;
 
 import charter.mc.land.Protection;
+import charter.mc.land.SpawnRules;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -29,7 +30,7 @@ public abstract class LavaFluidMixin {
             target = "Lnet/minecraft/server/level/ServerLevel;setBlockAndUpdate(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
     private boolean charter$guardIgnition(ServerLevel level, BlockPos target, BlockState state,
                                           Operation<Boolean> original, @Local(argsOnly = true) BlockPos lava) {
-        if (Protection.crossesIntoGuarded(level, lava, target)) return false;
+        if (Protection.crossesIntoGuarded(level, lava, target) || SpawnRules.refusesFire(level, target)) return false;
         return original.call(level, target, state);
     }
 

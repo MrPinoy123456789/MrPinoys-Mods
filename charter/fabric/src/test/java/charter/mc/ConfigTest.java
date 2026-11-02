@@ -19,6 +19,7 @@ final class ConfigTest {
     static void run() throws Exception {
         missingFileIsWrittenWithDefaults();
         missingKeysKeepTheirDefaults();
+        aPartialSpawnSectionKeepsTheOtherRules();
         brokenFileRunsOnDefaultsAndIsLeftAlone();
         unusableValuesRunOnDefaultsAndAreLeftAlone();
         profilesGiveShippedAndTestValues();
@@ -45,6 +46,22 @@ final class ConfigTest {
         check("config: a value in the file is used", knobs.timeScale == 24 && knobs.keepPriceMarks == 10);
         check("config: a key missing from the file keeps its default", knobs.storageLimitHours == 84 && knobs.drainPerMouthPerHour == 10);
         check("config: a missing list keeps its default", knobs.claimDimensions.equals(List.of("minecraft:overworld")));
+        check("config: a file without spawn rules gets them all on", knobs.spawnRulesEnabled && knobs.spawnRules != null
+                && knobs.spawnRules.spawnNoPvp && knobs.spawnRules.spawnInvulnerable && !knobs.explosionsInKingdoms);
+    }
+
+    /** One rule switched off in the spawnRules section leaves every other rule at its default. */
+    static void aPartialSpawnSectionKeepsTheOtherRules() throws Exception {
+        Path dir = Files.createTempDirectory("charter-config");
+        Files.writeString(dir.resolve(CharterConfig.FILE_NAME),
+                "{ \"spawnRules\": { \"spawnNoPvp\": false, \"spawnAllowedUse\": [\"minecraft:lever\"] }, \"explosionsInKingdoms\": true }");
+        Knobs knobs = CharterConfig.readOrCreate(dir, s -> { }, s -> { });
+        check("config: a spawn rule in the file is used", !knobs.spawnRules.spawnNoPvp && knobs.explosionsInKingdoms);
+        check("config: the spawn rules the file leaves out stay on", knobs.spawnRules.spawnInvulnerable && knobs.spawnRules.spawnNoBuild
+                && knobs.spawnRules.spawnRemoveHostiles && knobs.spawnRules.spawnEntryNotice && knobs.spawnRulesEnabled);
+        check("config: the allowlist in the file replaces the default", knobs.spawnRules.spawnAllowedUse.equals(List.of("minecraft:lever")));
+        Files.writeString(dir.resolve(CharterConfig.FILE_NAME), "{ \"spawnRules\": null }");
+        check("config: a null spawn section runs on defaults", CharterConfig.readOrCreate(dir, s -> { }, s -> { }).spawnRules.spawnNoPvp);
     }
 
     /** Shipped is for balance, test makes every timer short; the file names one and its own keys still win. */

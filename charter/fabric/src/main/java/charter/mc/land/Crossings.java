@@ -17,6 +17,7 @@ import java.util.UUID;
 /**
  * Tells a player on the action bar when they cross into a kingdom, an outpost, other held land or the wild, like the
  * town and faction plugins do. A line shows only when the kind of place or its owner changes, and once when they join.
+ * An admin kingdom's land reads as the spawn ({@code spawnEntryNotice}), with no kingdom named.
  */
 public final class Crossings {
 
@@ -47,7 +48,7 @@ public final class Crossings {
 
     /** What a player is standing on: a kind of holding and the kingdom that owns it, or the wild. */
     record Place(Kind kind, String kingdom) {
-        enum Kind { WILD, KEEP, OUTPOST, CLAIM }
+        enum Kind { WILD, KEEP, OUTPOST, CLAIM, SPAWN }
 
         String key() {
             return kind + ":" + kingdom;
@@ -57,6 +58,10 @@ public final class Crossings {
     static Place placeOf(CharterRuntime rt, ServerPlayer player) {
         var ref = rt.claims.at(Protection.dimension(player.level()), player.chunkPosition().x(), player.chunkPosition().z());
         if (ref == null) return new Place(Place.Kind.WILD, "");
+        // An admin kingdom's land is the spawn: one line says so and what is off there, for members and visitors alike.
+        if (rt.knobs.spawnRulesEnabled && rt.knobs.spawnRules != null && rt.knobs.spawnRules.spawnEntryNotice && SpawnRules.inSpawn(player)) {
+            return new Place(Place.Kind.SPAWN, "");
+        }
         String kingdom = rt.state.org(rt.state.root(ref.owner())).map(charter.org.Organization::name).orElse("?");
         Place.Kind kind = switch (ref.kind()) {
             case KEEP_CORE, KEEP_RING -> Place.Kind.KEEP;
@@ -71,6 +76,7 @@ public final class Crossings {
         CharterRuntime rt = CharterServer.runtime();
         return switch (place.kind()) {
             case WILD -> Component.literal(Text.get("entry.wild")).withStyle(ChatFormatting.GREEN);
+            case SPAWN -> Component.literal(Text.get("entry.spawn")).withStyle(ChatFormatting.AQUA);
             case KEEP -> Component.literal(Text.get("entry.keep", "kingdom", place.kingdom(), "race", raceOf(rt, place.kingdom())))
                     .withStyle(ChatFormatting.GOLD);
             case OUTPOST -> Component.literal(Text.get("entry.outpost", "kingdom", place.kingdom())).withStyle(ChatFormatting.YELLOW);

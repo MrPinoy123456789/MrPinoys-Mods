@@ -273,8 +273,76 @@ gametests, then merge to master before deploying so master never lags the server
 
 ## The hub
 
-The admin kingdom is the server's spawn town. `/hub` (also `/charter hub`) takes anyone to its Nexus, whatever kingdom they belong to, after the usual teleport wait and cooldown. Its keep is never closed to visitors, even with `closedKeeps` on; the land is still protected, so only the kingdom and operators build there. With more than one admin kingdom the first one is the hub.
+The admin kingdom is the server's spawn town. `/hub` (also `/charter hub`) takes anyone to its Nexus, whatever kingdom they belong to, after the usual teleport wait and cooldown. Its keep is never closed to visitors, even with `closedKeeps` on. With the spawn rules on (the default) only operators build there, the admin kingdom's own members included; see "Spawn rules" below. With more than one admin kingdom the first one is the hub.
 
 ## Join or sign on before you act
 
 With `requireAffiliation` on (the default), a player who belongs to no kingdom and has no race can only look around: they cannot break, place, use or attack anything, in the wild as well, and eating or any other item use is refused. The Charter book still opens, which is how they join a kingdom or sign on as a mercenary (`/charter merc <race>`). A mercenary or a member acts as normal, and operators are exempt. The knob lives in `charter.json`.
+
+## Spawn rules
+
+Every claim an admin kingdom holds (its keep's core and ring chunks, and any other claim it has) behaves like the spawn of a public server: players may walk, trade, ride, open doors and press buttons; they cannot fight, build, grief or be hurt. The rules apply only to players who are not operators. Operators are exempt from all of them, so they can build and fix things. Creative mode alone is no exemption. The code is `charter.mc.land.SpawnRules` (with the `Spawn*` mixins), the pure decisions are `charter.config.SpawnPolicy`, and the tests are `SpawnRulesGameTest` and `SpawnPolicyTest`.
+
+The rules live in `config/charter/charter.json`. `spawnRulesEnabled` (default `true`) switches the whole set; with it off, an admin kingdom's land is protected like any other kingdom's (members build, outsiders walk). Each rule sits in the `spawnRules` section. A key left out keeps its default, so to switch one rule off write only that key, for example:
+
+```json
+"spawnRules": { "spawnInvulnerable": false, "spawnAllowedUse": ["#minecraft:doors", "minecraft:lever"] }
+```
+
+Restart the server for a change to take effect. After `/charter admin faction admin <kingdom> true|false` the spawn's land is recomputed at once.
+
+Players:
+
+| Key | Default | What it does |
+|---|---|---|
+| `spawnNoPvp` | true | No player hurts another (melee, arrows, tridents, splash potions, fire aspect, TNT or crystals they set off) when either of them stands inside. |
+| `spawnInvulnerable` | true | Players inside take no damage at all: falls, fire, lava, drowning, suffocation, cactus, wither, starving. The void and `/kill` are not covered. |
+| `spawnNoFallDamage` | true | No fall damage inside, also when `spawnInvulnerable` is off. |
+| `spawnNoHunger` | true | Food is topped up once a second while a player stands inside. |
+| `spawnKeepInventory` | true | A player who dies inside drops nothing and keeps items and experience on respawn. |
+| `spawnVoidRescue` | true | A player falling out of the world under the spawn is put back on its Nexus instead of dying. |
+| `spawnNoHarmfulEffects` | true | Harmful effects from someone else (splash and lingering potions, tipped arrows) do not land on players inside. |
+| `spawnNoPearlsIn` | true | An ender pearl or chorus fruit cannot carry a player into the spawn from outside. Thrown or eaten inside, they work. |
+| `spawnNoProjectiles` | true | Bows, crossbows, tridents, snowballs, eggs, fishing rods, wind charges and splash or lingering potions cannot be used inside. |
+| `spawnAllowElytraBoost` | true | Fireworks may boost an elytra flight inside. |
+| `spawnAllowRiptide` | true | A Riptide trident may launch its holder inside. |
+| `spawnAllowItemDrop` | true | Players may drop items inside. Off: a dropped stack goes back into the inventory. |
+
+Mobs:
+
+| Key | Default | What it does |
+|---|---|---|
+| `spawnProtectMobs` | true | Players cannot hurt any mob inside (animals, villagers, golems, pets, named and leashed mobs, hostile ones), nor hit a mob outside while standing inside. |
+| `spawnNoHostileSpawns` | true | No hostile mob is added inside: natural spawns, spawners, patrols, raids, phantoms. An operator's `/summon` of a hostile mob inside is refused too. |
+| `spawnRemoveHostiles` | true | Hostile mobs inside, near any player, are removed once a second. Named ones are left alone. |
+| `spawnNoMobGriefing` | true | Sheep do not eat grass, rabbits do not raid carrots, farmer villagers do not harvest or replant. |
+| `spawnAllowTrading` | true | Players may trade with villagers and wandering traders (not with a name tag, lead or spawn egg in hand). |
+| `spawnAllowRiding` | true | Players may ride boats, plain minecarts and horses with an empty hand, so nothing is fed, saddled or opened. |
+
+Blocks and the world:
+
+| Key | Default | What it does |
+|---|---|---|
+| `spawnNoBuild` | true | No breaking, placing, buckets, flint and steel, bone meal, frames, armor stands, spawn eggs, signs or containers, for the admin kingdom's own members too. Entities (frames, stands, carts, animals) cannot be hit or used. |
+| `spawnAllowedUse` | doors, trapdoors, fence gates, buttons, lever, bell, crafting table, enchanting table, ender chest, stonecutter, smithing table, loom, cartography table, grindstone | Blocks anyone may right-click inside, by id (`minecraft:lever`) or tag (`#minecraft:doors`). A waxed sign may always be read and its click commands run. Use is let through only with an empty hand or when not sneaking, and an item's own use on the block is still refused. |
+| `spawnNoExplosions` | true | No explosion breaks blocks inside, or hurts or pushes anything standing there, unless an operator set it off. |
+| `spawnNoFire` | true | No fire spreads, burns blocks or is lit by lava inside. |
+| `spawnSealBorder` | true | Water and lava, pistons (the piston head too), dispensers and hoppers do not cross the spawn's border in either direction. Inside, an operator's fountain still flows. |
+| `spawnFreezeBlocks` | true | Random ticks do nothing inside: no crop, sapling, grass or vine growth, no leaf decay, no ice or snow melting, no farmland drying, no copper ageing. |
+| `spawnNoSnowAndIce` | true | The weather piles no snow and freezes no water inside. |
+| `spawnNoLightning` | true | A lightning bolt inside goes out before it lights fires, charges creepers or turns villagers into witches. |
+| `spawnNoPortalCreation` | true | Arriving through a nether portal never builds a new portal frame inside. An existing portal there is still used. |
+| `spawnNoProjectileBlockHits` | true | A projectile (not an operator's) hitting a block inside leaves it as it is: no TNT lit by flame arrows, no broken pots, no chorus or target reactions. |
+| `spawnEntryNotice` | true | Entering the spawn reads "You are in the spawn area. PvP, building and mob fighting are off here." instead of the kingdom line. |
+
+Players with no kingdom and no race (`requireAffiliation`) may still walk the spawn, open its allowlisted doors and buttons and open their Charter book; everything else stays refused for them, trading included.
+
+Left out on purpose: lecterns are not on the allowlist (a lectern menu lets anyone take the book, and the Charter book is not a book a lectern holds); anvils are not either (they wear out and break with use); chests, barrels and other containers are refused. A fishing rod cast from outside can still hook a player inside; falling blocks and frost walker are not stopped (only operators build there); turtle eggs and coral are not guarded.
+
+## Explosions in kingdoms
+
+`explosionsInKingdoms` (top level of `charter.json`, default `false`). Off, no explosion breaks or sets fire to a block on any claimed land: keeps (core and ring), outposts whether raised or still raising, every other claim, and the admin kingdom, whether or not the claim is protected at the time and whoever lit it, the owner and operators included. That covers TNT, TNT minecarts, creepers, ghast fireballs, withers and wither skulls, end crystals, beds in the Nether, respawn anchors, wind charges and any modded source, because all of them pass through the one list of blocks an explosion is about to break. The fire an explosion starts and the doors and buttons a wind charge toggles use the same list, so they are covered too. The wild is unchanged. Damage to players and mobs is unchanged, except in the spawn (`spawnNoExplosions`). The Nexus, banners and the mod's other fixtures are always spared.
+
+On, explosions behave as before: protected land is spared unless a permitted player lit the charge, and a claim that is not protected at the moment (a raising outpost, an outpost opened for capture in a war) can be blown up.
+
+Priming TNT on someone else's land is refused by the ordinary claim protection. A member may still place and light TNT on their own land; it just breaks nothing there while the knob is off.
