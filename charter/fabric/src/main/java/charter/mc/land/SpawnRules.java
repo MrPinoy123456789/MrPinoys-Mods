@@ -126,7 +126,7 @@ public final class SpawnRules {
     public static void register() {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(SpawnRules::allowDamage);
         ServerPlayerEvents.COPY_FROM.register((old, fresh, alive) -> {
-            if (!alive && keepsDeathLoot(old)) {
+            if (!alive && (keepsDeathLoot(old) || charter.mc.RacePassives.keepsInventory(old))) {
                 fresh.getInventory().replaceWith(old.getInventory());
                 fresh.experienceLevel = old.experienceLevel;
                 fresh.experienceProgress = old.experienceProgress;

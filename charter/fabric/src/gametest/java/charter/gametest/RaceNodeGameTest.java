@@ -56,6 +56,26 @@ public final class RaceNodeGameTest {
     }
 
     @GameTest(maxTicks = 100)
+    public void aRaceOnTheKeepListKeepsItsInventoryWhenItDies(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer dwarf = kit.faction("Dwarf");
+            ServerPlayer elf = kit.faction("Elf");
+            String dwarfKingdom = kit.rt.state.org(kit.orgOf(dwarf)).orElseThrow().name();
+            java.util.List<String> old = kit.rt.knobs.racesKeepInventory;
+            try {
+                kit.rt.knobs.racesKeepInventory = new java.util.ArrayList<>(java.util.List.of(RaceNodes.slug(dwarfKingdom)));
+                helper.assertTrue(charter.mc.RacePassives.keepsInventory(dwarf), "a person of a listed race keeps their inventory");
+                helper.assertTrue(!charter.mc.RacePassives.keepsInventory(elf), "another race does not");
+                kit.rt.knobs.racesKeepInventory = new java.util.ArrayList<>();
+                helper.assertTrue(!charter.mc.RacePassives.keepsInventory(dwarf), "an empty list gives it to nobody");
+                helper.succeed();
+            } finally {
+                kit.rt.knobs.racesKeepInventory = old;
+            }
+        }
+    }
+
+    @GameTest(maxTicks = 100)
     public void aMemberKeepsTheirRaceAfterLeaving(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer dwarf = kit.faction("Dwarf");

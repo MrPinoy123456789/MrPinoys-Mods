@@ -142,6 +142,12 @@ public final class Knobs {
             "azrak", List.of("minecraft:haste"),
             "aurelia", List.of("minecraft:luck"),
             "faeloria", List.of("minecraft:night_vision")));
+    /**
+     * Races whose people keep everything when they die: nothing drops and the inventory and experience come back on
+     * respawn. Race node paths (the kingdom's name lower case, anything but letters and digits an underscore, as in
+     * race:mossbeard_s_muddle). Empty: no race has it.
+     */
+    public java.util.List<String> racesKeepInventory = new java.util.ArrayList<>(java.util.List.of("mossbeard_s_muddle"));
     // ---- race combat passives (always on, kept mild; see docs/RACES.md) ----
     /** Master switch for the race combat passives below. Off: no race gets any of them. */
     public boolean raceCombat = true;
@@ -169,7 +175,8 @@ public final class Knobs {
      */
     public java.util.Map<String, String> tagColors = new java.util.LinkedHashMap<>(java.util.Map.of(
             "everdelle", "#FF69B4", "azurius", "#89CFF0", "faeloria", "#A020F0",
-            "azrak", "#FFD700", "aurelia", "#FF6A1A", "mercenary", "#8A0303"));
+            "azrak", "#FFD700", "aurelia", "#FF6A1A", "mercenary", "#8A0303",
+            "mossbeard's muddle", "#1B5E20"));
     /**
      * Whether a member's rank shows after their kingdom's tag, "[Faeloria] Queen Heather", over the head, in the tab
      * list and in chat. Only a kingdom whose Lord has edited its ranks shows them; until then the tag is as before.

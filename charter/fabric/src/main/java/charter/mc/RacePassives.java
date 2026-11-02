@@ -93,6 +93,15 @@ public final class RacePassives {
     }
 
     /** The effect ids of this player's race; none when they have no race or it gives none. */
+    /** True for a player whose race is in {@code racesKeepInventory}: they drop nothing on death and get it all back. */
+    public static boolean keepsInventory(net.minecraft.world.entity.Entity entity) {
+        if (!(entity instanceof ServerPlayer player) || !CharterServer.running()) return false;
+        CharterRuntime rt = CharterServer.runtime();
+        if (rt.knobs.racesKeepInventory == null || rt.knobs.racesKeepInventory.isEmpty()) return false;
+        return rt.state.raceOf(new PlayerId(player.getUUID())).flatMap(rt.state::org)
+                .map(org -> rt.knobs.racesKeepInventory.contains(RaceNodes.slug(org.name()))).orElse(false);
+    }
+
     static List<String> effectsOf(CharterRuntime rt, PlayerId player) {
         return rt.state.raceOf(player).flatMap(rt.state::org)
                 .map(org -> rt.knobs.racePassives.getOrDefault(RaceNodes.slug(org.name()), List.<String>of()))
