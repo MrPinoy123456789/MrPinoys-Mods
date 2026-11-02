@@ -61,7 +61,9 @@ Not protected on purpose: mob griefing (endermen, ravagers) follows the vanilla
 - Holding a war banner or a compass draws the chunk edges around you in dust: green
   yours, red theirs, yellow the open sides of a besieged keep.
 - Admin: `/charter admin faction spawn <name> <player>`, `camp raise-now`,
-  `perimeter show`, `give`.
+  `perimeter show`, `give`. Lords: `faction leader <faction> <player>` (the one and
+  only Lord), `faction coleader <faction> <player>` (a second Lord, equal to the
+  first), `faction unlord <faction> <player>` (removes one Lord).
 
 ## Discord
 

@@ -25,6 +25,7 @@
       "charter.gametest.BedrockFormsGameTest",
       "charter.gametest.BookLayoutGameTest",
       "charter.gametest.BookOutsideGameTest",
+      "charter.gametest.TwoLordsGameTest",
       "charter.gametest.MemberPagesGameTest",
       "charter.gametest.FoundingGameTest",
       "charter.gametest.BreakawayGameTest",

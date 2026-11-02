@@ -183,6 +183,8 @@
   "motion.org.create_kingdom": "set the kingdom of {name}",
   "motion.org.choose_mercenary_race": "let {player} take a race as a mercenary",
   "motion.org.appoint_leader": "name {player} the leader of {org}",
+  "motion.org.appoint_coleader": "name {player} a second Lord of {org}",
+  "motion.org.remove_lord": "remove {player} as a Lord of {org}",
   "motion.org.add_member": "add {player} to {org}",
   "motion.org.secede": "break {org} away from its faction",
   "motion.org.break_away": "break away from the faction",
