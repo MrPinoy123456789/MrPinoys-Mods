@@ -21,5 +21,8 @@
     "java": ">=25",
     "fabric-api": "*",
     "sgui": ">=2.1.0"
+  },
+  "suggests": {
+    "polymer-virtual-entity": ">=0.18.0"
   }
 }

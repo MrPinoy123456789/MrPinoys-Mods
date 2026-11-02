@@ -70,6 +70,7 @@ final class WildStore {
             }
         }
         save();
+        WildLodestones.ensureAll(server);
     }
 
     /** Writes the state now. Call after every mutation. */

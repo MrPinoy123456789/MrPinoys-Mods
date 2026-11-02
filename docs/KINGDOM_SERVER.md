@@ -295,3 +295,7 @@ gametests, then merge to master before deploying so master never lags the server
 ## The hub
 
 The admin kingdom is the server's spawn town. `/hub` (also `/charter hub`) takes anyone to its Nexus, whatever kingdom they belong to, after the usual teleport wait and cooldown. Its keep is never closed to visitors, even with `closedKeeps` on; the land is still protected, so only the kingdom and operators build there. With more than one admin kingdom the first one is the hub.
+
+## Join or sign on before you act
+
+With `requireAffiliation` on (the default), a player who belongs to no kingdom and has no race can only look around: they cannot break, place, use or attack anything, in the wild as well, and eating or any other item use is refused. The Charter book still opens, which is how they join a kingdom or sign on as a mercenary (`/charter merc <race>`). A mercenary or a member acts as normal, and operators are exempt. The knob lives in `charter.json`.

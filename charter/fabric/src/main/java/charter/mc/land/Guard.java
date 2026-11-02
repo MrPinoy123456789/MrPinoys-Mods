@@ -52,6 +52,12 @@ public final class Guard {
         UseItemCallback.EVENT.register((player, level, hand) -> {
             if (!(player instanceof ServerPlayer) || !CharterServer.running()) return InteractionResult.PASS;
             ItemStack stack = player.getItemInHand(hand);
+            if (Protection.isDrifter(player)) {
+                // Everything but the Charter book, which is how a newcomer chooses a kingdom or sign on as a mercenary.
+                if (charter.mc.book.CharterBook.isBook(stack)) return InteractionResult.PASS;
+                Protection.denyDrifter((ServerPlayer) player);
+                return InteractionResult.FAIL;
+            }
             if (!aimsAtTheGround(stack)) return InteractionResult.PASS;
             HitResult hit = player.pick(player.blockInteractionRange(), 0.0F, true);
             if (!(hit instanceof BlockHitResult block) || block.getType() == HitResult.Type.MISS) return InteractionResult.PASS;
@@ -84,6 +90,10 @@ public final class Guard {
     /** Carts, boats, item frames, armor stands, animals: off limits to outsiders. Other players and hostile mobs are fair game. */
     private static InteractionResult entityVerdict(Player player, Level level, Entity entity) {
         if (!(player instanceof ServerPlayer) || !CharterServer.running()) return InteractionResult.PASS;
+        if (Protection.isDrifter(player)) {
+            Protection.denyDrifter((ServerPlayer) player);
+            return InteractionResult.FAIL;
+        }
         if (!isProtectedKind(entity)) return InteractionResult.PASS;
         BlockPos pos = entity.blockPosition();
         if (Protection.mayAct(player, level, pos)) return InteractionResult.PASS;
