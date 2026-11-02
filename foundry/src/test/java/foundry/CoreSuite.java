@@ -69,6 +69,19 @@ public final class CoreSuite {
         check(Math.abs(spinner.headAhead(100f, 3f) - 130f) < 1f && spinner.yawAhead(3f) > spinner.yaw() + 20f,
                 "turning 10 degrees a tick, the wearer's copy is drawn 3 ticks ahead (head 130, body well ahead)");
         check(Math.abs(spinner.headAhead(100f, 30f) - 145f) < 0.01f, "prediction never runs more than 45 degrees ahead");
+        float glideMax = -99, glideMin = 99, airMax = -99, airMin = 99;
+        for (int t = 0; t < 200; t++) {
+            float g = foundry.core.WingBeat.fold(foundry.core.WingBeat.State.GLIDING, t, 0);
+            float a = foundry.core.WingBeat.fold(foundry.core.WingBeat.State.AIRBORNE, t, 0);
+            glideMax = Math.max(glideMax, g); glideMin = Math.min(glideMin, g);
+            airMax = Math.max(airMax, a); airMin = Math.min(airMin, a);
+        }
+        check(glideMax < 0 && glideMax - glideMin < 8, "gliding wings are held open with only a quiver");
+        check(airMax - airMin > 40, "wings flutter deeply in the air");
+        check(foundry.core.WingBeat.state(false, true, 0.0) == foundry.core.WingBeat.State.STILL
+                && foundry.core.WingBeat.state(false, true, 0.2) == foundry.core.WingBeat.State.MOVING
+                && foundry.core.WingBeat.state(false, false, 0.0) == foundry.core.WingBeat.State.AIRBORNE
+                && foundry.core.WingBeat.state(true, false, 0.5) == foundry.core.WingBeat.State.GLIDING, "the wing beat follows what the player is doing");
         var caped = new foundry.core.BodyYaw();
         for (int t = 0; t <= 10; t++) caped.update(0, 64, t * 0.25, 0f, false, false);
         check(caped.capeTilt(false) > 30f, "a cape trails back while walking forward, tilt " + caped.capeTilt(false));

@@ -65,9 +65,12 @@ public final class WornDisplays {
             this.headStack = headStack;
         }
 
-        void drive(ItemDisplayElement element, WornPlacement place) {
+        private int wing;
+
+        void drive(ItemDisplayElement element, WornPlacement place, int wing) {
             this.element = element;
             this.place = place;
+            this.wing = wing;
         }
 
         /**
@@ -76,7 +79,7 @@ public final class WornDisplays {
          */
         @Override
         protected void onTick() {
-            if (element != null && place != null && !owner.isRemoved()) place(owner, element, place, onlyOwner);
+            if (element != null && place != null && !owner.isRemoved()) place(owner, element, place, onlyOwner, wing);
             super.onTick();
         }
 
@@ -348,6 +351,7 @@ public final class WornDisplays {
         List<WornPlacement> places = new ArrayList<>();
         List<String> ids = new ArrayList<>();
         List<String> slotNames = new ArrayList<>();
+        List<Boolean> flaps = new ArrayList<>();
         if (player.isAlive()) {
             // A race always shows its look, so everyone can tell a player's race at a glance (races in worn_displays.json).
             var current = table;
@@ -362,6 +366,7 @@ public final class WornDisplays {
                     places.add(p);
                     ids.add(look.item());
                     slotNames.add(look.slot());
+                    flaps.add(look.flap());
                 });
             }
         }
@@ -390,11 +395,13 @@ public final class WornDisplays {
                 parts.add(new Part(holder, EntityAttachment.ofTicking(holder, player), null, place, ids.get(i),
                         slotNames.get(i), true));
             } else {
-                parts.add(display(player, stacks.get(i), place, ids.get(i), slotNames.get(i), false));
+                addDisplays(parts, player, stacks.get(i), place, ids.get(i), slotNames.get(i), flaps.get(i), false);
             }
             // The wearer's own copy, only for a player who asked to see their trinkets (/trinketview): the client draws
             // everything attached to a player even in first person, and never tells the server which view it is in.
-            if (seesOwn && !headMode && !place.hideFromWearer()) parts.add(display(player, stacks.get(i), place, ids.get(i), slotNames.get(i), true));
+            if (seesOwn && !headMode && !place.hideFromWearer()) {
+                addDisplays(parts, player, stacks.get(i), place, ids.get(i), slotNames.get(i), flaps.get(i), true);
+            }
         }
         Shown shown = new Shown(player, signature, parts, headHash);
         SHOWN.put(player.getUUID(), shown);
@@ -405,18 +412,38 @@ public final class WornDisplays {
      * others is smoothed over three ticks, the same as their clients smooth this player's head and body, so the two stay
      * together; the wearer's copy is smoothed over one tick and drawn ahead by their ping (see place).
      */
+    /**
+     * The displays for one look: one display, or for a pair of flapping wings two, the left and right halves (vanilla
+     * stacks naming the {@code <item>_left} and {@code <item>_right} models), each turning about the spine on its own.
+     */
+    private static void addDisplays(List<Part> parts, ServerPlayer player, ItemStack stack, WornPlacement place, String id,
+                                    String slot, boolean flap, boolean wearersCopy) {
+        if (!flap) {
+            parts.add(display(player, stack, place, id, slot, wearersCopy, 0));
+            return;
+        }
+        var ident = foundry.core.Ident.parse(id);
+        for (int wing : new int[] {-1, 1}) {
+            ItemStack half = new ItemStack(net.minecraft.world.item.Items.PAPER);
+            half.set(net.minecraft.core.component.DataComponents.ITEM_MODEL, net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                    ident.namespace(), ident.path() + (wing < 0 ? "_left" : "_right")));
+            parts.add(display(player, half, place, id, slot, wearersCopy, wing));
+        }
+    }
+
     private static Part display(ServerPlayer player, ItemStack stack, WornPlacement place, String id, String slot,
-                                boolean wearersCopy) {
+                                boolean wearersCopy, int wing) {
         Holder holder = new Holder(player, !wearersCopy, wearersCopy, place.ride(), null);
         ItemDisplayElement element = new ItemDisplayElement(stack);
         element.setItemDisplayContext(ItemDisplayContext.FIXED);
-        element.setInterpolationDuration(wearersCopy ? 1 : 3);
+        // wings beat every tick, so they are smoothed over two ticks whoever sees them
+        element.setInterpolationDuration(wing != 0 ? 2 : wearersCopy ? 1 : 3);
         element.setTeleportDuration(3);
         // Placed before the holder is attached, so the first packet a viewer gets already has the right transform.
-        place(player, element, place, wearersCopy);
+        place(player, element, place, wearersCopy, wing);
         if (place.ride()) holder.addPassengerElement(element);
         else holder.addElement(element);
-        holder.drive(element, place);
+        holder.drive(element, place, wing);
         EntityAttachment attachment = EntityAttachment.ofTicking(holder, player);
         // Polymer shows an attachment only to players tracking the entity, and nobody tracks themselves, so the wearer's
         // copy is given to them by hand.
@@ -551,7 +578,7 @@ public final class WornDisplays {
     static final float NECK = 24 * PX;
 
     /** Sets one display's whole transformation from the player's pose right now (see {@link #transformFor}). */
-    private static void place(ServerPlayer player, ItemDisplayElement element, WornPlacement p, boolean wearersCopy) {
+    private static void place(ServerPlayer player, ItemDisplayElement element, WornPlacement p, boolean wearersCopy, int wing) {
         if (p.ride()) {
             // A riding display's transformation starts at the top of the player, where the client seats a passenger. Until a
             // viewer's client has seated it (just after it appears, a respawn or a teleport) it stands at its own position,
@@ -566,9 +593,10 @@ public final class WornDisplays {
             // drawn as far ahead as their ping plus one tick (at most six ticks, and at most 45 degrees).
             float lead = Math.min(6f, Math.max(1f, player.connection == null ? 1f : player.connection.latency() / 50f + 1f));
             element.setTransformation(transform(player, p, body.yawAhead(lead), body.headAhead(player.getYHeadRot(), lead),
-                    player.getXRot(), tilt));
+                    player.getXRot(), tilt, hinge(player, body, wing)));
         } else {
-            element.setTransformation(transform(player, p, body.yaw(), tilt));
+            element.setTransformation(transform(player, p, body.yaw(), player.getYHeadRot(), player.getXRot(), tilt,
+                    hinge(player, body, wing)));
         }
         element.startInterpolationIfDirty();
     }
@@ -598,12 +626,26 @@ public final class WornDisplays {
 
     /** {@link #transformFor} with the body yaw and cape tilt given (the live displays pass the client style ones). */
     public static Matrix4f transform(ServerPlayer player, WornPlacement p, float body, float capeTilt) {
-        return transform(player, p, body, player.getYHeadRot(), player.getXRot(), capeTilt);
+        return transform(player, p, body, player.getYHeadRot(), player.getXRot(), capeTilt, 0f);
+    }
+
+    /**
+     * A wing half's turn about the spine this tick, in degrees: 0 for anything that is not a wing. The beat comes from
+     * {@link foundry.core.WingBeat}; a positive fold sweeps the tips back, so the right wing (+x) turns one way and the left
+     * the other.
+     */
+    public static float hinge(ServerPlayer player, foundry.core.BodyYaw body, int wing) {
+        if (wing == 0) return 0f;
+        var server = player.level().getServer();
+        long tick = server == null ? 0 : server.getTickCount();
+        var state = foundry.core.WingBeat.state(player.isFallFlying(), player.onGround(), body.speed());
+        float fold = foundry.core.WingBeat.fold(state, tick, player.getUUID().hashCode());
+        return wing > 0 ? -fold : fold;
     }
 
     /** {@link #transform} with the head's yaw and pitch given too (the wearer's own copy passes predicted ones). */
     public static Matrix4f transform(ServerPlayer player, WornPlacement p, float body, float headYaw, float headPitch,
-                                     float capeTilt) {
+                                     float capeTilt, float hinge) {
         Matrix4f m = new Matrix4f();
         if (p.ride()) m.translate(0, -player.getBbHeight(), 0);
         m.rotateY((float) Math.toRadians(180f - body));
@@ -645,6 +687,8 @@ public final class WornDisplays {
         // built mirrored front to back by tools/gen_trinket_models.py so their outer face looks out from the back. A half
         // turn here instead would also swap left and right (found in game: the wings crossed over and the pauldron's lames
         // pointed at the neck).
+        // a wing half turns about the spine, which is the model's centre line (x 8), so here, before any scale
+        if (hinge != 0f) m.rotateY((float) Math.toRadians(hinge));
         m.rotateXYZ((float) Math.toRadians(p.rx()), (float) Math.toRadians(p.ry()), (float) Math.toRadians(p.rz()));
         boolean shown = !player.isInvisible() && !player.isSleeping();
         float scale = shown ? p.scale() : 0f;

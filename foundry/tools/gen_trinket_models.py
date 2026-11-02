@@ -544,8 +544,8 @@ def paint_cape():
 
 # The wing texture is 64 by 64. Each wing is painted already tipped (the upper one up and out, the lower one down and
 # out), so the plates need no tilt of their own and can use their one rotation to swing back from the body instead.
-WING_UPPER = [0, 0, 8, 10]   # pixels (0,0)-(32,40): the upper wing, base at the bottom left
-WING_LOWER = [8, 0, 14, 6]   # pixels (32,0)-(56,24): the lower wing, base at the top left
+WING_UPPER = [0, 0, 8, 10]   # pixels (0,0)-(64,80) of the 128 texture: the upper wing, base at the bottom left
+WING_LOWER = [8, 0, 14, 6]   # pixels (64,0)-(112,48): the lower wing, base at the top left
 WING_SWEEP = 22.5            # degrees each wing swings back from the plane of the back, so they open in a V
 
 
@@ -580,54 +580,97 @@ def wings_model():
 
 
 def paint_wings():
-    """A 64 by 64 texture holding the two wings, each a rounded teardrop of see through membrane that runs from its base
-    toward its tip at an angle: rose at the base through lilac to pale blue at the tip, a darker rim with a lit inner
-    edge, branching veins fanning from the base and a few sparkles."""
-    size = 64
+    """A 128 by 128 texture holding the two wings. Each is a see through membrane running from its base toward its tip:
+    rose at the base, through lilac and aqua, to pale gold at the tip; a luminous rim with a soft violet inner line; a
+    branching vein network fanning from the base; a butterfly eye spot on the upper wing; a swallowtail on the lower
+    wing; and scattered sparkles. The edge is gently scalloped. Painted from numbers, our own art."""
+    size = 128
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    rng = random.Random("wings")
-    rim, rim_light, vein = rgb("#7a4fb0"), rgb("#c9a8f0"), rgb("#f4e6ff")
+    rng = random.Random("wings-v2")
+    stops = [(0.0, "#ffb3dc"), (0.35, "#d9b3ff"), (0.7, "#a6f0ff"), (1.0, "#fff3c2")]
 
     def membrane(t):
-        a = mix(rgb("#f2b6d8"), rgb("#c6a6ee"), min(1, t * 1.6))
-        return mix(a, rgb("#a9dcf5"), max(0, t * 1.6 - 0.6)) if t > 0.4 else a
+        for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+            if t <= t1:
+                return mix(rgb(c0), rgb(c1), (t - t0) / (t1 - t0))
+        return rgb(stops[-1][1])
 
-    def wing(box, base, angle_deg, length, width):
+    def wing(box, base, angle_deg, length, width, tail=False, eye=False):
         x0, y0, x1, y1 = box
         ang = math.radians(angle_deg)
-        ux, uy = math.cos(ang), -math.sin(ang)  # along the wing (pixel y grows downward)
-        vx, vy = -uy, ux                         # across the wing
+        ux, uy = math.cos(ang), -math.sin(ang)
+        vx, vy = -uy, ux
+        mains = [-0.42, -0.2, 0.0, 0.2, 0.42]
+
+        def shape(t):
+            if t < 0 or t > 1:
+                return -1
+            half = width * math.sin(math.pi * min(1.0, t * 1.04)) ** 0.62 * (1 - 0.12 * t) + 1.0
+            half *= 1 + 0.05 * math.sin(t * 34)  # scalloped edge
+            return half
+
         for py in range(y0, y1):
             for px in range(x0, x1):
                 rx, ry = px + 0.5 - base[0], py + 0.5 - base[1]
-                along = rx * ux + ry * uy
-                across = rx * vx + ry * vy
+                along, across = rx * ux + ry * uy, rx * vx + ry * vy
                 t = along / length
-                if t < 0 or t > 1:
+                half = shape(t)
+                in_tail = False
+                if tail and half < 0 and 1.0 <= t <= 1.32:
+                    # the swallowtail: a slim streamer past the tip, curling slightly to one side
+                    tt = (t - 1.0) / 0.32
+                    centre = 3.0 * tt * tt
+                    half = 2.6 * (1 - tt) + 0.6
+                    across -= centre
+                    in_tail = True
+                if half < 0 or abs(across) > half:
                     continue
-                half = width * math.sin(math.pi * min(1.0, t * 1.06)) ** 0.65 * (1 - 0.18 * t) + 0.9
                 d = abs(across)
-                if d > half:
-                    continue
-                angle = math.atan2(across, max(1.0, along))
-                on_vein = t > 0.08 and any(abs(angle - a) < 0.04 + 0.02 * (1 - t) for a in (-0.42, -0.2, 0.0, 0.2, 0.42))
-                on_cross = t > 0.35 and int(along) % 7 == 0 and d < half * 0.85
-                if half - d < 1.1 or t > 0.975:
-                    c, a = rim, 255
-                elif half - d < 2.0:
-                    c, a = rim_light, 235
-                elif on_vein or on_cross:
-                    c, a = vein, 230
-                else:
-                    c, a = tint(membrane(t), rng.randint(-6, 6)), 150
-                    if rng.random() < 0.012:
-                        c, a = rgb("#ffffff"), 255
-                img.putpixel((px, py), c + (a,))
+                side = across / max(half, 1)
+                col = membrane(min(1.0, t))
+                col = mix(col, rgb("#ffffff"), 0.22 * (1 - abs(side)))  # lighter down the middle
+                a = 172
+                # veins: thin lines fanning from the base (by distance from each line, so they stay one pixel wide),
+                # each splitting in two past the middle, and two soft cross veins
+                on_vein = False
+                if t > 0.06:
+                    for m in mains:
+                        lines = [m] if t < 0.5 else [m - 0.1 * (t - 0.5) / 0.5, m + 0.1 * (t - 0.5) / 0.5]
+                        if any(abs(across - along * math.tan(l)) < 0.55 for l in lines):
+                            on_vein = True
+                for ct in (0.55, 0.8):
+                    if abs(t - ct - 0.04 * side * side) * length < 0.5 and abs(side) < 0.9:
+                        on_vein = True
+                if on_vein:
+                    col, a = mix(rgb("#7a48c0"), col, 0.3), 230
+                # the eye spot on the upper wing: gold ring, violet ring, pale centre
+                if eye:
+                    ex, ey = 0.68 * length, 0.22 * width
+                    r = math.hypot((along - ex) * 0.8, across - ey)  # a little longer than wide
+                    if r < 7.5:
+                        k = r / 7.5
+                        if k < 0.3:
+                            col, a = mix(rgb("#ffffff"), rgb("#fff3c2"), k / 0.3), 240
+                        elif k < 0.62:
+                            col, a = mix(rgb("#8d4ee0"), rgb("#5a2ca8"), (k - 0.3) / 0.32), 235
+                        elif k < 0.86:
+                            col, a = rgb("#f2c84b"), 240
+                        else:
+                            col, a = mix(rgb("#f2c84b"), col, (k - 0.86) / 0.14), 200
+                # the rim: luminous, with a violet line just inside
+                edge = half - d
+                if edge < 1.4 or (t > 0.985 and not in_tail):
+                    col, a = mix(rgb("#fff7ff"), membrane(min(1.0, t)), 0.25), 255
+                elif edge < 2.6:
+                    col, a = rgb("#9a6ad8"), 240
+                elif rng.random() < 0.01:
+                    col, a = rgb("#ffffff"), 255  # a sparkle
+                img.putpixel((px, py), tint(col, rng.randint(-4, 4)) + (a,))
 
     # upper wing: base near the bottom left of its box, pointing up and out at 62 degrees
-    wing((0, 0, 32, 40), (2, 38), 62, 40, 9.5)
-    # lower wing: base near the top left of its box, pointing down and out at -48 degrees
-    wing((32, 0, 56, 24), (34, 2), -48, 29, 7.0)
+    wing((0, 0, 64, 80), (4, 76), 62, 80, 19.0, eye=True)
+    # lower wing: base near the top left, pointing down and out at -48 degrees, ending in a swallowtail
+    wing((64, 0, 112, 48), (68, 4), -48, 50, 13.0, tail=True)
     return img
 
 
@@ -684,6 +727,24 @@ def helmet_shell(texture_key, tinted, grow=0.0):
         if tinted:
             faces[face]["tintindex"] = 0
     return {"from": [-grow, -grow, -grow], "to": [16 + grow, 16 + grow, 16 + grow], "faces": faces}
+
+
+def write_wing_halves():
+    """The wings as two models, the wearer's left pair and right pair, so each side can flap on its own (WornDisplays
+    serves them as two displays turning about the spine). Same plates and texture as fairy_wings, split at x = 8."""
+    with open(os.path.join(MODELS, "fairy_wings.json"), encoding="utf8") as f:
+        whole = json.load(f)
+    for side, keep in (("left", lambda el: el["to"][0] <= 8), ("right", lambda el: el["from"][0] >= 8)):
+        name = f"fairy_wings_{side}"
+        model = dict(whole, elements=[el for el in whole["elements"] if keep(el)])
+        with open(os.path.join(MODELS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
+            json.dump(model, f, indent=2)
+            f.write("\n")
+        os.makedirs(HELMETS, exist_ok=True)
+        with open(os.path.join(HELMETS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
+            json.dump({"model": {"type": "minecraft:model", "model": f"kingdoms:item/worn/{name}"}}, f, indent=2)
+            f.write("\n")
+    print("fairy wings split into left and right halves")
 
 
 def write_helmets(head_items):
@@ -749,6 +810,7 @@ def main():
             f.write("\n")
         texture.save(os.path.join(TEXTURES, name + ".png"))
         print(name, len(elements), "elements,", f"{texture.width}x{texture.height}")
+    write_wing_halves()
     paint_beard_icon().save(os.path.join(ASSETS, "textures", "item", "dwarf_beard.png"))
     paint_banner_cloth().save(BANNER_CLOTH)
     paint_banner_icon().save(os.path.join(ASSETS, "textures", "item", "aurelia_banner.png"))

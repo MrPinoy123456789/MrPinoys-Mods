@@ -25,9 +25,10 @@ public record WornPlacement(float up, float back, float side, float scale, boole
 
     /**
      * A race's look: the permission node that marks the race (race:azrak), the Foundry item drawn on everyone of that
-     * race, the slot whose placement it uses, and whether the race can glide (the Fairies).
+     * race, the slot whose placement it uses, whether the race can glide (the Fairies), and whether the look is a pair of
+     * wings that flap (drawn as two halves, {@code <item>_left} and {@code <item>_right}, turning about the spine).
      */
-    public record RaceLook(String item, String slot, boolean glide) {}
+    public record RaceLook(String item, String slot, boolean glide, boolean flap) {}
 
     /**
      * The table read from {@code config/foundry/worn_displays.json}: slot entries, per item overrides, and the races, by
@@ -67,11 +68,11 @@ public record WornPlacement(float up, float back, float side, float scale, boole
     /** The built in races: each kingdom's race and the look it always shows (the Fairies of Everdelle can glide). */
     public static Map<String, RaceLook> defaultRaces() {
         Map<String, RaceLook> races = new LinkedHashMap<>();
-        races.put("race:azrak", new RaceLook("kingdoms:dwarf_beard", "head/hat", false));
-        races.put("race:aurelia", new RaceLook("kingdoms:aurelia_banner", "chest/banner", false));
-        races.put("race:faeloria", new RaceLook("kingdoms:antler_circlet", "head/hat", false));
-        races.put("race:azurius", new RaceLook("kingdoms:tidal_gills", "head/face", false));
-        races.put("race:everdelle", new RaceLook("kingdoms:fairy_wings", "chest/cape", true));
+        races.put("race:azrak", new RaceLook("kingdoms:dwarf_beard", "head/hat", false, false));
+        races.put("race:aurelia", new RaceLook("kingdoms:aurelia_banner", "chest/banner", false, false));
+        races.put("race:faeloria", new RaceLook("kingdoms:antler_circlet", "head/hat", false, false));
+        races.put("race:azurius", new RaceLook("kingdoms:tidal_gills", "head/face", false, false));
+        races.put("race:everdelle", new RaceLook("kingdoms:fairy_wings", "chest/cape", true, true));
         return Map.copyOf(races);
     }
 
@@ -123,7 +124,7 @@ public record WornPlacement(float up, float back, float side, float scale, boole
                 }
                 JsonObject o = en.getValue().getAsJsonObject();
                 read.put(en.getKey(), new RaceLook(o.get("item").getAsString(), o.get("slot").getAsString(),
-                        o.has("glide") && o.get("glide").getAsBoolean()));
+                        o.has("glide") && o.get("glide").getAsBoolean(), o.has("flap") && o.get("flap").getAsBoolean()));
             }
             races = Map.copyOf(read);
         }

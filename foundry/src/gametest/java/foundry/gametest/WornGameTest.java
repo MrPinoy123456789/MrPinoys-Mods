@@ -461,4 +461,19 @@ public final class WornGameTest {
             helper.succeed();
         });
     }
+
+    /** A Fairy's wings are two halves that flap: two displays, hinged at the spine, turning opposite ways. */
+    @GameTest(maxTicks = 60)
+    public void fairyWingsFlapInTwoHalves(GameTestHelper helper) {
+        ServerPlayer fairy = player(helper, "race:everdelle");
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.watchers(fairy.getUUID()).size() == 2, "The wings are not two displays");
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(fairy.getUUID()) == 1, "The two halves count as more than one look");
+            var body = foundry.mc.WornDisplays.body(fairy);
+            float left = foundry.mc.WornDisplays.hinge(fairy, body, -1), right = foundry.mc.WornDisplays.hinge(fairy, body, 1);
+            helper.assertTrue(Math.abs(left + right) < 0.001f && left != 0f, "The halves should turn opposite ways: " + left + ", " + right);
+            helper.assertTrue(foundry.mc.WornDisplays.hinge(fairy, body, 0) == 0f, "Something that is not a wing turned");
+            helper.succeed();
+        });
+    }
 }

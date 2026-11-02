@@ -94,27 +94,32 @@
     "race:azrak": {
       "item": "kingdoms:dwarf_beard",
       "slot": "head/hat",
-      "glide": false
+      "glide": false,
+      "flap": false
     },
     "race:aurelia": {
       "item": "kingdoms:aurelia_banner",
       "slot": "chest/banner",
-      "glide": false
+      "glide": false,
+      "flap": false
     },
     "race:faeloria": {
       "item": "kingdoms:antler_circlet",
       "slot": "head/hat",
-      "glide": false
+      "glide": false,
+      "flap": false
     },
     "race:azurius": {
       "item": "kingdoms:tidal_gills",
       "slot": "head/face",
-      "glide": false
+      "glide": false,
+      "flap": false
     },
     "race:everdelle": {
       "item": "kingdoms:fairy_wings",
       "slot": "chest/cape",
-      "glide": true
+      "glide": true,
+      "flap": true
     }
   }
 }

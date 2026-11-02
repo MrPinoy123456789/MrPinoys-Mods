@@ -83,7 +83,7 @@ their race at a glance, and the race traits come with the race:
 | Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`): a black swallow tailed banner with a silver border and a skull under a solid silver crown, its eyes cut in the banner's black, on a black iron pole above the head | Luck (`racePassives`) |
 | Faeloria Fae (`race:faeloria`) | Antlers, combined with any vanilla helmet | Night Vision (`racePassives`) |
 | Azurius Merfolk (`race:azurius`) | Tidal Gills beside the neck | Water Breathing, Dolphin's Grace (`racePassives`) |
-| Everdelle Fairies (`race:everdelle`) | Fairy Wings | Glide, always, with nothing in the chest slot |
+| Everdelle Fairies (`race:everdelle`) | Fairy Wings that flap (a slow beat standing, livelier moving, a fast flutter in the air, spread wide gliding), shading rose to lilac to aqua to gold, with veins, eye spots and swallowtails; a sparkle trail while gliding | Glide, always, with nothing in the chest slot |
 
 - The looks are drawn by Foundry from the race node (`races` in `config/foundry/worn_displays.json`: node, item, slot,
   glide). Always on, no toggle; `/trinketview` only decides whether you see your own (the antlers are always on your own
@@ -91,6 +91,10 @@ their race at a glance, and the race traits come with the race:
 - The traits are Charter's `racePassives` (built in defaults, and merged into the server's `charter.json`).
 - Fairies glide by race: a server mixin (`LivingEntityGlide`) lets them, holding jump while falling starts it on Java, and
   Bedrock Fairies get the stand in elytra. No durability.
+- The Fairy wings are two displays, the left and right halves (`kingdoms:fairy_wings_left` and `_right`, vanilla stacks
+  naming those models), hinged at the spine and turned every tick by `foundry.core.WingBeat` (`flap` in the races table).
+  While a Fairy glides, `Wings` leaves a trail of end rod sparkles behind the shoulders (vanilla particles, so Bedrock sees
+  them too).
 - The Dwarf beard is a head item like the antlers: served on the head to everyone (hidden in first person), and with a
   vanilla helmet on, the helmet with the beard below it (`kingdoms:dwarf_beard_on_<material>`). The Forgeman's Pauldron is
   now a keepsake like the other trinket items. So is the Kingdom Cape: the Humans carry the war banner instead (a body

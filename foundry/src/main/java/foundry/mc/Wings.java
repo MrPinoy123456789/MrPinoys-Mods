@@ -62,6 +62,7 @@ public final class Wings {
         if (WINGED.isEmpty()) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             UUID id = player.getUUID();
+            if (WINGED.contains(id) && player.isFallFlying() && !player.isInvisible() && now % 2 == 0) fairyDust(player);
             if (!WINGED.contains(id) || player.isFallFlying() || player.onGround() || player.isInWater()
                     || player.isPassenger() || player.getAbilities().flying) continue;
             if (player.getLastClientInput().jump() && player.getDeltaMovement().y < 0) player.startFallFlying();
@@ -106,6 +107,17 @@ public final class Wings {
         if (player.connection == null) return;
         player.connection.send(new ClientboundContainerSetSlotPacket(player.inventoryMenu.containerId,
                 player.inventoryMenu.getStateId(), CHEST_SLOT, stack));
+    }
+
+    /**
+     * A trail of sparkles from a gliding Fairy's wings: two end rod sparkles a tick apart, from just behind the shoulders,
+     * drifting slowly. Vanilla particles, so every client sees them, Bedrock included (Geyser translates particles).
+     */
+    private static void fairyDust(ServerPlayer player) {
+        if (!(player.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+        double yaw = Math.toRadians(player.getYRot());
+        double bx = player.getX() + Math.sin(yaw) * 0.5, bz = player.getZ() - Math.cos(yaw) * 0.5;
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, bx, player.getY() + 0.4, bz, 2, 0.35, 0.2, 0.35, 0.01);
     }
 
     private static void set(Set<UUID> set, UUID id, boolean on) {
