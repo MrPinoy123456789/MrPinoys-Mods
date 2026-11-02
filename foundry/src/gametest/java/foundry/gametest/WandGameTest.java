@@ -17,11 +17,14 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
-/** The demo fairy wand: three inputs, bolts that land on a later tick, an area heal and the swing detection. */
+/**
+ * The Fairies' Everdelle Wand: three inputs, bolts that land on a later tick, an area heal and the swing detection, and
+ * the old demo:fairy_wand turning into it in a player's inventory.
+ */
 public final class WandGameTest {
     /** Looked up on use: the class loads during test discovery, and a missing id would quietly resolve to air. */
     private static Item wand() {
-        return BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:fairy_wand"));
+        return BuiltInRegistries.ITEM.getValue(Identifier.parse("kingdoms:everdelle_wand_1"));
     }
     private static long now(ServerPlayer p) {
         return p.level().getServer().getTickCount();
@@ -44,8 +47,21 @@ public final class WandGameTest {
 
     @GameTest
     public void theWandIsRegisteredWithItsFiveMechanics(GameTestHelper helper) {
-        helper.assertTrue(BuiltInRegistries.ITEM.containsKey(Identifier.parse("demo:fairy_wand")), "demo:fairy_wand is registered");
-        helper.assertValueEqual(foundry.mc.FoundryMod.loaded().items().get(foundry.core.Ident.parse("demo:fairy_wand")).mechanics().size(), 5, "mechanics");
+        helper.assertTrue(BuiltInRegistries.ITEM.containsKey(Identifier.parse("kingdoms:everdelle_wand_1")), "the wand is registered");
+        helper.assertValueEqual(foundry.mc.FoundryMod.loaded().items().get(foundry.core.Ident.parse("kingdoms:everdelle_wand_1")).mechanics().size(), 5, "mechanics");
+        helper.succeed();
+    }
+
+    /** A wand from before the move (demo:fairy_wand_2) becomes the Everdelle Wand II the moment a player carries it. */
+    @GameTest
+    public void anOldFairyWandBecomesTheEverdelleWand(GameTestHelper helper) {
+        var player = holder(helper, 1.5, 1.5);
+        var old = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse("demo:fairy_wand_2")));
+        player.getInventory().setItem(5, old);
+        old.getItem().inventoryTick(old, helper.getLevel(), player, null);
+        var now = player.getInventory().getItem(5);
+        helper.assertTrue(now.is(BuiltInRegistries.ITEM.getValue(Identifier.parse("kingdoms:everdelle_wand_2"))),
+                "The old wand did not become the Everdelle Wand II: " + now);
         helper.succeed();
     }
 

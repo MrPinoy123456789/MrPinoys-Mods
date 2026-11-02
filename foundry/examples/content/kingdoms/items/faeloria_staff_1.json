@@ -3,8 +3,8 @@
   "id": "kingdoms:faeloria_staff_1",
   "display_name": "Briarthorn Staff",
   "lore": [
-    "Left click: Thorn Bolt, 2 damage and poison.",
-    "Right click: hold for a second, then let go. Bramble Burst. 15s recharge.",
+    "Left click: Thorn Bolt, 3 damage and poison.",
+    "Right click: hold for a second, then let go. Bramble Burst, 5 damage, roots the target for 2s. 15s recharge.",
     "Sneak and right click: Glamour, invisible and swift for 8s. 90s recharge.",
     "Upgrade: 3 amethyst shards and an ender pearl, crafted with this."
   ],
@@ -20,7 +20,7 @@
   "mechanics": [
     {
       "trigger": "on_swing",
-      "cooldown_ticks": 13,
+      "cooldown_ticks": 16,
       "actions": [
         {
           "type": "play_sound",
@@ -31,9 +31,12 @@
         {
           "type": "launch_bolt",
           "tag": "thorn",
-          "range": 30,
-          "speed": 1.3,
-          "particle": "minecraft:composter"
+          "range": 28,
+          "speed": 1.4,
+          "particle": "minecraft:composter",
+          "model": "minecraft:pointed_dripstone",
+          "model_scale": 0.5,
+          "colour": "#7CD35A"
         }
       ]
     },
@@ -43,21 +46,22 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 2,
+          "amount": 3,
           "target": "hit"
         },
         {
           "type": "apply_effect",
           "effect": "minecraft:poison",
-          "duration": 60,
+          "duration": 40,
           "amplifier": 0,
           "target": "hit"
         },
         {
-          "type": "spawn_particles",
-          "particle": "minecraft:happy_villager",
+          "type": "particle_shape",
+          "shape": "burst",
           "count": 10,
-          "spread": 0.4,
+          "radius": 0.5,
+          "colour": "#7CD35A",
           "target": "hit"
         }
       ]
@@ -80,10 +84,11 @@
           "pitch": 1.3
         },
         {
-          "type": "spawn_particles",
-          "particle": "minecraft:spore_blossom_air",
+          "type": "particle_shape",
+          "shape": "spiral",
           "count": 24,
-          "spread": 0.6
+          "radius": 0.6,
+          "particle": "minecraft:spore_blossom_air"
         },
         {
           "type": "launch_bolt",
@@ -91,7 +96,11 @@
           "range": 30,
           "speed": 1.6,
           "particle": "minecraft:spore_blossom_air",
-          "radius": 0.9
+          "radius": 0.9,
+          "model": "minecraft:spore_blossom",
+          "model_scale": 0.8,
+          "spin": true,
+          "colour": "#7CD35A"
         }
       ],
       "charge_ticks": 20
@@ -102,7 +111,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 6,
+          "amount": 5,
           "target": "hit"
         },
         {
@@ -116,14 +125,30 @@
           "type": "apply_effect",
           "effect": "minecraft:slowness",
           "duration": 40,
-          "amplifier": 0,
+          "amplifier": 3,
           "target": "hit"
         },
         {
-          "type": "spawn_particles",
+          "type": "play_sound",
+          "sound": "minecraft:block.sweet_berry_bush.place",
+          "volume": 1.0,
+          "pitch": 0.6
+        },
+        {
+          "type": "particle_shape",
+          "shape": "ring",
+          "count": 32,
+          "radius": 1.2,
+          "colour": "#3F7D33",
+          "size": 1.4,
+          "target": "hit"
+        },
+        {
+          "type": "particle_shape",
+          "shape": "spiral",
+          "count": 30,
+          "radius": 0.9,
           "particle": "minecraft:composter",
-          "count": 24,
-          "spread": 0.5,
           "target": "hit"
         }
       ]
@@ -158,10 +183,11 @@
           "amplifier": 0
         },
         {
-          "type": "spawn_particles",
-          "particle": "minecraft:witch",
-          "count": 24,
-          "spread": 0.6
+          "type": "particle_shape",
+          "shape": "burst",
+          "count": 30,
+          "radius": 1.0,
+          "particle": "minecraft:witch"
         }
       ]
     }

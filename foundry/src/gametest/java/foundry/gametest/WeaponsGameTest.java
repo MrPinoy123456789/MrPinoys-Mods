@@ -26,7 +26,7 @@ import net.minecraft.world.item.Items;
  */
 public final class WeaponsGameTest {
     private static final List<String> WEAPONS = List.of("kingdoms:azrak_pick", "kingdoms:aurelia_oathblade",
-            "kingdoms:azurius_trident", "kingdoms:faeloria_staff", "demo:fairy_wand");
+            "kingdoms:azurius_trident", "kingdoms:faeloria_staff", "kingdoms:everdelle_wand");
 
     private static Item item(String id) {
         return BuiltInRegistries.ITEM.getValue(Identifier.parse(id));
@@ -49,7 +49,7 @@ public final class WeaponsGameTest {
     private static final java.util.Map<String, String> NODES = java.util.Map.of(
             "kingdoms:azrak_pick", "race:azrak", "kingdoms:aurelia_oathblade", "race:aurelia",
             "kingdoms:azurius_trident", "race:azurius", "kingdoms:faeloria_staff", "race:faeloria",
-            "demo:fairy_wand", "race:everdelle");
+            "kingdoms:everdelle_wand", "race:everdelle");
 
     @SuppressWarnings("removal")
     private static ServerPlayer outsider(GameTestHelper helper, String id) {
@@ -67,7 +67,7 @@ public final class WeaponsGameTest {
     }
 
     private static String tier(String weapon, int t) {
-        return weapon.equals("demo:fairy_wand") ? (t == 1 ? weapon : weapon + "_" + t) : weapon + "_" + t;
+        return weapon + "_" + t;
     }
 
     @GameTest
@@ -109,8 +109,8 @@ public final class WeaponsGameTest {
         var modifiers = pick.get(DataComponents.ATTRIBUTE_MODIFIERS);
         helper.assertTrue(modifiers != null, "the pick has attribute modifiers");
         boolean damage = modifiers.modifiers().stream().anyMatch(e -> e.attribute().is(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE.unwrapKey().get())
-                && Math.abs(e.modifier().amount() - 5.0) < 1.0E-6);
-        helper.assertTrue(damage, "a 6 damage pick adds 5 to the player's 1");
+                && Math.abs(e.modifier().amount() - 6.0) < 1.0E-6);
+        helper.assertTrue(damage, "a 7 damage pick adds 6 to the player's 1");
         helper.assertTrue(new ItemStack(item("kingdoms:faeloria_staff_1")).get(DataComponents.ATTRIBUTE_MODIFIERS) == null
                 || new ItemStack(item("kingdoms:faeloria_staff_1")).get(DataComponents.ATTRIBUTE_MODIFIERS).modifiers().isEmpty(),
                 "a staff with no melee numbers keeps the default");
@@ -235,7 +235,7 @@ public final class WeaponsGameTest {
         float after = zombie.getHealth();
         item("kingdoms:aurelia_oathblade_1").hurtEnemy(player.getMainHandItem(), zombie, player);
         helper.assertTrue(zombie.hasEffect(MobEffects.WEAKNESS), "Smite weakens the target");
-        helper.assertTrue(after - zombie.getHealth() >= 1.9f, "and adds its 2 damage inside the hit window");
+        helper.assertTrue(after - zombie.getHealth() >= 0.9f, "and adds its 1 damage inside the hit window");
         helper.succeed();
     }
 
@@ -245,7 +245,7 @@ public final class WeaponsGameTest {
         pick.setShiftKeyDown(true);
         item("kingdoms:azrak_pick_1").use(helper.getLevel(), pick, InteractionHand.MAIN_HAND);
         helper.assertTrue(pick.hasEffect(MobEffects.RESISTANCE) && pick.hasEffect(MobEffects.SLOWNESS), "Stone Skin: tough but slow");
-        helper.assertValueEqual(Bolts.liveFor(pick.getUUID()), 0, "sneaking launches no Rockfall");
+        helper.assertValueEqual(Bolts.liveFor(pick.getUUID()), 0, "sneaking launches nothing");
 
         var lord = holder(helper, "kingdoms:aurelia_oathblade_1");
         var ally = holder(helper, "kingdoms:aurelia_oathblade_1");
@@ -254,8 +254,11 @@ public final class WeaponsGameTest {
         helper.assertTrue(lord.hasEffect(MobEffects.STRENGTH) && ally.hasEffect(MobEffects.STRENGTH), "Rally strengthens everyone near");
 
         var attacker = holder(helper, "kingdoms:azrak_pick_1");
+        Mob near = still(helper, 2, 2, 3);
+        float before = near.getHealth();
         item("kingdoms:azrak_pick_1").use(helper.getLevel(), attacker, InteractionHand.MAIN_HAND);
-        helper.assertValueEqual(Bolts.liveFor(attacker.getUUID()), 1, "a plain right click launches Rockfall");
+        helper.assertTrue(near.getHealth() < before, "a plain right click Ground Slams what stands within 3 blocks");
+        helper.assertTrue(attacker.getHealth() == attacker.getMaxHealth(), "the slam does not hurt its caster");
         helper.succeed();
     }
 

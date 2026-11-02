@@ -488,7 +488,7 @@ public final class CoreSuite {
                 "{\"type\":\"apply_effect\",\"effect\":\"minecraft:speed\",\"duration\":20,\"radius\":5}")), "only apply with target"),
                 "radius without area is an error");
         check(hasError(withMechanics(mech("on_use", "",
-                "{\"type\":\"play_sound\",\"sound\":\"minecraft:block.stone.hit\",\"target\":\"area\"}")), "works only on apply_effect"),
+                "{\"type\":\"play_sound\",\"sound\":\"minecraft:block.stone.hit\",\"target\":\"area\"}")), "works only on apply_effect, damage and knockback"),
                 "area is for apply_effect only");
         check(hasError(withMechanics(mech("on_use", ",\"conditions\":[{\"type\":\"is_sneaking\",\"value\":\"maybe\"}]", BOLT)),
                 "true or false"), "is_sneaking value must be a boolean");
@@ -561,9 +561,13 @@ public final class CoreSuite {
 
         // The shipped example wand must stay valid.
         try {
-            var text = java.nio.file.Files.readString(java.nio.file.Path.of("examples/content/demo/items/fairy_wand.json"));
-            var wand = ItemParser.parse("fairy_wand.json", text);
-            check(wand.def() != null && wand.def().mechanics().size() == 5, "the fairy wand example parses with five mechanics");
+            var text = java.nio.file.Files.readString(java.nio.file.Path.of("examples/content/kingdoms/items/everdelle_wand_1.json"));
+            var wand = ItemParser.parse("everdelle_wand_1.json", text);
+            check(wand.def() != null && wand.def().mechanics().size() == 5, "the Everdelle wand parses with five mechanics");
+            var moved = ItemParser.parse("fairy_wand.json",
+                    java.nio.file.Files.readString(java.nio.file.Path.of("examples/content/demo/items/fairy_wand.json")));
+            check(moved.def() != null && "kingdoms:everdelle_wand_1".equals(String.valueOf(moved.def().replacedBy()))
+                    && moved.def().mechanics().isEmpty(), "the old fairy wand is a placeholder replaced by the Everdelle wand");
         } catch (java.io.IOException e) {
             check(false, "the fairy wand example is readable: " + e);
         }
@@ -623,19 +627,20 @@ public final class CoreSuite {
     private static void weaponTiers() throws Exception {
         int items = 0;
         int recipes = 0;
-        for (String ns : java.util.List.of("kingdoms", "demo")) {
+        for (String ns : java.util.List.of("kingdoms")) {
             Path itemDir = Path.of("examples/content", ns, "items");
             Path recipeDir = Path.of("examples/content", ns, "recipes");
             try (var files = Files.list(itemDir)) {
                 for (Path f : files.toList()) {
                     String name = f.getFileName().toString();
-                    if (!name.matches("(azrak_pick|aurelia_oathblade|azurius_trident|faeloria_staff)_[123]\\.json|fairy_wand(_[23])?\\.json")) continue;
+                    if (!name.matches("(azrak_pick|aurelia_oathblade|azurius_trident|faeloria_staff|everdelle_wand)_[123]\\.json")) continue;
                     var r = ItemParser.parse(name, Files.readString(f));
                     check(r.def() != null && r.problems().stream().noneMatch(Problem::blocking), name + " parses with no blocking problem");
                     check(r.def().mechanics().size() <= foundry.core.mechanics.MechanicDef.MAX_MECHANICS_PER_ITEM, name + " is within the mechanic limit");
                     check(r.def().lore().stream().noneMatch(l -> l.contains("—") || l.contains(" -- ")), name + " lore has no dashes");
                     check(r.def().locked() && r.def().requirePermission().startsWith("race:"), name + " is locked to a race node");
                     check(r.def().keepOnDeath(), name + " stays with its owner on death");
+                    balance(name, r.def());
                     items++;
                 }
             }
@@ -643,13 +648,12 @@ public final class CoreSuite {
             try (var files = Files.list(recipeDir)) {
                 for (Path f : files.toList()) {
                     String name = f.getFileName().toString();
-                    if (!name.matches("(azrak_pick|aurelia_oathblade|azurius_trident|faeloria_staff)_[23]\\.json|fairy_wand_[23]\\.json")) continue;
+                    if (!name.matches("(azrak_pick|aurelia_oathblade|azurius_trident|faeloria_staff|everdelle_wand)_[23]\\.json")) continue;
                     var r = foundry.core.RecipeParser.parse(name, Files.readString(f));
                     check(r.def() != null, name + " parses");
                     String result = r.def().result().toString();
                     int tier = Integer.parseInt(result.substring(result.length() - 1));
                     String previous = result.substring(0, result.length() - 1) + (tier - 1);
-                    if (result.endsWith("fairy_wand_2")) previous = "demo:fairy_wand";
                     check(r.def().ingredients().get(0).equals(previous), name + " upgrades from the tier below (" + previous + ")");
                     check(Ident.parse(foundry.core.RecipeFiles.unlockItem(r.def())) != null, name + " has an item that unlocks it");
                     recipes++;
@@ -657,6 +661,40 @@ public final class CoreSuite {
             }
         }
         check(items == 15 && recipes == 10, "five weapons of three tiers and ten upgrades are shipped (" + items + " items, " + recipes + " recipes)");
+    }
+
+    /**
+     * The weapon balance (tools/gen_weapons.py): a tier's melee damage a second (base plus extra on hit, times attack
+     * speed) is at most a vanilla sword of that tier (iron 9.6, diamond 11.2, netherite 12.8), and its left click bolt's
+     * damage a second (every hit on that bolt, wet bonus included) at most 70 percent of it.
+     */
+    private static void balance(String name, foundry.core.ItemDef def) {
+        int tier = Integer.parseInt(name.substring(name.length() - 6, name.length() - 5));
+        double yard = new double[] {9.6, 11.2, 12.8}[tier - 1];
+        double melee = def.attackDamage();
+        String bolt = null;
+        int swingCooldown = 0;
+        for (var m : def.mechanics()) {
+            if (m.trigger() == foundry.core.mechanics.Trigger.ON_HIT_ENTITY) {
+                for (var a : m.actions()) if (a.type().equals("damage")) melee += a.decimalParam("amount", 0);
+            }
+            if (m.trigger() == foundry.core.mechanics.Trigger.ON_SWING) {
+                swingCooldown = m.cooldownTicks();
+                for (var a : m.actions()) if (a.type().equals("launch_bolt")) bolt = a.param("tag", "");
+            }
+        }
+        double meleeDps = melee * def.attackSpeed();
+        check(meleeDps <= yard + 0.01, name + " melee " + meleeDps + " a second is at most a tier " + tier + " sword's " + yard);
+        if (bolt != null) {
+            double hit = 0;
+            for (var m : def.mechanics()) {
+                if (m.trigger() == foundry.core.mechanics.Trigger.ON_BOLT_HIT && bolt.equals(m.tag())) {
+                    for (var a : m.actions()) if (a.type().equals("damage")) hit += a.decimalParam("amount", 0);
+                }
+            }
+            double rangedDps = hit * 20.0 / Math.max(1, swingCooldown);
+            check(rangedDps <= yard * 0.7 + 0.01, name + " left click bolt " + rangedDps + " a second is at most 70 percent of " + yard);
+        }
     }
 
     private static boolean hasError(String json, String fragment) {

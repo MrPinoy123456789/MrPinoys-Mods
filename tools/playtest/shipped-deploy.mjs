@@ -84,7 +84,6 @@ const content = has('--content') ? [
   ['/config/foundry/content/kingdoms/items', files(resolve(ex, 'content/kingdoms/items'), /\.json$/)],
   ['/config/foundry/content/kingdoms/recipes', files(resolve(ex, 'content/kingdoms/recipes'), /\.json$/)],
   ['/config/foundry/content/demo/items', files(resolve(ex, 'content/demo/items'), /^fairy_wand.*\.json$/)],
-  ['/config/foundry/content/demo/recipes', files(resolve(ex, 'content/demo/recipes'), /^fairy_wand.*\.json$/)],
   ['/config/foundry/assets/kingdoms/textures/item', files(resolve(ex, 'assets/kingdoms/textures/item'), /\.png$/)],
   ['/config/foundry/assets/demo/textures/item', files(resolve(ex, 'assets/demo/textures/item'), /^fairy_wand.*\.png$/)],
 ] : []

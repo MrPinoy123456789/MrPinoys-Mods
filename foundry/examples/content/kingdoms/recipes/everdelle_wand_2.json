@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "id": "demo:fairy_wand_2",
+  "id": "kingdoms:everdelle_wand_2",
   "type": "shapeless",
   "ingredients": [
-    "demo:fairy_wand",
+    "kingdoms:everdelle_wand_1",
     "minecraft:amethyst_shard",
     "minecraft:amethyst_shard",
     "minecraft:amethyst_shard",
     "minecraft:glow_ink_sac"
   ],
-  "result": "demo:fairy_wand_2"
+  "result": "kingdoms:everdelle_wand_2"
 }
