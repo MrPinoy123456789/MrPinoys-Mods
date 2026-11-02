@@ -91,15 +91,15 @@ public final class RankCommands {
                 .then(Commands.literal("remove")
                         .then(Commands.argument("rank", StringArgumentType.greedyString()).suggests(ranks)
                                 .executes(c -> act(c, where, admin, k -> new RemoveRank(k, rankId(c, k)),
-                                        k -> Text.get("rank.cmd.removed", "rank", str(c, "rank"))))))
+                                        k -> Text.get("rank.cmd.removed", "rank", rankArg(c))))))
                 .then(Commands.literal("up")
                         .then(Commands.argument("rank", StringArgumentType.greedyString()).suggests(ranks)
                                 .executes(c -> act(c, where, admin, k -> new MoveRank(k, rankId(c, k), true),
-                                        k -> Text.get("rank.cmd.moved", "rank", str(c, "rank"))))))
+                                        k -> Text.get("rank.cmd.moved", "rank", rankArg(c))))))
                 .then(Commands.literal("down")
                         .then(Commands.argument("rank", StringArgumentType.greedyString()).suggests(ranks)
                                 .executes(c -> act(c, where, admin, k -> new MoveRank(k, rankId(c, k), false),
-                                        k -> Text.get("rank.cmd.moved", "rank", str(c, "rank"))))))
+                                        k -> Text.get("rank.cmd.moved", "rank", rankArg(c))))))
                 .then(Commands.literal("set")
                         .then(Commands.argument("player", StringArgumentType.string())
                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
@@ -109,7 +109,7 @@ public final class RankCommands {
                                             if (who.isEmpty()) return fail(c, Text.get("land.admin.no_player", "name", str(c, "player")));
                                             return act(c, where, admin, k -> new GiveRank(k, who.get(), rankId(c, k)),
                                                     k -> Text.get("rank.cmd.given", "player", rt().describe.player(who.get()),
-                                                            "rank", rt().state.ranks.find(k, str(c, "rank")).map(Ranks.Rank::name).orElse(str(c, "rank"))));
+                                                            "rank", rt().state.ranks.find(k, rankArg(c)).map(Ranks.Rank::name).orElse(rankArg(c))));
                                         }))))
                 .then(Commands.literal("power")
                         .then(Commands.argument("rank", StringArgumentType.string()).suggests(ranks)
@@ -126,13 +126,25 @@ public final class RankCommands {
         return StringArgumentType.getString(c, name);
     }
 
+    /**
+     * The rank as typed. A greedy argument keeps the quotes tab completion puts round a name with spaces
+     * ("Royal Commander"), so they are taken off here.
+     */
+    private static String rankArg(CommandContext<CommandSourceStack> c) {
+        String typed = str(c, "rank").strip();
+        if (typed.length() >= 2 && typed.startsWith("\"") && typed.endsWith("\"")) {
+            typed = typed.substring(1, typed.length() - 1).replace("\\\"", "\"").replace("\\\\", "\\");
+        }
+        return typed;
+    }
+
     private static String clean(CommandContext<CommandSourceStack> c, String name) {
         return Ranks.clean(str(c, name)).orElse(str(c, name));
     }
 
     /** The rank id for the typed name or id; an unknown one passes through and the action refuses it. */
     private static String rankId(CommandContext<CommandSourceStack> c, OrgId kingdom) {
-        String typed = str(c, "rank");
+        String typed = rankArg(c);
         return rt().state.ranks.find(kingdom, typed).map(Ranks.Rank::id).orElse(typed);
     }
 
@@ -205,7 +217,7 @@ public final class RankCommands {
         Power chosen = power;
         return act(c, where, admin, k -> new SetRankPower(k, rankId(c, k), chosen, on),
                 k -> Text.get(on ? "rank.cmd.power_on" : "rank.cmd.power_off", "rank",
-                        rt().state.ranks.find(k, str(c, "rank")).map(Ranks.Rank::name).orElse(str(c, "rank")),
+                        rt().state.ranks.find(k, rankArg(c)).map(Ranks.Rank::name).orElse(rankArg(c)),
                         "power", charter.mc.Describe.power(chosen)));
     }
 

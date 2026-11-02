@@ -44,6 +44,17 @@ public final class Tags {
 
     public static void apply(MinecraftServer server, CharterRuntime rt) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) applyTo(player, rt);
+        sweep(server.getScoreboard());
+    }
+
+    /**
+     * Drops our teams nobody is on: a removed rank's, or a kingdom's plain team once its ranks were edited. That keeps
+     * the count of teams to the tags in use (at most {@value Ranks#MAX_RANKS} a kingdom). Other teams are not touched.
+     */
+    static void sweep(Scoreboard board) {
+        for (PlayerTeam team : java.util.List.copyOf(board.getPlayerTeams())) {
+            if (team.getName().startsWith(PREFIX) && team.getPlayers().isEmpty()) board.removePlayerTeam(team);
+        }
     }
 
     /** Puts the player on the team for their tag, or off ours if they have none. */
