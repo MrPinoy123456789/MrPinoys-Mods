@@ -423,6 +423,7 @@ public final class LandCommands {
         var org = found.get();
         if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
         org.adminKingdom = on;
+        charter.mc.land.SpawnRules.refresh();
         return ok(ctx, Text.get(on ? "land.admin.kingdom_on" : "land.admin.kingdom_off", "name", org.name()));
     }
 

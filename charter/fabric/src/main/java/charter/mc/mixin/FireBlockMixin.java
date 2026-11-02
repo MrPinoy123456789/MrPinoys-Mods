@@ -2,6 +2,7 @@ package charter.mc.mixin;
 
 import charter.mc.land.Hazards;
 import charter.mc.land.Protection;
+import charter.mc.land.SpawnRules;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -32,7 +33,7 @@ public abstract class FireBlockMixin {
             target = "Lnet/minecraft/server/level/ServerLevel;setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Z"))
     private boolean charter$guardSpread(ServerLevel level, BlockPos target, BlockState state, int flags,
                                         Operation<Boolean> original, @Local(argsOnly = true) BlockPos fire) {
-        if (Protection.crossesIntoGuarded(level, fire, target)) return false;
+        if (Protection.crossesIntoGuarded(level, fire, target) || SpawnRules.refusesFire(level, target)) return false;
         return original.call(level, target, state, flags);
     }
 
@@ -41,7 +42,7 @@ public abstract class FireBlockMixin {
             target = "Lnet/minecraft/server/level/ServerLevel;setBlockAndUpdate(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
     private boolean charter$guardSpreadAndUpdate(ServerLevel level, BlockPos target, BlockState state,
                                                  Operation<Boolean> original, @Local(argsOnly = true) BlockPos fire) {
-        if (Protection.crossesIntoGuarded(level, fire, target)) return false;
+        if (Protection.crossesIntoGuarded(level, fire, target) || SpawnRules.refusesFire(level, target)) return false;
         return original.call(level, target, state);
     }
 
@@ -51,6 +52,7 @@ public abstract class FireBlockMixin {
         if (level.isClientSide()) return;
         BlockPos fire = Hazards.burning;
         if (fire != null && Protection.crossesIntoGuarded(level, fire, target)) ci.cancel();
+        else if (SpawnRules.refusesFire(level, target)) ci.cancel();
     }
 
     /** Remembers which fire is ticking, so {@code checkBurnOut} knows where it burns from. */

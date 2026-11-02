@@ -14,7 +14,19 @@
     "VehicleEntityMixin",
     "FarmlandBlockMixin",
     "CommandsMixin",
-    "StructureMixin"
+    "StructureMixin",
+    "SpawnServerLevelMixin",
+    "SpawnBlockStateMixin",
+    "SpawnLivingEntityMixin",
+    "SpawnEnderpearlMixin",
+    "SpawnLightningMixin",
+    "SpawnPortalForcerMixin",
+    "SpawnItemStackMixin",
+    "SpawnHangingEntityMixin",
+    "SpawnMobGriefingMixin",
+    "SpawnRabbitGardenMixin",
+    "SpawnHarvestFarmlandMixin",
+    "SpawnServerPlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

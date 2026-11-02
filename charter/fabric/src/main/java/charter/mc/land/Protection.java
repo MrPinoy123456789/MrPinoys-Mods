@@ -132,6 +132,9 @@ public final class Protection {
 
     /** May this player build, break or use things at this block? True on unprotected ground. */
     public static boolean mayAct(Player player, Level level, BlockPos pos) {
+        // The spawn rules come first: in an admin kingdom's land only operators build, its own members included.
+        Boolean spawn = SpawnRules.actorVerdict(player, level, pos);
+        if (spawn != null) return spawn;
         if (isDrifter(player)) return false;
         Claim claim = guardedClaim(level, pos);
         boolean counted = false;
@@ -156,7 +159,8 @@ public final class Protection {
 
     /** The same question for an entity that caused something: only a permitted player passes. */
     public static boolean mayAct(Entity actor, Level level, BlockPos pos) {
-        return actor instanceof Player player ? mayAct(player, level, pos) : !guarded(level, pos);
+        if (actor instanceof Player player) return mayAct(player, level, pos);
+        return !guarded(level, pos) && !SpawnRules.refusesNonPlayer(level, pos);
     }
 
     /**
@@ -165,12 +169,19 @@ public final class Protection {
      * Within one owner's land, and out of a claim into open ground, it is free.
      */
     public static boolean crossesIntoGuarded(Level level, BlockPos from, BlockPos to) {
+        if (SpawnRules.crossesBorder(level, from, to)) return true;
         Claim target = guardedClaim(level, to);
         if (target == null) return false;
         CharterRuntime rt = rt();
         Claim source = claimAt(level, from);
         if (source == null) return true;
         return !faction(rt, source.owner).equals(faction(rt, target.owner));
+    }
+
+    /** Whether any claim, protected or not, covers this block's chunk. */
+    public static boolean claimed(Level level, BlockPos pos) {
+        CharterRuntime rt = rt();
+        return rt != null && rt.claims.at(dimension(level), pos.getX() >> 4, pos.getZ() >> 4) != null;
     }
 
     /** True when a nexus, banner or campfire the mod placed stands here. */
@@ -199,6 +210,10 @@ public final class Protection {
         Long last = LAST_WARNED.get(sp.getUUID());
         if (last != null && now - last < 1000) return;
         LAST_WARNED.put(sp.getUUID(), now);
+        if (SpawnRules.inSpawn(level, pos) || SpawnRules.inSpawn(player)) {
+            sp.sendSystemMessage(Component.literal(Text.get("spawn.protected")).withStyle(ChatFormatting.RED), true);
+            return;
+        }
         Claim claim = claimAt(level, pos);
         CharterRuntime rt = rt();
         String owner = claim == null || rt == null ? "?" : rt.describe.org(claim.owner);

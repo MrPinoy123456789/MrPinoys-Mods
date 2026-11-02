@@ -17,6 +17,7 @@ public final class LandMod {
     public static void register() {
         Fixtures.registerBlock();
         Guard.register();
+        SpawnRules.register();
         Signals.register();
         Crossings.register();
         LandCommands.register();

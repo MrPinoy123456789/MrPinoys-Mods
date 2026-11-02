@@ -45,6 +45,10 @@ public final class Guard {
             if (!(player instanceof ServerPlayer) || !CharterServer.running()) return InteractionResult.PASS;
             BlockPos pos = hit.getBlockPos();
             if (hand == net.minecraft.world.InteractionHand.MAIN_HAND) Placement.inspectBanner((ServerPlayer) player, level, pos);
+            // In the spawn, doors, buttons and the other allowlisted blocks work for everyone; nothing else does.
+            InteractionResult spawn = SpawnRules.useBlockVerdict(player, level, hand, hit);
+            if (spawn == InteractionResult.FAIL) Protection.deny(player, level, pos);
+            if (spawn != null) return spawn;
             if (Protection.mayAct(player, level, pos)) return InteractionResult.PASS;
             Protection.deny(player, level, pos);
             return InteractionResult.FAIL;
@@ -58,6 +62,11 @@ public final class Guard {
                 Protection.denyDrifter((ServerPlayer) player);
                 return InteractionResult.FAIL;
             }
+            InteractionResult spawn = SpawnRules.useItemVerdict(player, hand);
+            if (spawn != null) {
+                Protection.deny(player, level, player.blockPosition());
+                return spawn;
+            }
             if (!aimsAtTheGround(stack)) return InteractionResult.PASS;
             HitResult hit = player.pick(player.blockInteractionRange(), 0.0F, true);
             if (!(hit instanceof BlockHitResult block) || block.getType() == HitResult.Type.MISS) return InteractionResult.PASS;
@@ -67,8 +76,25 @@ public final class Guard {
             Protection.deny(player, level, clicked);
             return InteractionResult.FAIL;
         });
-        AttackEntityCallback.EVENT.register((player, level, hand, entity, hit) -> entityVerdict(player, level, entity));
-        UseEntityCallback.EVENT.register((player, level, hand, entity, hit) -> entityVerdict(player, level, entity));
+        AttackEntityCallback.EVENT.register((player, level, hand, entity, hit) -> {
+            InteractionResult spawn = drifterSafe(player) ? SpawnRules.attackVerdict(player, entity) : null;
+            if (spawn != null) {
+                Protection.deny(player, level, entity.blockPosition());
+                return spawn;
+            }
+            return entityVerdict(player, level, entity);
+        });
+        UseEntityCallback.EVENT.register((player, level, hand, entity, hit) -> {
+            InteractionResult spawn = drifterSafe(player) ? SpawnRules.useEntityVerdict(player, hand, entity) : null;
+            if (spawn == InteractionResult.FAIL) Protection.deny(player, level, entity.blockPosition());
+            if (spawn != null) return spawn;
+            return entityVerdict(player, level, entity);
+        });
+    }
+
+    /** A running server and a player who is not a drifter (a drifter gets the drifter's refusal, not the spawn's). */
+    private static boolean drifterSafe(Player player) {
+        return player instanceof ServerPlayer && CharterServer.running() && !Protection.isDrifter(player);
     }
 
     private static boolean mayBreak(Level level, Player player, BlockPos pos) {

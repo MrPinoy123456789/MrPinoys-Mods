@@ -20,6 +20,6 @@ public abstract class VehicleEntityMixin {
     @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
     private void charter$guardHurt(ServerLevel level, DamageSource source, float damage, CallbackInfoReturnable<Boolean> cir) {
         VehicleEntity self = (VehicleEntity) (Object) this;
-        if (!Hazards.vehicleMayBeHurt(level, self.blockPosition(), source)) cir.setReturnValue(false);
+        if (!Hazards.vehicleMayBeHurt(level, self.blockPosition(), source, self)) cir.setReturnValue(false);
     }
 }
