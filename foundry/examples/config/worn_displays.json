@@ -88,6 +88,13 @@
       "back": 0.34,
       "scale": 1.3,
       "swing": false
+    },
+    "kingdoms:fae_wings": {
+      "slot": "chest/cape",
+      "up": 1.2,
+      "back": 0.34,
+      "scale": 1.3,
+      "swing": false
     }
   },
   "races": {
@@ -103,12 +110,21 @@
       "glide": false,
       "flap": false
     },
-    "race:faeloria": {
-      "item": "kingdoms:antler_circlet",
-      "slot": "head/hat",
-      "glide": false,
-      "flap": false
-    },
+    "race:faeloria": [
+      {
+        "item": "kingdoms:antler_circlet",
+        "slot": "head/hat",
+        "glide": false,
+        "flap": false
+      },
+      {
+        "item": "kingdoms:fae_wings",
+        "slot": "chest/cape",
+        "glide": false,
+        "flap": true,
+        "double_jump": 50
+      }
+    ],
     "race:azurius": {
       "item": "kingdoms:tidal_gills",
       "slot": "head/face",

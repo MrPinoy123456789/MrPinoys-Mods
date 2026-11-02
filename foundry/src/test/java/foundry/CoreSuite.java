@@ -78,6 +78,37 @@ public final class CoreSuite {
         }
         check(glideMax < 0 && glideMax - glideMin < 8, "gliding wings are held open with only a quiver");
         check(airMax - airMin > 40, "wings flutter deeply in the air");
+        var air = new foundry.core.AirJump();
+        check(!air.tick(true, true, 0, 50), "jumping from the ground is a normal jump");
+        check(!air.tick(true, false, 1, 50), "the jump that left the ground, still held, is not a second jump");
+        check(!air.tick(false, false, 2, 50) && air.tick(true, false, 3, 50), "letting go and pressing again in the air jumps again");
+        var quick = new foundry.core.AirJump();
+        check(!quick.tick(false, true, 0, 50) && !quick.tick(true, false, 1, 50),
+                "a press in the tick the player lifts off is the ground jump, not a second one");
+        check(!air.tick(false, false, 4, 50) && !air.tick(true, false, 5, 50), "only once per time in the air");
+        check(!air.tick(false, true, 6, 50) && !air.tick(false, false, 7, 50) && !air.tick(true, false, 8, 50),
+                "landing gives it back, but not before the cooldown");
+        check(air.waiting(8) == 45 && !air.tick(false, false, 52, 50) && air.tick(true, false, 53, 50),
+                "after the cooldown it works again");
+        double[] upright = foundry.core.AirJump.push(0f, false, false, false, false);
+        double[] ahead = foundry.core.AirJump.push(0f, true, false, false, false);
+        double[] west = foundry.core.AirJump.push(90f, true, false, false, false);
+        check(upright[0] == 0 && upright[2] == 0 && upright[1] > 0.5, "with no key held the double jump goes straight up");
+        check(ahead[2] > 0.3 && Math.abs(ahead[0]) < 1e-9, "facing south (yaw 0) forward is +z");
+        check(west[0] < -0.3 && Math.abs(west[2]) < 1e-9, "facing west (yaw 90) forward is -x");
+        double[] strafe = foundry.core.AirJump.push(0f, false, false, true, false);
+        check(strafe[0] > 0.3, "facing south a strafe to the left is +x");
+        var fae = foundry.core.WornPlacement.defaults().races().get("race:faeloria");
+        check(fae.size() == 2 && fae.get(1).item().equals("kingdoms:fae_wings") && fae.get(1).flap() && !fae.get(1).glide()
+                && fae.get(1).doubleJump() == foundry.core.WornPlacement.FAE_DOUBLE_JUMP,
+                "the Fae wear the antlers and flapping leaf wings, and double jump instead of gliding");
+        var looks = foundry.core.WornPlacement.parse("{\"races\":{\"race:a\":[{\"item\":\"k:x\",\"slot\":\"head/hat\"},"
+                + "{\"item\":\"k:y\",\"slot\":\"chest/cape\",\"double_jump\":30}],\"race:b\":{\"item\":\"k:z\",\"slot\":\"head/face\"}}}");
+        check(looks.problems().isEmpty() && looks.table().races().get("race:a").size() == 2
+                && looks.table().races().get("race:a").get(1).doubleJump() == 30
+                && looks.table().races().get("race:b").size() == 1, "a race takes one look or an array of looks");
+        check(foundry.core.WornPlacement.parse("{\"races\":{\"race:a\":[{\"item\":\"k:x\"}]}}").problems().size() == 1,
+                "a look with no slot is reported");
         check(foundry.core.WingBeat.state(false, true, 0.0) == foundry.core.WingBeat.State.STILL
                 && foundry.core.WingBeat.state(false, true, 0.2) == foundry.core.WingBeat.State.MOVING
                 && foundry.core.WingBeat.state(false, false, 0.0) == foundry.core.WingBeat.State.AIRBORNE

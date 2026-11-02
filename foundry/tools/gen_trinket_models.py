@@ -84,6 +84,11 @@ MATERIALS = {
     "fin": dict(base="#86d8e2", pattern="fin", noise=4, bevel=0, alpha=225),
     "pearl": dict(base="#e6f0f2", pattern="sheen", noise=5, bevel=24),
     "beard": dict(base="#8a4b22", pattern="hair", noise=10, bevel=20),
+    "petal_white": dict(base="#f6f2ff", pattern="flower", noise=4, bevel=0),
+    "petal_pink": dict(base="#f59ac4", pattern="flower", noise=4, bevel=0),
+    "petal_blue": dict(base="#8fb8ff", pattern="flower", noise=4, bevel=0),
+    "flower_centre": dict(base="#f6c93c", pattern="dot", noise=0, bevel=0),
+    "wreath": dict(base="#3f7d33", pattern="leaf", noise=10, bevel=16),
     "beard_dark": dict(base="#5e3116", pattern="hair", noise=8, bevel=18),
     "beard_light": dict(base="#b0652e", pattern="hair", noise=10, bevel=18),
     "bead": dict(base="#c9923f", pattern="sheen", noise=4, bevel=40),
@@ -140,13 +145,26 @@ def paint_tile(material, w, h, rng):
                 cx, cy = (w - 1) / 2, (h - 1) / 2
                 d = math.hypot(x - cx, y - cy) / max(w / 2, 1)
                 c = mix(rgb("#ffe0a0"), rgb("#7a4f1c"), min(1, d))
+            a = alpha
+            if p == "flower":
+                # five rounded petals around a small gold centre; outside the petals is see through
+                cx, cy = (w - 1) / 2, (h - 1) / 2
+                dx, dy = x - cx, y - cy
+                r = math.hypot(dx, dy) / max(w / 2, 1)
+                petal = 0.62 + 0.38 * abs(math.cos(2.5 * math.atan2(dy, dx)))
+                if r > petal:
+                    a = 0
+                elif r < 0.25:
+                    c = rgb("#f6c93c")
+                else:
+                    k += int(-18 * r)
             pixel = tint(c, k)
             if m["bevel"] and w >= 3 and h >= 3:
                 if y == 0 or x == 0:
                     pixel = tint(pixel, m["bevel"] if y == 0 else m["bevel"] // 2)
                 elif y == h - 1 or x == w - 1:
                     pixel = tint(pixel, -m["bevel"] if y == h - 1 else -m["bevel"] // 2)
-            img.putpixel((x, y), pixel + (alpha,))
+            img.putpixel((x, y), pixel + (a,))
     return img
 
 
@@ -217,6 +235,8 @@ def bake(name, parts):
             faces[face] = {"uv": [round(px * 16 / size, 4), round(py * 16 / size, 4),
                                   round((px + w) * 16 / size, 4), round((py + h) * 16 / size, 4)], "texture": "#0"}
         el = {"from": p["from"], "to": p["to"], "faces": faces}
+        if p.get("name"):
+            el["name"] = p["name"]
         if "rotation" in p:
             el["rotation"] = p["rotation"]
         elements.append(el)
@@ -281,7 +301,32 @@ def circlet():
         if "rotation" in p:
             p["rotation"]["origin"][1] += lift
     left = [grown(p, ANTLER_BASE, ANTLER_SCALE) for p in lifted]
-    return left + [mirror(p) for p in left]
+    return left + [mirror(p) for p in left] + wreath()
+
+
+WREATH_Y = 14.4  # the top of the head; the helmet versions lift the wreath onto the helmet (see write_helmet)
+
+
+def wreath():
+    """A woodland wreath around the top of the head: a band of leaves, with small flowers set into it (white, pink and
+    blue, five petals each), in the gaps between and around the antlers. Each part is named so it can be lifted."""
+    y = WREATH_Y
+    band = [
+        part((1.2, y - 0.6, 0.8), (14.8, y + 0.4, 1.8), "wreath"),
+        part((1.2, y - 0.6, 14.2), (14.8, y + 0.4, 15.2), "wreath"),
+        part((0.8, y - 0.6, 1.8), (1.8, y + 0.4, 14.2), "wreath"),
+        part((14.2, y - 0.6, 1.8), (15.2, y + 0.4, 14.2), "wreath"),
+    ]
+    flowers = []
+    spots = [((5.0, 0.4), "petal_white"), ((7.6, 0.2), "petal_pink"), ((10.2, 0.4), "petal_blue"),
+             ((0.4, 4.6), "petal_pink"), ((13.2, 4.6), "petal_white"), ((0.4, 11.0), "petal_blue"),
+             ((13.2, 11.0), "petal_pink"), ((6.4, 13.6), "petal_white"), ((9.2, 13.8), "petal_blue")]
+    for (fx, fz), petal in spots:
+        flowers.append(part((fx, y + 0.3, fz), (fx + 2.4, y + 0.6, fz + 2.4), petal, only=["up", "down"]))
+        flowers.append(part((fx + 0.9, y + 0.5, fz + 0.9), (fx + 1.5, y + 0.9, fz + 1.5), "flower_centre"))
+    for el in band + flowers:
+        el["name"] = "wreath"
+    return band + flowers
 
 
 def gills():
@@ -579,6 +624,62 @@ def wings_model():
 
 
 
+def paint_leaf_wings():
+    """The Fae's wings: two leaves, solid (not see through, unlike the Fairies'), on the same plates as the fairy wings.
+    Each is a pointed leaf with a serrated edge, deep green at the base to light green, touched with amber at the tip, a
+    pale midrib, side veins angled toward the tip, a darker rim and a few drops of dew. The lower leaf is a lighter,
+    yellower green. 128 by 128, the same layout as the fairy wings."""
+    size = 128
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    rng = random.Random("fae-leaves")
+
+    def leaf(box, base, angle_deg, length, width, stops):
+        x0, y0, x1, y1 = box
+        ang = math.radians(angle_deg)
+        ux, uy = math.cos(ang), -math.sin(ang)
+        vx, vy = -uy, ux
+
+        def colour(t):
+            for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+                if t <= t1:
+                    return mix(rgb(c0), rgb(c1), (t - t0) / (t1 - t0))
+            return rgb(stops[-1][1])
+
+        for py in range(y0, y1):
+            for px in range(x0, x1):
+                rx, ry = px + 0.5 - base[0], py + 0.5 - base[1]
+                along, across = rx * ux + ry * uy, rx * vx + ry * vy
+                t = along / length
+                if t < 0 or t > 1:
+                    continue
+                half = width * math.sin(math.pi * t) ** 0.85 * (1 - 0.1 * t) + 0.6
+                half *= 1 + 0.08 * abs(math.sin(t * 26))  # serrated edge
+                d = abs(across)
+                if d > half:
+                    continue
+                c = colour(t)
+                c = tint(c, int(10 * (1 - d / max(half, 1))))  # a little lighter toward the midrib
+                if d < 0.7 and t < 0.97:
+                    c = mix(rgb("#d6ec9a"), c, 0.2)  # the midrib
+                else:
+                    # side veins: from the midrib out toward the tip, every few texels
+                    for k in range(4, int(length), 7):
+                        if along > k and abs(d - (along - k) * 0.85) < 0.55 and t < 0.92:
+                            c = mix(rgb("#bcd98a"), c, 0.35)
+                            break
+                if half - d < 1.2:
+                    c = mix(rgb("#1f3f1a"), c, 0.3)  # the rim
+                elif rng.random() < 0.006:
+                    c = rgb("#e8fbff")  # a drop of dew
+                img.putpixel((px, py), tint(c, rng.randint(-5, 5)) + (255,))
+
+    leaf((0, 0, 64, 80), (4, 76), 62, 80, 17.0,
+         [(0.0, "#2c5f26"), (0.55, "#4f9a3a"), (0.85, "#8cc14a"), (1.0, "#d9a441")])
+    leaf((64, 0, 112, 48), (68, 4), -48, 52, 11.0,
+         [(0.0, "#3f7a2c"), (0.6, "#7fb84a"), (0.9, "#b9cf55"), (1.0, "#e0b04a")])
+    return img
+
+
 def paint_wings():
     """A 128 by 128 texture holding the two wings. Each is a see through membrane running from its base toward its tip:
     rose at the base, through lilac and aqua, to pale gold at the tip; a luminous rim with a soft violet inner line; a
@@ -678,7 +779,7 @@ def paint_wings():
 # to the display's +x. A body display sits behind the player with its -z toward their back, so these models are built
 # front first as usual and then mirrored front to back (never turned, which would also swap left and right), so their
 # outer face looks out from the back while the pauldron's lames still point out over the arm.
-BACK_ITEMS = {"forgeman_pauldron", "kingdom_cape", "fairy_wings", "aurelia_banner"}
+BACK_ITEMS = {"forgeman_pauldron", "kingdom_cape", "fairy_wings", "aurelia_banner", "fae_wings"}
 
 
 def mirror_front_to_back(el):
@@ -730,12 +831,17 @@ def helmet_shell(texture_key, tinted, grow=0.0):
 
 
 def write_wing_halves():
-    """The wings as two models, the wearer's left pair and right pair, so each side can flap on its own (WornDisplays
-    serves them as two displays turning about the spine). Same plates and texture as fairy_wings, split at x = 8."""
-    with open(os.path.join(MODELS, "fairy_wings.json"), encoding="utf8") as f:
+    """Each pair of wings as two models, the wearer's left pair and right pair, so each side can flap on its own
+    (WornDisplays serves them as two displays turning about the spine). Same plates and texture, split at x = 8."""
+    for wings in ("fairy_wings", "fae_wings"):
+        write_halves(wings)
+
+
+def write_halves(wings):
+    with open(os.path.join(MODELS, wings + ".json"), encoding="utf8") as f:
         whole = json.load(f)
     for side, keep in (("left", lambda el: el["to"][0] <= 8), ("right", lambda el: el["from"][0] >= 8)):
-        name = f"fairy_wings_{side}"
+        name = f"{wings}_{side}"
         model = dict(whole, elements=[el for el in whole["elements"] if keep(el)])
         with open(os.path.join(MODELS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
             json.dump(model, f, indent=2)
@@ -744,7 +850,7 @@ def write_wing_halves():
         with open(os.path.join(HELMETS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
             json.dump({"model": {"type": "minecraft:model", "model": f"kingdoms:item/worn/{name}"}}, f, indent=2)
             f.write("\n")
-    print("fairy wings split into left and right halves")
+    print(wings, "split into left and right halves")
 
 
 def write_helmets(head_items):
@@ -774,7 +880,17 @@ def write_helmet(head, head_elements, mat):
         # the undyed overlay (the leather helmet's trim), a hair outside the dyed shell so the two never flicker
         textures["2"] = "minecraft:entity/equipment/humanoid/leather_overlay"
         elements.append(helmet_shell("#2", False, grow=0.02))
-    model = {"textures": textures, "elements": elements + head_elements, "display": DISPLAY}
+    # the wreath sits on the head's top; on a helmet it goes on the helmet's top (the shell is 16 high), not inside it
+    lifted = []
+    for el in head_elements:
+        if el.get("name") == "wreath":
+            el = json.loads(json.dumps(el))
+            el["from"][1] += 16 - WREATH_Y + 0.05
+            el["to"][1] += 16 - WREATH_Y + 0.05
+            if "rotation" in el:
+                el["rotation"]["origin"][1] += 16 - WREATH_Y + 0.05
+        lifted.append(el)
+    model = {"textures": textures, "elements": elements + lifted, "display": DISPLAY}
     name = f"{head}_on_{mat}"
     with open(os.path.join(MODELS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
         json.dump(model, f, indent=2)
@@ -796,6 +912,7 @@ def main():
     built["kingdom_cape"] = (cape_model(), paint_cape())
     built["aurelia_banner"] = banner_model()
     built["fairy_wings"] = (wings_model(), paint_wings())
+    built["fae_wings"] = (wings_model(), paint_leaf_wings())
     for name, (elements, texture) in built.items():
         if name in BACK_ITEMS:
             elements = [mirror_front_to_back(e) for e in elements]
@@ -812,6 +929,8 @@ def main():
         print(name, len(elements), "elements,", f"{texture.width}x{texture.height}")
     write_wing_halves()
     paint_beard_icon().save(os.path.join(ASSETS, "textures", "item", "dwarf_beard.png"))
+    paint_leaf_wings().crop((0, 0, 112, 80)).resize((22, 16), Image.LANCZOS).crop((3, 0, 19, 16)).save(
+        os.path.join(ASSETS, "textures", "item", "fae_wings.png"))
     paint_banner_cloth().save(BANNER_CLOTH)
     paint_banner_icon().save(os.path.join(ASSETS, "textures", "item", "aurelia_banner.png"))
     write_helmets({"antler_circlet": built["antler_circlet"][0], "dwarf_beard": built["dwarf_beard"][0]})

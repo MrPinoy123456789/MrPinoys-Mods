@@ -25,16 +25,21 @@ public record WornPlacement(float up, float back, float side, float scale, boole
 
     /**
      * A race's look: the permission node that marks the race (race:azrak), the Foundry item drawn on everyone of that
-     * race, the slot whose placement it uses, whether the race can glide (the Fairies), and whether the look is a pair of
-     * wings that flap (drawn as two halves, {@code <item>_left} and {@code <item>_right}, turning about the spine).
+     * race, the slot whose placement it uses, whether the race can glide (the Fairies), whether the look is a pair of
+     * wings that flap (drawn as two halves, {@code <item>_left} and {@code <item>_right}, turning about the spine), and
+     * the double jump cooldown in ticks (0: no double jump; the Fae jump again in the air instead of gliding).
      */
-    public record RaceLook(String item, String slot, boolean glide, boolean flap) {}
+    public record RaceLook(String item, String slot, boolean glide, boolean flap, int doubleJump) {
+        public RaceLook(String item, String slot, boolean glide, boolean flap) {
+            this(item, slot, glide, flap, 0);
+        }
+    }
 
     /**
      * The table read from {@code config/foundry/worn_displays.json}: slot entries, per item overrides, and the races, by
-     * permission node, with the look each race always shows.
+     * permission node, with the looks each race always shows (one or more: the Fae wear a wreath and leaf wings).
      */
-    public record Table(Map<String, WornPlacement> slots, Map<String, WornPlacement> items, Map<String, RaceLook> races) {
+    public record Table(Map<String, WornPlacement> slots, Map<String, WornPlacement> items, Map<String, List<RaceLook>> races) {
         /** The placement for a trinket: the item's own entry if it has one, else its slot's, else none (not drawn). */
         public Optional<WornPlacement> find(String itemId, String slot) {
             WornPlacement item = items.get(itemId);
@@ -62,17 +67,25 @@ public record WornPlacement(float up, float back, float side, float scale, boole
         slots.put("chest/cape", new WornPlacement(1.40f, 0.14f, 0f, 1.875f, false, 0f, 0f, 0f, false, false, true, true));
         Map<String, WornPlacement> items = new LinkedHashMap<>();
         items.put("kingdoms:fairy_wings", new WornPlacement(1.2f, 0.34f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true, false));
+        items.put("kingdoms:fae_wings", new WornPlacement(1.2f, 0.34f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true, false));
         return new Table(Map.copyOf(slots), Map.copyOf(items), defaultRaces());
     }
 
-    /** The built in races: each kingdom's race and the look it always shows (the Fairies of Everdelle can glide). */
-    public static Map<String, RaceLook> defaultRaces() {
-        Map<String, RaceLook> races = new LinkedHashMap<>();
-        races.put("race:azrak", new RaceLook("kingdoms:dwarf_beard", "head/hat", false, false));
-        races.put("race:aurelia", new RaceLook("kingdoms:aurelia_banner", "chest/banner", false, false));
-        races.put("race:faeloria", new RaceLook("kingdoms:antler_circlet", "head/hat", false, false));
-        races.put("race:azurius", new RaceLook("kingdoms:tidal_gills", "head/face", false, false));
-        races.put("race:everdelle", new RaceLook("kingdoms:fairy_wings", "chest/cape", true, true));
+    /** The Fae's double jump cooldown, in ticks: two and a half seconds. */
+    public static final int FAE_DOUBLE_JUMP = 50;
+
+    /**
+     * The built in races: each kingdom's race and the looks it always shows. The Fairies of Everdelle glide on gauzy
+     * wings; the Fae of Faeloria wear antlers in a wreath of flowers, have leaf wings, and jump twice instead of gliding.
+     */
+    public static Map<String, List<RaceLook>> defaultRaces() {
+        Map<String, List<RaceLook>> races = new LinkedHashMap<>();
+        races.put("race:azrak", List.of(new RaceLook("kingdoms:dwarf_beard", "head/hat", false, false)));
+        races.put("race:aurelia", List.of(new RaceLook("kingdoms:aurelia_banner", "chest/banner", false, false)));
+        races.put("race:faeloria", List.of(new RaceLook("kingdoms:antler_circlet", "head/hat", false, false),
+                new RaceLook("kingdoms:fae_wings", "chest/cape", false, true, FAE_DOUBLE_JUMP)));
+        races.put("race:azurius", List.of(new RaceLook("kingdoms:tidal_gills", "head/face", false, false)));
+        races.put("race:everdelle", List.of(new RaceLook("kingdoms:fairy_wings", "chest/cape", true, true)));
         return Map.copyOf(races);
     }
 
@@ -85,7 +98,8 @@ public record WornPlacement(float up, float back, float side, float scale, boole
      * Parses the file. Shape: {@code {"slots": {"head/hat": {"up": 2.0, ...}}, "items": {"kingdoms:x": {...}}}}. An
      * entry may leave any field out; a slot entry then takes the built in default for that slot (or a plain default),
      * and an item entry takes its slot's values, so one number can be tuned alone. Fields: up, back, side, scale,
-     * on_head, rotation [x, y, z], hide_from_wearer, head_slot, ride, swing. A bad file gives the defaults and a problem line.
+     * on_head, rotation [x, y, z], hide_from_wearer, head_slot, ride, swing. Races: {@code {"race:x": {"item", "slot",
+     * "glide", "flap", "double_jump"}}}, or an array of such looks. A bad file gives the defaults and a problem line.
      */
     public static Parsed parse(String json) {
         List<String> problems = new ArrayList<>();
@@ -113,18 +127,31 @@ public record WornPlacement(float up, float back, float side, float scale, boole
                 items.put(en.getKey(), entry(en.getKey(), en.getValue(), slots.getOrDefault(slot, BASE), problems));
             }
         }
-        Map<String, RaceLook> races = defaultRaces();
+        Map<String, List<RaceLook>> races = defaultRaces();
         if (root.has("races") && root.get("races").isJsonObject()) {
-            Map<String, RaceLook> read = new LinkedHashMap<>();
+            Map<String, List<RaceLook>> read = new LinkedHashMap<>();
             for (var en : root.getAsJsonObject("races").entrySet()) {
-                if (!en.getValue().isJsonObject() || !en.getValue().getAsJsonObject().has("item")
-                        || !en.getValue().getAsJsonObject().has("slot")) {
-                    problems.add("worn_displays.json: race " + en.getKey() + " needs an item and a slot");
-                    continue;
+                // one look as an object, or several as an array of objects
+                List<JsonElement> entries = new ArrayList<>();
+                if (en.getValue().isJsonArray()) en.getValue().getAsJsonArray().forEach(entries::add);
+                else entries.add(en.getValue());
+                List<RaceLook> looks = new ArrayList<>();
+                for (JsonElement e : entries) {
+                    if (!e.isJsonObject() || !e.getAsJsonObject().has("item") || !e.getAsJsonObject().has("slot")) {
+                        problems.add("worn_displays.json: each look of race " + en.getKey() + " needs an item and a slot");
+                        continue;
+                    }
+                    JsonObject o = e.getAsJsonObject();
+                    try {
+                        looks.add(new RaceLook(o.get("item").getAsString(), o.get("slot").getAsString(),
+                                o.has("glide") && o.get("glide").getAsBoolean(), o.has("flap") && o.get("flap").getAsBoolean(),
+                                o.has("double_jump") ? Math.max(0, o.get("double_jump").getAsInt()) : 0));
+                    } catch (RuntimeException ex) {
+                        problems.add("worn_displays.json: race " + en.getKey() + " has a value of the wrong type ("
+                                + ex.getMessage() + ")");
+                    }
                 }
-                JsonObject o = en.getValue().getAsJsonObject();
-                read.put(en.getKey(), new RaceLook(o.get("item").getAsString(), o.get("slot").getAsString(),
-                        o.has("glide") && o.get("glide").getAsBoolean(), o.has("flap") && o.get("flap").getAsBoolean()));
+                if (!looks.isEmpty()) read.put(en.getKey(), List.copyOf(looks));
             }
             races = Map.copyOf(read);
         }

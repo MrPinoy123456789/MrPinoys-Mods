@@ -21,7 +21,7 @@ LEGAL_ANGLES = {-45, -22.5, 0, 22.5, 45}
 FACE_NAMES = {"north", "east", "south", "west", "up", "down"}
 CONTEXTS = {"none", "thirdperson_lefthand", "thirdperson_righthand", "firstperson_lefthand", "firstperson_righthand",
             "head", "gui", "ground", "fixed", "on_shelf"}
-MAX_ELEMENTS = 32
+MAX_ELEMENTS = 48  # a soft cap of our own: the game sets none, and a few dozen cuboids cost nothing
 # Vanilla 26.3 atlases: items.json takes textures/item/, blocks.json takes textures/block/. A model texture elsewhere is missing.
 ATLAS_FOLDERS = ("item/", "block/")
 

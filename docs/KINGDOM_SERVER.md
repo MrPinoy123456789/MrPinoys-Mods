@@ -81,14 +81,18 @@ their race at a glance, and the race traits come with the race:
 |---|---|---|
 | Azrak Dwarves (`race:azrak`) | A thick Dwarf beard (`kingdoms:dwarf_beard`), combined with any vanilla helmet | Haste (`racePassives`) |
 | Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`): a black swallow tailed banner with a silver border and a skull under a solid silver crown, its eyes cut in the banner's black, on a black iron pole above the head | Luck (`racePassives`) |
-| Faeloria Fae (`race:faeloria`) | Antlers, combined with any vanilla helmet | Night Vision (`racePassives`) |
+| Faeloria Fae (`race:faeloria`) | Antlers in a woodland wreath (a leaf band set with white, pink and blue flowers), combined with any vanilla helmet (the wreath sits on the helmet's top); solid leaf wings that flap (`kingdoms:fae_wings`: deep green to amber tipped, serrated, veined) | Night Vision (`racePassives`); a double jump instead of gliding: press jump again in the air for a second hop, once per time off the ground, 2.5 second cooldown, no fall damage from it, with falling leaves and a rustle |
 | Azurius Merfolk (`race:azurius`) | Tidal Gills beside the neck | Water Breathing, Dolphin's Grace (`racePassives`) |
 | Everdelle Fairies (`race:everdelle`) | Fairy Wings that flap (a slow beat standing, livelier moving, a fast flutter in the air, spread wide gliding), shading rose to lilac to aqua to gold, with veins, eye spots and swallowtails; a sparkle trail while gliding | Glide, always, with nothing in the chest slot |
 
-- The looks are drawn by Foundry from the race node (`races` in `config/foundry/worn_displays.json`: node, item, slot,
-  glide). Always on, no toggle; `/trinketview` only decides whether you see your own (the antlers are always on your own
+- The looks are drawn by Foundry from the race node (`races` in `config/foundry/worn_displays.json`: node, then one look
+  or an array of looks, each with item, slot, glide, flap, and `double_jump` as a cooldown in ticks). Always on, no toggle; `/trinketview` only decides whether you see your own (the antlers are always on your own
   head, as a helmet item).
 - The traits are Charter's `racePassives` (built in defaults, and merged into the server's `charter.json`).
+- The Fae and the Fairies are told apart at a glance: antlers and flowers against nothing on the head, solid green leaves
+  against see through coloured wings, and a hop in the air against a glide. The double jump (`foundry.mc.DoubleJump`,
+  rules in `foundry.core.AirJump`) only counts a fresh press after two ticks in the air, so the ground jump never fires
+  it; the hop is the server telling the client its new motion, so it works on Bedrock too.
 - Fairies glide by race: a server mixin (`LivingEntityGlide`) lets them, holding jump while falling starts it on Java, and
   Bedrock Fairies get the stand in elytra. No durability.
 - The Fairy wings are two displays, the left and right halves (`kingdoms:fairy_wings_left` and `_right`, vanilla stacks

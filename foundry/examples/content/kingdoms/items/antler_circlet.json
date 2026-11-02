@@ -4,7 +4,7 @@
   "display_name": "Antler Circlet",
   "lore": [
     "A retired trinket, kept for something new later.",
-    "The Fae of Faeloria now wear this look and see in the dark by race."
+    "The Fae of Faeloria now wear this look, crowned with a wreath of flowers."
   ],
   "base_item": "minecraft:gold_nugget",
   "texture": "kingdoms:item/antler_circlet",

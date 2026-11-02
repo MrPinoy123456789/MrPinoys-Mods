@@ -206,7 +206,8 @@ public final class WornDisplays {
             String name = player.getGameProfile().name();
             List<String> worn = new ArrayList<>();
             for (var race : table.races().entrySet()) {
-                if (Gate.hasNode(player, race.getKey())) worn.add(race.getKey() + ": " + race.getValue().item());
+                if (!Gate.hasNode(player, race.getKey())) continue;
+                for (var look : race.getValue()) worn.add(race.getKey() + ": " + look.item());
             }
             var chest = player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
             lines.add(name + " chest slot: " + (chest.isEmpty() ? "empty" : net.minecraft.core.registries.BuiltInRegistries.ITEM
@@ -357,17 +358,18 @@ public final class WornDisplays {
             var current = table;
             for (var race : current.races().entrySet()) {
                 if (!Gate.hasNode(player, race.getKey())) continue;
-                var look = race.getValue();
-                var ident = foundry.core.Ident.parse(look.item());
-                var item = ident == null ? null : FoundryItems.get(ident);
-                if (item == null) continue;
-                current.find(look.item(), look.slot()).ifPresent(p -> {
-                    stacks.add(new ItemStack(item));
-                    places.add(p);
-                    ids.add(look.item());
-                    slotNames.add(look.slot());
-                    flaps.add(look.flap());
-                });
+                for (var look : race.getValue()) {
+                    var ident = foundry.core.Ident.parse(look.item());
+                    var item = ident == null ? null : FoundryItems.get(ident);
+                    if (item == null) continue;
+                    current.find(look.item(), look.slot()).ifPresent(p -> {
+                        stacks.add(new ItemStack(item));
+                        places.add(p);
+                        ids.add(look.item());
+                        slotNames.add(look.slot());
+                        flaps.add(look.flap());
+                    });
+                }
             }
         }
         ItemStack realHead = player.getItemBySlot(EquipmentSlot.HEAD);

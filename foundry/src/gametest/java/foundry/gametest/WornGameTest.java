@@ -54,14 +54,14 @@ public final class WornGameTest {
         });
     }
 
-    /** Two looks (two race nodes, as a test) draw two displays; dying removes them. */
+    /** Two races (two race nodes, as a test) draw all their looks (the Fae have two, the Humans one); dying removes them. */
     @GameTest(maxTicks = 120)
     public void displaysFollowTheWearerThroughDeath(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         TestPerms.grant(wearer, "race:faeloria");
         TestPerms.grant(wearer, "race:aurelia");
         helper.runAfterDelay(25, () -> {
-            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 2, "Two looks did not make two displays");
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 3, "A Fae and a Human together should show three looks");
             wearer.setHealth(0f);
             helper.assertFalse(wearer.isAlive(), "The wearer is still alive after their health went to zero");
             helper.runAfterDelay(25, () -> {
@@ -370,7 +370,7 @@ public final class WornGameTest {
                     def.id() + " worn model file is missing");
             checked++;
         }
-        helper.assertTrue(checked == 7, "Expected seven items with a worn model but checked " + checked);
+        helper.assertTrue(checked == 8, "Expected eight items with a worn model but checked " + checked);
         helper.succeed();
     }
 
@@ -378,7 +378,7 @@ public final class WornGameTest {
     @GameTest(maxTicks = 20)
     public void theClientIsSentTheItemModelThePackSelectsOn(GameTestHelper helper) {
         ServerPlayer viewer = player(helper, null);
-        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard", "aurelia_banner"}) {
+        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard", "aurelia_banner", "fae_wings"}) {
             String seen = foundry.mc.WornDisplays.clientView(viewer, new ItemStack(item("kingdoms:" + id)));
             foundry.mc.FoundryMod.LOG.info("client stack for kingdoms:{}: {}", id, seen);
             helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
@@ -458,6 +458,42 @@ public final class WornGameTest {
             // the finial (model y 32, 24 units above the model's middle) stands above the head (about 1.9 high)
             float top = place.up() + 24f / 16f * 0.5f * place.scale();
             helper.assertTrue(top > 2.0f, "The banner's top should stand above the head but is at " + top);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The Fae are not Fairies: antlers in a wreath on the head and leaf wings that flap on the back, and no gliding; they
+     * jump twice instead, and the second jump lifts them and clears their fall.
+     */
+    @GameTest(maxTicks = 60)
+    public void theFaeWearLeafWingsAndDoubleJumpInsteadOfGliding(GameTestHelper helper) {
+        ServerPlayer fae = player(helper, "race:faeloria");
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(fae.getUUID()) == 2, "The Fae should show the antlers and the leaf wings");
+            helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(fae.getUUID(), 0)), "The antlers are not on the head");
+            helper.assertFalse(foundry.mc.Wings.isWinged(fae.getUUID()), "The Fae can glide like a Fairy");
+            fae.setOnGround(false);
+            helper.assertFalse(fae.tryToStartFallFlying(), "A Fae started gliding");
+            helper.assertTrue(foundry.mc.DoubleJump.cooldownOf(fae.getUUID()) == foundry.core.WornPlacement.FAE_DOUBLE_JUMP,
+                    "The Fae has no double jump: " + foundry.mc.DoubleJump.cooldownOf(fae.getUUID()));
+            fae.fallDistance = 6;
+            foundry.mc.DoubleJump.hop(fae, foundry.core.AirJump.push(0f, true, false, false, false));
+            helper.assertTrue(fae.getDeltaMovement().y > 0.5 && fae.getDeltaMovement().z > 0.3, "The hop did not lift the Fae forward: "
+                    + fae.getDeltaMovement());
+            helper.assertTrue(fae.fallDistance == 0, "The hop left the fall distance at " + fae.fallDistance);
+            helper.succeed();
+        });
+    }
+
+    /** Only a race with a double jump gets one. */
+    @GameTest(maxTicks = 40)
+    public void onlyTheFaeDoubleJump(GameTestHelper helper) {
+        ServerPlayer fairy = player(helper, "race:everdelle");
+        ServerPlayer nobody = player(helper, null);
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.DoubleJump.cooldownOf(fairy.getUUID()) == 0, "A Fairy can double jump");
+            helper.assertTrue(foundry.mc.DoubleJump.cooldownOf(nobody.getUUID()) == 0, "A player of no race can double jump");
             helper.succeed();
         });
     }

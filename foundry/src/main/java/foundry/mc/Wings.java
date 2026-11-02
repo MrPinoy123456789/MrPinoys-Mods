@@ -52,7 +52,9 @@ public final class Wings {
                 boolean glides = false;
                 if (player.isAlive()) {
                     for (var race : WornDisplays.table().races().entrySet()) {
-                        if (race.getValue().glide() && Gate.hasNode(player, race.getKey())) glides = true;
+                        if (race.getValue().stream().anyMatch(l -> l.glide()) && Gate.hasNode(player, race.getKey())) {
+                            glides = true;
+                        }
                     }
                 }
                 set(WINGED, player.getUUID(), glides);
