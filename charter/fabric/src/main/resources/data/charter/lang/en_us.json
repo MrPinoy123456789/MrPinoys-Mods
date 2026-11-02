@@ -373,6 +373,7 @@
   "spawn.protected": "This is the spawn area. You may walk, trade and use doors here, not build or fight.",
   "spawn.no_pearl": "Ender pearls and chorus fruit cannot carry you into the spawn area.",
   "spawn.void_rescue": "You fell out of the world under the spawn and were brought back.",
+  "carry.dismounted": "You were set down. Nobody can ride something that is being carried; wait until it is put down.",
   "borders.on": "Borders shown. Say /charter borders again to hide them.",
   "borders.off": "Borders hidden.",
   "tag.mercenary": "Mercenary",

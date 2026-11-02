@@ -13,6 +13,7 @@
       "charter.gametest.VoteCommandGameTest",
       "charter.gametest.LandPlacementGameTest",
       "charter.gametest.RaceCombatGameTest",
+      "charter.gametest.CarryGuardGameTest",
       "charter.gametest.NexusMoveGameTest",
       "charter.gametest.AffiliationGameTest",
       "charter.gametest.LandProtectionGameTest",

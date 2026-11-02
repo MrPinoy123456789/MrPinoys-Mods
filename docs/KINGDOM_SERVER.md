@@ -820,6 +820,12 @@ Players with no kingdom and no race (`requireAffiliation`) may still walk the sp
 
 Left out on purpose: lecterns are not on the allowlist (a lectern menu lets anyone take the book, and the Charter book is not a book a lectern holds); anvils are not either (they wear out and break with use); chests, barrels and other containers are refused. A fishing rod cast from outside can still hook a player inside; falling blocks and frost walker are not stopped (only operators build there); turtle eggs and coral are not guarded.
 
+## Carried mounts (the carry mod rising bug)
+
+`carryGuard` (top level of `charter.json`, default `true`). The server runs `serverside-carryon`, a third party mod with no config. It carries a mob or a player by switching off its AI, gravity and physics and moving it to a hold position beside the carrier every tick. If someone mounts a carried horse, the horse is moved relative to its rider each tick, and the pair climbs into the sky without end.
+
+Vanilla mounts never have their physics switched off, so once a tick Charter sets down any player whose mount (or anything below it) has no physics, and a carried player throws off anyone riding on them. The player is told: "You were set down. Nobody can ride something that is being carried; wait until it is put down." Spectators have no physics by design and are left alone. There is no clean hook to refuse the mount itself, so the rider may be on the carried horse for one tick before being set down. Off: Charter does not interfere.
+
 ## Explosions in kingdoms
 
 `explosionsInKingdoms` (top level of `charter.json`, default `false`). Off, no explosion breaks or sets fire to a block on any claimed land: keeps (core and ring), outposts whether raised or still raising, every other claim, and the admin kingdom, whether or not the claim is protected at the time and whoever lit it, the owner and operators included. That covers TNT, TNT minecarts, creepers, ghast fireballs, withers and wither skulls, end crystals, beds in the Nether, respawn anchors, wind charges and any modded source, because all of them pass through the one list of blocks an explosion is about to break. The fire an explosion starts and the doors and buttons a wind charge toggles use the same list, so they are covered too. The wild is unchanged. Damage to players and mobs is unchanged, except in the spawn (`spawnNoExplosions`). The Nexus, banners and the mod's other fixtures are always spared.

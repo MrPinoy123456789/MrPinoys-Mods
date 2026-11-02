@@ -167,6 +167,12 @@ public final class Knobs {
     public int faeGlamourGraceTicks = 200;
     /** Fairy (Everdelle) Featherlight: the chance, 0 to 1, to dodge one melee hit. Fairies also take no fall damage. */
     public double fairyDodgeChance = 0.08;
+    /**
+     * Whether a player riding something that is being carried (by a carry mod, which switches the carried entity's
+     * physics off) is set down at once, and a carried player sheds anyone riding on them. Stops the endless climb from
+     * mounting a carried horse. Off: Charter does not interfere.
+     */
+    public boolean carryGuard = true;
     /** Whether players are told on the action bar when they cross into a kingdom, an outpost, held land or the wild. */
     public boolean entryMessages = true;
     /**
