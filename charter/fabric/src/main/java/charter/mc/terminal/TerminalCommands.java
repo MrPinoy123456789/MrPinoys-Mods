@@ -30,6 +30,7 @@ import java.util.List;
  *   /charter admin terminal remove   the terminal you look at, or else the block under you
  *   /charter admin terminal list     every terminal, each a link that takes you there
  *   /charter admin terminal clear    removes every terminal (the blocks stay)
+ *   /charter admin terminal keeps    a lectern beside the Nexus of every keep that has no keep terminal yet
  * </pre>
  */
 public final class TerminalCommands {
@@ -51,7 +52,34 @@ public final class TerminalCommands {
                                         .then(Commands.literal("here").executes(TerminalCommands::here))
                                         .then(Commands.literal("remove").executes(TerminalCommands::remove))
                                         .then(Commands.literal("list").executes(TerminalCommands::list))
-                                        .then(Commands.literal("clear").executes(TerminalCommands::clear))))));
+                                        .then(Commands.literal("clear").executes(TerminalCommands::clear))
+                                        .then(Commands.literal("keeps").executes(TerminalCommands::keeps))))));
+    }
+
+    /**
+     * Puts a lectern terminal beside the Nexus of every keep that has none, for keeps founded before terminals existed.
+     * NPC keeps and keeps whose lodestone is lifted are skipped. Runs from the command only, never from a chunk event.
+     */
+    private static int keeps(CommandContext<CommandSourceStack> ctx) {
+        if (!CharterServer.running()) return fail(ctx, Text.get("teleport.not_running"));
+        charter.mc.CharterRuntime rt = CharterServer.runtime();
+        if (!rt.knobs.keepTerminals) return fail(ctx, Text.get("terminal.keeps_off"));
+        int placed = 0;
+        int full = 0;
+        for (charter.land.Core core : List.copyOf(rt.state.cores())) {
+            if (!core.isKeep() || rt.state.org(core.owner).map(o -> o.npc).orElse(true)) continue;
+            if (!Terminals.book().ofCore(core.id.value().toString()).isEmpty()) continue;
+            charter.mc.land.Fixtures.Fixture nexus = charter.mc.land.Fixtures.of(rt.state).first(core.id, charter.mc.land.Fixtures.Kind.NEXUS);
+            if (nexus == null) continue;
+            net.minecraft.server.level.ServerLevel level = Terminals.levelOf(ctx.getSource().getServer(), nexus.dimension());
+            if (level == null) continue;
+            if (Terminals.placeBeside(rt, level, new BlockPos(nexus.x(), nexus.y(), nexus.z()), core.id) != null) placed++;
+            else full++;
+        }
+        int done = placed;
+        int blocked = full;
+        ctx.getSource().sendSuccess(() -> Chat.good(Text.get("terminal.keeps_done", "placed", done, "full", blocked)), true);
+        return Math.max(placed, 1);
     }
 
     /** The block the player looks at within reach, or null. */

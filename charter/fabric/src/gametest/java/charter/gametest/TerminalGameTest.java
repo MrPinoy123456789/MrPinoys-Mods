@@ -249,6 +249,16 @@ public final class TerminalGameTest {
             helper.assertTrue(!(kit.level.getBlockEntity(at) instanceof LecternBlockEntity le) || !le.hasBook(),
                     "The Chronicle was put into the terminal lectern");
             opensHome(kit, lord, at, "the Lord at the keep lectern");
+
+            // A keep from before terminals has none: the operator's "keeps" command gives it its lectern back.
+            Terminals.dropKeep(kit.server, core.id, true);
+            helper.assertTrue(Terminals.book().ofCore(core.id.value().toString()).isEmpty() && !kit.level.getBlockState(at).is(Blocks.LECTERN),
+                    "Dropping the keep's terminal left it behind");
+            kit.server.getCommands().performPrefixedCommand(kit.server.createCommandSourceStack(), "charter admin terminal keeps");
+            mine = Terminals.book().ofCore(core.id.value().toString());
+            helper.assertTrue(mine.size() == 1 && kit.level.getBlockState(new BlockPos(mine.get(0).spot().x(), mine.get(0).spot().y(),
+                    mine.get(0).spot().z())).is(Blocks.LECTERN), "terminal keeps did not give the keep its lectern back");
+            placed = mine.get(0).spot();
         }
         // The keep is gone once the kit closes: its terminal is forgotten.
         helper.assertTrue(Terminals.book().at(placed) == null, "A lost keep's terminal is still registered");

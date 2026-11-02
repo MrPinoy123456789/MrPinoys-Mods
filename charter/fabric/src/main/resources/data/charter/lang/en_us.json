@@ -147,6 +147,8 @@
   "terminal.list_line": "Terminal at {x}, {y}, {z} in {dimension}",
   "terminal.list_line_keep": "Keep terminal at {x}, {y}, {z} in {dimension}",
   "terminal.cleared": "Removed {count} terminal(s). The blocks stay.",
+  "terminal.keeps_done": "Placed {placed} keep lectern(s). {full} keep(s) had no free side beside the Nexus; stand there and use /charter admin terminal here.",
+  "terminal.keeps_off": "keepTerminals is off in charter.json, so no keep lectern was placed.",
   "book.button.new_book": "Get a new Charter book",
   "book.new.given": "Your Charter book is in your hotbar. It stays with you, even when you die.",
   "book.new.already": "You already carry your Charter book. You can only carry one.",
