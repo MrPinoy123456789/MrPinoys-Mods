@@ -109,6 +109,25 @@ public final class CoreSuite {
         check(!foundry.core.JumpTip.show(false, foundry.core.JumpTip.AIR_TICKS, false, 1000 + foundry.core.JumpTip.EVERY - 1, 1000)
                         && foundry.core.JumpTip.show(false, foundry.core.JumpTip.AIR_TICKS, false, 1000 + foundry.core.JumpTip.EVERY, 1000),
                 "the hint shows at most every 30 seconds");
+        check(foundry.core.JumpTip.seconds(18).equals("0.9s") && foundry.core.JumpTip.seconds(180).equals("9s")
+                && foundry.core.JumpTip.seconds(181).equals("10s"), "a recharge reads as tenths under two seconds, whole seconds above");
+        var early = new foundry.core.AirJump();
+        early.tick(true, true, 0, 50);
+        early.tick(false, false, 1, 50);
+        early.tick(false, false, 2, 50);
+        check(early.tick(true, false, 3, 50) && !early.refused(), "the first air jump goes");
+        early.tick(false, true, 4, 50);
+        early.tick(true, true, 5, 50);
+        for (int t = 6; t <= 8; t++) early.tick(false, false, t, 50);
+        check(!early.tick(true, false, 9, 50) && early.refused() && early.waiting(9) == 44,
+                "an air jump pressed before the cooldown is refused, and says how long is left");
+        early.tick(false, false, 10, 50);
+        check(!early.refused(), "a tick with no press refuses nothing");
+        var swim = new foundry.core.SwimDash();
+        check(swim.tick(true, true, 0, 40) && !swim.refused(), "a press while swimming dashes");
+        swim.tick(false, true, 1, 40);
+        check(!swim.tick(true, true, 2, 40) && swim.refused() && swim.waiting(2) == 38,
+                "a dash pressed too soon is refused, and says how long is left");
         double[] upright = foundry.core.AirJump.push(0f, false, false, false, false);
         double[] ahead = foundry.core.AirJump.push(0f, true, false, false, false);
         double[] west = foundry.core.AirJump.push(90f, true, false, false, false);

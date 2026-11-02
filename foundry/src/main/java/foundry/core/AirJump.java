@@ -17,6 +17,7 @@ public final class AirJump {
     private boolean used;
     private int airTicks;
     private long readyAt = Long.MIN_VALUE;
+    private boolean refused;
 
     /**
      * Feeds one tick and answers whether to jump now. {@code grounded} is anything that ends a time in the air (on the
@@ -25,13 +26,18 @@ public final class AirJump {
     public boolean tick(boolean jumpHeld, boolean grounded, long now, int cooldown) {
         boolean pressed = jumpHeld && !held;
         held = jumpHeld;
+        refused = false;
         if (grounded) {
             used = false;
             airTicks = 0;
             return false;
         }
         airTicks++;
-        if (!pressed || used || airTicks <= SETTLE || now < readyAt) return false;
+        if (!pressed || used || airTicks <= SETTLE) return false;
+        if (now < readyAt) {
+            refused = true;
+            return false;
+        }
         used = true;
         readyAt = now + cooldown;
         return true;
@@ -40,6 +46,11 @@ public final class AirJump {
     /** Ticks in the air this time off the ground (0 on the ground). */
     public int airTicks() {
         return airTicks;
+    }
+
+    /** True when this tick's press would have been an air jump but the cooldown had not run out. */
+    public boolean refused() {
+        return refused;
     }
 
     /** True once the air jump was used this time off the ground. */

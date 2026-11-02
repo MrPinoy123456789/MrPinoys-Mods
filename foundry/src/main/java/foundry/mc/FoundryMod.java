@@ -161,6 +161,7 @@ public final class FoundryMod implements ModInitializer {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             Swings.tick(server);
             Charging.tick(server);
+            AbilityBar.tick(server);
             Bolts.tick(server);
             WornItems.tick(server);
             WornDisplays.tick(server);
@@ -184,6 +185,7 @@ public final class FoundryMod implements ModInitializer {
             Swings.clear();
             Bolts.clear();
             Charging.clear();
+            AbilityBar.clear();
             Gate.clear();
             WornDisplays.clear();
             Wings.clear();
@@ -194,7 +196,7 @@ public final class FoundryMod implements ModInitializer {
             BedrockLooks.clear();
         });
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                { Charging.forget(handler.getPlayer().getUUID()); Wings.forget(handler.getPlayer().getUUID());
+                { Charging.forget(handler.getPlayer().getUUID()); AbilityBar.forget(handler.getPlayer().getUUID()); Wings.forget(handler.getPlayer().getUUID());
                   DoubleJump.forget(handler.getPlayer().getUUID()); SwimDash.forget(handler.getPlayer().getUUID());
                   BedrockLooks.forget(handler.getPlayer().getUUID());
                   RaceTraitsRuntime.forget(handler.getPlayer().getUUID()); FairyFlight.forget(handler.getPlayer().getUUID()); });

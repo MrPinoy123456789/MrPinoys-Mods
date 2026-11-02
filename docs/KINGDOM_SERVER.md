@@ -224,6 +224,13 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   under equipment, the rest under items). Bedrock only lists a recipe in its recipe book when the result has one, so the
   weapon upgrade recipes were missing for Bedrock players. A side effect: the items also show in the Bedrock creative
   inventory (creative mode only). Ship with `--bedrock` (the mappings file) and restart.
+- Recharge feedback (2026-11-02): holding a race weapon with something recharging shows an ability line on the action
+  bar ("Thorn Bolt  ·  Bramble Burst 9s  ·  Glamour", ready ones green, recharging ones grey), and a press on recharge
+  brings it up instead of doing nothing. An ability with a recharge of 5 s or more plays a soft chime to that player
+  alone and shows "<name> ready" when it comes back. While a charged ability (Bramble Burst) recharges, that player's
+  copy of the staff is not marked usable, so their client draws no bow pose for a press that cannot fire. A double jump
+  or swim dash pressed too soon answers with "Leaf wings 1.2s" or "Swim dash 0.8s" and a soft sound. All of it is
+  action bar and sound, so Bedrock players get it too. The caster left click bolts are now named (Thorn Bolt, Sparkle Bolt).
 
 Full notes and where this differs from the earlier race spec: `docs/RACES.md`, section 7a.
 

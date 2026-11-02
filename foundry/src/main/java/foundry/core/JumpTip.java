@@ -15,6 +15,12 @@ public final class JumpTip {
 
     private JumpTip() {}
 
+    /** A recharge as players read it: "9s", or "1.2s" under two seconds, so a short one does not read as zero. */
+    public static String seconds(long ticks) {
+        if (ticks < 40) return String.format(java.util.Locale.ROOT, "%.1fs", ticks / 20.0);
+        return ((ticks + 19) / 20) + "s";
+    }
+
     /** True when the hint should show this tick. {@code lastShown} is Long.MIN_VALUE when it never has. */
     public static boolean show(boolean learned, int airTicks, boolean usedThisAir, long now, long lastShown) {
         if (learned || usedThisAir || airTicks != AIR_TICKS) return false;

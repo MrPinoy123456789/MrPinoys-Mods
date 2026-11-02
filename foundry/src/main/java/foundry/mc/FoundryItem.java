@@ -94,6 +94,7 @@ final class FoundryItem extends SimplePolymerItem {
             return InteractionResult.CONSUME;
         }
         if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
+        if (hasCharge()) AbilityBar.poke(sp);
         return null;
     }
 
@@ -125,6 +126,8 @@ final class FoundryItem extends SimplePolymerItem {
                 return InteractionResult.CONSUME;
             }
             if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
+            // Nothing could run (a charged ability recharging): answer with the ability line instead of silence.
+            if (hasCharge()) AbilityBar.poke(sp);
         }
         return super.use(level, player, hand);
     }
@@ -158,6 +161,16 @@ final class FoundryItem extends SimplePolymerItem {
         var list = mechanics();
         return list.stream().anyMatch(m -> m.trigger() == Trigger.ON_SWING)
                 && list.stream().noneMatch(m -> m.trigger() == Trigger.ON_HIT_ENTITY);
+    }
+
+    /** True when the charged ability is recharging for the player this packet goes to. */
+    private boolean rechargingFor(PacketContext context) {
+        if (context == null) return false;
+        var profile = context.get(PacketContext.GAME_PROFILE);
+        var server = context.get(PacketContext.SERVER_INSTANCE);
+        if (profile == null || server == null) return false;
+        ServerPlayer viewer = server.getPlayerList().getPlayer(profile.id());
+        return viewer != null && MechanicHost.chargeRecharging(contentId, mechanics(), viewer);
     }
 
     private boolean hasCharge() {
@@ -201,8 +214,10 @@ final class FoundryItem extends SimplePolymerItem {
             var attributes = stack.get(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS);
             if (attributes != null) out.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, attributes);
         }
-        // Held for a "long" time on the client, so it never finishes by itself; the server decides at release.
-        if (hasCharge()) out.set(net.minecraft.core.component.DataComponents.CONSUMABLE, CHARGE_LOOK);
+        // Held for a "long" time on the client, so it never finishes by itself; the server decides at release. While the
+        // charged ability recharges for the player this copy is for, it is left off, so their client draws no pose for a
+        // press that cannot do anything (AbilityBar resends the inventory when it starts and when it is back).
+        if (hasCharge() && !rechargingFor(context)) out.set(net.minecraft.core.component.DataComponents.CONSUMABLE, CHARGE_LOOK);
     }
 
     @Override

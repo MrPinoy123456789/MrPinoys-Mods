@@ -209,6 +209,8 @@ public final class WeaponsGameTest {
             staff.releaseUsing(player.getMainHandItem(), helper.getLevel(), player, 0);
             helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 1, "released after a second it fires the burst");
             player.stopUsingItem();
+            helper.assertTrue(foundry.mc.AbilityBar.tracking(player.getUUID()), "the ability line tracks the burst's recharge");
+            helper.assertTrue(foundry.mc.AbilityBar.poseHidden(player), "while it recharges the staff draws no pose");
             // The recharge now blocks a new hold.
             staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
             helper.assertTrue(!player.isUsingItem(), "on cooldown a right click starts no hold");

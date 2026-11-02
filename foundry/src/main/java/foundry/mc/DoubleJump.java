@@ -75,6 +75,9 @@ public final class DoubleJump {
                 hop(player, AirJump.push(player.getYRot(), input.forward(), input.backward(), input.left(), input.right(),
                         RaceTraitsRuntime.of(player.getUUID()).jumpDrift()));
                 learn(player.getUUID());
+            } else if (state.refused()) {
+                AbilityBar.notYet(player, "Leaf wings", state.waiting(now),
+                        net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.AZALEA_LEAVES_BREAK));
             } else if (foundry.core.JumpTip.show(learned(player.getUUID()), state.airTicks(), state.used(), now,
                     TIP_AT.getOrDefault(player.getUUID(), Long.MIN_VALUE))) {
                 TIP_AT.put(player.getUUID(), now);
