@@ -98,6 +98,18 @@ public final class CoreSuite {
         check(west[0] < -0.3 && Math.abs(west[2]) < 1e-9, "facing west (yaw 90) forward is -x");
         double[] strafe = foundry.core.AirJump.push(0f, false, false, true, false);
         check(strafe[0] > 0.3, "facing south a strafe to the left is +x");
+        var dash = new foundry.core.SwimDash();
+        check(!dash.tick(true, false, 0, 40), "a jump out of the water is not a dash");
+        check(!dash.tick(true, true, 1, 40), "a jump already held when they started swimming is not a dash");
+        check(!dash.tick(false, true, 2, 40) && dash.tick(true, true, 3, 40), "a fresh press of jump while swimming dashes");
+        check(!dash.tick(false, true, 4, 40) && !dash.tick(true, true, 5, 40), "not again before the cooldown");
+        check(!dash.tick(false, true, 42, 40) && dash.tick(true, true, 43, 40), "again once the cooldown is over");
+        var mer = foundry.core.WornPlacement.defaults().races().get("race:azurius");
+        check(mer.size() == 2 && mer.get(0).item().equals("kingdoms:merfolk_fins") && mer.get(1).item().equals("kingdoms:dorsal_fin")
+                && mer.get(1).swimDash() == foundry.core.WornPlacement.MERFOLK_SWIM_DASH && mer.get(0).slot().equals("head/hat"),
+                "the Merfolk wear fin ears on the head and a dorsal fin, and dash through the water");
+        check(foundry.core.WornPlacement.parse("{\"races\":{\"race:a\":{\"item\":\"k:x\",\"slot\":\"head/hat\",\"swim_dash\":25}}}")
+                .table().races().get("race:a").get(0).swimDash() == 25, "swim_dash is read from the file");
         var fae = foundry.core.WornPlacement.defaults().races().get("race:faeloria");
         check(fae.size() == 2 && fae.get(1).item().equals("kingdoms:fae_wings") && fae.get(1).flap() && !fae.get(1).glide()
                 && fae.get(1).doubleJump() == foundry.core.WornPlacement.FAE_DOUBLE_JUMP,

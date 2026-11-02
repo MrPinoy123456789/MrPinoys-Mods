@@ -95,6 +95,13 @@
       "back": 0.34,
       "scale": 1.3,
       "swing": false
+    },
+    "kingdoms:dorsal_fin": {
+      "slot": "chest/cape",
+      "up": 1.2,
+      "back": 0.14,
+      "scale": 1.3,
+      "swing": false
     }
   },
   "races": {
@@ -125,12 +132,21 @@
         "double_jump": 50
       }
     ],
-    "race:azurius": {
-      "item": "kingdoms:tidal_gills",
-      "slot": "head/face",
-      "glide": false,
-      "flap": false
-    },
+    "race:azurius": [
+      {
+        "item": "kingdoms:merfolk_fins",
+        "slot": "head/hat",
+        "glide": false,
+        "flap": false
+      },
+      {
+        "item": "kingdoms:dorsal_fin",
+        "slot": "chest/cape",
+        "glide": false,
+        "flap": false,
+        "swim_dash": 40
+      }
+    ],
     "race:everdelle": {
       "item": "kingdoms:fairy_wings",
       "slot": "chest/cape",
