@@ -25,7 +25,7 @@ public final class DefaultTemplates {
         t.put("OrgEvents.Joined", "On {when}, {player} joined {org}{from? after leaving %}.");
         t.put("OrgEvents.Left", "On {when}, {player} left {org}.");
         t.put("OrgEvents.Expelled", "On {when}, {player} was expelled from {org}.");
-        t.put("ModerationEvents.Muted", "On {when}, {lord} of {org} silenced {player} for {durationMillis}.");
+        t.put("ModerationEvents.Muted", "On {when}, {lord} of {org} muted {player} for {durationMillis}.");
         t.put("ModerationEvents.Unmuted", "On {when}, {lord} of {org} let {player} speak again.");
         t.put("ModerationEvents.Suspended", "On {when}, {lord} of {org} barred {player} from the kingdom's land for {durationMillis}.");
         t.put("ModerationEvents.Unsuspended", "On {when}, {lord} of {org} lifted the bar on {player}.");

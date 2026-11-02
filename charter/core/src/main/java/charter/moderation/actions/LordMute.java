@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A Lord silences one of their own citizens for a stated time, at most {@code lordMuteMaxMinutes}. A second mute
+ * A Lord mutes one of their own citizens for a stated time, at most {@code lordMuteMaxMinutes}. A second mute
  * replaces the first; it never adds to it. Runs for a player only: operators have their own tools.
  */
 public record LordMute(PlayerId player, long durationMillis, String reason) implements Action {

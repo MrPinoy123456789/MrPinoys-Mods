@@ -30,7 +30,7 @@ public final class LordRules {
     public static final Reason BAD_DURATION = new Reason("bad_duration", "That length of time does not read. Use 10m, 2h or 1h30m.");
 
     public static final Reason HELD_ELSEWHERE = new Reason("held_elsewhere",
-            "That player is already kept off another kingdom's land. That is not yours to change; it ends on its own.");
+            "That player is already barred from another kingdom's land. That is not yours to change; it ends on its own.");
 
     public static final int REASON_MIN = 3;
     public static final int REASON_MAX = 80;

@@ -123,7 +123,12 @@ public final class LeaderPages {
         if (Treasury.available(rt) && holds(player, org, Power.SPEND)) {
             buttons.add(go(player, Text.get("book.leader.treasury"), p -> treasury(p, null)).icon(BookIcons.TREASURY));
         }
-        if (holds(player, org, Power.ARREST) || holds(player, org, Power.JUDGE) || holds(player, org, Power.PARDON)) {
+        // Discipline citizens is a Lord's: moderation of their citizens, with Prisoners and justice inside it. Anyone else who
+        // judges keeps a Justice button of their own, so neither costs an extra press.
+        boolean judges = holds(player, org, Power.ARREST) || holds(player, org, Power.JUDGE) || holds(player, org, Power.PARDON);
+        if (charter.moderation.LordRules.isLord(rt.state, me(player))) {
+            buttons.add(go(player, Text.get("book.order.title"), p -> DisciplinePages.page(p, null)).icon(BookIcons.JUSTICE));
+        } else if (judges) {
             buttons.add(go(player, Text.get("book.leader.justice"), p -> JusticePages.home(p, null)).icon(BookIcons.JUSTICE));
         }
         BookButton decides = null;
