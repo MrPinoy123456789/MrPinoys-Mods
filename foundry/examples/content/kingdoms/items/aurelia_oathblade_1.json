@@ -10,6 +10,7 @@
   ],
   "base_item": "minecraft:iron_sword",
   "texture": "kingdoms:item/aurelia_oathblade_1",
+  "held_model": "kingdoms:item/held/aurelia_oathblade_1",
   "stack_size": 1,
   "glint": true,
   "rarity": "uncommon",

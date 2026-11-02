@@ -641,6 +641,8 @@ public final class CoreSuite {
                     check(r.def().locked() && r.def().requirePermission().startsWith("race:"), name + " is locked to a race node");
                     check(r.def().keepOnDeath(), name + " stays with its owner on death");
                     balance(name, r.def());
+                    check(r.def().heldModel() != null && Files.isRegularFile(Path.of("examples/assets/kingdoms/models/item/held",
+                            name)), name + " has its 3D held model");
                     items++;
                 }
             }

@@ -10,6 +10,7 @@
   ],
   "base_item": "minecraft:breeze_rod",
   "texture": "kingdoms:item/everdelle_wand_2",
+  "held_model": "kingdoms:item/held/everdelle_wand_2",
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",

@@ -85,6 +85,9 @@ const content = has('--content') ? [
   ['/config/foundry/content/kingdoms/recipes', files(resolve(ex, 'content/kingdoms/recipes'), /\.json$/)],
   ['/config/foundry/content/demo/items', files(resolve(ex, 'content/demo/items'), /^fairy_wand.*\.json$/)],
   ['/config/foundry/assets/kingdoms/textures/item', files(resolve(ex, 'assets/kingdoms/textures/item'), /\.png$/)],
+  // the race weapons' 3D models (held_model) and their textures
+  ['/config/foundry/assets/kingdoms/models/item/held', files(resolve(ex, 'assets/kingdoms/models/item/held'), /\.json$/)],
+  ['/config/foundry/assets/kingdoms/textures/item/held', files(resolve(ex, 'assets/kingdoms/textures/item/held'), /\.png$/)],
   ['/config/foundry/assets/demo/textures/item', files(resolve(ex, 'assets/demo/textures/item'), /^fairy_wand.*\.png$/)],
 ] : []
 // --worn: the 3D worn trinket models, their textures (in the items atlas folder), the worn display placements and race traits, the

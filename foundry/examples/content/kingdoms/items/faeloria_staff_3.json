@@ -10,6 +10,7 @@
   ],
   "base_item": "minecraft:blaze_rod",
   "texture": "kingdoms:item/faeloria_staff_3",
+  "held_model": "kingdoms:item/held/faeloria_staff_3",
   "stack_size": 1,
   "glint": true,
   "rarity": "epic",

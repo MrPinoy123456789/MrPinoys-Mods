@@ -10,6 +10,7 @@
   ],
   "base_item": "minecraft:stone_pickaxe",
   "texture": "kingdoms:item/azrak_pick_3",
+  "held_model": "kingdoms:item/held/azrak_pick_3",
   "stack_size": 1,
   "glint": true,
   "rarity": "epic",

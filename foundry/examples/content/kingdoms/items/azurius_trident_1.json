@@ -10,6 +10,7 @@
   ],
   "base_item": "minecraft:bone",
   "texture": "kingdoms:item/azurius_trident_1",
+  "held_model": "kingdoms:item/held/azurius_trident_1",
   "stack_size": 1,
   "glint": true,
   "rarity": "uncommon",

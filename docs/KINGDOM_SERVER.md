@@ -47,6 +47,14 @@ both). Roles and tier I to III numbers:
   way it flies), `model_scale`, `spin` and `colour` (a dust trail). Bolt models use vanilla items for now (end rod,
   trident, pointed dripstone, spore blossom, nether star, feather) and reach Java players only, as Geyser cannot show
   item displays; Bedrock players see the particle trails and shapes.
+- 3D weapon models (`held_model`, a new item field): each weapon tier has its own model, drawn in the hand, on the
+  ground, in frames and on shelves, with the flat icon as the fallback. `foundry/tools/gen_weapon_models.py` builds them
+  (upright, then turned 45 degrees so the vanilla handheld poses fit) into `assets/kingdoms/models/item/held` and
+  `textures/item/held`, and redraws each 16 by 16 icon from its model, which Bedrock shows. The War Pick goes stone,
+  then steel with a blue rune, then netherite and gold; the Oathblade iron, then gold and ruby, then black and silver;
+  the Tide Trident copper banded, then gold banded with a pearl, then gold prongs and a sea gem; the Briarthorn Staff
+  holds a bud, then an amethyst, then a bloom; the Everdelle Wand a pink crystal star, then the star with small wings,
+  then a gold star. Preview sheet: `foundry/tools/previews/weapons.png`. `--content` uploads the held folders.
 
 - Each weapon has `require_permission` `race:<kingdom>`. Charter answers that node for members (`RaceNodes`), through
   the Fabric permission API. Ops pass the lock. A race mod can grant the same nodes later.

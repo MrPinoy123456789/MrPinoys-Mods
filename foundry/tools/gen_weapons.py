@@ -338,7 +338,8 @@ def main():
             else:
                 lore.append("Fully upgraded.")
             item = {"schema_version": 1, "id": item_id, "display_name": w["name"] + NUMERALS[t], "lore": lore,
-                    "base_item": w["base"], "texture": ident_texture(item_id), "stack_size": 1, "glint": True,
+                    "base_item": w["base"], "texture": ident_texture(item_id), "held_model": f"{ns}:item/held/{path}",
+                    "stack_size": 1, "glint": True,
                     "rarity": RARITY[t]}
             if w["damage"]:
                 item["attack_damage"] = w["damage"]
