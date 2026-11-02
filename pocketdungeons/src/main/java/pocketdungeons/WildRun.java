@@ -367,9 +367,10 @@ final class WildRun {
      * or starter tools, and no omen bar.
      */
     static void tick(MinecraftServer server, InstanceRecord record, long now, int interval) {
-        sweepMembers(server, record);
         WildState state = WildStore.state();
         WildState.Lodestone lodestone = state == null ? null : state.get(record.wildId);
+        adoptStrangers(server, record, state, lodestone);
+        sweepMembers(server, record);
         boolean running = lodestone == null || lodestone.phase == WildState.Phase.IN_PROGRESS;
         if (running && !record.members.isEmpty() && record.floor.completed.isEmpty()) {
             ServerLevel dungeon = server.getLevel(PocketDungeonsMod.DUNGEON_LEVEL);
@@ -416,6 +417,55 @@ final class WildRun {
             }
         }
         return false;
+    }
+
+    /**
+     * A player who is inside this dungeon's volume but is not a member of any record (an operator's teleport, a
+     * command, anything but the entrance block) joins it where they stand. Without this they would not count as inside:
+     * the clear check, the brood and finale fights and the Exit all work from the member list, so the dungeon could
+     * never end for them (owner, 2026-11-01). Their way out is the lodestone, as for a player who walked in.
+     */
+    static void adoptStrangers(MinecraftServer server, InstanceRecord record, WildState state,
+                               WildState.Lodestone lodestone) {
+        if (record.layout == null || record.tearingDown) {
+            return;
+        }
+        ServerLevel dungeon = WildReset.dungeonLevel(server, record.wildId);
+        if (dungeon == null) {
+            return;
+        }
+        net.minecraft.world.phys.AABB volume = record.layout.bounds().expandTowards(0.0, 96.0, 0.0)
+                .expandTowards(0.0, -8.0, 0.0);
+        for (ServerPlayer player : dungeon.players()) {
+            if (!player.isAlive() || player.isSpectator() || InstanceRegistry.byMember.containsKey(player.getUUID())
+                    || !volume.contains(player.position())) {
+                continue;
+            }
+            ReturnPoint back = returnPointFor(server, lodestone, player);
+            Instances.adoptInPlace(server, record, player, back);
+            if (state != null && lodestone != null) {
+                state.rememberPlayer(player.getUUID(), lodestone.id);
+                WildStore.save();
+            }
+            PocketDungeonsMod.LOG.info("{} was inside wild lodestone {} without entering; counted as a member",
+                    player.getName().getString(), record.wildId);
+        }
+    }
+
+    /** The block beside the lodestone (where an entering player came from), else the overworld spawn. */
+    private static ReturnPoint returnPointFor(MinecraftServer server, WildState.Lodestone lodestone,
+                                              ServerPlayer player) {
+        if (lodestone != null) {
+            for (ServerLevel candidate : server.getAllLevels()) {
+                if (WildLodestones.dimensionKey(candidate).equals(lodestone.dimension)) {
+                    return new ReturnPoint(candidate.dimension(),
+                            new Vec3(lodestone.x + 0.5, lodestone.y + 1.0, lodestone.z + 2.5), 0.0f, 0.0f);
+                }
+            }
+        }
+        net.minecraft.core.BlockPos spawn = server.overworld().getRespawnData().pos();
+        return new ReturnPoint(server.overworld().dimension(),
+                new Vec3(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5), 0.0f, 0.0f);
     }
 
     /** Drops members who are offline or no longer in the dungeon dimension; pulls anyone below the void guard back. */

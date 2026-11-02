@@ -66,6 +66,52 @@ public final class WildClearGameTest {
         return record;
     }
 
+    /** A player who is teleported into a wild dungeon (not through the entrance) still counts as inside it. */
+    @SuppressWarnings("removal")
+    @GameTest(maxTicks = 100)
+    public void aTeleportedPlayerIsAdoptedAsAMember(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        WildDungeons.loadFrom(server);
+        WildState.Lodestone lode = lodestone(level, "pocketdungeons:boiler_hall", "w-adopt", new BlockPos(5, 70, 5));
+        WildState state = new WildState();
+        state.add(lode);
+        WildStore.setForTesting(state);
+        WildMode.setActiveForTesting(true);
+        WildReset.setDungeonForTesting(lode.id, level);
+        InstanceRecord record = null;
+        try {
+            record = stamp(helper, lode, 40);
+            lode.markInProgress();
+            ServerPlayer inside = helper.makeMockServerPlayerInLevel();
+            ServerPlayer outside = helper.makeMockServerPlayerInLevel();
+            BlockPos entrance = record.layout.entrance();
+            inside.teleportTo(level, entrance.getX() + 0.5, entrance.getY(), entrance.getZ() + 0.5, Set.of(), 0F, 0F,
+                    false);
+            outside.teleportTo(level, entrance.getX() + 5000.5, entrance.getY(), entrance.getZ() + 0.5, Set.of(), 0F, 0F,
+                    false);
+            helper.assertTrue(record.members.isEmpty(), "nobody is a member yet");
+
+            WildRun.adoptStrangers(server, record, state, lode);
+
+            helper.assertTrue(record.members.containsKey(inside.getUUID()), "the teleported player is a member");
+            helper.assertTrue(InstanceRegistry.byMember.get(inside.getUUID()) == record, "and is registered inside");
+            helper.assertTrue(!record.members.containsKey(outside.getUUID()), "a player far from the dungeon is not");
+            helper.assertValueEqual(state.lastLodestoneOf(inside.getUUID()), lode.id, "their way out is the lodestone");
+            ReturnPoint back = record.members.get(inside.getUUID());
+            helper.assertTrue(back.pos().distanceTo(net.minecraft.world.phys.Vec3.atCenterOf(entrance)) > 100.0,
+                    "their return point is not a spot inside the dungeon");
+            WildRun.adoptStrangers(server, record, state, lode);
+            helper.assertValueEqual(record.members.size(), 1, "a second pass adds nobody and drops nobody");
+        } finally {
+            WildReset.setDungeonForTesting(lode.id, null);
+            WildStore.setForTesting(null);
+            WildMode.setActiveForTesting(null);
+            cleanUp(level, record);
+        }
+        helper.succeed();
+    }
+
     /** A clear pays the floor chests, places the clear Exit, starts the cooldown and reaches the currency sink once. */
     @SuppressWarnings("removal")
     @GameTest(maxTicks = 600)

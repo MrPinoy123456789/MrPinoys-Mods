@@ -554,6 +554,20 @@ final class Instances {
     }
 
     /**
+     * Makes a player who is already standing in a dungeon a member of its record, without moving them (a wild
+     * dungeon reached by an operator's teleport, or any way other than the entrance block). The return point is the
+     * one the caller gives, since the player's own position here is no place to come back to.
+     */
+    static void adoptInPlace(MinecraftServer server, InstanceRecord record, ServerPlayer player, ReturnPoint back) {
+        record.members.put(player.getUUID(), back);
+        InstanceRegistry.byMember.put(player.getUUID(), record);
+        pendingReturns.remove(player.getUUID());
+        Terminal.crewChanged(server, record);
+        applyTrialOmen(player, record);
+        OmenBar.sync(server, record);
+    }
+
+    /**
      * Whether {@link #admit} lands a member in the staging room rather than
      * at the layout's entrance: true between floors, when the layout is still
      * the floor just cleared and its entrance is behind the party.
