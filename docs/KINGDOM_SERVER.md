@@ -41,7 +41,10 @@ both). Roles and tier I to III numbers:
 - Enchanting (2026-11-02). Items take a new `enchantable` field (`value`, the enchanting table's enchantability, and
   `as`, the item tags they join, written into the generated data pack). The War Pick, Oathblade and Tide Trident join
   `minecraft:enchantable/melee_weapon`, so they take Sharpness, Smite, Bane of Arthropods, Knockback, Looting and Fire
-  Aspect at the table and the anvil (enchantability 10, 12, 15 by tier). The staves and wands join
+  Aspect at the table and the anvil (enchantability 10, 12, 15 by tier). They also join `excellentenchants:swords_axes`,
+  so with the Excellent Enchants mod installed they take its weapon enchantments too (Decapitator, Ice Aspect,
+  Thrifty, Thunder, Venom, Wisdom, Wither), which work on them because it reads the attacker's weapon on each hit.
+  The staves and wands are left out of that tag on purpose: Excellent Enchants would fire on every bolt and area hit. The staves and wands join
   `foundry:enchantable/magic` and take Foundry's own three, defined as data pack enchantments in the Foundry jar
   (`data/foundry/enchantment`), which nothing else takes:
 

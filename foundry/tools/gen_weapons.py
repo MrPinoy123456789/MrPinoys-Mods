@@ -345,8 +345,11 @@ def main():
             if w["damage"]:
                 item["attack_damage"] = w["damage"]
                 item["attack_speed"] = w["speed"]
-                # the vanilla melee enchantments: Sharpness, Smite, Bane of Arthropods, Knockback, Looting, Fire Aspect
-                item["enchantable"] = {"value": [10, 12, 15][t], "as": ["minecraft:enchantable/melee_weapon"]}
+                # the vanilla melee enchantments (Sharpness, Smite, Bane of Arthropods, Knockback, Looting, Fire Aspect) and
+                # Excellent Enchants' weapon ones (Decapitator, Ice Aspect, Thrifty, Thunder, Venom, Wisdom, Wither); the
+                # second tag only matters when Excellent Enchants is installed, and is harmless when it is not
+                item["enchantable"] = {"value": [10, 12, 15][t],
+                                       "as": ["minecraft:enchantable/melee_weapon", "excellentenchants:swords_axes"]}
             else:
                 # the magic weapons' own: Spellpower, Quickcast and Potency (foundry/src/main/resources/data/foundry)
                 item["enchantable"] = {"value": [10, 12, 15][t], "as": ["foundry:enchantable/magic"]}

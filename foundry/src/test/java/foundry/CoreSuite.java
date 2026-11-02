@@ -611,6 +611,9 @@ public final class CoreSuite {
             check(melee != null && melee.contains("kingdoms:azrak_pick_1") && melee.contains("kingdoms:aurelia_oathblade_3")
                     && melee.contains("kingdoms:azurius_trident_2") && !melee.contains("staff") && melee.contains("\"replace\":false"),
                     "the melee weapons join the melee weapon enchanting tag, adding to it");
+            String excellent = tags.get("data/excellentenchants/tags/item/swords_axes.json");
+            check(excellent != null && excellent.contains("kingdoms:azurius_trident_1") && !excellent.contains("wand")
+                    && !excellent.contains("staff"), "the melee weapons, and only they, take Excellent Enchants' weapon enchantments");
             check(magic != null && magic.contains("kingdoms:faeloria_staff_1") && magic.contains("kingdoms:everdelle_wand_3")
                     && !magic.contains("pick"), "the staves and wands join Foundry's magic enchanting tag");
         } catch (Exception e) {
