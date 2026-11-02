@@ -71,6 +71,18 @@ public final class Wings {
         }
     }
 
+    /**
+     * True for a Fairy (server side) gliding with no real glider equipped in any slot: nothing to wear down, so the
+     * LivingEntityGlide mixin does the glide tick itself instead of vanilla's, which would fail picking from no gliders.
+     */
+    public static boolean glidesByRaceOnly(net.minecraft.world.entity.LivingEntity entity) {
+        if (!(entity instanceof ServerPlayer player) || !WINGED.contains(player.getUUID())) return false;
+        for (EquipmentSlot slot : EquipmentSlot.VALUES) {
+            if (net.minecraft.world.entity.LivingEntity.canGlideUsing(player.getItemBySlot(slot), slot)) return false;
+        }
+        return true;
+    }
+
     /** Whether a player's own client should be shown the stand in elytra. Pure, so it can be tested. */
     public static boolean standInWanted(boolean bedrock, boolean winged, boolean chestEmpty, boolean alive) {
         return bedrock && winged && chestEmpty && alive;

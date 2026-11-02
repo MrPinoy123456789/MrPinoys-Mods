@@ -416,6 +416,38 @@ public final class WornGameTest {
         });
     }
 
+    /**
+     * A Fairy gliding by race reaches vanilla's once a second glider wear tick with no glider equipped; vanilla picked a
+     * random glider slot from an empty list there ("Bound must be positive") and the player was kicked. The tick must
+     * pass with the Fairy still gliding and nothing thrown, and with a real elytra on, vanilla's wear still applies.
+     */
+    @GameTest(maxTicks = 60)
+    public void aFairyGlidingByRaceSurvivesTheGliderWearTick(GameTestHelper helper) {
+        ServerPlayer fairy = player(helper, "race:everdelle");
+        helper.runAfterDelay(25, () -> {
+            fairy.setOnGround(false);
+            helper.assertTrue(fairy.tryToStartFallFlying(), "The Fairy could not start gliding");
+            helper.assertTrue(foundry.mc.Wings.glidesByRaceOnly(fairy), "A Fairy with nothing equipped should glide by race only");
+            try {
+                var ticks = net.minecraft.world.entity.LivingEntity.class.getDeclaredField("fallFlyTicks");
+                ticks.setAccessible(true);
+                for (int wear : new int[] {19, 39}) {
+                    ticks.setInt(fairy, wear);
+                    fairy.setOnGround(false);
+                    fairy.aiStep();
+                }
+            } catch (ReflectiveOperationException e) {
+                throw new AssertionError("Cannot reach fallFlyTicks: " + e);
+            }
+            helper.assertTrue(fairy.isFallFlying(), "The Fairy stopped gliding at the wear tick");
+            ItemStack elytra = new ItemStack(net.minecraft.world.item.Items.ELYTRA);
+            fairy.setItemSlot(EquipmentSlot.CHEST, elytra);
+            helper.assertFalse(foundry.mc.Wings.glidesByRaceOnly(fairy), "With a real elytra on, vanilla's glide tick should run");
+            fairy.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
+            helper.succeed();
+        });
+    }
+
     /** The trinket items are retired: they cannot go in a trinket slot, and anything left in one is cleared. */
     @GameTest(maxTicks = 60)
     public void trinketsAreLockedAway(GameTestHelper helper) {
