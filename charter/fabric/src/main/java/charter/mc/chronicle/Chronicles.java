@@ -103,6 +103,8 @@ public final class Chronicles {
             if (chunk == null) continue;
             for (BlockEntity be : new ArrayList<>(chunk.getBlockEntities().values())) {
                 if (!(be instanceof LecternBlockEntity lectern)) continue;
+                // A Charter terminal opens the menu when clicked, so a Chronicle on it could never be read.
+                if (charter.mc.terminal.Terminals.isTerminal(level, lectern.getBlockPos())) continue;
                 ChronicleBooks.Volume volume = factions.computeIfAbsent(core.owner,
                         o -> ChronicleBooks.faction(rt.state, templates, admin, o, 1));
                 if (install(level, lectern, "org:" + core.owner.value(), volume)) replaced++;

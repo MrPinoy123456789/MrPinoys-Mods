@@ -57,6 +57,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.discord.DiscordBridge.register();
         // Teleport pads: walk onto one in the spawn town to go to your keep, for players who cannot type.
         charter.mc.pad.Pads.register();
+        // Terminals: right-click one (a lectern, a keep's Nexus) to open the Charter menu without the book.
+        charter.mc.terminal.Terminals.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }

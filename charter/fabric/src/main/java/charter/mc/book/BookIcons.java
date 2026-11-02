@@ -31,6 +31,7 @@ public final class BookIcons {
     public static final String LEAVE = "textures/items/door_wood";
     public static final String YES = "textures/items/emerald";
     public static final String NO = "textures/items/barrier";
+    public static final String NEW_BOOK = "textures/items/book_writable";
 
     private BookIcons() {
     }

@@ -110,6 +110,16 @@ public final class Knobs {
     public boolean padParticles = true;
     /** Whether a pad chimes when a player steps on it and a pad trip makes a sound on arrival. */
     public boolean padSounds = true;
+    /** Whether Charter terminals (blocks that open the Charter menu when right-clicked) show a few quiet sparks. */
+    public boolean terminalCues = true;
+    /** Whether founding or moving a keep puts a lectern terminal beside its Nexus. */
+    public boolean keepTerminals = true;
+    /** Who is handed the Charter book automatically: "everyone", "newcomers" (no kingdom and no race) or "none". */
+    public String bookGivenTo = "everyone";
+    /** Minutes a lifted Nexus lodestone may be carried before it goes back to where it stood. */
+    public int nexusLiftMinutes = 10;
+    /** Seconds a lifted Nexus waits for its carrier to come back after logging out before it goes back (0: at once). */
+    public int nexusLiftLogoutSeconds = 0;
 
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
@@ -325,6 +335,11 @@ public final class Knobs {
         if (voteDurationHours < 1) out.add("voteDurationHours must be at least 1.");
         if (keepRadiusChunks < 1) out.add("keepRadiusChunks must be at least 1.");
         if (spawnRules == null) out.add("spawnRules must be a section of rules, not null.");
+        if (bookGivenTo == null || !List.of("everyone", "newcomers", "none").contains(bookGivenTo.trim().toLowerCase(java.util.Locale.ROOT))) {
+            out.add("bookGivenTo must be everyone, newcomers or none.");
+        }
+        if (nexusLiftMinutes < 1) out.add("nexusLiftMinutes must be at least 1.");
+        if (nexusLiftLogoutSeconds < 0) out.add("nexusLiftLogoutSeconds must not be negative.");
         return out;
     }
 }

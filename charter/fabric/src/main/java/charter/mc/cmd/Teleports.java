@@ -53,7 +53,11 @@ public final class Teleports {
     private record Pending(Kind kind, Vec3 start, int ticksLeft, float health, int total, ServerBossEvent bar) {
     }
 
-    private record Dest(ServerLevel level, double x, double y, double z, CoreId outpost) {
+    /** Where a journey ends. {@code note} is a lang key said on arrival, or null. */
+    private record Dest(ServerLevel level, double x, double y, double z, CoreId outpost, String note) {
+        Dest(ServerLevel level, double x, double y, double z, CoreId outpost) {
+            this(level, x, y, z, outpost, null);
+        }
     }
 
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
@@ -178,6 +182,7 @@ public final class Teleports {
         String done = Text.get("teleport.done." + kind.name().toLowerCase(java.util.Locale.ROOT));
         player.sendSystemMessage(Chat.good(done));
         Cues.actionBar(player, done, ChatFormatting.GREEN);
+        if (dest.note() != null) player.sendSystemMessage(Chat.line(Text.get(dest.note())));
         Cues.arrive(player);
         return null;
     }
@@ -271,12 +276,29 @@ public final class Teleports {
     private static Object site(ServerPlayer player, Core core, Fixtures.Kind kind, CoreId outpost, boolean cheap) {
         CharterRuntime rt = CharterServer.runtime();
         Fixtures.Fixture fixture = Fixtures.of(rt.state).first(core.id, kind);
+        if (fixture == null && kind == Fixtures.Kind.NEXUS && charter.mc.land.NexusLift.lifted(core.id)) return liftedKeep(player, core, cheap);
         if (fixture == null) return no("teleport.nowhere");
         ServerLevel level = levelOf(player, fixture.dimension());
         if (level == null) return no("teleport.nowhere");
         if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return no("teleport.other_dimension");
         if (!cheap) level.getChunk(fixture.x() >> 4, fixture.z() >> 4);
         return new Dest(level, fixture.x() + 0.5, fixture.y() + 1.0, fixture.z() + 0.5, outpost);
+    }
+
+    /**
+     * A keep whose lodestone is being carried to a new spot: the journey ends at the top of the middle of the keep's core
+     * chunk instead, and the arrival line says why.
+     */
+    private static Object liftedKeep(ServerPlayer player, Core keep, boolean cheap) {
+        ServerLevel level = levelOf(player, keep.center.dimension());
+        if (level == null) return no("teleport.nowhere");
+        if (!Protection.dimension(level).equals(Protection.dimension(player.level()))) return no("teleport.other_dimension");
+        int x = keep.center.x() * 16 + 8;
+        int z = keep.center.z() * 16 + 8;
+        if (cheap) return new Dest(level, x + 0.5, player.getY(), z + 0.5, null, "nexus_lift.arrive_middle");
+        level.getChunk(x >> 4, z >> 4);
+        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        return new Dest(level, x + 0.5, y, z + 0.5, null, "nexus_lift.arrive_middle");
     }
 
     private static ServerLevel levelOf(ServerPlayer player, String dimension) {

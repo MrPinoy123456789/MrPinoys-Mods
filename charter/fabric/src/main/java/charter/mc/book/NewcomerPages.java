@@ -75,6 +75,20 @@ public final class NewcomerPages {
         Optional<OrgId> race = rt.state.raceOf(me(player));
         if (race.isPresent()) line += " " + Text.get("book.merc.status", "race", rt.state.raceLabel(race.get()));
         body.add(BookDialogs.text(line));
+        List<BookButton> buttons = homeButtons(player);
+        // A copy of the book to carry, just before More, when Home has room; otherwise it waits under More.
+        if (buttons.size() < BookScreen.MAX_BUTTONS) buttons.add(buttons.size() - 1, MorePages.newBook(player, NewcomerPages::home));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.newcomer.title"), lines(notice, body), buttons, BookDialogs.close()));
+    }
+
+    /** Whether the newcomer Home has room for "Get a new Charter book" (else it is under More). */
+    static boolean bookOnHome(ServerPlayer player) {
+        return homeButtons(player).size() < BookScreen.MAX_BUTTONS;
+    }
+
+    /** Every button of the newcomer Home but the new book one, More last. */
+    private static List<BookButton> homeButtons(ServerPlayer player) {
+        CharterRuntime rt = rt();
         // Travel first, as on a member's Home; a newcomer has no keep or outpost to go to.
         List<BookButton> buttons = new ArrayList<>(TravelButtons.of(player, false, NewcomerPages::home));
         // An invitation is accepted here: the chat link for it cannot be clicked on Bedrock.
@@ -89,7 +103,7 @@ public final class NewcomerPages {
         // While the operators set the kingdoms, there is no founding to walk a newcomer through.
         if (rt.knobs.playerFounding) buttons.add(go(player, Text.get("book.button.found"), p -> found(p, null)).icon(BookIcons.KEEP));
         buttons.add(go(player, Text.get("book.button.more"), p -> more(p, null)).icon(BookIcons.MORE));
-        BookDialogs.show(player, BookDialogs.list(Text.get("book.newcomer.title"), lines(notice, body), buttons, BookDialogs.close()));
+        return buttons;
     }
 
     /** A newcomer's More: the Realm Chronicle, the calendar, the glossary. */

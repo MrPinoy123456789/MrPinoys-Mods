@@ -50,6 +50,8 @@ public final class Placement {
         if (level.isClientSide() || !CharterServer.running()) return original.get();
         BlockPos pos = ctx.getClickedPos();
         var player = ctx.getPlayer();
+        // A lifted Nexus answers for itself: only inside its own keep, and an operator may set down any kingdom's.
+        if (player instanceof ServerPlayer lifter && NexusLift.isLiftedItem(ctx.getItemInHand())) return NexusLift.place(ctx, lifter, original);
         if (player != null && !Protection.mayAct(player, level, pos)) {
             Protection.deny(player, level, pos);
             return InteractionResult.FAIL;
@@ -116,6 +118,8 @@ public final class Placement {
         Core core = rt.state.claimAt(chunk).flatMap(c -> rt.state.core(c.core())).orElseThrow();
         Fixtures.of(rt.state).add(new Fixtures.Fixture(Fixtures.Kind.NEXUS, Protection.dimension(level),
                 pos.getX(), pos.getY(), pos.getZ(), core.id));
+        // A founded or moved keep gets a lectern terminal beside its Nexus (the keepTerminals knob).
+        if (core.isKeep()) charter.mc.terminal.Terminals.placeBeside(rt, level, pos, core.id);
     }
 
     private static String plantCamp(ServerPlayer player, Level level, BlockPos pos) {
@@ -188,7 +192,8 @@ public final class Placement {
         }
         switch (fixture.kind()) {
             case NEXUS -> {
-                player.sendSystemMessage(Component.literal(Text.get("land.nexus_unbreakable")).withStyle(ChatFormatting.RED), true);
+                // The vanilla break never happens (no plain lodestone drops): the Lord's mining lifts it as a bound item.
+                NexusLift.tryLift(player, level, pos, fixture, core);
                 return false;
             }
             case BANNER -> {
@@ -222,6 +227,8 @@ public final class Placement {
     public static void onHistory(charter.history.History.Entry entry) {
         if (entry.event() instanceof LandEvents.CoreLost lost && CharterServer.running()) {
             Fixtures.of(CharterServer.runtime().state).removeCore(lost.core());
+            // Its terminal is forgotten; the lectern stays as a plain block.
+            charter.mc.terminal.Terminals.dropKeep(CharterServer.server(), lost.core(), false);
         }
     }
 }
