@@ -57,6 +57,14 @@ final class DungeonLight {
             "thicket", "ice_run");
 
     /**
+     * Whether a room's content id is a lever Ordeal. A room with no content is not one; asking the set
+     * itself about null throws, which stopped a wild deep_quarry with Blackout from stamping at all.
+     */
+    static boolean isLeverOrdeal(String content) {
+        return content != null && LEVER_ORDEAL_CONTENT.contains(content);
+    }
+
+    /**
      * Blackout: the cells whose lights go out. Eligible cells are every cell but the entrance and the
      * terminal, and not one {@code keepLit} names (a room that {@code requiresLight}, a lever Ordeal);
      * {@code fraction} of them (rounded, at least one while
