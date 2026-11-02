@@ -575,6 +575,30 @@ public final class WornGameTest {
         });
     }
 
+    /**
+     * Bedrock players see the race looks in the skin (BedrockLooks): every scan records which looks a player wears that
+     * the jar has Bedrock bones for, and taking the race away clears it. The jar's looks load (no Geyser here).
+     */
+    @GameTest(maxTicks = 100)
+    public void bedrockSkinsKnowEachPlayersLook(GameTestHelper helper) {
+        ServerPlayer dwarf = player(helper, "race:azrak");
+        ServerPlayer mer = player(helper, "race:azurius");
+        helper.assertTrue(foundry.mc.BedrockLooks.pieces().size() == 4, "The jar's Bedrock looks did not load: "
+                + foundry.mc.BedrockLooks.pieces().keySet());
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.BedrockLooks.worn(dwarf.getUUID()).equals(java.util.List.of("kingdoms:dwarf_beard")),
+                    "A Dwarf's Bedrock look is not the beard: " + foundry.mc.BedrockLooks.worn(dwarf.getUUID()));
+            helper.assertTrue(foundry.mc.BedrockLooks.worn(mer.getUUID()).equals(java.util.List.of("kingdoms:merfolk_fins")),
+                    "A Merfolk's Bedrock look should be the fin ears: " + foundry.mc.BedrockLooks.worn(mer.getUUID()));
+            TestPerms.revoke(dwarf, "race:azrak");
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue(foundry.mc.BedrockLooks.worn(dwarf.getUUID()).isEmpty(),
+                        "The beard stayed in the Bedrock skin after the race went");
+                helper.succeed();
+            });
+        });
+    }
+
     /** Only a race with a double jump gets one. */
     @GameTest(maxTicks = 40)
     public void onlyTheFaeDoubleJump(GameTestHelper helper) {

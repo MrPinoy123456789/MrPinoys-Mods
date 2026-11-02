@@ -166,6 +166,7 @@ public final class FoundryMod implements ModInitializer {
             Wings.tick(server);
             DoubleJump.tick(server);
             SwimDash.tick(server);
+            BedrockLooks.tick(server);
             if (WornItems.trinkets() && server.getTickCount() % WornDisplays.SCAN_EVERY == 0) {
                 // Trinkets are locked away for now: anything still in a trinket slot is cleared (the race looks and
                 // traits are automatic, and the old items cannot be equipped any more).
@@ -185,10 +186,12 @@ public final class FoundryMod implements ModInitializer {
             Wings.clear();
             DoubleJump.clear();
             SwimDash.clear();
+            BedrockLooks.clear();
         });
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 { Charging.forget(handler.getPlayer().getUUID()); Wings.forget(handler.getPlayer().getUUID());
-                  DoubleJump.forget(handler.getPlayer().getUUID()); SwimDash.forget(handler.getPlayer().getUUID()); });
+                  DoubleJump.forget(handler.getPlayer().getUUID()); SwimDash.forget(handler.getPlayer().getUUID());
+                  BedrockLooks.forget(handler.getPlayer().getUUID()); });
         PackBuilds.markBaseline();
         LOG.info("Foundry: {} items registered, {} problems", FoundryItems.all().size(), set.problems().size());
     }

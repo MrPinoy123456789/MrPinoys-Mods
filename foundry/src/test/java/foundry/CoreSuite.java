@@ -33,6 +33,7 @@ public final class CoreSuite {
         weaponTiers();
         itemLocks();
         bonuses();
+        bedrockSkins();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -197,6 +198,75 @@ public final class CoreSuite {
             check(loaded.problems().stream().anyMatch(foundry.core.Problem::blocking), "and the duplicate is reported");
         } catch (java.io.IOException e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    /** The race looks added to Bedrock skins: the composed image, the geometry and the looks the jar carries. */
+    private static void bedrockSkins() throws Exception {
+        var humanoid = resourceJson("humanoid.json").getAsJsonObject();
+        check(humanoid.getAsJsonArray("wide").size() == 16 && humanoid.getAsJsonArray("slim").size() == 16,
+                "the jar has the standard wide and slim humanoid bones");
+        var looks = resourceJson("looks.json").getAsJsonArray();
+        check(looks.size() == 4, "the jar has Bedrock bones for the four head looks, has " + looks.size());
+        for (var e : looks) {
+            String name = e.getAsString().substring(e.getAsString().indexOf(':') + 1);
+            var look = resourceJson(name + ".json").getAsJsonObject();
+            int tw = look.getAsJsonArray("texture_size").get(0).getAsInt(), th = look.getAsJsonArray("texture_size").get(1).getAsInt();
+            boolean inside = tw <= 64 && th <= 64;
+            for (var c : look.getAsJsonArray("bones").get(0).getAsJsonObject().getAsJsonArray("cubes")) {
+                for (var f : c.getAsJsonObject().getAsJsonObject("uv").entrySet()) {
+                    var uv = f.getValue().getAsJsonObject().getAsJsonArray("uv");
+                    var size = f.getValue().getAsJsonObject().getAsJsonArray("uv_size");
+                    inside &= uv.get(0).getAsInt() >= 0 && uv.get(1).getAsInt() >= 0
+                            && uv.get(0).getAsInt() + size.get(0).getAsInt() <= tw && uv.get(1).getAsInt() + size.get(1).getAsInt() <= th;
+                }
+            }
+            check(inside, name + ": its Bedrock texture fits a quarter of the skin and every face's uv is inside it");
+            check("head".equals(look.getAsJsonArray("bones").get(0).getAsJsonObject().get("parent").getAsString()),
+                    name + " hangs from the head bone");
+        }
+        byte[] skin = new byte[64 * 64 * 4];
+        skin[0] = 10; skin[1] = 20; skin[2] = 30; skin[3] = (byte) 255;
+        var bones = new com.google.gson.JsonArray();
+        bones.add(com.google.gson.JsonParser.parseString(
+                "{\"name\":\"foundry_x\",\"parent\":\"head\",\"pivot\":[0,24,0],\"cubes\":[{\"origin\":[0,24,0],\"size\":[1,1,1],"
+                        + "\"uv\":{\"north\":{\"uv\":[2,3],\"uv_size\":[1,1]}}}]}"));
+        int[] argb = new int[4 * 4];
+        argb[0] = 0xff112233;
+        var piece = new foundry.core.BedrockSkin.Piece("kingdoms:dwarf_beard", bones, 4, 4, argb);
+        var made = foundry.core.BedrockSkin.make(skin, "http://textures/abc", false, humanoid, java.util.List.of(piece));
+        check(made != null && made.rgba().length == 128 * 128 * 4, "a 64 by 64 skin becomes 128 by 128");
+        check(made.rgba()[0] == 10 && made.rgba()[1] == 20 && made.rgba()[2] == 30, "the original skin stays in the top left");
+        int at = 64 * 4;
+        check((made.rgba()[at] & 0xff) == 0x11 && (made.rgba()[at + 3] & 0xff) == 0xff, "the look's texture goes in the top right quarter");
+        var geo = com.google.gson.JsonParser.parseString(made.geometryData()).getAsJsonObject().getAsJsonArray("minecraft:geometry")
+                .get(0).getAsJsonObject();
+        check(geo.getAsJsonArray("bones").size() == 17 && geo.getAsJsonObject("description").get("texture_width").getAsInt() == 128,
+                "the geometry is the 16 humanoid bones plus the look's, on a 128 texture");
+        var uv = geo.getAsJsonArray("bones").get(16).getAsJsonObject().getAsJsonArray("cubes").get(0).getAsJsonObject()
+                .getAsJsonObject("uv").getAsJsonObject("north").getAsJsonArray("uv");
+        check(uv.get(0).getAsInt() == 66 && uv.get(1).getAsInt() == 3, "the look's uvs move to its quarter");
+        check(made.geometryName().contains(geo.getAsJsonObject("description").get("identifier").getAsString()),
+                "the geometry name points at the geometry");
+        check(made.id().startsWith("foundry:dwarf_beard:") && made.id().endsWith("http://textures/abc"),
+                "the new skin's id is unique to the look and the skin, so a client never shows its cached plain skin");
+        check(!foundry.core.BedrockSkin.make(skin, "a", true, humanoid, java.util.List.of(piece)).geometryData()
+                .equals(made.geometryData()), "a slim skin gets the slim bones");
+        check(foundry.core.BedrockSkin.make(new byte[64 * 32 * 4], "a", false, humanoid, java.util.List.of(piece)) != null,
+                "an old style 64 by 32 skin is widened and dressed");
+        check(foundry.core.BedrockSkin.make(new byte[128 * 128 * 4], "a", false, humanoid, java.util.List.of(piece)) == null,
+                "a skin already 128 by 128 is left alone (no room for the look)");
+        check(foundry.core.BedrockSkin.make(skin, "a", false, humanoid, java.util.List.of()) == null, "no look, no change");
+        check(foundry.core.BedrockSkin.plain("{\"geometry\":{\"default\":\"geometry.humanoid.custom\"}}")
+                && foundry.core.BedrockSkin.plain("{\"geometry\":{\"default\":\"geometry.humanoid.customSlim\"}}")
+                && !foundry.core.BedrockSkin.plain("{\"geometry\":{\"default\":\"geometry.persona_abc\"}}"),
+                "a plain classic or slim Bedrock skin is dressed, a persona skin is left alone");
+    }
+
+    private static com.google.gson.JsonElement resourceJson(String name) throws Exception {
+        try (var in = CoreSuite.class.getResourceAsStream("/foundry/bedrock/" + name)) {
+            if (in == null) throw new AssertionError("missing resource foundry/bedrock/" + name);
+            return com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 

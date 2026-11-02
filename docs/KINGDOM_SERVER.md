@@ -271,6 +271,21 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   `textures/item/worn/kingdom_cape.png`. It swings back the way vanilla's cape layer swings (6 degrees at rest, more as it
   trails a player moving forward or falling, 25 more crouching). It is a display, not the client's own cape: a server
   cannot give a vanilla player a real cape, which comes signed from Mojang's profile servers.
+- **Bedrock skins (2026-11-01, prototype, unverified on a Bedrock client).** Bedrock players now see the head looks
+  (beard, antlers with wreath, fin ears, the old blue hat) as part of the wearer's skin. Foundry hooks Geyser's
+  `SessionSkinApplyEvent` (`foundry.mc.GeyserSkins`, the only class that touches Geyser's API, loaded only when Geyser is
+  installed; compiled against `org.geysermc.geyser:api:2.12.1-SNAPSHOT`, never shaded). Whenever Geyser sends a player's
+  skin to a Bedrock player, the skin grows to 128 by 128 with the original in the top left quarter, the look's texture
+  goes in another quarter, and the standard humanoid bones get the look's bones (`foundry.core.BedrockSkin`). The new skin
+  id is unique to the look, so a client never shows its cached plain skin. A race change pushes the new skin to every
+  Bedrock player at once (`GeyserConnection.sendSkin`). Java players always get the look; a Bedrock player only when their
+  own skin is the plain classic or slim shape (a persona skin is left alone), and a skin already 128 by 128 has no room
+  and is left alone. The bones and textures are in the jar (`foundry/bedrock`), written from the Java worn models by
+  `foundry/tools/gen_bedrock_looks.py` (run after `gen_trinket_models.py`). Not yet: the back looks (both kinds of wings,
+  the banner, the dorsal fin), which come once the head looks are confirmed. To confirm on a Bedrock client: the beard and
+  hat sit on the head and follow it; the hat's feather is on the wearer's left and curves back (if it is on the right, or
+  faces are mirrored, flip `MIRROR_FACES` or `ROTATION_SIGN` in the generator); the hook logs "race looks will be added
+  to skins for Bedrock players" once Geyser is up.
 - **Bedrock.** Nothing is drawn, on purpose: the live log showed Geyser throwing `Missing ID 73 in Java registry minecraft:entity_type` for every item display it was sent (it cannot translate `item_display` on 26.3), so `WornDisplays` never sends displays to a Floodgate player (UUID high half zero). Geyser (current master) lists `text_display` as required entity metadata but
   `item_display` and `block_display` as not required, so Polymer's item displays are almost certainly not translated;
   I found no Geyser option to attach a worn model to a player either. The trinket itself still works for Bedrock
