@@ -558,7 +558,15 @@ public final class SpawnRules {
     /** Behind the portal mixin: no nether portal is built in spawn by a player arriving from the Nether. */
     public static boolean refusesPortal(Level level, BlockPos pos) {
         SpawnRuleSet r = live();
-        return r != null && r.spawnNoPortalCreation && inSpawn(level, pos);
+        if (r == null || !r.spawnNoPortalCreation) return false;
+        // The game may build the frame anywhere within 16 blocks of the spot it asks about. Points 16 apart across that
+        // square meet every chunk it touches, so a frame can never land in the spawn from a spot just outside it.
+        for (int dx = -16; dx <= 16; dx += 16) {
+            for (int dz = -16; dz <= 16; dz += 16) {
+                if (inSpawn(level, pos.getX() + dx, pos.getZ() + dz)) return true;
+            }
+        }
+        return false;
     }
 
     /** Behind the block state mixin: a projectile hitting a block in spawn leaves it as it is, unless an operator shot it. */

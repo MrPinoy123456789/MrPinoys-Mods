@@ -527,6 +527,126 @@ public final class SpawnRulesGameTest {
     }
 
     @GameTest(maxTicks = 100)
+    public void pistonsDispensersAndHoppersDoNotCrossTheSpawnBorder(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = spawnOf(kit, "Seal");
+            try {
+                // A piston just outside whose head would land in the spawn's air, and one in the open.
+                BlockPos edge = kit.pos(-1, 5);
+                BlockPos open = kit.pos(-12, 5);
+                for (BlockPos p : new BlockPos[]{edge, open}) {
+                    kit.level.setBlockAndUpdate(p, Blocks.PISTON.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.piston.PistonBaseBlock.FACING, Direction.EAST));
+                }
+                helper.assertTrue(!charter.mc.land.Hazards.pistonMayMove(kit.level, edge, Direction.EAST, true),
+                        "A piston head could reach into the spawn");
+                helper.assertTrue(charter.mc.land.Hazards.pistonMayMove(kit.level, open, Direction.EAST, true),
+                        "A piston in the open could not move, so the test proves nothing");
+                // A piston inside pushing out is held too.
+                helper.assertTrue(!charter.mc.land.Hazards.pistonMayMove(kit.level, kit.pos(0, 5), Direction.WEST, true),
+                        "A piston head could reach out of the spawn");
+
+                helper.assertTrue(charter.mc.land.Protection.crossesIntoGuarded(kit.level, kit.pos(0, 6), kit.pos(-1, 6)),
+                        "A dispenser inside the spawn could put something outside it");
+
+                BlockPos from = kit.pos(-1, -5);
+                BlockPos to = kit.pos(0, -5);
+                BlockPos freeFrom = kit.pos(-4, -5);
+                BlockPos freeTo = kit.pos(-3, -5);
+                for (BlockPos p : new BlockPos[]{from, to, freeFrom, freeTo}) kit.level.setBlockAndUpdate(p, Blocks.CHEST.defaultBlockState());
+                var source = (net.minecraft.world.Container) kit.level.getBlockEntity(from);
+                var dest = (net.minecraft.world.Container) kit.level.getBlockEntity(to);
+                ItemStack back = net.minecraft.world.level.block.entity.HopperBlockEntity.addItem(source, dest, new ItemStack(Items.BREAD, 4), Direction.EAST);
+                helper.assertTrue(back.getCount() == 4 && dest.isEmpty(), "Items crossed the spawn's border container to container");
+                var freeDest = (net.minecraft.world.Container) kit.level.getBlockEntity(freeTo);
+                net.minecraft.world.level.block.entity.HopperBlockEntity.addItem((net.minecraft.world.Container) kit.level.getBlockEntity(freeFrom),
+                        freeDest, new ItemStack(Items.BREAD, 4), Direction.EAST);
+                helper.assertTrue(freeDest.countItem(Items.BREAD) == 4, "Items could not move between two containers in the open");
+                helper.succeed();
+            } finally {
+                ordinary(kit, lord);
+            }
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void theSpawnsGroundSkyAndPortalsStayAsTheyAre(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = spawnOf(kit, "Still");
+            try {
+                // Dry farmland with nothing on it turns to dirt on a random tick, but not in the spawn.
+                BlockPos inside = kit.pos(8, 5);
+                BlockPos outside = kit.pos(-8, 5);
+                RandomSource random = RandomSource.create(3);
+                for (BlockPos p : new BlockPos[]{inside, outside}) {
+                    kit.level.setBlockAndUpdate(p, Blocks.FARMLAND.defaultBlockState());
+                    for (int i = 0; i < 20; i++) kit.level.getBlockState(p).randomTick(kit.level, p, random);
+                }
+                helper.assertTrue(!kit.level.getBlockState(outside).is(Blocks.FARMLAND), "Dry farmland outside did not dry out, so the test proves nothing");
+                helper.assertTrue(kit.level.getBlockState(inside).is(Blocks.FARMLAND), "Dry farmland in the spawn dried out");
+
+                var bolt = EntityTypes.LIGHTNING_BOLT.create(kit.level, EntitySpawnReason.COMMAND);
+                bolt.snapTo(kit.pos(10, -4).getX() + 0.5, kit.y, kit.pos(10, -4).getZ() + 0.5);
+                kit.level.addFreshEntity(bolt);
+                bolt.tick();
+                helper.assertTrue(bolt.isRemoved(), "A lightning bolt in the spawn was not put out");
+                helper.assertTrue(!kit.level.getBlockState(kit.pos(10, -4)).is(Blocks.FIRE), "Lightning lit a fire in the spawn");
+
+                var forcer = kit.level.getPortalForcer();
+                helper.assertTrue(forcer.createPortal(kit.pos(-4, 0), Direction.Axis.X).isEmpty(),
+                        "A nether portal was built within reach of the spawn");
+                helper.assertTrue(forcer.createPortal(kit.pos(-22, 0), Direction.Axis.X).isPresent(),
+                        "A nether portal could not be built in the open, so the test proves nothing");
+                helper.succeed();
+            } finally {
+                ordinary(kit, lord);
+            }
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void harmfulEffectsFromPlayersDoNotLandInTheSpawn(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = spawnOf(kit, "Potion");
+            try {
+                ServerPlayer thrower = at(kit, kit.pos(-6, 0));
+                ServerPlayer inside = at(kit, kit.pos(8, 0));
+                ServerPlayer outside = at(kit, kit.pos(-8, 0));
+                var poison = net.minecraft.world.effect.MobEffects.POISON;
+                helper.assertTrue(!inside.addEffect(new net.minecraft.world.effect.MobEffectInstance(poison, 100), thrower),
+                        "Another player's poison landed on a player in the spawn");
+                helper.assertTrue(outside.addEffect(new net.minecraft.world.effect.MobEffectInstance(poison, 100), thrower),
+                        "Poison could not land on a player outside the spawn, so the test proves nothing");
+                helper.assertTrue(inside.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SPEED, 100), thrower),
+                        "A helpful effect from another player was refused in the spawn");
+                helper.succeed();
+            } finally {
+                ordinary(kit, lord);
+            }
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void aPlayerKilledInTheSpawnDropsNothing(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = spawnOf(kit, "Death");
+            try {
+                ServerPlayer victim = at(kit, kit.pos(8, 0));
+                victim.getInventory().clearContent();
+                victim.getInventory().add(new ItemStack(Items.DIAMOND, 5));
+                victim.hurtServer(kit.level, kit.level.damageSources().genericKill(), Float.MAX_VALUE);
+                helper.assertTrue(victim.isDeadOrDying(), "/kill did not kill a player in the spawn");
+                var drops = kit.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, victim.getBoundingBox().inflate(4));
+                helper.assertTrue(drops.isEmpty(), "A player who died in the spawn dropped " + drops.size() + " stacks");
+                helper.assertTrue(victim.getInventory().countItem(Items.DIAMOND) == 5, "The dead player's items were not kept for the respawn");
+                helper.succeed();
+            } finally {
+                ordinary(kit, lord);
+            }
+        }
+    }
+
+    @GameTest(maxTicks = 100)
     public void deathAndDropsInTheSpawnKeepTheItems(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = spawnOf(kit, "Keep");

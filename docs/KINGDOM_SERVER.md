@@ -331,7 +331,7 @@ Blocks and the world:
 | `spawnFreezeBlocks` | true | Random ticks do nothing inside: no crop, sapling, grass or vine growth, no leaf decay, no ice or snow melting, no farmland drying, no copper ageing. |
 | `spawnNoSnowAndIce` | true | The weather piles no snow and freezes no water inside. |
 | `spawnNoLightning` | true | A lightning bolt inside goes out before it lights fires, charges creepers or turns villagers into witches. |
-| `spawnNoPortalCreation` | true | Arriving through a nether portal never builds a new portal frame inside. An existing portal there is still used. |
+| `spawnNoPortalCreation` | true | Arriving through a nether portal never builds a new portal frame inside, or anywhere the game could place it within 16 blocks of the spawn. An existing portal there is still used; with none, the trip from the Nether does not happen. |
 | `spawnNoProjectileBlockHits` | true | A projectile (not an operator's) hitting a block inside leaves it as it is: no TNT lit by flame arrows, no broken pots, no chorus or target reactions. |
 | `spawnEntryNotice` | true | Entering the spawn reads "You are in the spawn area. PvP, building and mob fighting are off here." instead of the kingdom line. |
 

@@ -55,8 +55,8 @@ public final class Hazards {
         List<BlockPos> touched = new ArrayList<>(resolver.getToPush());
         touched.addAll(resolver.getToDestroy());
         for (BlockPos pos : resolver.getToPush()) touched.add(pos.relative(push));
-        // The head itself: it shoves players and mobs standing in front, so it may not reach into another's land either.
-        if (extending) touched.add(piston.relative(facing));
+        // The spawn's border holds the head itself too, so a piston outside cannot shove visitors standing inside.
+        if (extending && SpawnRules.crossesBorder(level, piston, piston.relative(facing))) return false;
         for (BlockPos pos : touched) {
             if (Protection.fixtureAt(level, pos) != null) return false;
             if (Protection.crossesIntoGuarded(level, piston, pos)) return false;
