@@ -116,7 +116,12 @@ if (sets.length || merges.length) {
   backups.push({ name: `charter.${stamp}.json`, bytes: old })
   const cfg = JSON.parse(old.toString('utf8'))
   for (const [key, v] of sets) cfg[key] = v
-  for (const [key, v] of merges) cfg[key] = { ...(cfg[key] || {}), ...v }
+  for (const [key, v] of merges) {
+    // A key missing from the file means Charter runs on its built in default for it; merging into nothing would replace
+    // that default (this dropped the Merfolk's racePassives once), so stop and say so.
+    if (!(key in cfg)) { console.log(`--merge ${key}: the key is not in charter.json, so Charter uses its default; use --set with the whole value`); process.exit(1) }
+    cfg[key] = { ...cfg[key], ...v }
+  }
   configNew = Buffer.from(JSON.stringify(cfg, null, 2) + '\n', 'utf8')
 }
 if (backups.length) await k.upload('/mods_backup', backups)
