@@ -3,36 +3,13 @@
   "id": "kingdoms:tidal_gills",
   "display_name": "Tidal Gills",
   "lore": [
-    "Worn on the face. Merfolk of Azurius breathe water and swim like dolphins while they wear it.",
-    "Anyone else may wear it as an ornament."
+    "A retired trinket, kept for something new later.",
+    "The Merfolk of Azurius now wear this look and breathe water by race."
   ],
   "base_item": "minecraft:nautilus_shell",
   "texture": "kingdoms:item/tidal_gills",
   "worn_model": "kingdoms:item/worn/tidal_gills",
   "stack_size": 1,
   "rarity": "rare",
-  "keep_on_death": true,
-  "require_permission": "race:azurius",
-  "locked_message": "Only the Merfolk of Azurius can draw breath through these.",
-  "worn_slots": [
-    "head/face"
-  ],
-  "mechanics": [
-    {
-      "trigger": "while_worn",
-      "name": "Tidal Gills",
-      "actions": [
-        {
-          "type": "apply_effect",
-          "effect": "minecraft:water_breathing",
-          "duration": 60
-        },
-        {
-          "type": "apply_effect",
-          "effect": "minecraft:dolphins_grace",
-          "duration": 60
-        }
-      ]
-    }
-  ]
+  "keep_on_death": true
 }

@@ -1,0 +1,40 @@
+{
+  "sources": [
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/leather"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/leather_overlay"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/chainmail"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/iron"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/gold"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/diamond"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/netherite"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/turtle_scute"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:entity/equipment/humanoid/copper"
+    }
+  ]
+}

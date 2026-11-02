@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "foundry.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "CreativeSlotGuard",
+    "LivingEntityGlide"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

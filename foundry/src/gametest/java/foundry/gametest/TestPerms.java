@@ -34,4 +34,10 @@ final class TestPerms {
     static void grant(ServerPlayer player, String node) {
         GRANTED.computeIfAbsent(player.getUUID(), id -> ConcurrentHashMap.newKeySet()).add(Identifier.parse(node));
     }
+
+    /** Takes a node away again. */
+    static void revoke(ServerPlayer player, String node) {
+        var held = GRANTED.get(player.getUUID());
+        if (held != null) held.remove(Identifier.parse(node));
+    }
 }

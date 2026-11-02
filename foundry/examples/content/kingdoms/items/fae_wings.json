@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:fae_wings",
+  "display_name": "Fae Wings",
+  "lore": [
+    "Two leaves on every Fae of Faeloria's back.",
+    "They do not glide; they lift a second jump."
+  ],
+  "base_item": "minecraft:green_dye",
+  "texture": "kingdoms:item/fae_wings",
+  "worn_model": "kingdoms:item/worn/fae_wings",
+  "stack_size": 1,
+  "rarity": "uncommon"
+}

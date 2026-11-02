@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:dwarf_beard",
+  "display_name": "Dwarf Beard",
+  "lore": [
+    "Every Dwarf of Azrak wears one. Nobody else grows one quite like it."
+  ],
+  "base_item": "minecraft:brown_dye",
+  "texture": "kingdoms:item/dwarf_beard",
+  "worn_model": "kingdoms:item/worn/dwarf_beard",
+  "stack_size": 1,
+  "rarity": "uncommon"
+}

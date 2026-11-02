@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:aurelia_banner",
+  "display_name": "Aurelian War Banner",
+  "lore": [
+    "The crowned skull of Aurelia. Every Human of the kingdom carries it into the field."
+  ],
+  "base_item": "minecraft:red_banner",
+  "texture": "kingdoms:item/aurelia_banner",
+  "worn_model": "kingdoms:item/worn/aurelia_banner",
+  "stack_size": 1,
+  "rarity": "uncommon"
+}

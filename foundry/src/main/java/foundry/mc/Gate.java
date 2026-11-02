@@ -37,6 +37,11 @@ public final class Gate {
                 || MechanicHost.permissionCheck.test(player, Identifier.parse(def.requirePermission()));
     }
 
+    /** True when the player holds this permission node (no operator pass: a race is a race). */
+    public static boolean hasNode(ServerPlayer player, String node) {
+        return MechanicHost.permissionCheck.test(player, Identifier.parse(node));
+    }
+
     private static boolean operator(ServerPlayer player) {
         return player.permissions().hasPermission(new net.minecraft.server.permissions.Permission.HasCommandLevel(
                 net.minecraft.server.permissions.PermissionLevel.GAMEMASTERS));

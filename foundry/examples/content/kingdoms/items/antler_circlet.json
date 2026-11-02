@@ -3,31 +3,13 @@
   "id": "kingdoms:antler_circlet",
   "display_name": "Antler Circlet",
   "lore": [
-    "Worn on the head. The Fae of Faeloria see in the dark while they wear it (Night Vision).",
-    "Anyone else may wear it as an ornament."
+    "A retired trinket, kept for something new later.",
+    "The Fae of Faeloria now wear this look, crowned with a wreath of flowers."
   ],
   "base_item": "minecraft:gold_nugget",
   "texture": "kingdoms:item/antler_circlet",
   "worn_model": "kingdoms:item/worn/antler_circlet",
   "stack_size": 1,
   "rarity": "uncommon",
-  "keep_on_death": true,
-  "require_permission": "race:faeloria",
-  "locked_message": "Only the Fae of Faeloria see by this.",
-  "worn_slots": [
-    "head/hat"
-  ],
-  "mechanics": [
-    {
-      "trigger": "while_worn",
-      "name": "Antler Circlet",
-      "actions": [
-        {
-          "type": "apply_effect",
-          "effect": "minecraft:night_vision",
-          "duration": 260
-        }
-      ]
-    }
-  ]
+  "keep_on_death": true
 }

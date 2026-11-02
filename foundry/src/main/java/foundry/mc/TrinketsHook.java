@@ -21,6 +21,15 @@ final class TrinketsHook {
         props.component(TrinketDataComponents.EQUIPMENT, TrinketEquippable.DEFAULT.withSlots(slots.toArray(String[]::new)));
     }
 
+    /** Empties every trinket slot of the player and says how many items were removed. */
+    static int clearAll(ServerPlayer player) {
+        int[] cleared = {0};
+        TrinketsApi.getAttachment(player).forEach((access, stack) -> {
+            if (!stack.isEmpty() && access.set(ItemStack.EMPTY)) cleared[0]++;
+        });
+        return cleared[0];
+    }
+
     /** Every non-empty worn stack whose slot applies its effects. */
     static void worn(ServerPlayer player, Consumer<ItemStack> out) {
         TrinketsApi.getAttachment(player).forEach((access, stack) -> {

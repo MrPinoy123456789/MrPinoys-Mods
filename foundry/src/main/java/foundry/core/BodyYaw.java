@@ -21,6 +21,7 @@ public final class BodyYaw {
     private boolean started;
     private float lastHead;
     private float bodyRate, headRate;
+    private double speed;
 
     /** Feeds one tick. headYaw is the player's yRot (their head), swinging and blocking as the player is now. */
     public float update(double px, double py, double pz, float headYaw, boolean swinging, boolean blocking) {
@@ -34,6 +35,7 @@ public final class BodyYaw {
         }
         float before = yaw;
         double dx = px - x, dz = pz - z;
+        speed = Math.sqrt(dx * dx + dz * dz);
         float target = yaw;
         if (dx * dx + dz * dz > 0.0025f) {
             float walk = (float) (Math.atan2(dz, dx) * 57.295776f) - 90f;
@@ -63,6 +65,11 @@ public final class BodyYaw {
 
     public float yaw() {
         return yaw;
+    }
+
+    /** How far the player moved across the ground last tick, in blocks. */
+    public double speed() {
+        return speed;
     }
 
     /** The body yaw this many ticks ahead if it keeps turning as it is, at most 45 degrees ahead. */

@@ -104,6 +104,44 @@ To give a kingdom two Lords on the live server (names in quotes when they have s
 /charter admin faction coleader "Azrak" Bob
 ```
 
+## Race looks and traits (replaced the race trinkets, 2026-11-01)
+
+The race trinkets are gone as items to wear. Instead every player always shows their race's look, so anyone can tell
+their race at a glance, and the race traits come with the race:
+
+| Race (node) | Look | Trait |
+|---|---|---|
+| Azrak Dwarves (`race:azrak`) | A thick Dwarf beard (`kingdoms:dwarf_beard`), combined with any vanilla helmet | Haste (`racePassives`) |
+| Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`): a black swallow tailed banner with a silver border and a skull under a solid silver crown, its eyes cut in the banner's black, on a black iron pole above the head | Luck (`racePassives`) |
+| Faeloria Fae (`race:faeloria`) | Antlers in a woodland wreath (a leaf band set with white, pink and blue flowers), combined with any vanilla helmet (the wreath sits on the helmet's top); solid leaf wings that flap (`kingdoms:fae_wings`: deep green to amber tipped, serrated, veined) | Night Vision (`racePassives`); a double jump instead of gliding: press jump again in the air for a second hop, once per time off the ground, 2.5 second cooldown, no fall damage from it, with falling leaves and a rustle |
+| Azurius Merfolk (`race:azurius`) | Tidal Gills beside the neck | Water Breathing, Dolphin's Grace (`racePassives`) |
+| Everdelle Fairies (`race:everdelle`) | Fairy Wings that flap (a slow beat standing, livelier moving, a fast flutter in the air, spread wide gliding), shading rose to lilac to aqua to gold, with veins, eye spots and swallowtails; a sparkle trail while gliding | Glide, always, with nothing in the chest slot |
+
+- The looks are drawn by Foundry from the race node (`races` in `config/foundry/worn_displays.json`: node, then one look
+  or an array of looks, each with item, slot, glide, flap, and `double_jump` as a cooldown in ticks). Always on, no toggle; `/trinketview` only decides whether you see your own (the antlers are always on your own
+  head, as a helmet item).
+- The traits are Charter's `racePassives` (built in defaults, and merged into the server's `charter.json`).
+- The Fae and the Fairies are told apart at a glance: antlers and flowers against nothing on the head, solid green leaves
+  against see through coloured wings, and a hop in the air against a glide. The double jump (`foundry.mc.DoubleJump`,
+  rules in `foundry.core.AirJump`) only counts a fresh press after two ticks in the air, so the ground jump never fires
+  it; the hop is the server telling the client its new motion, so it works on Bedrock too.
+- Fairies glide by race: a server mixin (`LivingEntityGlide`) lets them, holding jump while falling starts it on Java, and
+  Bedrock Fairies get the stand in elytra. No durability.
+- The Fairy wings are two displays, the left and right halves (`kingdoms:fairy_wings_left` and `_right`, vanilla stacks
+  naming those models), hinged at the spine and turned every tick by `foundry.core.WingBeat` (`flap` in the races table).
+  While a Fairy glides, `Wings` leaves a trail of end rod sparkles behind the shoulders (vanilla particles, so Bedrock sees
+  them too).
+- The Dwarf beard is a head item like the antlers: served on the head to everyone (hidden in first person), and with a
+  vanilla helmet on, the helmet with the beard below it (`kingdoms:dwarf_beard_on_<material>`). The Forgeman's Pauldron is
+  now a keepsake like the other trinket items. So is the Kingdom Cape: the Humans carry the war banner instead (a body
+  display on the back, slot placement `chest/banner`; its cloth texture is painted by `gen_trinket_models.py`).
+- The five trinket items stay registered as keepsakes ("a retired trinket, kept for something new later") with no slot,
+  effect, lock or glider. Trinkets are locked away: anything left in a trinket slot is cleared (logged), and the
+  `/charter trinkets` shortcut and book button are gone. Trinkets Updated and its Polymer patch stay installed for now so
+  the slots can be repurposed later.
+- Everything below about the old trinkets (worn slots, wings in the cape slot) is history; the drawing, following, head
+  combining, Bedrock and creative guard notes all still apply to the race looks.
+
 ## Race trinkets: opening the screen and how they look
 
 Four race trinkets (Tidal Gills, Forgeman's Pauldron, Kingdom Cape, Antler Circlet) sit in Trinkets Updated slots; the
@@ -155,6 +193,20 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   turns at once on your screen and anything from the server arrives a round trip later. The copies everyone else sees
   are smoothed over three ticks, the same as their clients smooth your head and body, so they stay together. The circlet
   still goes to others as a helmet. The gills sit beside the neck, behind the eyes.
+- **Antler circlet.** Just the antlers (no band, gem or leaves), 10% bigger, rising from the top of the head at the
+  temples. They are served on the head to everyone, the wearer included, as a head item the client draws on the head
+  itself (exact, and hidden in first person like any helmet): the antlers alone with no helmet on, or with a vanilla
+  helmet on, a copy of that helmet with its equipment asset removed and its model set to "antlers on that helmet"
+  (`kingdoms:antler_circlet_on_<material>`: the vanilla helmet shell from the vanilla armour texture with the antlers on
+  top; leather keeps its dye, enchanted helmets keep their glint, trims do not show). The real helmet is never touched.
+  The vanilla armour textures reach the items atlas through `assets/minecraft/atlases/items.json` (Polymer merges atlas
+  files), so nothing of Mojang's is copied. Under a head item that is not a vanilla helmet (a pumpkin, a skull) the
+  antlers fall back to a display. The wearer's copy sits in the helmet slot of their own inventory screen. Every served
+  copy is marked, and `CreativeSlotGuard` (a server mixin) refuses a marked item sent back by a creative client, which is
+  how a second pair appeared before; the Bedrock stand in elytra is marked too. Not for Bedrock wearers.
+- **Riding displays below the feet (fixed).** A riding display's transformation starts at the top of the player, where
+  the client seats it. Until a viewer's client has seated it (just after it appears, a respawn, a teleport) it stood at
+  the feet, a body height too low; its own position is now the top of the player too.
 - **Facing (fixed 2026-11-01).** A model's front shows toward the display's -z. Body items (cape, wings, pauldron) get a
   half turn so they face out from the back; before the fix the wings were mirrored and the cape showed its lining.
 - **3D models.** Each trinket has a real 3D model, not a flat sprite: `examples/assets/kingdoms/models/item/worn/*.json`
@@ -199,11 +251,18 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   draws a texture outside the atlas folders pink and black, as the game would; `tools/previews/contact_sheet.png` shows all
   five.
 - **Wings.** The Fairy Wings go in the **cape slot** (`chest/cape`, which has room for two, so the Human cape and the wings
-  never clash). They are race locked and never wear out. Trinkets Updated already lets a glider in a trinket slot glide
-  on the server; `Wings` starts the glide for a Fairy who holds jump while falling, and stops anyone else. The four wings
-  are painted already tipped (upper up and out, lower down and out), and each swings 22.5 degrees back from the spine,
-  so from above they open in a V instead of lying flat on the back. Unverified live: that the client accepts a glide the
-  server started (if not, the wings still glide worn in the chest slot).
+  never clash). They are race locked and never wear out. Java: Trinkets Updated already lets a glider in a trinket slot
+  glide on the server; `Wings` starts the glide for a Fairy who holds jump while falling, and stops anyone else.
+  Bedrock: the Bedrock client only glides with an elytra in its own chest slot, and Geyser (2.12,
+  `SessionPlayerEntity.canStartGliding`) checks the chest item is `minecraft:elytra` with the glider component before it
+  forwards "start gliding"; neither knows Trinkets slots, so Bedrock Fairies could not glide. Now a Bedrock player
+  wearing allowed wings with an empty chest slot is shown a stand in elytra named "Fairy Wings" in their own chest slot
+  (display only: the server never holds it, so taking or dropping it is undone, and it is re-sent every two seconds).
+  It goes when the wings come off, a chestplate goes on or the player dies. A Bedrock player in a chestplate cannot glide
+  with the wings and is told so once. The four wings are painted already tipped and swing 22.5 degrees back from the
+  back in a V; each plate's two faces carry mirror image uvs so the wing outline is right from the front and the back.
+  Unverified live: Bedrock gliding (needs a Bedrock Fairy to try), and that a Java client accepts a glide the server
+  started.
 - **Cape.** The Kingdom Cape is the vanilla cape: the same 10 by 16 by 1 box, hung from the top of the back, and the
   vanilla 64 by 32 cape texture layout, so any cape PNG drawn for vanilla can replace
   `textures/item/worn/kingdom_cape.png`. It swings back the way vanilla's cape layer swings (6 degrees at rest, more as it

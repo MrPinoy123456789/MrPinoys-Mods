@@ -65,9 +65,12 @@ public final class WornDisplays {
             this.headStack = headStack;
         }
 
-        void drive(ItemDisplayElement element, WornPlacement place) {
+        private int wing;
+
+        void drive(ItemDisplayElement element, WornPlacement place, int wing) {
             this.element = element;
             this.place = place;
+            this.wing = wing;
         }
 
         /**
@@ -76,7 +79,7 @@ public final class WornDisplays {
          */
         @Override
         protected void onTick() {
-            if (element != null && place != null && !owner.isRemoved()) place(owner, element, place, onlyOwner);
+            if (element != null && place != null && !owner.isRemoved()) place(owner, element, place, onlyOwner, wing);
             super.onTick();
         }
 
@@ -93,6 +96,14 @@ public final class WornDisplays {
 
         ItemStack headStack() {
             return headStack;
+        }
+
+        /** Sends the head item again to everyone watching (vanilla's own helmet updates can replace it). */
+        void resendHead() {
+            if (headStack == null) return;
+            for (ServerGamePacketListenerImpl c : new ArrayList<>(getWatchingPlayers())) {
+                if (c.isAcceptingMessages()) c.send(equipment(headStack));
+            }
         }
 
         /** Gives every viewer the player's real helmet back (before a head slot holder goes away). */
@@ -117,7 +128,11 @@ public final class WornDisplays {
     private record Part(Holder holder, EntityAttachment attachment, ItemDisplayElement element, WornPlacement place,
                         String item, String slot, boolean headMode) {}
 
-    private record Shown(ServerPlayer player, String signature, List<Part> parts) {}
+    private record Shown(ServerPlayer player, String signature, List<Part> parts, int headHash) {}
+
+    private static int headHash(ServerPlayer player) {
+        return ItemStack.hashItemAndComponents(player.getItemBySlot(EquipmentSlot.HEAD));
+    }
 
     private static final Map<UUID, Shown> SHOWN = new HashMap<>();
     private static volatile WornPlacement.Table table = WornPlacement.defaults();
@@ -190,19 +205,16 @@ public final class WornDisplays {
             if (only != null && only != player) continue;
             String name = player.getGameProfile().name();
             List<String> worn = new ArrayList<>();
-            if (WornItems.trinkets()) {
-                TrinketsHook.worn(player, stack -> {
-                    if (stack.getItem() instanceof FoundryItem item && item.def() != null && item.def().worn()) {
-                        worn.add(item.def().id() + " (" + item.def().wornSlots().get(0) + ")");
-                    }
-                });
+            for (var race : table.races().entrySet()) {
+                if (!Gate.hasNode(player, race.getKey())) continue;
+                for (var look : race.getValue()) worn.add(race.getKey() + ": " + look.item());
             }
             var chest = player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
             lines.add(name + " chest slot: " + (chest.isEmpty() ? "empty" : net.minecraft.core.registries.BuiltInRegistries.ITEM
                     .getKey(chest.getItem()) + (chest.getItem() instanceof FoundryItem w && w.def() != null && w.def().glider()
                     ? " (wings, drawn by the client as an elytra)" : "")));
             Shown shown = SHOWN.get(player.getUUID());
-            lines.add(name + ": wears " + (worn.isEmpty() ? "no Foundry trinkets" : String.join(", ", worn))
+            lines.add(name + ": race looks " + (worn.isEmpty() ? "none (no race)" : String.join(", ", worn))
                     + "; " + (shown == null ? 0 : shown.parts.size()) + " displays");
             if (shown == null) continue;
             for (Part part : shown.parts) {
@@ -236,6 +248,11 @@ public final class WornDisplays {
         } catch (RuntimeException e) {
             return "could not be worked out (" + e + ")";
         }
+    }
+
+    /** The placements and race looks now in force. */
+    static WornPlacement.Table table() {
+        return table;
     }
 
     /** True when someone has a display up, so the per tick turning has work to do. */
@@ -286,6 +303,7 @@ public final class WornDisplays {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 online.add(player.getUUID());
                 rescan(player);
+                ownHelmet(player, now);
             }
             SHOWN.entrySet().removeIf(e -> {
                 if (online.contains(e.getKey())) return false;
@@ -294,15 +312,20 @@ public final class WornDisplays {
             });
             BODY.keySet().removeIf(id -> !online.contains(id));
             BODY_TICK.keySet().removeIf(id -> !online.contains(id));
+            OWN_HELMET.removeIf(id -> !online.contains(id));
         }
         if (SHOWN.isEmpty()) return;
         for (Shown shown : new ArrayList<>(SHOWN.values())) {
-            // A head slot part needs the real helmet slot empty: rebuild at once when that changes.
-            boolean headEmpty = shown.player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
-            if (shown.parts.stream().anyMatch(part -> part.place.headSlot() && part.headMode != headEmpty)) {
+            // A head slot part serves the real helmet with the trinket on it, so rebuild at once when the helmet changes
+            // in any way (on, off, damaged, dyed). This runs after the player's tick, so it goes out after vanilla's own
+            // helmet update and replaces it on every client.
+            if (shown.parts.stream().anyMatch(part -> part.place.headSlot())
+                    && headHash(shown.player) != shown.headHash) {
                 rescan(shown.player);
+                ownHelmet(shown.player, now);
                 continue;
             }
+            if (now % 40 == 0) shown.parts.forEach(part -> part.holder.resendHead());
         }
     }
 
@@ -311,6 +334,7 @@ public final class WornDisplays {
         SHOWN.clear();
         BODY.clear();
         BODY_TICK.clear();
+        OWN_HELMET.clear();
         fileStamp = Long.MIN_VALUE;
     }
 
@@ -328,22 +352,30 @@ public final class WornDisplays {
         List<WornPlacement> places = new ArrayList<>();
         List<String> ids = new ArrayList<>();
         List<String> slotNames = new ArrayList<>();
-        if (WornItems.trinkets() && player.isAlive()) {
+        List<Boolean> flaps = new ArrayList<>();
+        if (player.isAlive()) {
+            // A race always shows its look, so everyone can tell a player's race at a glance (races in worn_displays.json).
             var current = table;
-            TrinketsHook.worn(player, stack -> {
-                if (stack.getItem() instanceof FoundryItem item && item.def() != null && item.def().worn()) {
-                    current.find(item.def().id().toString(), item.def().wornSlots().get(0)).ifPresent(p -> {
-                        stacks.add(stack.copyWithCount(1));
+            for (var race : current.races().entrySet()) {
+                if (!Gate.hasNode(player, race.getKey())) continue;
+                for (var look : race.getValue()) {
+                    var ident = foundry.core.Ident.parse(look.item());
+                    var item = ident == null ? null : FoundryItems.get(ident);
+                    if (item == null) continue;
+                    current.find(look.item(), look.slot()).ifPresent(p -> {
+                        stacks.add(new ItemStack(item));
                         places.add(p);
-                        ids.add(item.def().id().toString());
-                        slotNames.add(item.def().wornSlots().get(0));
+                        ids.add(look.item());
+                        slotNames.add(look.slot());
+                        flaps.add(look.flap());
                     });
                 }
-            });
+            }
         }
-        boolean headEmpty = player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
+        ItemStack realHead = player.getItemBySlot(EquipmentSlot.HEAD);
+        int headHash = ItemStack.hashItemAndComponents(realHead);
         boolean seesOwn = selfView(player.getUUID());
-        String signature = tableVersion + "|" + player.level().dimension() + "|" + headEmpty + "|" + seesOwn + "|"
+        String signature = tableVersion + "|" + player.level().dimension() + "|" + headHash + "|" + seesOwn + "|"
                 + stacks.stream().map(s -> s.getItem().toString()).toList();
         Shown cur = SHOWN.get(player.getUUID());
         if (cur != null && (cur.player != player || !cur.signature.equals(signature))) {
@@ -355,21 +387,25 @@ public final class WornDisplays {
         List<Part> parts = new ArrayList<>();
         for (int i = 0; i < stacks.size(); i++) {
             WornPlacement place = places.get(i);
-            boolean headMode = place.headSlot() && headEmpty;
+            ItemStack onHead = place.headSlot() ? HeadVisual.combine(realHead, stacks.get(i)) : null;
+            boolean headMode = onHead != null;
             if (headMode) {
-                // Shown to other players as a helmet, so it moves with the head exactly (a helmet packet to the wearer
-                // themselves would put a ghost helmet in their inventory, so their own copy, if any, is a display).
-                Holder holder = new Holder(player, true, false, false, stacks.get(i));
+                // Drawn on the head by every client as a head item: the trinket alone, or the player's own helmet with the
+                // trinket on it. Other players get it as their copy of this player's helmet; the wearer gets it in their
+                // own helmet slot (ownHelmet), so it is hidden in first person like any helmet.
+                Holder holder = new Holder(player, true, false, false, onHead);
                 parts.add(new Part(holder, EntityAttachment.ofTicking(holder, player), null, place, ids.get(i),
                         slotNames.get(i), true));
             } else {
-                parts.add(display(player, stacks.get(i), place, ids.get(i), slotNames.get(i), false));
+                addDisplays(parts, player, stacks.get(i), place, ids.get(i), slotNames.get(i), flaps.get(i), false);
             }
             // The wearer's own copy, only for a player who asked to see their trinkets (/trinketview): the client draws
             // everything attached to a player even in first person, and never tells the server which view it is in.
-            if (seesOwn && !place.hideFromWearer()) parts.add(display(player, stacks.get(i), place, ids.get(i), slotNames.get(i), true));
+            if (seesOwn && !headMode && !place.hideFromWearer()) {
+                addDisplays(parts, player, stacks.get(i), place, ids.get(i), slotNames.get(i), flaps.get(i), true);
+            }
         }
-        Shown shown = new Shown(player, signature, parts);
+        Shown shown = new Shown(player, signature, parts, headHash);
         SHOWN.put(player.getUUID(), shown);
     }
 
@@ -378,23 +414,92 @@ public final class WornDisplays {
      * others is smoothed over three ticks, the same as their clients smooth this player's head and body, so the two stay
      * together; the wearer's copy is smoothed over one tick and drawn ahead by their ping (see place).
      */
+    /**
+     * The displays for one look: one display, or for a pair of flapping wings two, the left and right halves (vanilla
+     * stacks naming the {@code <item>_left} and {@code <item>_right} models), each turning about the spine on its own.
+     */
+    private static void addDisplays(List<Part> parts, ServerPlayer player, ItemStack stack, WornPlacement place, String id,
+                                    String slot, boolean flap, boolean wearersCopy) {
+        if (!flap) {
+            parts.add(display(player, stack, place, id, slot, wearersCopy, 0));
+            return;
+        }
+        var ident = foundry.core.Ident.parse(id);
+        for (int wing : new int[] {-1, 1}) {
+            ItemStack half = new ItemStack(net.minecraft.world.item.Items.PAPER);
+            half.set(net.minecraft.core.component.DataComponents.ITEM_MODEL, net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                    ident.namespace(), ident.path() + (wing < 0 ? "_left" : "_right")));
+            parts.add(display(player, half, place, id, slot, wearersCopy, wing));
+        }
+    }
+
     private static Part display(ServerPlayer player, ItemStack stack, WornPlacement place, String id, String slot,
-                                boolean wearersCopy) {
+                                boolean wearersCopy, int wing) {
         Holder holder = new Holder(player, !wearersCopy, wearersCopy, place.ride(), null);
         ItemDisplayElement element = new ItemDisplayElement(stack);
         element.setItemDisplayContext(ItemDisplayContext.FIXED);
-        element.setInterpolationDuration(wearersCopy ? 1 : 3);
+        // wings beat every tick, so they are smoothed over two ticks whoever sees them
+        element.setInterpolationDuration(wing != 0 ? 2 : wearersCopy ? 1 : 3);
         element.setTeleportDuration(3);
         // Placed before the holder is attached, so the first packet a viewer gets already has the right transform.
-        place(player, element, place, wearersCopy);
+        place(player, element, place, wearersCopy, wing);
         if (place.ride()) holder.addPassengerElement(element);
         else holder.addElement(element);
-        holder.drive(element, place);
+        holder.drive(element, place, wing);
         EntityAttachment attachment = EntityAttachment.ofTicking(holder, player);
         // Polymer shows an attachment only to players tracking the entity, and nobody tracks themselves, so the wearer's
         // copy is given to them by hand.
         if (wearersCopy && player.connection != null) holder.startWatching(player.connection);
         return new Part(holder, attachment, element, place, id, slot, false);
+    }
+
+    // ---- the wearer's own head slot item ----
+
+    /** Players whose own client is being shown their head slot trinket as a helmet. */
+    private static final java.util.Set<UUID> OWN_HELMET = new java.util.HashSet<>();
+    /** The helmet slot of the player's own inventory screen (5 head, 6 chest, 7 legs, 8 feet). */
+    static final int HEAD_SLOT = net.minecraft.world.inventory.InventoryMenu.ARMOR_SLOT_START;
+
+    /** Test hook: the item served on this player's head (the trinket, or their helmet with it on), or null. */
+    public static ItemStack headItemFor(UUID player) {
+        Shown s = SHOWN.get(player);
+        if (s == null) return null;
+        return s.parts.stream().filter(Part::headMode).map(part -> part.holder.headStack()).findFirst().orElse(null);
+    }
+
+    /** True while this player's own client is shown their head slot trinket as a helmet (for tests and checks). */
+    public static boolean showsOwnHelmet(UUID player) {
+        return OWN_HELMET.contains(player);
+    }
+
+    /**
+     * The head item (the antlers, or the player's helmet with the antlers on it, see {@link HeadVisual}) is also put in
+     * the wearer's own helmet slot, on their client only, so their game draws it on their own head: exact, and hidden in
+     * first person like any helmet. The server's inventory is not touched. In survival every click is checked by the
+     * server, so the copy cannot be taken; in creative the client is trusted, so the copy carries a mark and
+     * {@code CreativeSlotGuard} refuses any marked item a client sends back (that is how a second pair appeared). It is
+     * sent again every two seconds, and the real helmet slot item is sent back when the trinket comes off, the player
+     * dies or the placement hides it from its wearer. Not for Bedrock players.
+     */
+    private static void ownHelmet(ServerPlayer player, int now) {
+        UUID id = player.getUUID();
+        Shown shown = SHOWN.get(id);
+        Part head = shown == null || shown.player != player ? null
+                : shown.parts.stream().filter(Part::headMode).findFirst().orElse(null);
+        boolean want = head != null && !head.place.hideFromWearer() && player.isAlive()
+                && !foundry.core.Floodgate.isBedrock(id);
+        if (want) {
+            if (OWN_HELMET.add(id) || now % 40 == 0) sendOwnSlot(player, HEAD_SLOT, head.holder.headStack());
+        } else if (OWN_HELMET.remove(id)) {
+            sendOwnSlot(player, HEAD_SLOT, player.inventoryMenu.getSlot(HEAD_SLOT).getItem().copy());
+        }
+    }
+
+    /** Tells only this player's client what is in one slot of their own inventory screen. */
+    private static void sendOwnSlot(ServerPlayer player, int slot, ItemStack stack) {
+        if (player.connection == null) return;
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket(
+                player.inventoryMenu.containerId, player.inventoryMenu.getStateId(), slot, stack));
     }
 
     // ---- seeing your own trinkets ----
@@ -475,7 +580,14 @@ public final class WornDisplays {
     static final float NECK = 24 * PX;
 
     /** Sets one display's whole transformation from the player's pose right now (see {@link #transformFor}). */
-    private static void place(ServerPlayer player, ItemDisplayElement element, WornPlacement p, boolean wearersCopy) {
+    private static void place(ServerPlayer player, ItemDisplayElement element, WornPlacement p, boolean wearersCopy, int wing) {
+        if (p.ride()) {
+            // A riding display's transformation starts at the top of the player, where the client seats a passenger. Until a
+            // viewer's client has seated it (just after it appears, a respawn or a teleport) it stands at its own position,
+            // so that position is put at the top of the player too; otherwise it showed a body height too low, below the feet.
+            double top = player.getBbHeight();
+            if (element.getOffset().y != top) element.setOffset(new net.minecraft.world.phys.Vec3(0, top, 0));
+        }
         foundry.core.BodyYaw body = body(player);
         float tilt = body.capeTilt(player.isCrouching());
         if (wearersCopy) {
@@ -483,9 +595,10 @@ public final class WornDisplays {
             // drawn as far ahead as their ping plus one tick (at most six ticks, and at most 45 degrees).
             float lead = Math.min(6f, Math.max(1f, player.connection == null ? 1f : player.connection.latency() / 50f + 1f));
             element.setTransformation(transform(player, p, body.yawAhead(lead), body.headAhead(player.getYHeadRot(), lead),
-                    player.getXRot(), tilt));
+                    player.getXRot(), tilt, hinge(player, body, wing)));
         } else {
-            element.setTransformation(transform(player, p, body.yaw(), tilt));
+            element.setTransformation(transform(player, p, body.yaw(), player.getYHeadRot(), player.getXRot(), tilt,
+                    hinge(player, body, wing)));
         }
         element.startInterpolationIfDirty();
     }
@@ -504,7 +617,7 @@ public final class WornDisplays {
      *       pitch (crouching lowers the head 4.2 pixels); a body item pivots at the neck too and leans forward half a
      *       radian about the chest while crouching;</li>
      *   <li>the placement's up/back/side offset (heights measured from the feet when standing) and extra rotation, and
-     *       a body item is turned to face out from the back; a swinging item (the cape) hangs from that point and swings back by
+     *       a back item's model is already mirrored to face out from the back; a swinging item (the cape) hangs from that point and swings back by
      *       the cape tilt;</li>
      *   <li>scale, or nothing at all while the player is invisible or asleep.</li>
      * </ol>
@@ -515,12 +628,26 @@ public final class WornDisplays {
 
     /** {@link #transformFor} with the body yaw and cape tilt given (the live displays pass the client style ones). */
     public static Matrix4f transform(ServerPlayer player, WornPlacement p, float body, float capeTilt) {
-        return transform(player, p, body, player.getYHeadRot(), player.getXRot(), capeTilt);
+        return transform(player, p, body, player.getYHeadRot(), player.getXRot(), capeTilt, 0f);
+    }
+
+    /**
+     * A wing half's turn about the spine this tick, in degrees: 0 for anything that is not a wing. The beat comes from
+     * {@link foundry.core.WingBeat}; a positive fold sweeps the tips back, so the right wing (+x) turns one way and the left
+     * the other.
+     */
+    public static float hinge(ServerPlayer player, foundry.core.BodyYaw body, int wing) {
+        if (wing == 0) return 0f;
+        var server = player.level().getServer();
+        long tick = server == null ? 0 : server.getTickCount();
+        var state = foundry.core.WingBeat.state(player.isFallFlying(), player.onGround(), body.speed());
+        float fold = foundry.core.WingBeat.fold(state, tick, player.getUUID().hashCode());
+        return wing > 0 ? -fold : fold;
     }
 
     /** {@link #transform} with the head's yaw and pitch given too (the wearer's own copy passes predicted ones). */
     public static Matrix4f transform(ServerPlayer player, WornPlacement p, float body, float headYaw, float headPitch,
-                                     float capeTilt) {
+                                     float capeTilt, float hinge) {
         Matrix4f m = new Matrix4f();
         if (p.ride()) m.translate(0, -player.getBbHeight(), 0);
         m.rotateY((float) Math.toRadians(180f - body));
@@ -557,10 +684,13 @@ public final class WornDisplays {
             m.rotateX((float) Math.toRadians(-capeTilt));
             m.translate(0, -0.25f * p.scale(), 0);
         }
-        // A model's front (its north face) shows toward the display's -z. A head item keeps that, so it faces forward with
-        // the head; a body item is given a half turn so its front faces out from the back (found in game: without it the
-        // wings and the cape showed their inner side outward).
-        if (!p.onHead()) m.rotateY((float) Math.PI);
+        // A display shows a model as it is: its north face toward the display's -z, its +x to the display's +x. Here -z is
+        // forward and +x is the player's right, so a head model faces forward. Back models (pauldron, cape, wings) are
+        // built mirrored front to back by tools/gen_trinket_models.py so their outer face looks out from the back. A half
+        // turn here instead would also swap left and right (found in game: the wings crossed over and the pauldron's lames
+        // pointed at the neck).
+        // a wing half turns about the spine, which is the model's centre line (x 8), so here, before any scale
+        if (hinge != 0f) m.rotateY((float) Math.toRadians(hinge));
         m.rotateXYZ((float) Math.toRadians(p.rx()), (float) Math.toRadians(p.ry()), (float) Math.toRadians(p.rz()));
         boolean shown = !player.isInvisible() && !player.isSleeping();
         float scale = shown ? p.scale() : 0f;
