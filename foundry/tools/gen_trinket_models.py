@@ -22,7 +22,7 @@ import math
 import os
 import random
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(HERE, "..", "examples", "assets", "kingdoms")
@@ -367,6 +367,164 @@ def beard():
         part((4.6, 5.2, -1.0), (11.4, 6.6, 0.6), "beard_dark"),              # the moustache
     ]
     return centre + left + [mirror(x) for x in left]
+
+
+# ---- the Merfolk: fin ears and a dorsal fin ----
+# Both are flat plates carrying a painted fin (see paint_fins): a see through membrane between opaque spines, deep teal
+# at the root through aqua to a pale pearly edge, scalloped between the spines. One 128 texture holds every fin:
+FIN_EAR = (0, 0, 48, 64)        # the fan behind each ear, root at the front, 12 by 16 units
+FIN_FRILL = (0, 64, 32, 96)     # the small frill below it along the jaw, 5 by 5 units
+FIN_SOLID = (32, 64, 40, 72)    # solid teal, for the ear roots and the fin's base ridge
+FIN_DORSAL = (64, 0, 128, 128)  # the dorsal fin, root along the left edge (the spine), 10 by 20 units
+EAR_OUT = 1.65                  # how far the ears move out on a helmet (the shell is 1.6 wider each side than the head)
+
+
+def fin_uv(box):
+    x0, y0, x1, y1 = box
+    return [x0 / 8, y0 / 8, x1 / 8, y1 / 8]
+
+
+def side_plate(frm, to, box, rot=None, name=None):
+    """A plate in the y z plane (thin in x) showing one painted fin on both sides. The texture's u runs from the front
+    (low z) to the back; seen from the west u grows with z, seen from the east it shrinks, so the east face carries the
+    mirror image uv and the fin points the same way from both sides."""
+    uv = fin_uv(box)
+    el = {"from": list(frm), "to": list(to),
+          "faces": {"west": {"uv": uv, "texture": "#0"}, "east": {"uv": [uv[2], uv[1], uv[0], uv[3]], "texture": "#0"}}}
+    if rot:
+        axis, angle, origin = rot
+        el["rotation"] = {"origin": list(origin), "axis": axis, "angle": angle}
+    if name:
+        el["name"] = name
+    return el
+
+
+def solid(frm, to, name=None):
+    el = {"from": list(frm), "to": list(to), "faces": {f: {"uv": fin_uv(FIN_SOLID), "texture": "#0"} for f in FACES}}
+    if name:
+        el["name"] = name
+    return el
+
+
+def merfolk_fins():
+    """Fin ears: on each side of the head, where the ear would be, a webbed fan sweeping back and up past the back of the
+    head, flared out from the head by 22.5 degrees, with a small frill below it along the jaw and a teal root. All
+    named "ear", so the helmet versions can move them out past the helmet's sides (see write_helmet)."""
+    left = [
+        solid((1.0, 6.4, 7.0), (1.6, 8.6, 8.6), "ear"),
+        side_plate((1.15, 3.0, 7.0), (1.25, 19.0, 19.0), FIN_EAR, ("y", -22.5, (1.2, 7.5, 7.5)), "ear"),
+        side_plate((1.15, 0.5, 7.5), (1.25, 5.5, 12.5), FIN_FRILL, ("y", -22.5, (1.2, 4.5, 7.8)), "ear"),
+    ]
+    out = []
+    for el in left:
+        r = mirror(el)
+        out += [el, r]
+    return out
+
+
+def dorsal_fin_model():
+    """A tall dorsal fin down the spine, standing straight out behind the back: tallest at the shoulder blades, sweeping
+    back and down to the small of the back, on a teal ridge. Built facing the back already (+z is behind), so it is not
+    mirrored like the other back items."""
+    return [
+        solid((7.6, -1.0, 7.4), (8.4, 16.0, 8.4)),
+        side_plate((7.95, -3.0, 8.0), (8.05, 17.0, 18.0), FIN_DORSAL),
+    ]
+
+
+def paint_fins():
+    """The Merfolk fins, painted texel by texel into one 128 texture (layout above). Each fin is spines radiating from its
+    root, a membrane filling between them (see through, alpha about 200, with faint rays), its edge scalloped between
+    the spine tips, the spines opaque and darker with a light core, and the tips a pale pearl."""
+    size = 128
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    rng = random.Random("merfolk-fins")
+    root_c, mid_c, edge_c = rgb("#1a6f9a"), rgb("#33d6d0"), rgb("#d8fff4")
+    spine_c, spine_hi = rgb("#0b3f63"), rgb("#8ff0ee")
+
+    def fin(box, spines):
+        """spines: a list of (root, tip) pixel pairs inside box, in order round the fan."""
+        x0, y0, x1, y1 = box
+        roots = list(dict.fromkeys(r for r, _ in spines))
+        poly = [roots[0]] + [t for _, t in spines] + (list(reversed(roots)) if len(roots) > 1 else [])
+        mask = Image.new("L", (size, size), 0)
+        d = ImageDraw.Draw(mask)
+        d.polygon(poly, fill=255)
+        # scallops: bite a little out of the edge between each pair of tips
+        for (_, a), (_, b) in zip(spines, spines[1:]):
+            mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+            gap = math.hypot(b[0] - a[0], b[1] - a[1])
+            # push the bite outward, away from the two roots' middle
+            rx = sum(r[0] for r, _ in spines) / len(spines)
+            ry = sum(r[1] for r, _ in spines) / len(spines)
+            ox, oy = mx - rx, my - ry
+            ol = math.hypot(ox, oy) or 1
+            rad = gap * 0.42
+            cx, cy = mx + ox / ol * rad * 0.62, my + oy / ol * rad * 0.62
+            d.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=0)
+        far = max(math.hypot(t[0] - r[0], t[1] - r[1]) for r, t in spines)
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if not mask.getpixel((x, y)):
+                    continue
+                # how far out from the root: the nearest spine's root distance, as a share of the longest spine
+                best = min(spines, key=lambda st: seg_dist((x, y), st[0], st[1]))
+                t = min(1.0, math.hypot(x - best[0][0], y - best[0][1]) / far)
+                c = mix(root_c, mid_c, t / 0.6) if t < 0.6 else mix(mid_c, edge_c, (t - 0.6) / 0.4)
+                ray = seg_dist((x, y), best[0], best[1])
+                k = rng.randint(-4, 4) + (6 if int(ray) % 3 == 0 else 0)
+                a = 205 - int(35 * t)
+                img.putpixel((x, y), tint(c, k) + (a,))
+        for r, t in spines:
+            n = int(max(abs(t[0] - r[0]), abs(t[1] - r[1]))) + 1
+            for i in range(n + 1):
+                u = i / n
+                px, py = r[0] + (t[0] - r[0]) * u, r[1] + (t[1] - r[1]) * u
+                if not (x0 <= px < x1 and y0 <= py < y1):
+                    continue
+                c = spine_c if u < 0.85 else mix(spine_c, edge_c, (u - 0.85) / 0.15)
+                img.putpixel((int(px), int(py)), tint(c, rng.randint(-4, 4)) + (255,))
+                # a light core beside the spine near its root, so it reads as rounded
+                if u < 0.7 and x0 <= px + 1 < x1:
+                    img.putpixel((int(px + 1), int(py)), tint(spine_hi, -10) + (255,))
+            img.putpixel((int(t[0]), int(t[1])), rgb("#eefcfa") + (255,))  # a pearl at the tip
+
+    def fan(box, root, angles, lengths):
+        return [(root, (root[0] + math.cos(math.radians(a)) * L, root[1] + math.sin(math.radians(a)) * L))
+                for a, L in zip(angles, lengths)]
+
+    # the ear fan: root at the front, a little below the middle; spines from up and back to down and back
+    ex0, ey0, ex1, ey1 = FIN_EAR
+    ear_root = (ex0 + 2, ey0 + 40)
+    fin(FIN_EAR, fan(FIN_EAR, ear_root, [-78, -58, -40, -22, -6, 10, 26], [38, 46, 47, 44, 40, 33, 24]))
+    fx0, fy0, fx1, fy1 = FIN_FRILL
+    fin(FIN_FRILL, fan(FIN_FRILL, (fx0 + 2, fy0 + 8), [-10, 12, 34, 56], [26, 27, 24, 18]))
+    # the dorsal fin: roots all along the spine (the left edge), each spine slanting back and down, longest high up
+    dx0, dy0, dx1, dy1 = FIN_DORSAL
+    dorsal = []
+    for i in range(11):
+        v = i / 10
+        ry = dy0 + 6 + v * 108
+        length = 6 + 56 * math.sin(math.pi * min(1.0, 0.12 + v * 0.95)) ** 0.7 * (1 - 0.45 * v)
+        ang = 12 + 40 * v
+        tx, ty = dx0 + 1 + math.cos(math.radians(ang)) * length, ry + math.sin(math.radians(ang)) * length
+        dorsal.append(((dx0 + 1, ry), (min(dx1 - 1, tx), min(dy1 - 1, ty))))
+    fin(FIN_DORSAL, dorsal)
+    # the solid teal
+    sx0, sy0, sx1, sy1 = FIN_SOLID
+    for y in range(sy0, sy1):
+        for x in range(sx0, sx1):
+            img.putpixel((x, y), tint(rgb("#1f7d8f"), rng.randint(-6, 6) + (10 if y == sy0 else 0)) + (255,))
+    return img
+
+
+def seg_dist(p, a, b):
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    L = dx * dx + dy * dy
+    t = 0 if L == 0 else max(0, min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / L))
+    return math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy)
 
 
 def paint_beard_icon():
@@ -883,6 +1041,13 @@ def write_helmet(head, head_elements, mat):
     # the wreath sits on the head's top; on a helmet it goes on the helmet's top (the shell is 16 high), not inside it
     lifted = []
     for el in head_elements:
+        if el.get("name") == "ear":
+            el = json.loads(json.dumps(el))
+            dx = -EAR_OUT if (el["from"][0] + el["to"][0]) / 2 < 8 else EAR_OUT
+            el["from"][0] += dx
+            el["to"][0] += dx
+            if "rotation" in el:
+                el["rotation"]["origin"][0] += dx
         if el.get("name") == "wreath":
             el = json.loads(json.dumps(el))
             el["from"][1] += 16 - WREATH_Y + 0.05
@@ -913,6 +1078,9 @@ def main():
     built["aurelia_banner"] = banner_model()
     built["fairy_wings"] = (wings_model(), paint_wings())
     built["fae_wings"] = (wings_model(), paint_leaf_wings())
+    fins = paint_fins()
+    built["merfolk_fins"] = (merfolk_fins(), fins)
+    built["dorsal_fin"] = (dorsal_fin_model(), fins)
     for name, (elements, texture) in built.items():
         if name in BACK_ITEMS:
             elements = [mirror_front_to_back(e) for e in elements]
@@ -933,7 +1101,14 @@ def main():
         os.path.join(ASSETS, "textures", "item", "fae_wings.png"))
     paint_banner_cloth().save(BANNER_CLOTH)
     paint_banner_icon().save(os.path.join(ASSETS, "textures", "item", "aurelia_banner.png"))
-    write_helmets({"antler_circlet": built["antler_circlet"][0], "dwarf_beard": built["dwarf_beard"][0]})
+    write_helmets({"antler_circlet": built["antler_circlet"][0], "dwarf_beard": built["dwarf_beard"][0],
+                   "merfolk_fins": built["merfolk_fins"][0]})
+    icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    icon.paste(fins.crop(FIN_EAR).resize((12, 16), Image.LANCZOS), (2, 0))
+    icon.save(os.path.join(ASSETS, "textures", "item", "merfolk_fins.png"))
+    icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    icon.paste(fins.crop(FIN_DORSAL).resize((8, 16), Image.LANCZOS), (4, 0))
+    icon.save(os.path.join(ASSETS, "textures", "item", "dorsal_fin.png"))
 
 
 if __name__ == "__main__":

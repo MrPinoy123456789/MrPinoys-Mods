@@ -27,11 +27,12 @@ public record WornPlacement(float up, float back, float side, float scale, boole
      * A race's look: the permission node that marks the race (race:azrak), the Foundry item drawn on everyone of that
      * race, the slot whose placement it uses, whether the race can glide (the Fairies), whether the look is a pair of
      * wings that flap (drawn as two halves, {@code <item>_left} and {@code <item>_right}, turning about the spine), and
-     * the double jump cooldown in ticks (0: no double jump; the Fae jump again in the air instead of gliding).
+     * the double jump cooldown in ticks (0: no double jump; the Fae jump again in the air instead of gliding), and the
+     * swim dash cooldown in ticks (0: none; the Merfolk dart forward in the water).
      */
-    public record RaceLook(String item, String slot, boolean glide, boolean flap, int doubleJump) {
+    public record RaceLook(String item, String slot, boolean glide, boolean flap, int doubleJump, int swimDash) {
         public RaceLook(String item, String slot, boolean glide, boolean flap) {
-            this(item, slot, glide, flap, 0);
+            this(item, slot, glide, flap, 0, 0);
         }
     }
 
@@ -68,23 +69,29 @@ public record WornPlacement(float up, float back, float side, float scale, boole
         Map<String, WornPlacement> items = new LinkedHashMap<>();
         items.put("kingdoms:fairy_wings", new WornPlacement(1.2f, 0.34f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true, false));
         items.put("kingdoms:fae_wings", new WornPlacement(1.2f, 0.34f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true, false));
+        // the dorsal fin's root is the spine itself (model z 8), so it sits at the back's surface, not out behind it
+        items.put("kingdoms:dorsal_fin", new WornPlacement(1.2f, 0.14f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true, false));
         return new Table(Map.copyOf(slots), Map.copyOf(items), defaultRaces());
     }
 
     /** The Fae's double jump cooldown, in ticks: two and a half seconds. */
     public static final int FAE_DOUBLE_JUMP = 50;
+    /** The Merfolk's swim dash cooldown, in ticks: two seconds. */
+    public static final int MERFOLK_SWIM_DASH = 40;
 
     /**
      * The built in races: each kingdom's race and the looks it always shows. The Fairies of Everdelle glide on gauzy
-     * wings; the Fae of Faeloria wear antlers in a wreath of flowers, have leaf wings, and jump twice instead of gliding.
+     * wings; the Fae of Faeloria wear antlers in a wreath of flowers, have leaf wings, and jump twice instead of gliding;
+     * the Merfolk of Azurius have fin ears and a dorsal fin, and dash through the water.
      */
     public static Map<String, List<RaceLook>> defaultRaces() {
         Map<String, List<RaceLook>> races = new LinkedHashMap<>();
         races.put("race:azrak", List.of(new RaceLook("kingdoms:dwarf_beard", "head/hat", false, false)));
         races.put("race:aurelia", List.of(new RaceLook("kingdoms:aurelia_banner", "chest/banner", false, false)));
         races.put("race:faeloria", List.of(new RaceLook("kingdoms:antler_circlet", "head/hat", false, false),
-                new RaceLook("kingdoms:fae_wings", "chest/cape", false, true, FAE_DOUBLE_JUMP)));
-        races.put("race:azurius", List.of(new RaceLook("kingdoms:tidal_gills", "head/face", false, false)));
+                new RaceLook("kingdoms:fae_wings", "chest/cape", false, true, FAE_DOUBLE_JUMP, 0)));
+        races.put("race:azurius", List.of(new RaceLook("kingdoms:merfolk_fins", "head/hat", false, false),
+                new RaceLook("kingdoms:dorsal_fin", "chest/cape", false, false, 0, MERFOLK_SWIM_DASH)));
         races.put("race:everdelle", List.of(new RaceLook("kingdoms:fairy_wings", "chest/cape", true, true)));
         return Map.copyOf(races);
     }
@@ -99,7 +106,7 @@ public record WornPlacement(float up, float back, float side, float scale, boole
      * entry may leave any field out; a slot entry then takes the built in default for that slot (or a plain default),
      * and an item entry takes its slot's values, so one number can be tuned alone. Fields: up, back, side, scale,
      * on_head, rotation [x, y, z], hide_from_wearer, head_slot, ride, swing. Races: {@code {"race:x": {"item", "slot",
-     * "glide", "flap", "double_jump"}}}, or an array of such looks. A bad file gives the defaults and a problem line.
+     * "glide", "flap", "double_jump", "swim_dash"}}}, or an array of such looks. A bad file gives the defaults and a problem line.
      */
     public static Parsed parse(String json) {
         List<String> problems = new ArrayList<>();
@@ -145,7 +152,8 @@ public record WornPlacement(float up, float back, float side, float scale, boole
                     try {
                         looks.add(new RaceLook(o.get("item").getAsString(), o.get("slot").getAsString(),
                                 o.has("glide") && o.get("glide").getAsBoolean(), o.has("flap") && o.get("flap").getAsBoolean(),
-                                o.has("double_jump") ? Math.max(0, o.get("double_jump").getAsInt()) : 0));
+                                o.has("double_jump") ? Math.max(0, o.get("double_jump").getAsInt()) : 0,
+                                o.has("swim_dash") ? Math.max(0, o.get("swim_dash").getAsInt()) : 0));
                     } catch (RuntimeException ex) {
                         problems.add("worn_displays.json: race " + en.getKey() + " has a value of the wrong type ("
                                 + ex.getMessage() + ")");

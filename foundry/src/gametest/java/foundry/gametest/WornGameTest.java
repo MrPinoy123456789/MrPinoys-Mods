@@ -84,7 +84,8 @@ public final class WornGameTest {
         var me = wearer.getUUID();
         helper.runAfterDelay(25, () -> {
             var hidden = foundry.mc.WornDisplays.watchers(me);
-            helper.assertTrue(hidden.size() == 2 && hidden.stream().noneMatch(w -> w.contains(me)),
+            // the banner, the Merfolk fin ears (a head item) and the dorsal fin
+            helper.assertTrue(hidden.size() == 3 && hidden.stream().noneMatch(w -> w.contains(me)),
                     "By default no display should reach its wearer: " + hidden);
             foundry.mc.WornDisplays.setSelfView(me, true);
             foundry.mc.WornDisplays.refresh(wearer);
@@ -93,9 +94,10 @@ public final class WornGameTest {
             long own = shown.stream().filter(w -> w.contains(me)).count();
             long forObserver = shown.stream().filter(w -> w.contains(observer.getUUID())).count();
             foundry.mc.WornDisplays.setSelfView(me, false);
-            helper.assertTrue(shown.size() == 4, "Expected two copies for others and two for the wearer, found " + shown);
+            // the head item never gets a wearer's copy as a display (the wearer sees it in their own helmet slot)
+            helper.assertTrue(shown.size() == 5, "Expected three copies for others and two for the wearer, found " + shown);
             helper.assertTrue(own == 2, "Both of the wearer's own copies should reach them, but " + own + " do: " + shown);
-            helper.assertTrue(forObserver == 2, "The observer should get only the two copies for others, but gets " + forObserver);
+            helper.assertTrue(forObserver == 3, "The observer should get only the three copies for others, but gets " + forObserver);
             helper.assertTrue(shown.stream().noneMatch(w -> w.contains(me) && w.contains(observer.getUUID())),
                     "No display may go to both the wearer and someone else: " + shown);
             helper.succeed();
@@ -370,7 +372,7 @@ public final class WornGameTest {
                     def.id() + " worn model file is missing");
             checked++;
         }
-        helper.assertTrue(checked == 8, "Expected eight items with a worn model but checked " + checked);
+        helper.assertTrue(checked == 10, "Expected ten items with a worn model but checked " + checked);
         helper.succeed();
     }
 
@@ -378,7 +380,7 @@ public final class WornGameTest {
     @GameTest(maxTicks = 20)
     public void theClientIsSentTheItemModelThePackSelectsOn(GameTestHelper helper) {
         ServerPlayer viewer = player(helper, null);
-        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard", "aurelia_banner", "fae_wings"}) {
+        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard", "aurelia_banner", "fae_wings", "merfolk_fins", "dorsal_fin"}) {
             String seen = foundry.mc.WornDisplays.clientView(viewer, new ItemStack(item("kingdoms:" + id)));
             foundry.mc.FoundryMod.LOG.info("client stack for kingdoms:{}: {}", id, seen);
             helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
@@ -483,6 +485,35 @@ public final class WornGameTest {
                     + fae.getDeltaMovement());
             helper.assertTrue(fae.fallDistance == 0, "The hop left the fall distance at " + fae.fallDistance);
             helper.succeed();
+        });
+    }
+
+    /**
+     * The Merfolk wear fin ears on the head (on a helmet's sides when one is worn) and a dorsal fin on the back, and dash
+     * through the water: the dash throws them the way they look, fast, and only a Merfolk has it.
+     */
+    @GameTest(maxTicks = 60)
+    public void theMerfolkWearFinsAndDashThroughTheWater(GameTestHelper helper) {
+        ServerPlayer mer = player(helper, "race:azurius");
+        ServerPlayer fae = player(helper, "race:faeloria");
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(mer.getUUID()) == 2, "The Merfolk should show the fin ears and the dorsal fin");
+            var head = foundry.mc.WornDisplays.headItemFor(mer.getUUID());
+            helper.assertTrue(head != null && head.is(item("kingdoms:merfolk_fins")), "The fin ears are not on the head: " + head);
+            helper.assertTrue(foundry.mc.SwimDash.cooldownOf(mer.getUUID()) == foundry.core.WornPlacement.MERFOLK_SWIM_DASH,
+                    "The Merfolk has no swim dash");
+            helper.assertTrue(foundry.mc.SwimDash.cooldownOf(fae.getUUID()) == 0, "A Fae can swim dash");
+            mer.setXRot(0f);
+            mer.setYRot(0f);
+            foundry.mc.SwimDash.dash(mer);
+            helper.assertTrue(mer.getDeltaMovement().z > 0.9, "The dash did not throw the Merfolk the way they look: " + mer.getDeltaMovement());
+            mer.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.TURTLE_HELMET));
+            helper.runAfterDelay(5, () -> {
+                var combined = foundry.mc.WornDisplays.headItemFor(mer.getUUID());
+                helper.assertTrue(combined != null && String.valueOf(combined.get(net.minecraft.core.component.DataComponents.ITEM_MODEL))
+                        .equals("kingdoms:merfolk_fins_on_turtle_scute"), "A turtle shell should get the fins on its sides: " + combined);
+                helper.succeed();
+            });
         });
     }
 

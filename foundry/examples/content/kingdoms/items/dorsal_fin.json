@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:dorsal_fin",
+  "display_name": "Dorsal Fin",
+  "lore": [
+    "The fin down a Merfolk's back.",
+    "Sprint swim and press jump to dart forward."
+  ],
+  "base_item": "minecraft:prismarine_crystals",
+  "texture": "kingdoms:item/dorsal_fin",
+  "worn_model": "kingdoms:item/worn/dorsal_fin",
+  "stack_size": 1,
+  "rarity": "uncommon"
+}

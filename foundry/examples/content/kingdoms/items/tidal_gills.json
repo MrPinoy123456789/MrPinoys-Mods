@@ -4,7 +4,7 @@
   "display_name": "Tidal Gills",
   "lore": [
     "A retired trinket, kept for something new later.",
-    "The Merfolk of Azurius now wear this look and breathe water by race."
+    "The Merfolk of Azurius now wear fin ears and a dorsal fin instead."
   ],
   "base_item": "minecraft:nautilus_shell",
   "texture": "kingdoms:item/tidal_gills",

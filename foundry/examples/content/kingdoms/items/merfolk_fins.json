@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:merfolk_fins",
+  "display_name": "Merfolk Fins",
+  "lore": [
+    "Every Merfolk of Azurius hears the sea through these.",
+    "They sit on a helmet's sides when one is worn."
+  ],
+  "base_item": "minecraft:prismarine_shard",
+  "texture": "kingdoms:item/merfolk_fins",
+  "worn_model": "kingdoms:item/worn/merfolk_fins",
+  "stack_size": 1,
+  "rarity": "uncommon"
+}
