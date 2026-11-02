@@ -102,6 +102,16 @@ public final class DefaultTemplates {
         // A player's own deposit is their business. An empty template keeps an event out of the books.
         t.put("ContractEvents.VaultDeposited", "");
 
+        // ---- ranks (RankEvents) ----
+        t.put("RankEvents.RankAdded", "On {when}, {org} made a new rank: {name}.");
+        t.put("RankEvents.RankRenamed", "On {when}, the rank of {from} in {org} was renamed {to}.");
+        t.put("RankEvents.RankRemoved", "On {when}, {org} did away with the rank of {name}.");
+        // Reordering the ladder is housekeeping: kept in the history, out of the story.
+        t.put("RankEvents.RankMoved", "");
+        t.put("RankEvents.RankGiven", "On {when}, {player} was named {name} of {org}.");
+        t.put("RankEvents.RankPowerGiven", "On {when}, {org} gave the rank of {name} the power to {power}.");
+        t.put("RankEvents.RankPowerTaken", "On {when}, {org} took from the rank of {name} the power to {power}.");
+
         return t;
     }
 }

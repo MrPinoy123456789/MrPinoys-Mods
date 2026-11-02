@@ -30,6 +30,7 @@ public record GrantPower(OrgId subject, Power granted, Holder recipient, GrantSc
 
     public static final Reason TOO_WIDE = new Reason("grant_too_wide", "You cannot give more than you were given.");
     public static final Reason NO_RECIPIENT = new Reason("no_recipient", "There is no such player, office or organization to give that to.");
+    public static final Reason TO_RANK = new Reason("grant_to_rank", "A rank's powers are set on the rank itself, by the Lord.");
 
     @Override
     public OrgId actingFor() {
@@ -48,10 +49,13 @@ public record GrantPower(OrgId subject, Power granted, Holder recipient, GrantSc
 
     @Override
     public Outcome check(ActionContext ctx) {
+        // Ranks get powers only through SetRankPower, which keeps the rank rules in one place.
+        if (recipient instanceof Holder.OfRank) return Outcome.refuse(TO_RANK);
         boolean exists = switch (recipient) {
             case Holder.OfPlayer p -> true;
             case Holder.OfOffice o -> ctx.state.office(o.office()).isPresent();
             case Holder.OfOrg o -> ctx.state.org(o.org()).isPresent();
+            case Holder.OfRank r -> false;
         };
         if (!exists) return Outcome.refuse(NO_RECIPIENT);
         Authority authority = ctx.authority();

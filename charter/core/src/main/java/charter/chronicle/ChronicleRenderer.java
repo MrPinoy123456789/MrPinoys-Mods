@@ -268,6 +268,7 @@ public final class ChronicleRenderer {
         if (value instanceof Holder.OfPlayer h) return names.player(h.player());
         if (value instanceof Holder.OfOffice h) return "the " + names.office(h.office());
         if (value instanceof Holder.OfOrg h) return names.org(h.org());
+        if (value instanceof Holder.OfRank h) return "a rank of " + names.org(h.kingdom());
         if (value instanceof CoreId id) return names.core(id);
         if (value instanceof ChunkKey c) return (c.x() * 16 + 8) + ", " + (c.z() * 16 + 8);
         if (value instanceof Party p) return p.isPlayer() ? names.player(p.player()) : names.org(p.org());

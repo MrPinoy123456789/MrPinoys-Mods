@@ -55,6 +55,8 @@ public final class CharterState {
 
     /** The raiders' strongholds and outposts that stand, and the replacements waiting (NPC strongholds). */
     public final charter.npc.NpcBook npc = new charter.npc.NpcBook();
+    /** Every kingdom's ranks and who holds which (charter.org.Ranks). */
+    public final charter.org.Ranks ranks = new charter.org.Ranks();
     /** Declared wars: goals to capture outposts, truces after them, windows after a capture. */
     public final charter.siege.WarBook wars = new charter.siege.WarBook();
 
@@ -239,6 +241,8 @@ public final class CharterState {
             PlayerRecord record = player(player);
             if (!record.noRace && (record.race == null || !orgs.containsKey(record.race))) record.race = root(gone.org());
             memberships.remove(player);
+            // A rank belongs to the kingdom; whoever comes back starts at its default rank.
+            ranks.forget(player);
             for (Office office : offices(gone.org())) {
                 office.unseat(player);
             }

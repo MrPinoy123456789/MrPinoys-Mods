@@ -54,6 +54,35 @@ public enum Preset {
         return events;
     }
 
+    /** Routine powers added after kingdoms were already founded; a Lord of an older kingdom is given them on load. */
+    public static final Set<Power> LATER_LORD_POWERS = EnumSet.of(Power.MANAGE_RANKS);
+
+    /**
+     * Gives every decision makers office that has the preset's root grants (a Lord's, or a Commune's office with no
+     * seats) a root grant of each {@link #LATER_LORD_POWERS} it never had, passable on, as founding would give it today.
+     * A power the office once had and lost (revoked) is not given again. Idempotent; returns the grants added.
+     */
+    public static List<Grant> addLaterLordGrants(CharterState state, long now) {
+        List<Grant> added = new ArrayList<>();
+        for (Organization org : List.copyOf(state.orgs())) {
+            if (org.npc || org.governance.deciders == null) continue;
+            charter.id.OfficeId office = org.governance.deciders;
+            if (state.office(office).isEmpty()) continue;
+            Holder seat = new Holder.OfOffice(office);
+            boolean preset = state.grants().stream().anyMatch(g -> g.subject.equals(org.id) && g.isRoot()
+                    && g.recipient.equals(seat) && g.power == Power.MANAGE_MEMBERS);
+            if (!preset) continue;
+            for (Power power : LATER_LORD_POWERS) {
+                boolean ever = state.grants().stream().anyMatch(g -> g.subject.equals(org.id) && g.power == power && g.recipient.equals(seat));
+                if (ever) continue;
+                Grant grant = new Grant(state.ids.grant(), org.id, power, seat, new Holder.OfOrg(org.id), null, GrantScope.ANY, true, now, 0);
+                state.addGrant(grant);
+                added.add(grant);
+            }
+        }
+        return added;
+    }
+
     /** The root grants of the decision makers office: every routine power, the spend limit included. */
     public static void addLordGrants(CharterState state, charter.id.OrgId org, charter.id.OfficeId lord, Knobs knobs, long now) {
         Holder self = new Holder.OfOrg(org);

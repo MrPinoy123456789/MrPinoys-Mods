@@ -28,5 +28,7 @@ public enum Power {
     JUDGE,
     PARDON,
     NEGOTIATE,
-    DECLARE_WAR
+    DECLARE_WAR,
+    /** Rename, add, remove and reorder a kingdom's ranks, and give members a rank (charter.org.Ranks). */
+    MANAGE_RANKS
 }

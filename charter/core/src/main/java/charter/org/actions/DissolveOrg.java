@@ -114,6 +114,7 @@ public record DissolveOrg(OrgId org) implements Action {
             case Holder.OfOrg o -> o.org();
             case Holder.OfOffice o -> state.allOffices().stream().filter(x -> x.id.equals(o.office())).findFirst().map(x -> x.org).orElse(null);
             case Holder.OfPlayer p -> null;
+            case Holder.OfRank r -> r.kingdom();
         };
     }
 }

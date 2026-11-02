@@ -14,6 +14,7 @@ import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.land.CoreKind;
 import charter.land.LandEvents;
+import charter.org.RankEvents;
 import charter.siege.SiegeEvents;
 import charter.time.Durations;
 import charter.treasury.Currency;
@@ -131,6 +132,15 @@ public final class ChronicleStoryTest {
                 IN + "a contract imposed by right of occupation ended in resistance (the prisoner walked out). No mark was set on anyone.");
         golden(new ContractEvents.Breached(AT, CONTRACT, Party.of(RIVERSIDE)), IN + "Riverside broke their word, and was marked for it.");
         golden(new ContractEvents.Ended(AT, CONTRACT, Basis.OCCUPATION, "the keep was lost"), IN + "a contract made by right of occupation ended early: the keep was lost.");
+        // ranks
+        golden(new RankEvents.RankAdded(AT, ASHFALL, "r1", "Royal Commander"), IN + "Ashfall made a new rank: Royal Commander.");
+        golden(new RankEvents.RankRenamed(AT, ASHFALL, "lord", "Lord", "Queen"), IN + "the rank of Lord in Ashfall was renamed Queen.");
+        golden(new RankEvents.RankRemoved(AT, ASHFALL, "r2", "Peasant", List.of(GIL)), IN + "Ashfall did away with the rank of Peasant.");
+        golden(new RankEvents.RankGiven(AT, ASHFALL, GIL, "r1", "Princess", "Commoner"), IN + "Gil was named Princess of Ashfall.");
+        golden(new RankEvents.RankPowerGiven(AT, ASHFALL, "r1", "Royal Commander", charter.grant.Power.DECLARE_WAR, null),
+                IN + "Ashfall gave the rank of Royal Commander the power to declare war.");
+        golden(new RankEvents.RankPowerTaken(AT, ASHFALL, "r1", "Royal Commander", charter.grant.Power.DECLARE_WAR),
+                IN + "Ashfall took from the rank of Royal Commander the power to declare war.");
 
         for (Map.Entry<String, HistoryEvent> e : EVENTS.entrySet()) {
             eq("golden: " + e.getKey(), EXPECTED.get(e.getKey()), told(e.getValue()));
@@ -144,7 +154,7 @@ public final class ChronicleStoryTest {
 
     static void everyNewEventIsCovered() {
         TemplateSet defaults = DefaultTemplates.get();
-        for (Class<?> events : new Class<?>[]{LandEvents.class, SiegeEvents.class, ContractEvents.class}) {
+        for (Class<?> events : new Class<?>[]{LandEvents.class, SiegeEvents.class, ContractEvents.class, RankEvents.class}) {
             for (Class<?> type : events.getDeclaredClasses()) {
                 if (!HistoryEvent.class.isAssignableFrom(type)) continue;
                 String key = TemplateSet.keyOf(type);
@@ -159,7 +169,7 @@ public final class ChronicleStoryTest {
     /** A hole that names no field would print "unknown" to players. */
     static void holesNameRealFields() {
         Pattern hole = Pattern.compile("\\{([A-Za-z_]+)[#?]?[^}]*}");
-        for (Class<?> events : new Class<?>[]{LandEvents.class, SiegeEvents.class, ContractEvents.class}) {
+        for (Class<?> events : new Class<?>[]{LandEvents.class, SiegeEvents.class, ContractEvents.class, RankEvents.class}) {
             for (Class<?> type : events.getDeclaredClasses()) {
                 if (!type.isRecord()) continue;
                 String key = TemplateSet.keyOf(type);
@@ -186,6 +196,8 @@ public final class ChronicleStoryTest {
         ChronicleRenderer r = renderer();
         check("quiet: food carried in with no siege is not told",
                 r.render(new History.Entry(new SiegeEvents.FoodDeposited(AT, 0, KEEP, "player:x", Map.of("minecraft:bread", 4), 12, false), "x", false)).isEmpty());
+        check("quiet: moving a rank up or down is not told",
+                r.render(new History.Entry(new RankEvents.RankMoved(AT, ASHFALL, "r1", "Knight", 3, 2), "x", false)).isEmpty());
         check("quiet: a player's own vault deposit is not told",
                 r.render(new History.Entry(new ContractEvents.VaultDeposited(AT, KRIS, Currency.DIAMOND, 5), "x", false)).isEmpty());
         TemplateSet silenced = DefaultTemplates.get().overlay(new TemplateSet().put("LandEvents.Claimed", ""));

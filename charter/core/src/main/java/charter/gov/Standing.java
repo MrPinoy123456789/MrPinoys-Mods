@@ -31,7 +31,7 @@ public final class Standing {
 
     public enum Form { COMMUNE, LORDSHIP, COUNCIL }
 
-    public enum HolderKind { YOU, OFFICE, PLAYER, ORG, MEMBERS_BY_VOTE }
+    public enum HolderKind { YOU, OFFICE, PLAYER, ORG, MEMBERS_BY_VOTE, RANK }
 
     /** The player a newcomer's view is read as: nobody, who holds nothing and cannot vote. */
     private static final PlayerId NOBODY = new PlayerId(new UUID(0, 0));
@@ -165,6 +165,8 @@ public final class Standing {
                     state.org(o.org()).map(x -> x.name()).orElse(""), List.of(), false, canVote, shown);
             case Holder.OfPlayer p -> new Line(group, power, you != null ? you : HolderKind.PLAYER,
                     you != null ? "" : name(state, p.player()), List.of(), false, canVote, shown);
+            case Holder.OfRank r -> new Line(group, power, you != null ? you : HolderKind.RANK,
+                    state.ranks.rank(r.kingdom(), r.rank()).map(charter.org.Ranks.Rank::name).orElse(""), List.of(), false, canVote, shown);
         };
     }
 

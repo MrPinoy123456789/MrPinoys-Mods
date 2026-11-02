@@ -78,6 +78,10 @@ public final class AuthorityResolver {
                 // A player uses an organization's grant with the same power they hold within it.
                 yield resolve(who, org, power, need, false, visiting, depth + 1).ok();
             }
+            // A grant to a rank reaches the members who hold that rank of that kingdom right now.
+            case Holder.OfRank(var kingdom, var rank) -> who instanceof Who.AsPlayer(var p)
+                    && charter.org.Ranks.kingdomOf(state, p).map(kingdom::equals).orElse(false)
+                    && state.ranks.rankOf(state, p).map(r -> r.id().equals(rank)).orElse(false);
         };
     }
 
@@ -92,6 +96,8 @@ public final class AuthorityResolver {
         if (grant.expiresAt != 0 && now >= grant.expiresAt) return false;
         if (state.org(grant.subject).isEmpty()) return false;
         if (!recipientExists(grant.recipient)) return false;
+        // A rank never carries a forbidden power, whoever made the grant and whenever.
+        if (grant.recipient instanceof Holder.OfRank && charter.org.Ranks.FORBIDDEN.contains(grant.power)) return false;
         if (grant.isRoot()) {
             return grant.grantor.equals(new Holder.OfOrg(grant.subject));
         }
@@ -111,6 +117,7 @@ public final class AuthorityResolver {
             case Holder.OfPlayer p -> true;
             case Holder.OfOffice o -> state.office(o.office()).isPresent();
             case Holder.OfOrg o -> state.org(o.org()).isPresent();
+            case Holder.OfRank r -> state.org(r.kingdom()).isPresent() && state.ranks.rank(r.kingdom(), r.rank()).isPresent();
         };
     }
 

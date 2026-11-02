@@ -11,7 +11,7 @@ import java.util.List;
  */
 public enum PowerGroup {
     MEMBERS(Power.MANAGE_MEMBERS),
-    OFFICES(Power.APPOINT),
+    OFFICES(Power.APPOINT, Power.MANAGE_RANKS),
     TREASURY(Power.SPEND),
     LAND(Power.PLACE_CORE, Power.CLAIM),
     GRANARY_IN(Power.GRANARY_DEPOSIT),
