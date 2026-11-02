@@ -7,7 +7,7 @@ again. The output is plain Foundry JSON, so nothing here is needed at runtime.
 
 Balance (2026-11-02). Each tier's strongest attack is worth about a vanilla sword of that tier: iron (6 damage at 1.6
 attacks a second, about 9.6 a second), diamond (7, 11.2) and netherite (8, 12.8). A basic ranged attack (a left click
-bolt) does about 60 percent of that, as it is safe at range; the Fairies' wand, a support weapon, about 40 percent.
+bolt) does about 60 percent of that, as it is safe at range; the Fairies' wand, a support weapon, about 40 to 50 percent.
 Abilities sit on cooldowns. Roles: the Dwarves' War Pick breaks armour up close, the Humans' Oathblade duels and
 leads, the Merfolk's Tide Trident skirmishes at mid range and is stronger wet, the Fae's Briarthorn Staff controls with
 poison and roots, and the Fairies' Everdelle Wand supports and harries. Projectiles carry a visible model for Java
@@ -258,7 +258,7 @@ def faeloria(t):
 
 
 def everdelle(t):
-    spark = [2, 3, 4][t]
+    spark = [3, 4, 5][t]
     lift = [30, 40, 50][t]
     mis_cd = [400, 360, 320][t]
     heal = [160, 200, 240][t]

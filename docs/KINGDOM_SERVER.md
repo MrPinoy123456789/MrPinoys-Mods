@@ -33,7 +33,7 @@ both). Roles and tier I to III numbers:
 | Oathblade (Humans) | Duelist and leader | 5, 6, 6 at 1.6, plus 1, 1, 2 and Weakness, a silver sweep arc | | Holy Lance: a visible spear of light, 4, 5, 6 damage, a pillar of light where it lands | Rally (unchanged), a silver ring |
 | Tide Trident (Merfolk) | Mid range skirmisher | 5, 6, 7 at 1.1 | Water Jet every 0.8 s, 4, 5, 6 damage, one more in water or rain | Throw: a visible trident that flies out and returns, 5, 6, 7 damage | Riptide Mist (unchanged) |
 | Briarthorn Staff (Fae) | Control | none | Thorn Bolt every 0.8 s, 3, 3, 4 and poison | Bramble Burst (hold 1 s): 5, 6, 7 damage, poison and a 2 to 3 s root (Slowness IV), a ring of thorns | Glamour (unchanged) |
-| Everdelle Wand (Fairies) | Support and harassment | none | Sparkle every 0.8 s, 2, 3, 4 damage, 24 blocks | Mischief: lifts the target 1.5 to 2.5 s | Healing Light: regeneration for 8 to 12 s for players within 5 blocks |
+| Everdelle Wand (Fairies) | Support and harassment | none | Sparkle every 0.8 s, 3, 4, 5 damage, 24 blocks | Mischief: lifts the target 1.5 to 2.5 s | Healing Light: regeneration for 8 to 12 s for players within 5 blocks |
 
 - The Fairies' wand moved out of the demo namespace: `demo:fairy_wand`, `_2` and `_3` are now placeholders with
   `replaced_by` (a new item field), so a wand anyone still carries becomes the Everdelle Wand of the same tier the first

@@ -3,7 +3,7 @@
   "id": "kingdoms:everdelle_wand_1",
   "display_name": "Everdelle Wand",
   "lore": [
-    "Left click: a sparkle bolt, 2 damage.",
+    "Left click: a sparkle bolt, 3 damage.",
     "Right click: Mischief, a bolt that hurts and lifts its target off the ground for 1.5s. 20s recharge.",
     "Sneak and right click: Healing Light, regeneration for players within 5 blocks for 8s. 75s recharge.",
     "Upgrade: 3 amethyst shards and a glow ink sac, crafted with this."
@@ -54,7 +54,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 2,
+          "amount": 3,
           "target": "hit"
         },
         {
