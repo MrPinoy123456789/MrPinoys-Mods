@@ -32,7 +32,8 @@
       "charter.gametest.RaceNodeGameTest",
       "charter.gametest.AdminMenuGameTest",
       "charter.gametest.SpawnRulesGameTest",
-      "charter.gametest.KingdomExplosionsGameTest"
+      "charter.gametest.KingdomExplosionsGameTest",
+      "charter.gametest.PadGameTest"
     ]
   },
   "mixins": [

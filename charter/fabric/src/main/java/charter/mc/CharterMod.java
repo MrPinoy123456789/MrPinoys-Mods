@@ -55,6 +55,8 @@ public final class CharterMod implements ModInitializer {
         charter.mc.RaceNodes.register();
         // Discord: linked accounts, join requests answered from Discord (off until discord.json enables it).
         charter.mc.discord.DiscordBridge.register();
+        // Teleport pads: walk onto one in the spawn town to go to your keep, for players who cannot type.
+        charter.mc.pad.Pads.register();
 
         LOG.info("Charter initialised (server-side only), time scale {}", knobs.timeScale);
     }
