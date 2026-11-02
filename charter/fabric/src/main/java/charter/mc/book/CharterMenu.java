@@ -12,6 +12,13 @@ public final class CharterMenu {
     private CharterMenu() {
     }
 
+    /** The right Home for this player now, with a line above it (or null). */
+    public static void home(ServerPlayer player, String notice) {
+        if (!CharterServer.running()) return;
+        if (CharterServer.runtime().state.membership(new PlayerId(player.getUUID())).isPresent()) MemberPages.home(player, notice);
+        else NewcomerPages.home(player, notice);
+    }
+
     public static void open(ServerPlayer player) {
         if (!CharterServer.running()) {
             player.sendSystemMessage(Component.literal(Text.get("book.not_running")));

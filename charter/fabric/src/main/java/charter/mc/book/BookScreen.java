@@ -48,6 +48,13 @@ public record BookScreen(Kind kind, String title, List<Component> body, List<Boo
         return body.stream().map(Component::getString).toList();
     }
 
+    /** A result line: the green or red line {@link BookDialogs#withNotice} puts on top. */
+    static boolean result(Component line) {
+        var color = line.getStyle().getColor();
+        return color != null && (color.equals(net.minecraft.network.chat.TextColor.fromLegacyFormat(net.minecraft.ChatFormatting.GREEN))
+                || color.equals(net.minecraft.network.chat.TextColor.fromLegacyFormat(net.minecraft.ChatFormatting.RED)));
+    }
+
     /** The rules this screen breaks, empty when it is fine. A list over the button limit is paged, so it never gets here. */
     public List<String> violations() {
         List<String> out = new ArrayList<>();
@@ -56,7 +63,9 @@ public record BookScreen(Kind kind, String title, List<Component> body, List<Boo
         for (BookButton b : allButtons()) {
             if (b.label().length() > MAX_LABEL) out.add("label over " + MAX_LABEL + " characters: " + b.label());
         }
-        if (body.size() > MAX_BODY_LINES) out.add("more than " + MAX_BODY_LINES + " body lines (" + body.size() + ")");
+        // The result of the last press sits above the body (BookDialogs.withNotice) and is not counted against it.
+        int lines = body.size() - (!body.isEmpty() && result(body.get(0)) ? 1 : 0);
+        if (lines > MAX_BODY_LINES) out.add("more than " + MAX_BODY_LINES + " body lines (" + lines + ")");
         return out;
     }
 }

@@ -37,6 +37,7 @@ public final class WarPages {
         return rt().state.membership(new PlayerId(player.getUUID())).map(MemberRecord::org).map(rt().state::root).orElse(null);
     }
 
+    /** Targets first, named by direction and distance; the rules wait behind How war works. */
     public static void page(ServerPlayer player, String notice) {
         CharterRuntime rt = rt();
         OrgId nation = nation(player);
@@ -45,46 +46,71 @@ public final class WarPages {
             return;
         }
         long now = rt.state.siegeClock.now();
-        List<String> body = new ArrayList<>();
-        body.add(Text.get("book.war.intro"));
+        List<String> status = new ArrayList<>();
         for (WarBook.Goal goal : rt.state.wars.goals) {
-            if (goal.defender.equals(nation)) body.add(against(rt, goal, now));
+            if (goal.defender.equals(nation)) status.add(against(rt, goal, now));
         }
         for (WarBook.Goal goal : rt.state.wars.goals) {
-            if (goal.attacker.equals(nation)) body.add(by(rt, goal, now));
+            if (goal.attacker.equals(nation)) status.add(by(rt, goal, now));
         }
         for (WarBook.Truce truce : rt.state.wars.truces) {
             if (now >= truce.untilSiege() || !(truce.a().equals(nation) || truce.b().equals(nation))) continue;
             OrgId other = truce.a().equals(nation) ? truce.b() : truce.a();
-            body.add(Text.get("book.war.truce", "org", rt.describe.org(other), "time", Chat.duration(truce.untilSiege() - now)));
+            status.add(Text.get("book.war.truce", "org", rt.describe.org(other), "time", Chat.duration(truce.untilSiege() - now)));
         }
         List<Core> mine = rt.state.cores().stream()
                 .filter(c -> !c.isKeep() && c.activeCamp() && rt.state.root(c.owner).equals(nation)).toList();
         var land = new charter.land.LandGraph(rt.state, rt.knobs);
-        List<BookButton> buttons = new ArrayList<>();
-        if (mine.isEmpty()) {
-            body.add(Text.get("book.war.need_outpost"));
-        } else {
-            int shown = 0;
-            for (Core target : rt.state.cores()) {
-                if (shown >= TARGETS_MAX) break;
-                if (target.isKeep() || !target.activeCamp()) continue;
-                OrgId defender = rt.state.root(target.owner);
-                if (defender.equals(nation) || rt.state.org(defender).map(o -> o.npc || o.adminKingdom).orElse(true)) continue;
-                if (rt.state.wars.against(target.id).isPresent()) continue;
-                // A war is fought between two touching outposts, so only a neighbour of one of yours can be named.
-                if (mine.stream().noneMatch(m -> land.touching(m, target))) continue;
-                CoreId id = target.id;
-                String label = Text.get("book.war.declare_button", "org", rt.describe.org(defender), "x", target.center.x() * 16 + 8, "z", target.center.z() * 16 + 8);
-                buttons.add(BookDialogs.act(player, label, null, p -> confirm(p, id)));
-                shown++;
-            }
-            if (shown == 0) body.add(Text.get("book.war.no_targets"));
+        List<Core> targets = new ArrayList<>();
+        for (Core target : rt.state.cores()) {
+            if (target.isKeep() || !target.activeCamp()) continue;
+            OrgId defender = rt.state.root(target.owner);
+            if (defender.equals(nation) || rt.state.org(defender).map(o -> o.npc || o.adminKingdom).orElse(true)) continue;
+            if (rt.state.wars.against(target.id).isPresent()) continue;
+            // A war is fought between two touching outposts, so only a neighbour of one of yours can be named.
+            if (mine.stream().noneMatch(m -> land.touching(m, target))) continue;
+            targets.add(target);
         }
+        targets.sort(java.util.Comparator.comparingDouble(t -> distance(player, t)));
+        List<BookButton> buttons = new ArrayList<>();
+        for (Core target : targets.stream().limit(TARGETS_MAX - 1).toList()) {
+            CoreId id = target.id;
+            String label = Text.get("book.war.target", "org", BookDialogs.clip(rt.describe.org(rt.state.root(target.owner)), 10),
+                    "n", Math.round(distance(player, target)), "dir", direction(player, target));
+            buttons.add(BookDialogs.act(player, label, null, p -> confirm(p, id)).icon(BookIcons.WAR));
+        }
+        if (mine.isEmpty()) status.add(Text.get("book.war.need_outpost"));
+        else if (targets.isEmpty()) status.add(Text.get("book.war.no_targets"));
+        buttons.add(BookDialogs.act(player, Text.get("book.war.how"), null, WarPages::rules).icon(BookIcons.WORDS));
         List<net.minecraft.network.chat.Component> text = new ArrayList<>();
-        for (String line : body) text.add(BookDialogs.text(line));
+        if (!status.isEmpty()) text.add(BookDialogs.text(String.join("\n", status)));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.war.title"), BookDialogs.withNotice(notice, text), buttons,
                 BookDialogs.back(player, p -> MemberPages.home(p, null))));
+    }
+
+    /** How war works, in plain words, read only. */
+    private static void rules(ServerPlayer player) {
+        CharterRuntime rt = rt();
+        BookDialogs.show(player, BookDialogs.notice(Text.get("book.war.how"), List.of(
+                BookDialogs.text(Text.get("book.war.intro")),
+                BookDialogs.text(Text.get("book.war.confirm_notice", "hours", rt.knobs.warGoalNoticeHours,
+                        "minutes", rt.knobs.outpostCaptureMinutes, "total", rt.knobs.warGoalHours)),
+                BookDialogs.text(Text.get("book.war.confirm_lapse", "days", rt.knobs.truceDays))),
+                BookDialogs.back(player, p -> page(p, null))));
+    }
+
+    private static double distance(ServerPlayer player, Core target) {
+        double dx = target.center.x() * 16 + 8 - player.getX();
+        double dz = target.center.z() * 16 + 8 - player.getZ();
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /** The main compass direction from the player to the target: north, south, east or west. */
+    static String direction(ServerPlayer player, Core target) {
+        double dx = target.center.x() * 16 + 8 - player.getX();
+        double dz = target.center.z() * 16 + 8 - player.getZ();
+        String key = Math.abs(dx) >= Math.abs(dz) ? (dx >= 0 ? "east" : "west") : (dz >= 0 ? "south" : "north");
+        return Text.get("book.dir." + key);
     }
 
     private static String against(CharterRuntime rt, WarBook.Goal goal, long now) {

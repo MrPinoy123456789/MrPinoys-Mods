@@ -70,7 +70,10 @@ public final class WarGameTest {
                 // The War page names the other nation's outpost; the confirm says what it takes; declaring works.
                 WarPages.page(attackerLord, null);
                 String name = rt.describe.org(dove);
-                String button = Text.get("book.war.declare_button", "org", name, "x", theirs.center.x() * 16 + 8, "z", theirs.center.z() * 16 + 8);
+                // Targets are named by direction and distance from where the player stands.
+                String prefix = BookDialogs.clip(name, 10) + ":";
+                String button = BookDialogs.LAST.get(attackerLord.getUUID()).buttons().stream().map(b -> b.label())
+                        .filter(l -> l.startsWith(prefix)).findFirst().orElse("no target named " + prefix);
                 press(helper, attackerLord, button);
                 String confirm = String.join("\n", body(attackerLord));
                 helper.assertTrue(confirm.contains("touch"), "The confirm page does not say the war is between touching outposts: " + confirm);

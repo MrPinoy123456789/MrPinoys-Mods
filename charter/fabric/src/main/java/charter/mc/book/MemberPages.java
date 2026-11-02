@@ -29,8 +29,6 @@ import charter.mc.granary.GranaryText;
 import charter.org.JoinRequest;
 import charter.org.MemberRecord;
 import charter.org.Organization;
-import charter.org.actions.Admit;
-import charter.org.actions.Reject;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -101,6 +99,28 @@ public final class MemberPages {
 
     // ---- Home ----
 
+    /** Which of Where I stand and My faction fit on Home; what does not fit waits under More. */
+    public record Layout(boolean standOnHome, boolean factionOnHome) {
+    }
+
+    /** The layout Home has for this player now (MorePages reads it to show what Home left out). */
+    static Layout layout(ServerPlayer player) {
+        int fixed = TravelButtons.of(player, true, MemberPages::home).size() + (Needs.count(player) > 0 ? 1 : 0)
+                + (LeaderPages.leads(player) ? 1 : 0) + 1;
+        return layout(fixed);
+    }
+
+    /**
+     * The fold rule. {@code fixed} counts what always stays on Home: travel, Needs you, the Leader's Desk and More.
+     * My faction moves under More first, then Where I stand, so Home never holds more than 8 buttons and is never paged:
+     * five journeys, Needs you, the Desk and More is the most it can hold.
+     */
+    public static Layout layout(int fixed) {
+        if (fixed + 2 <= BookScreen.MAX_BUTTONS) return new Layout(true, true);
+        if (fixed + 1 <= BookScreen.MAX_BUTTONS) return new Layout(true, false);
+        return new Layout(false, false);
+    }
+
     public static void home(ServerPlayer player, String notice) {
         if (!member(player)) return;
         Standing.View v = view(player).orElseThrow();
@@ -116,32 +136,20 @@ public final class MemberPages {
         };
         String offices = v.yourOffices().isEmpty() ? Text.get("book.home.no_office") : String.join(", ", v.yourOffices());
         // Travel comes first: it is what players reach for most, and Bedrock players cannot type /home or /keep.
-        List<BookButton> buttons = new java.util.ArrayList<>(TravelButtons.of(player, true, MemberPages::home));
-        if (LeaderPages.leads(player)) buttons.add(go(player, Text.get("book.button.leader"), p -> LeaderPages.desk(p, null)));
-        buttons.add(go(player, Text.get("book.button.rights"), p -> rights(p, null)));
-        buttons.add(go(player, Text.get("book.button.freedoms"), p -> freedoms(p, null)));
-        buttons.add(go(player, Text.get("book.button.situation"), p -> situation(p, null)));
-        buttons.add(go(player, v.orgName(), p -> faction(p, null)));
-        buttons.add(go(player, Text.get("book.button.war"), p -> WarPages.page(p, null)));
-        buttons.add(go(player, Text.get("book.button.chronicle"), p -> chronicle(p)));
-        buttons.add(BookDialogs.act(player, Text.get("book.button.trinkets"), null,
-                p -> charter.mc.cmd.LandCommands.trinkets(p)));
-        buttons.add(go(player, Text.get("book.button.borders"), p -> {
-            boolean on = charter.mc.land.Signals.toggleBorders(p.getUUID());
-            home(p, BookResult.ok(Text.get(on ? "book.borders.on" : "book.borders.off")));
-        }));
-        String tip = formTip(v.form(), deciders(v.org()));
-        net.minecraft.network.chat.Component formLine = net.minecraft.network.chat.Component.literal(
-                        Text.get("book.home.form", "form", form, "offices", offices))
-                .withStyle(net.minecraft.ChatFormatting.GOLD)
-                .withStyle(style -> style.withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
-                        net.minecraft.network.chat.Component.literal(tip))));
-        net.minecraft.network.chat.Component hint = net.minecraft.network.chat.Component.literal(Text.get("book.home.form_hint"))
-                .withStyle(net.minecraft.ChatFormatting.GRAY, net.minecraft.ChatFormatting.ITALIC);
+        List<BookButton> buttons = new ArrayList<>(TravelButtons.of(player, true, MemberPages::home));
+        int needs = Needs.count(player);
+        if (needs > 0) buttons.add(go(player, Text.get("book.button.needs", "n", needs), NeedsPages::open).icon(BookIcons.NEEDS));
+        if (LeaderPages.leads(player)) {
+            buttons.add(go(player, Text.get("book.button.leader"), p -> LeaderPages.desk(p, null)).icon(BookIcons.LEADER));
+        }
+        Layout layout = layout(buttons.size() + 1);
+        if (layout.standOnHome()) buttons.add(go(player, Text.get("book.button.stand"), p -> StandPages.page(p, null)).icon(BookIcons.STAND));
+        if (layout.factionOnHome()) buttons.add(go(player, Text.get("book.button.faction"), p -> faction(p, null)).icon(BookIcons.FACTION));
+        buttons.add(go(player, Text.get("book.button.more"), p -> MorePages.page(p, null)).icon(BookIcons.MORE));
+        net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal(
+                Text.get("book.home.form", "form", form, "offices", offices)).withStyle(net.minecraft.ChatFormatting.GOLD);
         BookDialogs.show(player, BookDialogs.list(Text.get("book.home.title", "org", v.orgName()),
-                lines(notice, List.of(formLine, hint,
-                        Text.get("book.calendar.seasons", "seasons", seasonNames()), Text.get("book.calendar.days"))),
-                buttons, BookDialogs.close()));
+                lines(notice, List.of(line)), buttons, BookDialogs.close()));
     }
 
     /** "Bargains, Bloodmoons, Ragnarok and Eclipse". */
@@ -155,7 +163,7 @@ public final class MemberPages {
         return rt.state.org(org).map(o -> o.governance.deciders).flatMap(rt.state::office).orElse(null);
     }
 
-    // ---- Rights and Freedoms ----
+    // ---- The full pages behind Where I stand ----
 
     public static void rights(ServerPlayer player, String notice) {
         if (!member(player)) return;
@@ -171,7 +179,7 @@ public final class MemberPages {
             body.addAll(rights);
         }
         BookDialogs.show(player, BookDialogs.list(Text.get("book.rights.title"), lines(notice, body), List.of(),
-                BookDialogs.back(player, p -> home(p, null))));
+                BookDialogs.back(player, p -> StandPages.page(p, null))));
     }
 
     public static void freedoms(ServerPlayer player, String notice) {
@@ -187,73 +195,29 @@ public final class MemberPages {
                 .ifPresent(top -> body.add(Text.get(top.mixedRace ? "book.freedoms.mixed_open" : "book.freedoms.mixed_closed",
                         "org", top.name(), "race", top.raceLabel())));
         // Members of a Lordship or a council cannot vote the ruler out. While the operators set the kingdoms there is no
-        // breaking away either, so the one way out is to leave.
-        boolean breakaway = rt().knobs.playerFounding;
+        // breaking away either, so the one way out is to leave (under More).
         if (v.form() != Standing.Form.COMMUNE) {
-            body.add(Text.get(breakaway ? "book.freedoms.no_vote" : "book.freedoms.no_vote_set"));
+            body.add(Text.get(rt().knobs.playerFounding ? "book.freedoms.no_vote" : "book.freedoms.no_vote_set"));
         }
-        List<BookButton> exits = new ArrayList<>();
-        exits.add(BookDialogs.act(player, Text.get("book.leave.button"), null, p -> leaveConfirm(p)));
-        if (breakaway) exits.add(BreakawayPages.button(player));
-        BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body), exits,
-                BookDialogs.back(player, p -> home(p, null))));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.freedoms.title"), lines(notice, body), List.of(),
+                BookDialogs.back(player, p -> StandPages.page(p, null))));
     }
 
     /** Leave is never refused for a member, a sole Lord included (Leave.check), so the button always shows. */
     static void leaveConfirm(ServerPlayer player) {
         if (!member(player)) return;
         Standing.View v = view(player).orElseThrow();
-        BookButton yes = BookDialogs.act(player, Text.get("book.leave.yes"), null, p -> {
+        BookButton yes = BookDialogs.act(player, Text.get("book.leave.verb", "org", BookDialogs.clip(v.orgName(), 18)), null, p -> {
             PlayerId me = me(p);
             BookRouter.run(p, new charter.org.actions.Leave(me), line -> {
-                if (line != null) freedoms(p, line);
+                if (line != null) MorePages.page(p, line);
                 else NewcomerPages.home(p, BookResult.ok(Text.get("leave.done", "org", v.orgName())));
             });
-        });
-        BookButton no = BookDialogs.back(player, p -> freedoms(p, null));
+        }).icon(BookIcons.LEAVE);
+        BookButton no = BookDialogs.back(player, p -> MorePages.page(p, null));
         BookDialogs.show(player, BookDialogs.confirm(Text.get("book.leave.title", "org", v.orgName()),
                 List.of(BookDialogs.text(Text.get("book.leave.confirm", "org", v.orgName())),
                         BookDialogs.text(Text.get("book.leave.cooldown", "days", rt().knobs.foundSecedeCooldownDays))), yes, no));
-    }
-
-    // ---- Your situation ----
-
-    public static void situation(ServerPlayer player, String notice) {
-        if (!member(player)) return;
-        CharterRuntime rt = rt();
-        PlayerId me = me(player);
-        long now = rt.clock.now();
-        Standing.View v = view(player).orElseThrow();
-        List<String> body = new ArrayList<>();
-        body.add(Text.get("book.situation.member", "org", v.orgName(), "time", Chat.duration(now - v.memberSince())));
-        Optional<Contract> held = Justice.holding(rt.state, rt.knobs, me, now);
-        if (held.isPresent()) {
-            Contract c = held.get();
-            Term term = c.term(Term.Confinement.class) != null ? c.term(Term.Confinement.class) : c.term(Term.Tether.class);
-            long left = term == null ? 0 : Justice.until(c, term, rt.knobs) - now;
-            body.add(Text.get("book.situation.held", "time", Chat.duration(left)));
-        }
-        for (Organization org : rt.state.orgs()) {
-            if (org.isTopLevel() && org.exists() && Justice.banished(rt.state, rt.knobs, me, org.id, now)) {
-                body.add(Text.get("book.situation.banished", "org", org.name()));
-            }
-        }
-        long respawn = Justice.respawnDelayLeft(rt.state, rt.knobs, me, now);
-        if (respawn > 0) body.add(Text.get("book.situation.respawn", "time", Chat.duration(respawn)));
-        Map<String, Integer> owed = rt.mail.owedTo(me);
-        if (!owed.isEmpty()) {
-            List<String> things = new ArrayList<>();
-            owed.forEach((item, n) -> things.add(n + " " + item.substring(item.indexOf(':') + 1).replace('_', ' ')));
-            body.add(Text.get("book.situation.owed", "list", String.join(", ", things)));
-        }
-        List<BookButton> buttons = new ArrayList<>();
-        for (VoteId id : v.votesWaiting()) {
-            Optional<Vote> vote = rt.state.vote(id);
-            if (vote.isEmpty()) continue;
-            buttons.add(go(player, shorten(rt.notices.about(vote.get())), p -> vote(p, id, null)));
-        }
-        BookDialogs.show(player, BookDialogs.list(Text.get("book.situation.title"), lines(notice, body), buttons,
-                BookDialogs.back(player, p -> home(p, null))));
     }
 
     // ---- A vote ----
@@ -263,7 +227,7 @@ public final class MemberPages {
         CharterRuntime rt = rt();
         Optional<Vote> found = rt.state.vote(id);
         if (found.isEmpty()) {
-            situation(player, Text.get("book.vote.gone"));
+            NeedsPages.page(player, Text.get("book.vote.gone"));
             return;
         }
         Vote vote = found.get();
@@ -291,7 +255,7 @@ public final class MemberPages {
             }
         }
         BookDialogs.show(player, BookDialogs.list(Text.get("book.vote.title"), lines(notice, body), buttons,
-                BookDialogs.back(player, p -> situation(p, null))));
+                BookDialogs.back(player, p -> NeedsPages.page(p, null))));
     }
 
     private static String ballotText(CharterRuntime rt, Vote.Ballot ballot) {
@@ -309,17 +273,20 @@ public final class MemberPages {
         if (outcome instanceof Outcome.Refused(Reason reason)) {
             vote(player, id, BookRouter.refusal(reason));
         } else {
-            situation(player, Text.get("book.vote.cast"));
+            NeedsPages.page(player, BookResult.ok(Text.get("book.vote.cast")));
         }
     }
 
     // ---- The faction ----
+
+    private static final int MEMBERS_SHOWN = 12;
 
     /** For the link in a join request notice. */
     public static void openFaction(ServerPlayer player) {
         faction(player, null);
     }
 
+    /** "My faction": a read only summary, with the few things a member may start from here. */
     public static void faction(ServerPlayer player, String notice) {
         if (!member(player)) return;
         CharterRuntime rt = rt();
@@ -327,83 +294,96 @@ public final class MemberPages {
         long now = rt.clock.now();
         Standing.View v = view(player).orElseThrow();
         OrgId org = v.org();
-        Describe d = rt.describe;
-        List<String> body = new ArrayList<>();
+        List<String> names = memberNames(org);
+        String members = Text.get("book.faction.members", "count", names.size(),
+                "list", String.join(", ", names.subList(0, Math.min(MEMBERS_SHOWN, names.size()))));
+        if (names.size() > MEMBERS_SHOWN) members += " " + Text.get("book.faction.and_more", "n", names.size() - MEMBERS_SHOWN);
 
-        List<String> members = new ArrayList<>();
-        for (MemberRecord m : rt.state.members(org)) {
-            List<String> held = rt.state.offices(org).stream().filter(o -> o.holds(m.player())).map(o -> o.name).toList();
-            members.add(held.isEmpty() ? d.player(m.player()) : d.player(m.player()) + " (" + String.join(", ", held) + ")");
-        }
-        body.add(Text.get("book.faction.members", "count", members.size(), "list", String.join(", ", members)));
+        List<String> seats = new ArrayList<>();
         List<String> empty = rt.state.offices(org).stream().filter(o -> o.vacant() && o.seats() > 0).map(o -> o.name).toList();
-        if (!empty.isEmpty()) body.add(Text.get("book.faction.empty", "offices", String.join(", ", empty)));
+        if (!empty.isEmpty()) seats.add(Text.get("book.faction.empty", "offices", String.join(", ", empty)));
         for (Vote running : rt.state.votes()) {
             if (!running.open() || !running.org.equals(org) || running.kind != Vote.Kind.ELECTION) continue;
-            body.add(Text.get(running.restricted() ? "book.faction.election_council" : "book.faction.election_running",
+            seats.add(Text.get(running.restricted() ? "book.faction.election_council" : "book.faction.election_running",
                     "office", rt.describe.office(running.office)));
         }
+        boolean voter = rt.engine.eligibleVoters(org, now).contains(me);
+        long wait = v.memberSince() + charter.time.Durations.days(rt.knobs.voteEligibilityDays) - now;
+        if (!voter && wait > 0) seats.add(Text.get("book.faction.vote_later", "time", Chat.duration(wait)));
+
+        List<String> land = new ArrayList<>();
         Organization organization = rt.state.org(org).orElseThrow();
         String balance = charter.mc.Treasury.balance(rt, org);
-        if (balance != null) body.add(Text.get("book.faction.treasury", "balances", balance));
+        if (balance != null) land.add(Text.get("book.faction.treasury", "balances", balance));
         for (Core core : rt.state.coresOf(org)) {
             if (!core.isKeep()) continue;
             if (!rt.knobs.keepGranary) {
                 // Keeps need no food, so there is no granary to report.
-                body.add(Text.get("book.faction.keep_plain", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8));
+                land.add(Text.get("book.faction.keep_plain", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8));
                 continue;
             }
-            body.add(Text.get("book.faction.keep", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8,
+            land.add(Text.get("book.faction.keep", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8,
                     "granary", GranaryText.timeLine(rt, core)));
             double daysLeft = GranaryText.daysLeft(rt, core);
             int warnAt = java.util.Arrays.stream(rt.knobs.keepWarnDays).max().orElse(0);
-            if (daysLeft <= warnAt) body.add(Text.get("book.faction.keep_low", "days", Math.max(0, (int) Math.ceil(daysLeft))));
+            if (daysLeft <= warnAt) land.add(Text.get("book.faction.keep_low", "days", Math.max(0, (int) Math.ceil(daysLeft))));
         }
         if (rt.state.coresOf(org).stream().noneMatch(Core::isKeep) && organization.parent() == null) {
-            body.add(Text.get("book.faction.no_keep"));
+            land.add(Text.get("book.faction.no_keep"));
         }
 
+        List<Object> body = new ArrayList<>();
+        body.add(members);
+        if (!seats.isEmpty()) body.add(String.join("\n", seats));
+        if (!land.isEmpty()) body.add(String.join("\n", land));
+
         List<BookButton> buttons = new ArrayList<>();
-        for (Vote vote : rt.state.votes()) {
-            if (!vote.open() || !vote.org.equals(org)) continue;
-            VoteId id = vote.id;
-            buttons.add(go(player, shorten(rt.notices.about(vote)), p -> vote(p, id, null)));
+        if (names.size() > MEMBERS_SHOWN) {
+            buttons.add(go(player, Text.get("book.faction.all_members", "n", names.size()), p -> members(p, 0)).icon(BookIcons.FACTION));
         }
-        boolean admits = new AuthorityResolver(rt.state, now)
-                .resolve(new Who.AsPlayer(me), org, Power.MANAGE_MEMBERS, ScopeNeed.NONE, false).ok();
-        if (admits) {
-            for (JoinRequest request : rt.state.joinRequests()) {
-                if (!request.org().equals(org)) continue;
-                PlayerId applicant = request.player();
-                String name = d.player(applicant);
-                body.add(Text.get("book.faction.asks", "player", name));
-                buttons.add(go(player, Text.get("book.button.admit", "player", name), p -> BookRouter.run(p, new Admit(org, applicant),
-                        line -> faction(p, BookResult.of(line, Text.get("book.faction.admitted", "player", name))))));
-                buttons.add(go(player, Text.get("book.button.reject", "player", name), p -> confirmReject(p, org, applicant)));
-            }
-        }
-        if (rt.engine.eligibleVoters(org, now).contains(me)) {
-            buttons.add(go(player, Text.get("book.faction.who_decides"), p -> whoDecides(p, null)));
+        if (voter) {
+            buttons.add(go(player, Text.get("book.leader.decides"), p -> whoDecides(p, null)).icon(BookIcons.STAND));
             Office deciders = deciders(org);
             if (deciders != null && deciders.seats() > 0 && !deciders.full()
                     && rt.state.votes().stream().noneMatch(x -> x.open() && x.kind == Vote.Kind.ELECTION && deciders.id.equals(x.office))) {
-                buttons.add(go(player, Text.get("book.faction.elect"), p -> elect(p, deciders.id)));
+                buttons.add(go(player, Text.get("book.faction.elect"), p -> elect(p, deciders.id)).icon(BookIcons.VOTE));
             }
         }
-        boolean voter = rt.engine.eligibleVoters(org, now).contains(me);
-        long wait = v.memberSince() + charter.time.Durations.days(rt.knobs.voteEligibilityDays) - now;
-        if (!voter && wait > 0) body.add(Text.get("book.faction.vote_later", "time", Chat.duration(wait)));
+        if (LeaderPages.leads(player)) {
+            buttons.add(go(player, Text.get("book.button.leader"), p -> LeaderPages.desk(p, null)).icon(BookIcons.LEADER));
+        }
         BookDialogs.show(player, BookDialogs.list(v.orgName(), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
     }
 
-    private static void confirmReject(ServerPlayer player, OrgId org, PlayerId applicant) {
-        String name = rt().describe.player(applicant);
-        BookButton yes = BookDialogs.act(player, Text.get("book.button.yes"), null, p -> BookRouter.run(p,
-                new Reject(org, applicant), line -> faction(p, BookResult.of(line, Text.get("book.faction.rejected", "player", name)))));
-        BookButton no = BookDialogs.back(player, p -> faction(p, null));
-        BookDialogs.show(player, BookDialogs.confirm(Text.get("book.reject.title"),
-                List.of(BookDialogs.text(Text.get("book.reject.confirm", "player", name))), yes, no));
+    /** Every member's name, with the offices they hold. */
+    private static List<String> memberNames(OrgId org) {
+        CharterRuntime rt = rt();
+        List<String> out = new ArrayList<>();
+        for (MemberRecord m : rt.state.members(org)) {
+            List<String> held = rt.state.offices(org).stream().filter(o -> o.holds(m.player())).map(o -> o.name).toList();
+            String name = rt.describe.player(m.player());
+            out.add(held.isEmpty() ? name : name + " (" + String.join(", ", held) + ")");
+        }
+        return out;
+    }
+
+    /** Every member, {@value #MEMBERS_SHOWN} to a page, rebuilt from live state for each page. */
+    public static void members(ServerPlayer player, int index) {
+        if (!member(player)) return;
+        Standing.View v = view(player).orElseThrow();
+        List<String> names = memberNames(v.org());
+        int pages = Math.max(1, (names.size() + MEMBERS_SHOWN - 1) / MEMBERS_SHOWN);
+        int at = Math.max(0, Math.min(index, pages - 1));
+        List<String> shown = names.subList(at * MEMBERS_SHOWN, Math.min(names.size(), (at + 1) * MEMBERS_SHOWN));
+        List<Object> body = new ArrayList<>();
+        body.add(Text.get("book.page.line", "page", at + 1, "pages", pages));
+        body.add(String.join("\n", shown));
+        List<BookButton> buttons = new ArrayList<>();
+        if (at > 0) buttons.add(go(player, Text.get("book.page.prev"), p -> members(p, at - 1)));
+        if (at < pages - 1) buttons.add(go(player, Text.get("book.page.next"), p -> members(p, at + 1)));
+        BookDialogs.show(player, BookDialogs.list(Text.get("book.faction.members_title", "org", v.orgName()), lines(null, body), buttons,
+                BookDialogs.back(player, p -> faction(p, null))));
     }
 
     private static void elect(ServerPlayer player, OfficeId office) {
@@ -411,7 +391,7 @@ public final class MemberPages {
         if (outcome instanceof Outcome.Refused(Reason reason)) {
             faction(player, BookRouter.refusal(reason));
         } else if (outcome instanceof Outcome.VoteOpened(VoteId id)) {
-            vote(player, id, Text.get("book.faction.election_opened"));
+            vote(player, id, BookResult.ok(Text.get("book.faction.election_opened")));
         } else {
             faction(player, null);
         }
@@ -438,7 +418,7 @@ public final class MemberPages {
             fixed.add(Text.get("book.decides.only", "now", deciders == null ? "" : choiceText(deciders.seats(), deciders.deciding()),
                     "who", names.isEmpty() ? Text.get("book.decides.nobody") : String.join(", ", names)));
             BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, fixed), List.of(),
-                    BookDialogs.back(player, p -> faction(p, null))));
+                    BookDialogs.back(player, MemberPages::decidesParent)));
             return;
         }
         if (deciders != null && deciders.seats() == 0) {
@@ -463,7 +443,13 @@ public final class MemberPages {
                     "who", names.isEmpty() ? Text.get("book.decides.nobody") : String.join(", ", names)));
         }
         BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, body), buttons,
-                BookDialogs.back(player, p -> faction(p, null))));
+                BookDialogs.back(player, MemberPages::decidesParent)));
+    }
+
+    /** Back from Who decides: the Leader's Desk for a leader, My faction for anyone else. */
+    private static void decidesParent(ServerPlayer p) {
+        if (LeaderPages.leads(p)) LeaderPages.desk(p, null);
+        else faction(p, null);
     }
 
     /** How many seats, for a council the office makes itself: a short list rather than a button per form. */
@@ -506,7 +492,7 @@ public final class MemberPages {
                     buttons.add(go(player, choiceText(n, how), p -> {
                         Outcome outcome = rt().engine.propose(me(p), new SetSeats(v.org(), deciders.id, n, how));
                         whoDecidesMembers(p, outcome instanceof Outcome.Refused(Reason reason) ? BookRouter.refusal(reason)
-                                : Text.get("book.decides.proposed"));
+                                : BookResult.ok(Text.get("book.decides.proposed")));
                     }));
                 }
             }

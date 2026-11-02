@@ -79,14 +79,14 @@ public final class MemberPagesGameTest {
     }
 
     private static void everyPage(GameTestHelper helper, ServerPlayer player, VoteId vote) {
-        String[] pages = {"home", "rights", "freedoms", "situation", "faction", "who decides", "vote"};
+        String[] pages = {"home", "rights", "freedoms", "stand", "faction", "who decides", "vote"};
         for (String page : pages) {
             BookDialogs.LAST.remove(player.getUUID());
             switch (page) {
                 case "home" -> MemberPages.home(player, null);
                 case "rights" -> MemberPages.rights(player, null);
                 case "freedoms" -> MemberPages.freedoms(player, null);
-                case "situation" -> MemberPages.situation(player, null);
+                case "stand" -> charter.mc.book.StandPages.page(player, null);
                 case "faction" -> MemberPages.faction(player, null);
                 case "who decides" -> MemberPages.whoDecides(player, null);
                 default -> {
@@ -233,17 +233,17 @@ public final class MemberPagesGameTest {
             OrgId org = kit.orgOf(lord);
             ServerPlayer first = applicant(kit, org);
             String name = kit.rt.describe.player(id(first));
-            MemberPages.faction(lord, null);
-            press(helper, lord, Text.get("book.button.admit", "player", name));
+            charter.mc.book.LeaderPages.request(lord, id(first), false);
+            press(helper, lord, Text.get("book.button.admit", "player", BookDialogs.clip(name, 14)));
             helper.assertTrue(kit.rt.state.isMember(id(first), org), "The applicant was not admitted");
 
             ServerPlayer second = applicant(kit, org);
-            MemberPages.faction(lord, null);
-            press(helper, lord, Text.get("book.button.reject", "player", name));
+            charter.mc.book.LeaderPages.request(lord, id(second), false);
+            press(helper, lord, Text.get("book.button.reject", "player", BookDialogs.clip(name, 14)));
             helper.assertTrue(kit.rt.state.joinRequest(org, id(second)).isPresent(), "Reject acted before the confirm screen");
             helper.assertTrue(BookDialogs.LAST.get(lord.getUUID()).kind() == BookScreen.Kind.CONFIRM,
                     "Reject showed no confirm screen");
-            press(helper, lord, Text.get("book.button.yes"));
+            press(helper, lord, Text.get("book.button.reject", "player", BookDialogs.clip(name, 14)));
             helper.assertTrue(kit.rt.state.joinRequest(org, id(second)).isEmpty(), "The confirmed Reject left the request");
             helper.assertTrue(!kit.rt.state.isMember(id(second), org), "The rejected player became a member");
             helper.succeed();
@@ -299,9 +299,13 @@ public final class MemberPagesGameTest {
             kit.rt.engine.run(admin, new Appoint(org, deciders, id(second)));
             ServerPlayer applicant = applicant(kit, org);
 
-            MemberPages.faction(lord, null);
-            press(helper, lord, Text.get("book.button.admit", "player", kit.rt.describe.player(id(applicant))));
+            charter.mc.book.LeaderPages.request(lord, id(applicant), false);
+            press(helper, lord, Text.get("book.button.admit", "player", BookDialogs.clip(kit.rt.describe.player(id(applicant)), 14)));
             helper.assertTrue(!kit.rt.state.isMember(id(applicant), org), "A council member admitted alone");
+            // Putting it to the seats is progress, so the line above the page is green, not red.
+            var top = BookDialogs.LAST.get(lord.getUUID()).body().get(0);
+            helper.assertTrue(net.minecraft.network.chat.TextColor.fromLegacyFormat(net.minecraft.ChatFormatting.GREEN).equals(top.getStyle().getColor()),
+                    "A proposal to the seats was not shown in green: " + top.getString());
             Vote seats = kit.rt.state.votes().stream().filter(v -> v.open() && deciders.equals(v.seatsOf)).findFirst().orElse(null);
             helper.assertTrue(seats != null, "No vote among the seats was opened");
             kit.rt.engine.cast(id(second), seats.id, Vote.Ballot.YES);

@@ -51,17 +51,17 @@ public final class BreakawayGameTest {
             ServerPlayer gil = member(kit, old);
             ServerPlayer cy = member(kit, old);
 
-            // The button on the Freedoms page, then the page, then the confirm.
-            MemberPages.freedoms(gil, null);
+            // The button under More, then the page, then the confirm.
+            charter.mc.book.MorePages.page(gil, null);
             press(helper, gil, Text.get("book.breakaway.button"));
             helper.assertTrue(BookDialogs.LAST.get(gil.getUUID()).title().equals(Text.get("book.breakaway.title")),
                     "The button did not open the Break away page");
             press(helper, gil, Text.get("book.breakaway.start"));
-            press(helper, gil, Text.get("book.button.yes"));
+            press(helper, gil, Text.get("book.breakaway.verb"));
             helper.assertTrue(kit.rt.state.groupLeaving(old).isPresent(), "Starting left no group");
             BreakawayPages.page(cy, null);
             press(helper, cy, Text.get("book.breakaway.join"));
-            press(helper, cy, Text.get("book.button.yes"));
+            press(helper, cy, Text.get("book.breakaway.verb"));
             helper.assertTrue(kit.rt.state.groupLeaving(old).orElseThrow().members().size() == 2, "The second member did not join the group");
 
             String name = "Brk" + Long.toString(System.nanoTime() & 0xFFFFFL, 36);
@@ -77,26 +77,26 @@ public final class BreakawayGameTest {
     }
 
     @GameTest(maxTicks = 200)
-    public void leaveIsAButtonOnFreedomsWithAConfirm(GameTestHelper helper) {
+    public void leaveIsAButtonUnderMoreWithAConfirm(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Exit");
             OrgId org = kit.orgOf(lord);
             ServerPlayer gil = member(kit, org);
 
-            MemberPages.freedoms(gil, null);
+            charter.mc.book.MorePages.page(gil, null);
             press(helper, gil, Text.get("book.breakaway.button"));
-            MemberPages.freedoms(gil, null);
+            charter.mc.book.MorePages.page(gil, null);
             press(helper, gil, Text.get("book.leave.button"));
             helper.assertTrue(kit.rt.state.isMember(id(gil), org), "Pressing Leave left at once, with no confirm");
             String shown = BookDialogs.LAST.get(gil.getUUID()).title();
             helper.assertTrue(shown.equals(Text.get("book.leave.title", "org", kit.rt.describe.org(org))), "The Leave button did not open the confirm: " + shown);
-            press(helper, gil, Text.get("book.leave.yes"));
+            press(helper, gil, Text.get("book.leave.verb", "org", BookDialogs.clip(kit.rt.describe.org(org), 18)));
             helper.assertTrue(kit.rt.state.membership(id(gil)).isEmpty(), "Confirming did not leave the faction");
 
             // A sole Lord is not refused: Leave works for them too.
-            MemberPages.freedoms(lord, null);
+            charter.mc.book.MorePages.page(lord, null);
             press(helper, lord, Text.get("book.leave.button"));
-            press(helper, lord, Text.get("book.leave.yes"));
+            press(helper, lord, Text.get("book.leave.verb", "org", BookDialogs.clip(kit.rt.describe.org(org), 18)));
             helper.assertTrue(kit.rt.state.membership(id(lord)).isEmpty(), "The Lord could not leave");
             helper.succeed();
         }
@@ -115,7 +115,7 @@ public final class BreakawayGameTest {
 
             BreakawayPages.page(gil, null);
             press(helper, gil, Text.get("book.breakaway.put_to_vote"));
-            press(helper, gil, Text.get("book.button.yes"));
+            press(helper, gil, Text.get("book.breakaway.verb_vote"));
             boolean voted = kit.rt.state.votes().stream().anyMatch(v -> v.org.equals(guard) && v.motion instanceof Secede);
             helper.assertTrue(voted, "Confirming put no secession to a vote");
             // The lone member of the sub-faction is all the electorate, so it has passed; with no keep it now waits for a Nexus.

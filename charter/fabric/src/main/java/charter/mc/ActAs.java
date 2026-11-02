@@ -26,18 +26,29 @@ public final class ActAs {
         return Text.has(key) ? Text.get(key) : reason.text();
     }
 
+    /**
+     * What running an action said: the line to show (null when it ran), and whether that line reports a proposal put to
+     * the seats of the council, which is progress and not a refusal.
+     */
+    public record Ran(String line, boolean proposed) {
+    }
+
     /** Null when the action ran, else the line to show the player. */
     public static String run(CharterState state, ActionEngine engine, Describe describe, PlayerId player, Action action) {
+        return runDetailed(state, engine, describe, player, action).line();
+    }
+
+    public static Ran runDetailed(CharterState state, ActionEngine engine, Describe describe, PlayerId player, Action action) {
         Outcome outcome = engine.run(new Actor.Player(player), action);
-        if (!(outcome instanceof Outcome.Refused(Reason reason))) return null;
+        if (!(outcome instanceof Outcome.Refused(Reason reason))) return new Ran(null, false);
         if (reason.key().equals(Reason.NEEDS_SEATS.key()) && action.actingFor() != null) {
             OfficeId office = state.org(action.actingFor()).map(o -> o.governance.deciders).orElse(null);
             if (office != null) {
                 Outcome proposed = engine.proposeToSeats(player, office, action);
-                if (proposed instanceof Outcome.Refused(Reason why)) return refusal(why);
-                return Text.get("book.seats.proposed", "office", describe.office(office));
+                if (proposed instanceof Outcome.Refused(Reason why)) return new Ran(refusal(why), false);
+                return new Ran(Text.get("book.seats.proposed", "office", describe.office(office)), true);
             }
         }
-        return refusal(reason);
+        return new Ran(refusal(reason), false);
     }
 }

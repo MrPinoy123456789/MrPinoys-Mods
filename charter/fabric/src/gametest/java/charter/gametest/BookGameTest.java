@@ -166,7 +166,10 @@ public final class BookGameTest {
         NewcomerPages.home(player, null);
         List<String> shape = shape(BookDialogs.LAST.get(player.getUUID()));
         helper.assertTrue(shape.size() > 3 && shape.get(1).startsWith("Go home"), "Travel is not the first button: " + shape);
-        helper.assertTrue(shape.get(2).equals("Go to spawn") && shape.get(3).equals("Go to the hub"), "Spawn and hub do not follow: " + shape);
+        // A hub button shows only when the server has a hub; a journey that can never apply has no button.
+        String hub = charter.mc.Text.get("book.travel.hub");
+        helper.assertTrue(shape.get(2).equals(charter.mc.Text.get("book.travel.spawn")) && (!shape.contains(hub) || shape.get(3).equals(hub)),
+                "Spawn and hub do not follow: " + shape);
         helper.succeed();
     }
 

@@ -77,6 +77,12 @@ public final class BookDialogs {
         return closeButton(Text.get("book.button.close"));
     }
 
+    /** A name cut to fit a label: at most {@code max} characters, ending in "..." when it was cut. */
+    public static String clip(String text, int max) {
+        if (text == null) return "";
+        return text.length() <= max ? text : text.substring(0, Math.max(1, max - 3)) + "...";
+    }
+
     // ---- forms: inputs the player fills in ----
 
     /** A one-line text box. */

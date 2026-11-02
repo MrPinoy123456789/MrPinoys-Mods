@@ -110,15 +110,15 @@ public final class BreakawayPages {
         List<net.minecraft.network.chat.Component> text = new ArrayList<>();
         for (String line : body) text.add(BookDialogs.text(line));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.breakaway.title"), BookDialogs.withNotice(notice, text), buttons,
-                BookDialogs.back(player, p -> MemberPages.freedoms(p, null))));
+                BookDialogs.back(player, p -> MorePages.page(p, null))));
     }
 
     private static void confirm(ServerPlayer player, OrgId org, boolean vote) {
-        BookButton yes = BookDialogs.act(player, Text.get("book.button.yes"), null, p -> {
+        BookButton yes = BookDialogs.act(player, Text.get(vote ? "book.breakaway.verb_vote" : "book.breakaway.verb"), null, p -> {
             if (vote) {
                 Outcome outcome = rt().engine.propose(me(p), new Secede(org));
                 if (outcome instanceof Outcome.Refused(Reason reason)) page(p, BookRouter.refusal(reason));
-                else if (outcome instanceof Outcome.VoteOpened(VoteId id)) MemberPages.vote(p, id, Text.get("book.breakaway.proposed"));
+                else if (outcome instanceof Outcome.VoteOpened(VoteId id)) MemberPages.vote(p, id, BookResult.ok(Text.get("book.breakaway.proposed")));
                 else page(p, null);
             } else {
                 BookRouter.run(p, new BreakAway(me(p)), line -> page(p, BookResult.of(line, Text.get("book.breakaway.joined"))));

@@ -30,6 +30,8 @@ final class BookRouter {
         CharterRuntime rt = CharterServer.runtime();
         PlayerId id = new PlayerId(player.getUUID());
         rt.state.touch(id, player.getPlainTextName(), rt.clock.now());
-        thenShow.accept(ActAs.run(rt.state, rt.engine, rt.describe, id, action));
+        ActAs.Ran ran = ActAs.runDetailed(rt.state, rt.engine, rt.describe, id, action);
+        // A proposal put to a council's seats is progress, so it shows green; a refusal shows red.
+        thenShow.accept(ran.proposed() ? BookResult.ok(ran.line()) : ran.line());
     }
 }

@@ -66,6 +66,9 @@ loom {
 tasks.matching { it.name == "runGameTest" }.configureEach {
     doFirst {
         delete(layout.buildDirectory.dir("run/gameTest/world"))
+        // Charter copies its player text to config on first boot and reads that copy after; a stale copy would
+        // hide a changed label from the tests, so each run starts from the jar's text.
+        delete(layout.buildDirectory.file("run/gameTest/config/charter/en_us.json"))
     }
 }
 
