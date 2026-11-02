@@ -82,11 +82,11 @@ public final class Treasury {
 
     // ---- permission ---------------------------------------------------------
 
-    /** Only the Lord of the organization, or an op, may take coin out. */
+    /** Only a Lord of the organization (either one, when it has two), or an op, may take coin out. */
     public static boolean mayWithdraw(KingdomSource kingdoms, String orgId, UUID player, boolean op) {
         if (op) return true;
         if (kingdoms == null || orgId == null || player == null) return false;
-        return kingdoms.lordOf(orgId).map(player::equals).orElse(false);
+        return kingdoms.lordsOf(orgId).contains(player);
     }
 
     // ---- reads --------------------------------------------------------------

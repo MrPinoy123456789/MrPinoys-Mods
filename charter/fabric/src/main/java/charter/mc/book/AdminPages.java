@@ -177,6 +177,8 @@ public final class AdminPages {
         body.add(BookDialogs.text(Text.get(org.adminKingdom ? "admin.kingdom.is_admin" : "admin.kingdom.is_ordinary")));
         List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("admin.kingdom.button.leader"), null, p -> leaderForm(p, id)));
+        buttons.add(go(player, Text.get("admin.kingdom.button.coleader"), null, p -> coleaderForm(p, id)));
+        buttons.add(go(player, Text.get("admin.kingdom.button.unlord"), null, p -> unlordForm(p, id)));
         buttons.add(go(player, Text.get(org.adminKingdom ? "admin.kingdom.button.make_ordinary" : "admin.kingdom.button.make_admin"), null,
                 p -> ran(p, "charter admin faction admin " + FormValues.quote(name) + " " + !org.adminKingdom, again)));
         buttons.add(go(player, Text.get("admin.kingdom.button.bonus"), null, p -> bonusForm(p, id)));
@@ -207,6 +209,65 @@ public final class AdminPages {
                         return;
                     }
                     ran(p, "charter admin faction leader " + FormValues.quote(name) + " " + FormValues.quote(who),
+                            (pp, n) -> kingdom(pp, id, n));
+                }),
+                BookDialogs.back(player, p -> kingdom(p, id, null))));
+    }
+
+    /** A second Lord, from the players online: the command does the rest and refuses a third. */
+    private static void coleaderForm(ServerPlayer player, OrgId id) {
+        var found = rt().state.org(id);
+        if (found.isEmpty()) {
+            kingdom(player, id, null);
+            return;
+        }
+        String name = found.get().name();
+        List<String> online = onlineNames(player);
+        if (online.isEmpty()) {
+            kingdom(player, id, failed(Text.get("admin.menu.nobody")));
+            return;
+        }
+        List<BookInput> inputs = List.of(BookDialogs.choice("player", Text.get("admin.leader.label"), online, online));
+        BookDialogs.show(player, BookDialogs.form(Text.get("admin.coleader.title"),
+                List.of(BookDialogs.text(Text.get("admin.coleader.intro", "kingdom", name))), inputs,
+                submit(player, Text.get("admin.coleader.button"), inputs, (p, values) -> {
+                    String who = values.get(0);
+                    if (!onlineNames(p).contains(who)) {
+                        kingdom(p, id, failed(Text.get("admin.menu.form_bad")));
+                        return;
+                    }
+                    ran(p, "charter admin faction coleader " + FormValues.quote(name) + " " + FormValues.quote(who),
+                            (pp, n) -> kingdom(pp, id, n));
+                }),
+                BookDialogs.back(player, p -> kingdom(p, id, null))));
+    }
+
+    /** Remove one Lord, picked from those seated (online or not). */
+    private static void unlordForm(ServerPlayer player, OrgId id) {
+        var found = rt().state.org(id);
+        if (found.isEmpty()) {
+            kingdom(player, id, null);
+            return;
+        }
+        String name = found.get().name();
+        List<String> lords = new ArrayList<>();
+        charter.gov.Deciders.of(rt().state, id).ifPresent(office -> {
+            for (charter.gov.Office.Seat seat : office.holders()) lords.add(rt().describe.player(seat.player()));
+        });
+        if (lords.isEmpty()) {
+            kingdom(player, id, failed(Text.get("admin.unlord.none", "kingdom", name)));
+            return;
+        }
+        List<BookInput> inputs = List.of(BookDialogs.choice("player", Text.get("admin.leader.label"), lords, lords));
+        BookDialogs.show(player, BookDialogs.form(Text.get("admin.unlord.title"),
+                List.of(BookDialogs.text(Text.get("admin.unlord.intro"))), inputs,
+                submit(player, Text.get("admin.unlord.button"), inputs, (p, values) -> {
+                    String who = values.get(0);
+                    if (!lords.contains(who)) {
+                        kingdom(p, id, failed(Text.get("admin.menu.form_bad")));
+                        return;
+                    }
+                    ran(p, "charter admin faction unlord " + FormValues.quote(name) + " " + FormValues.quote(who),
                             (pp, n) -> kingdom(pp, id, n));
                 }),
                 BookDialogs.back(player, p -> kingdom(p, id, null))));

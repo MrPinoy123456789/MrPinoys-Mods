@@ -241,6 +241,8 @@ public final class CharterState {
             memberships.remove(player);
             for (Office office : offices(gone.org())) {
                 office.unseat(player);
+                // One of two Lords leaving leaves the other ruling alone, on one seat.
+                charter.gov.Deciders.settleLords(this, office, 0L);
             }
             invites.removeIf(i -> i.player().equals(player) && i.org().equals(gone.org()));
             treeVersion++;

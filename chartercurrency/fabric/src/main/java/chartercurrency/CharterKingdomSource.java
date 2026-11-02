@@ -34,6 +34,16 @@ final class CharterKingdomSource implements KingdomSource {
     }
 
     @Override
+    public java.util.List<UUID> lordsOf(String kingdomId) {
+        try {
+            return view.lordsOf(kingdomId);
+        } catch (NoSuchMethodError older) {
+            // A Charter jar from before two Lords: it knows only the one.
+            return view.lordOf(kingdomId).map(java.util.List::of).orElse(java.util.List.of());
+        }
+    }
+
+    @Override
     public String displayName(String kingdomId) {
         String name = view.displayName(kingdomId);
         return name == null || name.isBlank() ? String.valueOf(kingdomId) : name;

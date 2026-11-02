@@ -6,6 +6,7 @@ import charter.engine.Outcome;
 import charter.engine.Reason;
 import charter.grant.Authority;
 import charter.grant.Holder;
+import charter.history.HistoryEvent;
 import charter.id.OrgId;
 import charter.state.CharterState;
 
@@ -35,6 +36,33 @@ public final class Deciders {
     /** True when the members decide for this faction: a Commune, with no seats on the decision office. */
     public static boolean membersDecide(CharterState state, OrgId org) {
         return of(state, org).map(o -> o.seats() == 0).orElse(true);
+    }
+
+    /**
+     * True when a lordship is ruled by two Lords: its Lord office has two seats and either holder may act alone. Every
+     * page and rule that tells two Lords from a council asks this, so the line between them lives here. A council made
+     * by a Commune, or one of another size, or one that decides together, is still a council.
+     *
+     * <p>This is the one place that reads the founding preset after founding: a Commune's decision office is also named
+     * Lord, so the preset is what says these two seats are Lords and not a council of two.
+     */
+    public static boolean twoLords(CharterState state, OrgId org) {
+        return of(state, org).map(o -> twoLords(state, o)).orElse(false);
+    }
+
+    public static boolean twoLords(CharterState state, Office office) {
+        return isDecisionOffice(state, office) && office.seats() == 2 && office.deciding() == Office.Deciding.ALONE
+                && state.org(office.org).map(o -> o.governance.preset == Preset.LORDSHIP).orElse(false);
+    }
+
+    /**
+     * When one of two Lords is gone, the office goes back to one seat, so the remaining Lord rules alone and no
+     * election opens while a Lord still sits. Returns the event to record, or empty when nothing changed.
+     */
+    public static Optional<HistoryEvent> settleLords(CharterState state, Office office, long now) {
+        if (!twoLords(state, office) || office.holders().size() != 1) return Optional.empty();
+        office.setSeats(1);
+        return Optional.of(new GovEvents.SeatsChanged(now, office.id, office.org, 1, Office.Deciding.ALONE));
     }
 
     /** True for an office that is the decision makers office of its faction. */

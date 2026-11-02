@@ -82,7 +82,7 @@ public final class ChronicleRenderer {
         while (i < entries.size()) {
             History.Entry entry = entries.get(i);
             HistoryEvent event = entry.event();
-            if (partOfFounding(event, entries)) {
+            if (partOfFounding(event, entries) || partOfSeating(event, entries)) {
                 i++;
                 continue;
             }
@@ -169,6 +169,21 @@ public final class ChronicleRenderer {
             HistoryEvent o = other.event();
             if (o instanceof OrgEvents.Founded f && f.org().equals(org) && f.at() == at) return true;
             if (o instanceof OrgEvents.SubOrgCreated s && s.org().equals(org) && s.at() == at) return true;
+        }
+        return false;
+    }
+
+    /**
+     * A change of seats at the same moment as someone taking up or leaving that office (an operator naming a second
+     * Lord, or one of two Lords going) is told by that line: "Bob took up the office of Lord in Azrak" says it, and
+     * "2 seats, deciding ALONE" would not.
+     */
+    private static boolean partOfSeating(HistoryEvent event, List<History.Entry> entries) {
+        if (!(event instanceof charter.gov.GovEvents.SeatsChanged seats)) return false;
+        for (History.Entry other : entries) {
+            HistoryEvent o = other.event();
+            if (o instanceof charter.gov.GovEvents.OfficeFilled f && f.office().equals(seats.office()) && f.at() == seats.at()) return true;
+            if (o instanceof charter.gov.GovEvents.OfficeVacated v && v.office().equals(seats.office()) && v.at() == seats.at()) return true;
         }
         return false;
     }

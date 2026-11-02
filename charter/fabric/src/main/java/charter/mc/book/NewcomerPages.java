@@ -176,6 +176,7 @@ public final class NewcomerPages {
         return Text.get(switch (form) {
             case COMMUNE -> "book.form.commune";
             case LORDSHIP -> "book.form.lordship";
+            case CO_LORDSHIP -> "book.form.co_lordship";
             case COUNCIL -> "book.form.council_short";
         });
     }

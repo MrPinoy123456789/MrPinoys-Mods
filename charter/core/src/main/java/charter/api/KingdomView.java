@@ -13,8 +13,13 @@ public interface KingdomView {
     /** The top level organization (kingdom) the player belongs to, if any. */
     Optional<String> kingdomOf(UUID player);
 
-    /** The Lord of an organization, if the office is filled. */
+    /** The Lord of an organization, if the office is filled. With two Lords, the first seated. */
     Optional<UUID> lordOf(String orgId);
+
+    /** Every Lord of an organization, first seated first: none, one, or two when a kingdom has two Lords. */
+    default java.util.List<UUID> lordsOf(String orgId) {
+        return lordOf(orgId).map(java.util.List::of).orElse(java.util.List.of());
+    }
 
     String displayName(String orgId);
 

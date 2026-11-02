@@ -836,6 +836,17 @@ public final class EconomyTest {
         check("an op may", Treasury.mayWithdraw(k, "northreach", JAMIE, true));
         check("a stranger may not", !Treasury.mayWithdraw(k, "northreach", JAMIE, false));
         check("a vacant lordship allows only ops", !Treasury.mayWithdraw(k, "ghost", STEVE, false));
+        // A kingdom with two Lords: either may take coin out, and a member still may not.
+        KingdomSource twoLords = new KingdomSource() {
+            public java.util.Optional<String> kingdomOf(UUID player) { return java.util.Optional.of("pair"); }
+            public java.util.Optional<UUID> lordOf(String id) { return java.util.Optional.of(STEVE); }
+            public java.util.List<UUID> lordsOf(String id) { return java.util.List.of(STEVE, JAMIE); }
+            public String displayName(String id) { return id; }
+            public java.util.Collection<String> kingdomIds() { return java.util.List.of("pair"); }
+        };
+        check("the first of two Lords may withdraw", Treasury.mayWithdraw(twoLords, "pair", STEVE, false));
+        check("the second of two Lords may withdraw", Treasury.mayWithdraw(twoLords, "pair", JAMIE, false));
+        check("a member of a two Lord kingdom may not", !Treasury.mayWithdraw(twoLords, "pair", ALEX, false));
 
         // never negative under concurrent withdrawals
         Treasury race = new Treasury();

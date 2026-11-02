@@ -29,9 +29,11 @@ import java.util.UUID;
  */
 public final class Standing {
 
-    public enum Form { COMMUNE, LORDSHIP, COUNCIL }
+    /** CO_LORDSHIP: a lordship with two Lords, either of whom may act ({@link Deciders#twoLords}). */
+    public enum Form { COMMUNE, LORDSHIP, CO_LORDSHIP, COUNCIL }
 
-    public enum HolderKind { YOU, OFFICE, PLAYER, ORG, MEMBERS_BY_VOTE }
+    /** LORDS: the two Lords of a lordship ({@link Deciders#twoLords}), either of whom may use it. */
+    public enum HolderKind { YOU, OFFICE, LORDS, PLAYER, ORG, MEMBERS_BY_VOTE }
 
     /** The player a newcomer's view is read as: nobody, who holds nothing and cannot vote. */
     private static final PlayerId NOBODY = new PlayerId(new UUID(0, 0));
@@ -102,6 +104,7 @@ public final class Standing {
     public static Form form(CharterState state, OrgId org) {
         Optional<Office> deciders = state.org(org).map(o -> o.governance.deciders).flatMap(state::office);
         int seats = deciders.map(Office::seats).orElse(0);
+        if (Deciders.twoLords(state, org)) return Form.CO_LORDSHIP;
         return seats == 0 ? Form.COMMUNE : seats == 1 ? Form.LORDSHIP : Form.COUNCIL;
     }
 
@@ -158,7 +161,8 @@ public final class Standing {
                 Office office = state.office(o.office()).orElseThrow();
                 List<String> names = office.holders().stream().map(s -> name(state, s.player())).toList();
                 boolean together = office.deciding() == Office.Deciding.TOGETHER && office.holders().size() >= 2;
-                yield new Line(group, power, you != null ? you : HolderKind.OFFICE, office.name, you != null ? List.of() : names,
+                HolderKind kind = you != null ? you : Deciders.twoLords(state, office) ? HolderKind.LORDS : HolderKind.OFFICE;
+                yield new Line(group, power, kind, office.name, you != null ? List.of() : names,
                         together, canVote, shown);
             }
             case Holder.OfOrg o -> new Line(group, power, you != null ? you : HolderKind.ORG,
