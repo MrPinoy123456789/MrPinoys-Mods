@@ -216,6 +216,72 @@ public final class WeaponsGameTest {
         });
     }
 
+    /**
+     * A Bedrock client never says it let go of an item Bedrock does not see as usable, so a hold would never end. A
+     * Bedrock tap casts instead: nothing at once, no hold, and the burst fires by itself after the same second.
+     */
+    @GameTest(maxTicks = 120)
+    public void aBedrockTapCastsTheBurstByItselfAfterTheChargeTime(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        foundry.core.Floodgate.treatAsBedrock(player.getUUID(), true);
+        var staff = item("kingdoms:faeloria_staff_1");
+        staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        helper.assertTrue(!player.isUsingItem(), "a Bedrock tap starts no hold");
+        helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 0, "nothing fires at once");
+        staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        // The bolt may hit the test's walls a few ticks after it flies, so watch every tick for the most seen at once.
+        int[] most = {0};
+        helper.onEachTick(() -> most[0] = Math.max(most[0], Bolts.liveFor(player.getUUID())));
+        helper.runAfterDelay(30, () -> {
+            helper.assertValueEqual(most[0], 1, "the cast fired once, a second tap while casting adds nothing");
+            staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+            int before = most[0];
+            most[0] = 0;
+            helper.runAfterDelay(30, () -> {
+                helper.assertValueEqual(most[0], 0, "on cooldown a tap casts nothing (before " + before + ")");
+                foundry.core.Floodgate.treatAsBedrock(player.getUUID(), false);
+                helper.succeed();
+            });
+        });
+    }
+
+    /** Geyser turns a Bedrock right click aimed at a block into a block click only; the staff must still cast, once. */
+    @GameTest(maxTicks = 120)
+    public void aBedrockClickOnTheGroundStillCastsAndOnlyOnce(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        foundry.core.Floodgate.treatAsBedrock(player.getUUID(), true);
+        var staff = item("kingdoms:faeloria_staff_1");
+        var below = helper.absolutePos(new net.minecraft.core.BlockPos(1, 1, 1));
+        var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(below),
+                net.minecraft.core.Direction.UP, below, false);
+        var result = staff.useOn(new net.minecraft.world.item.context.UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+        helper.assertTrue(result.consumesAction(), "a click on the ground with the staff is taken as a cast: " + result);
+        staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        int[] most = {0};
+        helper.onEachTick(() -> most[0] = Math.max(most[0], Bolts.liveFor(player.getUUID())));
+        helper.runAfterDelay(30, () -> {
+            helper.assertValueEqual(most[0], 1, "the cast fired once");
+            foundry.core.Floodgate.treatAsBedrock(player.getUUID(), false);
+            helper.succeed();
+        });
+    }
+
+    /** A cast fizzles when the staff leaves the hand before it fires, as a drawn bow does. */
+    @GameTest(maxTicks = 120)
+    public void aBedrockCastFizzlesWhenTheStaffLeavesTheHand(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        foundry.core.Floodgate.treatAsBedrock(player.getUUID(), true);
+        item("kingdoms:faeloria_staff_1").use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        int[] most = {0};
+        helper.onEachTick(() -> most[0] = Math.max(most[0], Bolts.liveFor(player.getUUID())));
+        helper.runAfterDelay(30, () -> {
+            helper.assertValueEqual(most[0], 0, "the cast fizzled");
+            foundry.core.Floodgate.treatAsBedrock(player.getUUID(), false);
+            helper.succeed();
+        });
+    }
+
     @GameTest
     public void sneakingRightClickOnTheStaffIsInstantGlamourNotAHold(GameTestHelper helper) {
         var player = holder(helper, "kingdoms:faeloria_staff_1");

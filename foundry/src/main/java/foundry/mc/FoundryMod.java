@@ -160,6 +160,7 @@ public final class FoundryMod implements ModInitializer {
         Bonuses.register();
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             Swings.tick(server);
+            Charging.tick(server);
             Bolts.tick(server);
             WornItems.tick(server);
             WornDisplays.tick(server);

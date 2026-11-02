@@ -62,7 +62,45 @@ final class FoundryItem extends SimplePolymerItem {
         if (context.getPlayer() instanceof ServerPlayer locked && !Gate.check(locked, def())) return InteractionResult.FAIL;
         var furniture = Furniture.forItem(ident);
         if (furniture != null && Furniture.place(context, furniture)) return InteractionResult.SUCCESS;
+        // A Bedrock player's right click on a block reaches the server only as a click on that block: Geyser sends no
+        // separate use, so a staff aimed at the ground or a wall did nothing. Java clients send the use as well, after
+        // this, so for them the block click stays a plain block click.
+        if (furniture == null && context.getPlayer() instanceof ServerPlayer sp && foundry.core.Floodgate.isBedrock(sp.getUUID())) {
+            InteractionResult used = bedrockUse(sp, context.getHand());
+            if (used != null) {
+                USED_ON.put(sp.getUUID(), (long) sp.level().getServer().getTickCount());
+                return used;
+            }
+        }
         return super.useOn(context);
+    }
+
+    /** When a Bedrock player's block click last ran this item's use, so a use in the same tick is not run twice. */
+    private static final java.util.Map<java.util.UUID, Long> USED_ON = new java.util.HashMap<>();
+
+    /**
+     * A use by a Bedrock player: a charged mechanic starts a cast that fires by itself after its charge time (Charging),
+     * anything else fires at once. Null when the item has nothing to do on use.
+     */
+    private InteractionResult bedrockUse(ServerPlayer sp, InteractionHand hand) {
+        var list = mechanics();
+        if (Charging.casting(sp.getUUID())) return InteractionResult.CONSUME;
+        int armed = MechanicHost.armedCharge(contentId, list, sp);
+        if (armed >= 0) {
+            var m = list.get(armed);
+            Charging.cast(sp, new Charging.Cast(contentId, armed, sp.level().getServer().getTickCount() + m.chargeTicks(), hand));
+            String what = m.name() == null || m.name().isBlank() ? "spell" : m.name();
+            sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Casting " + what + "... keep it in hand"), true);
+            return InteractionResult.CONSUME;
+        }
+        if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
+        return null;
+    }
+
+    /** Fires the charged mechanic a Bedrock cast armed (Charging.tick). True when it ran. */
+    boolean fireCast(ServerPlayer sp, int index) {
+        if (!Gate.allowed(sp, def())) return false;
+        return MechanicHost.fireCharged(contentId, mechanics(), index, sp);
     }
 
     @Override
@@ -71,6 +109,12 @@ final class FoundryItem extends SimplePolymerItem {
             // Right click makes the server swing the arm; that swing is not a left click.
             Swings.suppress(sp);
             if (!Gate.check(sp, def())) return InteractionResult.FAIL;
+            if (foundry.core.Floodgate.isBedrock(sp.getUUID())) {
+                Long at = USED_ON.remove(sp.getUUID());
+                if (at != null && at == sp.level().getServer().getTickCount()) return InteractionResult.CONSUME;
+                InteractionResult used = bedrockUse(sp, hand);
+                return used != null ? used : super.use(level, player, hand);
+            }
             var list = mechanics();
             // A charged mechanic starts a hold, and fires when it is released after long enough.
             int armed = MechanicHost.armedCharge(contentId, list, sp);

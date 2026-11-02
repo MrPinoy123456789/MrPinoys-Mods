@@ -44,3 +44,4 @@ pocketdungeons/tools/__pycache__/
 
 # Foundry gametests write the /trinketview toggle here
 foundry/examples/worn_self_view.json
+foundry/examples/double_jump_learned.json

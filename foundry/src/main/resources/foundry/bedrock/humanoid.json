@@ -1,5 +1,5 @@
 {
- "_note": "The standard Bedrock humanoid bones (classic and slim), as Geyser's ThirdPartyCosmetics ships them (MIT, GeyserMC), without its ears. Foundry adds the race look bones to these.",
+ "_note": "The standard Bedrock humanoid bones (classic and slim), as Geyser's ThirdPartyCosmetics ships them (MIT, GeyserMC), without its ears, plus the empty armour bones (helmet, bodyArmor, belt, arm armour, leggings, boots, cape) a Bedrock skin geometry needs for worn armour and capes to show. Foundry adds the race look bones to these.",
  "wide": [
   {
    "name": "root",
@@ -443,6 +443,149 @@
     0.0
    ],
    "cubes": []
+  },
+  {
+   "name": "helmet",
+   "parent": "head",
+   "pivot": [
+    0.0,
+    24.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "bodyArmor",
+   "parent": "body",
+   "pivot": [
+    0.0,
+    24.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "belt",
+   "parent": "body",
+   "pivot": [
+    0.0,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "rightArmArmor",
+   "parent": "rightArm",
+   "pivot": [
+    -5.0,
+    22.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "leftArmArmor",
+   "parent": "leftArm",
+   "pivot": [
+    5.0,
+    22.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "mirror": true
+  },
+  {
+   "name": "rightLegging",
+   "parent": "rightLeg",
+   "pivot": [
+    -1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "leftLegging",
+   "parent": "leftLeg",
+   "pivot": [
+    1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "mirror": true
+  },
+  {
+   "name": "rightBoot",
+   "parent": "rightLeg",
+   "pivot": [
+    -1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "leftBoot",
+   "parent": "leftLeg",
+   "pivot": [
+    1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "mirror": true
+  },
+  {
+   "name": "cape",
+   "parent": "body",
+   "pivot": [
+    0.0,
+    24.0,
+    3.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
   }
  ],
  "slim": [
@@ -888,6 +1031,149 @@
     0.0
    ],
    "cubes": []
+  },
+  {
+   "name": "helmet",
+   "parent": "head",
+   "pivot": [
+    0.0,
+    24.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "bodyArmor",
+   "parent": "body",
+   "pivot": [
+    0.0,
+    24.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "belt",
+   "parent": "body",
+   "pivot": [
+    0.0,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "rightArmArmor",
+   "parent": "rightArm",
+   "pivot": [
+    -5.0,
+    22.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "leftArmArmor",
+   "parent": "leftArm",
+   "pivot": [
+    5.0,
+    22.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "mirror": true
+  },
+  {
+   "name": "rightLegging",
+   "parent": "rightLeg",
+   "pivot": [
+    -1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "leftLegging",
+   "parent": "leftLeg",
+   "pivot": [
+    1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "mirror": true
+  },
+  {
+   "name": "rightBoot",
+   "parent": "rightLeg",
+   "pivot": [
+    -1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "leftBoot",
+   "parent": "leftLeg",
+   "pivot": [
+    1.9,
+    12.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "mirror": true
+  },
+  {
+   "name": "cape",
+   "parent": "body",
+   "pivot": [
+    0.0,
+    24.0,
+    3.0
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ]
   }
  ]
 }

@@ -37,6 +37,16 @@ public final class AirJump {
         return true;
     }
 
+    /** Ticks in the air this time off the ground (0 on the ground). */
+    public int airTicks() {
+        return airTicks;
+    }
+
+    /** True once the air jump was used this time off the ground. */
+    public boolean used() {
+        return used;
+    }
+
     /** Ticks until the next air jump is allowed (0 when ready). */
     public long waiting(long now) {
         return Math.max(0, readyAt - now);

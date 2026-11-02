@@ -516,6 +516,9 @@ public final class WornGameTest {
             helper.assertTrue(fae.getDeltaMovement().y > 0.5 && fae.getDeltaMovement().z > 0.3, "The hop did not lift the Fae forward: "
                     + fae.getDeltaMovement());
             helper.assertTrue(fae.fallDistance == 0, "The hop left the fall distance at " + fae.fallDistance);
+            helper.assertFalse(foundry.mc.DoubleJump.learned(fae.getUUID()), "A new Fae already knows the double jump");
+            foundry.mc.DoubleJump.learn(fae.getUUID());
+            helper.assertTrue(foundry.mc.DoubleJump.learned(fae.getUUID()), "A Fae who double jumped is still taught it");
             helper.succeed();
         });
     }

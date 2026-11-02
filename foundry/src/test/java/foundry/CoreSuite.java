@@ -94,6 +94,20 @@ public final class CoreSuite {
                 "landing gives it back, but not before the cooldown");
         check(air.waiting(8) == 45 && !air.tick(false, false, 52, 50) && air.tick(true, false, 53, 50),
                 "after the cooldown it works again");
+        var tipJump = new foundry.core.AirJump();
+        tipJump.tick(true, true, 0, 50);
+        for (int t = 1; t <= foundry.core.JumpTip.AIR_TICKS; t++) tipJump.tick(false, false, t, 50);
+        check(tipJump.airTicks() == foundry.core.JumpTip.AIR_TICKS && !tipJump.used(), "the air jump counts its ticks off the ground");
+        check(foundry.core.JumpTip.show(false, foundry.core.JumpTip.AIR_TICKS, false, 1000, Long.MIN_VALUE),
+                "a Fae who never double jumped is told how, near the top of a plain jump");
+        check(!foundry.core.JumpTip.show(true, foundry.core.JumpTip.AIR_TICKS, false, 1000, Long.MIN_VALUE),
+                "a Fae who has double jumped is never told again");
+        check(!foundry.core.JumpTip.show(false, foundry.core.JumpTip.AIR_TICKS, true, 1000, Long.MIN_VALUE)
+                        && !foundry.core.JumpTip.show(false, foundry.core.JumpTip.AIR_TICKS - 1, false, 1000, Long.MIN_VALUE),
+                "no hint after the second jump, nor before the jump is under way");
+        check(!foundry.core.JumpTip.show(false, foundry.core.JumpTip.AIR_TICKS, false, 1000 + foundry.core.JumpTip.EVERY - 1, 1000)
+                        && foundry.core.JumpTip.show(false, foundry.core.JumpTip.AIR_TICKS, false, 1000 + foundry.core.JumpTip.EVERY, 1000),
+                "the hint shows at most every 30 seconds");
         double[] upright = foundry.core.AirJump.push(0f, false, false, false, false);
         double[] ahead = foundry.core.AirJump.push(0f, true, false, false, false);
         double[] west = foundry.core.AirJump.push(90f, true, false, false, false);
@@ -302,8 +316,22 @@ public final class CoreSuite {
     /** The race looks added to Bedrock skins: the composed image, the geometry and the looks the jar carries. */
     private static void bedrockSkins() throws Exception {
         var humanoid = resourceJson("humanoid.json").getAsJsonObject();
-        check(humanoid.getAsJsonArray("wide").size() == 16 && humanoid.getAsJsonArray("slim").size() == 16,
-                "the jar has the standard wide and slim humanoid bones");
+        check(humanoid.getAsJsonArray("wide").size() == 26 && humanoid.getAsJsonArray("slim").size() == 26,
+                "the jar has the standard wide and slim humanoid bones, armour bones included");
+        // Without these empty bones a Bedrock client draws no armour on the skin (a Fae could not show a helmet).
+        for (String shape : new String[] {"wide", "slim"}) {
+            var parents = new java.util.HashMap<String, String>();
+            for (var b : humanoid.getAsJsonArray(shape)) {
+                var o = b.getAsJsonObject();
+                parents.put(o.get("name").getAsString(), o.has("parent") ? o.get("parent").getAsString() : "");
+            }
+            check("head".equals(parents.get("helmet")) && "body".equals(parents.get("bodyArmor")) && "body".equals(parents.get("belt"))
+                    && "rightArm".equals(parents.get("rightArmArmor")) && "leftArm".equals(parents.get("leftArmArmor"))
+                    && "rightLeg".equals(parents.get("rightLegging")) && "leftLeg".equals(parents.get("leftLegging"))
+                    && "rightLeg".equals(parents.get("rightBoot")) && "leftLeg".equals(parents.get("leftBoot"))
+                    && "body".equals(parents.get("cape")),
+                    shape + ": every armour bone hangs from the bone it covers, so a helmet shows with a race look");
+        }
         var looks = resourceJson("looks.json").getAsJsonArray();
         check(looks.size() == 4, "the jar has Bedrock bones for the four head looks, has " + looks.size());
         for (var e : looks) {
@@ -339,9 +367,9 @@ public final class CoreSuite {
         check((made.rgba()[at] & 0xff) == 0x11 && (made.rgba()[at + 3] & 0xff) == 0xff, "the look's texture goes in the top right quarter");
         var geo = com.google.gson.JsonParser.parseString(made.geometryData()).getAsJsonObject().getAsJsonArray("minecraft:geometry")
                 .get(0).getAsJsonObject();
-        check(geo.getAsJsonArray("bones").size() == 17 && geo.getAsJsonObject("description").get("texture_width").getAsInt() == 128,
-                "the geometry is the 16 humanoid bones plus the look's, on a 128 texture");
-        var uv = geo.getAsJsonArray("bones").get(16).getAsJsonObject().getAsJsonArray("cubes").get(0).getAsJsonObject()
+        check(geo.getAsJsonArray("bones").size() == 27 && geo.getAsJsonObject("description").get("texture_width").getAsInt() == 128,
+                "the geometry is the 26 humanoid bones plus the look's, on a 128 texture");
+        var uv = geo.getAsJsonArray("bones").get(26).getAsJsonObject().getAsJsonArray("cubes").get(0).getAsJsonObject()
                 .getAsJsonObject("uv").getAsJsonObject("north").getAsJsonArray("uv");
         check(uv.get(0).getAsInt() == 66 && uv.get(1).getAsInt() == 3, "the look's uvs move to its quarter");
         check(made.geometryName().contains(geo.getAsJsonObject("description").get("identifier").getAsString()),
