@@ -106,6 +106,10 @@ public final class Knobs {
     /** Marks the first outpost of a nation holds as its deposit; each outpost held already adds the step. */
     public int outpostDepositMarks = 256;
     public int outpostDepositStepMarks = 128;
+    /** Whether teleport pads show a ring of sparks to players nearby. */
+    public boolean padParticles = true;
+    /** Whether a pad chimes when a player steps on it and a pad trip makes a sound on arrival. */
+    public boolean padSounds = true;
 
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
