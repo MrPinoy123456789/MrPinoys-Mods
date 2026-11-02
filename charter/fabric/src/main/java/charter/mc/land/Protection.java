@@ -136,6 +136,8 @@ public final class Protection {
         if (spawn != null) return spawn;
         if (isDrifter(player)) return false;
         Claim claim = guardedClaim(level, pos);
+        // An admin kingdom's members do admin work on any kingdom's land (adminKingdomBypass).
+        if (claim != null && player instanceof ServerPlayer member && charter.mc.CharterPerms.adminKingdomMember(member)) return true;
         boolean counted = false;
         for (ActorRule rule : ACTOR_RULES) {
             Boolean said = rule.decide(player, level, pos, claim);

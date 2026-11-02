@@ -311,6 +311,32 @@ Typed, under `/charter admin` (`/charter admin help` prints them all):
   below. The menu has the moderation log under Tools ("What Lords did"), and a Lord's player page has "Ledger access,
   1 hour" (or "Take back Ledger access" while one stands).
 
+## The admin kingdom pass
+
+`adminKingdomBypass` (top level of `charter.json`, default `true`). Every member of an admin kingdom (Mossbeard's
+Muddle on the live server), at any rank, has the operator pass (`charter.bypass`) without LuckPerms, so they can do admin
+work in other kingdoms. It comes from real membership only: standing on the admin kingdom's land gives nothing, and
+leaving or being taken out ends it at once (it is checked at the moment of every action, never stored). Operators and
+LuckPerms holders keep their pass exactly as before.
+
+With it a member of the admin kingdom:
+
+- builds, breaks and uses things (doors, chests, levers, entities) on any kingdom's claims, the keep core included,
+  which even an operator's pass does not do;
+- walks into closed keeps;
+- moves or lifts any kingdom's Nexus;
+- is exempt from every spawn rule, as an operator is: they build in the spawn, and their hits, arrows and TNT hurt
+  players and mobs there;
+- is never held to the `requireAffiliation` look only rule (they are in a kingdom anyway).
+
+It does not give `charter.admin` (the `/charter admin` commands, the operators' menu and the Admin Book stay for
+operators and LuckPerms admins). It does not make them immune to their own Lord: the admin kingdom's Lord still mutes,
+bars and kicks its members, and no other kingdom's Lord can reach them anyway. Friendly fire is unchanged: they cannot
+hurt their own kingdom's members, and they hurt other kingdoms' members outside the spawn as anyone does. Off, an admin
+kingdom's members are held to the spawn rules and every kingdom's claims like anyone else.
+
+Test: `AdminKingdomBypassGameTest`.
+
 ## Lords discipline their own citizens (2026-11-02)
 
 Kingdom Lords are the moderators of this server; there is no moderator group. A Lord's power stops at their own
@@ -784,7 +810,7 @@ With `requireAffiliation` on (the default), a player who belongs to no kingdom a
 
 ## Spawn rules
 
-Every claim an admin kingdom holds (its keep's core and ring chunks, and any other claim it has) behaves like the spawn of a public server: players may walk, trade, ride, open doors and press buttons; they cannot fight, build, grief or be hurt. The rules apply only to players who are not operators. Operators are exempt from all of them, so they can build and fix things. Creative mode alone is no exemption. The code is `charter.mc.land.SpawnRules` (with the `Spawn*` mixins), the pure decisions are `charter.config.SpawnPolicy`, and the tests are `SpawnRulesGameTest` and `SpawnPolicyTest`.
+Every claim an admin kingdom holds (its keep's core and ring chunks, and any other claim it has) behaves like the spawn of a public server: players may walk, trade, ride, open doors and press buttons; they cannot fight, build, grief or be hurt. The rules apply only to players who are not operators, and (with `adminKingdomBypass` on) not to the admin kingdom's own members; see "The admin kingdom pass". Operators are exempt from all of them, so they can build and fix things. Creative mode alone is no exemption. The code is `charter.mc.land.SpawnRules` (with the `Spawn*` mixins), the pure decisions are `charter.config.SpawnPolicy`, and the tests are `SpawnRulesGameTest` and `SpawnPolicyTest`.
 
 The rules live in `config/charter/charter.json`. `spawnRulesEnabled` (default `true`) switches the whole set; with it off, an admin kingdom's land is protected like any other kingdom's (members build, outsiders walk). Each rule sits in the `spawnRules` section. A key left out keeps its default, so to switch one rule off write only that key, for example:
 

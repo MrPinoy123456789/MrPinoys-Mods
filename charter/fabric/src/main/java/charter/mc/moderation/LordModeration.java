@@ -42,9 +42,12 @@ public final class LordModeration {
         LedgerGrants.sweep(server);
     }
 
-    /** True for the people a Lord can never moderate: anyone holding {@code charter.admin} or {@code charter.bypass}. */
+    /**
+     * True for the people a Lord can never moderate: anyone holding {@code charter.admin} or {@code charter.bypass} by
+     * permission. The admin kingdom pass does not count, so an admin kingdom's own Lord still moderates its members.
+     */
     public static boolean staff(ServerPlayer player) {
-        return CharterPerms.admin(player) || CharterPerms.bypass(player);
+        return CharterPerms.admin(player) || CharterPerms.bypassByPermission(player);
     }
 
     /** False, with the sender told why, when a Lord's mute holds this player now. */

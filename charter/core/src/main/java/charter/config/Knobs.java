@@ -203,6 +203,12 @@ public final class Knobs {
     /** Whether a keep turns away players who are not its members, not at war with it and not operators. */
     public boolean closedKeeps = false;
     /**
+     * Whether members of an admin kingdom (any rank) have the operator pass ({@code charter.bypass}) and may build, break
+     * and use things on any kingdom's claims, so they can do admin work. Membership only, never standing on its land;
+     * removal ends it at once. Off: only operators and permission holders have the pass, as before.
+     */
+    public boolean adminKingdomBypass = true;
+    /**
      * A player with no kingdom and no race (neither a member nor a mercenary) may only look around: they cannot break,
      * place, use or attack anything, in the wild as well. Operators are exempt. They open the Charter book to choose.
      */
