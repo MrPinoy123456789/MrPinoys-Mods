@@ -271,6 +271,22 @@
         }
       }
     ],
+    "minecraft:feather": [
+      {
+        "type": "definition",
+        "model": "kingdoms:bombadil_cap",
+        "bedrock_identifier": "kingdoms:bombadil_cap",
+        "display_name": "Old Blue Hat",
+        "bedrock_options": {
+          "icon": "kingdoms:bombadil_cap",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
     "minecraft:copper_nugget": [
       {
         "type": "definition",

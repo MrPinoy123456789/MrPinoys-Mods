@@ -152,6 +152,12 @@
       "slot": "chest/cape",
       "glide": true,
       "flap": true
+    },
+    "race:mossbeard_s_muddle": {
+      "item": "kingdoms:bombadil_cap",
+      "slot": "head/hat",
+      "glide": false,
+      "flap": false
     }
   }
 }

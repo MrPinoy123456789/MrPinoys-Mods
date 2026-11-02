@@ -82,7 +82,8 @@ public record WornPlacement(float up, float back, float side, float scale, boole
     /**
      * The built in races: each kingdom's race and the looks it always shows. The Fairies of Everdelle glide on gauzy
      * wings; the Fae of Faeloria wear antlers in a wreath of flowers, have leaf wings, and jump twice instead of gliding;
-     * the Merfolk of Azurius have fin ears and a dorsal fin, and dash through the water.
+     * the Merfolk of Azurius have fin ears and a dorsal fin, and dash through the water; the folk of Mossbeard's Muddle
+     * (the admin kingdom, node race:mossbeard_s_muddle) wear an old blue hat with a long feather in the band.
      */
     public static Map<String, List<RaceLook>> defaultRaces() {
         Map<String, List<RaceLook>> races = new LinkedHashMap<>();
@@ -93,6 +94,7 @@ public record WornPlacement(float up, float back, float side, float scale, boole
         races.put("race:azurius", List.of(new RaceLook("kingdoms:merfolk_fins", "head/hat", false, false),
                 new RaceLook("kingdoms:dorsal_fin", "chest/cape", false, false, 0, MERFOLK_SWIM_DASH)));
         races.put("race:everdelle", List.of(new RaceLook("kingdoms:fairy_wings", "chest/cape", true, true)));
+        races.put("race:mossbeard_s_muddle", List.of(new RaceLook("kingdoms:bombadil_cap", "head/hat", false, false)));
         return Map.copyOf(races);
     }
 

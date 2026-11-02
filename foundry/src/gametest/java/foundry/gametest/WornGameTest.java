@@ -372,7 +372,7 @@ public final class WornGameTest {
                     def.id() + " worn model file is missing");
             checked++;
         }
-        helper.assertTrue(checked == 10, "Expected ten items with a worn model but checked " + checked);
+        helper.assertTrue(checked == 11, "Expected eleven items with a worn model but checked " + checked);
         helper.succeed();
     }
 
@@ -380,7 +380,7 @@ public final class WornGameTest {
     @GameTest(maxTicks = 20)
     public void theClientIsSentTheItemModelThePackSelectsOn(GameTestHelper helper) {
         ServerPlayer viewer = player(helper, null);
-        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard", "aurelia_banner", "fae_wings", "merfolk_fins", "dorsal_fin"}) {
+        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard", "aurelia_banner", "fae_wings", "merfolk_fins", "dorsal_fin", "bombadil_cap"}) {
             String seen = foundry.mc.WornDisplays.clientView(viewer, new ItemStack(item("kingdoms:" + id)));
             foundry.mc.FoundryMod.LOG.info("client stack for kingdoms:{}: {}", id, seen);
             helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
@@ -544,6 +544,32 @@ public final class WornGameTest {
                 var combined = foundry.mc.WornDisplays.headItemFor(mer.getUUID());
                 helper.assertTrue(combined != null && String.valueOf(combined.get(net.minecraft.core.component.DataComponents.ITEM_MODEL))
                         .equals("kingdoms:merfolk_fins_on_turtle_scute"), "A turtle shell should get the fins on its sides: " + combined);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * The folk of Mossbeard's Muddle wear the old blue hat on the head, served to everyone as a head item, and with a
+     * vanilla helmet on, the helmet with the hat on top of it. They glide, jump and swim like anyone else.
+     */
+    @GameTest(maxTicks = 60)
+    public void mossbeardsMuddleWearsTheFeatheredHat(GameTestHelper helper) {
+        ServerPlayer muddle = player(helper, "race:mossbeard_s_muddle");
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(muddle.getUUID()) == 1, "The hat is not shown");
+            helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(muddle.getUUID(), 0)), "The hat is not served on the head");
+            var alone = foundry.mc.WornDisplays.headItemFor(muddle.getUUID());
+            helper.assertTrue(alone != null && alone.is(item("kingdoms:bombadil_cap")) && foundry.mc.HeadVisual.isMarked(alone),
+                    "With no helmet the marked hat should be on the head: " + alone);
+            helper.assertFalse(foundry.mc.Wings.isWinged(muddle.getUUID()), "The hat's wearer can glide");
+            helper.assertTrue(foundry.mc.DoubleJump.cooldownOf(muddle.getUUID()) == 0 && foundry.mc.SwimDash.cooldownOf(muddle.getUUID()) == 0,
+                    "The hat's wearer has another race's ability");
+            muddle.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.GOLDEN_HELMET));
+            helper.runAfterDelay(5, () -> {
+                var combined = foundry.mc.WornDisplays.headItemFor(muddle.getUUID());
+                helper.assertTrue(combined != null && String.valueOf(combined.get(net.minecraft.core.component.DataComponents.ITEM_MODEL))
+                        .equals("kingdoms:bombadil_cap_on_gold"), "A gold helmet should get the hat on top: " + combined);
                 helper.succeed();
             });
         });
