@@ -1,6 +1,7 @@
 package charter.mc;
 
 import charter.id.PlayerId;
+import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.permission.v1.PermissionContext;
 import net.fabricmc.fabric.api.permission.v1.PermissionEvents;
 import net.fabricmc.fabric.api.permission.v1.PermissionNode;
@@ -14,16 +15,24 @@ import java.util.Locale;
  * kingdom's: the kingdom they belong to, or the one a mercenary chose. A kingdom named Azrak gives {@code race:azrak}. Other mods (Foundry's race
  * weapons) ask the node and never learn about Charter. Nothing is ever denied here; a request for any other node, or
  * from someone outside the kingdom, is left undecided so another permission source can still grant it.
+ *
+ * <p>The answer is given in the phase {@link #PHASE}, ordered before the default phase, so Charter speaks first for the
+ * people of a race. A permissions mod such as LuckPerms answers every node it has a value for in the default phase; were
+ * it asked first, a stray {@code race.*} value in a group would decide a player's race instead of Charter.
  */
 public final class RaceNodes {
 
     public static final String NAMESPACE = "race";
 
+    /** The event phase Charter answers race nodes in, ahead of {@link Event#DEFAULT_PHASE}. */
+    public static final Identifier PHASE = Identifier.fromNamespaceAndPath("charter", "race_nodes");
+
     private RaceNodes() {
     }
 
     public static void register() {
-        PermissionEvents.ON_REQUEST.register(new PermissionEvents.OnRequest() {
+        PermissionEvents.ON_REQUEST.addPhaseOrdering(PHASE, Event.DEFAULT_PHASE);
+        PermissionEvents.ON_REQUEST.register(PHASE, new PermissionEvents.OnRequest() {
             @Override
             @SuppressWarnings("unchecked")
             public <T> T handlePermissionRequest(PermissionContext context, PermissionNode<T> node) {

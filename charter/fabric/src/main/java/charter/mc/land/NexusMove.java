@@ -40,7 +40,7 @@ public final class NexusMove {
         if (keep == null) return Text.get("nexus_move.no_keep");
         // While someone carries the lifted lodestone, it is set down by placing it, not moved by command.
         if (NexusLift.lifted(keep.id)) return Text.get("nexus_lift.busy");
-        boolean op = Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(player.createCommandSourceStack());
+        boolean op = charter.mc.CharterPerms.bypass(player);
         if (!op && !new AuthorityResolver(rt.state, rt.clock.now())
                 .resolve(new Who.AsPlayer(id), root, Power.PLACE_CORE, ScopeNeed.NONE, false).ok()) {
             return Text.get("nexus_move.no_power");

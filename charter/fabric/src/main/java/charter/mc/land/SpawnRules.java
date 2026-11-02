@@ -203,9 +203,12 @@ public final class SpawnRules {
         return inSpawn(entity.level(), entity.getBlockX(), entity.getBlockZ());
     }
 
-    /** Operators are exempt from every spawn rule. Creative mode is not. */
+    /**
+     * Operators are exempt from every spawn rule. Creative mode is not. A permissions mod decides through the node
+     * {@code charter:bypass} ({@link charter.mc.CharterPerms#bypass}), so it can exempt a builder or hold an operator to the rules.
+     */
     public static boolean isOp(Entity entity) {
-        return entity instanceof ServerPlayer sp && sp.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
+        return entity instanceof ServerPlayer sp && charter.mc.CharterPerms.bypass(sp);
     }
 
     /** The player behind an entity: itself, or the owner of an arrow, a potion, lit TNT. */

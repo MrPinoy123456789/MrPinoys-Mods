@@ -1,0 +1,88 @@
+# LuckPerms groups for the kingdom server d212ecae. Console commands, one per line (no leading slash).
+# Lines starting with # are comments. Paste them in the panel console after the restart that loads
+# LuckPerms, or with: node tools/playtest/hardening-stage.mjs --lp-setup --owner-approved
+# Reasons and the full node table: docs/SERVER_HARDENING.md, section "Permission groups".
+#
+# NEVER grant "*", "race.*" or any "race.<kingdom>" node in LuckPerms. Charter answers race nodes
+# (Foundry's race weapons, looks, glide, double jump and swim dash read them); a wildcard here would
+# give a staff member every race at once. Never grant "luckperms.*" to anyone but the owner.
+
+lp creategroup helper
+lp creategroup builder
+lp creategroup moderator
+lp creategroup admin
+lp group helper setweight 10
+lp group builder setweight 15
+lp group moderator setweight 20
+lp group admin setweight 30
+lp group moderator parent add helper
+lp group admin parent add moderator
+
+# helper: see who did what, kick and short mutes
+lp group helper permission set ledger.commands.root true
+lp group helper permission set ledger.commands.inspect true
+lp group helper permission set ledger.commands.search true
+lp group helper permission set ledger.commands.status true
+lp group helper permission set banhammer.punish.kick true
+lp group helper permission set banhammer.punish.tempmute true
+lp group helper permission set banhammer.duration.helper true
+
+# moderator: investigate in spectator, roll back grief, ban for a time
+lp group moderator permission set ledger.commands.tp true
+lp group moderator permission set ledger.commands.preview true
+lp group moderator permission set ledger.commands.player true
+lp group moderator permission set ledger.commands.rollback true
+lp group moderator permission set banhammer.punish.mute true
+lp group moderator permission set banhammer.punish.tempban true
+lp group moderator permission set banhammer.unpunish.unmute true
+lp group moderator permission set banhammer.unpunish.unban true
+lp group moderator permission set banhammer.duration.moderator true
+lp group moderator permission set minecraft.command.gamemode true
+lp group moderator permission set minecraft.command.gamemode.spectator true
+lp group moderator permission set minecraft.command.gamemode.survival true
+lp group moderator permission set minecraft.command.gamemode.creative false
+lp group moderator permission set minecraft.command.gamemode.adventure false
+lp group moderator permission set minecraft.command.gamemode.spectator.target false
+lp group moderator permission set minecraft.command.gamemode.survival.target false
+lp group moderator permission set minecraft.command.teleport true
+lp group moderator permission set minecraft.command.tp true
+lp group moderator permission set minecraft.command.teleport.targets false
+
+# admin: Charter's operator commands and pass, give, every game mode, permanent bans
+lp group admin permission set charter.admin true
+lp group admin permission set charter.bypass true
+lp group admin permission set banhammer.punish.ban true
+lp group admin permission set banhammer.punish.banip true
+lp group admin permission set banhammer.punish.tempbanip true
+lp group admin permission set banhammer.unpunish.unbanip true
+lp group admin permission set banhammer.unpunish.pardon true
+lp group admin permission set banhammer.duration.admin true
+lp group admin permission set minecraft.command.gamemode.creative true
+lp group admin permission set minecraft.command.gamemode.adventure true
+lp group admin permission set minecraft.command.gamemode.spectator.target true
+lp group admin permission set minecraft.command.gamemode.survival.target true
+lp group admin permission set minecraft.command.teleport.targets true
+lp group admin permission set minecraft.command.give true
+lp group admin permission set minecraft.command.effect true
+lp group admin permission set minecraft.command.clear true
+lp group admin permission set minecraft.command.time true
+lp group admin permission set minecraft.command.weather true
+lp group admin permission set minecraft.commands.entity_selectors true
+lp group admin permission set spark true
+
+# builder: given for a few hours at a time (lp user <name> parent addtemp builder 4h).
+# Axiom without operator, building in the hub, creative mode for themselves only.
+lp group builder permission set axiom.default true
+lp group builder permission set charter.bypass true
+lp group builder permission set minecraft.command.gamemode true
+lp group builder permission set minecraft.command.gamemode.creative true
+lp group builder permission set minecraft.command.gamemode.survival true
+lp group builder permission set minecraft.command.gamemode.spectator true
+lp group builder permission set minecraft.command.gamemode.adventure false
+lp group builder permission set minecraft.command.gamemode.creative.target false
+lp group builder permission set minecraft.command.gamemode.survival.target false
+lp group builder permission set minecraft.command.gamemode.spectator.target false
+
+# The owner keeps operator level 4 in ops.json and is also an admin here, so taking operator away
+# later loses nothing Charter or Ledger needs.
+lp user MrPinoy123456789 parent add admin

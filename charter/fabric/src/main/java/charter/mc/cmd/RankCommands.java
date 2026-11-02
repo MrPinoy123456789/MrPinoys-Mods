@@ -61,7 +61,7 @@ public final class RankCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
             dispatcher.register(Commands.literal("charter").then(tree(Commands.literal("rank"), RankCommands::own, false)));
             dispatcher.register(Commands.literal("charter").then(Commands.literal("admin")
-                    .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                    .requires(charter.mc.CharterPerms::admin)
                     .then(Commands.literal("faction").then(Commands.literal("title")
                             .then(tree(Commands.argument("kingdom", StringArgumentType.string())
                                     .suggests((c, b) -> SharedSuggestionProvider.suggest(kingdoms(), b)), RankCommands::named, true))))));

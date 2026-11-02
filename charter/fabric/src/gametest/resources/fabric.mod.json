@@ -35,6 +35,7 @@
       "charter.gametest.TeleportGameTest",
       "charter.gametest.WarGameTest",
       "charter.gametest.RaceNodeGameTest",
+      "charter.gametest.HardeningGameTest",
       "charter.gametest.AdminMenuGameTest",
       "charter.gametest.SpawnRulesGameTest",
       "charter.gametest.KingdomExplosionsGameTest",

@@ -75,7 +75,7 @@ public final class KeepGate {
      * is the server's spawn town: everyone may walk in and out of it.
      */
     static boolean allowed(ServerPlayer player, CharterRuntime rt, OrgId owner) {
-        if (Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(player.createCommandSourceStack())) return true;
+        if (charter.mc.CharterPerms.bypass(player)) return true;
         OrgId top = rt.state.root(owner);
         if (rt.state.org(top).map(o -> o.adminKingdom).orElse(false)) return true;
         var membership = rt.state.membership(new PlayerId(player.getUUID()));

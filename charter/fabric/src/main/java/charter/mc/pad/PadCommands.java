@@ -45,9 +45,9 @@ public final class PadCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter")
                         .then(Commands.literal("admin")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(charter.mc.CharterPerms::admin)
                                 .then(Commands.literal("pad")
-                                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .requires(charter.mc.CharterPerms::admin)
                                         .then(Commands.literal("add")
                                                 .then(Commands.argument("kind", StringArgumentType.word())
                                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(PadBook.kindNames(), b))
