@@ -43,6 +43,11 @@ public final class Guard {
         });
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (!(player instanceof ServerPlayer) || !CharterServer.running()) return InteractionResult.PASS;
+            // A Charter terminal opens the menu for everyone, ahead of every rule below (drifters and the spawn included).
+            InteractionResult terminal = charter.mc.terminal.Terminals.useBlock((ServerPlayer) player, level, hand, hit);
+            if (terminal != null) return terminal;
+            InteractionResult bound = charter.mc.book.BoundItems.useBlock((ServerPlayer) player, level, hand, hit);
+            if (bound != null) return bound;
             BlockPos pos = hit.getBlockPos();
             if (hand == net.minecraft.world.InteractionHand.MAIN_HAND) Placement.inspectBanner((ServerPlayer) player, level, pos);
             // In the spawn, doors, buttons and the other allowlisted blocks work for everyone; nothing else does.

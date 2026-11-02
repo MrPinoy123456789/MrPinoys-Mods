@@ -1,0 +1,134 @@
+package charter.mc.terminal;
+
+import charter.mc.CharterServer;
+import charter.mc.Text;
+import charter.mc.cmd.Chat;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LecternBlock;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+
+import java.util.List;
+
+/**
+ * The operator's terminal tools, a separate {@code /charter admin} tree that Brigadier merges with the others.
+ *
+ * <pre>
+ *   /charter admin terminal add      the block you look at becomes a terminal
+ *   /charter admin terminal here     puts a lectern where you stand and makes it a terminal
+ *   /charter admin terminal remove   the terminal you look at, or else the block under you
+ *   /charter admin terminal list     every terminal, each a link that takes you there
+ *   /charter admin terminal clear    removes every terminal (the blocks stay)
+ * </pre>
+ */
+public final class TerminalCommands {
+
+    /** How far an operator may look at a block to make or remove a terminal. */
+    static final double REACH = 8;
+
+    private TerminalCommands() {
+    }
+
+    static void register() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
+                Commands.literal("charter")
+                        .then(Commands.literal("admin")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.literal("terminal")
+                                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .then(Commands.literal("add").executes(TerminalCommands::add))
+                                        .then(Commands.literal("here").executes(TerminalCommands::here))
+                                        .then(Commands.literal("remove").executes(TerminalCommands::remove))
+                                        .then(Commands.literal("list").executes(TerminalCommands::list))
+                                        .then(Commands.literal("clear").executes(TerminalCommands::clear))))));
+    }
+
+    /** The block the player looks at within reach, or null. */
+    private static BlockPos lookedAt(ServerPlayer player) {
+        HitResult hit = player.pick(REACH, 0.0F, false);
+        if (hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK) return block.getBlockPos();
+        return null;
+    }
+
+    private static int add(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!CharterServer.running()) return fail(ctx, Text.get("teleport.not_running"));
+        BlockPos pos = lookedAt(player);
+        if (pos == null) return fail(ctx, Text.get("terminal.look_at"));
+        TerminalBook.Spot spot = Terminals.spot(player.level(), pos);
+        if (!Terminals.add(spot, null)) return fail(ctx, Text.get("terminal.taken", "x", spot.x(), "y", spot.y(), "z", spot.z()));
+        ctx.getSource().sendSuccess(() -> Chat.good(Text.get("terminal.added", "x", spot.x(), "y", spot.y(), "z", spot.z())), true);
+        return 1;
+    }
+
+    private static int here(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!CharterServer.running()) return fail(ctx, Text.get("teleport.not_running"));
+        BlockPos pos = player.blockPosition();
+        TerminalBook.Spot spot = Terminals.spot(player.level(), pos);
+        if (Terminals.book().at(spot) != null) return fail(ctx, Text.get("terminal.taken", "x", spot.x(), "y", spot.y(), "z", spot.z()));
+        if (!player.level().getBlockState(pos).canBeReplaced()) return fail(ctx, Text.get("terminal.here_blocked"));
+        // The sloped top faces the way the operator looks, so a player coming from there reads it.
+        player.level().setBlockAndUpdate(pos, Blocks.LECTERN.defaultBlockState()
+                .setValue(LecternBlock.FACING, player.getDirection().getOpposite()));
+        Terminals.add(spot, null);
+        ctx.getSource().sendSuccess(() -> Chat.good(Text.get("terminal.placed", "x", spot.x(), "y", spot.y(), "z", spot.z())), true);
+        return 1;
+    }
+
+    private static int remove(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!CharterServer.running()) return fail(ctx, Text.get("teleport.not_running"));
+        BlockPos pos = lookedAt(player);
+        TerminalBook.Spot spot = pos == null ? null : Terminals.spot(player.level(), pos);
+        if (spot == null || Terminals.book().at(spot) == null) spot = Terminals.spot(player.level(), player.getOnPos());
+        if (!Terminals.remove(spot)) return fail(ctx, Text.get("terminal.none_here"));
+        TerminalBook.Spot gone = spot;
+        ctx.getSource().sendSuccess(() -> Chat.good(Text.get("terminal.removed", "x", gone.x(), "y", gone.y(), "z", gone.z())), true);
+        return 1;
+    }
+
+    private static int list(CommandContext<CommandSourceStack> ctx) {
+        if (!CharterServer.running()) return fail(ctx, Text.get("teleport.not_running"));
+        List<TerminalBook.Terminal> all = Terminals.book().all();
+        if (all.isEmpty()) {
+            ctx.getSource().sendSuccess(() -> Chat.line(Text.get("terminal.list_none")), false);
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Chat.header(Text.get("terminal.list_head", "count", all.size())), false);
+        for (TerminalBook.Terminal t : all) {
+            TerminalBook.Spot s = t.spot();
+            String tp = "/execute in " + s.dimension() + " run tp @s " + s.x() + " " + (s.y() + 1) + " " + s.z();
+            String key = t.core() == null ? "terminal.list_line" : "terminal.list_line_keep";
+            Component line = Component.literal(Text.get(key, "x", s.x(), "y", s.y(), "z", s.z(), "dimension", s.dimension()))
+                    .withStyle(style -> style.withColor(ChatFormatting.YELLOW)
+                            .withClickEvent(new ClickEvent.RunCommand(tp))
+                            .withHoverEvent(new HoverEvent.ShowText(Component.literal(tp))));
+            ctx.getSource().sendSuccess(() -> line, false);
+        }
+        return all.size();
+    }
+
+    private static int clear(CommandContext<CommandSourceStack> ctx) {
+        if (!CharterServer.running()) return fail(ctx, Text.get("teleport.not_running"));
+        int n = Terminals.clear();
+        ctx.getSource().sendSuccess(() -> Chat.good(Text.get("terminal.cleared", "count", n)), true);
+        return Math.max(n, 1);
+    }
+
+    private static int fail(CommandContext<CommandSourceStack> ctx, String text) {
+        ctx.getSource().sendFailure(Chat.bad(text));
+        return 0;
+    }
+}

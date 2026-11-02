@@ -343,6 +343,8 @@ public final class LandCommands {
         Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()),
                 new charter.land.actions.MoveKeep(org.id, chunk));
         if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
+        // A lodestone someone has lifted is not put back: the moved keep gets its new one below.
+        charter.mc.land.NexusLift.cancel(ctx.getSource().getServer(), keep.get().id);
         // The old Nexus block goes, wherever it stood, and its record with it.
         net.minecraft.core.BlockPos old = oldNexus == null ? at : new net.minecraft.core.BlockPos(oldNexus.x(), oldNexus.y(), oldNexus.z());
         if (oldNexus != null) {

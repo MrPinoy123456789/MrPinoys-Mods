@@ -43,12 +43,14 @@ public final class BookMod {
 
     /**
      * Gives the player a book if they carry none. On console and Bedrock the book is the only way into the menu, since
-     * there is no typing a command, so a lost one is replaced at once and not only when they next join.
+     * there is no typing a command, so a lost one is replaced at once and not only when they next join. Who is handed
+     * one at all is the {@code bookGivenTo} knob ({@link #autoGive}); extra copies go whatever it says.
      */
     public static void ensure(ServerPlayer player, boolean lost) {
         removeExtras(player);
         if (carriesBook(player)) return;
-        giveBook(player, CharterBook.create());
+        if (!autoGive(player)) return;
+        giveBook(player, CharterBook.create(player.getUUID()));
         // A new stack carries no glint or count yet: the next refresh writes them.
         SHOWN.remove(player.getUUID());
         player.sendSystemMessage(Component.literal(Text.get(lost ? "book.replaced" : "book.given")).withStyle(ChatFormatting.GOLD));
@@ -64,8 +66,14 @@ public final class BookMod {
         boolean kept = false;
         ItemStack keeper = null;
         int removed = 0;
+        int foreign = 0;
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             if (!CharterBook.isBook(inventory.getItem(i))) continue;
+            if (!own(player, inventory.getItem(i))) {
+                inventory.setItem(i, ItemStack.EMPTY);
+                foreign++;
+                continue;
+            }
             if (!kept) {
                 kept = true;
                 keeper = inventory.getItem(i);
@@ -78,6 +86,11 @@ public final class BookMod {
             // The inventory above may already cover armour and the off hand: the same stack is never counted twice.
             ItemStack worn = player.getItemBySlot(slot);
             if (!CharterBook.isBook(worn) || worn == keeper) continue;
+            if (!own(player, worn)) {
+                player.setItemSlot(slot, ItemStack.EMPTY);
+                foreign++;
+                continue;
+            }
             if (!kept) {
                 kept = true;
                 keeper = worn;
@@ -87,18 +100,57 @@ public final class BookMod {
             }
         }
         if (player.containerMenu != null && CharterBook.isBook(player.containerMenu.getCarried())) {
-            if (kept) {
+            ItemStack carried = player.containerMenu.getCarried();
+            if (!own(player, carried)) {
+                player.containerMenu.setCarried(ItemStack.EMPTY);
+                foreign++;
+            } else if (kept) {
                 player.containerMenu.setCarried(ItemStack.EMPTY);
                 removed++;
             }
         }
-        if (removed > 0) {
-            // The book kept may be one picked up from someone else, still showing their count: write this player's.
+        if (removed + foreign > 0) {
             SHOWN.remove(player.getUUID());
             player.containerMenu.broadcastChanges();
-            player.sendSystemMessage(Component.literal(Text.get("book.duplicate")).withStyle(ChatFormatting.GOLD));
         }
-        return removed;
+        if (removed > 0) player.sendSystemMessage(Component.literal(Text.get("book.duplicate")).withStyle(ChatFormatting.GOLD));
+        if (foreign > 0) player.sendSystemMessage(Component.literal(Text.get("book.not_yours")).withStyle(ChatFormatting.GOLD));
+        return removed + foreign;
+    }
+
+    /**
+     * Whether a copy may stay with this player: their own, or one made before books had owners, which they adopt here.
+     * A copy that belongs to someone else may not (the one-copy rule: each player carries their own book only).
+     */
+    private static boolean own(ServerPlayer player, ItemStack book) {
+        return switch (BookRules.verdict(CharterBook.ownerOf(book), player.getUUID())) {
+            case KEEP -> true;
+            case ADOPT -> {
+                CharterBook.setOwner(book, player.getUUID());
+                yield true;
+            }
+            case FOREIGN -> false;
+        };
+    }
+
+    /** Whether this player is handed a book automatically, by the {@code bookGivenTo} knob. */
+    public static boolean autoGive(ServerPlayer player) {
+        if (!CharterServer.running()) return false;
+        var rt = CharterServer.runtime();
+        var id = new charter.id.PlayerId(player.getUUID());
+        return BookRules.gives(BookRules.mode(rt.knobs.bookGivenTo), rt.state.membership(id).isPresent(), rt.state.raceOf(id).isPresent());
+    }
+
+    /**
+     * The menu's "Get a new Charter book" button: a fresh copy for portable use, whatever {@code bookGivenTo} says, but
+     * never a second one. Returns the result line for the page (a {@link BookResult#ok} line when it was given).
+     */
+    public static String giveNew(ServerPlayer player) {
+        removeExtras(player);
+        if (carriesBook(player)) return Text.get("book.new.already");
+        giveBook(player, CharterBook.create(player.getUUID()));
+        SHOWN.remove(player.getUUID());
+        return BookResult.ok(Text.get("book.new.given"));
     }
 
     /** Once a second for everyone online: a second book is deleted, whether or not lost books are replaced. */
@@ -209,27 +261,68 @@ public final class BookMod {
         return player.getInventory().add(stack) ? null : player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
     }
 
-    /** Deletes every Charter book a player carries, so none is dropped on death. Returns how many. */
+    /** Books taken off a dying player, by player, to be handed back on respawn (or at once when a totem saved them). */
+    private static final java.util.Map<java.util.UUID, ItemStack> STASH = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Takes every Charter book off a player who is about to die, so none is in the death drops. The player's own copy is
+     * set aside and handed back when they respawn; extra or foreign copies are gone. Returns how many were taken.
+     */
     public static int vanish(ServerPlayer player) {
         int n = 0;
+        ItemStack kept = null;
         var inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
-            if (CharterBook.isBook(inventory.getItem(i))) {
+            ItemStack stack = inventory.getItem(i);
+            if (CharterBook.isBook(stack)) {
+                if (kept == null && BookRules.verdict(CharterBook.ownerOf(stack), player.getUUID()) != BookRules.Verdict.FOREIGN) kept = stack;
                 inventory.setItem(i, ItemStack.EMPTY);
                 n++;
             }
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if (CharterBook.isBook(player.getItemBySlot(slot))) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (CharterBook.isBook(stack)) {
+                if (kept == null && BookRules.verdict(CharterBook.ownerOf(stack), player.getUUID()) != BookRules.Verdict.FOREIGN) kept = stack;
                 player.setItemSlot(slot, ItemStack.EMPTY);
                 n++;
             }
         }
+        if (kept != null) STASH.put(player.getUUID(), kept);
         return n;
     }
 
+    /** Whether a book taken at death waits for this player (for tests). */
+    public static boolean stashed(java.util.UUID id) {
+        return STASH.containsKey(id);
+    }
+
+    /**
+     * Hands back the book taken at death, unless the player already carries one; then, with {@code replaceLostBook} on,
+     * gives one to a player the {@code bookGivenTo} knob covers who still has none. Called on respawn.
+     */
+    public static void respawned(ServerPlayer player) {
+        ItemStack book = STASH.remove(player.getUUID());
+        if (book != null && !carriesBook(player)) {
+            giveBook(player, book);
+            SHOWN.remove(player.getUUID());
+        }
+        if (CharterServer.running() && CharterServer.runtime().knobs.replaceLostBook) ensure(player, true);
+    }
+
+    /** A totem saved a player whose book was taken at death: once they are alive again, it goes back. */
+    private static void returnSaved(net.minecraft.server.MinecraftServer server) {
+        if (STASH.isEmpty()) return;
+        for (java.util.UUID id : java.util.List.copyOf(STASH.keySet())) {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player == null || player.isDeadOrDying() || player.isRemoved()) continue;
+            ItemStack book = STASH.remove(id);
+            if (book != null && !carriesBook(player)) giveBook(player, book);
+        }
+    }
+
     public static void register() {
-        // Before the death loot is dropped: the book never lies on the ground, and respawn hands out a fresh one.
+        // Before the death loot is dropped: the book never lies on the ground, and respawn hands the same one back.
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayer player) vanish(player);
             return true;
@@ -242,6 +335,9 @@ public final class BookMod {
             BookDialogs.LAST.remove(handler.player.getUUID());
             SHOWN.remove(handler.player.getUUID());
             BedrockForms.forget(handler.player.getUUID());
+            STASH.remove(handler.player.getUUID());
         });
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(BookMod::returnSaved);
+        BoundItems.register();
     }
 }

@@ -43,18 +43,28 @@ public final class MorePages {
             page(p, BookResult.ok(Text.get(on ? "book.borders.on" : "book.borders.off")));
         }).icon(BookIcons.BORDERS));
         buttons.add(BookDialogs.act(player, Text.get("book.button.words"), null, p -> glossary(p, MorePages::page)).icon(BookIcons.WORDS));
+        buttons.add(newBook(player, MorePages::page));
         buttons.add(BookDialogs.act(player, Text.get("book.leave.button"), null, MemberPages::leaveConfirm).icon(BookIcons.LEAVE));
         if (rt.knobs.playerFounding) buttons.add(BreakawayPages.button(player));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.more.title"), BookDialogs.withNotice(notice, List.of()), buttons,
                 BookDialogs.back(player, p -> MemberPages.home(p, null))));
     }
 
-    /** A newcomer's More. */
+    /**
+     * "Get a new Charter book": a copy to carry, for a player who reaches the menu through a terminal. It works whatever
+     * the {@code bookGivenTo} knob says, and never gives a second copy. The result shows on {@code page}.
+     */
+    static BookButton newBook(ServerPlayer player, java.util.function.BiConsumer<ServerPlayer, String> page) {
+        return BookDialogs.act(player, Text.get("book.button.new_book"), null, p -> page.accept(p, BookMod.giveNew(p))).icon(BookIcons.NEW_BOOK);
+    }
+
+    /** A newcomer's More. With no room on their Home, the new book button is here instead. */
     static void newcomer(ServerPlayer player, String notice) {
         List<BookButton> buttons = new ArrayList<>();
         buttons.add(BookDialogs.act(player, Text.get("book.button.realm"), null, MemberPages::realmChronicle).icon(BookIcons.CHRONICLE));
         buttons.add(BookDialogs.act(player, Text.get("book.button.calendar"), null, MorePages::calendar).icon(BookIcons.CALENDAR));
         buttons.add(BookDialogs.act(player, Text.get("book.button.words"), null, p -> glossary(p, NewcomerPages::more)).icon(BookIcons.WORDS));
+        if (!NewcomerPages.bookOnHome(player)) buttons.add(newBook(player, MorePages::newcomer));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.more.title"), BookDialogs.withNotice(notice, List.of()), buttons,
                 BookDialogs.back(player, p -> NewcomerPages.home(p, null))));
     }
