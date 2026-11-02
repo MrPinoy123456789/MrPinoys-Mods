@@ -86,28 +86,28 @@ public final class LandCommands {
                                                         .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                                 .executes(LandCommands::createKingdom))))))
                         .then(Commands.literal("move")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                 .then(Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                         .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                                 .executes(LandCommands::moveKeep))))))
                         .then(Commands.literal("add")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                                 .executes(LandCommands::addMember))))
                         .then(Commands.literal("leader")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                                 .executes(LandCommands::appointLeader))))
                         .then(Commands.literal("coleader")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                                 .executes(LandCommands::appointCoLeader))))
                         .then(Commands.literal("unlord")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                                 .executes(LandCommands::removeLord))))
@@ -118,19 +118,19 @@ public final class LandCommands {
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(raceNames(), b))
                                                 .executes(LandCommands::setRace))))
                         .then(Commands.literal("admin")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
                                                 .executes(LandCommands::adminKingdom))))
                         .then(Commands.literal("racename")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("name", StringArgumentType.string())
                                                 .executes(LandCommands::raceName))))
                         .then(Commands.literal("mixed")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
                                                 .executes(LandCommands::mixedRace))))
                         .then(Commands.literal("claims")
-                                .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("bonus", com.mojang.brigadier.arguments.IntegerArgumentType.integer(-1000, 100000))
                                                 .executes(LandCommands::claimBonus)))))
                 .then(Commands.literal("camp").requires(Gate::devTools)
@@ -138,7 +138,7 @@ public final class LandCommands {
                 .then(Commands.literal("give")
                         .then(Commands.argument("what", StringArgumentType.word())
                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(
-                                        Gate.devTools() ? new String[]{"nexus", "banner", "book"} : new String[]{"banner", "book"}, b))
+                                        Gate.devTools() ? new String[]{"nexus", "banner", "book", "adminbook"} : new String[]{"banner", "book", "adminbook"}, b))
                                 .executes(ctx -> give(ctx, ctx.getSource().getPlayerOrException()))
                                 .then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
@@ -323,7 +323,7 @@ public final class LandCommands {
     private static int moveKeep(CommandContext<CommandSourceStack> ctx) {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
-        var found = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt, name).filter(o -> o.isTopLevel());
         if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
         var org = found.get();
         var keep = rt.state.coresOf(org.id).stream().filter(charter.land.Core::isKeep).findFirst();
@@ -365,22 +365,12 @@ public final class LandCommands {
     private static int addMember(CommandContext<CommandSourceStack> ctx) {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
-        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt, name);
         if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
-        ServerPlayer online = online(ctx);
-        PlayerId id;
-        String who;
-        if (online != null) {
-            id = new PlayerId(online.getUUID());
-            who = online.getPlainTextName();
-            rt.state.touch(id, who, rt.clock.now());
-        } else {
-            String wanted = StringArgumentType.getString(ctx, "player");
-            var known = rt.state.allPlayers().stream().filter(p -> p.name.equalsIgnoreCase(wanted)).findFirst();
-            if (known.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", wanted));
-            id = known.get().id;
-            who = known.get().name;
-        }
+        var target = Resolve.player(ctx, rt);
+        if (target.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", StringArgumentType.getString(ctx, "player")));
+        PlayerId id = target.get().id();
+        String who = target.get().name();
         Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()),
                 new charter.org.actions.AddMember(found.get().id, id));
         if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
@@ -413,22 +403,12 @@ public final class LandCommands {
                                    java.util.function.BiFunction<OrgId, PlayerId, charter.engine.Action> make) {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
-        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt, name);
         if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
-        ServerPlayer online = online(ctx);
-        PlayerId id;
-        String who;
-        if (online != null) {
-            id = new PlayerId(online.getUUID());
-            who = online.getPlainTextName();
-            rt.state.touch(id, who, rt.clock.now());
-        } else {
-            String wanted = StringArgumentType.getString(ctx, "player");
-            var known = rt.state.allPlayers().stream().filter(p -> p.name.equalsIgnoreCase(wanted)).findFirst();
-            if (known.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", wanted));
-            id = known.get().id;
-            who = known.get().name;
-        }
+        var target = Resolve.player(ctx, rt);
+        if (target.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", StringArgumentType.getString(ctx, "player")));
+        PlayerId id = target.get().id();
+        String who = target.get().name();
         Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()), make.apply(found.get().id, id));
         if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
         return ok(ctx, Text.get(doneKey, "player", who, "name", found.get().name()));
@@ -438,7 +418,7 @@ public final class LandCommands {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
         boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on");
-        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt, name);
         if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
         var org = found.get();
         if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
@@ -466,20 +446,10 @@ public final class LandCommands {
             if (found.isEmpty()) return fail(ctx, Text.get("land.admin.race_unknown", "name", raceName));
             kingdom = found.get().id;
         }
-        ServerPlayer online = online(ctx);
-        PlayerId id;
-        String who;
-        if (online != null) {
-            id = new PlayerId(online.getUUID());
-            who = online.getPlainTextName();
-            rt.state.touch(id, who, rt.clock.now());
-        } else {
-            String wanted = StringArgumentType.getString(ctx, "player");
-            var known = rt.state.allPlayers().stream().filter(p -> p.name.equalsIgnoreCase(wanted)).findFirst();
-            if (known.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", wanted));
-            id = known.get().id;
-            who = known.get().name;
-        }
+        var target = Resolve.player(ctx, rt);
+        if (target.isEmpty()) return fail(ctx, Text.get("land.admin.no_player", "name", StringArgumentType.getString(ctx, "player")));
+        PlayerId id = target.get().id();
+        String who = target.get().name();
         Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()), new charter.org.actions.SetRace(id, kingdom));
         if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
         return kingdom == null ? ok(ctx, Text.get("land.admin.race_removed", "player", who))
@@ -491,7 +461,7 @@ public final class LandCommands {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
         String label = StringArgumentType.getString(ctx, "name").strip();
-        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt, name);
         if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
         var org = found.get();
         if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
@@ -503,7 +473,7 @@ public final class LandCommands {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
         boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on");
-        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt, name);
         if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
         var org = found.get();
         if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
@@ -515,7 +485,7 @@ public final class LandCommands {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
         int bonus = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "bonus");
-        var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
+        var found = Resolve.faction(rt, name);
         if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
         var org = found.get();
         if (!org.isTopLevel()) return fail(ctx, Text.get("land.admin.claims_not_top", "name", org.name()));
@@ -525,18 +495,9 @@ public final class LandCommands {
     }
 
     /** The online player a command names, by name or UUID (mock players share a name), or null. */
+    /** The online player a {@code <player>} argument names (a name or a UUID), or null. */
     private static ServerPlayer online(CommandContext<CommandSourceStack> ctx) {
-        String name = StringArgumentType.getString(ctx, "player");
-        var players = ctx.getSource().getServer().getPlayerList();
-        ServerPlayer found = players.getPlayer(name);
-        if (found == null) {
-            try {
-                found = players.getPlayer(java.util.UUID.fromString(name));
-            } catch (IllegalArgumentException notAUuid) {
-                // a name that is not online
-            }
-        }
-        return found;
+        return Resolve.player(ctx, rt()).map(Resolve.Who::online).orElse(null);
     }
 
     private static int raiseNow(CommandContext<CommandSourceStack> ctx) {
@@ -561,6 +522,11 @@ public final class LandCommands {
             }
             case "banner" -> target.getInventory().add(LandItems.warBanner());
             case "book" -> target.getInventory().add(charter.mc.book.CharterBook.create());
+            case "adminbook" -> {
+                // Only an operator may hold one: anyone else's is taken away on the next pass.
+                if (!charter.mc.book.AdminBook.allowed(target)) return fail(ctx, Text.get("admin.book.not_op", "player", target.getPlainTextName()));
+                charter.mc.book.AdminBook.give(target);
+            }
             default -> {
                 return fail(ctx, Text.get("land.admin.bad_item"));
             }

@@ -53,6 +53,7 @@ public final class CharterServer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, s) -> charter.mc.land.KeepGate.forget(handler.player.getUUID()));
         net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (runtime != null) charter.mc.book.BookMod.respawned(newPlayer);
+            if (runtime != null) charter.mc.book.AdminBook.ensure(newPlayer);
         });
     }
 

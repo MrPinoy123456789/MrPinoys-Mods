@@ -22,6 +22,7 @@ public final class LandMod {
         Crossings.register();
         LandCommands.register();
         NexusLift.register();
+        charter.mc.cmd.OpCommands.register();
         // The runtime is made when the server starts; follow its history once it is up.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             if (CharterServer.running()) CharterServer.runtime().state.history.listen(Placement::onHistory);
