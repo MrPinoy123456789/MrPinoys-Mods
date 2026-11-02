@@ -372,8 +372,9 @@ public final class WornDisplays {
                 }
             }
         }
-        // Bedrock players see the looks in the skin instead (BedrockLooks); this tells it which looks this player wears
-        BedrockLooks.set(player.getUUID(), ids);
+        // Bedrock players see the looks in the skin instead (BedrockLooks); this tells it which looks this player wears.
+        // Not while dead, so dying does not send every Bedrock player a plain skin and then the dressed one again.
+        if (player.isAlive()) BedrockLooks.set(player.getUUID(), ids);
         ItemStack realHead = player.getItemBySlot(EquipmentSlot.HEAD);
         int headHash = ItemStack.hashItemAndComponents(realHead);
         boolean seesOwn = selfView(player.getUUID());

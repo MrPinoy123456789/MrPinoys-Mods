@@ -284,8 +284,11 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   `foundry/tools/gen_bedrock_looks.py` (run after `gen_trinket_models.py`). Not yet: the back looks (both kinds of wings,
   the banner, the dorsal fin), which come once the head looks are confirmed. To confirm on a Bedrock client: the beard and
   hat sit on the head and follow it; the hat's feather is on the wearer's left and curves back (if it is on the right, or
-  faces are mirrored, flip `MIRROR_FACES` or `ROTATION_SIGN` in the generator); the hook logs "race looks will be added
-  to skins for Bedrock players" once Geyser is up.
+  faces are mirrored, flip `MIRROR_FACES` in the generator); the hat's front brim and side flaps droop and the antlers
+  lean out as on Java (if they tilt the wrong way, flip `ROTATION_SIGN`). The log says "race looks will be added to skins
+  for Bedrock players" once Geyser is up, then "added [looks] to NAME's skin for Bedrock players" the first time each
+  player is dressed, or that a persona or 128 pixel skin was left alone. Geyser reads a 65,536 byte skin as 128 by 128
+  (Cloudburst `ImageData.of`), so the size is accepted.
 - **Bedrock.** Nothing is drawn, on purpose: the live log showed Geyser throwing `Missing ID 73 in Java registry minecraft:entity_type` for every item display it was sent (it cannot translate `item_display` on 26.3), so `WornDisplays` never sends displays to a Floodgate player (UUID high half zero). Geyser (current master) lists `text_display` as required entity metadata but
   `item_display` and `block_display` as not required, so Polymer's item displays are almost certainly not translated;
   I found no Geyser option to attach a worn model to a player either. The trinket itself still works for Bedrock

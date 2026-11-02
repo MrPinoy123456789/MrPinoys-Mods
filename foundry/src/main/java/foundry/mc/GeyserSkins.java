@@ -23,6 +23,8 @@ import org.geysermc.geyser.api.skin.SkinGeometry;
 final class GeyserSkins {
     /** Each player's skin as Geyser first had it, so a look can be added or taken off again later. */
     private static final Map<UUID, Original> ORIGINAL = new ConcurrentHashMap<>();
+    /** What has been logged already (player and looks, or a persona skip), so the log says each thing once. */
+    private static final java.util.Set<String> LOGGED = ConcurrentHashMap.newKeySet();
 
     private record Original(SkinData skin, boolean slim, boolean bedrock) {}
 
@@ -44,7 +46,17 @@ final class GeyserSkins {
         try {
             ORIGINAL.put(event.uuid(), new Original(event.originalSkin(), event.slim(), event.bedrock()));
             SkinData dressed = dress(event.uuid(), event.originalSkin(), event.slim(), event.bedrock());
-            if (dressed == null) return;
+            List<String> worn = BedrockLooks.worn(event.uuid());
+            if (dressed == null) {
+                if (!worn.isEmpty() && LOGGED.add(event.uuid() + " skipped")) {
+                    FoundryMod.LOG.info("Foundry: {} wears {} but their skin cannot take it on Bedrock (a persona or 128 "
+                            + "pixel skin); left as it is", event.username(), worn);
+                }
+                return;
+            }
+            if (LOGGED.add(event.uuid() + " " + worn)) {
+                FoundryMod.LOG.info("Foundry: added {} to {}'s skin for Bedrock players", worn, event.username());
+            }
             event.skin(dressed.skin());
             event.geometry(dressed.geometry());
         } catch (RuntimeException e) {
@@ -79,5 +91,6 @@ final class GeyserSkins {
 
     static void forget(UUID player) {
         ORIGINAL.remove(player);
+        LOGGED.removeIf(k -> k.startsWith(player.toString()));
     }
 }
