@@ -133,7 +133,7 @@ public final class NewcomerPages {
     }
 
     /** The race is for good, so it asks once, with the race as the verb. */
-    private static void mercConfirm(ServerPlayer player, OrgId id) {
+    public static void mercConfirm(ServerPlayer player, OrgId id) {
         if (!alone(player)) return;
         Optional<Organization> org = rt().state.org(id);
         if (org.isEmpty()) {

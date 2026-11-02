@@ -282,7 +282,7 @@ After this plan nothing a player needs is typed only. Left as commands on purpos
 ## Status after Phases 2 to 5 (2026-11-01)
 
 Built on `feature/charter-book-bedrock-ui` (cut from `claude/relaxed-pascal-us1zqd`, current master merged in).
-`./gradlew build` is green: core 2192, fabric 399 unit checks, 151 gametests. Nothing is pushed or deployed.
+`./gradlew build` is green: core 2192, fabric 399 unit checks, 155 gametests. Nothing is pushed or deployed.
 
 | Commit | Phase |
 |---|---|
@@ -318,10 +318,10 @@ Built on `feature/charter-book-bedrock-ui` (cut from `claude/relaxed-pascal-us1z
 | Task | Plan | Measured |
 |---|---|---|
 | Go to your keep | 2 | 2 |
-| Vote on something waiting | 3 | 3 (one thing waiting; 4 with more) |
+| Vote on something waiting | 3 | 3 with one thing waiting (4 with more, counted from the screens, not measured) |
 | Accept an invitation | 2 | 2 |
 | Admit a player | 4 | 3 through Needs you, 4 through the Desk |
-| Take Marks from the treasury | 4 | 4 with a preset (1, 10, 64); 6 with the slider |
+| Take Marks from the treasury | 4 | 4 with a preset (1, 10, 64); 6 with the slider (counted, not measured) |
 
 ### Before the owner deploys
 

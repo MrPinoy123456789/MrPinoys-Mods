@@ -318,6 +318,33 @@ public final class JusticeGameTest {
 
     // ---- confinement and escape (test T, gametest half) ----
 
+    /** The book's Justice pages: a cell marked and named with no typing, and a sentence pressed, never typed. */
+    @GameTest(maxTicks = 200)
+    public void theBookMarksACellAndSentencesWithButtons(GameTestHelper helper) {
+        try (Rig r = new Rig(helper)) {
+            BlockPos stand = r.room(2, 2);
+            r.standAt(r.lord, stand);
+            charter.mc.justice.JusticePages.home(r.lord, null);
+            r.click(r.lord, Text.get("book.justice.cells"));
+            r.click(r.lord, Text.get("book.justice.cell_mark"));
+            String cellName = Text.get("book.justice.cell_name", "n", 1);
+            r.check(Cells.book().get(r.keepId(), cellName) != null, "Mark a cell here did not mark " + cellName);
+
+            r.arrest(r.prisoner, 8, 0);
+            r.check(charter.mc.book.Needs.of(r.lord).stream().anyMatch(n -> n.kind() == charter.mc.book.Needs.Kind.CUSTODY),
+                    "A prisoner awaiting sentence does not need the judge");
+            charter.mc.justice.JusticePages.sentence(r.lord, r.prisonerId);
+            var screen = charter.mc.book.BookDialogs.LAST.get(r.lord.getUUID());
+            r.check(screen.violations().isEmpty(), "The sentence screen breaks the rules: " + screen.violations());
+            r.click(r.lord, Text.get("book.justice.confine", "cell", charter.mc.book.BookDialogs.clip(cellName, 10),
+                    "time", charter.mc.justice.JusticePages.span(Durations.hours(1))));
+            Contract sentence = r.latest(r.prisonerId);
+            r.check(sentence.term(Term.Confinement.class) != null && sentence.term(Term.Confinement.class).cell().equals(cellName),
+                    "The button did not confine the prisoner in " + cellName);
+            helper.succeed();
+        }
+    }
+
     @GameTest(maxTicks = 200)
     public void aConfinedPrisonerIsHeldAndGettingOutIsAnEscapeNotABreach(GameTestHelper helper) {
         try (Rig r = new Rig(helper)) {

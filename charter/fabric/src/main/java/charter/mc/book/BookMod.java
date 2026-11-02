@@ -93,6 +93,8 @@ public final class BookMod {
             }
         }
         if (removed > 0) {
+            // The book kept may be one picked up from someone else, still showing their count: write this player's.
+            SHOWN.remove(player.getUUID());
             player.containerMenu.broadcastChanges();
             player.sendSystemMessage(Component.literal(Text.get("book.duplicate")).withStyle(ChatFormatting.GOLD));
         }

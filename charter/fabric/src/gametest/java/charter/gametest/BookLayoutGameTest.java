@@ -256,6 +256,63 @@ public final class BookLayoutGameTest {
         }
     }
 
+    @GameTest(maxTicks = 200)
+    public void becomingAMercenaryAsksFirstAndBackChangesNothing(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Merc");
+            OrgId org = kit.orgOf(lord);
+            ServerPlayer alone = kit.outsider();
+            kit.rt.state.touch(id(alone), alone.getPlainTextName(), kit.rt.clock.now());
+            String race = kit.rt.state.org(org).orElseThrow().raceLabel();
+            Presses presses = new Presses(helper, alone);
+            NewcomerPages.mercConfirm(alone, org);
+            helper.assertTrue(presses.shown().kind() == BookScreen.Kind.CONFIRM, "Choosing a race did not ask first");
+            obeys(helper, alone, "the mercenary confirm");
+            presses.press(Text.get("book.button.back"));
+            helper.assertTrue(kit.rt.state.raceOf(id(alone)).isEmpty(), "Back chose a race");
+            NewcomerPages.mercConfirm(alone, org);
+            presses.press(Text.get("book.merc.verb", "race", BookDialogs.clip(race, 14)));
+            helper.assertTrue(kit.rt.state.raceOf(id(alone)).filter(org::equals).isPresent(), "The verb did not make a mercenary of that race");
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 200)
+    public void aPowerIsGivenAndAPlayerInvitedWithoutTyping(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("Hand");
+            OrgId org = kit.orgOf(lord);
+            member(kit, org);
+            Presses presses = new Presses(helper, lord);
+            LeaderPages.grant(lord, null);
+            presses.press(Text.get("book.grant.group.members"));
+            presses.press(Text.get("book.grant.power.manage_members"));
+            BookScreen who = presses.shown();
+            helper.assertTrue(who.kind() == BookScreen.Kind.LIST && !who.buttons().isEmpty(), "Who gets the power is not a list of buttons");
+            presses.press(who.buttons().get(who.buttons().size() - 1).label());
+            BookScreen landed = presses.shown();
+            helper.assertTrue(TextColor.fromLegacyFormat(ChatFormatting.GREEN).equals(landed.body().get(0).getStyle().getColor()),
+                    "Giving the power was not done: " + landed.bodyText());
+
+            ServerPlayer free = kit.outsider();
+            kit.rt.state.touch(id(free), free.getPlainTextName(), kit.rt.clock.now());
+            LeaderPages.invite(lord, null);
+            BookScreen invite = presses.shown();
+            if (invite.kind() == BookScreen.Kind.FORM) {
+                // More than eight are online: a dropdown, answered the way the client answers it.
+                var forms = CharterCommands.forms();
+                String token = forms.newest(lord.getUUID(), invite.submit().label()).orElseThrow();
+                forms.take(token, lord.getUUID(), System.currentTimeMillis()).orElseThrow()
+                        .accept(new CharterCommands.Form(lord, "=" + free.getUUID()));
+            } else {
+                String label = invite.buttons().stream().map(BookButton::label).filter(l -> l.startsWith("Invite ")).findFirst().orElseThrow();
+                presses.press(label);
+            }
+            helper.assertTrue(kit.rt.state.invites().stream().anyMatch(i -> i.org().equals(org)), "Inviting left no invitation");
+            helper.succeed();
+        }
+    }
+
     // ---- the press budget, measured from the book in hand ----
 
     @GameTest(maxTicks = 200)
@@ -313,7 +370,7 @@ public final class BookLayoutGameTest {
     }
 
     @GameTest(maxTicks = 200)
-    public void admittingTakesThreePressesFromTheDesk(GameTestHelper helper) {
+    public void admittingTakesFourPressesFromTheDesk(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Door");
             OrgId org = kit.orgOf(lord);

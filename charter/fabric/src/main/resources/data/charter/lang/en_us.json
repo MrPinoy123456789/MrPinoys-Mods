@@ -964,6 +964,8 @@
   "book.justice.cell_mark": "Mark a cell here",
   "book.justice.cell_remove": "Remove {cell}",
   "book.justice.cell_name": "Cell {n}",
+  "book.time.hour": "1 hour",
+  "book.time.hours": "{n} hours",
   "book.justice.cells_none": "No cells yet. Stand in your keep where a cell should be, and mark it.",
   "book.justice.cells_intro": "Stand where a cell should be, then mark it. Press a cell to remove it.",
   "teleport.bar.home": "Going home. Hold still.",

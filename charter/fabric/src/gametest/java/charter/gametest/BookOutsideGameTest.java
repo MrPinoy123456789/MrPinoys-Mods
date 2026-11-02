@@ -98,6 +98,24 @@ public final class BookOutsideGameTest {
         }
     }
 
+    @GameTest(maxTicks = 20)
+    public void aKeptBookNeverShowsSomeoneElsesCount(GameTestHelper helper) {
+        ServerPlayer player = emptyHanded(helper);
+        BookMod.ensure(player, true);
+        BookMod.refresh(player);
+        // A book picked up from someone else, still glinting with their count, lands first in the inventory.
+        ItemStack theirs = CharterBook.create();
+        theirs.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        theirs.set(DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal(Text.get("book.item.name_needs", "n", 2)));
+        player.getInventory().setItem(0, theirs);
+        helper.assertTrue(BookMod.removeExtras(player) == 1, "The second book was not removed");
+        BookMod.refresh(player);
+        ItemStack kept = book(player);
+        helper.assertTrue(!kept.has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE), "The kept book still glints with someone else's count");
+        helper.assertTrue(kept.getHoverName().getString().equals(Text.get("book.item.name")), "The kept book keeps their name: " + kept.getHoverName().getString());
+        helper.succeed();
+    }
+
     @GameTest(maxTicks = 200)
     public void travelShowsABossBarThatGoesWhenTheWaitEnds(GameTestHelper helper) {
         LandKit kit = new LandKit(helper);

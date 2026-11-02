@@ -134,7 +134,7 @@ public final class JusticePages {
                 BasisCaps.Checked checked = BasisCaps.check(Basis.CUSTODY, new Term.Confinement(hold, cell.keep, cell.name), rt.knobs);
                 if (!checked.ok()) continue;
                 String label = Text.get("book.justice.confine", "cell", BookDialogs.clip(cell.name, 10),
-                        "time", Chat.duration(checked.term().durationMillis()));
+                        "time", span(checked.term().durationMillis()));
                 buttons.add(go(judge, label, p -> run(p, new Confine(me, prisoner, hold, cell.keep, cell.name),
                         Text.get("justice.done_confine", "player", name, "cell", cell.name), line -> home(p, line))).icon(BookIcons.KEEP));
             }
@@ -145,7 +145,7 @@ public final class JusticePages {
                 for (long hold : HOLDS) {
                     BasisCaps.Checked checked = BasisCaps.check(Basis.CUSTODY, new Term.Tether(hold, keep.id), rt.knobs);
                     if (!checked.ok()) continue;
-                    String label = Text.get("book.justice.bond", "time", Chat.duration(checked.term().durationMillis()));
+                    String label = Text.get("book.justice.bond", "time", span(checked.term().durationMillis()));
                     buttons.add(go(judge, label, p -> run(p, new Sentence(me, prisoner, List.of(new Term.Tether(hold, keep.id))),
                             Text.get("justice.done_bond", "player", name), line -> home(p, line))).icon(BookIcons.JUSTICE));
                 }
@@ -190,6 +190,13 @@ public final class JusticePages {
                 new Execute(me, prisoner, EXECUTION_WAIT, EXECUTION_BANISH), Text.get("justice.done_execute", "player", name), l -> home(p, l)));
         BookDialogs.show(judge, BookDialogs.confirm(Text.get("book.justice.execute_title", "player", name),
                 List.of(BookDialogs.text(line)), yes, BookDialogs.back(judge, p -> sentence(p, prisoner))));
+    }
+
+    /** A sentence length short enough for a label: "1 hour", "6 hours", otherwise the usual wording. */
+    public static String span(long millis) {
+        long hours = millis / Durations.hours(1);
+        if (hours > 0 && millis % Durations.hours(1) == 0) return hours == 1 ? Text.get("book.time.hour") : Text.get("book.time.hours", "n", hours);
+        return Chat.duration(millis);
     }
 
     // ---- someone already held ----
