@@ -80,6 +80,30 @@ final class FoundryItem extends SimplePolymerItem {
         return super.use(level, player, hand);
     }
 
+    /**
+     * An item that has moved (replaced_by) turns into its new self in the player's inventory, the same count and
+     * components, the first tick it is carried. Containers are not searched; the stack changes when a player picks it up.
+     */
+    @Override
+    public void inventoryTick(ItemStack stack, net.minecraft.server.level.ServerLevel level, net.minecraft.world.entity.Entity entity,
+                              net.minecraft.world.entity.EquipmentSlot slot) {
+        var def = def();
+        if (def != null && def.replacedBy() != null && entity instanceof ServerPlayer player) {
+            Item next = FoundryItems.get(def.replacedBy());
+            if (next != null && next != this) {
+                var inv = player.getInventory();
+                for (int i = 0; i < inv.getContainerSize(); i++) {
+                    if (inv.getItem(i) == stack) {
+                        inv.setItem(i, stack.transmuteCopy(next, stack.getCount()));
+                        FoundryMod.LOG.info("Foundry: {}'s {} became {}", player.getGameProfile().name(), contentId, def.replacedBy());
+                        return;
+                    }
+                }
+            }
+        }
+        super.inventoryTick(stack, level, entity, slot);
+    }
+
     private boolean hasCharge() {
         return mechanics().stream().anyMatch(MechanicDef::charged);
     }

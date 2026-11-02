@@ -12,7 +12,7 @@ import java.util.TreeMap;
 public final class MechanicTypes {
     private MechanicTypes() {}
 
-    public enum Kind { ID, INT, DECIMAL, TARGET, BOOL, NAME, TEXT }
+    public enum Kind { ID, INT, DECIMAL, TARGET, BOOL, NAME, TEXT, COLOUR }
 
     public record Param(String name, Kind kind, boolean required, double min, double max) {
         static Param id(String n) { return new Param(n, Kind.ID, true, 0, 0); }
@@ -24,15 +24,21 @@ public final class MechanicTypes {
         static Param name(String n) { return new Param(n, Kind.NAME, true, 0, 0); }
         static Param optName(String n) { return new Param(n, Kind.NAME, false, 0, 0); }
         static Param text(String n) { return new Param(n, Kind.TEXT, true, 0, 0); }
+        static Param colour(String n) { return new Param(n, Kind.COLOUR, false, 0, 0); }
     }
 
     public record Spec(String name, List<Param> params) {}
 
     /**
-     * Valid values for the {@code target} parameter; absent means the acting player. {@code area} means every living
-     * entity within {@code radius} of the acting player (apply_effect only), narrowed by the permission filters.
+     * Valid values for the {@code target} parameter; absent means the acting player. {@code area} means: for
+     * apply_effect, every player within {@code radius} of the acting player (allies and the caster); for damage and
+     * knockback, every living thing within {@code radius} of the entity struck (or of the caster when nothing was
+     * struck), never the caster. All narrowed by the permission filters.
      */
     public static final List<String> TARGETS = List.of("self", "hit", "area");
+
+    /** The shapes particle_shape can draw (see the Minecraft layer for what each looks like). */
+    public static final List<String> SHAPES = List.of("ring", "burst", "line", "column", "arc", "spiral");
 
     /** Longest message a definition may send, so a mechanic cannot flood a player's action bar with prose. */
     public static final int MAX_MESSAGE = 80;
@@ -47,15 +53,23 @@ public final class MechanicTypes {
                 Param.integer("amplifier", false, 0, 255), Param.target(), Param.decimal("radius", false, 0.5, 16),
                 Param.optId("require_permission"), Param.optId("exclude_permission"));
         action("give_item", Param.id("item"), Param.integer("count", false, 1, 99), Param.target());
-        action("damage", Param.decimal("amount", true, 0.5, 100), Param.target(), Param.bool("ignore_hit_delay"));
+        action("damage", Param.decimal("amount", true, 0.5, 100), Param.target(), Param.bool("ignore_hit_delay"),
+                Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"));
+        action("knockback", Param.decimal("strength", true, 0, 3), Param.decimal("lift", false, 0, 2), Param.target(),
+                Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"));
+        action("particle_shape", Param.name("shape"), Param.optId("particle"), Param.colour("colour"),
+                Param.integer("count", false, 1, 200), Param.decimal("radius", false, 0.1, 8), Param.decimal("height", false, -2, 4),
+                Param.decimal("size", false, 0.2, 4), Param.target());
         action("spawn_particles", Param.id("particle"), Param.integer("count", false, 1, 100),
                 Param.decimal("spread", false, 0, 5), Param.decimal("speed", false, 0, 2), Param.target());
         action("send_message", Param.text("message"), Param.target());
         action("launch_bolt", Param.name("tag"), Param.decimal("range", false, 1, 64), Param.decimal("speed", false, 0.2, 3),
                 Param.decimal("radius", false, 0.1, 2), Param.optId("particle"), Param.optId("require_permission"),
-                Param.optId("exclude_permission"), Param.bool("returns"), Param.optName("return_tag"));
+                Param.optId("exclude_permission"), Param.bool("returns"), Param.optName("return_tag"), Param.optId("model"),
+                Param.colour("colour"), Param.bool("spin"), Param.decimal("model_scale", false, 0.1, 3));
         condition("has_permission", Param.integer("level", true, 0, 4), Param.target());
         condition("is_sneaking", Param.bool("value"));
+        condition("in_water", Param.bool("value"));
     }
 
     private static void action(String name, Param... p) {
@@ -110,7 +124,12 @@ public final class MechanicTypes {
                 case NAME -> {
                     if (!v.matches("[a-z0-9_]{1,32}")) {
                         out.add(p.name() + " \"" + v + "\" must be 1 to 32 characters of a to z, 0 to 9 and underscore.");
+                    } else if (p.name().equals("shape") && !SHAPES.contains(v)) {
+                        out.add("shape \"" + v + "\" is not one of " + SHAPES + ".");
                     }
+                }
+                case COLOUR -> {
+                    if (!v.matches("#[0-9a-fA-F]{6}")) out.add(p.name() + " \"" + v + "\" must be a colour like #E0B040.");
                 }
                 case TEXT -> {
                     if (v.isBlank() || v.length() > MAX_MESSAGE) {

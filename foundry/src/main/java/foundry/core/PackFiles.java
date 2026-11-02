@@ -55,9 +55,10 @@ public final class PackFiles {
                 out.put(modelPath(modelId), "{\"parent\":\"minecraft:item/" + (def.handheld() ? "handheld" : "generated") + "\",\"textures\":{\"layer0\":\""
                         + def.texture() + "\"}}\n");
             }
-            out.put(clientItemPath(def.id()), def.wornModel() == null
+            Ident threeD = def.wornModel() != null ? def.wornModel() : def.heldModel();
+            out.put(clientItemPath(def.id()), threeD == null
                     ? "{\"model\":{\"type\":\"minecraft:model\",\"model\":\"" + modelId + "\"}}\n"
-                    : withWornModel(modelId, def.wornModel()));
+                    : withWornModel(modelId, threeD));
         }
         return out;
     }
