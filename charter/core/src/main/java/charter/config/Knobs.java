@@ -112,10 +112,15 @@ public final class Knobs {
     public int keepUpkeepDays = 14;
     /**
      * Effects a race gives the people who have it, by race node path (the kingdom's name lower case, as in race:azrak) to
-     * effect ids. Merfolk, the race of Azurius, breathe water and swim like dolphins.
+     * effect ids. These are the race traits that used to come from the race trinkets: Merfolk (Azurius) breathe water and
+     * swim like dolphins, Dwarves (Azrak) mine faster, Humans (Aurelia) find more luck, the Fae (Faeloria) see in the dark.
+     * The Fairies (Everdelle) glide, which Foundry gives them (no effect needed).
      */
     public java.util.Map<String, List<String>> racePassives = new java.util.LinkedHashMap<>(java.util.Map.of(
-            "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace")));
+            "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace"),
+            "azrak", List.of("minecraft:haste"),
+            "aurelia", List.of("minecraft:luck"),
+            "faeloria", List.of("minecraft:night_vision")));
     // ---- race combat passives (always on, kept mild; see docs/RACES.md) ----
     /** Master switch for the race combat passives below. Off: no race gets any of them. */
     public boolean raceCombat = true;

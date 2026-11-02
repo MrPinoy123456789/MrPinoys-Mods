@@ -23,8 +23,17 @@ import java.util.Optional;
 public record WornPlacement(float up, float back, float side, float scale, boolean onHead, float rx, float ry, float rz,
                             boolean hideFromWearer, boolean headSlot, boolean ride, boolean swing) {
 
-    /** The table read from {@code config/foundry/worn_displays.json}: slot entries, then per item overrides. */
-    public record Table(Map<String, WornPlacement> slots, Map<String, WornPlacement> items) {
+    /**
+     * A race's look: the permission node that marks the race (race:azrak), the Foundry item drawn on everyone of that
+     * race, the slot whose placement it uses, and whether the race can glide (the Fairies).
+     */
+    public record RaceLook(String item, String slot, boolean glide) {}
+
+    /**
+     * The table read from {@code config/foundry/worn_displays.json}: slot entries, per item overrides, and the races, by
+     * permission node, with the look each race always shows.
+     */
+    public record Table(Map<String, WornPlacement> slots, Map<String, WornPlacement> items, Map<String, RaceLook> races) {
         /** The placement for a trinket: the item's own entry if it has one, else its slot's, else none (not drawn). */
         public Optional<WornPlacement> find(String itemId, String slot) {
             WornPlacement item = items.get(itemId);
@@ -50,7 +59,18 @@ public record WornPlacement(float up, float back, float side, float scale, boole
         slots.put("chest/cape", new WornPlacement(1.40f, 0.14f, 0f, 1.875f, false, 0f, 0f, 0f, false, false, true, true));
         Map<String, WornPlacement> items = new LinkedHashMap<>();
         items.put("kingdoms:fairy_wings", new WornPlacement(1.2f, 0.34f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true, false));
-        return new Table(Map.copyOf(slots), Map.copyOf(items));
+        return new Table(Map.copyOf(slots), Map.copyOf(items), defaultRaces());
+    }
+
+    /** The built in races: each kingdom's race and the look it always shows (the Fairies of Everdelle can glide). */
+    public static Map<String, RaceLook> defaultRaces() {
+        Map<String, RaceLook> races = new LinkedHashMap<>();
+        races.put("race:azrak", new RaceLook("kingdoms:forgeman_pauldron", "chest/back", false));
+        races.put("race:aurelia", new RaceLook("kingdoms:kingdom_cape", "chest/cape", false));
+        races.put("race:faeloria", new RaceLook("kingdoms:antler_circlet", "head/hat", false));
+        races.put("race:azurius", new RaceLook("kingdoms:tidal_gills", "head/face", false));
+        races.put("race:everdelle", new RaceLook("kingdoms:fairy_wings", "chest/cape", true));
+        return Map.copyOf(races);
     }
 
     /** The same placement as {@link Table#find} against the built in defaults. */
@@ -90,7 +110,22 @@ public record WornPlacement(float up, float back, float side, float scale, boole
                 items.put(en.getKey(), entry(en.getKey(), en.getValue(), slots.getOrDefault(slot, BASE), problems));
             }
         }
-        return new Parsed(new Table(Map.copyOf(slots), Map.copyOf(items)), List.copyOf(problems));
+        Map<String, RaceLook> races = defaultRaces();
+        if (root.has("races") && root.get("races").isJsonObject()) {
+            Map<String, RaceLook> read = new LinkedHashMap<>();
+            for (var en : root.getAsJsonObject("races").entrySet()) {
+                if (!en.getValue().isJsonObject() || !en.getValue().getAsJsonObject().has("item")
+                        || !en.getValue().getAsJsonObject().has("slot")) {
+                    problems.add("worn_displays.json: race " + en.getKey() + " needs an item and a slot");
+                    continue;
+                }
+                JsonObject o = en.getValue().getAsJsonObject();
+                read.put(en.getKey(), new RaceLook(o.get("item").getAsString(), o.get("slot").getAsString(),
+                        o.has("glide") && o.get("glide").getAsBoolean()));
+            }
+            races = Map.copyOf(read);
+        }
+        return new Parsed(new Table(Map.copyOf(slots), Map.copyOf(items), races), List.copyOf(problems));
     }
 
     private static WornPlacement entry(String name, JsonElement value, WornPlacement base, List<String> problems) {

@@ -3,7 +3,8 @@
   "package": "foundry.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "CreativeSlotGuard"
+    "CreativeSlotGuard",
+    "LivingEntityGlide"
   ],
   "injectors": {
     "defaultRequire": 1

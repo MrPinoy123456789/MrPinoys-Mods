@@ -39,106 +39,29 @@ public final class WornGameTest {
         if (!access.set(stack)) throw new AssertionError("The slot " + slot + " did not take " + stack);
     }
 
+    /** A race shows its look on the player, and losing the race removes it. */
     @GameTest(maxTicks = 100)
-    public void tidalGillsHelpOnlyMerfolk(GameTestHelper helper) {
-        ServerPlayer merfolk = player(helper, "race:azurius");
-        ServerPlayer other = player(helper, null);
-        wear(merfolk, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
-        wear(other, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
-        helper.runAfterDelay(45, () -> {
-            helper.assertTrue(merfolk.hasEffect(MobEffects.WATER_BREATHING), "Merfolk wearing the gills have no water breathing");
-            helper.assertTrue(merfolk.hasEffect(MobEffects.DOLPHINS_GRACE), "Merfolk wearing the gills have no dolphin's grace");
-            helper.assertFalse(other.hasEffect(MobEffects.WATER_BREATHING), "A player of no race got water breathing from the gills");
-            helper.assertFalse(other.hasEffect(MobEffects.DOLPHINS_GRACE), "A player of no race got dolphin's grace from the gills");
-            helper.succeed();
-        });
-    }
-
-    @GameTest(maxTicks = 100)
-    public void gillsOnTheShelfDoNothing(GameTestHelper helper) {
-        ServerPlayer merfolk = player(helper, "race:azurius");
-        merfolk.getInventory().add(new ItemStack(item("kingdoms:tidal_gills")));
-        helper.runAfterDelay(45, () -> {
-            helper.assertFalse(merfolk.hasEffect(MobEffects.WATER_BREATHING), "Gills in the pack gave water breathing");
-            helper.succeed();
-        });
-    }
-
-    @GameTest(maxTicks = 20)
-    public void fairyWingsAreAnElytra(GameTestHelper helper) {
-        ItemStack wings = new ItemStack(item("kingdoms:fairy_wings"));
-        helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
-        helper.assertTrue(wings.has(DataComponents.EQUIPPABLE)
-                && wings.get(DataComponents.EQUIPPABLE).slot() == EquipmentSlot.CHEST, "The wings do not go in the chest slot");
-        helper.succeed();
-    }
-
-    /** Wears one trinket as its race and as a player with no race; only the race gets the effect. */
-    private static void raceOnly(GameTestHelper helper, String item, String slot, String node,
-            net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect) {
-        ServerPlayer race = player(helper, node);
-        ServerPlayer other = player(helper, null);
-        wear(race, slot, new ItemStack(item(item)));
-        wear(other, slot, new ItemStack(item(item)));
-        helper.runAfterDelay(45, () -> {
-            helper.assertTrue(race.hasEffect(effect), "The wearer of the right race got no effect from " + item);
-            helper.assertFalse(other.hasEffect(effect), "A player of no race got the effect from " + item);
-            helper.succeed();
-        });
-    }
-
-    @GameTest(maxTicks = 100)
-    public void theForgemansPauldronHastensOnlyDwarves(GameTestHelper helper) {
-        raceOnly(helper, "kingdoms:forgeman_pauldron", "chest/back", "race:azrak", MobEffects.HASTE);
-    }
-
-    @GameTest(maxTicks = 100)
-    public void theKingdomCapeBringsLuckOnlyToHumans(GameTestHelper helper) {
-        raceOnly(helper, "kingdoms:kingdom_cape", "chest/cape", "race:aurelia", MobEffects.LUCK);
-    }
-
-    @GameTest(maxTicks = 100)
-    public void theAntlerCircletGivesNightVisionOnlyToTheFae(GameTestHelper helper) {
-        raceOnly(helper, "kingdoms:antler_circlet", "head/hat", "race:faeloria", MobEffects.NIGHT_VISION);
-    }
-
-    /** A worn trinket gets a display on the player, and taking it off removes the display. */
-    @GameTest(maxTicks = 100)
-    public void aWornTrinketIsDrawnAndRemovedOnUnequip(GameTestHelper helper) {
+    public void aRaceLookIsDrawnAndRemovedWithTheRace(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, "race:azrak");
-        wear(wearer, "chest/back", new ItemStack(item("kingdoms:forgeman_pauldron")));
+        TestPerms.grant(wearer, "race:azrak");
         helper.runAfterDelay(25, () -> {
-            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "The pauldron has no display on its wearer");
-            TrinketsApi.getAttachment(wearer).getSlotAccess("chest/back", 0, false).set(ItemStack.EMPTY);
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "A Dwarf has no pauldron");
+            TestPerms.revoke(wearer, "race:azrak");
             helper.runAfterDelay(25, () -> {
-                helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 0, "The display stayed after the pauldron came off");
+                helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 0, "The pauldron stayed after the race was taken away");
                 helper.succeed();
             });
         });
     }
 
-    /** The display is not tied to the race lock (it is decoration), and a trinket in the pack draws nothing. */
-    @GameTest(maxTicks = 100)
-    public void aTrinketInThePackIsNotDrawn(GameTestHelper helper) {
-        ServerPlayer carrier = player(helper, null);
-        carrier.getInventory().add(new ItemStack(item("kingdoms:kingdom_cape")));
-        ServerPlayer wearer = player(helper, null);
-        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
-        helper.runAfterDelay(25, () -> {
-            helper.assertTrue(foundry.mc.WornDisplays.shownFor(carrier.getUUID()) == 0, "A cape in the pack was drawn");
-            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 1, "A worn cape was not drawn for a player of no race");
-            helper.succeed();
-        });
-    }
-
-    /** Wearing two trinkets draws two displays; dying removes them. */
+    /** Two looks (two race nodes, as a test) draw two displays; dying removes them. */
     @GameTest(maxTicks = 120)
     public void displaysFollowTheWearerThroughDeath(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
-        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
-        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
+        TestPerms.grant(wearer, "race:faeloria");
+        TestPerms.grant(wearer, "race:aurelia");
         helper.runAfterDelay(25, () -> {
-            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 2, "Two worn trinkets did not make two displays");
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(wearer.getUUID()) == 2, "Two looks did not make two displays");
             wearer.setHealth(0f);
             helper.assertFalse(wearer.isAlive(), "The wearer is still alive after their health went to zero");
             helper.runAfterDelay(25, () -> {
@@ -156,8 +79,8 @@ public final class WornGameTest {
     public void theWearerSeesTheirOwnTrinketsOnlyWhenTheyAsk(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         ServerPlayer observer = player(helper, null);
-        wear(wearer, "chest/cape", new ItemStack(item("kingdoms:kingdom_cape")));
-        wear(wearer, "head/face", new ItemStack(item("kingdoms:tidal_gills")));
+        TestPerms.grant(wearer, "race:aurelia");
+        TestPerms.grant(wearer, "race:azurius");
         var me = wearer.getUUID();
         helper.runAfterDelay(25, () -> {
             var hidden = foundry.mc.WornDisplays.watchers(me);
@@ -184,7 +107,7 @@ public final class WornGameTest {
     public void anObserverReceivesTheDisplays(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         ServerPlayer observer = player(helper, null);
-        wear(wearer, "chest/back", new ItemStack(item("kingdoms:forgeman_pauldron")));
+        TestPerms.grant(wearer, "race:azrak");
         helper.runAfterDelay(25, () -> {
             foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
             foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
@@ -315,7 +238,7 @@ public final class WornGameTest {
     @GameTest(maxTicks = 80)
     public void theAntlersAreServedOnTheHeadWithOrWithoutAHelmet(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
-        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        TestPerms.grant(wearer, "race:faeloria");
         helper.runAfterDelay(25, () -> {
             var alone = foundry.mc.WornDisplays.headItemFor(wearer.getUUID());
             helper.assertTrue(alone != null && alone.is(item("kingdoms:antler_circlet")) && foundry.mc.HeadVisual.isMarked(alone),
@@ -357,7 +280,7 @@ public final class WornGameTest {
     public void theAntlersFallBackToADisplayUnderAPumpkin(GameTestHelper helper) {
         ServerPlayer wearer = player(helper, null);
         ServerPlayer observer = player(helper, null);
-        wear(wearer, "head/hat", new ItemStack(item("kingdoms:antler_circlet")));
+        TestPerms.grant(wearer, "race:faeloria");
         helper.runAfterDelay(25, () -> {
             helper.assertTrue("head_slot".equals(foundry.mc.WornDisplays.modeOf(wearer.getUUID(), 0)), "The antlers are not served on the head");
             foundry.mc.WornDisplays.startTracking(wearer.getUUID(), observer);
@@ -395,24 +318,6 @@ public final class WornGameTest {
         helper.succeed();
     }
 
-    /** Wings worn in the cape slot let a Fairy glide, and a player of no race is marked as wearing wings they cannot use. */
-    @GameTest(maxTicks = 100)
-    public void wingsInTheCapeSlotAreForFairies(GameTestHelper helper) {
-        ServerPlayer fairy = player(helper, "race:everdelle");
-        ServerPlayer other = player(helper, null);
-        wear(fairy, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
-        wear(other, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
-        helper.runAfterDelay(25, () -> {
-            helper.assertTrue(foundry.mc.Wings.isWinged(fairy.getUUID()) && !foundry.mc.Wings.isDenied(fairy.getUUID()),
-                    "A Fairy wearing the wings is not marked as winged");
-            helper.assertTrue(foundry.mc.Wings.isDenied(other.getUUID()) && !foundry.mc.Wings.isWinged(other.getUUID()),
-                    "A player of no race is not marked as wearing wings they cannot use");
-            fairy.setOnGround(false);
-            helper.assertTrue(fairy.tryToStartFallFlying(), "A Fairy wearing the wings in the cape slot cannot start gliding");
-            helper.succeed();
-        });
-    }
-
     /**
      * Bedrock gliding needs an elytra in the chest slot on the Bedrock side, so a Bedrock Fairy wearing the wings with an
      * empty chest slot is shown a stand in elytra; never a Java player, never with a chestplate on, never when dead.
@@ -426,7 +331,7 @@ public final class WornGameTest {
         helper.assertFalse(foundry.mc.Wings.standInWanted(true, false, true, true), "A Bedrock player without allowed wings would get a stand in");
         helper.assertFalse(foundry.mc.Wings.standInWanted(true, true, true, false), "A dead Bedrock player would get a stand in");
         ServerPlayer fairy = player(helper, "race:everdelle");
-        wear(fairy, "chest/cape", new ItemStack(item("kingdoms:fairy_wings")));
+        TestPerms.grant(fairy, "race:everdelle");
         helper.runAfterDelay(25, () -> {
             helper.assertTrue(foundry.mc.Wings.isWinged(fairy.getUUID()), "The Java Fairy is not winged");
             helper.assertFalse(foundry.mc.Wings.showsStandIn(fairy.getUUID()), "A Java Fairy was sent a stand in elytra");
@@ -436,28 +341,6 @@ public final class WornGameTest {
             helper.assertTrue(chestIsSix, "Slot 6 of the inventory screen is not the chest slot");
             helper.succeed();
         });
-    }
-
-    /** The cape and the wings both fit the cape slot at once (the slot has room for two). */
-    @GameTest(maxTicks = 60)
-    public void theCapeAndTheWingsShareTheCapeSlot(GameTestHelper helper) {
-        ServerPlayer wearer = player(helper, null);
-        var attachment = TrinketsApi.getAttachment(wearer);
-        var first = attachment.getSlotAccess("chest/cape", 0, false);
-        var second = attachment.getSlotAccess("chest/cape", 1, false);
-        helper.assertTrue(first != null && second != null, "The cape slot has no second place");
-        helper.assertTrue(first.set(new ItemStack(item("kingdoms:kingdom_cape"))), "The first cape slot refused the cape");
-        helper.assertTrue(second.set(new ItemStack(item("kingdoms:fairy_wings"))), "The second cape slot refused the wings");
-        helper.succeed();
-    }
-
-    /** The wings never wear out and still have the elytra's parts. */
-    @GameTest(maxTicks = 20)
-    public void theWingsNeverWearOut(GameTestHelper helper) {
-        ItemStack wings = new ItemStack(item("kingdoms:fairy_wings"));
-        helper.assertTrue(wings.getMaxDamage() == 0, "The wings still have durability");
-        helper.assertTrue(wings.has(DataComponents.GLIDER), "The wings cannot glide");
-        helper.succeed();
     }
 
     /**
@@ -503,21 +386,47 @@ public final class WornGameTest {
         helper.succeed();
     }
 
-    /** MEASUREMENT (temporary): what the server knows about yaw when a player turns with real rotation packets. */
-    @GameTest(maxTicks = 80)
-    public void measureTurning(GameTestHelper helper) {
+    /** A player with no race shows no look at all. */
+    @GameTest(maxTicks = 40)
+    public void aPlayerOfNoRaceShowsNothing(GameTestHelper helper) {
+        ServerPlayer nobody = player(helper, null);
+        nobody.getInventory().add(new ItemStack(item("kingdoms:kingdom_cape")));
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(nobody.getUUID()) == 0, "A player of no race shows a look");
+            helper.succeed();
+        });
+    }
+
+    /** The Fairies glide by race, with nothing in the chest slot; nobody else can. */
+    @GameTest(maxTicks = 60)
+    public void fairiesGlideByRace(GameTestHelper helper) {
+        ServerPlayer fairy = player(helper, "race:everdelle");
+        ServerPlayer other = player(helper, null);
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.Wings.isWinged(fairy.getUUID()) && !foundry.mc.Wings.isWinged(other.getUUID()),
+                    "Only the Fairy should be able to glide");
+            fairy.setOnGround(false);
+            other.setOnGround(false);
+            helper.assertTrue(fairy.getItemBySlot(EquipmentSlot.CHEST).isEmpty(), "The Fairy has something in the chest slot");
+            helper.assertTrue(fairy.tryToStartFallFlying(), "A Fairy with an empty chest slot cannot start gliding");
+            helper.assertFalse(other.tryToStartFallFlying(), "A player of no race started gliding");
+            helper.succeed();
+        });
+    }
+
+    /** The trinket items are retired: they cannot go in a trinket slot, and anything left in one is cleared. */
+    @GameTest(maxTicks = 60)
+    public void trinketsAreLockedAway(GameTestHelper helper) {
         ServerPlayer p = player(helper, null);
-        int[] tick = {0};
-        String[] log = {""};
-        for (int t = 1; t <= 60; t++) {
-            final int at = t;
-            helper.runAfterDelay(t, () -> {
-                if (at == 5) p.connection.handleMovePlayer(new net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.Rot(90f, 0f, true, false));
-                if (at == 30) p.connection.handleMovePlayer(new net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.Rot(200f, 20f, true, false));
-                if (at % 3 == 0 || at == 5 || at == 6 || at == 30 || at == 31)
-                    foundry.mc.FoundryMod.LOG.info("MEASURE t={} yRot={} yHeadRot={} yBodyRot={} xRot={}", at, p.getYRot(), p.getYHeadRot(), p.yBodyRot, p.getXRot());
-                if (at == 60) helper.succeed();
-            });
-        }
+        var access = TrinketsApi.getAttachment(p).getSlotAccess("chest/back", 0, false);
+        helper.assertTrue(access != null, "The player has no chest/back slot to test with");
+        boolean placed = access.set(new ItemStack(item("kingdoms:forgeman_pauldron")));
+        helper.runAfterDelay(25, () -> {
+            var after = TrinketsApi.getAttachment(p).getSlotAccess("chest/back", 0, false);
+            helper.assertTrue(!placed || after.get().isEmpty(), "A retired trinket stayed in its slot");
+            helper.assertFalse(new ItemStack(item("kingdoms:forgeman_pauldron")).has(
+                    eu.pb4.trinkets.api.component.TrinketDataComponents.EQUIPMENT), "A retired trinket can still be equipped");
+            helper.succeed();
+        });
     }
 }

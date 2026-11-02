@@ -202,19 +202,15 @@ public final class WornDisplays {
             if (only != null && only != player) continue;
             String name = player.getGameProfile().name();
             List<String> worn = new ArrayList<>();
-            if (WornItems.trinkets()) {
-                TrinketsHook.worn(player, stack -> {
-                    if (stack.getItem() instanceof FoundryItem item && item.def() != null && item.def().worn()) {
-                        worn.add(item.def().id() + " (" + item.def().wornSlots().get(0) + ")");
-                    }
-                });
+            for (var race : table.races().entrySet()) {
+                if (Gate.hasNode(player, race.getKey())) worn.add(race.getKey() + ": " + race.getValue().item());
             }
             var chest = player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
             lines.add(name + " chest slot: " + (chest.isEmpty() ? "empty" : net.minecraft.core.registries.BuiltInRegistries.ITEM
                     .getKey(chest.getItem()) + (chest.getItem() instanceof FoundryItem w && w.def() != null && w.def().glider()
                     ? " (wings, drawn by the client as an elytra)" : "")));
             Shown shown = SHOWN.get(player.getUUID());
-            lines.add(name + ": wears " + (worn.isEmpty() ? "no Foundry trinkets" : String.join(", ", worn))
+            lines.add(name + ": race looks " + (worn.isEmpty() ? "none (no race)" : String.join(", ", worn))
                     + "; " + (shown == null ? 0 : shown.parts.size()) + " displays");
             if (shown == null) continue;
             for (Part part : shown.parts) {
@@ -248,6 +244,11 @@ public final class WornDisplays {
         } catch (RuntimeException e) {
             return "could not be worked out (" + e + ")";
         }
+    }
+
+    /** The placements and race looks now in force. */
+    static WornPlacement.Table table() {
+        return table;
     }
 
     /** True when someone has a display up, so the per tick turning has work to do. */
@@ -347,18 +348,22 @@ public final class WornDisplays {
         List<WornPlacement> places = new ArrayList<>();
         List<String> ids = new ArrayList<>();
         List<String> slotNames = new ArrayList<>();
-        if (WornItems.trinkets() && player.isAlive()) {
+        if (player.isAlive()) {
+            // A race always shows its look, so everyone can tell a player's race at a glance (races in worn_displays.json).
             var current = table;
-            TrinketsHook.worn(player, stack -> {
-                if (stack.getItem() instanceof FoundryItem item && item.def() != null && item.def().worn()) {
-                    current.find(item.def().id().toString(), item.def().wornSlots().get(0)).ifPresent(p -> {
-                        stacks.add(stack.copyWithCount(1));
-                        places.add(p);
-                        ids.add(item.def().id().toString());
-                        slotNames.add(item.def().wornSlots().get(0));
-                    });
-                }
-            });
+            for (var race : current.races().entrySet()) {
+                if (!Gate.hasNode(player, race.getKey())) continue;
+                var look = race.getValue();
+                var ident = foundry.core.Ident.parse(look.item());
+                var item = ident == null ? null : FoundryItems.get(ident);
+                if (item == null) continue;
+                current.find(look.item(), look.slot()).ifPresent(p -> {
+                    stacks.add(new ItemStack(item));
+                    places.add(p);
+                    ids.add(look.item());
+                    slotNames.add(look.slot());
+                });
+            }
         }
         ItemStack realHead = player.getItemBySlot(EquipmentSlot.HEAD);
         int headHash = ItemStack.hashItemAndComponents(realHead);

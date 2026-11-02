@@ -49,7 +49,6 @@ import java.util.Optional;
  *
  * <pre>
  *   /charter map                          11 by 11 chunks around you; click to claim or unclaim
- *   /charter trinkets                     opens the Trinkets screen (the same as /trinkets), for anyone
  *   /charter admin faction spawn &lt;name&gt; &lt;player&gt;   a ready lordship, funded, with a nexus and a banner for the player
  *   /charter admin faction claims &lt;faction&gt; &lt;bonus&gt;   extra claims on top of the member allowance (0 clears it)
  *   /charter admin faction admin &lt;faction&gt; &lt;true|false&gt;   mark a kingdom as an admin kingdom (closed to new members, no claim cap or range limit, no upkeep, no wars on it)
@@ -68,7 +67,6 @@ public final class LandCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter")
                         .then(Commands.literal("map").executes(ctx -> map(ctx)))
-                        .then(Commands.literal("trinkets").executes(ctx -> trinkets(ctx.getSource().getPlayerOrException())))
                         .then(admin())));
     }
 
@@ -142,17 +140,6 @@ public final class LandCommands {
     }
 
     // ---- the map ----
-
-    /**
-     * Runs the Trinkets patch's own {@code /trinkets} as the player, with the player's own permissions, so a worn
-     * race trinket is easy to find from the Charter book. Does nothing useful when the mod is absent.
-     */
-    public static int trinkets(ServerPlayer player) {
-        var server = player.level().getServer();
-        if (server == null) return 0;
-        server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "trinkets");
-        return 1;
-    }
 
     private static int map(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();

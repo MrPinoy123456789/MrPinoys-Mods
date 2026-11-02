@@ -14,16 +14,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * Gliding with wings worn in a Trinkets slot. Trinkets Updated already treats a glider item in a trinket slot as a glider
- * on the server, but vanilla's client only sends "start gliding" when its own chest slot holds one, so a player who holds
- * jump while falling is started here, as vanilla's jump to glide would. Wings are race locked: a player who wears them
- * without the permission is stopped if they glide. Worn wings never wear out (no durability). Worked out from the
- * sources and the mod's own documentation, not tried on a live client.
+ * Gliding as a race trait: a race whose look has {@code glide} (the Fairies of Everdelle, by their race:everdelle node)
+ * can always glide, with nothing in the chest slot and nothing that wears out. The server lets them (the
+ * {@code LivingEntityGlide} mixin answers yes to canGlide), and since vanilla's client only asks to glide when its own
+ * chest slot holds an elytra, a Fairy who holds jump while falling is started here, as vanilla's jump to glide would.
  *
  * <p>Bedrock (Floodgate) players: gliding on Bedrock is decided by the Bedrock client, which only glides with an elytra
  * in its own chest slot, and Geyser checks the same (SessionPlayerEntity.canStartGliding: the chest item must be
- * minecraft:elytra with the glider component) before it sends "start gliding" to the server. Neither knows about
- * Trinkets slots. So while a Bedrock player wears allowed wings and their real chest slot is empty, their own client is
+ * minecraft:elytra with the glider component) before it sends "start gliding" to the server. So while a Bedrock player
+ * of a gliding race has an empty real chest slot, their own client is
  * shown a stand in elytra in the chest slot. It is display only: the server never holds it, so taking, moving or
  * dropping it is undone by the server's resync, and it is sent again every two seconds. It goes when the wings come
  * off, a chestplate goes on, or the player dies. With a chestplate on, a Bedrock player cannot glide with the wings
@@ -31,7 +30,6 @@ import net.minecraft.world.item.Items;
  */
 public final class Wings {
     private static final Set<UUID> WINGED = new HashSet<>();
-    private static final Set<UUID> DENIED = new HashSet<>();
     /** Bedrock players whose own client is being shown the stand in elytra. */
     private static final Set<UUID> STAND_IN = new HashSet<>();
     /** Bedrock players already told that a chestplate stops the wings. */
@@ -41,41 +39,29 @@ public final class Wings {
 
     private Wings() {}
 
-    /** True when this player wears allowed wings in a trinket slot (refreshed every {@value WornDisplays#SCAN_EVERY} ticks). */
+    /** True when this player's race can glide (refreshed every {@value WornDisplays#SCAN_EVERY} ticks). */
     public static boolean isWinged(UUID player) {
         return WINGED.contains(player);
     }
 
-    /** True when this player wears wings they may not use. */
-    public static boolean isDenied(UUID player) {
-        return DENIED.contains(player);
-    }
 
     static void tick(MinecraftServer server) {
         int now = server.getTickCount();
         if (now % WornDisplays.SCAN_EVERY == 0) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                boolean[] found = {false, false};
-                if (WornItems.trinkets() && player.isAlive()) {
-                    TrinketsHook.worn(player, stack -> {
-                        if (stack.getItem() instanceof FoundryItem item && item.def() != null && item.def().glider()) {
-                            found[Gate.allowed(player, item.def()) ? 0 : 1] = true;
-                        }
-                    });
+                boolean glides = false;
+                if (player.isAlive()) {
+                    for (var race : WornDisplays.table().races().entrySet()) {
+                        if (race.getValue().glide() && Gate.hasNode(player, race.getKey())) glides = true;
+                    }
                 }
-                set(WINGED, player.getUUID(), found[0]);
-                set(DENIED, player.getUUID(), found[1] && !found[0]);
+                set(WINGED, player.getUUID(), glides);
                 bedrockStandIn(player, now);
             }
         }
-        if (WINGED.isEmpty() && DENIED.isEmpty()) return;
+        if (WINGED.isEmpty()) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             UUID id = player.getUUID();
-            if (DENIED.contains(id) && player.isFallFlying()) {
-                player.stopFallFlying();
-                player.sendSystemMessage(Component.literal("Only the Fairies of Everdelle can glide with these wings."), true);
-                continue;
-            }
             if (!WINGED.contains(id) || player.isFallFlying() || player.onGround() || player.isInWater()
                     || player.isPassenger() || player.getAbilities().flying) continue;
             if (player.getLastClientInput().jump() && player.getDeltaMovement().y < 0) player.startFallFlying();
@@ -129,14 +115,12 @@ public final class Wings {
 
     static void forget(UUID player) {
         WINGED.remove(player);
-        DENIED.remove(player);
         STAND_IN.remove(player);
         TOLD_CHEST.remove(player);
     }
 
     static void clear() {
         WINGED.clear();
-        DENIED.clear();
         STAND_IN.clear();
         TOLD_CHEST.clear();
     }

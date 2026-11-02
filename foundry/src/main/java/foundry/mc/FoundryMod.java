@@ -162,8 +162,17 @@ public final class FoundryMod implements ModInitializer {
             Swings.tick(server);
             Bolts.tick(server);
             WornItems.tick(server);
-            if (WornItems.trinkets()) WornDisplays.tick(server);
-            if (WornItems.trinkets()) Wings.tick(server);
+            WornDisplays.tick(server);
+            Wings.tick(server);
+            if (WornItems.trinkets() && server.getTickCount() % WornDisplays.SCAN_EVERY == 0) {
+                // Trinkets are locked away for now: anything still in a trinket slot is cleared (the race looks and
+                // traits are automatic, and the old items cannot be equipped any more).
+                for (var player : server.getPlayerList().getPlayers()) {
+                    int cleared = TrinketsHook.clearAll(player);
+                    if (cleared > 0) LOG.info("Foundry: cleared {} item(s) from {}'s trinket slots (trinkets are locked away)",
+                            cleared, player.getGameProfile().name());
+                }
+            }
         });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             Swings.clear();
