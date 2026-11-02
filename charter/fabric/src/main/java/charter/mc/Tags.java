@@ -84,7 +84,7 @@ public final class Tags {
     static String keyOf(CharterRuntime rt, PlayerId player) {
         var membership = rt.state.membership(player);
         if (membership.isPresent()) {
-            return rt.state.org(rt.state.root(membership.get().org())).map(o -> o.name().toLowerCase(Locale.ROOT)).orElse(null);
+            return rt.state.org(rt.state.root(membership.get().org())).map(o -> charter.mc.map.MapView.colourKey(o.name())).orElse(null);
         }
         return rt.state.raceOf(player).isPresent() ? MERCENARY : null;
     }
