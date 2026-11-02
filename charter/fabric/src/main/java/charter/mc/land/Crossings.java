@@ -85,7 +85,7 @@ public final class Crossings {
     }
 
     private static String raceOf(CharterRuntime rt, String kingdom) {
-        return rt.state.orgNamed(kingdom).map(charter.org.Organization::raceLabel).orElse(kingdom);
+        return rt.state.orgNamed(kingdom).map(charter.org.Organization::racePlural).orElse(kingdom);
     }
 
     /** The plain text a player at this spot would be told; for tests. */

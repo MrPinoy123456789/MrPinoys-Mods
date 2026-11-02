@@ -46,6 +46,11 @@ public final class Organization {
         return raceName == null || raceName.isBlank() ? name() : raceName;
     }
 
+    /** The plural of the race, for "land of the ..."; a kingdom with no race name of its own keeps its name as it is. */
+    public String racePlural() {
+        return raceName == null || raceName.isBlank() ? name() : RaceNames.plural(raceName);
+    }
+
     private String name;
     private String description = "";
     private OrgId parent;
