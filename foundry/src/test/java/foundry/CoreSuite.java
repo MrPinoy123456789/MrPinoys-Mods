@@ -35,6 +35,7 @@ public final class CoreSuite {
         bonuses();
         bedrockSkins();
         bedrockMappings();
+        dwarfBeardClearsTheFace();
         raceTraits();
         wingFlight();
         enchanting();
@@ -355,6 +356,70 @@ public final class CoreSuite {
         check(total > 0 && missing == 0, "every Bedrock item mapping has a creative category, so its recipes show in the recipe book ("
                 + missing + " of " + total + " have none)");
         check(staff, "the race weapons are filed under equipment");
+    }
+
+    /**
+     * The Dwarf beard stays below the nose, on Java (the worn model, alone and on a helmet) and in the Bedrock skin, so a
+     * skin with low set eyes is not covered ("the beard is in their face"). In the head model the face is z 1.6 and the
+     * nose row starts at y 4.8; in the Bedrock bone the face is z -4 and the nose row starts at y 26. The sideburns run
+     * along the sides of the head and are left out.
+     */
+    private static void dwarfBeardClearsTheFace() throws Exception {
+        for (String name : new String[] {"dwarf_beard", "dwarf_beard_on_iron"}) {
+            var model = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(
+                    java.nio.file.Path.of("examples/assets/kingdoms/models/item/worn/" + name + ".json"))).getAsJsonObject();
+            double top = -99;
+            for (var e : model.getAsJsonArray("elements")) {
+                var el = e.getAsJsonObject();
+                var from = el.getAsJsonArray("from");
+                var to = el.getAsJsonArray("to");
+                if (!"#0".equals(el.getAsJsonObject("faces").entrySet().iterator().next().getValue().getAsJsonObject()
+                        .get("texture").getAsString())) continue;  // the helmet shell
+                if (from.get(2).getAsDouble() >= 1.6 || to.get(0).getAsDouble() <= 2.2 || from.get(0).getAsDouble() >= 13.8) continue;
+                double angle = 0, ox = 0, oy = 0;
+                if (el.has("rotation")) {
+                    var r = el.getAsJsonObject("rotation");
+                    angle = Math.toRadians(r.get("angle").getAsDouble());
+                    ox = r.getAsJsonArray("origin").get(0).getAsDouble();
+                    oy = r.getAsJsonArray("origin").get(1).getAsDouble();
+                }
+                top = Math.max(top, highest(from.get(0).getAsDouble(), from.get(1).getAsDouble(), to.get(0).getAsDouble(),
+                        to.get(1).getAsDouble(), ox, oy, angle));
+            }
+            check(top > 0 && top <= 4.8, "the " + name + " model in front of the face stays below the nose (top y " + top + ")");
+        }
+        var bedrock = resourceJson("dwarf_beard.json").getAsJsonObject();
+        double top = -99;
+        for (var b : bedrock.getAsJsonArray("bones")) {
+            for (var c : b.getAsJsonObject().getAsJsonArray("cubes")) {
+                var cube = c.getAsJsonObject();
+                var o = cube.getAsJsonArray("origin");
+                var size = cube.getAsJsonArray("size");
+                double x0 = o.get(0).getAsDouble(), y0 = o.get(1).getAsDouble(), z0 = o.get(2).getAsDouble();
+                double x1 = x0 + size.get(0).getAsDouble(), y1 = y0 + size.get(1).getAsDouble();
+                if (z0 >= -4 || x1 <= -3.625 || x0 >= 3.625) continue;
+                double angle = 0, px = 0, py = 0;
+                if (cube.has("rotation")) {
+                    angle = Math.toRadians(cube.getAsJsonArray("rotation").get(2).getAsDouble());
+                    px = cube.getAsJsonArray("pivot").get(0).getAsDouble();
+                    py = cube.getAsJsonArray("pivot").get(1).getAsDouble();
+                }
+                // either turning sense, since Bedrock's is the one a device confirms
+                top = Math.max(top, Math.max(highest(x0, y0, x1, y1, px, py, angle), highest(x0, y0, x1, y1, px, py, -angle)));
+            }
+        }
+        check(top > 24 && top <= 26, "the Bedrock beard in front of the face stays below the nose (top y " + top + ")");
+    }
+
+    /** The highest y of a box's x y corners turned by angle about (ox, oy). */
+    private static double highest(double x0, double y0, double x1, double y1, double ox, double oy, double angle) {
+        double best = -99;
+        for (double x : new double[] {x0, x1}) {
+            for (double y : new double[] {y0, y1}) {
+                best = Math.max(best, oy + (x - ox) * Math.sin(angle) + (y - oy) * Math.cos(angle));
+            }
+        }
+        return best;
     }
 
     /** The race looks added to Bedrock skins: the composed image, the geometry and the looks the jar carries. */

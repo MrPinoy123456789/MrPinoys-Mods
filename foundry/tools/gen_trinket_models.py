@@ -364,7 +364,8 @@ def beard():
     """A thick Dwarf beard, in the head's model space like the antlers (the head spans about 1.6 to 14.4, its face is the
     north side at z 1.6, the chin at y 1.6): a full beard over the jaw and chin, falling below the chin onto the chest in
     three steps to a forked, bead bound tip, a broad drooping moustache, and thick sideburns running back along the jaw.
-    It sits a little in front of the face (and of a helmet's front, which is at z 0)."""
+    It sits a little in front of the face (and of a helmet's front, which is at z 0). Everything but the sideburns is
+    dropped by BEARD_DROP, so the moustache sits on the mouth row and the nose and eyes stay clear on any skin."""
     left = [
         part((1.0, 1.6, 1.4), (2.2, 8.0, 8.0), "beard"),                     # sideburn along the jaw
         part((3.4, 3.6, -0.8), (5.2, 6.0, 0.6), "beard_dark", rot=("z", -22.5, (5.2, 6.0, -0.1))),  # moustache droop
@@ -380,7 +381,28 @@ def beard():
         part((8.6, -9.4, -0.8), (10.4, -8.4, 1.3), "bead"),
         part((4.6, 5.2, -1.0), (11.4, 6.6, 0.6), "beard_dark"),              # the moustache
     ]
-    return centre + left + [mirror(x) for x in left]
+    # the sideburns (the first left part and its mirror) run along the side of the head, so they stay where they are
+    return [p if p["from"][0] in (1.0, 13.8) else lowered(p, BEARD_DROP) for p in centre + left + [mirror(x) for x in left]]
+
+
+# The face rows of a skin, in head model units (one skin pixel is 1.6): the chin at 1.6, the mouth row 3.2 to 4.8, the
+# nose row 4.8 to 6.4, the eyes 6.4 to 8.0 (lower on some skins). First drawn up to 6.6, the moustache sat against the eyes
+# and the beard covered the nose ("the beard is in their face"); now nothing in front of the face rises above BEARD_TOP
+# (the moustache's drooping ends, turned 22.5 degrees, come closest at about 4.7).
+BEARD_DROP = 2.0
+BEARD_TOP = 4.8
+
+
+def lowered(p, dy):
+    """A part moved down by dy, with its rotation origin."""
+    out = dict(p)
+    out["from"] = [p["from"][0], round(p["from"][1] - dy, 4), p["from"][2]]
+    out["to"] = [p["to"][0], round(p["to"][1] - dy, 4), p["to"][2]]
+    if "rotation" in p:
+        o = list(p["rotation"]["origin"])
+        o[1] = round(o[1] - dy, 4)
+        out["rotation"] = dict(p["rotation"], origin=o)
+    return out
 
 
 # ---- the Merfolk: fin ears and a dorsal fin ----
