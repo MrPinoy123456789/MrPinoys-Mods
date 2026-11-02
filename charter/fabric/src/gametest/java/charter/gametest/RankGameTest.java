@@ -116,6 +116,33 @@ public final class RankGameTest {
     }
 
     @GameTest(maxTicks = 100)
+    public void aKingdomWithAShortLabelShowsItInTheTag(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            CharterRuntime rt = kit.rt;
+            ServerPlayer lord = kit.faction("Sl");
+            OrgId k = kit.orgOf(lord);
+            String name = kingdomName(rt, k);
+            String key = name.toLowerCase(Locale.ROOT);
+            java.util.Map<String, String> colours = rt.knobs.tagColors;
+            java.util.Map<String, String> labels = rt.knobs.tagLabels;
+            rt.knobs.tagColors = new java.util.LinkedHashMap<>(colours);
+            rt.knobs.tagColors.put(key, "#388E3C");
+            try {
+                String who = lord.getScoreboardName();
+                helper.assertTrue(Tags.tagText(rt, id(lord), who).equals("[" + name + "] " + who), "No label: " + Tags.tagText(rt, id(lord), who));
+                rt.knobs.tagLabels = new java.util.LinkedHashMap<>(labels);
+                rt.knobs.tagLabels.put(key, "Moss");
+                helper.assertTrue(Tags.tagText(rt, id(lord), who).equals("[Moss] " + who), "With a label: " + Tags.tagText(rt, id(lord), who));
+                helper.assertTrue(rt.state.orgNamed(key).isPresent(), "The kingdom lost its own name");
+            } finally {
+                rt.knobs.tagColors = colours;
+                rt.knobs.tagLabels = labels;
+            }
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
     public void theLordGivesARankAndTheTagShowsIt(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             CharterRuntime rt = kit.rt;

@@ -559,7 +559,8 @@ the wire format in `charter/fabric/src/main/java/charter/mapwire/`, and the mark
 team per tag (names `ct_<kingdom>`, refreshed every 2 seconds). Members wear their kingdom's name, and a player with a
 race and no kingdom wears [Mercenary]. Colours are the `tagColors` knob in `charter.json` (kingdom name in lower case to
 a hex colour, plus `mercenary`); a kingdom with no entry gets no tag. Defaults: Everdelle pink, Azurius baby blue,
-Faeloria purple, Azrak gold (#FFD700), Aurelia a deeper red orange (#FF6A1A), Mercenary blood red. Only teams named `ct_*` are touched, so a player on
+Faeloria purple, Azrak gold (#FFD700), Aurelia a deeper red orange (#FF6A1A), Mercenary blood red, Mossbeard's Muddle a green (#388E3C). `tagLabels` (same lower case key) shows a shorter word in the tag than the
+kingdom's name; the default shows Mossbeard's Muddle as [Moss]. Only teams named `ct_*` are touched, so a player on
 another team keeps it. Bedrock players see the tag only if Geyser carries the team prefix, which is unverified.
 ## Ranks and tags
 
