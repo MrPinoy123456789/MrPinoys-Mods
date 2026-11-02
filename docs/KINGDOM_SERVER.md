@@ -72,6 +72,32 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+## Race looks and traits (replaced the race trinkets, 2026-11-01)
+
+The race trinkets are gone as items to wear. Instead every player always shows their race's look, so anyone can tell
+their race at a glance, and the race traits come with the race:
+
+| Race (node) | Look | Trait |
+|---|---|---|
+| Azrak Dwarves (`race:azrak`) | Forgeman's Pauldron on the right shoulder | Haste (`racePassives`) |
+| Aurelia Humans (`race:aurelia`) | Kingdom Cape (the vanilla cape shape) | Luck (`racePassives`) |
+| Faeloria Fae (`race:faeloria`) | Antlers, combined with any vanilla helmet | Night Vision (`racePassives`) |
+| Azurius Merfolk (`race:azurius`) | Tidal Gills beside the neck | Water Breathing, Dolphin's Grace (`racePassives`) |
+| Everdelle Fairies (`race:everdelle`) | Fairy Wings | Glide, always, with nothing in the chest slot |
+
+- The looks are drawn by Foundry from the race node (`races` in `config/foundry/worn_displays.json`: node, item, slot,
+  glide). Always on, no toggle; `/trinketview` only decides whether you see your own (the antlers are always on your own
+  head, as a helmet item).
+- The traits are Charter's `racePassives` (built in defaults, and merged into the server's `charter.json`).
+- Fairies glide by race: a server mixin (`LivingEntityGlide`) lets them, holding jump while falling starts it on Java, and
+  Bedrock Fairies get the stand in elytra. No durability.
+- The five trinket items stay registered as keepsakes ("a retired trinket, kept for something new later") with no slot,
+  effect, lock or glider. Trinkets are locked away: anything left in a trinket slot is cleared (logged), and the
+  `/charter trinkets` shortcut and book button are gone. Trinkets Updated and its Polymer patch stay installed for now so
+  the slots can be repurposed later.
+- Everything below about the old trinkets (worn slots, wings in the cape slot) is history; the drawing, following, head
+  combining, Bedrock and creative guard notes all still apply to the race looks.
+
 ## Race trinkets: opening the screen and how they look
 
 Four race trinkets (Tidal Gills, Forgeman's Pauldron, Kingdom Cape, Antler Circlet) sit in Trinkets Updated slots; the

@@ -123,6 +123,16 @@ export class Kinetic {
     return this.request('GET', '/files/contents', { query: { file: path }, raw: true })
   }
 
+  /** Renames one file inside `directory` (the panel's own rename, an atomic move on the server's disk). */
+  rename(directory, from, to) {
+    return this.request('PUT', '/files/rename', { json: { root: directory, files: [{ from, to }] } })
+  }
+
+  /** Deletes files inside `directory`. A running process that has one open keeps reading its old contents. */
+  remove(directory, names) {
+    return this.request('POST', '/files/delete', { json: { root: directory, files: names } })
+  }
+
   /** Uploads local files (name and bytes) into `directory`, replacing any with the same name. */
   async upload(directory, files) {
     const signed = await this.request('GET', '/files/upload')

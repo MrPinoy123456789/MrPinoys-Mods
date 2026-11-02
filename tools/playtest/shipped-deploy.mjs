@@ -1,10 +1,13 @@
 // Deploys Charter, Foundry and the Foundry content to the shipped kingdom server (Kinetic d212ecae).
 //
-//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--worn] [--bedrock] [--allow name,name] [--set key=value ...] [--jar path ...] [--dry]
+//   node tools/playtest/shipped-deploy.mjs [--foundry] [--charter] [--content] [--worn] [--bedrock] [--allow name,name] [--set key=value ...] [--merge key=value ...] [--jar path ...] [--no-restart] [--dry]
 //
 // Only run it when the owner has asked for a deploy. It refuses to continue if the server's mods are not the same
 // Minecraft version as the jars, if anyone outside --allow is online, or if the server is not running. It backs up
 // every jar it replaces into /mods_backup, stops the server with a save, uploads, starts, and prints what the log says.
+// --no-restart uploads (after the same backups) without stopping or starting anything and without the players online
+// check; the owner restarts when ready, and nothing new loads until then. --merge key=value adds the keys of a JSON
+// object to that object in charter.json (for example racePassives) instead of replacing it as --set does.
 // The key comes from kinetic.env or the environment and is never printed. See .claude/skills/deploy-shipped-server.
 import { pathToFileURL } from 'node:url'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
@@ -38,12 +41,15 @@ async function log() {
 }
 
 // --set key=value (repeatable) changes keys of config/charter/charter.json while the server is stopped; the old file is backed up.
-const sets = args.flatMap((a, i) => (a === '--set' && args[i + 1] ? [args[i + 1]] : [])).map(kv => {
+const parseKv = flag => args.flatMap((a, i) => (a === flag && args[i + 1] ? [args[i + 1]] : [])).map(kv => {
   const at = kv.indexOf('=')
   let v = kv.slice(at + 1)
   try { v = JSON.parse(v) } catch { /* a plain string */ }
   return [kv.slice(0, at), v]
 })
+const sets = parseKv('--set')
+const merges = parseKv('--merge')
+const noRestart = has('--no-restart')
 
 // Where each piece is built. The worktree layout changes, so the jar folders can be overridden.
 const FOUNDRY = process.env.FOUNDRY_DIR || resolve(root, 'foundry')
@@ -60,12 +66,12 @@ const props = readFileSync(resolve(CHARTER, 'gradle.properties'), 'utf8')
 const built = props.match(/^minecraft_version=(.+)$/m)?.[1]?.trim()
 console.log(`server mods are for Minecraft ${target}; Charter builds for ${built}`)
 if (!target || target !== built) { console.log('version mismatch; aborting. Build for the server version first.'); process.exit(1) }
-if ((await k.state()) !== 'running') { console.log('server is not running; aborting'); process.exit(1) }
+if (!noRestart && (await k.state()) !== 'running') { console.log('server is not running; aborting'); process.exit(1) }
 await k.command('list'); await sleep(3000)
 const line = (await log()).filter(x => /There are \d+ of a max/.test(x)).pop() || ''
 console.log('list says:', line.replace(/^\[[^\]]*\]\s*/, ''))
 const others = (line.split('online:')[1] || '?').split(',').map(s => s.trim()).filter(s => s && !allowed.has(s))
-if (others.length) { console.log('other players online; ask the owner first:', others.join(', ')); process.exit(1) }
+if (others.length && !noRestart) { console.log('other players online; ask the owner first:', others.join(', ')); process.exit(1) }
 
 // 2. What goes up.
 const jars = []
@@ -105,15 +111,44 @@ if (!jars.length && !content.length && !worn.length && !bedrock.length) { consol
 const backups = []
 for (const j of jars) if (mods.includes(j.name)) backups.push({ name: j.name.replace('.jar', `.${stamp}.jar`), bytes: await k.read('/mods/' + j.name) })
 let configNew = null
-if (sets.length) {
+if (sets.length || merges.length) {
   const old = await k.read('/config/charter/charter.json')
   backups.push({ name: `charter.${stamp}.json`, bytes: old })
   const cfg = JSON.parse(old.toString('utf8'))
   for (const [key, v] of sets) cfg[key] = v
+  for (const [key, v] of merges) cfg[key] = { ...(cfg[key] || {}), ...v }
   configNew = Buffer.from(JSON.stringify(cfg, null, 2) + '\n', 'utf8')
 }
 if (backups.length) await k.upload('/mods_backup', backups)
 console.log('backed up', backups.map(b => b.name).join(', ') || 'nothing')
+if (noRestart) {
+  // A running server has its jars open, and the panel's upload rewrites a file in place, which can break a running
+  // server the next time it loads a class. So each jar goes up as <name>.new (Fabric loads only .jar files) and is moved
+  // over the old one; a move leaves the running server reading the copy it has open. If the panel will not move over an
+  // existing file, the old one is deleted first (same effect), and if anything fails it is uploaded under its own name.
+  for (const j of jars) {
+    await k.upload('/mods', [{ name: j.name + '.new', bytes: j.bytes }])
+    try {
+      try {
+        await k.rename('/mods', j.name + '.new', j.name)
+      } catch {
+        await k.remove('/mods', [j.name])
+        await k.rename('/mods', j.name + '.new', j.name)
+      }
+      console.log('swapped in', j.name)
+    } catch (e) {
+      console.log('could not move', j.name, 'into place (' + e.message + '); uploading it under its own name')
+      await k.upload('/mods', [j])
+      try { await k.remove('/mods', [j.name + '.new']) } catch { /* leave it; Fabric ignores .new */ }
+    }
+  }
+  const after = await ls('/mods')
+  for (const j of jars) if (!after.includes(j.name)) { console.log('MISSING after upload:', j.name); process.exit(1) }
+  if (configNew) await k.upload('/config/charter', [{ name: 'charter.json', bytes: configNew }])
+  for (const [dir, list] of [...content, ...worn, ...bedrock]) if (list.length) await k.upload(dir, list)
+  console.log('uploaded without a restart: nothing new loads until the server is restarted | rollback files are in /mods_backup with the suffix', stamp)
+  process.exit(0)
+}
 await k.command('say Restarting in 10 seconds for an update.')
 await sleep(10000)
 await k.command('save-all flush'); await sleep(3000)
