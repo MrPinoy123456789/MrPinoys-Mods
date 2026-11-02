@@ -261,11 +261,11 @@ Interactions:
   `SerializableChunkDataMixin` touches chunk saving, so the local load test (section 11) and the live log after a Chunky
   run are the checks.
 - **Polymer and Foundry:** Polymer also rewrites block states in chunk packets. Both mods load together locally
-  (section 11); how they look together needs a Java client (test T3).
+  (section 11, "Local load test"); how they look together needs a Java client (test T3).
 - **Freecam mining to find ores:** AntiXray reveals blocks around a broken block (`updateRadius 2`). A player who mines
   blind can still find ores the honest way.
 
-Config: `deploy/server-hardening/config/antixray-fabric.toml` (full text in section 8). The Nether section only matters
+Config: `deploy/server-hardening/config/antixray.toml` (full text in section 8). The Nether section only matters
 if DimensionDaddy's `netherEnabled` is turned back on.
 
 ## 7. Everything else
@@ -388,7 +388,7 @@ Already installed and relevant: Ledger 1.3.25 (`ledger`, LGPL, depends on loader
 
 ### Staged config files (full content)
 
-`/config/antixray-fabric.toml` (new):
+`/config/antixray.toml` (new):
 
 ```toml
 enabled = false
@@ -525,7 +525,7 @@ merged to master first (the deploy skill's rule that master never lags the serve
    ```
 5. Owner restarts from the panel when players are told (or `node tools/playtest/hardening-stage.mjs --restart
    --owner-approved --allow "[Mercenary] MrPinoy123456789"` which refuses if others are online).
-6. Read the log: `Done (`, `Loading 172 mods` (167 plus 5), LuckPerms' enable line, `Loaded Fabric Permissions`
+6. Read the log: `Done (`, the `Loading N mods` list naming luckperms, vanilla-permissions, antixray, banhammer and spark, LuckPerms' enable line, `Loaded Fabric Permissions`
    (Vanilla Permissions), `Charter state ready`, Geyser started, no `Mixin apply failed`, no `Incompatible mods`.
 7. Load the groups: `node tools/playtest/hardening-stage.mjs --lp-setup --owner-approved` (or paste
    `luckperms-groups.txt` into the console). Put staff into groups (section 9).
@@ -550,12 +550,39 @@ What was run here (2026-11-02):
 
 | Check | Result |
 |---|---|
-| Charter compile, core tests (`CoreSuite`) and fabric tests (`FabricSuite`) on this branch | see "Verification" at the end |
-| Charter gametests including `HardeningGameTest` (5 tests) | see "Verification" |
+| Charter compile, core tests (`CoreSuite`) and fabric tests (`FabricSuite`) on this branch | passed: core 2539, fabric 526 |
+| Charter gametests including `HardeningGameTest` (4 tests) | passed: "All 218 required tests passed" (run with `-XX:TieredStopAtLevel=1` because the machine was short of memory) |
 | Every jar's sha1 and sha512 against Modrinth, `fabric.mod.json` read | done, all match |
 | `hardening-stage.mjs --dry` against the live server (read only: listings and a file read) | passed: version check, property diff, hashes |
 | `kinetic-backups.mjs status` against the live server (read only) | passed; it reported the stale backups and both stuck schedules |
-| Throwaway local server with the live mod set plus the five new mods and this Charter jar | see "Verification" |
+| Throwaway local server with the live mod set plus the five new mods and this Charter jar | passed, with limits: see "Local load test" below |
+
+### Local load test (2026-11-02)
+
+A throwaway server folder in the scratchpad, started with the official Fabric server launcher for 26.3 and loader
+0.20.1, Fabric API 0.165.0+26.3, every jar from the live `/mods` (copied read only from the panel, sizes checked), the
+Charter jar from this branch, the five new mods, the staged configs, and a throwaway probe mod. It ran in Fabric's
+gametest mode (`-Dfabric-api.gametest` with `fabric-gametest-api-v1` added), because a normal dedicated start needs
+`eula=true` and agreeing to Mojang's EULA is the owner's call. The probe called Mixin's audit after the server started,
+which force loads every class any mod's mixins target, then loaded `DedicatedServer` and `DedicatedPlayerList`
+(gametest mode does not use them, and Vanilla Permissions, BanHammer and Floodgate patch them).
+
+Results:
+- 177 mods (with nested jars) loaded and initialised together. LuckPerms v5.5.85 enabled, `Loaded Fabric Permissions`
+  (Vanilla Permissions), `Successfully initialized antixray`, `BanHammer connected successfully to SQLite database`,
+  `Charter state ready`, Ledger `Purging actions older than 90 days` (the staged config was read), spark and Axiom
+  initialised.
+- The mixin audit applied every mod's mixins with no apply failure; the only audit errors were three
+  `ClassAlreadyLoadedException` notes for classes whose Trinkets mixins the Polymer patch cancels (the same "Cancelled
+  mixin" warnings the live log shows). Vanilla Permissions' targets, built for 26.1.2, all exist in 26.3.
+- The first run found that AntiXray reads `config/antixray.toml`, not the `antixray-fabric.toml` its jar carries; the
+  staged file was renamed and a second run read it with no unknown block warnings.
+- Geyser 2.12.1 cannot run in gametest mode (it casts the server to a dedicated server and throws), so the final runs
+  left Geyser and Floodgate out. With them in, every mod including Geyser initialised before that cast.
+
+Not tested here: a real dedicated server start, players joining (Java or Bedrock), LuckPerms commands and node
+names at run time, AntiXray's effect on chunks a client sees, Polymer and AntiXray together on a client, BanHammer's
+commands, a panel backup restore. These are tests T1 to T11 above, on the live server after the owner's restart.
 
 On the live server after the deploy (owner with one Java and one Bedrock account):
 

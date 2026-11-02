@@ -76,7 +76,7 @@
     }
   ],
   "configs": [
-    { "local": "config/antixray-fabric.toml", "remote": "/config/antixray-fabric.toml" },
+    { "local": "config/antixray.toml", "remote": "/config/antixray.toml" },
     { "local": "config/ledger.toml", "remote": "/config/ledger.toml" },
     { "local": "config/banhammer/config.json", "remote": "/config/banhammer/config.json" }
   ],
