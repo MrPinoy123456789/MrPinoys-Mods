@@ -79,7 +79,7 @@ their race at a glance, and the race traits come with the race:
 
 | Race (node) | Look | Trait |
 |---|---|---|
-| Azrak Dwarves (`race:azrak`) | Forgeman's Pauldron on the right shoulder | Haste (`racePassives`) |
+| Azrak Dwarves (`race:azrak`) | A thick Dwarf beard (`kingdoms:dwarf_beard`), combined with any vanilla helmet | Haste (`racePassives`) |
 | Aurelia Humans (`race:aurelia`) | Kingdom Cape (the vanilla cape shape) | Luck (`racePassives`) |
 | Faeloria Fae (`race:faeloria`) | Antlers, combined with any vanilla helmet | Night Vision (`racePassives`) |
 | Azurius Merfolk (`race:azurius`) | Tidal Gills beside the neck | Water Breathing, Dolphin's Grace (`racePassives`) |
@@ -91,6 +91,9 @@ their race at a glance, and the race traits come with the race:
 - The traits are Charter's `racePassives` (built in defaults, and merged into the server's `charter.json`).
 - Fairies glide by race: a server mixin (`LivingEntityGlide`) lets them, holding jump while falling starts it on Java, and
   Bedrock Fairies get the stand in elytra. No durability.
+- The Dwarf beard is a head item like the antlers: served on the head to everyone (hidden in first person), and with a
+  vanilla helmet on, the helmet with the beard below it (`kingdoms:dwarf_beard_on_<material>`). The Forgeman's Pauldron is
+  now a keepsake like the other trinket items.
 - The five trinket items stay registered as keepsakes ("a retired trinket, kept for something new later") with no slot,
   effect, lock or glider. Trinkets are locked away: anything left in a trinket slot is cleared (logged), and the
   `/charter trinkets` shortcut and book button are gone. Trinkets Updated and its Polymer patch stay installed for now so

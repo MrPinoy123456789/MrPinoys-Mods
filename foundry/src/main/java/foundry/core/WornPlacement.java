@@ -65,7 +65,7 @@ public record WornPlacement(float up, float back, float side, float scale, boole
     /** The built in races: each kingdom's race and the look it always shows (the Fairies of Everdelle can glide). */
     public static Map<String, RaceLook> defaultRaces() {
         Map<String, RaceLook> races = new LinkedHashMap<>();
-        races.put("race:azrak", new RaceLook("kingdoms:forgeman_pauldron", "chest/back", false));
+        races.put("race:azrak", new RaceLook("kingdoms:dwarf_beard", "head/hat", false));
         races.put("race:aurelia", new RaceLook("kingdoms:kingdom_cape", "chest/cape", false));
         races.put("race:faeloria", new RaceLook("kingdoms:antler_circlet", "head/hat", false));
         races.put("race:azurius", new RaceLook("kingdoms:tidal_gills", "head/face", false));

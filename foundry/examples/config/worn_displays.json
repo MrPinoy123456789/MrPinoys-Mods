@@ -76,8 +76,8 @@
   },
   "races": {
     "race:azrak": {
-      "item": "kingdoms:forgeman_pauldron",
-      "slot": "chest/back",
+      "item": "kingdoms:dwarf_beard",
+      "slot": "head/hat",
       "glide": false
     },
     "race:aurelia": {

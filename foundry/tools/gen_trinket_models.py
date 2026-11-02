@@ -80,6 +80,10 @@ MATERIALS = {
     "slit": dict(base="#173946", pattern="plain", noise=4, bevel=10),
     "fin": dict(base="#86d8e2", pattern="fin", noise=4, bevel=0, alpha=225),
     "pearl": dict(base="#e6f0f2", pattern="sheen", noise=5, bevel=24),
+    "beard": dict(base="#8a4b22", pattern="hair", noise=10, bevel=20),
+    "beard_dark": dict(base="#5e3116", pattern="hair", noise=8, bevel=18),
+    "beard_light": dict(base="#b0652e", pattern="hair", noise=10, bevel=18),
+    "bead": dict(base="#c9923f", pattern="sheen", noise=4, bevel=40),
 }
 
 
@@ -126,6 +130,9 @@ def paint_tile(material, w, h, rng):
                 c = mix(rgb("#9cf5b8"), rgb("#13702f"), d)
                 if x == y or x == y + 1:
                     c = rgb("#e8fff0")
+            elif p == "hair":
+                # strands: each column a slightly different shade, with a darker parting every few texels
+                k += ((x * 7 + 3) % 5 - 2) * 6 + (-22 if x % 4 == 0 else 0) + (8 if (x + y // 3) % 7 == 0 else 0)
             elif p == "dot":
                 cx, cy = (w - 1) / 2, (h - 1) / 2
                 d = math.hypot(x - cx, y - cy) / max(w / 2, 1)
@@ -289,6 +296,48 @@ def gills():
         part((-0.4, 1.2, 8.4), (0.3, 2.2, 12.0), "pearl"),
     ]
     return left + [mirror(p) for p in left]
+
+
+def beard():
+    """A thick Dwarf beard, in the head's model space like the antlers (the head spans about 1.6 to 14.4, its face is the
+    north side at z 1.6, the chin at y 1.6): a full beard over the jaw and chin, falling below the chin onto the chest in
+    three steps to a forked, bead bound tip, a broad drooping moustache, and thick sideburns running back along the jaw.
+    It sits a little in front of the face (and of a helmet's front, which is at z 0)."""
+    left = [
+        part((1.0, 1.6, 1.4), (2.2, 8.0, 8.0), "beard"),                     # sideburn along the jaw
+        part((3.4, 3.6, -0.8), (5.2, 6.0, 0.6), "beard_dark", rot=("z", -22.5, (5.2, 6.0, -0.1))),  # moustache droop
+    ]
+    centre = [
+        part((2.2, 0.4, -0.6), (13.8, 5.4, 2.2), "beard"),                   # the full beard over jaw and chin
+        part((2.6, 1.0, 1.6), (13.4, 3.4, 7.0), "beard_dark"),               # under the chin, back toward the neck
+        part((3.2, -3.0, -0.8), (12.8, 0.6, 1.8), "beard"),                  # first fall below the chin
+        part((4.4, -6.0, -0.9), (11.6, -2.8, 1.6), "beard_light"),           # second fall
+        part((5.2, -8.6, -0.7), (7.8, -5.8, 1.2), "beard"),                  # the fork, left
+        part((8.2, -8.6, -0.7), (10.8, -5.8, 1.2), "beard"),                 # the fork, right
+        part((5.6, -9.4, -0.8), (7.4, -8.4, 1.3), "bead"),                   # a bead on each fork
+        part((8.6, -9.4, -0.8), (10.4, -8.4, 1.3), "bead"),
+        part((4.6, 5.2, -1.0), (11.4, 6.6, 0.6), "beard_dark"),              # the moustache
+    ]
+    return centre + left + [mirror(x) for x in left]
+
+
+def paint_beard_icon():
+    """The flat 16 by 16 icon for the beard item (its inventory picture before the 3D model takes over, and the fallback)."""
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    hair, dark, light, bead = rgb("#8a4b22"), rgb("#5e3116"), rgb("#b0652e"), rgb("#c9923f")
+    rows = {2: (3, 12), 3: (2, 13), 4: (2, 13), 5: (2, 13), 6: (3, 12), 7: (3, 12), 8: (4, 11), 9: (4, 11), 10: (5, 10),
+            11: (5, 7), 12: (5, 7), 13: (5, 7)}
+    for y, (a, b) in rows.items():
+        for x in range(a, b + 1):
+            img.putpixel((x, y), (light if (x + y) % 5 == 0 else hair if x % 3 else dark) + (255,))
+    for y in (11, 12, 13):
+        for x in (8, 9, 10):
+            img.putpixel((x, y), hair + (255,))
+    for x in range(4, 12):
+        img.putpixel((x, 4), dark + (255,))  # the moustache
+    img.putpixel((6, 14), bead + (255,))
+    img.putpixel((9, 14), bead + (255,))
+    return img
 
 
 # The cape: the vanilla cape box (10 by 16 by 1) and the vanilla cape layout on a 64 by 32 texture. In pixels:
@@ -475,42 +524,51 @@ def helmet_shell(texture_key, tinted, grow=0.0):
     return {"from": [-grow, -grow, -grow], "to": [16 + grow, 16 + grow, 16 + grow], "faces": faces}
 
 
-def write_helmets(antler_elements):
+def write_helmets(head_items):
+    """For each head item (name to its baked elements), one "on a helmet" model per material and its client item."""
     os.makedirs(HELMETS, exist_ok=True)
     sources = []
     for mat in HELMET_MATERIALS:
-        textures = {"0": "kingdoms:item/worn/antler_circlet", "1": f"minecraft:entity/equipment/humanoid/{mat}",
-                    "particle": f"minecraft:entity/equipment/humanoid/{mat}"}
         sources.append({"type": "minecraft:single", "resource": f"minecraft:entity/equipment/humanoid/{mat}"})
-        elements = [helmet_shell("#1", mat == "leather")]
         if mat == "leather":
-            # the undyed overlay (the leather helmet's trim), a hair outside the dyed shell so the two never flicker
-            textures["2"] = "minecraft:entity/equipment/humanoid/leather_overlay"
             sources.append({"type": "minecraft:single", "resource": "minecraft:entity/equipment/humanoid/leather_overlay"})
-            elements.append(helmet_shell("#2", False, grow=0.02))
-        model = {"textures": textures, "elements": elements + antler_elements, "display": DISPLAY}
-        name = f"antler_circlet_on_{mat}"
-        with open(os.path.join(MODELS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
-            json.dump(model, f, indent=2)
-            f.write("\n")
-        item = {"model": {"type": "minecraft:model", "model": f"kingdoms:item/worn/{name}"}}
-        if mat == "leather":
-            item["model"]["tints"] = [{"type": "minecraft:dye", "default": -6265536}]
-        with open(os.path.join(HELMETS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
-            json.dump(item, f, indent=2)
-            f.write("\n")
+    for head, head_elements in head_items.items():
+        for mat in HELMET_MATERIALS:
+            write_helmet(head, head_elements, mat)
     os.makedirs(os.path.dirname(ATLAS), exist_ok=True)
     with open(ATLAS, "w", encoding="utf8", newline="\n") as f:
         json.dump({"sources": sources}, f, indent=2)
         f.write("\n")
-    print("antlers on", len(HELMET_MATERIALS), "helmet materials, atlas sources", len(sources))
+    print(", ".join(head_items), "on", len(HELMET_MATERIALS), "helmet materials, atlas sources", len(sources))
+
+
+def write_helmet(head, head_elements, mat):
+    """One "head item on a helmet" model (the vanilla helmet shell with the head item on top) and its client item."""
+    textures = {"0": f"kingdoms:item/worn/{head}", "1": f"minecraft:entity/equipment/humanoid/{mat}",
+                "particle": f"minecraft:entity/equipment/humanoid/{mat}"}
+    elements = [helmet_shell("#1", mat == "leather")]
+    if mat == "leather":
+        # the undyed overlay (the leather helmet's trim), a hair outside the dyed shell so the two never flicker
+        textures["2"] = "minecraft:entity/equipment/humanoid/leather_overlay"
+        elements.append(helmet_shell("#2", False, grow=0.02))
+    model = {"textures": textures, "elements": elements + head_elements, "display": DISPLAY}
+    name = f"{head}_on_{mat}"
+    with open(os.path.join(MODELS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
+        json.dump(model, f, indent=2)
+        f.write("\n")
+    item = {"model": {"type": "minecraft:model", "model": f"kingdoms:item/worn/{name}"}}
+    if mat == "leather":
+        item["model"]["tints"] = [{"type": "minecraft:dye", "default": -6265536}]
+    with open(os.path.join(HELMETS, name + ".json"), "w", encoding="utf8", newline="\n") as f:
+        json.dump(item, f, indent=2)
+        f.write("\n")
 
 
 def main():
     os.makedirs(MODELS, exist_ok=True)
     os.makedirs(TEXTURES, exist_ok=True)
     built = {}
-    for name, build in {"forgeman_pauldron": pauldron, "antler_circlet": circlet, "tidal_gills": gills}.items():
+    for name, build in {"forgeman_pauldron": pauldron, "antler_circlet": circlet, "tidal_gills": gills, "dwarf_beard": beard}.items():
         built[name] = bake(name, build())
     built["kingdom_cape"] = (cape_model(), paint_cape())
     built["fairy_wings"] = (wings_model(), paint_wings())
@@ -527,7 +585,8 @@ def main():
             f.write("\n")
         texture.save(os.path.join(TEXTURES, name + ".png"))
         print(name, len(elements), "elements,", f"{texture.width}x{texture.height}")
-    write_helmets(built["antler_circlet"][0])
+    paint_beard_icon().save(os.path.join(ASSETS, "textures", "item", "dwarf_beard.png"))
+    write_helmets({"antler_circlet": built["antler_circlet"][0], "dwarf_beard": built["dwarf_beard"][0]})
 
 
 if __name__ == "__main__":

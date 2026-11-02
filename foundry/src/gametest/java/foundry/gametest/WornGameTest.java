@@ -370,7 +370,7 @@ public final class WornGameTest {
                     def.id() + " worn model file is missing");
             checked++;
         }
-        helper.assertTrue(checked == 5, "Expected five worn items with a worn model but checked " + checked);
+        helper.assertTrue(checked == 6, "Expected six items with a worn model but checked " + checked);
         helper.succeed();
     }
 
@@ -378,7 +378,7 @@ public final class WornGameTest {
     @GameTest(maxTicks = 20)
     public void theClientIsSentTheItemModelThePackSelectsOn(GameTestHelper helper) {
         ServerPlayer viewer = player(helper, null);
-        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings"}) {
+        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard"}) {
             String seen = foundry.mc.WornDisplays.clientView(viewer, new ItemStack(item("kingdoms:" + id)));
             foundry.mc.FoundryMod.LOG.info("client stack for kingdoms:{}: {}", id, seen);
             helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
@@ -427,6 +427,23 @@ public final class WornGameTest {
             helper.assertFalse(new ItemStack(item("kingdoms:forgeman_pauldron")).has(
                     eu.pb4.trinkets.api.component.TrinketDataComponents.EQUIPMENT), "A retired trinket can still be equipped");
             helper.succeed();
+        });
+    }
+
+    /** A Dwarf wears the beard on the head, and with an iron helmet on gets the helmet with the beard below it. */
+    @GameTest(maxTicks = 60)
+    public void dwarvesWearTheBeardWithOrWithoutAHelmet(GameTestHelper helper) {
+        ServerPlayer dwarf = player(helper, "race:azrak");
+        helper.runAfterDelay(25, () -> {
+            var alone = foundry.mc.WornDisplays.headItemFor(dwarf.getUUID());
+            helper.assertTrue(alone != null && alone.is(item("kingdoms:dwarf_beard")), "A Dwarf has no beard on the head: " + alone);
+            dwarf.setItemSlot(EquipmentSlot.HEAD, new ItemStack(net.minecraft.world.item.Items.IRON_HELMET));
+            helper.runAfterDelay(5, () -> {
+                var combined = foundry.mc.WornDisplays.headItemFor(dwarf.getUUID());
+                helper.assertTrue(combined != null && String.valueOf(combined.get(net.minecraft.core.component.DataComponents.ITEM_MODEL))
+                        .equals("kingdoms:dwarf_beard_on_iron"), "With an iron helmet the Dwarf should get the beard on iron: " + combined);
+                helper.succeed();
+            });
         });
     }
 }
