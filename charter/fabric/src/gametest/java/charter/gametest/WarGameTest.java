@@ -6,6 +6,7 @@ import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.Text;
 import charter.mc.book.BookDialogs;
+import charter.mc.book.BookScreen;
 import charter.mc.book.WarPages;
 import charter.mc.cmd.CharterCommands;
 import charter.mc.land.LandItems;
@@ -16,8 +17,6 @@ import charter.time.Durations;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.dialog.Dialog;
-import net.minecraft.server.dialog.body.PlainMessage;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 
@@ -39,11 +38,9 @@ public final class WarGameTest {
     }
 
     private static List<String> body(ServerPlayer player) {
-        Dialog dialog = BookDialogs.LAST.get(player.getUUID());
+        BookScreen dialog = BookDialogs.LAST.get(player.getUUID());
         List<String> out = new ArrayList<>();
-        for (var b : dialog.common().body()) {
-            if (b instanceof PlainMessage m) out.add(m.contents().getString());
-        }
+        out.addAll(dialog.bodyText());
         return out;
     }
 
@@ -73,7 +70,10 @@ public final class WarGameTest {
                 // The War page names the other nation's outpost; the confirm says what it takes; declaring works.
                 WarPages.page(attackerLord, null);
                 String name = rt.describe.org(dove);
-                String button = Text.get("book.war.declare_button", "org", name, "x", theirs.center.x() * 16 + 8, "z", theirs.center.z() * 16 + 8);
+                // Targets are named by direction and distance from where the player stands.
+                String prefix = BookDialogs.clip(name, 10) + ":";
+                String button = BookDialogs.LAST.get(attackerLord.getUUID()).buttons().stream().map(b -> b.label())
+                        .filter(l -> l.startsWith(prefix)).findFirst().orElse("no target named " + prefix);
                 press(helper, attackerLord, button);
                 String confirm = String.join("\n", body(attackerLord));
                 helper.assertTrue(confirm.contains("touch"), "The confirm page does not say the war is between touching outposts: " + confirm);

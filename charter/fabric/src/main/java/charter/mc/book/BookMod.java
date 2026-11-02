@@ -8,6 +8,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.List;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -44,9 +46,66 @@ public final class BookMod {
      * there is no typing a command, so a lost one is replaced at once and not only when they next join.
      */
     public static void ensure(ServerPlayer player, boolean lost) {
+        removeExtras(player);
         if (carriesBook(player)) return;
-        giveOrDrop(player, CharterBook.create());
+        giveBook(player, CharterBook.create());
+        // A new stack carries no glint or count yet: the next refresh writes them.
+        SHOWN.remove(player.getUUID());
         player.sendSystemMessage(Component.literal(Text.get(lost ? "book.replaced" : "book.given")).withStyle(ChatFormatting.GOLD));
+    }
+
+    /**
+     * A player never keeps more than one Charter book. The first one found (hotbar first, then the rest of the
+     * inventory, armour and off hand, and last the stack on the cursor) stays; every other one is deleted. This is
+     * what makes a looted book, or the old one lying where its owner died, harmless. Returns how many were deleted.
+     */
+    public static int removeExtras(ServerPlayer player) {
+        var inventory = player.getInventory();
+        boolean kept = false;
+        ItemStack keeper = null;
+        int removed = 0;
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (!CharterBook.isBook(inventory.getItem(i))) continue;
+            if (!kept) {
+                kept = true;
+                keeper = inventory.getItem(i);
+            } else {
+                inventory.setItem(i, ItemStack.EMPTY);
+                removed++;
+            }
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            // The inventory above may already cover armour and the off hand: the same stack is never counted twice.
+            ItemStack worn = player.getItemBySlot(slot);
+            if (!CharterBook.isBook(worn) || worn == keeper) continue;
+            if (!kept) {
+                kept = true;
+                keeper = worn;
+            } else {
+                player.setItemSlot(slot, ItemStack.EMPTY);
+                removed++;
+            }
+        }
+        if (player.containerMenu != null && CharterBook.isBook(player.containerMenu.getCarried())) {
+            if (kept) {
+                player.containerMenu.setCarried(ItemStack.EMPTY);
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            // The book kept may be one picked up from someone else, still showing their count: write this player's.
+            SHOWN.remove(player.getUUID());
+            player.containerMenu.broadcastChanges();
+            player.sendSystemMessage(Component.literal(Text.get("book.duplicate")).withStyle(ChatFormatting.GOLD));
+        }
+        return removed;
+    }
+
+    /** Once a second for everyone online: a second book is deleted, whether or not lost books are replaced. */
+    public static void removeExtrasAll(net.minecraft.server.MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.isAlive() && !player.isSpectator()) removeExtras(player);
+        }
     }
 
     /** One pass over everyone online: whoever has no book gets one. */
@@ -56,15 +115,133 @@ public final class BookMod {
         }
     }
 
+    /**
+     * The book goes where it is one press away: the last hotbar slot when it is free, otherwise the first free hotbar
+     * slot, otherwise anywhere in the inventory, and at the player's feet only when nothing is free.
+     */
+    public static void giveBook(ServerPlayer player, ItemStack book) {
+        var inventory = player.getInventory();
+        int last = net.minecraft.world.entity.player.Inventory.SELECTION_SIZE - 1;
+        if (inventory.getItem(last).isEmpty()) {
+            inventory.setItem(last, book);
+            return;
+        }
+        for (int i = 0; i < last; i++) {
+            if (inventory.getItem(i).isEmpty()) {
+                inventory.setItem(i, book);
+                return;
+            }
+        }
+        giveOrDrop(player, book);
+    }
+
+    // ---- the book tells you when you are needed ----
+
+    /** What each player's book last said, as "count|summary", so a stack is touched only when that changes. */
+    private static final java.util.Map<java.util.UUID, String> SHOWN = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** A slow pass over everyone online (every five seconds from the server tick). */
+    public static void refreshAll(net.minecraft.server.MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.isAlive() && !player.isSpectator()) refresh(player);
+        }
+    }
+
+    /**
+     * Writes the need count into the book's name, what needs the player into its lore, and turns the glint on while
+     * anything waits: "Charter (2 need you)", "Votes: 1, Requests: 1". A soft chime plays when the count goes up.
+     * Nothing is written when the count and the summary are what the book already shows.
+     */
+    public static void refresh(ServerPlayer player) {
+        if (!CharterServer.running()) return;
+        List<Needs.Need> needs = Needs.of(player);
+        String summary = summary(needs);
+        String now = needs.size() + "|" + summary;
+        String before = SHOWN.get(player.getUUID());
+        if (now.equals(before)) return;
+        ItemStack book = theBook(player);
+        if (book == null) {
+            SHOWN.remove(player.getUUID());
+            return;
+        }
+        SHOWN.put(player.getUUID(), now);
+        apply(book, needs.size(), summary);
+        int was = before == null ? 0 : Integer.parseInt(before.substring(0, before.indexOf('|')));
+        if (needs.size() > was) Cues.chime(player);
+    }
+
+    static void apply(ItemStack book, int count, String summary) {
+        String name = count > 0 ? Text.get("book.item.name_needs", "n", count) : Text.get("book.item.name");
+        book.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, Component.literal(name)
+                .withStyle(style -> style.withColor(ChatFormatting.GOLD).withItalic(false)));
+        List<Component> lore = new java.util.ArrayList<>();
+        if (count > 0) lore.add(Component.literal(summary).withStyle(ChatFormatting.YELLOW));
+        lore.add(Component.literal(Text.get("book.item.lore")).withStyle(ChatFormatting.GRAY));
+        book.set(net.minecraft.core.component.DataComponents.LORE, new net.minecraft.world.item.component.ItemLore(lore));
+        if (count > 0) book.set(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        else book.remove(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE);
+    }
+
+    /** "Votes: 1, Requests: 2", in a fixed order, or empty when nothing waits. */
+    static String summary(List<Needs.Need> needs) {
+        List<String> parts = new java.util.ArrayList<>();
+        for (Needs.Kind kind : Needs.Kind.values()) {
+            long n = needs.stream().filter(x -> x.kind() == kind).count();
+            if (n > 0) parts.add(Text.get("book.item.need." + kind.name().toLowerCase(java.util.Locale.ROOT), "n", n));
+        }
+        return String.join(", ", parts);
+    }
+
+    /** The player's one book: the first found, as {@link #removeExtras} keeps it. */
+    static ItemStack theBook(ServerPlayer player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (CharterBook.isBook(inventory.getItem(i))) return inventory.getItem(i);
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (CharterBook.isBook(player.getItemBySlot(slot))) return player.getItemBySlot(slot);
+        }
+        return null;
+    }
+
     /** Into the inventory, or at the player's feet when it does not fit. Null when it fitted. */
     public static net.minecraft.world.entity.item.ItemEntity giveOrDrop(ServerPlayer player, ItemStack stack) {
         return player.getInventory().add(stack) ? null : player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
     }
 
+    /** Deletes every Charter book a player carries, so none is dropped on death. Returns how many. */
+    public static int vanish(ServerPlayer player) {
+        int n = 0;
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (CharterBook.isBook(inventory.getItem(i))) {
+                inventory.setItem(i, ItemStack.EMPTY);
+                n++;
+            }
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (CharterBook.isBook(player.getItemBySlot(slot))) {
+                player.setItemSlot(slot, ItemStack.EMPTY);
+                n++;
+            }
+        }
+        return n;
+    }
+
     public static void register() {
+        // Before the death loot is dropped: the book never lies on the ground, and respawn hands out a fresh one.
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayer player) vanish(player);
+            return true;
+        });
         Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, Identifier.fromNamespaceAndPath("charter", "nexus"),
                 NexusRecipe.SERIALIZER);
         CharterBook.register();
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> BookDialogs.LAST.remove(handler.player.getUUID()));
+        FloodgateAdapter.installIfPresent();
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            BookDialogs.LAST.remove(handler.player.getUUID());
+            SHOWN.remove(handler.player.getUUID());
+            BedrockForms.forget(handler.player.getUUID());
+        });
     }
 }

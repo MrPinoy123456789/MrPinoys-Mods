@@ -24,6 +24,10 @@ final class FormValuesTest {
         FabricSuite.check("text without the prefix is refused", FormValues.split("a | b", 2).isEmpty());
         FabricSuite.check("a name with a bar changes the count and is refused", FormValues.split("=Old | Mossbeard | 5", 2).isEmpty());
 
+        FabricSuite.check("join is the inverse of split", FormValues.split(FormValues.join(List.of("a", "", "c")), 3).orElseThrow().equals(List.of("a", "", "c")));
+        FabricSuite.check("a slider float is a whole number", FormValues.integer("5.0").orElse(-1) == 5);
+        FabricSuite.check("a fractional number is refused", FormValues.integer("5.5").isEmpty());
+        FabricSuite.check("words are refused", FormValues.integer("five").isEmpty());
         FabricSuite.check("a plain name is clean", FormValues.clean("Old Mossbeard's Muddle"));
         FabricSuite.check("a bar is not clean", !FormValues.clean("a|b"));
         FabricSuite.check("a control character is not clean", !FormValues.clean("a\nb"));

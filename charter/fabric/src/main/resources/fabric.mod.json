@@ -18,6 +18,9 @@
     "java": ">=25",
     "fabric-api": "*"
   },
+  "suggests": {
+    "floodgate": "*"
+  },
   "mixins": [
     "charter.mixins.json"
   ]

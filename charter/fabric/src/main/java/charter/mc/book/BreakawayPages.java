@@ -15,8 +15,6 @@ import charter.org.MemberRecord;
 import charter.org.Organization;
 import charter.org.actions.BreakAway;
 import charter.org.actions.Secede;
-import net.minecraft.server.dialog.ActionButton;
-import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -43,7 +41,7 @@ public final class BreakawayPages {
     }
 
     /** The button on the Freedoms page: the joke label lives in one lang key so it can be swapped. */
-    static ActionButton button(ServerPlayer player) {
+    static BookButton button(ServerPlayer player) {
         return BookDialogs.act(player, Text.get("book.breakaway.button"), Text.get("book.breakaway.line"), p -> page(p, null));
     }
 
@@ -58,7 +56,7 @@ public final class BreakawayPages {
         Organization o = rt.state.org(org).orElseThrow();
         long now = rt.clock.now();
         List<String> body = new ArrayList<>();
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         boolean sub = o.parent() != null;
         String hours = String.valueOf(rt.knobs.breakawayHours);
         if (sub) {
@@ -109,24 +107,24 @@ public final class BreakawayPages {
         long left = lastFounded == 0 ? 0 : lastFounded + charter.time.Durations.days(rt.knobs.foundSecedeCooldownDays) - now;
         body.add(Text.get("book.breakaway.cooldown", "days", rt.knobs.foundSecedeCooldownDays));
         if (left > 0) body.add(Text.get("book.found.cooldown", "time", Chat.duration(left)));
-        List<DialogBody> text = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> text = new ArrayList<>();
         for (String line : body) text.add(BookDialogs.text(line));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.breakaway.title"), BookDialogs.withNotice(notice, text), buttons,
-                BookDialogs.back(player, p -> MemberPages.freedoms(p, null))));
+                BookDialogs.back(player, p -> MorePages.page(p, null))));
     }
 
     private static void confirm(ServerPlayer player, OrgId org, boolean vote) {
-        ActionButton yes = BookDialogs.act(player, Text.get("book.button.yes"), null, p -> {
+        BookButton yes = BookDialogs.act(player, Text.get(vote ? "book.breakaway.verb_vote" : "book.breakaway.verb"), null, p -> {
             if (vote) {
                 Outcome outcome = rt().engine.propose(me(p), new Secede(org));
                 if (outcome instanceof Outcome.Refused(Reason reason)) page(p, BookRouter.refusal(reason));
-                else if (outcome instanceof Outcome.VoteOpened(VoteId id)) MemberPages.vote(p, id, Text.get("book.breakaway.proposed"));
+                else if (outcome instanceof Outcome.VoteOpened(VoteId id)) MemberPages.vote(p, id, BookResult.ok(Text.get("book.breakaway.proposed")));
                 else page(p, null);
             } else {
-                BookRouter.run(p, new BreakAway(me(p)), line -> page(p, line != null ? line : Text.get("book.breakaway.joined")));
+                BookRouter.run(p, new BreakAway(me(p)), line -> page(p, BookResult.of(line, Text.get("book.breakaway.joined"))));
             }
         });
-        ActionButton no = BookDialogs.back(player, p -> page(p, null));
+        BookButton no = BookDialogs.back(player, p -> page(p, null));
         BookDialogs.show(player, BookDialogs.confirm(Text.get("book.breakaway.title"),
                 List.of(BookDialogs.text(Text.get(vote ? "book.breakaway.confirm_vote" : "book.breakaway.confirm_group"))), yes, no));
     }

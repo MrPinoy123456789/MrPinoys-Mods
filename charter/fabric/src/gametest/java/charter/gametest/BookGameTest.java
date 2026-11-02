@@ -1,6 +1,7 @@
 package charter.gametest;
 
 import charter.mc.book.BookDialogs;
+import charter.mc.book.BookScreen;
 import charter.mc.book.BookMod;
 import charter.mc.book.CharterBook;
 import charter.mc.book.MemberPages;
@@ -12,7 +13,6 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.dialog.Dialog;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -40,10 +40,10 @@ public final class BookGameTest {
     }
 
     /** The title and the button labels, which is all a test can see of a dialog. */
-    private static List<String> shape(Dialog dialog) {
+    private static List<String> shape(BookScreen dialog) {
         List<String> out = new ArrayList<>();
-        out.add(dialog.common().title().getString());
-        for (var button : BookDialogs.buttons(dialog)) out.add(button.button().label().getString());
+        out.add(dialog.title());
+        for (var button : BookDialogs.buttons(dialog)) out.add(button.label());
         return out;
     }
 
@@ -143,6 +143,44 @@ public final class BookGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 20)
+    public void aSecondBookIsDeleted(GameTestHelper helper) {
+        ServerPlayer player = emptyHanded(helper);
+        player.getInventory().setItem(3, CharterBook.create());
+        player.getInventory().setItem(20, CharterBook.create());
+        player.getInventory().setItem(21, CharterBook.create());
+        helper.assertTrue(BookMod.removeExtras(player) == 2, "Two extra books were not removed");
+        helper.assertTrue(books(player) == 1, "A player kept " + books(player) + " books");
+        helper.assertTrue(CharterBook.isBook(player.getInventory().getItem(3)), "The first book was not the one kept");
+        helper.assertTrue(BookMod.removeExtras(player) == 0, "A lone book was removed");
+        // A single book in the off hand must survive: it can be seen through both the inventory and the equipment slot.
+        ServerPlayer other = emptyHanded(helper);
+        other.setItemInHand(InteractionHand.OFF_HAND, CharterBook.create());
+        helper.assertTrue(BookMod.removeExtras(other) == 0 && BookMod.carriesBook(other), "An off hand book was deleted");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void travelComesFirstOnTheNewcomerHome(GameTestHelper helper) {
+        ServerPlayer player = emptyHanded(helper);
+        NewcomerPages.home(player, null);
+        List<String> shape = shape(BookDialogs.LAST.get(player.getUUID()));
+        helper.assertTrue(shape.size() > 3 && shape.get(1).startsWith("Go home"), "Travel is not the first button: " + shape);
+        // A hub button shows only when the server has a hub; a journey that can never apply has no button.
+        String hub = charter.mc.Text.get("book.travel.hub");
+        helper.assertTrue(shape.get(2).equals(charter.mc.Text.get("book.travel.spawn")) && (!shape.contains(hub) || shape.get(3).equals(hub)),
+                "Spawn and hub do not follow: " + shape);
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void aDeathDropNeverHoldsTheBook(GameTestHelper helper) {
+        ServerPlayer player = emptyHanded(helper);
+        player.getInventory().setItem(2, CharterBook.create());
+        helper.assertTrue(BookMod.vanish(player) == 1 && !BookMod.carriesBook(player), "The book was not removed before death");
+        helper.succeed();
+    }
+
     private static ServerPlayer emptyHanded(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) player.getInventory().setItem(i, ItemStack.EMPTY);
@@ -154,12 +192,12 @@ public final class BookGameTest {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         BookDialogs.LAST.remove(player.getUUID());
         command(player, "charter");
-        Dialog byCommand = BookDialogs.LAST.get(player.getUUID());
+        BookScreen byCommand = BookDialogs.LAST.get(player.getUUID());
         helper.assertTrue(byCommand != null, "/charter sent no dialog");
         BookDialogs.LAST.remove(player.getUUID());
         player.setItemInHand(InteractionHand.MAIN_HAND, CharterBook.create());
         CharterBook.use(player, InteractionHand.MAIN_HAND);
-        Dialog byBook = BookDialogs.LAST.get(player.getUUID());
+        BookScreen byBook = BookDialogs.LAST.get(player.getUUID());
         helper.assertTrue(byBook != null, "The book sent no dialog");
         helper.assertTrue(shape(byCommand).equals(shape(byBook)), "The command and the book differ: " + shape(byCommand) + " and " + shape(byBook));
 
@@ -182,8 +220,8 @@ public final class BookGameTest {
             b.setItemInHand(InteractionHand.MAIN_HAND, book);
             BookDialogs.LAST.remove(b.getUUID());
             CharterBook.use(b, InteractionHand.MAIN_HAND);
-            String titleA = BookDialogs.LAST.get(a.getUUID()).common().title().getString();
-            String titleB = BookDialogs.LAST.get(b.getUUID()).common().title().getString();
+            String titleA = BookDialogs.LAST.get(a.getUUID()).title();
+            String titleB = BookDialogs.LAST.get(b.getUUID()).title();
             helper.assertTrue(titleA.equals(kit.rt.describe.org(kit.orgOf(a))), "Home A is not about faction A: " + titleA);
             helper.assertTrue(titleB.equals(kit.rt.describe.org(kit.orgOf(b))), "Home B is not about faction B: " + titleB);
             helper.assertTrue(!titleA.equals(titleB), "Both players saw the same faction");

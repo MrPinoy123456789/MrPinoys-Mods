@@ -26,6 +26,7 @@ public final class FabricSuite {
         RaceNodesTest.run();
         RacePassivesTest.run();
         FormValuesTest.run();
+        BookResultTest.run();
         DiscordTest.run();
         PadBookTest.run();
 

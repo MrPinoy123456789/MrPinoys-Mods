@@ -176,17 +176,18 @@ public final class FoundingGameTest {
             helper.assertTrue(kit.rt.state.joinRequest(org, id(newcomer)).isPresent(), "Asking to join left no request");
             var page = BookDialogs.LAST.get(newcomer.getUUID());
             var text = new java.util.ArrayList<String>();
-            for (var b : page.common().body()) if (b instanceof net.minecraft.server.dialog.body.PlainMessage m) text.add(m.contents().getString());
+            text.addAll(page.bodyText());
             String all = String.join(" ", text);
-            helper.assertTrue(all.contains(Text.get("book.join.who_decides")), "The faction page does not say who decides: " + all);
+            helper.assertTrue(page.violations().isEmpty(), "The kingdom page breaks the screen rules: " + page.violations());
+            helper.assertTrue(all.contains(kit.rt.state.org(org).orElseThrow().raceLabel()), "The kingdom page does not say what joining makes you: " + all);
             helper.assertTrue(!all.toLowerCase().contains("gives away") && !all.toLowerCase().contains("garrison"),
                     "The faction page still lists what does not touch a member: " + all);
             helper.assertTrue(all.contains(Text.get("book.join.no_vote")) && !all.contains("charter"), "The page does not say members cannot vote the ruler out: " + all);
             NewcomerPages.home(newcomer, null);
             helper.assertTrue(BookDialogs.LAST.containsKey(newcomer.getUUID()), "The newcomer home sent no dialog");
 
-            MemberPages.faction(lord, null);
-            press(helper, lord, Text.get("book.button.admit", "player", kit.rt.describe.player(id(newcomer))));
+            charter.mc.book.LeaderPages.request(lord, id(newcomer), false);
+            press(helper, lord, Text.get("book.button.admit", "player", BookDialogs.clip(kit.rt.describe.player(id(newcomer)), 14)));
             helper.assertTrue(kit.rt.state.isMember(id(newcomer), org), "The newcomer was not admitted");
             helper.succeed();
         }

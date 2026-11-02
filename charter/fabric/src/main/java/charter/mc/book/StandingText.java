@@ -4,7 +4,6 @@ import charter.gov.Standing;
 import charter.mc.Text;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 
 import java.util.ArrayList;
@@ -35,8 +34,7 @@ public final class StandingText {
     }
 
     /**
-     * The same lines as {@link #joined(List, boolean)}, laid out to read: each holder is a coloured heading with a
-     * hover that says what holding a power that way means, and what they hold is one bullet per line beneath it.
+     * The same lines as {@link #joined(List, boolean)}, laid out to read: each holder is a coloured heading, and what they hold is one bullet per line beneath it.
      */
     public static List<Component> components(List<Standing.Line> lines, boolean newcomer) {
         Map<String, List<Standing.Line>> byHolder = new LinkedHashMap<>();
@@ -48,10 +46,9 @@ public final class StandingText {
         List<Component> out = new ArrayList<>();
         for (List<Standing.Line> group : byHolder.values()) {
             Standing.Line first = group.get(0);
-            Component tip = Component.literal(holderTip(first));
+            // No hover: a controller cannot hover. What a holder means is in the glossary, under More.
             MutableComponent block = Component.literal("");
-            block.append(Component.literal(holder(first, newcomer)).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-                    .withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(tip))));
+            block.append(Component.literal(holder(first, newcomer)).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
             for (Standing.Line line : group) {
                 block.append(Component.literal("\n  • " + label(line)).withStyle(ChatFormatting.WHITE));
             }

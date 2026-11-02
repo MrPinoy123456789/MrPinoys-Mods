@@ -11,9 +11,6 @@ import charter.org.Organization;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.dialog.ActionButton;
-import net.minecraft.server.dialog.Input;
-import net.minecraft.server.dialog.body.DialogBody;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -59,7 +56,7 @@ public final class AdminPages {
     }
 
     /** A page button. A link outlives a demotion, so the player is checked again when it is pressed. */
-    private static ActionButton go(ServerPlayer player, String label, String tooltip, Consumer<ServerPlayer> page) {
+    private static BookButton go(ServerPlayer player, String label, String tooltip, Consumer<ServerPlayer> page) {
         return BookDialogs.act(player, label, tooltip, p -> {
             if (allowed(p)) page.accept(p);
             else denied(p);
@@ -67,7 +64,7 @@ public final class AdminPages {
     }
 
     /** A form's submit button: the operator check, then the values split and cleaned, then {@code run}. */
-    private static ActionButton submit(ServerPlayer player, String label, List<Input> inputs,
+    private static BookButton submit(ServerPlayer player, String label, List<BookInput> inputs,
                                        BiConsumer<ServerPlayer, List<String>> run) {
         return BookDialogs.submit(player, label, null, inputs, form -> {
             ServerPlayer p = form.player();
@@ -91,9 +88,9 @@ public final class AdminPages {
         else back.open(player, result);
     }
 
-    private static List<DialogBody> with(Result notice, List<DialogBody> body) {
+    private static List<net.minecraft.network.chat.Component> with(Result notice, List<net.minecraft.network.chat.Component> body) {
         if (notice == null) return body;
-        List<DialogBody> out = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> out = new ArrayList<>();
         if (notice.lines().isEmpty()) {
             out.add(BookDialogs.text(Component.literal(Text.get(notice.ok() ? "admin.menu.done" : "admin.menu.failed"))
                     .withStyle(notice.ok() ? ChatFormatting.GREEN : ChatFormatting.RED)));
@@ -104,13 +101,13 @@ public final class AdminPages {
     }
 
     private static void result(ServerPlayer player, Result result, Page back) {
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         int shown = Math.min(result.lines().size(), LINES_MAX);
         for (int i = 0; i < shown; i++) body.add(BookDialogs.text(result.lines().get(i)));
         if (result.lines().size() > shown) {
             body.add(BookDialogs.text(Text.get("admin.menu.more", "count", result.lines().size() - shown)));
         }
-        BookDialogs.show(player, BookDialogs.list(Text.get("admin.menu.result"), body, List.of(),
+        BookDialogs.show(player, BookDialogs.operatorList(Text.get("admin.menu.result"), body, List.of(),
                 BookDialogs.back(player, p -> back.open(p, null))));
     }
 
@@ -138,22 +135,22 @@ public final class AdminPages {
             denied(player);
             return;
         }
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("admin.menu.intro")));
         body.add(BookDialogs.text(Text.get("admin.menu.counts", "kingdoms", kingdoms().size(), "sites", rt().state.npc.sites.size())));
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("admin.menu.button.kingdoms"), null, p -> kingdomList(p, null)));
         buttons.add(go(player, Text.get("admin.menu.button.create"), null, p -> createForm(p, null)));
         buttons.add(go(player, Text.get("admin.menu.button.sites"), null, p -> sites(p, null)));
         buttons.add(go(player, Text.get("admin.menu.button.tools"), null, p -> tools(p, null)));
-        BookDialogs.show(player, BookDialogs.list(Text.get("admin.menu.title"), with(notice, body), buttons, BookDialogs.close()));
+        BookDialogs.show(player, BookDialogs.operatorList(Text.get("admin.menu.title"), with(notice, body), buttons, BookDialogs.close()));
     }
 
     // ---- Kingdoms ----
 
     static void kingdomList(ServerPlayer player, Result notice) {
-        List<DialogBody> body = new ArrayList<>();
-        List<ActionButton> buttons = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         List<Organization> all = kingdoms();
         if (all.isEmpty()) body.add(BookDialogs.text(Text.get("admin.kingdoms.none")));
         for (Organization org : all) {
@@ -161,7 +158,7 @@ public final class AdminPages {
             String label = org.name() + (org.adminKingdom ? Text.get("admin.kingdoms.admin_tag") : "");
             buttons.add(go(player, label, null, p -> kingdom(p, id, null)));
         }
-        BookDialogs.show(player, BookDialogs.list(Text.get("admin.kingdoms.title"), with(notice, body), buttons,
+        BookDialogs.show(player, BookDialogs.operatorList(Text.get("admin.kingdoms.title"), with(notice, body), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
     }
 
@@ -174,17 +171,17 @@ public final class AdminPages {
         Organization org = found.get();
         String name = org.name();
         Page again = (p, n) -> kingdom(p, id, n);
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         body.add(BookDialogs.text(Text.get("admin.kingdom.facts", "members", rt().state.members(id).size(),
                 "claims", rt().state.claimsOf(id).size(), "bonus", org.claimBonus)));
         body.add(BookDialogs.text(Text.get(org.adminKingdom ? "admin.kingdom.is_admin" : "admin.kingdom.is_ordinary")));
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("admin.kingdom.button.leader"), null, p -> leaderForm(p, id)));
         buttons.add(go(player, Text.get(org.adminKingdom ? "admin.kingdom.button.make_ordinary" : "admin.kingdom.button.make_admin"), null,
                 p -> ran(p, "charter admin faction admin " + FormValues.quote(name) + " " + !org.adminKingdom, again)));
         buttons.add(go(player, Text.get("admin.kingdom.button.bonus"), null, p -> bonusForm(p, id)));
         buttons.add(go(player, Text.get("admin.kingdom.button.dissolve"), null, p -> dissolveAsk(p, id)));
-        BookDialogs.show(player, BookDialogs.list(name, with(notice, body), buttons,
+        BookDialogs.show(player, BookDialogs.operatorList(name, with(notice, body), buttons,
                 BookDialogs.back(player, p -> kingdomList(p, null))));
     }
 
@@ -200,7 +197,7 @@ public final class AdminPages {
             kingdom(player, id, failed(Text.get("admin.menu.nobody")));
             return;
         }
-        List<Input> inputs = List.of(BookDialogs.choice("player", Text.get("admin.leader.label"), online, online));
+        List<BookInput> inputs = List.of(BookDialogs.choice("player", Text.get("admin.leader.label"), online, online));
         BookDialogs.show(player, BookDialogs.form(Text.get("admin.leader.title"),
                 List.of(BookDialogs.text(Text.get("admin.leader.intro", "kingdom", name))), inputs,
                 submit(player, Text.get("admin.leader.button"), inputs, (p, values) -> {
@@ -223,7 +220,7 @@ public final class AdminPages {
         }
         Organization org = found.get();
         String name = org.name();
-        List<Input> inputs = List.of(BookDialogs.textInput("bonus", Text.get("admin.bonus.label"), String.valueOf(org.claimBonus), NUMBER_MAX));
+        List<BookInput> inputs = List.of(BookDialogs.textInput("bonus", Text.get("admin.bonus.label"), String.valueOf(org.claimBonus), NUMBER_MAX));
         BookDialogs.show(player, BookDialogs.form(Text.get("admin.bonus.title"),
                 List.of(BookDialogs.text(Text.get("admin.bonus.intro", "kingdom", name, "bonus", org.claimBonus))), inputs,
                 submit(player, Text.get("admin.bonus.button"), inputs, (p, values) -> {
@@ -260,7 +257,7 @@ public final class AdminPages {
 
     static void createForm(ServerPlayer player, Result notice) {
         var at = player.blockPosition();
-        List<Input> inputs = List.of(
+        List<BookInput> inputs = List.of(
                 BookDialogs.textInput("name", Text.get("admin.create.name"), "", NAME_MAX),
                 BookDialogs.textInput("x", "X", String.valueOf(at.getX()), NUMBER_MAX),
                 BookDialogs.textInput("y", "Y", String.valueOf(at.getY()), NUMBER_MAX),
@@ -294,18 +291,18 @@ public final class AdminPages {
     static void sites(ServerPlayer player, Result notice) {
         Page again = AdminPages::sites;
         List<NpcBook.Site> all = rt().state.npc.sites;
-        List<DialogBody> body = new ArrayList<>();
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         if (all.isEmpty()) body.add(BookDialogs.text(Text.get("admin.sites.none")));
         for (int i = 0; i < Math.min(all.size(), SITES_SHOWN); i++) body.add(BookDialogs.text(siteLine(all.get(i))));
         if (all.size() > SITES_SHOWN) body.add(BookDialogs.text(Text.get("admin.menu.more", "count", all.size() - SITES_SHOWN)));
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("admin.sites.button.stronghold"), null, p -> ran(p, "charter admin npc spawn stronghold", again)));
         buttons.add(go(player, Text.get("admin.sites.button.outpost"), null, p -> ran(p, "charter admin npc spawn outpost", again)));
         buttons.add(go(player, Text.get("admin.sites.button.respawn"), null, p -> ran(p, "charter admin npc respawn", again)));
         if (!all.isEmpty()) buttons.add(go(player, Text.get("admin.sites.button.clear"), null, AdminPages::clearForm));
         buttons.add(go(player, Text.get("admin.sites.button.ruins"), null,
                 p -> ran(p, "charter admin npc clearruins " + p.blockPosition().getX() + " " + p.blockPosition().getZ(), again)));
-        BookDialogs.show(player, BookDialogs.list(Text.get("admin.sites.title"), with(notice, body), buttons,
+        BookDialogs.show(player, BookDialogs.operatorList(Text.get("admin.sites.title"), with(notice, body), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
     }
 
@@ -322,7 +319,7 @@ public final class AdminPages {
         }
         List<String> ids = all.stream().map(s -> String.valueOf(s.id())).toList();
         List<String> shown = all.stream().map(AdminPages::siteLine).toList();
-        List<Input> inputs = List.of(BookDialogs.choice("site", Text.get("admin.sites.clear.label"), ids, shown));
+        List<BookInput> inputs = List.of(BookDialogs.choice("site", Text.get("admin.sites.clear.label"), ids, shown));
         BookDialogs.show(player, BookDialogs.form(Text.get("admin.sites.clear.title"),
                 List.of(BookDialogs.text(Text.get("admin.sites.clear.intro"))), inputs,
                 submit(player, Text.get("admin.sites.clear.button"), inputs, (p, values) -> {
@@ -340,7 +337,7 @@ public final class AdminPages {
 
     static void tools(ServerPlayer player, Result notice) {
         Page again = AdminPages::tools;
-        List<ActionButton> buttons = new ArrayList<>();
+        List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("admin.tools.button.save"), null, p -> ran(p, "charter admin save", again)));
         buttons.add(go(player, Text.get("admin.tools.button.repair"), null, p -> ran(p, "charter admin repair", again)));
         buttons.add(go(player, Text.get("admin.tools.button.areas"), null, p -> ran(p, "charter admin areas", again)));
@@ -350,12 +347,12 @@ public final class AdminPages {
         buttons.add(go(player, Text.get("admin.tools.button.chronicle_here"), null, p -> ran(p, "charter admin realm-chronicle here", again)));
         buttons.add(go(player, Text.get("admin.tools.button.chronicle_remove"), null, p -> ran(p, "charter admin realm-chronicle remove", again)));
         buttons.add(go(player, Text.get("admin.tools.button.chronicle_list"), null, p -> ran(p, "charter admin realm-chronicle list", again)));
-        BookDialogs.show(player, BookDialogs.list(Text.get("admin.tools.title"), with(notice, List.of()), buttons,
+        BookDialogs.show(player, BookDialogs.operatorList(Text.get("admin.tools.title"), with(notice, List.of()), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
     }
 
     private static void voteForm(ServerPlayer player) {
-        List<Input> inputs = List.of(BookDialogs.textInput("number", Text.get("admin.vote.label"), "", NUMBER_MAX));
+        List<BookInput> inputs = List.of(BookDialogs.textInput("number", Text.get("admin.vote.label"), "", NUMBER_MAX));
         BookDialogs.show(player, BookDialogs.form(Text.get("admin.vote.title"),
                 List.of(BookDialogs.text(Text.get("admin.vote.intro"))), inputs,
                 submit(player, Text.get("admin.vote.button"), inputs, (p, values) -> {
@@ -376,7 +373,7 @@ public final class AdminPages {
             tools(player, failed(Text.get("admin.menu.nobody")));
             return;
         }
-        List<Input> inputs = List.of(
+        List<BookInput> inputs = List.of(
                 BookDialogs.choice("what", Text.get("admin.give.what"), things, things),
                 BookDialogs.choice("player", Text.get("admin.give.player"), online, online));
         BookDialogs.show(player, BookDialogs.form(Text.get("admin.give.title"),
