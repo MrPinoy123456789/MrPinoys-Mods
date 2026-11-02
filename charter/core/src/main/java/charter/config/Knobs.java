@@ -147,7 +147,7 @@ public final class Knobs {
      */
     public java.util.Map<String, String> tagColors = new java.util.LinkedHashMap<>(java.util.Map.of(
             "everdelle", "#FF69B4", "azurius", "#89CFF0", "faeloria", "#A020F0",
-            "azrak", "#8B5A2B", "aurelia", "#FF8C00", "mercenary", "#8A0303"));
+            "azrak", "#FFD700", "aurelia", "#FF6A1A", "mercenary", "#8A0303"));
     /**
      * Whether a member's rank shows after their kingdom's tag, "[Faeloria] Queen Heather", over the head, in the tab
      * list and in chat. Only a kingdom whose Lord has edited its ranks shows them; until then the tag is as before.
