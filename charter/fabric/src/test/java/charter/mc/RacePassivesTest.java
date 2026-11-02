@@ -18,5 +18,7 @@ final class RacePassivesTest {
         var plain = RacePassives.parse("minecraft:night_vision");
         check("a plain entry is always on, amplifier 0", !plain.waterOnly() && plain.id().equals("minecraft:night_vision") && plain.amplifier() == 0);
         check("a bad amplifier reads as 0", RacePassives.parse("minecraft:speed#x").amplifier() == 0);
+        check("a passive never reaches the night vision flicker between refreshes",
+                RacePassives.LASTS_TICKS - RacePassives.EVERY_TICKS > RacePassives.FLICKER_TICKS);
     }
 }
