@@ -67,14 +67,28 @@ VAULT_WAR = [
     (SHARPNESS, 1, [None, None, (1, 1), (1, 1)]),
 ]
 
+# Every count of the five war supplies is multiplied by this (owner, 2026-11-02: "nerf the supplies for now 50%").
+# The war tier and trial keys are not scaled. Counts round half up and never drop below 1.
+SUPPLY_SCALE = 0.5
+SUPPLIES = {'minecraft:iron_ingot', 'minecraft:gold_ingot', 'minecraft:emerald', 'minecraft:nether_wart',
+            'minecraft:golden_apple'}
+
 # A typical clear, for the printed estimate only: the barrel's chest rolls plus the room chests, one vault and
 # two supply chests.
 CLEAR_CHESTS, CLEAR_VAULTS, CLEAR_SUPPLIES = 6, 1, 2
 
 
-def entry(item, weight, counts):
+def scaled(name, counts):
     lo, hi = counts
+    if name not in SUPPLIES:
+        return lo, hi
+    lo = max(1, int(lo * SUPPLY_SCALE + 0.5))
+    return lo, max(lo, int(hi * SUPPLY_SCALE + 0.5))
+
+
+def entry(item, weight, counts):
     name, enchantments = item if isinstance(item, tuple) else (item, None)
+    lo, hi = scaled(name, counts)
     out = {'type': 'minecraft:item', 'name': name, 'weight': weight}
     modifiers = []
     if hi > 1:

@@ -1477,3 +1477,9 @@ tier 3, and adds diamonds and netherite scrap in their place. Raw diamonds, neth
 
 Open questions: the counts against real farm rates once kingdoms build them; whether a held dungeon should also pay
 something (tribute, faster resets), set aside by the owner for now.
+
+**Nerf, same day.** Owner: *"nerf the supplies for now 50%"*. `SUPPLY_SCALE = 0.5` in the generator halves every
+count of the five supplies (half up, never below 1); the war tier and trial keys are unchanged. The figures in the
+table above are now roughly halved: a plain clear pays about 45 iron, 40 wart, 23 gold, 16 emeralds and 5 golden
+apples at tier 1, and 80 iron, 80 wart, 47 gold, 33 emeralds and 8 or 9 golden apples at tier 3. Set the scale back to
+1.0 to undo it.
