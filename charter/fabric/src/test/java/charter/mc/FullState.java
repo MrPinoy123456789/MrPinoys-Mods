@@ -147,6 +147,11 @@ final class FullState {
         state.addBreakaway(new charter.org.Breakaway(charter.org.Breakaway.Kind.SUBFACTION, guard, null, java.util.List.of(), now, now + 1000));
         state.addBreakaway(new charter.org.Breakaway(charter.org.Breakaway.Kind.GROUP, oakvale, alice, java.util.List.of(alice, bob), now, now + 2000));
         state.addJoinRequest(new charter.org.JoinRequest(oakvale, eve, clock.now()));
+        // A Lord's mute and suspension, and an operator's Ledger grant, on one player record.
+        state.player(dan).mutedUntil = clock.now() + 600_000;
+        state.player(dan).suspendedUntil = clock.now() + 7_200_000;
+        state.player(dan).suspendedFrom = ironhold;
+        state.player(dan).ledgerUntil = clock.now() + 3_600_000;
         // A council of two deciding together, with a vote among its seats still open (S1).
         admin(new charter.gov.actions.SetSeats(ironhold, lord.id, 3, Office.Deciding.TOGETHER));
         admin(new InviteMember(ironhold, dan));

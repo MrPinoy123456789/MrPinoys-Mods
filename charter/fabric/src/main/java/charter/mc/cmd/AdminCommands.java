@@ -63,6 +63,8 @@ final class AdminCommands {
                                         .executes(AdminCommands::closeVote))))
                 .then(Commands.literal("dissolve")
                         .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions).executes(AdminCommands::dissolve)))
+                .then(ModerationAdmin.node())
+                .then(ModerationAdmin.ledgerNode())
                 .then(Commands.literal("repair").executes(AdminCommands::repair))
                 .then(Commands.literal("areas").executes(AdminCommands::areas))
                 .then(Commands.literal("save").executes(AdminCommands::save));

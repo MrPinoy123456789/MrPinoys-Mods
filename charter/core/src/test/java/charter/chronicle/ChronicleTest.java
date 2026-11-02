@@ -164,6 +164,16 @@ public final class ChronicleTest {
                 IN + "Gil drew 15 Marks from the treasury of Riverside.");
         golden(events, expected, new TreasuryEvents.TransferredMarks(AT, RIVERSIDE, ASHFALL, 1),
                 IN + "Riverside sent 1 Mark to Ashfall.");
+        golden(events, expected, new charter.moderation.ModerationEvents.Muted(AT, ASHFALL, KRIS, GIL, Durations.minutes(10), "spam"),
+                IN + "Kris of Ashfall silenced Gil for 10 minutes.");
+        golden(events, expected, new charter.moderation.ModerationEvents.Unmuted(AT, ASHFALL, KRIS, GIL),
+                IN + "Kris of Ashfall let Gil speak again.");
+        golden(events, expected, new charter.moderation.ModerationEvents.Suspended(AT, ASHFALL, KRIS, GIL, Durations.hours(2), "griefing"),
+                IN + "Kris of Ashfall barred Gil from the kingdom's land for 2 hours.");
+        golden(events, expected, new charter.moderation.ModerationEvents.Unsuspended(AT, ASHFALL, KRIS, GIL),
+                IN + "Kris of Ashfall lifted the bar on Gil.");
+        golden(events, expected, new charter.moderation.ModerationEvents.Kicked(AT, ASHFALL, KRIS, GIL, "cool off"),
+                IN + "Kris of Ashfall sent Gil away from the realm for a moment.");
 
         ChronicleRenderer r = renderer(false);
         for (Map.Entry<String, HistoryEvent> e : events.entrySet()) {

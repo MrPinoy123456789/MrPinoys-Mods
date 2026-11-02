@@ -230,6 +230,60 @@ Typed, under `/charter admin` (`/charter admin help` prints them all):
   `faction rename <faction> <name>`: a new name; its land, members and history stay.
 - Every `<player>` takes an online name, a UUID, or the name of anyone the server has seen. Every `<faction>` takes a
   name (suggested as you type) or an id in quotes (`"org:..."`). No command was renamed or removed.
+- `moderation`: who is silenced, kept off land or holding Ledger access now, then the last 15 Lord moderation and
+  Ledger events with their reasons. `ledger grant|revoke <player>`, `ledger status`: see "Ledger access for a Lord"
+  below. The menu has the moderation log under Tools ("What Lords did"), and a Lord's player page has "Ledger access,
+  1 hour" (or "Take back Ledger access" while one stands).
+
+## Lords keep order among their own citizens (2026-11-02)
+
+Kingdom Lords are the moderators of this server; there is no moderator group. A Lord's power stops at their own
+kingdom: they can act only on a member of the kingdom they rule (a member of one of its sub-factions counts), never on
+a member of another kingdom, a player in no kingdom, another Lord (two Lords cannot moderate each other), themselves,
+or anyone holding `charter.admin` or `charter.bypass`. Lords get nothing from BanHammer, Ledger or vanilla: these are
+Charter commands, checked by Charter on the server. Code: `charter/core/src/main/java/charter/moderation/` (the rules)
+and `charter/fabric/src/main/java/charter/mc/cmd/LordCommands.java`, `mc/moderation/` (enforcement).
+
+Typed, so Bedrock Lords use them the same way. The Charter book has no page for them yet (its rule is never to tell a player to type a command):
+
+| Command | What it does | Limit |
+|---|---|---|
+| `/charter lord` | what a Lord can do, and which of their citizens are held now | |
+| `/charter lord mute <player> <time> <reason>` | stops the citizen's chat, `/msg`, `/tell`, `/me` (anything that sends a signed message); `/charter` and reading chat still work | at most 1 hour (`lordMuteMaxMinutes`, default 60) |
+| `/charter lord unmute <player>` | lets them speak again | |
+| `/charter lord suspend <player> <time> <reason>` | keeps the citizen off the kingdom's land with the banishment push; they stay a member with their rank, and everywhere else is open | at most 12 hours (`lordSuspendMaxHours`, default 12) |
+| `/charter lord unsuspend <player>` | lets them back onto the land | |
+| `/charter lord kick <player> <reason>` | disconnects the citizen with the Lord's name and reason; nothing is banned and they may log straight back in | |
+
+- Times read as `10m`, `2h`, `1h30m`. A time over the cap is refused (not cut down) and the refusal names the cap. A
+  new mute or suspension replaces the old one from now; it never adds to it.
+- A reason of at least 3 characters is required (cut to 80). The citizen is told who did it, for how long and why.
+- Mute, suspend and kick need the citizen online, because only then can Charter ask the permissions mod whether they
+  are an operator. Unmute and unsuspend work offline.
+- Operators are asked again at enforcement: someone made an operator after being muted or suspended is let go on their
+  next message or step, and the hold is dropped.
+- Every action is a history event (`ModerationEvents.*` in `history.jsonl`, with the reason), a public Chronicle line
+  without the reason ("Ann of Azrak silenced Bob for 10 minutes."), and a line to every operator online and the
+  console (`[Lords] Ann of Azrak silenced Bob for 10 minutes: spam`). `/charter admin moderation` and a player's page
+  show what is in force.
+- Expelling a member is the older, separate Lord power (`MANAGE_MEMBERS`) and is unchanged.
+
+### Ledger access for a Lord (one hour, operators only)
+
+`/charter admin ledger grant <player>` gives a **current Lord** read only Ledger for exactly one hour, so they can look
+into trouble on an operator's behalf. It runs, as the server console, for each node
+`lp user <uuid> permission settemp <node> true 1h replace` with the nodes `ledger.commands.root`,
+`ledger.commands.inspect`, `ledger.commands.search` and `ledger.commands.status`. Never rollback, restore, preview,
+teleport, player or purge. The operator is told the expiry time (UTC); the Lord is told (or gets it as mail when
+offline). A second grant while one stands is refused, so it cannot be rolled forward: when the hour is up the access
+lapses (LuckPerms drops the nodes; Charter clears its record and unsets them as a safeguard) and an operator must grant
+it again. `ledger revoke <player>` ends it at once, and it is taken back automatically within five seconds if the
+player stops being a Lord. `ledger status` lists who holds it. Without LuckPerms installed the command says so and
+changes nothing. Grants and their ends are admin events, kept out of the public Chronicle.
+
+**Ledger itself cannot limit a Lord's lookups to their own kingdom.** For that hour the Lord can inspect and search the
+whole server's block history, every kingdom included. A grant is an operator's trust decision for one hour, not a
+kingdom scoped power. LuckPerms must already know the player, so they must have joined at least once.
 
 ## Race trinkets: opening the screen and how they look
 

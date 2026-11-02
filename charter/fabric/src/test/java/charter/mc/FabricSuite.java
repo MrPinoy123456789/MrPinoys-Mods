@@ -31,6 +31,7 @@ public final class FabricSuite {
         PadBookTest.run();
         TerminalBookTest.run();
         MapSyncTest.run();
+        LedgerGrantsTest.run();
 
         System.out.println("fabric: " + passed + " passed, " + failures.size() + " failed");
         for (String failure : failures) {

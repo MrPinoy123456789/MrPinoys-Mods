@@ -133,6 +133,38 @@ The builder group is meant to be given for a few hours (`lp user Name parent add
 the world directly: they skip Charter's claim checks and are most likely not recorded by Ledger (unverified; assume
 not). A creative builder can also make items for others, which matters once Charter Currency is in play.
 
+### Who is staff, as the owner decided (2026-11-02)
+
+The groups in section 4 all exist. This is who is in them; nothing in section 4 changed.
+
+| Role | Who | How |
+|---|---|---|
+| admin | MrPinoy123456789 and HowMadYouNow | `lp user <name> parent add admin`, once each has joined the server for the first time (not assigned yet) |
+| builder | nobody standing | granted by the owner on demand, for hours: `lp user Name parent addtemp builder 4h` |
+| moderator | nobody, and not used | the Kingdom Lords moderate their own citizens instead (below) |
+| helper | nobody; probably never | the group stays for a future need |
+| Kingdom Lord | each kingdom's Lord or two Lords, appointed by admins in Charter | no LuckPerms group at all |
+
+Ledger and BanHammer are global: neither can be limited to one kingdom. So a Lord's moderation lives in Charter, and a
+Lord gets **no BanHammer node and no lasting Ledger node**. What a Lord can do (all checked by Charter against the
+target's kingdom, and never to another kingdom's people, another Lord, or anyone with `charter.admin` or
+`charter.bypass`):
+
+- `/charter lord mute|unmute <player> ...`: up to 1 hour.
+- `/charter lord suspend|unsuspend <player> ...`: kept off the kingdom's land, up to 12 hours; they stay a member.
+- `/charter lord kick <player> <reason>`: a disconnect; they may rejoin at once.
+
+Every one is journaled with its reason, sent to online admins, and listed by `/charter admin moderation`. Details and
+the exact rules: `docs/KINGDOM_SERVER.md`, "Lords keep order among their own citizens".
+
+**Temporary Ledger read access for a Lord.** An admin can run `/charter admin ledger grant <player>` for a current
+Lord. Charter runs the LuckPerms temporary nodes `ledger.commands.root`, `.inspect`, `.search` and `.status` for
+exactly 1 hour (`settemp ... true 1h replace`), tells the admin the expiry and tells the Lord. It cannot be extended
+while it stands, it lapses on its own, it is taken back if the player stops being a Lord, and `ledger revoke` ends it
+early. **Ledger cannot restrict those lookups to the Lord's kingdom**: for that hour they can read the whole server's
+block history. Grant it only to a Lord you trust with that, for one investigation. Rollback, restore, preview, teleport
+and player stay with admins.
+
 ## 4. Permission groups (staged as console commands)
 
 `deploy/server-hardening/luckperms-groups.txt` holds every command (paste into the panel console after the restart that
