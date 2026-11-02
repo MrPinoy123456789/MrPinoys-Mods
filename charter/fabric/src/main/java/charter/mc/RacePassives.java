@@ -19,8 +19,13 @@ public final class RacePassives {
 
     /** How often the effects are refreshed, in ticks. */
     public static final int EVERY_TICKS = 100;
-    /** How long each refresh lasts, in ticks: a little longer than the wait. */
-    static final int LASTS_TICKS = EVERY_TICKS + 120;
+    /** Night vision blinks, as if about to run out, once it has this many ticks or fewer left. */
+    static final int FLICKER_TICKS = 200;
+    /**
+     * How long each refresh lasts, in ticks: the wait, plus the night vision flicker, plus a margin, so a passive never gets
+     * near the end between refreshes. It fades within about 20 seconds of losing the race.
+     */
+    static final int LASTS_TICKS = EVERY_TICKS + FLICKER_TICKS + 100;
 
     private RacePassives() {
     }
