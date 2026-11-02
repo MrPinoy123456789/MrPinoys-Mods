@@ -49,7 +49,7 @@ public final class LeaderPages {
     }
 
     public static final List<Group> GROUPS = List.of(
-            new Group("members", List.of(Power.MANAGE_MEMBERS, Power.APPOINT, Power.CREATE_SUBORG)),
+            new Group("members", List.of(Power.MANAGE_MEMBERS, Power.APPOINT, Power.CREATE_SUBORG, Power.MANAGE_RANKS)),
             new Group("money", List.of(Power.SPEND, Power.GRANARY_DEPOSIT, Power.GRANARY_WITHDRAW)),
             new Group("land_war", List.of(Power.PLACE_CORE, Power.CLAIM, Power.RAISE_CAMP, Power.GARRISON, Power.DECLARE_WAR)),
             new Group("justice", List.of(Power.ARREST, Power.JUDGE, Power.PARDON)),
@@ -76,7 +76,7 @@ public final class LeaderPages {
         Optional<Standing.View> view = Standing.of(rt.state, rt.engine, me(player), rt.clock.now());
         if (view.isEmpty()) return false;
         if (!view.get().yourOffices().isEmpty()) return true;
-        return holds(player, view.get().org(), Power.MANAGE_MEMBERS);
+        return holds(player, view.get().org(), Power.MANAGE_MEMBERS) || RankPages.manages(player);
     }
 
     /** Whether the player holds the power now. Only decides what is shown: the engine decides what is allowed. */
@@ -119,14 +119,17 @@ public final class LeaderPages {
         }
         if (admit) buttons.add(go(player, Text.get("book.leader.invite"), p -> invite(p, null)).icon(BookIcons.JOIN));
         buttons.add(go(player, Text.get("book.leader.grant"), p -> grant(p, null)).icon(BookIcons.LEADER));
+        if (RankPages.manages(player)) buttons.add(go(player, Text.get("book.ranks.title"), p -> RankPages.ranks(p, null)).icon(BookIcons.RANKS));
         if (Treasury.available(rt) && holds(player, org, Power.SPEND)) {
             buttons.add(go(player, Text.get("book.leader.treasury"), p -> treasury(p, null)).icon(BookIcons.TREASURY));
         }
         if (holds(player, org, Power.ARREST) || holds(player, org, Power.JUDGE) || holds(player, org, Power.PARDON)) {
             buttons.add(go(player, Text.get("book.leader.justice"), p -> JusticePages.home(p, null)).icon(BookIcons.JUSTICE));
         }
+        BookButton decides = null;
         if (rt.engine.eligibleVoters(org, now).contains(me(player))) {
-            buttons.add(go(player, Text.get("book.leader.decides"), p -> MemberPages.whoDecides(p, null)).icon(BookIcons.STAND));
+            decides = go(player, Text.get("book.leader.decides"), p -> MemberPages.whoDecides(p, null)).icon(BookIcons.STAND);
+            buttons.add(decides);
         }
         if (holds(player, org, Power.DECLARE_WAR)) {
             buttons.add(go(player, Text.get("book.war.title"), p -> WarPages.page(p, null)).icon(BookIcons.WAR));
@@ -134,6 +137,8 @@ public final class LeaderPages {
         if (hasKeep(org) && holds(player, org, Power.PLACE_CORE)) {
             buttons.add(go(player, Text.get("book.leader.nexus"), p -> nexus(p, null)).icon(BookIcons.KEEP));
         }
+        // Fold rule: with every button a Lord can have, Who decides goes (it is on My faction too), so the desk never pages.
+        if (buttons.size() > BookScreen.MAX_BUTTONS && decides != null) buttons.remove(decides);
         BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.title"),
                 BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.leader.intro")))), buttons,
                 BookDialogs.back(player, p -> MemberPages.home(p, null))));

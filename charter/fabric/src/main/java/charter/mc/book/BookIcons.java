@@ -32,6 +32,8 @@ public final class BookIcons {
     public static final String YES = "textures/items/emerald";
     public static final String NO = "textures/items/barrier";
     public static final String NEW_BOOK = "textures/items/book_writable";
+    /** Ranks and titles: a golden helmet, the nearest thing to a crown in the vanilla pack. */
+    public static final String RANKS = "textures/items/gold_helmet";
 
     private BookIcons() {
     }

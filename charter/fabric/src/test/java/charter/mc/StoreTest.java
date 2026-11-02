@@ -408,7 +408,12 @@ final class StoreTest {
         FullState f = FullState.build();
         CharterStore.Loaded loaded = store(dir).load(f.knobs, f.clock.now());
         CharterState back = loaded.state();
-        check("old ledger: the repairs found are still the four it always had (" + loaded.repairs().count() + ")", loaded.repairs().count() == 4);
+        // Ranks came later: each older kingdom's Lord is given the power to manage ranks, one note each, on top of the four.
+        long rankNotes = loaded.repairs().found().stream()
+                .filter(e -> e instanceof charter.mc.store.StoreEvents.Repaired r && r.kind().equals("lord_power_added")).count();
+        check("old ledger: the repairs found are still the four it always had (" + (loaded.repairs().count() - rankNotes) + ")",
+                loaded.repairs().count() - rankNotes == 4);
+        check("old ledger: every Lord was given the power to manage ranks (" + rankNotes + ")", rankNotes > 0);
 
         charter.org.Organization oak = back.orgNamed("Oakvale").orElseThrow();
         check("old ledger: the diamonds and cobblestone load as they were",

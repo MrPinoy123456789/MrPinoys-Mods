@@ -77,6 +77,7 @@ public final class StandPages {
     private static List<String> status(CharterRuntime rt, PlayerId me, Standing.View v, long now) {
         List<String> out = new ArrayList<>();
         out.add(Text.get("book.situation.member", "org", v.orgName(), "time", Chat.duration(now - v.memberSince())));
+        rt.state.ranks.rankOf(rt.state, me).ifPresent(rank -> out.add(Text.get("book.stand.rank", "rank", rank.name())));
         Optional<Contract> held = Justice.holding(rt.state, rt.knobs, me, now);
         if (held.isPresent()) {
             Contract c = held.get();

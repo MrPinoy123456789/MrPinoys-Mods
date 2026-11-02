@@ -212,6 +212,69 @@ race and no kingdom wears [Mercenary]. Colours are the `tagColors` knob in `char
 a hex colour, plus `mercenary`); a kingdom with no entry gets no tag. Defaults: Everdelle pink, Azurius baby blue,
 Faeloria purple, Azrak gold (#FFD700), Aurelia a deeper red orange (#FF6A1A), Mercenary blood red. Only teams named `ct_*` are touched, so a player on
 another team keeps it. Bedrock players see the tag only if Geyser carries the team prefix, which is unverified.
+## Ranks and tags
+
+Every kingdom has a ladder of ranks (titles), top first: the top rank always belongs to whoever holds the decision
+office (the Lord, which a kingdom renames King or Queen), and the last rank is the default every other member holds.
+A kingdom starts with two, "Lord" and "Commoner", and nothing is stored until a Lord edits; an old save loads exactly
+so, every member a Commoner and the Lord at the top. A kingdom has at most 12 ranks. The top rank can only be renamed;
+the default rank can be renamed but not removed or moved; the others can be added, renamed, moved up or down and
+removed (their holders go back to the default rank). Names are 1 to 20 characters, spaces at the ends cut, with no
+colour codes, brackets, braces, bars, backslashes, control or formatting characters. A member holds exactly one rank;
+leaving the kingdom forgets it. Model: `charter.org.Ranks`; actions `rank.add`, `rank.rename`, `rank.remove`,
+`rank.move`, `rank.give`, `rank.set_power`, each with a Chronicle line (moving is not told).
+
+Who may: the Lord, an operator, the kingdom by its own vote, or anyone given the new power `MANAGE_RANKS` (in the
+"Members and offices" group of Give a power). Lords of kingdoms founded before ranks are given `MANAGE_RANKS` on load
+(repair note `lord_power_added`). Only the Lord (or an operator) sets what a rank may do, and only the Lord gives or
+takes a rank that carries powers.
+
+Privileges: a rank's powers are ordinary grants to the rank, derived from the Lord's own passable grant, so a rank
+never carries more than the Lord could pass on and loses a power the moment the Lord does. A member's powers are their
+own grants plus their rank's, worked out live by `AuthorityResolver`. Amending the charter, dissolving, appointing to
+offices, making sub-factions and managing ranks are never given to a rank. Default ranks carry nothing, so nothing
+changes until a Lord opts in.
+
+Where: the Leader's Desk has a Ranks page (rename with a dropdown of King, Queen, Prince, Princess, Duke, Duchess,
+Knight, Royal Commander, Commoner, Peasant or a typed name; move up and down; add; remove with a confirm; Give a rank
+with a member dropdown and a rank dropdown; What it may do, grouped as Give a power). Where I stand shows your rank;
+My faction has a read only Ranks list with who holds each. Commands, behind the same checks:
+`/charter rank [list]`, `/charter rank rename <rank> <name>`, `/charter rank add <name>`, `/charter rank remove <rank>`,
+`/charter rank up|down <rank>`, `/charter rank set <player> <rank>`, `/charter rank power <rank> <power> on|off`, and
+for operators the same under `/charter admin faction title <kingdom> ...`.
+
+Tags: once a kingdom's ranks were edited, a member's tag reads `[Faeloria] Queen Heather`: the bracket in the kingdom
+colour, the rank in grey. That takes one scoreboard team per kingdom and rank (`ct_<kingdom part><hash>.<rank>`, at most
+12 a kingdom); empty `ct_` teams are dropped on each refresh. A kingdom whose ranks were never edited keeps its one
+`ct_<kingdom>` team and the old tag. Mercenaries keep `[Mercenary]` with no rank. Knobs in `charter.json`:
+`showRankTags` (default true) shows the rank in the tag; `rankInChat` (default true) off shows only the kingdom tag in
+chat while the head and tab list keep the rank.
+
+Bedrock (through Geyser), expected but unconfirmed until a Bedrock client looks: Geyser builds the Bedrock name tag from
+the Java team prefix, so the head should read the same, with the kingdom colour rounded to the nearest of Bedrock's 16
+colours (grey is one of them, so the rank colour is exact). Chat carries the same prefix. The Bedrock player list may
+show only plain names.
+
+Text: the jar's `data/charter/lang/en_us.json` holds the new keys. The server's `config/charter/en_us.json` is laid
+over the jar's text key by key, so keys it lacks (all the new ones) show the jar's words; only keys it already has keep
+the old wording. The new keys (71): `name.rank_holder`, `power.manage_ranks`, `motion.rank.add`, `motion.rank.rename`,
+`motion.rank.remove`, `motion.rank.move`, `motion.rank.give`, `motion.rank.set_power`, `book.power.manage_ranks`,
+`book.grant.power.manage_ranks`, `book.ranks.title`, `book.ranks.intro`, `book.ranks.entry`,
+`book.ranks.give`, `book.ranks.add`, `book.ranks.not_yours`, `book.ranks.gone`, `book.ranks.about`,
+`book.ranks.top_note`, `book.ranks.default_note`, `book.ranks.no_powers`, `book.ranks.has_powers`,
+`book.ranks.rename`, `book.ranks.up`, `book.ranks.down`, `book.ranks.powers`, `book.ranks.remove`, `book.ranks.moved`,
+`book.ranks.remove_title`, `book.ranks.remove_confirm`, `book.ranks.remove_verb`, `book.ranks.removed`,
+`book.ranks.own_name`, `book.ranks.pick`, `book.ranks.typed`, `book.ranks.name_intro`, `book.ranks.no_name`,
+`book.ranks.rename_title`, `book.ranks.rename_send`, `book.ranks.renamed`, `book.ranks.add_send`, `book.ranks.added`,
+`book.ranks.give_intro`, `book.ranks.give_none`, `book.ranks.give_who`, `book.ranks.give_rank`,
+`book.ranks.give_send`, `book.ranks.given`, `book.ranks.powers_intro`, `book.ranks.toggle_intro`,
+`book.ranks.power_on`, `book.ranks.power_off`, `book.ranks.power_given`, `book.ranks.power_taken`, `book.ranks.yours`,
+`book.ranks.line`, `book.ranks.nobody`, `book.ranks.change`, `book.stand.rank`, `book.tip.rank`, `book.holder.rank`,
+`rank.cmd.head`, `rank.cmd.line`, `rank.cmd.no_kingdom`, `rank.cmd.added`, `rank.cmd.renamed`, `rank.cmd.removed`,
+`rank.cmd.moved`, `rank.cmd.given`, `rank.cmd.power_on`, `rank.cmd.power_off`. 
+To reword them on the server, add them to that file or delete it so the
+next boot writes a fresh copy.
+
 ## Moving a keep
 
 `/charter admin faction move "<kingdom>" <x> <y> <z>` moves the kingdom's keep so its core chunk is the one at those

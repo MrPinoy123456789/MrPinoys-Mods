@@ -19,4 +19,8 @@ public sealed interface Holder {
 
     record OfOrg(OrgId org) implements Holder {
     }
+
+    /** Whoever holds this rank of the kingdom at the moment the grant is used (charter.org.Ranks). */
+    record OfRank(OrgId kingdom, String rank) implements Holder {
+    }
 }

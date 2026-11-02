@@ -158,6 +158,13 @@ public final class Knobs {
     public java.util.Map<String, String> tagColors = new java.util.LinkedHashMap<>(java.util.Map.of(
             "everdelle", "#FF69B4", "azurius", "#89CFF0", "faeloria", "#A020F0",
             "azrak", "#FFD700", "aurelia", "#FF6A1A", "mercenary", "#8A0303"));
+    /**
+     * Whether a member's rank shows after their kingdom's tag, "[Faeloria] Queen Heather", over the head, in the tab
+     * list and in chat. Only a kingdom whose Lord has edited its ranks shows them; until then the tag is as before.
+     */
+    public boolean showRankTags = true;
+    /** Whether the rank also shows before a name in chat. Off: chat shows the kingdom tag only, the name tag keeps the rank. */
+    public boolean rankInChat = true;
     /** Whether a keep turns away players who are not its members, not at war with it and not operators. */
     public boolean closedKeeps = false;
     /**

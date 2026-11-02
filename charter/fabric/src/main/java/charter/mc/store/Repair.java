@@ -32,6 +32,7 @@ public final class Repair {
 
     public static void run(CharterState state, Knobs knobs, Repairs repairs) {
         deciders(state, knobs, repairs);
+        laterLordPowers(state, repairs);
         grants(state, repairs);
         parents(state, repairs);
         votes(state, repairs);
@@ -54,6 +55,14 @@ public final class Repair {
             org.governance.deciders = office.id;
             charter.gov.Preset.addLordGrants(state, org.id, office.id, knobs, repairs.now());
             repairs.note("deciders_created", org.name() + ": a decision makers office with no seats, as a Commune has");
+        }
+    }
+
+    /** A Lord of a kingdom founded before a routine power existed (managing ranks) is given it, as founding gives it now. */
+    private static void laterLordPowers(CharterState state, Repairs repairs) {
+        for (Grant g : charter.gov.Preset.addLaterLordGrants(state, repairs.now())) {
+            repairs.note("lord_power_added", state.org(g.subject).map(Organization::name).orElse(String.valueOf(g.subject))
+                    + ": its decision office may now " + g.power.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '));
         }
     }
 

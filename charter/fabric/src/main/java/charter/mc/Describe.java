@@ -59,6 +59,8 @@ public final class Describe {
             case Holder.OfPlayer p -> player(p.player());
             case Holder.OfOffice o -> Text.get("name.office_holder", "office", office(o.office()));
             case Holder.OfOrg o -> org(o.org());
+            case Holder.OfRank r -> Text.get("name.rank_holder", "rank",
+                    state.ranks.rank(r.kingdom(), r.rank()).map(charter.org.Ranks.Rank::name).orElse(r.rank()), "org", org(r.kingdom()));
         };
     }
 
@@ -84,6 +86,25 @@ public final class Describe {
         };
     }
 
+    /**
+     * A rank action names its rank by id ("r3"); the motion text wants the name players see, so {@code {rank_name}} is
+     * the rank's name now, or the id when the rank is gone.
+     */
+    private void rankName(Action action, Map<String, Object> fields) {
+        OrgId kingdom = switch (action) {
+            case charter.org.actions.RenameRank a -> a.kingdom();
+            case charter.org.actions.RemoveRank a -> a.kingdom();
+            case charter.org.actions.MoveRank a -> a.kingdom();
+            case charter.org.actions.GiveRank a -> a.kingdom();
+            case charter.org.actions.SetRankPower a -> a.kingdom();
+            default -> null;
+        };
+        if (kingdom == null) return;
+        Object rank = fields.get("rank");
+        if (rank == null) return;
+        fields.put("rank_name", state.ranks.rank(kingdom, String.valueOf(rank)).map(charter.org.Ranks.Rank::name).orElse(String.valueOf(rank)));
+    }
+
     /** "pay 10 diamonds to Bob": the action's text key filled from its fields. */
     public String action(Action action) {
         if (action == null) return Text.get("motion.unknown");
@@ -98,6 +119,7 @@ public final class Describe {
                 }
             }
         }
+        rankName(action, fields);
         String text = Text.fill("motion." + tag, fields);
         return text != null ? text : Text.get("motion.unknown_kind", "kind", tag);
     }

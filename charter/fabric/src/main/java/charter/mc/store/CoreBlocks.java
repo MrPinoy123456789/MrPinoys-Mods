@@ -448,6 +448,8 @@ public final class CoreBlocks {
             case Holder.OfPlayer p -> true;
             case Holder.OfOffice o -> state.allOffices().stream().anyMatch(x -> x.id.equals(o.office()));
             case Holder.OfOrg o -> state.orgIncludingDissolved(o.org()).isPresent();
+            // The ranks block reads after the grants, so only the kingdom is checked here; the resolver checks the rank.
+            case Holder.OfRank r -> state.orgIncludingDissolved(r.kingdom()).isPresent();
         };
     }
 

@@ -90,6 +90,7 @@ public final class CharterCommands {
     }
 
     public static void register() {
+        RankCommands.register();
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter")
                         .executes(CharterCommands::menu)

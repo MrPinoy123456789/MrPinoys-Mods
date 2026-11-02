@@ -59,6 +59,7 @@ public final class Secession {
             case Holder.OfOrg o -> o.org();
             case Holder.OfOffice o -> state.office(o.office()).map(x -> x.org).orElse(null);
             case Holder.OfPlayer p -> null;
+            case Holder.OfRank r -> r.kingdom();
         };
     }
 }

@@ -29,7 +29,8 @@
     "SpawnServerPlayerMixin",
     "BoundSlotMixin",
     "BoundBundleMixin",
-    "BoundDropMixin"
+    "BoundDropMixin",
+    "ChatRankMixin"
   ],
   "injectors": {
     "defaultRequire": 1

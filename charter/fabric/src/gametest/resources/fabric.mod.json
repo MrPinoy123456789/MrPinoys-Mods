@@ -40,7 +40,8 @@
       "charter.gametest.PadGameTest",
       "charter.gametest.TerminalGameTest",
       "charter.gametest.BookRulesGameTest",
-      "charter.gametest.NexusLiftGameTest"
+      "charter.gametest.NexusLiftGameTest",
+      "charter.gametest.RankGameTest"
     ]
   },
   "mixins": [
