@@ -1429,3 +1429,26 @@ Retired: `frame_lock` (one specific key item in the return chest, `Locks.Kind.IT
 Checked and kept: `gallery` (an ungated plinth room since 2026-09-04), `hold_the_plate` (the Plate Relay, where you hold the lit plate among four corners), `plate_pair`, the Copper Works loading bay (hoppers as set dressing, no gate), `barred_vault` (a vault block, no hopper) and the Altar offering spur (a hopper feeds an optional key payout, not a door). No room uses `Locks.Kind.HOPPER_KEY` any more, so that kind is dead code, left in place.
 
 `layout_fingerprint.txt` and `layout_fingerprint_stairs.txt` were regenerated on purpose: their synthetic pools carried a `flow_puzzle` stand in, which the real pool no longer offers, so it was removed from the fixtures (`GraphSolvabilityTest`, `LayoutFingerprintTest`, `StairTestSupport`). `RetiredRoomsTest` fails if a retired room is ever offered.
+
+## 2026-11-02: Wild loot is war supplies
+
+Owner, 2026-11-02, after a propose-and-pick round on wild loot: *"Gold, Golden Apples, Iron, Emeralds, and Netherwart
+for starters. They need these for war."* The owner may move the currency off iron coins, because players can build
+iron farms, so wild loot is not tied to the Mint or to any coin.
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| What wild pays | Gold ingots, golden apples, iron ingots, emeralds and nether wart; a trial key now and then so vaults open | `tools/gen_wild_loot.py` |
+| Tables | A wild twin of every table a wild floor resolves: `chests/tier_N_wild`, `chests/tier_N_ominous_wild`, `chests/supply_tier_N_wild`, `vaults/tier_N_wild`, `vaults/tier_N_ominous_wild` (20 files, generated) | `loot_table/` |
+| Routing | A wild floor stamps and pays with the `_wild` suffix and ignores the theme's own suffix and loot table override, so room chests, supply chests, trial vaults and the reward barrel all pay war supplies | `WildLoot`, `LayoutStamper` (`StampParams.wild`), `RunLifecycle.placeFloorRewards` |
+| Campaign | Untouched: campaign floors keep their tables, and the K and K2 loot rules (`LootRulesTest`) still hold there. The `_wild` tables are exempt from them on purpose | `LootRulesTest` |
+
+Removed from wild loot: bread, beef, cake, cobblestone, planks, torches, sand and gravel (pocket run filler), and
+raw diamonds, netherite ingots and enchanted golden apples (too much for 30 lodestones on one server).
+
+Still campaign shaped on a wild floor: the copper chest's promised gear (`gear/*`), the spur and payoff caches
+(`vaults/spur_*`, `vaults/spur_payoff`, `vaults/barred_vault`), and the offerings' bonus items. Wild clears still pay no
+Valor or Renown: `WildRewards` has a currency seam with nothing plugged in.
+
+Open questions: the counts are a first pass, to tune after a real clear; whether the copper chest gear should become
+war gear; whether wild clears should pay Valor and kingdom Renown once the currency settles.
