@@ -530,7 +530,9 @@ for ((taskName, testClass) in mapOf(
     // Crew model (decision 2026-10-21, spec 5/6): the act_reward data type.
     "actRewardDataTest" to "ActRewardDataTest",
     // Wild clear gate: asked on every watch tick, never tied to the world clock phase (playtest 2026-11-02).
-    "wildClearGateTest" to "WildClearGateTest"
+    "wildClearGateTest" to "WildClearGateTest",
+    // Wild loot: war supplies only, a wild twin for every table a wild floor resolves (owner, 2026-11-02).
+    "wildLootTest" to "WildLootTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -540,6 +542,8 @@ for ((taskName, testClass) in mapOf(
 }
 
 tasks.test {
+    dependsOn("wildClearGateTest")
+    dependsOn("wildLootTest")
     dependsOn("dungeonThemeMetaTest")
     dependsOn("keystoneOfferTest")
     dependsOn("adventureGraphTest")

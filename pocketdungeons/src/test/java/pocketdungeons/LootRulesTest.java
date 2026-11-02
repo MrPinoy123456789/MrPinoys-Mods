@@ -47,7 +47,8 @@ import java.util.stream.Stream;
  * world hands out, so the rare-food and tool rules do not apply to it.
  * {@code modules/} tables are checked against their manifest instead.
  * {@code endless_mine/} (the guardian tier tables) is exempt on purpose: the owner asked for copper,
- * gold and redstone there (decision 2026-10-11), which the core tables cut.
+ * gold and redstone there (decision 2026-10-11), which the core tables cut. The {@code *_wild} tables are exempt too:
+ * wild dungeons pay war supplies, gold and golden apples included (owner, 2026-11-02); {@code WildLootTest} checks them.
  * Runs headless over the source tree, like {@link TrialKeyLootTest}.
  */
 public class LootRulesTest {
@@ -136,7 +137,7 @@ public class LootRulesTest {
                 String rel = LOOT_ROOT.relativize(file).toString().replace('\\', '/');
                 if (rel.startsWith("bags/") || rel.startsWith("affixes/")
                         || rel.startsWith("modules/") || rel.startsWith("gameplay/")
-                        || rel.startsWith("endless_mine/")) {
+                        || rel.startsWith("endless_mine/") || rel.endsWith("_wild.json")) {
                     continue;
                 }
                 files++;

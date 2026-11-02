@@ -1429,3 +1429,57 @@ Retired: `frame_lock` (one specific key item in the return chest, `Locks.Kind.IT
 Checked and kept: `gallery` (an ungated plinth room since 2026-09-04), `hold_the_plate` (the Plate Relay, where you hold the lit plate among four corners), `plate_pair`, the Copper Works loading bay (hoppers as set dressing, no gate), `barred_vault` (a vault block, no hopper) and the Altar offering spur (a hopper feeds an optional key payout, not a door). No room uses `Locks.Kind.HOPPER_KEY` any more, so that kind is dead code, left in place.
 
 `layout_fingerprint.txt` and `layout_fingerprint_stairs.txt` were regenerated on purpose: their synthetic pools carried a `flow_puzzle` stand in, which the real pool no longer offers, so it was removed from the fixtures (`GraphSolvabilityTest`, `LayoutFingerprintTest`, `StairTestSupport`). `RetiredRoomsTest` fails if a retired room is ever offered.
+
+## 2026-11-02: Wild loot is war supplies
+
+Owner, 2026-11-02, after a propose-and-pick round on wild loot: *"Gold, Golden Apples, Iron, Emeralds, and Netherwart
+for starters. They need these for war."* The owner may move the currency off iron coins, because players can build
+iron farms, so wild loot is not tied to the Mint or to any coin.
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| What wild pays | Gold ingots, golden apples, iron ingots, emeralds and nether wart; a trial key now and then so vaults open | `tools/gen_wild_loot.py` |
+| Tables | A wild twin of every table a wild floor resolves: `chests/tier_N_wild`, `chests/tier_N_ominous_wild`, `chests/supply_tier_N_wild`, `vaults/tier_N_wild`, `vaults/tier_N_ominous_wild` (20 files, generated) | `loot_table/` |
+| Routing | A wild floor stamps and pays with the `_wild` suffix and ignores the theme's own suffix and loot table override, so room chests, supply chests, trial vaults and the reward barrel all pay war supplies | `WildLoot`, `LayoutStamper` (`StampParams.wild`), `RunLifecycle.placeFloorRewards` |
+| Campaign | Untouched: campaign floors keep their tables, and the K and K2 loot rules (`LootRulesTest`) still hold there. The `_wild` tables are exempt from them on purpose | `LootRulesTest` |
+
+Removed from wild loot: bread, beef, cake, cobblestone, planks, torches, sand and gravel (pocket run filler), and
+raw diamonds, netherite ingots and enchanted golden apples (too much for 30 lodestones on one server).
+
+Still campaign shaped on a wild floor: the copper chest's promised gear (`gear/*`), the spur and payoff caches
+(`vaults/spur_*`, `vaults/spur_payoff`, `vaults/barred_vault`), and the offerings' bonus items. Wild clears still pay no
+Valor or Renown: `WildRewards` has a currency seam with nothing plugged in.
+
+Open questions: the counts are a first pass, to tune after a real clear; whether the copper chest gear should become
+war gear; whether wild clears should pay Valor and kingdom Renown once the currency settles.
+
+## 2026-11-02: Wild loot competes with farms
+
+Owner, 2026-11-02: *"we should make holding these dungeons with outposts at the entrance competitive with the
+farms."* Of the three options (pay what farms can't, holding pays tribute, or both) the owner picked the first:
+*"just do A for now, I don't want to put any mechanics like tributes yet"*. Loot only; no new mechanics.
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| Farmable supplies | About five times the first pass: a plain clear pays roughly 90 iron, 80 nether wart, 46 gold and 31 emeralds at tier 1, and 160 iron, 160 wart, 93 gold and 66 emeralds at tier 3 | `tools/gen_wild_loot.py` |
+| Golden apples | By the stack, since farms can't make apples: every vault always pays a stack, and chests weigh them heavier. About 8 a clear at tier 1, 11 at tier 2, 16 at tier 3, 24 at tier 4 | same |
+| War tier | From tier 3 (level 10 up), what no farm makes: enchanted golden apples (about 1 a clear), diamonds (about 8), netherite scrap, ancient debris, and Protection IV and Sharpness V books. Vaults roll once on it; a tier 3 vault pays an enchanted golden apple half the time (three times in four when ominous) and a tier 4 vault always does | same |
+| Tests | `WildLootTest` keeps tiers 1 and 2 to the five supplies, requires the whole war tier from tier 3, allows only those two books, and requires an unconditional golden apple pool in every vault | `WildLootTest` |
+
+The yields assume a typical clear of six chest rolls (the barrel plus the room chests), one vault and two supply
+chests; the generator prints them. Loot tiers come from `KeystoneMath.lootTier`, so the war tier starts at level
+10, not level 8 as first proposed. Of the current offerings, deep_quarry and the_dive reach it at level 10 only,
+gilded_seam at 10 to 12 and chorus_orchard at 10 to 14. Tier 4 (level 20) is unreachable while every `maxLevel` is
+14 or less.
+
+This supersedes the 2026-11-02 war supplies section's removal of enchanted golden apples, which come back from
+tier 3, and adds diamonds and netherite scrap in their place. Raw diamonds, netherite ingots and filler stay out.
+
+Open questions: the counts against real farm rates once kingdoms build them; whether a held dungeon should also pay
+something (tribute, faster resets), set aside by the owner for now.
+
+**Nerf, same day.** Owner: *"nerf the supplies for now 50%"*. `SUPPLY_SCALE = 0.5` in the generator halves every
+count of the five supplies (half up, never below 1); the war tier and trial keys are unchanged. The figures in the
+table above are now roughly halved: a plain clear pays about 45 iron, 40 wart, 23 gold, 16 emeralds and 5 golden
+apples at tier 1, and 80 iron, 80 wart, 47 gold, 33 emeralds and 8 or 9 golden apples at tier 3. Set the scale back to
+1.0 to undo it.

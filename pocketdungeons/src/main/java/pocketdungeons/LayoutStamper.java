@@ -71,7 +71,7 @@ final class LayoutStamper {
     static InstanceLayout stamp(ServerLevel level, BlockPos origin, DungeonPlan plan,
                                 int keystoneLevel, Set<String> affixes, UUID owner) {
         return stamp(new StampParams(level, origin, plan, keystoneLevel, affixes, owner, false, null,
-                Set.of(), null, NodeStamper.Context.NONE));
+                Set.of(), null, NodeStamper.Context.NONE, false));
     }
 
     /**
@@ -111,7 +111,7 @@ final class LayoutStamper {
             throw new IllegalStateException("stamp failure injected by a test");
         }
         return stamp(new StampParams(level, origin, plan, keystoneLevel, affixes, owner, true, theme,
-                standingCells, lootBand, nodeCtx));
+                standingCells, lootBand, nodeCtx, false));
     }
 
     /**
@@ -122,7 +122,7 @@ final class LayoutStamper {
                                     Set<String> affixes, String theme, DungeonDef.LootBand lootBand,
                                     NodeStamper.Context nodeCtx) {
         return stamp(new StampParams(level, origin, plan, keystoneLevel, affixes, null, false, theme,
-                Set.of(), lootBand, nodeCtx));
+                Set.of(), lootBand, nodeCtx, true));
     }
 
     /**
@@ -230,7 +230,7 @@ final class LayoutStamper {
                                int keystoneLevel, Set<String> affixes, UUID owner,
                                boolean entranceAlreadyStamped, String theme,
                                Set<BlockPos> standingCells, DungeonDef.LootBand lootBand,
-                               NodeStamper.Context nodeCtx) {}
+                               NodeStamper.Context nodeCtx, boolean wild) {}
 
     /**
      * What one stamp pass reads and accumulates, so the per-cell phase takes one
@@ -350,8 +350,10 @@ final class LayoutStamper {
         requireReturnPath(level, cellOrigin, placed, entry);
 
         int depth = plan.depths().getOrDefault(cell, 0);
-        String lootSuffix = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix;
-        String lootTableOverride = (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootTable;
+        String lootSuffix = WildLoot.suffix(p.wild(),
+                (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootSuffix);
+        String lootTableOverride = WildLoot.override(p.wild(),
+                (isAnomalyCell || runTheme == null) ? null : runTheme.meta().lootTable);
         List<BlockPos> spawnerAnchors = RoomContent.apply(
                 new RoomContent.CellSite(level, cellOrigin, plan.roles().get(cell), depth, spawns,
                         plan.seed(), entry.meta.content),

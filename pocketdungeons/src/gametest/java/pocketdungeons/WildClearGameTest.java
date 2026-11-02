@@ -154,10 +154,37 @@ public final class WildClearGameTest {
             boolean copper = false;
             var copperBlock = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
                     net.minecraft.resources.Identifier.withDefaultNamespace("copper_chest"));
+            // Wild loot is war supplies (owner, 2026-11-02), plus the war tier from level 10: the barrel holds
+            // nothing else.
+            java.util.Set<net.minecraft.world.item.Item> supplies = java.util.Set.of(Items.GOLD_INGOT, Items.GOLDEN_APPLE,
+                    Items.IRON_INGOT, Items.EMERALD, Items.NETHER_WART, Items.TRIAL_KEY, Items.ENCHANTED_GOLDEN_APPLE,
+                    Items.DIAMOND, Items.NETHERITE_SCRAP, Items.ANCIENT_DEBRIS, Items.ENCHANTED_BOOK, Items.BOOK);
+            int barrelStacks = 0;
             for (BlockPos pos : BlockPos.betweenClosed(terminal, terminal.offset(15, 4, 15))) {
                 var block = level.getBlockState(pos).getBlock();
                 barrel |= block == Blocks.BARREL;
                 copper |= block == copperBlock;
+                if (block == Blocks.BARREL && level.getBlockEntity(pos) instanceof net.minecraft.world.Container box) {
+                    for (int slot = 0; slot < box.getContainerSize(); slot++) {
+                        net.minecraft.world.item.ItemStack stack = box.getItem(slot);
+                        if (stack.isEmpty()) {
+                            continue;
+                        }
+                        barrelStacks++;
+                        helper.assertTrue(supplies.contains(stack.getItem()), "the wild barrel holds " + stack + ", not a war supply");
+                    }
+                }
+            }
+            helper.assertTrue(barrelStacks > 0, "the wild barrel pays something");
+            // Room chests and vaults keep their table until opened: every one names a wild table.
+            for (BlockPos cell : record.liveCells()) {
+                for (BlockPos pos : BlockPos.betweenClosed(cell.offset(0, -16, 0), cell.offset(15, 15, 15))) {
+                    if (level.getBlockEntity(pos) instanceof net.minecraft.world.RandomizableContainer box
+                            && box.getLootTable() != null) {
+                        String table = box.getLootTable().identifier().getPath();
+                        helper.assertTrue(table.endsWith(WildLoot.SUFFIX), "a wild room chest rolls " + table);
+                    }
+                }
             }
             helper.assertTrue(barrel, "the reward barrel stands in the terminal cell");
             helper.assertTrue(copper, "the copper chest stands in the terminal cell");

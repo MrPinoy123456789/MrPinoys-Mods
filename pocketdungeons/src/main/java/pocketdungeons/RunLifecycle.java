@@ -1541,10 +1541,11 @@ final class RunLifecycle {
                         vaultRolls, vaultTier),
                 new TrialContent.RewardLoot(record.floor.affixes.contains(AffixIds.OMINOUS),
                         record.layout.seed(),
-                        completionTheme == null ? null : completionTheme.meta().lootSuffix,
-                        ProvingWaves.payingTable(record, floorsCleared,
+                        WildLoot.suffix(record.wild,
+                                completionTheme == null ? null : completionTheme.meta().lootSuffix),
+                        WildLoot.override(record.wild, ProvingWaves.payingTable(record, floorsCleared,
                                 MineGuardians.payingTable(record, floorsCleared,
-                                        completionTheme == null ? null : completionTheme.meta().lootTable))),
+                                        completionTheme == null ? null : completionTheme.meta().lootTable)))),
                 withExtra(promisedItems(level, tripDef, record), extraPromised));
         if (finishedNow) {
             finishDungeon(server, level, record, tripDef, terminalOrigin, entranceDir, completionTheme);
