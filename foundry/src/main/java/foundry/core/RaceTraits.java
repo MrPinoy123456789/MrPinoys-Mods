@@ -49,11 +49,24 @@ public record RaceTraits(Map<String, Trait> races) {
      * the forward push of a double jump (blocks per tick along the way the player faces), for a race that has one.
      * {@code tradeDiscount} is the share taken off villager and wandering trader prices (see {@link #discount}).
      */
-    public record Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount) {
+    public record Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount,
+                        Flight flight) {
         public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense) {
-            this(stride, mount, fallDamage, jumpDrift, sense, 0);
+            this(stride, mount, fallDamage, jumpDrift, sense, 0, null);
+        }
+
+        public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount) {
+            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, null);
         }
     }
+
+    /**
+     * Powered flight for a race that glides (the Fairies; see {@link WingFlight}): the takeoff leap's upward speed in
+     * blocks per tick ({@code leap}, 0 for none) and its cooldown in ticks; how many wingbeats ({@code beats}), each one's
+     * lift and forward push in blocks per tick, the ticks for one to come back in the air ({@code refill}), and the
+     * horizontal speed a beat never pushes past ({@code maxSpeed}, blocks per tick; a rocket goes about 1.7).
+     */
+    public record Flight(double leap, int leapCooldown, int beats, double beatLift, double beatPush, int refill, double maxSpeed) {}
 
     /** The result of reading a file: the traits, and what was wrong with it (the traits are the defaults if unreadable). */
     public record Parsed(RaceTraits traits, List<String> problems) {}
@@ -99,7 +112,8 @@ public record RaceTraits(Map<String, Trait> races) {
                 new Sense("Treasure sense", TREASURE, 8, 40, 0xC9CED8), 0.1));
         r.put("race:faeloria", new Trait(null, null, 0.5, 0.15, new Sense("Herb sense", HERBS, 12, 40, 0x7CD35A)));
         r.put("race:azurius", new Trait(null, null, 0, 0, new Sense("Tide sense", TIDE, 10, 40, 0x3FC2CF)));
-        r.put("race:everdelle", new Trait(null, null, 0, 0, new Sense("Glimmer sense", GLIMMER, 7, 80, 0xF59AC4)));
+        r.put("race:everdelle", new Trait(null, null, 0, 0, new Sense("Glimmer sense", GLIMMER, 7, 80, 0xF59AC4), 0,
+                new Flight(1.05, 100, 3, 0.55, 0.3, 200, 1.2)));
         r.put("race:mossbeard_s_muddle", new Trait(new Stride(0.15, Ground.WILD), null, 0, 0,
                 new Sense("Kindred sense", NESTS, 12, 40, 0x6FAF3A)));
         return new RaceTraits(Map.copyOf(r));
@@ -108,7 +122,8 @@ public record RaceTraits(Map<String, Trait> races) {
     /**
      * Parses the file: {@code {"race:azrak": {"stride": {"bonus": 0.15, "ground": "underground"}, "mount": {"speed": 0.2,
      * "jump": 0.1}, "fall_damage": 0.5, "jump_drift": 0.15, "sense": {"name": "Ore sense", "blocks": [...], "radius": 8,
-     * "every": 40, "colour": "#E0B040"}, "trade_discount": 0.1}}. A race listed in the file replaces the built in one; a race left out keeps it.
+     * "every": 40, "colour": "#E0B040"}, "trade_discount": 0.1, "flight": {"leap": 1.05, "leap_cooldown": 100, "beats": 3,
+     * "beat_lift": 0.55, "beat_push": 0.3, "refill": 200, "max_speed": 1.2}}}. A race listed in the file replaces the built in one; a race left out keeps it.
      * A bad file gives the defaults and a problem line.
      */
     public static Parsed parse(String json) {
@@ -189,7 +204,23 @@ public record RaceTraits(Map<String, Trait> races) {
             problems.add(where + " trade_discount must be at most 0.5");
             trade = 0.5;
         }
-        return new Trait(stride, mount, fall, drift, sense, trade);
+        Flight flight = null;
+        if (o.has("flight")) {
+            JsonObject f = o.getAsJsonObject("flight");
+            double leap = f.has("leap") ? f.get("leap").getAsDouble() : 0;
+            double lift = f.has("beat_lift") ? f.get("beat_lift").getAsDouble() : 0;
+            double push = f.has("beat_push") ? f.get("beat_push").getAsDouble() : 0;
+            double max = f.has("max_speed") ? f.get("max_speed").getAsDouble() : 1.2;
+            if (leap < 0 || leap > 2 || lift < 0 || lift > 1.5 || push < 0 || push > 1 || max <= 0 || max > 3) {
+                problems.add(where + " flight: leap 0 to 2, beat_lift 0 to 1.5, beat_push 0 to 1, max_speed above 0 up to 3");
+            }
+            int beats = f.has("beats") ? f.get("beats").getAsInt() : 0;
+            if (beats < 0 || beats > 10) problems.add(where + " flight beats must be 0 to 10");
+            flight = new Flight(Math.max(0, Math.min(2, leap)), Math.max(0, f.has("leap_cooldown") ? f.get("leap_cooldown").getAsInt() : 100),
+                    Math.max(0, Math.min(10, beats)), Math.max(0, Math.min(1.5, lift)), Math.max(0, Math.min(1, push)),
+                    Math.max(1, f.has("refill") ? f.get("refill").getAsInt() : 200), Math.max(0.1, Math.min(3, max)));
+        }
+        return new Trait(stride, mount, fall, drift, sense, trade, flight);
     }
 
     /**

@@ -94,6 +94,15 @@
       "radius": 7,
       "every": 80,
       "colour": "#F59AC4"
+    },
+    "flight": {
+      "leap": 1.05,
+      "leap_cooldown": 100,
+      "beats": 3,
+      "beat_lift": 0.55,
+      "beat_push": 0.3,
+      "refill": 200,
+      "max_speed": 1.2
     }
   },
   "race:mossbeard_s_muddle": {

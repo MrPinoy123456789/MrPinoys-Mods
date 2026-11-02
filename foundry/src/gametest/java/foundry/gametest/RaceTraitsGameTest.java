@@ -33,6 +33,26 @@ public class RaceTraitsGameTest {
         return RaceTraits.defaults().of(node);
     }
 
+    /**
+     * A Fairy's takeoff leap throws them upward, and a wingbeat while gliding lifts them out of a fall and pushes them
+     * on, with no rocket and nothing in the chest slot.
+     */
+    @GameTest(maxTicks = 40)
+    public void fairiesLeapAndBeatTheirWings(GameTestHelper helper) {
+        ServerPlayer fairy = player(helper, 2.5, 2, 2.5);
+        var f = trait("race:everdelle").flight();
+        foundry.mc.FairyFlight.leap(fairy, f);
+        helper.assertTrue(fairy.getDeltaMovement().y == f.leap(), "The leap did not throw the Fairy up: " + fairy.getDeltaMovement());
+        fairy.setDeltaMovement(0.2, -0.9, 0);
+        fairy.setYRot(0f);
+        fairy.setXRot(0f);
+        foundry.mc.FairyFlight.beat(fairy, f, 2);
+        var v = fairy.getDeltaMovement();
+        helper.assertTrue(v.y == f.beatLift() && v.z > 0.25, "The wingbeat should lift and push the way the Fairy looks: " + v);
+        helper.assertTrue(fairy.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST).isEmpty(), "Something went in the chest slot");
+        helper.succeed();
+    }
+
     /** The folk of Mossbeard's Muddle walk faster on living ground (grass) and not on stone. */
     @GameTest(maxTicks = 40)
     public void mossbeardStridesOnLivingGround(GameTestHelper helper) {

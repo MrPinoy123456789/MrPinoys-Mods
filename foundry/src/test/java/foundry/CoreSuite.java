@@ -35,6 +35,7 @@ public final class CoreSuite {
         bonuses();
         bedrockSkins();
         raceTraits();
+        wingFlight();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -200,6 +201,37 @@ public final class CoreSuite {
         } catch (java.io.IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** Fairy flight (race_traits.json flight): the takeoff leap, a few wingbeats, and how they come back. */
+    private static void wingFlight() {
+        var f = foundry.core.RaceTraits.defaults().of("race:everdelle").flight();
+        check(f != null && f.beats() == 3 && f.leap() > 1 && f.leapCooldown() == 100, "Fairies have a takeoff leap and three wingbeats");
+        check(foundry.core.RaceTraits.defaults().of("race:faeloria").flight() == null, "only the Fairies have powered flight");
+        var NONE = foundry.core.WingFlight.Act.NONE;
+        var w = new foundry.core.WingFlight();
+        check(w.tick(true, false, true, false, 0, f) == NONE, "a plain jump on the ground is just a jump");
+        check(w.tick(false, true, true, false, 1, f) == NONE && w.tick(true, true, true, false, 2, f) == foundry.core.WingFlight.Act.LEAP,
+                "sneak and jump on the ground leaps");
+        check(w.tick(false, true, true, false, 3, f) == NONE && w.tick(true, true, true, false, 4, f) == NONE,
+                "the leap waits for its cooldown");
+        int beats = 0;
+        for (int t = 10; t < 30; t += 2) {
+            w.tick(false, false, false, true, t, f);
+            if (w.tick(true, false, false, true, t + 1, f) == foundry.core.WingFlight.Act.BEAT) beats++;
+        }
+        check(beats == 3 && w.charges() == 0, "three wingbeats while gliding, then none, beat " + beats);
+        w.tick(false, false, false, true, 30 + f.refill(), f);
+        check(w.charges() == 1, "one wingbeat comes back slowly in the air");
+        for (int t = 0; t < 12; t++) w.tick(false, false, true, false, 1000 + t, f);
+        check(w.charges() == 3, "landing for a moment brings them all back");
+        check(w.tick(true, false, false, false, 2000, f) == NONE, "no wingbeat unless gliding");
+        double[] up = foundry.core.WingFlight.beat(0.5, -0.8, 0, 1, 0, f, f.maxSpeed());
+        check(up[1] == f.beatLift() && Math.abs(up[0] - 0.8) < 1e-9, "a beat cancels the fall, lifts, and pushes the way they look");
+        double[] fast = foundry.core.WingFlight.beat(1.15, 0, 0, 1, 0, f, f.maxSpeed());
+        check(Math.abs(Math.hypot(fast[0], fast[2]) - f.maxSpeed()) < 1e-9, "beats never push past the speed cap (far below a rocket's)");
+        check(!foundry.core.RaceTraits.parse("{\"race:everdelle\":{\"flight\":{\"beats\":50}}}").problems().isEmpty(),
+                "too many wingbeats are reported");
     }
 
     /** The race traits (race_traits.json): every race one movement and one sense, the parser and the double jump drift. */
