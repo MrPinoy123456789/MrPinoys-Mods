@@ -89,7 +89,12 @@ public final class CoreTypes {
                 .register("land.lose_core", LoseCore.class)
                 .register("land.move_keep", MoveKeep.class)
                 .register("siege.deposit_food", DepositFood.class)
-                .register("war.declare", charter.siege.actions.DeclareWar.class);
+                .register("war.declare", charter.siege.actions.DeclareWar.class)
+                .register("lord.mute", charter.moderation.actions.LordMute.class)
+                .register("lord.unmute", charter.moderation.actions.LordUnmute.class)
+                .register("lord.suspend", charter.moderation.actions.LordSuspend.class)
+                .register("lord.unsuspend", charter.moderation.actions.LordUnsuspend.class)
+                .register("lord.kick", charter.moderation.actions.LordKick.class);
 
         events.registerNested(OrgEvents.class, HistoryEvent.class)
                 .registerNested(GovEvents.class, HistoryEvent.class)
@@ -98,6 +103,7 @@ public final class CoreTypes {
                 .registerNested(LandEvents.class, HistoryEvent.class)
                 .registerNested(SiegeEvents.class, HistoryEvent.class)
                 .registerNested(charter.npc.NpcEvents.class, HistoryEvent.class)
+                .registerNested(charter.moderation.ModerationEvents.class, HistoryEvent.class)
                 .registerNested(StoreEvents.class, HistoryEvent.class);
         RankTypes.register(actions, events);
         Persistence.block(CoreBlocks.block("join_requests", CoreTypes::writeRequests, CoreTypes::readRequests));

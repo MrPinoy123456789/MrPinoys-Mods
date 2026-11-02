@@ -53,6 +53,9 @@ public final class CharterMod implements ModInitializer {
         charter.mc.book.BookMod.register();
         // Kingdom membership as the permission node race:<kingdom>, for other mods' race items.
         charter.mc.RaceNodes.register();
+        // Lords moderate their own citizens (mute, suspend, kick); operators give a Lord an hour of read only Ledger.
+        charter.mc.cmd.LordCommands.register();
+        charter.mc.moderation.LordModeration.register();
         // Discord: linked accounts, join requests answered from Discord (off until discord.json enables it).
         charter.mc.discord.DiscordBridge.register();
         // Teleport pads: walk onto one in the spawn town to go to your keep, for players who cannot type.

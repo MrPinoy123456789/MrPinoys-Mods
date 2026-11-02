@@ -311,6 +311,10 @@ public final class Knobs {
     public int confinementMaxHours = 24;
     public int executionRespawnDelayMaxMinutes = 60;
     public int banishmentMaxHours = 24;
+    /** The longest a Lord may mute one of their own citizens. */
+    public int lordMuteMaxMinutes = 60;
+    /** The longest a Lord may suspend one of their own citizens from the kingdom's land. */
+    public int lordSuspendMaxHours = 12;
     public int weeklyPunishmentCapHours = 24;
     public int sameFactionSamePlayerCooldownDays = 3;
     public int custodyFineCapMarks = 512;

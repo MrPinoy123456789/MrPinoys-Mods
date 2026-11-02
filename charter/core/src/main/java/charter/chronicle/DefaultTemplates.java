@@ -25,6 +25,13 @@ public final class DefaultTemplates {
         t.put("OrgEvents.Joined", "On {when}, {player} joined {org}{from? after leaving %}.");
         t.put("OrgEvents.Left", "On {when}, {player} left {org}.");
         t.put("OrgEvents.Expelled", "On {when}, {player} was expelled from {org}.");
+        t.put("ModerationEvents.Muted", "On {when}, {lord} of {org} silenced {player} for {durationMillis}.");
+        t.put("ModerationEvents.Unmuted", "On {when}, {lord} of {org} let {player} speak again.");
+        t.put("ModerationEvents.Suspended", "On {when}, {lord} of {org} barred {player} from the kingdom's land for {durationMillis}.");
+        t.put("ModerationEvents.Unsuspended", "On {when}, {lord} of {org} lifted the bar on {player}.");
+        t.put("ModerationEvents.Kicked", "On {when}, {lord} of {org} sent {player} away from the realm for a moment.");
+        t.put("ModerationEvents.LedgerGranted", "On {when}, {player} was given a lookout's ledger for {durationMillis}.");
+        t.put("ModerationEvents.LedgerRevoked", "On {when}, {player} gave up the lookout's ledger: {why}.");
         t.put("OrgEvents.Renamed", "On {when}, {from} took the name {to}.");
 
         // ---- votes and offices (GovEvents) ----

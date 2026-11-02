@@ -45,7 +45,8 @@
       "charter.gametest.BookRulesGameTest",
       "charter.gametest.NexusLiftGameTest",
       "charter.gametest.RankGameTest",
-      "charter.gametest.MapSyncGameTest"
+      "charter.gametest.MapSyncGameTest",
+      "charter.gametest.LordModerationGameTest"
     ]
   },
   "mixins": [

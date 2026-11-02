@@ -397,6 +397,18 @@ public final class AdminPages {
             buttons.add(go(player, Text.get("admin.player.button.remove"), null, p -> removeAsk(p, uuid, org)));
         }
         buttons.add(go(player, Text.get("admin.player.button.race"), null, p -> kingdomPick(p, uuid, "race")));
+        // Read only Ledger for an hour, offered only for a current Lord; the command checks it all again.
+        if (charter.mc.moderation.LedgerGrants.active(rt(), id)) {
+            buttons.add(go(player, Text.get("admin.player.button.ledger_revoke"), null, p -> ran(p, "charter admin ledger revoke " + ref, again)));
+        } else if (charter.moderation.LordRules.isLord(rt().state, id)) {
+            buttons.add(go(player, Text.get("admin.player.button.ledger"), null, p -> ran(p, "charter admin ledger grant " + ref, again)));
+        }
+        // Read only Ledger for an hour, offered only for a current Lord; the command checks it all again.
+        if (charter.mc.moderation.LedgerGrants.active(rt(), id)) {
+            buttons.add(go(player, Text.get("admin.player.button.ledger_revoke"), null, p -> ran(p, "charter admin ledger revoke " + ref, again)));
+        } else if (charter.moderation.LordRules.isLord(rt().state, id)) {
+            buttons.add(go(player, Text.get("admin.player.button.ledger"), null, p -> ran(p, "charter admin ledger grant " + ref, again)));
+        }
         if (online != null) {
             buttons.add(go(player, Text.get("admin.player.button.book"), null, p -> ran(p, "charter admin give book " + ref, again)));
             if (AdminBook.allowed(online)) {
@@ -680,6 +692,7 @@ public final class AdminPages {
         List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("admin.tools.button.save"), null, p -> ran(p, "charter admin save", again)));
         buttons.add(go(player, Text.get("admin.tools.button.repair"), null, p -> ran(p, "charter admin repair", again)));
+        buttons.add(go(player, Text.get("admin.tools.button.moderation"), null, p -> ran(p, "charter admin moderation", again)));
         buttons.add(go(player, Text.get("admin.tools.button.areas"), null, p -> ran(p, "charter admin areas", again)));
         buttons.add(go(player, Text.get("admin.tools.button.clock"), null, p -> ran(p, "charter admin time", again)));
         buttons.add(go(player, Text.get("admin.tools.button.vote"), null, AdminPages::voteForm));

@@ -175,6 +175,10 @@ public final class CoreBlocks {
             o.addProperty("lastFoundedAt", p.lastFoundedAt);
             if (p.race != null) o.add("race", gson.toJsonTree(p.race));
             if (p.noRace) o.addProperty("noRace", true);
+            if (p.mutedUntil > 0) o.addProperty("mutedUntil", p.mutedUntil);
+            if (p.suspendedUntil > 0) o.addProperty("suspendedUntil", p.suspendedUntil);
+            if (p.suspendedFrom != null) o.add("suspendedFrom", gson.toJsonTree(p.suspendedFrom));
+            if (p.ledgerUntil > 0) o.addProperty("ledgerUntil", p.ledgerUntil);
             players.add(o);
         }
         JsonObject root = new JsonObject();
@@ -191,6 +195,10 @@ public final class CoreBlocks {
             p.lastFoundedAt = num(o, "lastFoundedAt");
             p.race = get(o, "race", OrgId.class, gson);
             p.noRace = bool(o, "noRace");
+            p.mutedUntil = num(o, "mutedUntil");
+            p.suspendedUntil = num(o, "suspendedUntil");
+            p.suspendedFrom = get(o, "suspendedFrom", OrgId.class, gson);
+            p.ledgerUntil = num(o, "ledgerUntil");
         }
     }
 

@@ -21,6 +21,14 @@ public final class PlayerRecord {
     public charter.id.OrgId race;
     /** True when an operator removed the player's race entirely: they have none, even while they belong to a kingdom. */
     public boolean noRace;
+    /** Wall time until which a Lord's mute holds; 0 or in the past means not muted. */
+    public long mutedUntil;
+    /** Wall time until which a Lord's suspension holds; 0 or in the past means not suspended. */
+    public long suspendedUntil;
+    /** The kingdom whose land a suspended player is kept out of; null when not suspended. */
+    public charter.id.OrgId suspendedFrom;
+    /** Wall time until which an operator's one hour Ledger grant stands; 0 when none was given. */
+    public long ledgerUntil;
 
     public PlayerRecord(PlayerId id, String name, long lastSeen) {
         this.id = id;

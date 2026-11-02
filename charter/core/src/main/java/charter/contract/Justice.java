@@ -69,6 +69,9 @@ public final class Justice {
     /** True if the player is banished from the land of this organization's faction now. */
     public static boolean banished(CharterState state, Knobs knobs, PlayerId player, OrgId land, long now) {
         OrgId faction = state.root(land);
+        var record = state.knownPlayer(player);
+        // A Lord's suspension keeps a citizen off the kingdom's land the way a banishment does; they stay a member.
+        if (record.isPresent() && now < record.get().suspendedUntil && faction.equals(record.get().suspendedFrom)) return true;
         for (Contract c : state.contracts.live()) {
             if (c.siegeTimed || !c.subject.equals(Party.of(player))) continue;
             for (Term t : c.terms) {

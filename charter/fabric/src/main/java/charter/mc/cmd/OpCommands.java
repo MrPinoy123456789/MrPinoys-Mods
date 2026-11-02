@@ -116,7 +116,7 @@ public final class OpCommands {
     static final List<String> HELP = List.of("menu", "help", "kingdoms", "keeps", "goto", "player", "votes", "vote_close",
             "faction_create", "faction_add", "faction_remove", "faction_leader", "faction_coleader", "faction_unlord",
             "faction_rename", "faction_move", "faction_race", "faction_racename", "faction_mixed", "faction_admin",
-            "faction_claims", "dissolve", "give", "areas", "time", "save", "repair", "npc", "granary", "supply", "chronicle");
+            "faction_claims", "dissolve", "moderation", "ledger", "give", "areas", "time", "save", "repair", "npc", "granary", "supply", "chronicle");
 
     private static int help(CommandContext<CommandSourceStack> ctx) {
         say(ctx, Chat.header(Text.get("admin.help.header")));
@@ -250,6 +250,16 @@ public final class OpCommands {
             Term term = c.term(Term.Confinement.class) != null ? c.term(Term.Confinement.class) : c.term(Term.Tether.class);
             long left = term == null ? 0 : Justice.until(c, term, rt.knobs) - now;
             out.add(Text.get("admin.player.held", "by", rt.describe.org(c.imposer.org()), "time", Chat.duration(left)));
+        }
+        PlayerRecord record = rt.state.knownPlayer(id).orElse(null);
+        if (record != null && record.mutedUntil > now) {
+            out.add(Text.get("admin.player.muted", "time", Chat.duration(record.mutedUntil - now)));
+        }
+        if (record != null && record.suspendedUntil > now && record.suspendedFrom != null) {
+            out.add(Text.get("admin.player.suspended", "org", rt.describe.org(record.suspendedFrom), "time", Chat.duration(record.suspendedUntil - now)));
+        }
+        if (record != null && record.ledgerUntil > now) {
+            out.add(Text.get("admin.player.ledger", "until", charter.mc.moderation.LedgerGrants.clock(record.ledgerUntil)));
         }
         for (Organization org : rt.state.orgs()) {
             if (org.isTopLevel() && org.exists() && Justice.banished(rt.state, rt.knobs, id, org.id, now)) {

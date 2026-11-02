@@ -61,6 +61,9 @@ public final class Banishments {
         if (!changed && track.banned && tick - track.checked < 20) return;
         track.chunk = chunk;
         track.checked = tick;
+        // A suspension held by someone who is an operator now is dropped, not enforced.
+        rt.state.knownPlayer(new PlayerId(player.getUUID()))
+                .ifPresent(record -> charter.mc.moderation.LordModeration.suspensionDropped(player, record, rt.clock.now()));
         track.banned = bannedAt(rt, new PlayerId(player.getUUID()), chunk);
         if (!track.banned) {
             track.lastFree = player.position();
