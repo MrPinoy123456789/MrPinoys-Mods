@@ -110,6 +110,11 @@ public final class CoreSuite {
                 "the Merfolk wear fin ears on the head and a dorsal fin, and dash through the water");
         check(foundry.core.WornPlacement.parse("{\"races\":{\"race:a\":{\"item\":\"k:x\",\"slot\":\"head/hat\",\"swim_dash\":25}}}")
                 .table().races().get("race:a").get(0).swimDash() == 25, "swim_dash is read from the file");
+        var muddle = foundry.core.WornPlacement.defaults().races().get("race:mossbeard_s_muddle");
+        check(muddle != null && muddle.size() == 1 && muddle.get(0).item().equals("kingdoms:bombadil_cap")
+                && muddle.get(0).slot().equals("head/hat") && !muddle.get(0).glide() && !muddle.get(0).flap()
+                && muddle.get(0).doubleJump() == 0 && muddle.get(0).swimDash() == 0,
+                "Mossbeard's Muddle wears the feathered hat on the head and nothing else");
         var fae = foundry.core.WornPlacement.defaults().races().get("race:faeloria");
         check(fae.size() == 2 && fae.get(1).item().equals("kingdoms:fae_wings") && fae.get(1).flap() && !fae.get(1).glide()
                 && fae.get(1).doubleJump() == foundry.core.WornPlacement.FAE_DOUBLE_JUMP,

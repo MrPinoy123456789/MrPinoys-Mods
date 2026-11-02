@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:bombadil_cap",
+  "display_name": "Old Blue Hat",
+  "lore": [
+    "Battered, tall and blue, with a long feather in the band.",
+    "Worn by the folk of Mossbeard's Muddle; it sits on top of a helmet."
+  ],
+  "base_item": "minecraft:feather",
+  "texture": "kingdoms:item/bombadil_cap",
+  "worn_model": "kingdoms:item/worn/bombadil_cap",
+  "stack_size": 1,
+  "rarity": "uncommon"
+}

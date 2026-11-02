@@ -92,6 +92,10 @@ MATERIALS = {
     "beard_dark": dict(base="#5e3116", pattern="hair", noise=8, bevel=18),
     "beard_light": dict(base="#b0652e", pattern="hair", noise=10, bevel=18),
     "bead": dict(base="#c9923f", pattern="sheen", noise=4, bevel=40),
+    "felt": dict(base="#2c4f8f", pattern="felt", noise=9, bevel=18),
+    "felt_dark": dict(base="#203b6c", pattern="felt", noise=8, bevel=14),
+    "felt_worn": dict(base="#3a619f", pattern="felt", noise=10, bevel=16),
+    "hatband": dict(base="#9c7f3a", pattern="hatband", noise=6, bevel=26),
 }
 
 
@@ -141,6 +145,16 @@ def paint_tile(material, w, h, rng):
             elif p == "hair":
                 # strands: each column a slightly different shade, with a darker parting every few texels
                 k += ((x * 7 + 3) % 5 - 2) * 6 + (-22 if x % 4 == 0 else 0) + (8 if (x + y // 3) % 7 == 0 else 0)
+            elif p == "felt":
+                # old felt: mottled, with worn lighter patches and darker creases
+                k += int(9 * math.sin(x * 0.9 + y * 0.4) * math.cos(y * 0.7 - x * 0.2))
+                if (x * 5 + y * 3) % 13 == 0:
+                    k -= 14
+            elif p == "hatband":
+                # a dull gold band with brown woven stripes
+                if y % 3 == 1:
+                    c = rgb("#6b4f28")
+                k += 10 if (x // 2) % 2 == 0 else -4
             elif p == "dot":
                 cx, cy = (w - 1) / 2, (h - 1) / 2
                 d = math.hypot(x - cx, y - cy) / max(w / 2, 1)
@@ -196,14 +210,14 @@ def face_size(face, f, t):
     return {"north": (dx, dy), "south": (dx, dy), "east": (dz, dy), "west": (dz, dy), "up": (dx, dz), "down": (dx, dz)}[face]
 
 
-def bake(name, parts):
+def bake(name, parts, density=DENSITY):
     """Gives every face its own painted tile (shelf packed, one texel of padding) and returns the elements and texture."""
     rng = random.Random(name)
     tiles = []
     for i, p in enumerate(parts):
         for face in (p["only"] or FACES):
             fw, fh = face_size(face, p["from"], p["to"])
-            w, h = max(1, round(fw * DENSITY)), max(1, round(fh * DENSITY))
+            w, h = max(1, round(fw * density)), max(1, round(fh * density))
             tiles.append((i, face, w, h))
     size = 32
     while True:
@@ -525,6 +539,139 @@ def seg_dist(p, a, b):
     L = dx * dx + dy * dy
     t = 0 if L == 0 else max(0, min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / L))
     return math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy)
+
+
+# ---- Mossbeard's Muddle: the old blue hat with a feather ----
+HAT_LIFT = 16 - 14.4 + 0.05   # on a helmet the hat sits on the helmet's top (16) instead of the head's (14.4)
+
+
+def bombadil_cap():
+    """A battered, tall crowned blue felt hat, in the head's model space: a crown that narrows in three crumpled steps,
+    each a little off centre, its tip slumped to one side; a dull gold and brown band round its base; a wide brim that
+    droops at the front and on the left and turns up a little at the back. Every part is named "hat", so the helmet
+    versions lift the whole hat onto the helmet's top. The feather is added by bombadil_cap_model."""
+    y = 14.4
+    parts = [
+        # the brim: a flat ring round the head, then floppy flaps
+        part((-1.0, y - 0.8, -1.0), (17.0, y, 17.0), "felt"),
+        part((-1.0, y - 0.7, -4.2), (17.0, y + 0.1, -1.0), "felt_worn", rot=("x", -22.5, (8, y - 0.3, -1.0))),
+        part((-1.0, y - 0.7, 17.0), (17.0, y + 0.1, 19.4), "felt", rot=("x", -22.5, (8, y - 0.3, 17.0))),
+        part((-4.0, y - 0.7, -1.0), (-1.0, y + 0.1, 17.0), "felt_worn", rot=("z", 22.5, (-1.0, y - 0.3, 8))),
+        part((17.0, y - 0.7, -1.0), (19.6, y + 0.1, 17.0), "felt", rot=("z", -22.5, (17.0, y - 0.3, 8))),
+        part((1.6, y, 1.6), (14.4, y + 2.0, 14.4), "hatband"),
+    ]
+    # the crown: a tall taper in gentle steps, each leaning a little further right and back, so it looks pushed about
+    lo, hi, lean_x, lean_z = 1.8, 14.2, 0.0, 0.0
+    shades = ["felt", "felt_worn", "felt", "felt_worn", "felt", "felt_worn"]
+    for i, shade in enumerate(shades):
+        y0, y1 = y + i * 1.9, y + (i + 1) * 1.9
+        parts.append(part((lo + lean_x, y0, lo + lean_z), (hi + lean_x, y1, hi + lean_z), shade))
+        lo, hi = lo + 0.75, hi - 0.75
+        lean_x, lean_z = lean_x + 0.35, lean_z + 0.25
+    # the slumped tip, folded over to the wearer's right
+    parts.append(part((lo + lean_x, y + 11.4, lo + lean_z), (hi + lean_x + 1.0, y + 13.0, hi + lean_z), "felt_dark",
+                      rot=("z", -22.5, (hi + lean_x, y + 11.4, 8))))
+    for p in parts:
+        p["name"] = "hat"
+    return parts
+
+
+FEATHER_W, FEATHER_H = 80, 128   # the feather's texels, beside the baked hat in a texture twice the bake's size
+
+
+def bombadil_cap_model():
+    """The hat baked as usual, plus the long feather stuck in the band on the wearer's left: a painted plate (both faces,
+    mirror image uvs, like the fins) rising from the band and curving up and back above the crown, flared out from the
+    crown by 22.5 degrees. The baked texture goes in the top left quarter of a texture twice its size, the feather in
+    the top right, so the baked uvs are halved."""
+    elements, baked = bake("bombadil_cap", bombadil_cap(), density=2)
+    n = baked.width
+    tex = Image.new("RGBA", (2 * n, 2 * n), (0, 0, 0, 0))
+    tex.paste(baked, (0, 0))
+    for el in elements:
+        for face in el["faces"].values():
+            face["uv"] = [round(v / 2, 4) for v in face["uv"]]
+    feather = paint_feather()
+    tex.paste(feather.resize((FEATHER_W * n // 128, FEATHER_H * n // 128), Image.NEAREST) if n != 128 else feather, (n, 0))
+    u0, u1, v1 = 8.0, 8.0 + 16 * (FEATHER_W * n // 128) / (2 * n), 16 * (FEATHER_H * n // 128) / (2 * n)
+    uv = [u0, 0.0, u1, v1]
+    y = 14.4
+    el = {"from": [1.45, y - 0.6, 3.0], "to": [1.55, y + 15.4, 13.0],
+          "faces": {"west": {"uv": uv, "texture": "#0"}, "east": {"uv": [uv[2], uv[1], uv[0], uv[3]], "texture": "#0"}},
+          "rotation": {"origin": [1.5, y + 1.0, 5.0], "axis": "y", "angle": -22.5}, "name": "hat"}
+    return elements + [el], tex
+
+
+def paint_feather():
+    """A long, curved, bright blue feather, 80 by 128: a pale quill from the bottom front (where it sits in the band)
+    arcing up and back to the tip; a vane either side that is narrow near the band, widest two thirds up and tapers to
+    the tip, deep blue at the quill to bright sky blue at the edge, with barbs slanting toward the tip, a few splits in
+    the vane, and a bare stub of quill at the bottom."""
+    w, h = FEATHER_W, FEATHER_H
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    rng = random.Random("bombadil-feather")
+    p0, p1, p2 = (10, h - 3), (6, h * 0.25), (w - 8, 4)
+
+    def at(t):
+        a = (1 - t) ** 2
+        b = 2 * (1 - t) * t
+        c = t * t
+        return (a * p0[0] + b * p1[0] + c * p2[0], a * p0[1] + b * p1[1] + c * p2[1])
+
+    curve = [at(i / 200) for i in range(201)]
+    splits = {rng.randint(60, 180): rng.choice((-1, 1)) for _ in range(4)}
+    for y in range(h):
+        for x in range(w):
+            best, bi = 1e9, 0
+            for i in range(0, 201, 2):
+                d = (x - curve[i][0]) ** 2 + (y - curve[i][1]) ** 2
+                if d < best:
+                    best, bi = d, i
+            for i in range(max(0, bi - 2), min(201, bi + 3)):
+                d = (x - curve[i][0]) ** 2 + (y - curve[i][1]) ** 2
+                if d < best:
+                    best, bi = d, i
+            t = bi / 200
+            dist = math.sqrt(best)
+            # which side of the quill: the cross product with the curve's direction
+            j = min(200, bi + 1)
+            dx, dy = curve[j][0] - curve[max(0, bi - 1)][0], curve[j][1] - curve[max(0, bi - 1)][1]
+            side = 1 if (x - curve[bi][0]) * dy - (y - curve[bi][1]) * dx > 0 else -1
+            if dist < 1.1 and t < 0.97:
+                img.putpixel((x, y), tint(rgb("#e9eef4"), rng.randint(-6, 4) - int(20 * t)) + (255,))
+                continue
+            if t < 0.13:
+                continue  # the bare stub of quill in the band
+            half = 13.5 * math.sin(math.pi * min(1.0, (t - 0.13) / 0.87) ** 0.75) * (1 - 0.25 * t) + 1.5
+            if side < 0:
+                half *= 0.82  # the vane is narrower on one side, as a real feather's is
+            if dist > half:
+                continue
+            if any(abs(bi - k) < 3 and side == sd and dist > 2.5 for k, sd in splits.items()):
+                continue  # a split in the vane
+            e = dist / half
+            c = mix(rgb("#1554c8"), rgb("#2fa6ff"), min(1, e * 1.2))
+            c = mix(c, rgb("#b8e6ff"), max(0, (t - 0.8) / 0.2) * 0.6)
+            k = rng.randint(-5, 5)
+            if int(dist * 1.6 + t * 90) % 4 == 0:
+                k -= 22  # barbs, slanting toward the tip
+            if half - dist < 1.0:
+                k += 18  # a light edge
+            img.putpixel((x, y), tint(c, k) + (255,))
+    return img
+
+
+def paint_cap_icon():
+    """The hat's 16 by 16 icon: the blue crown and band on a drooping brim, with the feather rising behind."""
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    img.paste(paint_feather().resize((7, 12), Image.LANCZOS), (8, 0))
+    d = ImageDraw.Draw(img)
+    d.polygon([(4, 4), (11, 3), (12, 11), (3, 11)], fill=(44, 79, 143, 255))
+    d.line([(5, 5), (10, 4)], fill=(58, 97, 159, 255))
+    d.rectangle((3, 9, 12, 10), fill=(156, 127, 58, 255))
+    d.polygon([(0, 13), (15, 12), (15, 13), (13, 14), (2, 15), (0, 14)], fill=(32, 59, 108, 255))
+    d.line([(1, 12), (14, 11)], fill=(58, 97, 159, 255))
+    return img
 
 
 def paint_beard_icon():
@@ -1048,12 +1195,13 @@ def write_helmet(head, head_elements, mat):
             el["to"][0] += dx
             if "rotation" in el:
                 el["rotation"]["origin"][0] += dx
-        if el.get("name") == "wreath":
+        if el.get("name") in ("wreath", "hat"):
+            lift = 16 - WREATH_Y + 0.05 if el["name"] == "wreath" else HAT_LIFT
             el = json.loads(json.dumps(el))
-            el["from"][1] += 16 - WREATH_Y + 0.05
-            el["to"][1] += 16 - WREATH_Y + 0.05
+            el["from"][1] += lift
+            el["to"][1] += lift
             if "rotation" in el:
-                el["rotation"]["origin"][1] += 16 - WREATH_Y + 0.05
+                el["rotation"]["origin"][1] += lift
         lifted.append(el)
     model = {"textures": textures, "elements": elements + lifted, "display": DISPLAY}
     name = f"{head}_on_{mat}"
@@ -1080,6 +1228,7 @@ def main():
     built["fae_wings"] = (wings_model(), paint_leaf_wings())
     fins = paint_fins()
     built["merfolk_fins"] = (merfolk_fins(), fins)
+    built["bombadil_cap"] = bombadil_cap_model()
     built["dorsal_fin"] = (dorsal_fin_model(), fins)
     for name, (elements, texture) in built.items():
         if name in BACK_ITEMS:
@@ -1102,7 +1251,8 @@ def main():
     paint_banner_cloth().save(BANNER_CLOTH)
     paint_banner_icon().save(os.path.join(ASSETS, "textures", "item", "aurelia_banner.png"))
     write_helmets({"antler_circlet": built["antler_circlet"][0], "dwarf_beard": built["dwarf_beard"][0],
-                   "merfolk_fins": built["merfolk_fins"][0]})
+                   "merfolk_fins": built["merfolk_fins"][0], "bombadil_cap": built["bombadil_cap"][0]})
+    paint_cap_icon().save(os.path.join(ASSETS, "textures", "item", "bombadil_cap.png"))
     icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     icon.paste(fins.crop(FIN_EAR).resize((12, 16), Image.LANCZOS), (2, 0))
     icon.save(os.path.join(ASSETS, "textures", "item", "merfolk_fins.png"))
