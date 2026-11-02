@@ -852,6 +852,23 @@ Left out on purpose: lecterns are not on the allowlist (a lectern menu lets anyo
 
 Vanilla mounts never have their physics switched off, so once a tick Charter sets down any player whose mount (or anything below it) has no physics, and a carried player throws off anyone riding on them. The player is told: "You were set down. Nobody can ride something that is being carried; wait until it is put down." Spectators have no physics by design and are left alone. There is no clean hook to refuse the mount itself, so the rider may be on the carried horse for one tick before being set down. Off: Charter does not interfere.
 
+## The locator bar for admins only
+
+`locatorBarAdminsOnly` (top level of `charter.json`, default `true`). The vanilla locator bar (the player markers on the
+experience bar) is switched by the world wide `locator_bar` game rule. With the rule on and this knob on, only players
+holding `charter.locatorbar` see anyone on the bar. LuckPerms gives it to the admin group
+(`deploy/server-hardening/luckperms-groups.txt`); with no permissions mod, operators have it. Everyone else gets a
+transient modifier that takes their `minecraft:waypoint_receive_range` to 0, so their bar stays empty, while their
+transmit range is untouched and they still show on an admin's bar. The modifier is never saved with the player. It is
+set on join, respawn and dimension change and refreshed every 3 seconds, so granting or removing the node takes effect
+without a relog. Off, the modifier is removed from everyone and the game rule alone decides. With the game rule off
+nobody sees the bar whatever this knob says.
+
+Bedrock is unverified: it is not known whether Geyser shows Bedrock players a locator bar at all. If it does, the same
+receive range applies to them, since the server decides who is sent.
+
+Test: `LocatorBarGameTest`.
+
 ## Explosions in kingdoms
 
 `explosionsInKingdoms` (top level of `charter.json`, default `false`). Off, no explosion breaks or sets fire to a block on any claimed land: keeps (core and ring), outposts whether raised or still raising, every other claim, and the admin kingdom, whether or not the claim is protected at the time and whoever lit it, the owner and operators included. That covers TNT, TNT minecarts, creepers, ghast fireballs, withers and wither skulls, end crystals, beds in the Nether, respawn anchors, wind charges and any modded source, because all of them pass through the one list of blocks an explosion is about to break. The fire an explosion starts and the doors and buttons a wind charge toggles use the same list, so they are covered too. The wild is unchanged. Damage to players and mobs is unchanged, except in the spawn (`spawnNoExplosions`). The Nexus, banners and the mod's other fixtures are always spared.

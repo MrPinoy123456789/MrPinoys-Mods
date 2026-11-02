@@ -47,6 +47,7 @@ public final class CharterServer {
         ServerLifecycleEvents.SERVER_STARTING.register(CharterServer::start);
         ServerTickEvents.END_SERVER_TICK.register(CharterServer::tick);
         RaceCombatPassives.register();
+        LocatorBar.register();
         FriendlyFire.register();
         CarryGuard.register();
         ServerLifecycleEvents.AFTER_SAVE.register((s, flush, force) -> save());
@@ -100,6 +101,7 @@ public final class CharterServer {
         if (ticks % RacePassives.WATER_EVERY_TICKS == 0) RacePassives.applyWater(s, runtime);
         if (ticks % RaceCombatPassives.EVERY_TICKS == 0) RaceCombatPassives.apply(s, runtime);
         if (ticks % Tags.EVERY_TICKS == 0) Tags.apply(s, runtime);
+        if (ticks % LocatorBar.EVERY_TICKS == 0) LocatorBar.apply(s);
         if (runtime.knobs.closedKeeps && ticks % charter.mc.land.KeepGate.EVERY_TICKS == 0) charter.mc.land.KeepGate.apply(s, runtime);
         if (runtime.knobs.keepBorderGlow && ticks % charter.mc.land.KeepBorders.EVERY_TICKS == 0) charter.mc.land.KeepBorders.apply(s, runtime);
         if (ticks % 20 == 0) charter.mc.book.BookMod.removeExtrasAll(s);
