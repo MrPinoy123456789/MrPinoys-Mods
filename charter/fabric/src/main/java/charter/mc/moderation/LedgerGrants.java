@@ -44,7 +44,10 @@ public final class LedgerGrants {
     private LedgerGrants() {
     }
 
-    /** The LuckPerms commands that give the grant. {@code replace} resets a leftover node to one hour and never adds to it. */
+    /**
+     * The LuckPerms commands that give the grant: one hour, never {@code accumulate}. LuckPerms' {@code replace} keeps
+     * the longer of two durations, so {@link #grant} first runs {@link #revokeCommands} to clear any node set by hand.
+     */
     public static List<String> grantCommands(UUID player) {
         List<String> out = new ArrayList<>();
         for (String node : NODES) out.add("lp user " + player + " permission settemp " + node + " true " + DURATION_TEXT + " replace");
@@ -89,6 +92,8 @@ public final class LedgerGrants {
             return new Result(false, Text.get("admin.ledger.active", "name", name, "until", clock(record.ledgerUntil)));
         }
         if (!luckPermsPresent(server)) return new Result(false, Text.get("admin.ledger.no_lp"));
+        // LuckPerms runs its commands in order on one thread: clear any leftover node, then set exactly one hour.
+        run(server, revokeCommands(player.value()));
         run(server, grantCommands(player.value()));
         record.ledgerUntil = now + DURATION_MILLIS;
         rt.state.history.record(new ModerationEvents.LedgerGranted(now, player, DURATION_MILLIS), "admin:" + admin, true);

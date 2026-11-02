@@ -63,8 +63,8 @@ public final class LordModeration {
     }
 
     /** Lifts a suspension held by someone who is, or became, an operator. Called as the push looks at a player. */
-    public static boolean suspensionDropped(ServerPlayer player, PlayerRecord record) {
-        if (record.suspendedUntil <= 0 || !staff(player)) return false;
+    public static boolean suspensionDropped(ServerPlayer player, PlayerRecord record, long now) {
+        if (record.suspendedUntil <= now || !staff(player)) return false;
         record.suspendedUntil = 0;
         record.suspendedFrom = null;
         return true;

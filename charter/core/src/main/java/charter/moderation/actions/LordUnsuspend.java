@@ -34,7 +34,10 @@ public record LordUnsuspend(PlayerId player) implements Action {
     public Outcome check(ActionContext ctx) {
         Outcome target = LordRules.checkTarget(ctx, player);
         if (target.refused()) return target;
-        return ctx.state.knownPlayer(player).filter(r -> r.suspendedUntil > ctx.now).isPresent() ? Outcome.OK : Outcome.refuse(NOT_SUSPENDED);
+        OrgId kingdom = LordRules.kingdomOf(ctx.state, ctx.player()).orElseThrow();
+        // Only the kingdom that suspended them can lift it, even if the player has since become someone else's citizen.
+        boolean ours = ctx.state.knownPlayer(player).filter(r -> r.suspendedUntil > ctx.now && kingdom.equals(r.suspendedFrom)).isPresent();
+        return ours ? Outcome.OK : Outcome.refuse(NOT_SUSPENDED);
     }
 
     @Override

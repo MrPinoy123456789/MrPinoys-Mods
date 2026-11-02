@@ -266,13 +266,14 @@ Typed, so Bedrock Lords use them the same way. The Charter book has no page for 
   without the reason ("Ann of Azrak silenced Bob for 10 minutes."), and a line to every operator online and the
   console (`[Lords] Ann of Azrak silenced Bob for 10 minutes: spam`). `/charter admin moderation` and a player's page
   show what is in force.
-- Expelling a member is the older, separate Lord power (`MANAGE_MEMBERS`) and is unchanged.
+- Only the kingdom that suspended a player can lift it or give a new one while it runs, even after the player has
+  joined another kingdom.
 
 ### Ledger access for a Lord (one hour, operators only)
 
 `/charter admin ledger grant <player>` gives a **current Lord** read only Ledger for exactly one hour, so they can look
-into trouble on an operator's behalf. It runs, as the server console, for each node
-`lp user <uuid> permission settemp <node> true 1h replace` with the nodes `ledger.commands.root`,
+into trouble on an operator's behalf. It runs, as the server console, `lp user <uuid> permission unsettemp <node>`
+(clearing anything set by hand) and then `lp user <uuid> permission settemp <node> true 1h replace` for each node, with the nodes `ledger.commands.root`,
 `ledger.commands.inspect`, `ledger.commands.search` and `ledger.commands.status`. Never rollback, restore, preview,
 teleport, player or purge. The operator is told the expiry time (UTC); the Lord is told (or gets it as mail when
 offline). A second grant while one stands is refused, so it cannot be rolled forward: when the hour is up the access

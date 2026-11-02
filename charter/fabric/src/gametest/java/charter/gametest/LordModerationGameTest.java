@@ -166,8 +166,10 @@ public final class LordModerationGameTest {
 
             long before = kit.rt.clock.now();
             console(kit, "charter admin ledger grant " + ann.getUUID());
-            helper.assertTrue(LP.equals(LedgerGrants.grantCommands(ann.getUUID())), "The grant ran " + LP);
-            for (String line : LP) {
+            List<String> expected = new java.util.ArrayList<>(LedgerGrants.revokeCommands(ann.getUUID()));
+            expected.addAll(LedgerGrants.grantCommands(ann.getUUID()));
+            helper.assertTrue(LP.equals(expected), "The grant ran " + LP);
+            for (String line : LP.subList(4, LP.size())) {
                 helper.assertTrue(line.endsWith(" true 1h replace"), "Not one hour, replaced: " + line);
                 for (String banned : List.of("rollback", "restore", "preview", "teleport", "tp", "player", "purge")) {
                     helper.assertTrue(!line.contains("ledger.commands." + banned), "A non read node was granted: " + line);

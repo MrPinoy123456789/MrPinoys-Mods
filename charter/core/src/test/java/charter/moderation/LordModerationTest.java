@@ -35,6 +35,17 @@ public final class LordModerationTest {
         liftingEarly();
         kickChangesNothing();
         reasonsAreCleaned();
+        anotherKingdomsSuspensionIsNotYours();
+    }
+
+    static void anotherKingdomsSuspensionIsNotYours() {
+        Realm r = realm("X");
+        check("12: Ann suspends Bob from Azrak", r.f.as(r.ann, new LordSuspend(r.bob, Durations.hours(12), "griefing the farm")).done());
+        r.f.state.leave(r.bob);
+        r.f.state.join(r.bob, r.aurelia, r.f.clock.now());
+        eq("12: Dee cannot lift Azrak's suspension", "not_suspended", r.f.as(r.dee, new LordUnsuspend(r.bob)).reasonKey());
+        eq("12: nor overwrite it with a short one", "held_elsewhere", r.f.as(r.dee, new LordSuspend(r.bob, Durations.minutes(1), "a minute only")).reasonKey());
+        check("12: Bob is still kept off Azrak", Justice.banished(r.f.state, r.f.knobs, r.bob, r.azrak, r.f.clock.now()));
     }
 
     /** Ann rules Azrak with citizens Bob and Cy; Dee rules Aurelia with citizen Eve. */

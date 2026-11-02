@@ -35,6 +35,12 @@ public record LordSuspend(PlayerId player, long durationMillis, String reason) i
     public Outcome check(ActionContext ctx) {
         Outcome target = LordRules.checkTarget(ctx, player);
         if (target.refused()) return target;
+        // One suspension slot per player: a Lord never shortens or replaces another kingdom's.
+        OrgId kingdom = LordRules.kingdomOf(ctx.state, ctx.player()).orElseThrow();
+        var record = ctx.state.knownPlayer(player).orElse(null);
+        if (record != null && record.suspendedUntil > ctx.now && record.suspendedFrom != null && !record.suspendedFrom.equals(kingdom)) {
+            return Outcome.refuse(LordRules.HELD_ELSEWHERE);
+        }
         Outcome reasoned = LordRules.checkReason(reason);
         if (reasoned.refused()) return reasoned;
         return LordRules.checkDuration(durationMillis, LordRules.suspendCap(ctx.knobs));
