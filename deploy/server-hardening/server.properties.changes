@@ -1,0 +1,12 @@
+# Keys of /server.properties that tools/playtest/hardening-stage.mjs changes on d212ecae.
+# Every other key (passwords, ports, the seed) is left exactly as it is on the server.
+# Reasons: docs/SERVER_HARDENING.md, section "server.properties".
+#
+# Vanilla spawn protection refuses every right click on a block (doors, buttons, the hub
+# lectern terminal at -247 64 44) within 16 blocks of world spawn (-248 64 44) for anyone
+# not in ops.json. Charter's spawn rules already govern the hub, with an allow list.
+spawn-protection=0
+# Kick a connection that averages more than 1000 packets a second (vanilla had no limit).
+rate-limit=1000
+# Entities, crops and redstone tick within 8 chunks of a player instead of 10.
+simulation-distance=8

@@ -4,6 +4,10 @@ The owner's shipped Fabric server: Charter, Lemon, Foundry, Polymer, Geyser and 
 packs. Deploy with the `deploy-shipped-server` skill. The player facing handbook is the owner's Server Manual
 artifact; this file is for agents.
 
+Hardening (permission groups, LuckPerms, anti-xray, backups, admin runbook): `docs/SERVER_HARDENING.md`. Axiom is
+installed and live (not disabled). "Operators" in Charter's rules below now means the `charter.bypass` and `charter.admin`
+permission nodes, which fall back to operator level 2.
+
 ## Shape of the game
 
 - Five kingdoms, created by ops only (`/charter admin faction create`) and led by a player an op appoints. Each is a

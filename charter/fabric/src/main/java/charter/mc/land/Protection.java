@@ -126,8 +126,7 @@ public final class Protection {
         if (rt == null || !rt.knobs.requireAffiliation || !(player instanceof ServerPlayer sp)) return false;
         PlayerId id = new PlayerId(player.getUUID());
         if (rt.state.membership(id).isPresent() || rt.state.raceOf(id).isPresent()) return false;
-        return !net.minecraft.commands.Commands.hasPermission(net.minecraft.commands.Commands.LEVEL_GAMEMASTERS)
-                .test(sp.createCommandSourceStack());
+        return !charter.mc.CharterPerms.bypass(sp);
     }
 
     /** May this player build, break or use things at this block? True on unprotected ground. */

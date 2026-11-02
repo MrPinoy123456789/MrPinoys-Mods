@@ -53,9 +53,9 @@ public final class MapMarkerCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter")
                         .then(Commands.literal("admin")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(charter.mc.CharterPerms::admin)
                                 .then(Commands.literal("mapmarker")
-                                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .requires(charter.mc.CharterPerms::admin)
                                         .then(Commands.literal("add")
                                                 .then(Commands.argument("id", StringArgumentType.word())
                                                         .then(Commands.argument("kind", StringArgumentType.word())

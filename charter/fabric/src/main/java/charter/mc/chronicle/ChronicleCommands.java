@@ -50,7 +50,7 @@ final class ChronicleCommands {
                                         .executes(ctx -> give(ctx, true, 1))
                                         .then(volume(true))))
                         .then(Commands.literal("admin")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(charter.mc.CharterPerms::admin)
                                 .then(Commands.literal("realm-chronicle")
                                         .then(Commands.literal("here").executes(ChronicleCommands::here))
                                         .then(Commands.literal("remove").executes(ChronicleCommands::remove))

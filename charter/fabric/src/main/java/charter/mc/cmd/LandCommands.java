@@ -72,7 +72,7 @@ public final class LandCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> admin() {
         return Commands.literal("admin")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .requires(charter.mc.CharterPerms::admin)
                 .then(Commands.literal("faction")
                         .then(Commands.literal("spawn").requires(Gate::devTools)
                                 .then(Commands.argument("name", StringArgumentType.string())

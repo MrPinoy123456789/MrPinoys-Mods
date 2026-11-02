@@ -1,0 +1,31 @@
+# AntiXray (DrexHD, fabric-1.4.17+26.3) for the kingdom server d212ecae.
+# Reasons for every value: docs/SERVER_HARDENING.md, section "Anti-xray".
+#
+# Off by default, so every dimension not named below is untouched: the Pocket Dungeons
+# void dimension (pocketdungeons:void), the End, and any DimensionDaddy dimension.
+
+enabled = false
+usePermission = false
+
+# The overworld: engine mode 1 (hide). A hidden ore that touches no air, water or lava is sent
+# to the client as stone or deepslate. Simple xray packs and Bedrock xray packs see nothing.
+# Mode 1 adds no extra blocks to the chunk packets, which keeps Geyser's chunk translation
+# for Bedrock players as cheap as before. Only sections below y 64 are processed: that is
+# where diamonds, redstone, lapis, gold and ancient cities are, and it keeps the cost low.
+[overworld]
+enabled = true
+engineMode = 1
+maxBlockHeight = 64
+updateRadius = 2
+lavaObscures = false
+hiddenBlocks = ["#c:ores", "raw_copper_block", "raw_iron_block", "raw_gold_block"]
+
+# The Nether is switched off by DimensionDaddy today (netherEnabled=false). This section
+# only matters if it is switched back on.
+[the_nether]
+enabled = true
+engineMode = 1
+maxBlockHeight = 128
+updateRadius = 2
+lavaObscures = true
+hiddenBlocks = ["ancient_debris", "nether_quartz_ore", "nether_gold_ore", "gilded_blackstone"]

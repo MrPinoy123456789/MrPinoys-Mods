@@ -40,7 +40,7 @@ final class GranaryCommands {
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("charter")
                 .then(Commands.literal("admin")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .requires(charter.mc.CharterPerms::admin)
                         .then(Commands.literal("granary").requires(charter.mc.cmd.Gate::devTools)
                                 .then(Commands.literal("set")
                                         .then(Commands.argument("pos", BlockPosArgument.blockPos()).executes(GranaryCommands::set)))

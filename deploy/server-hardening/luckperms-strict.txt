@@ -1,0 +1,11 @@
+# Optional second step (owner decision O1 in docs/SERVER_HARDENING.md). Run only after
+# luckperms-groups.txt, and only once the owner has put every operator who should keep the
+# operator pass into the admin or builder group.
+#
+# These two lines hold every player in the default group, operators included, to Charter's rules:
+# no spawn rule exemption, no walking into closed keeps, no /charter admin, no operators' menu.
+# Members of admin (and builder, for charter.bypass) still have them, because a group's own node
+# beats the default group's. Undo with: lp group default permission unset charter.bypass
+#                                  and: lp group default permission unset charter.admin
+lp group default permission set charter.bypass false
+lp group default permission set charter.admin false

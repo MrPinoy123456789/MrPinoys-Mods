@@ -37,7 +37,7 @@ public final class NpcCommands {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter").then(Commands.literal("admin")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .requires(charter.mc.CharterPerms::admin)
                         .then(Commands.literal("npc")
                                 .then(Commands.literal("spawn")
                                         .then(Commands.argument("kind", StringArgumentType.word())

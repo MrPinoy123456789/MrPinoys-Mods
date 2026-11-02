@@ -1,6 +1,7 @@
 package charter.mc.land;
 
 import charter.mc.CharterServer;
+import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -8,6 +9,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -25,8 +27,14 @@ import net.minecraft.world.phys.HitResult;
  * The Fabric API half of protection (PLAN.md §5.6): break, use block, use item,
  * attack entity, use entity and attack block. Each asks {@link Protection}; none
  * decides anything itself. Walking is never touched.
+ *
+ * <p>Use entity is answered in {@link #ENTITY_PHASE}, ahead of the default phase, so another mod's handler (Serverside
+ * CarryOn picks up mobs with a sneaking empty hand and answers success) is never asked before Charter refuses a stranger.
  */
 public final class Guard {
+
+    /** The event phase Charter's use entity check runs in, before {@link Event#DEFAULT_PHASE}. */
+    public static final Identifier ENTITY_PHASE = Identifier.fromNamespaceAndPath("charter", "protection");
 
     private Guard() {
     }
@@ -89,7 +97,8 @@ public final class Guard {
             }
             return entityVerdict(player, level, entity);
         });
-        UseEntityCallback.EVENT.register((player, level, hand, entity, hit) -> {
+        UseEntityCallback.EVENT.addPhaseOrdering(ENTITY_PHASE, Event.DEFAULT_PHASE);
+        UseEntityCallback.EVENT.register(ENTITY_PHASE, (player, level, hand, entity, hit) -> {
             InteractionResult spawn = drifterSafe(player) ? SpawnRules.useEntityVerdict(player, hand, entity) : null;
             if (spawn == InteractionResult.FAIL) Protection.deny(player, level, entity.blockPosition());
             if (spawn != null) return spawn;

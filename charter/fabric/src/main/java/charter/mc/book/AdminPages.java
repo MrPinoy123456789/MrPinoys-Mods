@@ -48,7 +48,7 @@ public final class AdminPages {
     }
 
     static boolean allowed(ServerPlayer player) {
-        return Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(player.createCommandSourceStack());
+        return charter.mc.CharterPerms.admin(player);
     }
 
     private static void denied(ServerPlayer player) {

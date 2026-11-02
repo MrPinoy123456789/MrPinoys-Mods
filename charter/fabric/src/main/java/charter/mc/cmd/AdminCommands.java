@@ -44,7 +44,7 @@ final class AdminCommands {
 
     static LiteralArgumentBuilder<CommandSourceStack> tree() {
         return Commands.literal("admin")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .requires(charter.mc.CharterPerms::admin)
                 .executes(AdminCommands::menu)
                 .then(Commands.literal("time")
                         .executes(AdminCommands::showTime)

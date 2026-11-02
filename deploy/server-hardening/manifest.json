@@ -1,0 +1,87 @@
+{
+  "about": "Server hardening for the kingdom server d212ecae. Read docs/SERVER_HARDENING.md. Staged by tools/playtest/hardening-stage.mjs.",
+  "minecraft": "26.3",
+  "fabricApi": "0.165.0+26.3",
+  "fabricLoader": "0.20.1",
+  "jars": [
+    {
+      "id": "luckperms",
+      "file": "LuckPerms-Fabric-5.5.85.jar",
+      "version": "5.5.85 (Modrinth v5.5.85-fabric, published 2026-09-19, game versions 26.1 to 26.3)",
+      "licence": "MIT",
+      "page": "https://modrinth.com/mod/luckperms",
+      "source": "https://github.com/lucko/LuckPerms",
+      "url": "https://cdn.modrinth.com/data/Vebnzrzj/versions/DzQPkkXY/LuckPerms-Fabric-5.5.85.jar",
+      "size": 1634800,
+      "sha1": "b3398b22215bcec18813a5cf764b3a8c153fe8ba",
+      "sha512": "37de9e16272b6bbf82f422ddf012fa810d32c617c5621919157b662b4edfe956a870c5bc3ca4b05f32c90d7135f0ac2580ea16cd7c481c26a04778f639c3f89c",
+      "staged": "jars/LuckPerms-Fabric-5.5.85.jar",
+      "replaces": "^LuckPerms-Fabric-.*\\.jar$"
+    },
+    {
+      "id": "vanilla-permissions",
+      "file": "vanilla-permissions-0.3.6+26.1.2.jar",
+      "version": "0.3.6+26.1.2 (published 2026-05-18; Modrinth lists it for 26.3; built against 26.1.2, see the doc)",
+      "licence": "MIT",
+      "page": "https://modrinth.com/mod/vanilla-permissions",
+      "source": "https://github.com/DrexHD/VanillaPermissions",
+      "url": "https://cdn.modrinth.com/data/fdZkP5Bb/versions/bpq3ZDRl/vanilla-permissions-0.3.6%2B26.1.2.jar",
+      "size": 99126,
+      "sha1": "4de07ac050d7ba8c2faff0f6ac549d2052425282",
+      "sha512": "f541fcb459e6b315c87b8de446a1c6bbb3ddf7b06317c5fe1e64a8bd26460dd7e206545beaeb565c5036fb321398c986462cd5913305068bdd9190ead367ce93",
+      "staged": "jars/vanilla-permissions-0.3.6+26.1.2.jar",
+      "replaces": "^vanilla-permissions-.*\\.jar$"
+    },
+    {
+      "id": "antixray",
+      "file": "antixray-fabric-1.4.17+26.3.jar",
+      "version": "fabric-1.4.17+26.3 (published 2026-10-16, game version 26.3)",
+      "licence": "MIT",
+      "page": "https://modrinth.com/mod/anti-xray",
+      "source": "https://github.com/DrexHD/FabricAntiXray",
+      "url": "https://cdn.modrinth.com/data/sml2FMaA/versions/AU5FnTTj/antixray-fabric-1.4.17%2B26.3.jar",
+      "size": 147542,
+      "sha1": "8a82f57e3924752b6bc7023aba144a06490b059e",
+      "sha512": "09d4db1afefdc0db3936d8bd0e6a7a91733a2d6a05aa7c26c10cac666a824c50af82802c83abcf20e2211dc81bddf4b1f0858b4e747a3c1c3fb11bd79ac02c20",
+      "staged": "jars/antixray-fabric-1.4.17+26.3.jar",
+      "replaces": "^antixray-fabric-.*\\.jar$"
+    },
+    {
+      "id": "banhammer",
+      "file": "banhammer-0.19.0+26.3.jar",
+      "version": "0.19.0+26.3 (published 2026-09-11, game versions 26.3-rc-1 and 26.3)",
+      "licence": "LGPL-3.0-only",
+      "page": "https://modrinth.com/mod/banhammer",
+      "source": "https://github.com/Patbox/BanHammer",
+      "url": "https://cdn.modrinth.com/data/Wpqg0ciI/versions/1BJyGiA7/banhammer-0.19.0%2B26.3.jar",
+      "size": 16031496,
+      "sha1": "58d7086d7cde35793b903de82e99cf20ba75e031",
+      "sha512": "63f146aff7670909e8b87e1903e55ae91633938f754c485251934b34900cc5ec7079757391db98d0e0bd9b6523fa2162928b2d7a3e7d48d89ed18a676db62ea1",
+      "staged": null,
+      "replaces": "^banhammer-.*\\.jar$"
+    },
+    {
+      "id": "spark",
+      "file": "spark-1.10.187-fabric.jar",
+      "version": "1.10.187 (Modrinth 1.10.187-fabric, published 2026-09-19, game versions 26.1 to 26.3)",
+      "licence": "GPL-3.0-only",
+      "page": "https://modrinth.com/mod/spark",
+      "source": "https://github.com/lucko/spark",
+      "url": "https://cdn.modrinth.com/data/l6YH9Als/versions/e3hsPc1o/spark-1.10.187-fabric.jar",
+      "size": 3838499,
+      "sha1": "0940b4089affdfca37d6b6d0ea5ecae4dbd8fe98",
+      "sha512": "c74bf5d5a16b2445ec6ea717eac756412b272a8015e91f91a7bf5a27e6f2f99c4a11878d434510f941f37b0344b3a7d1ba0dd6c34e80642762c48fb6e9a93894",
+      "staged": null,
+      "replaces": "^spark-.*\\.jar$"
+    }
+  ],
+  "configs": [
+    { "local": "config/antixray.toml", "remote": "/config/antixray.toml" },
+    { "local": "config/ledger.toml", "remote": "/config/ledger.toml" },
+    { "local": "config/banhammer/config.json", "remote": "/config/banhammer/config.json" },
+    { "local": "config/luckperms/luckperms.conf", "remote": "/config/luckperms/luckperms.conf" }
+  ],
+  "serverProperties": "server.properties.changes",
+  "luckperms": "luckperms-groups.txt",
+  "luckpermsStrict": "luckperms-strict.txt"
+}

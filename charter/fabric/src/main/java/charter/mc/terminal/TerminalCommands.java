@@ -45,9 +45,9 @@ public final class TerminalCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("charter")
                         .then(Commands.literal("admin")
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .requires(charter.mc.CharterPerms::admin)
                                 .then(Commands.literal("terminal")
-                                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .requires(charter.mc.CharterPerms::admin)
                                         .then(Commands.literal("add").executes(TerminalCommands::add))
                                         .then(Commands.literal("here").executes(TerminalCommands::here))
                                         .then(Commands.literal("remove").executes(TerminalCommands::remove))
