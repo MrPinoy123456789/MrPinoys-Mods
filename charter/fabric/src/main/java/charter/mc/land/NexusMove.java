@@ -45,10 +45,37 @@ public final class NexusMove {
                 .resolve(new Who.AsPlayer(id), root, Power.PLACE_CORE, ScopeNeed.NONE, false).ok()) {
             return Text.get("nexus_move.no_power");
         }
-        BlockPos feet = player.blockPosition();
+        return placeAt(rt, level, keep, player.blockPosition(), "nexus_move.not_here");
+    }
+
+    /**
+     * {@code /charter admin faction nexus}: an operator moves another kingdom's lodestone to {@code at}, inside that
+     * kingdom's own keep, under the same rules. A lift under way is ended (the carrier loses the item, as when an
+     * operator moves the keep), and the move goes in the Chronicle. Null when it moved; otherwise the line to tell them.
+     */
+    public static String moveFor(ServerLevel level, charter.org.Organization org, BlockPos at, String operator) {
+        if (!CharterServer.running()) return Text.get("nexus_move.not_running");
+        CharterRuntime rt = CharterServer.runtime();
+        if (org.npc) return Text.get("nexus_move.npc", "name", org.name());
+        Core keep = rt.state.coresOf(org.id).stream().filter(Core::isKeep).findFirst().orElse(null);
+        if (keep == null) return Text.get("nexus_move.admin_no_keep", "name", org.name());
+        level.getChunk(at.getX() >> 4, at.getZ() >> 4);
+        var claim = rt.state.claimAt(Placement.chunkOf(level, at)).orElse(null);
+        if (claim == null || !claim.core().equals(keep.id)) return Text.get("nexus_move.admin_not_here", "name", org.name());
+        // Refuse before ending a lift, so a refused move never leaves the keep without its lodestone.
+        if (!rt.sim.rules().protectedClaim(claim)) return Text.get("nexus_move.under_attack");
+        NexusLift.cancel(level.getServer(), keep.id);
+        String refused = placeAt(rt, level, keep, at, "nexus_move.admin_not_here");
+        if (refused != null) return refused;
+        rt.engine.run(new charter.engine.Actor.Admin(operator), new charter.land.actions.RecordNexusMove(org.id, keep.id));
+        return null;
+    }
+
+    /** Puts the keep's lodestone at {@code feet} (or the first free block above), inside the keep and not under attack. */
+    private static String placeAt(CharterRuntime rt, ServerLevel level, Core keep, BlockPos feet, String notHere) {
         ChunkKey chunk = Placement.chunkOf(level, feet);
         var claim = rt.state.claimAt(chunk).orElse(null);
-        if (claim == null || !claim.core().equals(keep.id)) return Text.get("nexus_move.not_here");
+        if (claim == null || !claim.core().equals(keep.id)) return Text.get(notHere, "name", rt.state.org(keep.owner).map(o -> o.name()).orElse(""));
         if (!rt.sim.rules().protectedClaim(claim)) return Text.get("nexus_move.under_attack");
         BlockPos target = feet;
         while (!level.getBlockState(target).canBeReplaced() && target.getY() < level.getMaxY()) target = target.above();

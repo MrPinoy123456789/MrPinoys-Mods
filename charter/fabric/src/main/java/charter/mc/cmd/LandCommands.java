@@ -91,6 +91,13 @@ public final class LandCommands {
                                                 .then(Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                         .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                                 .executes(LandCommands::moveKeep))))))
+                        .then(Commands.literal("nexus")
+                                .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
+                                        .executes(ctx -> moveNexus(ctx, false))
+                                        .then(Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                .then(Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                        .then(Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                                .executes(ctx -> moveNexus(ctx, true)))))))
                         .then(Commands.literal("add")
                                 .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                         .then(Commands.argument("player", StringArgumentType.string())
@@ -359,6 +366,35 @@ public final class LandCommands {
         rt.claims.rebuild();
         return ok(ctx, Text.get("land.admin.keep_moved", "name", org.name(), "x", nexus.getX(), "y", nexus.getY(), "z", nexus.getZ(),
                 "ox", old.getX(), "oy", old.getY(), "oz", old.getZ()));
+    }
+
+    /**
+     * {@code faction nexus "<faction>" [<x> <y> <z>]}: moves that kingdom's Nexus lodestone to the operator's feet, or to the
+     * coordinates, inside its own keep. The keep and its land stay; see {@link charter.mc.land.NexusMove#moveFor}.
+     */
+    private static int moveNexus(CommandContext<CommandSourceStack> ctx, boolean coordinates) {
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        var found = Resolve.faction(rt, name).filter(o -> o.isTopLevel());
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        net.minecraft.core.BlockPos at;
+        if (coordinates) {
+            at = new net.minecraft.core.BlockPos(
+                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "x"),
+                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "y"),
+                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "z"));
+        } else if (ctx.getSource().getPlayer() != null) {
+            at = ctx.getSource().getPlayer().blockPosition();
+        } else {
+            return fail(ctx, Text.get("nexus_move.admin_console"));
+        }
+        var level = ctx.getSource().getLevel();
+        String refused = charter.mc.land.NexusMove.moveFor(level, found.get(), at, ctx.getSource().getTextName());
+        if (refused != null) return fail(ctx, refused);
+        var nexus = charter.mc.land.Fixtures.of(rt.state).first(
+                rt.state.coresOf(found.get().id).stream().filter(charter.land.Core::isKeep).findFirst().orElseThrow().id,
+                charter.mc.land.Fixtures.Kind.NEXUS);
+        return ok(ctx, Text.get("nexus_move.admin_done", "name", found.get().name(), "x", nexus.x(), "y", nexus.y(), "z", nexus.z()));
     }
 
     /** {@code faction add "<faction>" <player>}: the player joins the kingdom as an ordinary member. */

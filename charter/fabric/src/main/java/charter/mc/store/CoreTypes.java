@@ -88,6 +88,7 @@ public final class CoreTypes {
                 .register("land.unclaim", Unclaim.class)
                 .register("land.lose_core", LoseCore.class)
                 .register("land.move_keep", MoveKeep.class)
+                .register("land.record_nexus_move", charter.land.actions.RecordNexusMove.class)
                 .register("siege.deposit_food", DepositFood.class)
                 .register("war.declare", charter.siege.actions.DeclareWar.class)
                 .register("lord.mute", charter.moderation.actions.LordMute.class)

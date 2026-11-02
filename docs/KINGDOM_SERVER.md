@@ -304,6 +304,11 @@ Typed, under `/charter admin` (`/charter admin help` prints them all):
 - `votes`: open votes with their numbers and a Close now link. `vote close <number>` now suggests the numbers.
 - `faction remove <faction> <player>`: take a member out (a Lord loses the seat too).
   `faction rename <faction> <name>`: a new name; its land, members and history stay.
+- `faction nexus <faction> [<x> <y> <z>]`: move that kingdom's Nexus lodestone to your feet, or to the coordinates, inside
+  its own keep's nine chunks (the same rules as `/charter nexus move`: not outside the keep, not while it is open to attack,
+  not for an NPC kingdom). The keep, its land, teleport and jail follow; a lift under way is ended and the carrier loses the
+  item. The Chronicle records "the Nexus of <kingdom> was moved by an operator". From the console, give coordinates. The
+  menu has "Move its Nexus here" on each players' kingdom's page.
 - Every `<player>` takes an online name, a UUID, or the name of anyone the server has seen. Every `<faction>` takes a
   name (suggested as you type) or an id in quotes (`"org:..."`). No command was renamed or removed.
 - `moderation`: who is muted, barred from the land or holding Ledger access now, then the last 15 Lord moderation and
