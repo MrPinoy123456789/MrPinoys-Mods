@@ -277,3 +277,71 @@ After this plan nothing a player needs is typed only. Left as commands on purpos
   once on a client; a wrong path shows a blank square, not an error.
 - **Glint on paper.** Verify Geyser carries `ENCHANTMENT_GLINT_OVERRIDE` to Bedrock; if not, the name count alone
   carries the signal.
+
+
+## Status after Phases 2 to 5 (2026-11-01)
+
+Built on `feature/charter-book-bedrock-ui` (cut from `claude/relaxed-pascal-us1zqd`, current master merged in).
+`./gradlew build` is green: core 2192, fabric 399 unit checks, 151 gametests. Nothing is pushed or deployed.
+
+| Commit | Phase |
+|---|---|
+| `7fe61845` | master merged in; Phase 1 compiled first time |
+| `09d98bcb` | 2: `BookScreen`, `JavaDialogRenderer`, paging, green or red results |
+| `0dc75ba9` | 3: `BedrockForms` and `FloodgateAdapter`, knob `bedrockNativeForms` |
+| `db0a6d30` | 4: the new layout |
+| `d897e561` | 5: boss bar, action bar, glint and count, hotbar slot, sounds |
+
+### Choices and departures from the plan
+
+- **Floodgate API 2.2.4-SNAPSHOT and Cumulus 1.1.2, `compileOnly`.** No Floodgate jar or version is recorded in the
+  workspace or `docs/KINGDOM_SERVER.md`, and this work did not touch the server. 2.2.4 is the API line the current
+  Floodgate 2.2.x builds ship, and it pulls Cumulus 1.1.2. Charter uses four calls (`getInstance`,
+  `isFloodgatePlayer`, `sendForm`, the Cumulus builders), stable across 2.2.x. **Owner check:** read the Floodgate jar
+  version in the server's `/mods` and that its Fabric mod id is `floodgate`. A mismatch costs nothing worse than the
+  Java dialogs: `FloodgateAdapter` catches any failure and leaves them in place.
+- **Second fold on Member Home.** The plan's one fold (My faction under More) still allows 9 buttons. Where I stand
+  folds too, so the worst case is five journeys, Needs you, the Desk and More: 8.
+- **Admit or turn away is a list, not a two button modal.** Closing a modal runs its exit, and B must never admit or
+  turn anyone away. Turn away asks first, with the verb on the button.
+- **Calendar** stays its own button under More; Trinkets moved to Where I stand so More holds 8 at most (9 only with
+  player founding on, when Break away is added and More pages).
+- **Rule 3 and Where I stand.** A body "line" is a paragraph; each of the three sections is one paragraph of at most
+  4 lines. The green or red result line on top is not counted.
+- **Travel labels** are short ("Go to keep (12s)", "Go to outpost (no food)") to stay inside 24 characters. A
+  journey that never applies has no button; the hub button shows only when a hub exists.
+- **The safe** is closed on the server (`/charter safe`), so Justice has no safe page.
+- **Chronicle and map** as paged screens are left for Phase 6, as the build order says.
+
+### Press budget, measured by gametests from the book in hand
+
+| Task | Plan | Measured |
+|---|---|---|
+| Go to your keep | 2 | 2 |
+| Vote on something waiting | 3 | 3 (one thing waiting; 4 with more) |
+| Accept an invitation | 2 | 2 |
+| Admit a player | 4 | 3 through Needs you, 4 through the Desk |
+| Take Marks from the treasury | 4 | 4 with a preset (1, 10, 64); 6 with the slider |
+
+### Before the owner deploys
+
+- **The player text copy.** Charter copies its lang file to `config/charter/en_us.json` on first boot and that copy
+  wins over the jar for every key it has. The server's copy still holds the old long labels ("Go home (your bed)",
+  "Become a council, deciding together"), which break the 24 character rule and would show on Bedrock. Delete or
+  replace that file when this ships (keep a backup if the voice was edited by hand); new keys appear either way.
+- `bedrockNativeForms` is on by default; set it false in `charter.json` to fall back to the Java dialogs.
+
+### Phase 6: needs a live Bedrock client
+
+- Every screen with a controller only: B backs out, nothing needs a hover, a chat click or the keyboard.
+- The native forms: simple, modal and custom forms look right; body colours read; long titles fit a TV.
+- `FloodgateAdapter.values`: a custom form's answers are read by component index with labels counted; confirm a
+  dropdown and a slider return the right entry (Treasury, Take another amount; Invite with more than 8 online).
+- Every icon path in `BookIcons` shows a picture, not a blank square (`lodestone_top`, `banner_pattern`, `bell`,
+  `iron_bars`, `door_wood` and `barrier` are the likeliest to be wrong).
+- The book reads as a book in the hotbar, and Geyser carries the glint (`ENCHANTMENT_GLINT_OVERRIDE`).
+- The boss bar fills during a journey and goes on arrival and on a cancel; the action bar lines show.
+- Sounds: the chime when something needs you, the click on a result, the arrival.
+- The Chronicle's written book packet on Bedrock; if Geyser does not show it, build the paged Chronicle screens.
+- With `bedrockNativeForms` off: how Geyser draws the Java dialogs (body text, long lists, inputs, Esc).
+- The map screen (9 by 9 or 7 by 7) once Chronicle and map are built.
