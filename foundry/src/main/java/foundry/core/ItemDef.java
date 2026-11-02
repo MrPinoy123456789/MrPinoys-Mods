@@ -35,12 +35,23 @@ public record ItemDef(
         List<foundry.core.mechanics.MechanicDef> mechanics,
         List<String> wornSlots,
         boolean glider,
-        Ident wornModel) {
+        Ident wornModel,
+        Ident replacedBy,
+        Ident heldModel) {
+
+    /** The same definition with no replacement (the shape most code and tests build). */
+    public ItemDef(int schemaVersion, Ident id, String displayName, List<String> lore, Ident baseItem, Ident model, Ident texture,
+                   int stackSize, int durability, boolean glint, String rarity, double attackDamage, double attackSpeed,
+                   String requirePermission, String lockedMessage, boolean keepOnDeath, boolean handheld,
+                   List<foundry.core.mechanics.MechanicDef> mechanics, List<String> wornSlots, boolean glider, Ident wornModel) {
+        this(schemaVersion, id, displayName, lore, baseItem, model, texture, stackSize, durability, glint, rarity, attackDamage,
+                attackSpeed, requirePermission, lockedMessage, keepOnDeath, handheld, mechanics, wornSlots, glider, wornModel, null, null);
+    }
 
     public ItemDef withMechanics(List<foundry.core.mechanics.MechanicDef> replacement) {
         return new ItemDef(schemaVersion, id, displayName, lore, baseItem, model, texture, stackSize, durability, glint,
                 rarity, attackDamage, attackSpeed, requirePermission, lockedMessage, keepOnDeath, handheld, replacement,
-                wornSlots, glider, wornModel);
+                wornSlots, glider, wornModel, replacedBy, heldModel);
     }
 
     /** True when the item is locked to holders of a permission node. */

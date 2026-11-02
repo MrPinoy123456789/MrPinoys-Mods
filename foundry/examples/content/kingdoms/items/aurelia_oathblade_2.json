@@ -3,17 +3,18 @@
   "id": "kingdoms:aurelia_oathblade_2",
   "display_name": "Oathblade II",
   "lore": [
-    "Hit: 3 extra damage and Weakness for 4s.",
-    "Right click: Holy Lance, a bolt of light. 14s recharge.",
+    "Hit: 1 extra damage and Weakness for 3s.",
+    "Right click: Holy Lance, a spear of light, 5 damage. 14s recharge.",
     "Sneak and right click: Rally, Strength and Speed for you and allies within 6 blocks for 10s. 55s recharge.",
     "Upgrade: a netherite ingot and 2 emerald blocks, crafted with this."
   ],
   "base_item": "minecraft:iron_sword",
   "texture": "kingdoms:item/aurelia_oathblade_2",
+  "held_model": "kingdoms:item/held/aurelia_oathblade_2",
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",
-  "attack_damage": 8,
+  "attack_damage": 6,
   "attack_speed": 1.6,
   "handheld": true,
   "require_permission": "race:aurelia",
@@ -25,22 +26,30 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 3,
+          "amount": 1,
           "target": "hit",
           "ignore_hit_delay": true
         },
         {
           "type": "apply_effect",
           "effect": "minecraft:weakness",
-          "duration": 80,
+          "duration": 60,
           "amplifier": 0,
           "target": "hit"
         },
         {
           "type": "play_sound",
-          "sound": "minecraft:entity.player.attack.crit",
-          "volume": 0.8,
-          "pitch": 1.2
+          "sound": "minecraft:entity.player.attack.sweep",
+          "volume": 0.7,
+          "pitch": 1.3
+        },
+        {
+          "type": "particle_shape",
+          "shape": "arc",
+          "count": 14,
+          "radius": 1.6,
+          "colour": "#C9CED8",
+          "size": 0.9
         }
       ]
     },
@@ -62,11 +71,20 @@
           "pitch": 1.6
         },
         {
+          "type": "play_sound",
+          "sound": "minecraft:block.beacon.activate",
+          "volume": 0.5,
+          "pitch": 2.0
+        },
+        {
           "type": "launch_bolt",
           "tag": "holy_lance",
-          "range": 14,
-          "speed": 1.4,
-          "particle": "minecraft:end_rod"
+          "range": 18,
+          "speed": 1.6,
+          "particle": "minecraft:end_rod",
+          "model": "minecraft:end_rod",
+          "model_scale": 1.0,
+          "colour": "#FFF4C2"
         }
       ]
     },
@@ -87,10 +105,25 @@
           "target": "hit"
         },
         {
-          "type": "spawn_particles",
-          "particle": "minecraft:end_rod",
+          "type": "play_sound",
+          "sound": "minecraft:block.amethyst_block.chime",
+          "volume": 1.0,
+          "pitch": 0.8
+        },
+        {
+          "type": "particle_shape",
+          "shape": "column",
           "count": 16,
-          "spread": 0.4,
+          "radius": 2.5,
+          "particle": "minecraft:end_rod",
+          "target": "hit"
+        },
+        {
+          "type": "particle_shape",
+          "shape": "burst",
+          "count": 16,
+          "radius": 0.8,
+          "colour": "#FFF4C2",
           "target": "hit"
         }
       ]
@@ -129,10 +162,19 @@
           "radius": 6
         },
         {
-          "type": "spawn_particles",
-          "particle": "minecraft:happy_villager",
-          "count": 30,
-          "spread": 2.0
+          "type": "particle_shape",
+          "shape": "ring",
+          "count": 48,
+          "radius": 6.0,
+          "colour": "#C9CED8",
+          "size": 1.3
+        },
+        {
+          "type": "particle_shape",
+          "shape": "ring",
+          "count": 24,
+          "radius": 3.0,
+          "particle": "minecraft:end_rod"
         }
       ]
     }

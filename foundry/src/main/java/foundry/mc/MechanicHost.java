@@ -115,6 +115,8 @@ public final class MechanicHost implements MechanicRunner.Host {
             case "has_permission" -> hasPermission(condition.intParam("level", 4),
                     "hit".equals(condition.param("target", "self")));
             case "is_sneaking" -> player.isShiftKeyDown() == Boolean.parseBoolean(condition.param("value", "true"));
+            // in water or out in the rain: the Merfolk's weapon is stronger wet
+            case "in_water" -> player.isInWaterOrRain() == Boolean.parseBoolean(condition.param("value", "true"));
             default -> false;
         };
     }
@@ -173,11 +175,23 @@ public final class MechanicHost implements MechanicRunner.Host {
                         }
                     });
             case "damage" -> {
+                float amount = (float) action.decimalParam("amount", 1);
+                if ("area".equals(action.param("target", "self"))) {
+                    for (LivingEntity e : around(action)) e.hurtServer(level, level.damageSources().indirectMagic(player, player), amount);
+                    return;
+                }
                 // A hit that follows a melee swing lands inside the target's hit window, where vanilla only applies
                 // the amount above the last hit. A bonus that must land in full asks to clear the window first.
                 if (Boolean.parseBoolean(action.param("ignore_hit_delay", "false"))) target.damageCooldownTime = 0;
-                target.hurtServer(level, level.damageSources().indirectMagic(player, player), (float) action.decimalParam("amount", 1));
+                target.hurtServer(level, level.damageSources().indirectMagic(player, player), amount);
             }
+            case "knockback" -> {
+                double strength = action.decimalParam("strength", 0.5), lift = action.decimalParam("lift", 0.2);
+                List<LivingEntity> who = "area".equals(action.param("target", "self")) ? around(action)
+                        : target == player ? List.of() : List.of(target);
+                for (LivingEntity e : who) Effects.knock(player, e, strength, lift);
+            }
+            case "particle_shape" -> Effects.shape(level, player, "hit".equals(action.param("target", "self")) ? hit : null, action);
             case "spawn_particles" -> {
                 var type = BuiltInRegistries.PARTICLE_TYPE.getValue(Identifier.parse(action.param("particle", "")));
                 if (type instanceof net.minecraft.core.particles.SimpleParticleType simple) {
@@ -203,6 +217,17 @@ public final class MechanicHost implements MechanicRunner.Host {
         }
     }
 
+    /**
+     * The living things an area action reaches: within {@code radius} of the entity struck (or of the caster when
+     * nothing was struck), never the caster, alive and not spectating, and passing the permission filters.
+     */
+    private List<LivingEntity> around(Step action) {
+        double r = action.decimalParam("radius", 3);
+        LivingEntity centre = hit != null ? hit : player;
+        return player.level().getEntitiesOfClass(LivingEntity.class, centre.getBoundingBox().inflate(r),
+                e -> e != player && e.isAlive() && !e.isSpectator() && e.distanceToSqr(centre) <= r * r && passesFilters(action, e));
+    }
+
     /** Adds an error for every sound, effect or item id a mechanic names that Minecraft does not have. */
     static ContentSet checkReferences(ContentSet set) {
         List<Problem> problems = new ArrayList<>(set.problems());
@@ -217,8 +242,16 @@ public final class MechanicHost implements MechanicRunner.Host {
                         case "give_item" -> missing(problems, def.id(), "item", a.param("item", ""),
                                 BuiltInRegistries.ITEM.containsKey(Identifier.parse(a.param("item", ""))));
                         case "spawn_particles" -> particle(problems, def.id(), a.param("particle", ""));
+                        case "particle_shape" -> {
+                            if (a.params().containsKey("particle")) particle(problems, def.id(), a.param("particle", ""));
+                        }
                         case "launch_bolt" -> {
                             if (a.params().containsKey("particle")) particle(problems, def.id(), a.param("particle", ""));
+                            if (a.params().containsKey("model")) {
+                                missing(problems, def.id(), "item", a.param("model", ""),
+                                        BuiltInRegistries.ITEM.containsKey(Identifier.parse(a.param("model", "")))
+                                                || set.items().containsKey(foundry.core.Ident.parse(a.param("model", ""))));
+                            }
                         }
                         default -> { }
                     }

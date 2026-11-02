@@ -54,6 +54,9 @@ public final class Bolts {
         int returnTicks;
         /** On the way back a bolt hits each entity once, and not the one it has just left. */
         final java.util.Set<UUID> struckOnReturn = new java.util.HashSet<>();
+        /** The visible projectile (a model riding the bolt) for Java players, or null; and its coloured trail, or null. */
+        Model model;
+        final net.minecraft.core.particles.DustParticleOptions trail;
 
         Bolt(ServerLevel level, ServerPlayer owner, String contentId, Step spec, SimpleParticleType particle) {
             this.level = level;
@@ -69,6 +72,57 @@ public final class Bolts {
             this.returnTag = spec.param("return_tag", "");
             this.dir = owner.getLookAngle().normalize();
             this.pos = owner.getEyePosition().add(dir.scale(0.5)).add(0, -0.15, 0);
+            String colour = spec.param("colour", "");
+            this.trail = colour.isEmpty() ? null
+                    : new net.minecraft.core.particles.DustParticleOptions(Integer.parseInt(colour.substring(1), 16), 1.1f);
+        }
+    }
+
+    /**
+     * A bolt's visible projectile: an item display that rides along it, pointing the way it flies (and spinning, for a
+     * thrown weapon). Only Java players are sent it: Geyser cannot translate an item display, so Bedrock players see the
+     * particle trail alone.
+     */
+    private static final class Model extends eu.pb4.polymer.virtualentity.api.ElementHolder {
+        final eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement element;
+        final Vec3 origin;
+        final boolean spin;
+        final float scale;
+        float turn;
+
+        Model(ServerLevel level, Vec3 origin, net.minecraft.world.item.ItemStack stack, boolean spin, float scale) {
+            this.origin = origin;
+            this.spin = spin;
+            this.scale = scale;
+            element = new eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement(stack);
+            element.setItemDisplayContext(net.minecraft.world.item.ItemDisplayContext.FIXED);
+            element.setTeleportDuration(1);
+            element.setInterpolationDuration(1);
+            element.setViewRange(1.5f);
+            addElement(element);
+            eu.pb4.polymer.virtualentity.api.attachment.ChunkAttachment.ofTicking(this, level, origin);
+        }
+
+        @Override
+        public boolean startWatching(net.minecraft.server.network.ServerGamePacketListenerImpl connection) {
+            if (foundry.core.Floodgate.isBedrock(connection.getPlayer().getUUID())) return false;
+            return super.startWatching(connection);
+        }
+
+        /** Moves the model to the bolt and turns it along the way it flies. */
+        void follow(Vec3 pos, Vec3 dir) {
+            element.setOffset(pos.subtract(origin));
+            float yaw = (float) Math.toDegrees(Math.atan2(-dir.x, dir.z));
+            float pitch = (float) Math.toDegrees(-Math.asin(Math.max(-1, Math.min(1, dir.y))));
+            // the item lies flat in the yz plane; turn it to point its tip (+y in the item's picture) along the flight
+            var m = new org.joml.Matrix4f().rotateY((float) Math.toRadians(-yaw)).rotateX((float) Math.toRadians(90 + pitch));
+            if (spin) {
+                turn += 40;
+                m.rotateY((float) Math.toRadians(turn));
+            }
+            m.scale(scale);
+            element.setTransformation(m);
+            element.startInterpolationIfDirty();
         }
     }
 
@@ -85,6 +139,7 @@ public final class Bolts {
     }
 
     public static void clear() {
+        LIVE.forEach(Bolts::end);
         LIVE.clear();
     }
 
@@ -97,7 +152,22 @@ public final class Bolts {
         Identifier id = Identifier.parse(spec.param("particle", "minecraft:end_rod"));
         var type = BuiltInRegistries.PARTICLE_TYPE.getValue(id);
         SimpleParticleType particle = type instanceof SimpleParticleType s ? s : ParticleTypes.END_ROD;
-        LIVE.add(new Bolt(player.level(), player, contentId, spec, particle));
+        Bolt bolt = new Bolt(player.level(), player, contentId, spec, particle);
+        String model = spec.param("model", "");
+        if (!model.isEmpty()) {
+            var item = BuiltInRegistries.ITEM.getOptional(Identifier.parse(model)).orElse(null);
+            if (item != null) {
+                bolt.model = new Model(player.level(), bolt.pos, new net.minecraft.world.item.ItemStack(item),
+                        Boolean.parseBoolean(spec.param("spin", "false")), (float) spec.decimalParam("model_scale", 0.8));
+                bolt.model.follow(bolt.pos, bolt.dir);
+            }
+        }
+        LIVE.add(bolt);
+    }
+
+    private static void end(Bolt b) {
+        if (b.model != null) b.model.destroy();
+        b.model = null;
     }
 
     static void tick(MinecraftServer server) {
@@ -105,7 +175,12 @@ public final class Bolts {
         while (it.hasNext()) {
             Bolt b = it.next();
             ServerPlayer owner = b.level.getPlayerByUUID(b.owner) instanceof ServerPlayer p ? p : null;
-            if (owner == null || !owner.isAlive() || !advance(b, owner)) it.remove();
+            if (owner == null || !owner.isAlive() || !advance(b, owner)) {
+                end(b);
+                it.remove();
+            } else if (b.model != null) {
+                b.model.follow(b.pos, b.coming ? owner.getEyePosition().subtract(b.pos).normalize() : b.dir);
+            }
         }
     }
 
@@ -131,6 +206,7 @@ public final class Bolts {
             b.pos = next;
             done += step;
             b.level.sendParticles(b.particle, next.x, next.y, next.z, 1, 0, 0, 0, 0);
+            if (b.trail != null) b.level.sendParticles(b.trail, next.x, next.y, next.z, 1, 0.03, 0.03, 0.03, 0);
         }
         b.remaining -= travel;
         if (b.remaining > 0) return true;
@@ -164,6 +240,7 @@ public final class Bolts {
             b.pos = next;
             done += step;
             b.level.sendParticles(b.particle, next.x, next.y, next.z, 1, 0, 0, 0, 0);
+            if (b.trail != null) b.level.sendParticles(b.trail, next.x, next.y, next.z, 1, 0.03, 0.03, 0.03, 0);
         }
         return true;
     }

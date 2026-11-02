@@ -70,17 +70,24 @@ public final class Validator {
                     checkModelTextures(d.id(), path, assetText.apply(path), assetExists, problems);
                 }
             }
-            if (d.wornModel() != null) {
-                String path = PackFiles.modelPath(d.wornModel());
+            for (var three : java.util.List.of(java.util.Map.entry("worn_model", java.util.Optional.ofNullable(d.wornModel())),
+                    java.util.Map.entry("held_model", java.util.Optional.ofNullable(d.heldModel())))) {
+                if (three.getValue().isEmpty()) continue;
+                String field = three.getKey();
+                String path = PackFiles.modelPath(three.getValue().get());
                 if (d.texture() == null && d.model() == null) {
-                    problems.add(Problem.error(id, "worn_model", "A worn_model needs a texture or model to fall back on.",
+                    problems.add(Problem.error(id, field, "A " + field + " needs a texture or model to fall back on.",
                             "Add a texture field for the flat look used where the 3D model is not shown."));
                 } else if (!assetExists.test(path)) {
-                    problems.add(Problem.error(id, "worn_model", "No model file found at assets/" + path + ".",
-                            "Add that file, or remove worn_model."));
+                    problems.add(Problem.error(id, field, "No model file found at assets/" + path + ".",
+                            "Add that file, or remove " + field + "."));
                 } else {
                     checkModelTextures(d.id(), path, assetText.apply(path), assetExists, problems);
                 }
+            }
+            if (d.wornModel() != null && d.heldModel() != null) {
+                problems.add(Problem.error(id, "held_model", "An item has a worn_model or a held_model, not both.",
+                        "Keep the one that fits: worn for a trinket, held for a weapon or tool."));
             }
             if (d.texture() != null && !assetExists.test(PackFiles.texturePath(d.texture()))) {
                 problems.add(Problem.error(id, "texture", "No texture found at assets/" + PackFiles.texturePath(d.texture()) + ".",

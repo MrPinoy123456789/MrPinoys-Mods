@@ -108,11 +108,12 @@ public final class MechanicParser {
                     "Use target \"self\", or change the trigger to on_hit_entity or on_bolt_hit."));
         }
         boolean area = "area".equals(step.params().get("target"));
-        if (area && (!action || !step.type().equals("apply_effect") || !step.params().containsKey("radius"))) {
-            out.add(Problem.error(source, where, "target \"area\" works only on apply_effect, and needs a radius.",
-                    "Use { \"type\": \"apply_effect\", \"target\": \"area\", \"radius\": 5, ... }."));
+        boolean areaKind = step.type().equals("apply_effect") || step.type().equals("damage") || step.type().equals("knockback");
+        if (area && (!action || !areaKind || !step.params().containsKey("radius"))) {
+            out.add(Problem.error(source, where, "target \"area\" works only on apply_effect, damage and knockback, and needs a radius.",
+                    "Use { \"type\": \"damage\", \"target\": \"area\", \"radius\": 3, ... }."));
         }
-        if (action && step.type().equals("apply_effect") && !area && (step.params().containsKey("radius")
+        if (action && areaKind && !area && (step.params().containsKey("radius")
                 || step.params().containsKey("require_permission") || step.params().containsKey("exclude_permission"))) {
             out.add(Problem.error(source, where, "radius and the permission filters only apply with target \"area\".",
                     "Add \"target\": \"area\", or remove them."));
