@@ -104,6 +104,38 @@ To give a kingdom two Lords on the live server (names in quotes when they have s
 /charter admin faction coleader "Azrak" Bob
 ```
 
+## The Admin Book and operator commands
+
+Operators get an **Admin Book** (a red book with a glint) when they join or respawn without one, in a free hotbar slot
+other than slot 9 (the Charter book's). `opsGetAdminBook` in `charter.json` turns that off; `/charter admin give
+adminbook [player]` hands one out. Using it opens the operators' menu, the same as `/charter admin` on its own. Only an
+operator may hold one: anyone else's is taken away within a second, it vanishes on death instead of dropping, and an
+operator keeps one copy. Every press in the menu checks again that the player is still an operator.
+
+The menu is laid out by what an operator looks up:
+
+- **Players:** who is online (and a search for anyone the server has seen). A player's page shows their kingdom,
+  race, offices, whether they are held or banished, and when they were last seen, with Go to them, Bring them here, put
+  in or take out of a kingdom, the three Lord actions, set race, and give either book.
+- **Kingdoms:** each kingdom's page shows its Lords, Nexus, race and flags, with Go to the Nexus, members (each opens
+  their player page), add a member, the Lord actions, rename, race name, mixed race, admin kingdom, claim bonus, move
+  the keep here and dissolve.
+- **Keeps and land:** every keep's exact Nexus block with a Go button, the land map, supply lines and granary links.
+- **Votes:** every open vote; pick one to count it now. Also raider sites, new kingdom, server tools and help.
+
+Anything that cannot be undone (taking a member out, moving a keep, counting a vote, dissolving) asks first. The menu
+passes players by UUID and kingdoms by id, so two players with one name are never confused.
+
+Typed, under `/charter admin` (`/charter admin help` prints them all):
+
+- `kingdoms`: each kingdom with its Lords, members and Nexus. `keeps`: every keep's Nexus block, with a Go link.
+- `goto <faction>`: go to a kingdom's Nexus, in any dimension. `player <player>`: the facts on the player's page.
+- `votes`: open votes with their numbers and a Close now link. `vote close <number>` now suggests the numbers.
+- `faction remove <faction> <player>`: take a member out (a Lord loses the seat too).
+  `faction rename <faction> <name>`: a new name; its land, members and history stay.
+- Every `<player>` takes an online name, a UUID, or the name of anyone the server has seen. Every `<faction>` takes a
+  name (suggested as you type) or an id in quotes (`"org:..."`). No command was renamed or removed.
+
 ## Race trinkets: opening the screen and how they look
 
 Four race trinkets (Tidal Gills, Forgeman's Pauldron, Kingdom Cape, Antler Circlet) sit in Trinkets Updated slots; the

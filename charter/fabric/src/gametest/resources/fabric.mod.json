@@ -26,6 +26,7 @@
       "charter.gametest.BookLayoutGameTest",
       "charter.gametest.BookOutsideGameTest",
       "charter.gametest.TwoLordsGameTest",
+      "charter.gametest.AdminBookGameTest",
       "charter.gametest.MemberPagesGameTest",
       "charter.gametest.FoundingGameTest",
       "charter.gametest.BreakawayGameTest",

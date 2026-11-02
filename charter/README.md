@@ -64,6 +64,11 @@ Not protected on purpose: mob griefing (endermen, ravagers) follows the vanilla
   `perimeter show`, `give`. Lords: `faction leader <faction> <player>` (the one and
   only Lord), `faction coleader <faction> <player>` (a second Lord, equal to the
   first), `faction unlord <faction> <player>` (removes one Lord).
+- Operators: the Admin Book (or `/charter admin` on its own) opens the operators'
+  menu: players, kingdoms, keeps and land, votes, raider sites, new kingdom, server
+  tools. `/charter admin help` lists every operator command; new ones are
+  `kingdoms`, `keeps`, `goto <faction>`, `player <player>`, `votes`,
+  `faction remove <faction> <player>` and `faction rename <faction> <name>`.
 
 ## Discord
 

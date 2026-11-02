@@ -148,7 +148,7 @@ public final class OpCommands {
                 if (!core.isKeep()) continue;
                 n++;
                 MutableComponent line = Chat.line(Text.get("admin.keeps.line", "name", org.name(), "nexus", coreText(rt, core)) + " ");
-                line.append(Chat.run(Text.get("admin.keeps.go"), "/charter admin goto " + org.id));
+                line.append(Chat.run(Text.get("admin.keeps.go"), "/charter admin goto \"" + org.id + "\""));
                 say(ctx, line);
             }
         }
@@ -157,7 +157,7 @@ public final class OpCommands {
     }
 
     /** "Alice and Bob", "Alice", or "none". */
-    static String lords(CharterRuntime rt, OrgId org) {
+    public static String lords(CharterRuntime rt, OrgId org) {
         List<String> names = new ArrayList<>();
         Deciders.of(rt.state, org).ifPresent(office -> {
             for (Office.Seat seat : office.holders()) names.add(rt.describe.player(seat.player()));
@@ -166,12 +166,12 @@ public final class OpCommands {
     }
 
     /** Where a kingdom's keep Nexus stands, or that it has no keep. */
-    static String nexusText(CharterRuntime rt, OrgId org) {
+    public static String nexusText(CharterRuntime rt, OrgId org) {
         Optional<Core> keep = rt.state.coresOf(rt.state.root(org)).stream().filter(Core::isKeep).findFirst();
         return keep.map(core -> coreText(rt, core)).orElse(Text.get("admin.kingdoms.no_keep"));
     }
 
-    static String coreText(CharterRuntime rt, Core core) {
+    public static String coreText(CharterRuntime rt, Core core) {
         Fixtures.Fixture nexus = Fixtures.of(rt.state).first(core.id, Fixtures.Kind.NEXUS);
         if (nexus == null) {
             return Text.get("admin.keeps.no_nexus", "x", core.center.x() * 16 + 8, "z", core.center.z() * 16 + 8,

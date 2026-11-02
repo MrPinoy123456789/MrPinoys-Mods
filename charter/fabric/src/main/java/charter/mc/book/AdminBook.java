@@ -97,15 +97,24 @@ public final class AdminBook {
     }
 
     public static int count(ServerPlayer player) {
-        int n = 0;
+        return stacks(player).size();
+    }
+
+    /**
+     * Every Admin Book stack the player carries, each once: the inventory, then any worn or held stack the inventory
+     * does not already hold (the main hand is an inventory slot too, so a stack is compared by identity).
+     */
+    static List<ItemStack> stacks(ServerPlayer player) {
+        List<ItemStack> out = new java.util.ArrayList<>();
         Inventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.getContainerSize(); i++) if (isBook(inventory.getItem(i))) n++;
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (isBook(inventory.getItem(i))) out.add(inventory.getItem(i));
+        }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack worn = player.getItemBySlot(slot);
-            // The inventory above may already cover armour and the off hand.
-            if (isBook(worn) && inventory.findSlotMatchingItem(worn) < 0) n++;
+            if (isBook(worn) && out.stream().noneMatch(seen -> seen == worn)) out.add(worn);
         }
-        return n;
+        return out;
     }
 
     /**
@@ -114,29 +123,14 @@ public final class AdminBook {
      */
     public static int police(ServerPlayer player) {
         boolean keepOne = allowed(player);
-        boolean kept = false;
+        List<ItemStack> books = stacks(player);
         int removed = 0;
-        Inventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            if (!isBook(inventory.getItem(i))) continue;
-            if (keepOne && !kept) {
-                kept = true;
-                continue;
-            }
-            inventory.setItem(i, ItemStack.EMPTY);
+        for (int n = keepOne ? 1 : 0; n < books.size(); n++) {
+            // Emptying the stack removes it wherever it sits: an inventory slot, the off hand or armour.
+            books.get(n).setCount(0);
             removed++;
         }
-        for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemStack worn = player.getItemBySlot(slot);
-            if (!isBook(worn)) continue;
-            if (keepOne && !kept) {
-                kept = true;
-                continue;
-            }
-            player.setItemSlot(slot, ItemStack.EMPTY);
-            removed++;
-        }
-        if (player.containerMenu != null && isBook(player.containerMenu.getCarried()) && (!keepOne || kept)) {
+        if (player.containerMenu != null && isBook(player.containerMenu.getCarried()) && (!keepOne || !books.isEmpty())) {
             player.containerMenu.setCarried(ItemStack.EMPTY);
             removed++;
         }
