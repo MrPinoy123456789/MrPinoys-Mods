@@ -698,7 +698,7 @@ def paint_beard_icon():
 # finial, a silver crossbar with a tassel at each end, and a swallow tailed black banner hung from the crossbar, carrying
 # the crowned skull. The solid parts are baked like the other models (texture #0); the cloth has its own painted texture (#1).
 BANNER_CLOTH = os.path.join(TEXTURES, "aurelia_banner_cloth.png")
-CLOTH_W, CLOTH_H = 52, 80   # pixels of the cloth picture (13 by 20 model units at 4 texels each)
+CLOTH_W, CLOTH_H = 44, 100  # pixels of the cloth picture (11 by 25 model units at 4 texels each)
 CLOTH_TEX = 128              # the cloth texture is 128 by 128; the picture sits at its top left
 
 # The crowned skull, as pixel art (each character one pixel, drawn at twice this size on the cloth).
@@ -733,88 +733,79 @@ SKULL_BONE = "#d9d4c7"
 
 
 def banner():
-    """The solid parts of the banner (pole, finial, crossbar, tassels); the cloth is added in banner_model."""
-    left_tassel = [
-        part((0.4, 21.5, 7.3), (1.6, 26.0, 8.7), "silver_dark"),
-        part((0.1, 20.4, 7.0), (1.9, 21.6, 9.0), "silver"),
-    ]
+    """A sashimono, the solid parts: a straight pole up the back with a silver finial and foot, and an arm from near its
+    top reaching back behind the wearer, the cloth hanging from it (added in banner_model). Built facing the back as the
+    other back items are before their mirror: here -z is behind."""
     return [
-        part((7.3, -10, 7.3), (8.7, 29.5, 8.7), "pole"),
-        part((6.6, 29.0, 6.6), (9.4, 30.4, 9.4), "silver"),
-        part((7.4, 30.4, 7.4), (8.6, 32.0, 8.6), "silver", rot=("y", 45, (8, 31, 8))),
-        part((0.6, 26.0, 7.0), (15.4, 27.4, 9.0), "silver"),
+        part((7.3, -10, 7.3), (8.7, 29.0, 8.7), "pole"),
+        part((7.4, 29.0, 7.4), (8.6, 30.4, 8.6), "silver"),
+        part((7.6, 30.4, 7.6), (8.4, 32.0, 8.4), "silver", rot=("y", 45, (8, 31, 8))),
+        part((7.4, 27.0, -4.6), (8.6, 28.2, 7.3), "pole"),                # the arm, back from the pole
+        part((7.2, 26.8, -5.2), (8.8, 28.4, -4.4), "silver"),             # its silver end cap
+        part((7.2, 26.8, 6.9), (8.8, 28.4, 9.1), "silver_dark"),          # the joint at the pole
         part((6.8, -10, 6.8), (9.2, -8.8, 9.2), "silver_dark"),
-    ] + left_tassel + [mirror(t) for t in left_tassel]
+    ]
 
 
 def banner_model():
+    """The sashimono: the solid parts plus the cloth, a tall flat panel hanging from the arm with its long edge against
+    the pole, in the plane of the wearer's side, so it shows full on from the left and right as a samurai's does. Its two
+    faces carry mirror image uvs, so the picture reads the right way round from both sides, its left edge at the pole."""
     elements, texture = bake("aurelia_banner", banner())
     cu = lambda x: round(x * 16 / CLOTH_TEX, 4)
     picture = [cu(0), cu(0), cu(CLOTH_W), cu(CLOTH_H)]
     mirrored = [picture[2], picture[1], picture[0], picture[3]]
-    hem = [cu(2), cu(1), cu(CLOTH_W - 2), cu(3)]  # a strip of the top hem, for the cloth's thin edges
-    cloth = {"from": [1.5, 6.0, 6.4], "to": [14.5, 26.0, 6.8], "faces": {
-        "north": {"uv": picture, "texture": "#1"}, "south": {"uv": mirrored, "texture": "#1"},
-        "east": {"uv": hem, "texture": "#1"}, "west": {"uv": hem, "texture": "#1"},
+    hem = [cu(1), cu(1), cu(3), cu(3)]  # a black patch, for the cloth's thin edges
+    cloth = {"from": [7.8, 1.6, -4.0], "to": [8.2, 26.8, 7.0], "faces": {
+        "west": {"uv": picture, "texture": "#1"}, "east": {"uv": mirrored, "texture": "#1"},
+        "north": {"uv": hem, "texture": "#1"}, "south": {"uv": hem, "texture": "#1"},
         "up": {"uv": hem, "texture": "#1"}, "down": {"uv": hem, "texture": "#1"}}}
     return elements + [cloth], texture
 
 
 def paint_banner_cloth():
-    """The cloth: a black field shaded in soft folds, a silver border with a dark inner line, silver flourishes in the
-    corners, rings along the top hem, a swallow tail cut into the bottom, and the crowned skull with a faint blood red
-    glow around it."""
+    """The sashimono cloth, 44 by 100: a black field in soft vertical folds; a thin silver border; a dark sleeve down the
+    left edge, where the cloth is laced to the pole; silver rings along the top, where it hangs from the arm; three
+    silver bands across the top, as a samurai banner carries its house's stripes; and below them the crowned skull, with
+    a faint blood red glow."""
     rng = random.Random("aurelia")
     img = Image.new("RGBA", (CLOTH_TEX, CLOTH_TEX), (0, 0, 0, 0))
     w, h = CLOTH_W, CLOTH_H
-    # black and silver: a black field, a silver border with a dark inner line, silver rings and flourishes
-    field, deep, gold, gold_d, hem = rgb("#1a181c"), rgb("#050405"), rgb("#c9ced8"), rgb("#6f747f"), rgb("#0c0b0d")
-    glow = rgb("#3c0a12")  # a faint blood red glow behind the skull
-    tail = 14  # rows of the swallow tail
+    field, deep, silver, silver_d = rgb("#1a181c"), rgb("#050405"), rgb("#c9ced8"), rgb("#6f747f")
+    glow = rgb("#3c0a12")
+    sleeve = 4
     for y in range(h):
         for x in range(w):
-            # the swallow tail: a V cut up into the bottom of the cloth
-            if y >= h - tail and abs(x + 0.5 - w / 2) < (y - (h - tail)) * (w / 2) / tail:
-                continue
-            fold = 9 * math.sin(x / w * math.pi * 3.0) + 5 * math.sin(x / w * math.pi * 7.0 + 1)
-            light = -abs(y - h * 0.4) / h * 14
-            c = tint(field, fold + light + rng.randint(-5, 5))
+            fold = 8 * math.sin(x / w * math.pi * 3.0 + 0.6) + 4 * math.sin(y / h * math.pi * 5.0)
+            c = tint(field, fold + rng.randint(-5, 5))
+            if x < sleeve:
+                c = tint(deep, (6 if x == sleeve - 1 else 0) + rng.randint(-3, 3))
             img.putpixel((x, y), c + (255,))
-    # gold border (2 px) with a dark inner line, following the tail
-    def inside(x, y):
-        if not (0 <= x < w and 0 <= y < h):
-            return False
-        return img.getpixel((x, y))[3] > 0
-    border = []
+    # the thin silver border on the three free edges, a dark line inside it
     for y in range(h):
-        for x in range(w):
-            if not inside(x, y):
-                continue
-            edge = min([d for d in range(1, 5) if not all(inside(x + dx, y + dy) for dx in range(-d, d + 1)
-                                                         for dy in range(-d, d + 1))] or [9])
-            border.append((x, y, edge))
-    for x, y, edge in border:
-        if y < 4:
-            continue
-        if edge <= 2:
-            img.putpixel((x, y), tint(gold if (x + y) % 6 else gold_d, rng.randint(-8, 8) + (14 if edge == 1 else 0)) + (255,))
-        elif edge == 3:
-            img.putpixel((x, y), deep + (255,))
-    # the top hem, darker, with gold rings where it hangs on the crossbar
-    for y in range(4):
-        for x in range(w):
-            img.putpixel((x, y), tint(hem, rng.randint(-4, 4)) + (255,))
-    for cx in range(5, w - 3, 8):
-        for x, y in [(cx, 0), (cx + 1, 0), (cx - 1, 1), (cx + 2, 1), (cx - 1, 2), (cx + 2, 2), (cx, 3), (cx + 1, 3)]:
-            img.putpixel((x, y), gold + (255,))
-    # corner flourishes
-    for (cx, cy) in [(7, 9), (w - 8, 9), (7, h - tail - 4), (w - 8, h - tail - 4)]:
-        for dx, dy in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (2, 0), (-2, 0), (0, 2), (0, -2)]:
-            img.putpixel((cx + dx, cy + dy), (gold if abs(dx) + abs(dy) < 2 else gold_d) + (255,))
-    # the crowned skull, drawn at twice size, with a dark shadow one step down and right
+        for x in range(sleeve, w):
+            edge = min(x - sleeve if y > 2 else 99, w - 1 - x, h - 1 - y, y)
+            if edge == 0 or (edge == 1 and y > 2):
+                img.putpixel((x, y), tint(silver if (x + y) % 5 else silver_d, rng.randint(-8, 8)) + (255,))
+            elif edge == 2:
+                img.putpixel((x, y), deep + (255,))
+    # rings down the sleeve and along the top
+    for cy in range(6, h - 4, 11):
+        for x, y in [(1, cy), (2, cy), (0, cy + 1), (3, cy + 1), (1, cy + 2), (2, cy + 2)]:
+            img.putpixel((x, y), silver + (255,))
+    for cx in range(8, w - 3, 9):
+        for x, y in [(cx, 0), (cx + 1, 0), (cx - 1, 1), (cx + 2, 1), (cx, 2), (cx + 1, 2)]:
+            img.putpixel((x, y), silver + (255,))
+    # three silver bands across the top
+    for top in (6, 11, 16):
+        for y in range(top, top + 3):
+            for x in range(sleeve + 3, w - 3):
+                shade = 16 if y == top else (-18 if y == top + 2 else 0)
+                img.putpixel((x, y), tint(silver, shade + rng.randint(-6, 6)) + (255,))
+    # the crowned skull, drawn at twice size, with a faint glow one step around it
     art = SKULL.splitlines()
-    aw, ah = max(len(r) for r in art) * 2, len(art) * 2
-    ox, oy = (w - aw) // 2, 11
+    aw = max(len(r) for r in art) * 2
+    ox, oy = sleeve + (w - sleeve - aw) // 2, 28
     for pass_shadow, (sx, sy) in [(True, (-2, 0)), (True, (2, 0)), (True, (0, 2)), (True, (0, -2)), (False, (0, 0))]:
         for r, row in enumerate(art):
             for c, ch in enumerate(row):
@@ -824,7 +815,7 @@ def paint_banner_cloth():
                 for dy in range(2):
                     for dx in range(2):
                         x, y = ox + c * 2 + dx + sx, oy + r * 2 + dy + sy
-                        if 0 <= x < w and 0 <= y < h:
+                        if sleeve <= x < w - 2 and 0 <= y < h:
                             if pass_shadow:
                                 img.putpixel((x, y), glow + (255,))
                             else:
@@ -833,22 +824,22 @@ def paint_banner_cloth():
 
 
 def paint_banner_icon():
-    """The banner item's flat 16 by 16 icon: the pole, the black swallow tailed cloth with a silver top and a pale skull."""
+    """The banner item's flat 16 by 16 icon: the pole and its arm, the tall black cloth with silver bands and a pale skull."""
     img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
-    pole, red, gold, bone = rgb("#1f1d22"), rgb("#1a181c"), rgb("#c9ced8"), rgb("#d9d4c7")
+    pole, black, silver, bone = rgb("#1f1d22"), rgb("#1a181c"), rgb("#c9ced8"), rgb("#d9d4c7")
     for y in range(0, 16):
-        img.putpixel((7, y), pole + (255,))
-    for x in range(2, 14):
-        img.putpixel((x, 2), gold + (255,))
-    for y in range(3, 13):
-        for x in range(3, 13):
-            if y >= 10 and abs(x + 0.5 - 8) < (y - 9) * 1.6:
-                continue
-            img.putpixel((x, y), red + (255,))
-    for x, y in [(6, 5), (7, 5), (8, 5), (9, 5), (6, 6), (9, 6), (6, 7), (7, 7), (8, 7), (9, 7), (7, 8), (8, 8)]:
+        img.putpixel((4, y), pole + (255,))
+    for x in range(4, 13):
+        img.putpixel((x, 1), pole + (255,))
+    for y in range(2, 15):
+        for x in range(5, 12):
+            img.putpixel((x, y), black + (255,))
+    for y in (3, 5):
+        for x in range(6, 11):
+            img.putpixel((x, y), silver + (255,))
+    for x, y in [(7, 8), (8, 8), (9, 8), (7, 9), (9, 9), (7, 10), (8, 10), (9, 10), (8, 11)]:
         img.putpixel((x, y), bone + (255,))
-    for x in (6, 8):
-        img.putpixel((x, 4), gold + (255,))
+    img.putpixel((8, 7), silver + (255,))
     return img
 
 

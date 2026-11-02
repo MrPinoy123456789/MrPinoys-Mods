@@ -104,6 +104,56 @@ To give a kingdom two Lords on the live server (names in quotes when they have s
 /charter admin faction coleader "Azrak" Bob
 ```
 
+## Race traits: one movement, one passive, one sense each (balance pass, 2026-11-01)
+
+| Race (node) | Movement | Passive | Sense | Combat (Charter) | Gathering |
+|---|---|---|---|---|---|
+| Azrak Dwarves (`race:azrak`) | Deep Stride: +15% walking speed under a roof of blocks | Haste I | Ore sense, 8 blocks: gold, lapis, emerald, iron, copper and redstone ores (and deepslate ones); never diamond or ancient debris | Bedrock Stance | Fortune I on ores |
+| Aurelia Humans (`race:aurelia`) | Horsemanship: the horse, donkey, mule or camel they ride gets +20% speed and +10% jump | Better trades: 10% off villager and wandering trader prices (rounded, never below 1) | Treasure sense, 8 blocks: unopened surface structure loot (villages, shipwrecks, buried treasure, mineshafts, ruined portals) | Rally | Looting I on farm animals |
+| Faeloria Fae (`race:faeloria`) | Double jump (2.25 s cooldown, a little forward carry) and half fall damage | Night Vision | Herb sense, 12 blocks: ripe nether wart, torchflower, pitcher plant, wither rose, chorus flower, glow berries on cave vines, ripe cocoa | Glamour | Fortune I on alchemy plants |
+| Azurius Merfolk (`race:azurius`) | Swim dash (2 s cooldown) and Dolphin's Grace | Water Breathing | Tide sense, 10 blocks: sponge, wet sponge, suspicious sand and gravel | Tidewrath | Looting I on water things |
+| Everdelle Fairies (`race:everdelle`) | Glide, always, nothing in the chest slot; a takeoff leap (sneak and jump, 5 s cooldown) and 3 wingbeats while gliding (jump), no rockets needed | none (their Featherlight already spares all fall damage) | Glimmer sense, 7 blocks, every 4 s: diamond and emerald ores, amethyst clusters, budding amethyst | Featherlight | Fortune and Looting I on dusts |
+| Mossbeard's Muddle (`race:mossbeard_s_muddle`) | Old Forest Walk: +15% walking speed on living ground (grass, moss, podzol, mycelium, rooted or coarse dirt, mud, leaves) | Keeps everything on death (Charter `racesKeepInventory`) | Kindred sense, 12 blocks: bee nests, beehives, turtle eggs, sniffer eggs, frogspawn | none | none |
+
+How the new traits work (Foundry, `config/foundry/race_traits.json`, built in defaults match the shipped example):
+- Movement is server side, so Bedrock players get it: speed bonuses are movement speed attribute modifiers (a share of
+  base speed, 0.15 is three quarters of Speed I), the Human mount bonus is on the mount's own speed and jump attributes
+  and comes off when they get down, the Fae's half fall damage cuts the fall damage multiplier (a mixin), and the double
+  jump and swim dash are velocity pushes. None of it touches the Fairy glide or the wings.
+- The Fae double jump's cooldown is in `worn_displays.json` (`double_jump`, now 45 ticks, 10 percent less); its forward
+  carry is `jump_drift` (0.15 blocks a tick the way they face) in `race_traits.json`. A double jump resets the fall, so
+  the half fall damage applies to whatever fall comes after it.
+- A sense searches the blocks within its radius (1 to 16, knob `radius`) every two seconds (knob `every`), each player
+  on their own beat, and points at the nearest find to that player only: a short trail of coloured dust from the player
+  toward it (two blocks long at most, so it hints rather than marks) and an action bar line, "Ore sense: Diamond Ore,
+  about 6 blocks away". Both reach Bedrock through Geyser. Nothing past the radius is ever revealed. Block lists take
+  ids, ids with block state values (`minecraft:cocoa[age=2]`) and `#loot_chest`.
+- Passives stay Charter's `racePassives` (unchanged). Every knob: `stride` (`bonus`, `ground`: underground, wild or
+  anywhere), `mount` (`speed`, `jump`), `fall_damage`, `jump_drift`, `trade_discount`, `flight`, `sense` (`name`, `blocks`,
+  `radius`, `every`, `colour`). A race listed in the file replaces its built in traits.
+- Better trades (`trade_discount`, Humans 0.1, at most 0.5): when a villager or wandering trader starts trading with
+  the player, each offer's first cost drops by that share, rounded (a 10 emerald offer costs 9, a 3 emerald one stays
+  3), never below one; on the server, the same per offer change vanilla uses for Hero of the Village, with no effect or
+  particles. It comes off when trading stops. Charter Currency's `/shop` is not discounted: its prices are flat per
+  listing with no per player hook, and it does not know races. Humans no longer get Luck (Charter's default
+  `racePassives` no longer lists `aurelia`; a server whose `charter.json` still lists it must remove that entry).
+- Fairy flight (`flight`, Fairies only): sneak and jump on the ground springs them about 7 blocks up and starts the glide
+  at the top (`leap` 1.05, `leap_cooldown` 100 ticks). While gliding, jump beats the wings: the fall is cancelled, they
+  lift (`beat_lift` 0.55) and are pushed the way they look (`beat_push` 0.3), never past 1.2 blocks a tick across the
+  ground (`max_speed`; a rocket goes about 1.7). Three beats (`beats`); all come back after half a second on the ground,
+  one every 10 s in the air (`refill` 200). The action bar shows the beats left. It is the middle way between gliding
+  only and rockets: a Fairy can get airborne and climb out of a dive, but cannot stay up for ever or keep pace with
+  rockets. Rockets still work for them as for anyone. Unverified: whether a Bedrock client reports a jump press while
+  gliding (if not, Bedrock Fairies get the leap but not the beats).
+- Sense lists also take `#loot:<prefix>`: a container that still has its loot to roll whose loot table id starts with
+  the prefix (the Humans' list is `minecraft:chests/village/`, `shipwreck_`, `buried_treasure`, `abandoned_mineshaft` and
+  `ruined_portal`; no ancient cities, end cities, bastions or trial vaults). Ancient debris is nobody's to sense.
+- The Human look is now a sashimono: the pole against the back, an arm from its top reaching back, and the tall black
+  cloth hanging from it beside the pole, so it shows full on from the left and right; three silver bands across its top,
+  the crowned skull below, silver rings where it is laced to the pole.
+
+Full notes and where this differs from the earlier race spec: `docs/RACES.md`, section 7a.
+
 ## Race looks and traits (replaced the race trinkets, 2026-11-01)
 
 The race trinkets are gone as items to wear. Instead every player always shows their race's look, so anyone can tell
@@ -112,7 +162,7 @@ their race at a glance, and the race traits come with the race:
 | Race (node) | Look | Trait |
 |---|---|---|
 | Azrak Dwarves (`race:azrak`) | A thick Dwarf beard (`kingdoms:dwarf_beard`), combined with any vanilla helmet | Haste (`racePassives`) |
-| Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`): a black swallow tailed banner with a silver border and a skull under a solid silver crown, its eyes cut in the banner's black, on a black iron pole above the head | Luck (`racePassives`) |
+| Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`), a sashimono: a black iron pole against the back from the waist to above the head, an arm from its top reaching back, and the tall black cloth hanging from it beside the pole (seen full on from the sides), with three silver bands across the top and a skull under a solid silver crown, its eyes cut in the banner's black | Better trades (Foundry `race_traits.json`; Luck is gone) |
 | Faeloria Fae (`race:faeloria`) | Antlers in a woodland wreath (a leaf band set with white, pink and blue flowers), combined with any vanilla helmet (the wreath sits on the helmet's top); solid leaf wings that flap (`kingdoms:fae_wings`: deep green to amber tipped, serrated, veined) | Night Vision (`racePassives`); a double jump instead of gliding: press jump again in the air for a second hop, once per time off the ground, 2.5 second cooldown, no fall damage from it, with falling leaves and a rustle |
 | Azurius Merfolk (`race:azurius`) | Fin ears (`kingdoms:merfolk_fins`): a webbed fan behind each ear sweeping back past the head, with a small frill along the jaw, deep blue at the root through aqua to a pearly scalloped edge; on a helmet they sit on its sides. A tall dorsal fin down the spine (`kingdoms:dorsal_fin`) in the same colours | Water Breathing, Dolphin's Grace (`racePassives`); a swim dash: press jump while sprint swimming (or holding sprint in the water) to dart the way you look, 2 second cooldown, with bubbles and a dolphin's splash. Plain jump in the water still rises as usual |
 | Everdelle Fairies (`race:everdelle`) | Fairy Wings that flap (a slow beat standing, livelier moving, a fast flutter in the air, spread wide gliding), shading rose to lilac to aqua to gold, with veins, eye spots and swallowtails; a sparkle trail while gliding | Glide, always, with nothing in the chest slot |
@@ -271,6 +321,24 @@ Fairy Wings are an elytra in the chest slot and show on every client.
   `textures/item/worn/kingdom_cape.png`. It swings back the way vanilla's cape layer swings (6 degrees at rest, more as it
   trails a player moving forward or falling, 25 more crouching). It is a display, not the client's own cape: a server
   cannot give a vanilla player a real cape, which comes signed from Mojang's profile servers.
+- **Bedrock skins (2026-11-01, prototype, unverified on a Bedrock client).** Bedrock players now see the head looks
+  (beard, antlers with wreath, fin ears, the old blue hat) as part of the wearer's skin. Foundry hooks Geyser's
+  `SessionSkinApplyEvent` (`foundry.mc.GeyserSkins`, the only class that touches Geyser's API, loaded only when Geyser is
+  installed; compiled against `org.geysermc.geyser:api:2.12.1-SNAPSHOT`, never shaded). Whenever Geyser sends a player's
+  skin to a Bedrock player, the skin grows to 128 by 128 with the original in the top left quarter, the look's texture
+  goes in another quarter, and the standard humanoid bones get the look's bones (`foundry.core.BedrockSkin`). The new skin
+  id is unique to the look, so a client never shows its cached plain skin. A race change pushes the new skin to every
+  Bedrock player at once (`GeyserConnection.sendSkin`). Java players always get the look; a Bedrock player only when their
+  own skin is the plain classic or slim shape (a persona skin is left alone), and a skin already 128 by 128 has no room
+  and is left alone. The bones and textures are in the jar (`foundry/bedrock`), written from the Java worn models by
+  `foundry/tools/gen_bedrock_looks.py` (run after `gen_trinket_models.py`). Not yet: the back looks (both kinds of wings,
+  the banner, the dorsal fin), which come once the head looks are confirmed. To confirm on a Bedrock client: the beard and
+  hat sit on the head and follow it; the hat's feather is on the wearer's left and curves back (if it is on the right, or
+  faces are mirrored, flip `MIRROR_FACES` in the generator); the hat's front brim and side flaps droop and the antlers
+  lean out as on Java (if they tilt the wrong way, flip `ROTATION_SIGN`). The log says "race looks will be added to skins
+  for Bedrock players" once Geyser is up, then "added [looks] to NAME's skin for Bedrock players" the first time each
+  player is dressed, or that a persona or 128 pixel skin was left alone. Geyser reads a 65,536 byte skin as 128 by 128
+  (Cloudburst `ImageData.of`), so the size is accepted.
 - **Bedrock.** Nothing is drawn, on purpose: the live log showed Geyser throwing `Missing ID 73 in Java registry minecraft:entity_type` for every item display it was sent (it cannot translate `item_display` on 26.3), so `WornDisplays` never sends displays to a Floodgate player (UUID high half zero). Geyser (current master) lists `text_display` as required entity metadata but
   `item_display` and `block_display` as not required, so Polymer's item displays are almost certainly not translated;
   I found no Geyser option to attach a worn model to a player either. The trinket itself still works for Bedrock

@@ -59,7 +59,8 @@ public final class DoubleJump {
                     || player.getAbilities().flying || player.isFallFlying() || player.onClimbable() || !player.isAlive()
                     || player.isSpectator();
             if (state.tick(input.jump(), grounded, now, cooldown)) {
-                hop(player, AirJump.push(player.getYRot(), input.forward(), input.backward(), input.left(), input.right()));
+                hop(player, AirJump.push(player.getYRot(), input.forward(), input.backward(), input.left(), input.right(),
+                        RaceTraitsRuntime.of(player.getUUID()).jumpDrift()));
             }
         }
     }

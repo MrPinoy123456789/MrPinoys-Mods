@@ -66,7 +66,7 @@
     },
     "chest/banner": {
       "up": 1.32,
-      "back": 0.3,
+      "back": 0.2,
       "side": 0.0,
       "scale": 1.1,
       "on_head": false,
@@ -129,7 +129,7 @@
         "slot": "chest/cape",
         "glide": false,
         "flap": true,
-        "double_jump": 50
+        "double_jump": 45
       }
     ],
     "race:azurius": [

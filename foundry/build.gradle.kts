@@ -9,6 +9,7 @@ base { archivesName = "MrPinoys_Foundry" }
 repositories {
     mavenLocal()
     maven("https://maven.nucleoid.xyz") { name = "Nucleoid" }
+    maven("https://repo.opencollab.dev/main") { name = "OpenCollab" }
 }
 dependencies {
     minecraft("com.mojang:minecraft:26.3")
@@ -18,6 +19,8 @@ dependencies {
     implementation("eu.pb4:polymer-bundled:0.18.5+26.3")
     // Worn slots for trinkets (Patbox's Trinkets Updated). Foundry starts without it, so it is never shaded into the jar.
     implementation("eu.pb4:trinkets:4.2.1+26.3")
+    // Geyser's API, for the race looks in Bedrock players' skins (GeyserSkins). The server ships Geyser; compile only.
+    compileOnly("org.geysermc.geyser:api:2.12.1-SNAPSHOT")
 }
 java {
     withSourcesJar()

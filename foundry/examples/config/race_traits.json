@@ -1,0 +1,127 @@
+{
+  "_comment": "Race traits (Foundry): movement and senses per race node. Shares are 0 to 1 of base speed or of fall damage. Sense radius 1 to 16 blocks, every N ticks.",
+  "race:azrak": {
+    "stride": {
+      "bonus": 0.15,
+      "ground": "underground"
+    },
+    "sense": {
+      "name": "Ore sense",
+      "blocks": [
+        "minecraft:gold_ore",
+        "minecraft:deepslate_gold_ore",
+        "minecraft:lapis_ore",
+        "minecraft:deepslate_lapis_ore",
+        "minecraft:emerald_ore",
+        "minecraft:deepslate_emerald_ore",
+        "minecraft:iron_ore",
+        "minecraft:deepslate_iron_ore",
+        "minecraft:copper_ore",
+        "minecraft:deepslate_copper_ore",
+        "minecraft:redstone_ore",
+        "minecraft:deepslate_redstone_ore"
+      ],
+      "radius": 8,
+      "every": 40,
+      "colour": "#E0B040"
+    }
+  },
+  "race:aurelia": {
+    "mount": {
+      "speed": 0.2,
+      "jump": 0.1
+    },
+    "sense": {
+      "name": "Treasure sense",
+      "blocks": [
+        "#loot:minecraft:chests/village/",
+        "#loot:minecraft:chests/shipwreck_",
+        "#loot:minecraft:chests/buried_treasure",
+        "#loot:minecraft:chests/abandoned_mineshaft",
+        "#loot:minecraft:chests/ruined_portal"
+      ],
+      "radius": 8,
+      "every": 40,
+      "colour": "#C9CED8"
+    },
+    "trade_discount": 0.1
+  },
+  "race:faeloria": {
+    "fall_damage": 0.5,
+    "jump_drift": 0.15,
+    "sense": {
+      "name": "Herb sense",
+      "blocks": [
+        "minecraft:nether_wart[age=3]",
+        "minecraft:torchflower",
+        "minecraft:pitcher_plant",
+        "minecraft:wither_rose",
+        "minecraft:chorus_flower",
+        "minecraft:cave_vines[berries=true]",
+        "minecraft:cave_vines_plant[berries=true]",
+        "minecraft:cocoa[age=2]"
+      ],
+      "radius": 12,
+      "every": 40,
+      "colour": "#7CD35A"
+    }
+  },
+  "race:azurius": {
+    "sense": {
+      "name": "Tide sense",
+      "blocks": [
+        "minecraft:sponge",
+        "minecraft:wet_sponge",
+        "minecraft:suspicious_sand",
+        "minecraft:suspicious_gravel"
+      ],
+      "radius": 10,
+      "every": 40,
+      "colour": "#3FC2CF"
+    }
+  },
+  "race:everdelle": {
+    "sense": {
+      "name": "Glimmer sense",
+      "blocks": [
+        "minecraft:diamond_ore",
+        "minecraft:deepslate_diamond_ore",
+        "minecraft:emerald_ore",
+        "minecraft:deepslate_emerald_ore",
+        "minecraft:amethyst_cluster",
+        "minecraft:budding_amethyst"
+      ],
+      "radius": 7,
+      "every": 80,
+      "colour": "#F59AC4"
+    },
+    "flight": {
+      "leap": 1.05,
+      "leap_cooldown": 100,
+      "beats": 3,
+      "beat_lift": 0.55,
+      "beat_push": 0.3,
+      "refill": 200,
+      "max_speed": 1.2
+    }
+  },
+  "race:mossbeard_s_muddle": {
+    "stride": {
+      "bonus": 0.15,
+      "ground": "wild"
+    },
+    "sense": {
+      "name": "Kindred sense",
+      "blocks": [
+        "minecraft:bee_nest",
+        "minecraft:beehive",
+        "minecraft:turtle_egg",
+        "minecraft:sniffer_egg",
+        "minecraft:frogspawn"
+      ],
+      "radius": 12,
+      "every": 40,
+      "colour": "#6FAF3A"
+    }
+  }
+}

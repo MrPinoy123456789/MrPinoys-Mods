@@ -33,6 +33,9 @@ public final class CoreSuite {
         weaponTiers();
         itemLocks();
         bonuses();
+        bedrockSkins();
+        raceTraits();
+        wingFlight();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -197,6 +200,170 @@ public final class CoreSuite {
             check(loaded.problems().stream().anyMatch(foundry.core.Problem::blocking), "and the duplicate is reported");
         } catch (java.io.IOException e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    /** Fairy flight (race_traits.json flight): the takeoff leap, a few wingbeats, and how they come back. */
+    private static void wingFlight() {
+        var f = foundry.core.RaceTraits.defaults().of("race:everdelle").flight();
+        check(f != null && f.beats() == 3 && f.leap() > 1 && f.leapCooldown() == 100, "Fairies have a takeoff leap and three wingbeats");
+        check(foundry.core.RaceTraits.defaults().of("race:faeloria").flight() == null, "only the Fairies have powered flight");
+        var NONE = foundry.core.WingFlight.Act.NONE;
+        var w = new foundry.core.WingFlight();
+        check(w.tick(true, false, true, false, 0, f) == NONE, "a plain jump on the ground is just a jump");
+        check(w.tick(false, true, true, false, 1, f) == NONE && w.tick(true, true, true, false, 2, f) == foundry.core.WingFlight.Act.LEAP,
+                "sneak and jump on the ground leaps");
+        check(w.tick(false, true, true, false, 3, f) == NONE && w.tick(true, true, true, false, 4, f) == NONE,
+                "the leap waits for its cooldown");
+        int beats = 0;
+        for (int t = 10; t < 30; t += 2) {
+            w.tick(false, false, false, true, t, f);
+            if (w.tick(true, false, false, true, t + 1, f) == foundry.core.WingFlight.Act.BEAT) beats++;
+        }
+        check(beats == 3 && w.charges() == 0, "three wingbeats while gliding, then none, beat " + beats);
+        w.tick(false, false, false, true, 30 + f.refill(), f);
+        check(w.charges() == 1, "one wingbeat comes back slowly in the air");
+        for (int t = 0; t < 12; t++) w.tick(false, false, true, false, 1000 + t, f);
+        check(w.charges() == 3, "landing for a moment brings them all back");
+        check(w.tick(true, false, false, false, 2000, f) == NONE, "no wingbeat unless gliding");
+        double[] up = foundry.core.WingFlight.beat(0.5, -0.8, 0, 1, 0, f, f.maxSpeed());
+        check(up[1] == f.beatLift() && Math.abs(up[0] - 0.8) < 1e-9, "a beat cancels the fall, lifts, and pushes the way they look");
+        double[] fast = foundry.core.WingFlight.beat(1.15, 0, 0, 1, 0, f, f.maxSpeed());
+        check(Math.abs(Math.hypot(fast[0], fast[2]) - f.maxSpeed()) < 1e-9, "beats never push past the speed cap (far below a rocket's)");
+        check(!foundry.core.RaceTraits.parse("{\"race:everdelle\":{\"flight\":{\"beats\":50}}}").problems().isEmpty(),
+                "too many wingbeats are reported");
+    }
+
+    /** The race traits (race_traits.json): every race one movement and one sense, the parser and the double jump drift. */
+    private static void raceTraits() {
+        var t = foundry.core.RaceTraits.defaults();
+        for (String race : java.util.List.of("race:azrak", "race:aurelia", "race:faeloria", "race:azurius", "race:everdelle",
+                "race:mossbeard_s_muddle")) {
+            var trait = t.of(race);
+            check(trait.sense() != null && trait.sense().radius() <= 12 && !trait.sense().blocks().isEmpty(),
+                    race + " has a sense of at most 12 blocks");
+        }
+        check(t.of("race:azrak").stride().ground() == foundry.core.RaceTraits.Ground.UNDERGROUND
+                && t.of("race:azrak").stride().bonus() == 0.15, "Dwarves stride faster underground");
+        check(t.of("race:aurelia").mount().speed() == 0.2 && t.of("race:aurelia").mount().jump() == 0.1, "Humans ride faster");
+        check(t.of("race:aurelia").tradeDiscount() == 0.1 && t.of("race:azrak").tradeDiscount() == 0, "only Humans trade cheaper");
+        check(foundry.core.RaceTraits.discount(10, 0.1) == 1 && foundry.core.RaceTraits.discount(3, 0.1) == 0
+                && foundry.core.RaceTraits.discount(1, 0.5) == 0 && foundry.core.RaceTraits.discount(2, 0.5) == 1
+                && foundry.core.RaceTraits.discount(64, 0.1) == 6, "a trade discount rounds and never takes a price below one");
+        var dwarfOres = t.of("race:azrak").sense().blocks();
+        check(!dwarfOres.contains("minecraft:diamond_ore") && !dwarfOres.contains("minecraft:ancient_debris")
+                && dwarfOres.contains("minecraft:iron_ore") && dwarfOres.contains("minecraft:redstone_ore"),
+                "Dwarves smell gold, lapis, emerald, iron, copper and redstone, not diamond or ancient debris");
+        var gems = t.of("race:everdelle").sense();
+        check(gems.blocks().contains("minecraft:diamond_ore") && !gems.blocks().contains("minecraft:glowstone")
+                && gems.radius() >= 6 && gems.radius() <= 8 && gems.every() > 40, "Fairies sense gems, close and slowly");
+        check(t.races().values().stream().noneMatch(r -> r.sense().blocks().contains("minecraft:ancient_debris")),
+                "ancient debris is nobody's to sense");
+        var treasure = t.of("race:aurelia").sense();
+        check(treasure.radius() == 8 && treasure.blocks().stream().allMatch(b -> b.startsWith(foundry.core.RaceTraits.LOOT_PREFIX))
+                && treasure.blocks().stream().noneMatch(b -> b.contains("ancient_city") || b.contains("end_city")
+                        || b.contains("bastion") || b.contains("trial")), "Humans sense surface structure loot only, within 8 blocks");
+        check(t.of("race:faeloria").fallDamage() == 0.5 && t.of("race:faeloria").jumpDrift() == 0.15,
+                "the Fae land on half the fall damage and drift forward on a double jump");
+        check(t.of("race:mossbeard_s_muddle").stride().ground() == foundry.core.RaceTraits.Ground.WILD,
+                "the folk of Mossbeard's Muddle stride faster on living ground");
+        check(t.of("race:nobody").sense() == null && t.of("race:nobody").stride() == null, "a player of no race has no trait");
+        check(foundry.core.WornPlacement.FAE_DOUBLE_JUMP == 45, "the Fae double jump cooldown is 45 ticks (10 percent less)");
+        for (var race : t.races().values()) {
+            for (String b : race.sense().blocks()) {
+                check(b.equals(foundry.core.RaceTraits.LOOT_CHEST) || b.startsWith(foundry.core.RaceTraits.LOOT_PREFIX)
+                        || foundry.core.RaceTraits.BlockMatch.parse(b) != null,
+                        b + " is a block a sense can look for");
+            }
+        }
+        var cocoa = foundry.core.RaceTraits.BlockMatch.parse("minecraft:cocoa[age=2]");
+        check(cocoa.id().equals("minecraft:cocoa") && cocoa.state().equals(java.util.Map.of("age", "2")), "a block with a state value parses");
+        check(foundry.core.RaceTraits.BlockMatch.parse("not a block") == null && foundry.core.RaceTraits.BlockMatch.parse("minecraft:x[age]") == null,
+                "a bad block id is refused");
+        var tuned = foundry.core.RaceTraits.parse("{\"race:azrak\":{\"stride\":{\"bonus\":0.1,\"ground\":\"anywhere\"}}}");
+        check(tuned.problems().isEmpty() && tuned.traits().of("race:azrak").stride().bonus() == 0.1
+                && tuned.traits().of("race:azrak").sense() == null && tuned.traits().of("race:aurelia").mount() != null,
+                "a race in the file replaces its built in traits; the others keep theirs");
+        check(!foundry.core.RaceTraits.parse("{\"race:azrak\":{\"stride\":{\"bonus\":3}}}").problems().isEmpty(),
+                "a speed share over 1 is reported");
+        check(!foundry.core.RaceTraits.parse("{\"race:azrak\":{\"sense\":{\"blocks\":[\"minecraft:stone\"],\"radius\":64}}}").problems().isEmpty(),
+                "a sense radius over 16 is reported (a sense never reaches far)");
+        check(foundry.core.RaceTraits.parse("nope").problems().size() == 1, "a broken file falls back to the defaults");
+        double[] drift = foundry.core.AirJump.push(0f, false, false, false, false, 0.15);
+        check(Math.abs(drift[2] - 0.15) < 1e-9 && Math.abs(drift[0]) < 1e-9 && drift[1] > 0.5,
+                "a Fae double jump with no key held still carries a little forward");
+        double[] run = foundry.core.AirJump.push(0f, true, false, false, false, 0.15);
+        check(Math.abs(run[2] - 0.53) < 1e-9, "running forward the drift adds to the hop");
+        check(foundry.core.RaceTraits.nearest(new double[] {9, 4, 16}) == 1 && foundry.core.RaceTraits.nearest(new double[0]) == -1,
+                "the sense points at the nearest find");
+    }
+
+    /** The race looks added to Bedrock skins: the composed image, the geometry and the looks the jar carries. */
+    private static void bedrockSkins() throws Exception {
+        var humanoid = resourceJson("humanoid.json").getAsJsonObject();
+        check(humanoid.getAsJsonArray("wide").size() == 16 && humanoid.getAsJsonArray("slim").size() == 16,
+                "the jar has the standard wide and slim humanoid bones");
+        var looks = resourceJson("looks.json").getAsJsonArray();
+        check(looks.size() == 4, "the jar has Bedrock bones for the four head looks, has " + looks.size());
+        for (var e : looks) {
+            String name = e.getAsString().substring(e.getAsString().indexOf(':') + 1);
+            var look = resourceJson(name + ".json").getAsJsonObject();
+            int tw = look.getAsJsonArray("texture_size").get(0).getAsInt(), th = look.getAsJsonArray("texture_size").get(1).getAsInt();
+            boolean inside = tw <= 64 && th <= 64;
+            for (var c : look.getAsJsonArray("bones").get(0).getAsJsonObject().getAsJsonArray("cubes")) {
+                for (var f : c.getAsJsonObject().getAsJsonObject("uv").entrySet()) {
+                    var uv = f.getValue().getAsJsonObject().getAsJsonArray("uv");
+                    var size = f.getValue().getAsJsonObject().getAsJsonArray("uv_size");
+                    inside &= uv.get(0).getAsInt() >= 0 && uv.get(1).getAsInt() >= 0
+                            && uv.get(0).getAsInt() + size.get(0).getAsInt() <= tw && uv.get(1).getAsInt() + size.get(1).getAsInt() <= th;
+                }
+            }
+            check(inside, name + ": its Bedrock texture fits a quarter of the skin and every face's uv is inside it");
+            check("head".equals(look.getAsJsonArray("bones").get(0).getAsJsonObject().get("parent").getAsString()),
+                    name + " hangs from the head bone");
+        }
+        byte[] skin = new byte[64 * 64 * 4];
+        skin[0] = 10; skin[1] = 20; skin[2] = 30; skin[3] = (byte) 255;
+        var bones = new com.google.gson.JsonArray();
+        bones.add(com.google.gson.JsonParser.parseString(
+                "{\"name\":\"foundry_x\",\"parent\":\"head\",\"pivot\":[0,24,0],\"cubes\":[{\"origin\":[0,24,0],\"size\":[1,1,1],"
+                        + "\"uv\":{\"north\":{\"uv\":[2,3],\"uv_size\":[1,1]}}}]}"));
+        int[] argb = new int[4 * 4];
+        argb[0] = 0xff112233;
+        var piece = new foundry.core.BedrockSkin.Piece("kingdoms:dwarf_beard", bones, 4, 4, argb);
+        var made = foundry.core.BedrockSkin.make(skin, "http://textures/abc", false, humanoid, java.util.List.of(piece));
+        check(made != null && made.rgba().length == 128 * 128 * 4, "a 64 by 64 skin becomes 128 by 128");
+        check(made.rgba()[0] == 10 && made.rgba()[1] == 20 && made.rgba()[2] == 30, "the original skin stays in the top left");
+        int at = 64 * 4;
+        check((made.rgba()[at] & 0xff) == 0x11 && (made.rgba()[at + 3] & 0xff) == 0xff, "the look's texture goes in the top right quarter");
+        var geo = com.google.gson.JsonParser.parseString(made.geometryData()).getAsJsonObject().getAsJsonArray("minecraft:geometry")
+                .get(0).getAsJsonObject();
+        check(geo.getAsJsonArray("bones").size() == 17 && geo.getAsJsonObject("description").get("texture_width").getAsInt() == 128,
+                "the geometry is the 16 humanoid bones plus the look's, on a 128 texture");
+        var uv = geo.getAsJsonArray("bones").get(16).getAsJsonObject().getAsJsonArray("cubes").get(0).getAsJsonObject()
+                .getAsJsonObject("uv").getAsJsonObject("north").getAsJsonArray("uv");
+        check(uv.get(0).getAsInt() == 66 && uv.get(1).getAsInt() == 3, "the look's uvs move to its quarter");
+        check(made.geometryName().contains(geo.getAsJsonObject("description").get("identifier").getAsString()),
+                "the geometry name points at the geometry");
+        check(made.id().startsWith("foundry:dwarf_beard:") && made.id().endsWith("http://textures/abc"),
+                "the new skin's id is unique to the look and the skin, so a client never shows its cached plain skin");
+        check(!foundry.core.BedrockSkin.make(skin, "a", true, humanoid, java.util.List.of(piece)).geometryData()
+                .equals(made.geometryData()), "a slim skin gets the slim bones");
+        check(foundry.core.BedrockSkin.make(new byte[64 * 32 * 4], "a", false, humanoid, java.util.List.of(piece)) != null,
+                "an old style 64 by 32 skin is widened and dressed");
+        check(foundry.core.BedrockSkin.make(new byte[128 * 128 * 4], "a", false, humanoid, java.util.List.of(piece)) == null,
+                "a skin already 128 by 128 is left alone (no room for the look)");
+        check(foundry.core.BedrockSkin.make(skin, "a", false, humanoid, java.util.List.of()) == null, "no look, no change");
+        check(foundry.core.BedrockSkin.plain("{\"geometry\":{\"default\":\"geometry.humanoid.custom\"}}")
+                && foundry.core.BedrockSkin.plain("{\"geometry\":{\"default\":\"geometry.humanoid.customSlim\"}}")
+                && !foundry.core.BedrockSkin.plain("{\"geometry\":{\"default\":\"geometry.persona_abc\"}}"),
+                "a plain classic or slim Bedrock skin is dressed, a persona skin is left alone");
+    }
+
+    private static com.google.gson.JsonElement resourceJson(String name) throws Exception {
+        try (var in = CoreSuite.class.getResourceAsStream("/foundry/bedrock/" + name)) {
+            if (in == null) throw new AssertionError("missing resource foundry/bedrock/" + name);
+            return com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 
