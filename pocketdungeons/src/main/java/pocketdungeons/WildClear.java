@@ -22,8 +22,12 @@ import java.util.UUID;
  */
 final class WildClear {
 
-    /** How often the gate is asked, in ticks; the spawner scan is not free. */
-    static final int CHECK_EVERY = 10;
+    /**
+     * The gate is asked once per watch tick ({@code watchIntervalTicks}, 20 by default), which is slow enough that the
+     * spawner scan is not free. It must not also be tied to the world clock: the watch counts ticks from server start,
+     * so a test of the world clock's remainder lines up only on a restart whose boot offset happens to be
+     * a multiple of 10, and on any other never passes (owner, 2026-11-02: every spawner done, no exit, no rewards).
+     */
 
     private static final java.util.Map<String, Boolean> WARNED = SessionState.clearedAtStop(new java.util.HashMap<>());
 
@@ -41,8 +45,7 @@ final class WildClear {
 
     /** One watch tick of an in progress wild record. */
     static void tick(MinecraftServer server, InstanceRecord record, WildState.Lodestone lodestone, long gameTime) {
-        if (lodestone == null || lodestone.phase != WildState.Phase.IN_PROGRESS || record.members.isEmpty()
-                || gameTime % CHECK_EVERY != 0) {
+        if (lodestone == null || lodestone.phase != WildState.Phase.IN_PROGRESS || record.members.isEmpty()) {
             return;
         }
         ServerLevel level = WildReset.dungeonLevel(server, lodestone.id);
