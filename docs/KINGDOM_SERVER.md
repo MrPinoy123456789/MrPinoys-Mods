@@ -80,7 +80,7 @@ their race at a glance, and the race traits come with the race:
 | Race (node) | Look | Trait |
 |---|---|---|
 | Azrak Dwarves (`race:azrak`) | A thick Dwarf beard (`kingdoms:dwarf_beard`), combined with any vanilla helmet | Haste (`racePassives`) |
-| Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`): a black swallow tailed banner with a silver border and a crowned, scowling skull, on a black iron pole above the head | Luck (`racePassives`) |
+| Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`): a black swallow tailed banner with a silver border and a skull under a solid silver crown, its eyes cut in the banner's black, on a black iron pole above the head | Luck (`racePassives`) |
 | Faeloria Fae (`race:faeloria`) | Antlers, combined with any vanilla helmet | Night Vision (`racePassives`) |
 | Azurius Merfolk (`race:azurius`) | Tidal Gills beside the neck | Water Breathing, Dolphin's Grace (`racePassives`) |
 | Everdelle Fairies (`race:everdelle`) | Fairy Wings | Glide, always, with nothing in the chest slot |

@@ -352,32 +352,32 @@ CLOTH_W, CLOTH_H = 52, 80   # pixels of the cloth picture (13 by 20 model units 
 CLOTH_TEX = 128              # the cloth texture is 128 by 128; the picture sits at its top left
 
 # The crowned skull, as pixel art (each character one pixel, drawn at twice this size on the cloth).
-SKULL = """..H......H......H..
+SKULL = """\n..H......H......H..
 .HSH....HSH....HSH.
-.SRS....SRS....SRS.
-.SSSS..SSRSS..SSSS.
+.SSS....SSS....SSS.
+.SSSS..SSSSS..SSSS.
 .SSSSSSSSSSSSSSSSS.
-.sHSRSHSSSSSHSRSHs.
+.sHSSSHSSSSSHSSSHs.
 .sssssssssssssssss.
 ..OBBBBBBCBBBBBBO..
 .OBWWBBBBBCBBBBBBO.
 .OBWBBBBBCBBBBBBbO.
-.OBDDBBBBBBBBBDDbO.
+.OBBBBBBBBBBBBBBbO.
+.OBDDDBBBBBBBDDDbO.
 .OBDDDDBBBBBDDDDbO.
-.OBBDEEDDBDDEEDBbO.
-.OBBBDEEDBDEEDBBbO.
-.OBBBBDDBBBDDBBBbO.
+.OBDDDDBBBBBDDDDbO.
+.OBBDDBBBBBBBDDBbO.
 ..OBBBBBBDBBBBBbO..
 ...ObBBBDDDBBBbO...
 ...OBTDTDTDTDTbO...
-...ObDTDTDTDTDbO...
-....OOTOTOTOTOO....
+...ObTDTDTDTDTbO...
+....OOOOOOOOOOO....
 ......OOOOOOO......"""
-# A silver crown with blood red gems on a scowling skull: sockets slanting down to the nose, glowing red eyes, a crack
-# down the brow and jagged fangs.
+# A solid silver crown on a stern skull: eye sockets and nose in the banner's own black (they read as cut through the
+# cloth), sockets only slightly slanted, a crack down the brow and a straight row of teeth.
 SKULL_COLOURS = {
-    "H": "#ffffff", "S": "#c9ced8", "s": "#6c717c", "R": "#b0142a",
-    "O": "#050304", "W": "#f8f6f0", "D": "#120a0c", "E": "#ff2a3a", "T": "#ece6d6", "b": "#9f9888", "C": "#3a2a2a",
+    "H": "#ffffff", "S": "#c9ced8", "s": "#6c717c",
+    "O": "#050304", "W": "#f8f6f0", "D": "#1a181c", "T": "#ece6d6", "b": "#9f9888", "C": "#3a2a2a",
 }
 SKULL_BONE = "#d9d4c7"
 
