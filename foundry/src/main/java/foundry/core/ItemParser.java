@@ -135,6 +135,20 @@ public final class ItemParser {
             }
         }
         boolean glider = o.has("glider") && o.get("glider").getAsBoolean();
+        // Mining: "tool": {"kind": "pickaxe", "tier": "iron"} mines as that vanilla tool does (speed and which blocks drop).
+        ItemDef.Tool tool = null;
+        if (o.has("tool")) {
+            JsonObject t = o.get("tool").isJsonObject() ? o.getAsJsonObject("tool") : null;
+            String kind = t != null && t.has("kind") ? t.get("kind").getAsString() : "";
+            String tier = t != null && t.has("tier") ? t.get("tier").getAsString() : "";
+            if (!ItemDef.TOOL_KINDS.contains(kind) || !ItemDef.TOOL_TIERS.contains(tier)) {
+                problems.add(Problem.error(source, "tool", "tool needs a kind (" + String.join(", ", ItemDef.TOOL_KINDS)
+                        + ") and a tier (" + String.join(", ", ItemDef.TOOL_TIERS) + ").",
+                        "Use { \"kind\": \"pickaxe\", \"tier\": \"iron\" }."));
+            } else {
+                tool = new ItemDef.Tool(kind, tier);
+            }
+        }
         if (wornSlots.isEmpty() && mechanics.stream().anyMatch(m -> m.trigger() == foundry.core.mechanics.Trigger.WHILE_WORN)) {
             problems.add(Problem.error(source, "mechanics", "A while_worn mechanic needs worn_slots.",
                     "Add \"worn_slots\": [\"head/face\"] so the item can be worn."));
@@ -143,7 +157,7 @@ public final class ItemParser {
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
         return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, attackDamage, attackSpeed,
                 requirePermission, lockedMessage, keepOnDeath, handheld, List.copyOf(mechanics), List.copyOf(wornSlots), glider, wornModel,
-                replacedBy, heldModel, enchantability, List.copyOf(enchantableAs)),
+                replacedBy, heldModel, enchantability, List.copyOf(enchantableAs), tool),
                 problems);
     }
 

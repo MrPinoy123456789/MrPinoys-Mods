@@ -39,7 +39,29 @@ public record ItemDef(
         Ident replacedBy,
         Ident heldModel,
         int enchantability,
-        List<String> enchantableAs) {
+        List<String> enchantableAs,
+        Tool tool) {
+
+    /**
+     * How the item mines, as a vanilla tool of that kind and tier would (the war pick mines as a stone, iron or diamond
+     * pickaxe by rank). Null for an item that mines like a bare hand. Kinds are in {@link #TOOL_KINDS}, tiers in
+     * {@link #TOOL_TIERS}.
+     */
+    public record Tool(String kind, String tier) {}
+
+    public static final List<String> TOOL_KINDS = List.of("pickaxe", "axe", "shovel", "hoe");
+    public static final List<String> TOOL_TIERS = List.of("wood", "stone", "copper", "iron", "gold", "diamond", "netherite");
+
+    /** As the full record, mining like a bare hand. */
+    public ItemDef(int schemaVersion, Ident id, String displayName, List<String> lore, Ident baseItem, Ident model, Ident texture,
+                   int stackSize, int durability, boolean glint, String rarity, double attackDamage, double attackSpeed,
+                   String requirePermission, String lockedMessage, boolean keepOnDeath, boolean handheld,
+                   List<foundry.core.mechanics.MechanicDef> mechanics, List<String> wornSlots, boolean glider, Ident wornModel,
+                   Ident replacedBy, Ident heldModel, int enchantability, List<String> enchantableAs) {
+        this(schemaVersion, id, displayName, lore, baseItem, model, texture, stackSize, durability, glint, rarity, attackDamage,
+                attackSpeed, requirePermission, lockedMessage, keepOnDeath, handheld, mechanics, wornSlots, glider, wornModel,
+                replacedBy, heldModel, enchantability, enchantableAs, null);
+    }
 
     /** As the full record, not enchantable. */
     public ItemDef(int schemaVersion, Ident id, String displayName, List<String> lore, Ident baseItem, Ident model, Ident texture,
@@ -64,7 +86,7 @@ public record ItemDef(
     public ItemDef withMechanics(List<foundry.core.mechanics.MechanicDef> replacement) {
         return new ItemDef(schemaVersion, id, displayName, lore, baseItem, model, texture, stackSize, durability, glint,
                 rarity, attackDamage, attackSpeed, requirePermission, lockedMessage, keepOnDeath, handheld, replacement,
-                wornSlots, glider, wornModel, replacedBy, heldModel, enchantability, enchantableAs);
+                wornSlots, glider, wornModel, replacedBy, heldModel, enchantability, enchantableAs, tool);
     }
 
     /** True when the item is locked to holders of a permission node. */

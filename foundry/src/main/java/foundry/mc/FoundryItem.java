@@ -214,6 +214,10 @@ final class FoundryItem extends SimplePolymerItem {
             var attributes = stack.get(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS);
             if (attributes != null) out.set(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, attributes);
         }
+        // The client predicts mining from its own copy, so it gets the same tool as the server (a war pick of rank 3 mines
+        // as diamond on screen too, not as its stone pickaxe base).
+        var tool = stack.get(net.minecraft.core.component.DataComponents.TOOL);
+        if (def != null && def.tool() != null && tool != null) out.set(net.minecraft.core.component.DataComponents.TOOL, tool);
         // Held for a "long" time on the client, so it never finishes by itself; the server decides at release. While the
         // charged ability recharges for the player this copy is for, it is left off, so their client draws no pose for a
         // press that cannot do anything (AbilityBar resends the inventory when it starts and when it is back).

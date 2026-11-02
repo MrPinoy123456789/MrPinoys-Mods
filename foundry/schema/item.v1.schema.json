@@ -23,6 +23,16 @@
     "attack_speed": { "type": "number", "minimum": 0, "maximum": 16, "description": "Swings per second, used with attack_damage. Defaults to a sword's 1.6." },
     "require_permission": { "type": "string", "description": "A permission node such as race:azrak. Only a holder of it can use, charge, swing or hit with the item. Charter grants race:<kingdom> to its members." },
     "locked_message": { "type": "string", "default": "This item is not yours to use.", "description": "Shown on the action bar to a player the lock refuses." },
+    "tool": {
+      "type": "object",
+      "description": "Mine as this vanilla tool does: its speed on the blocks of its kind, and which blocks drop.",
+      "required": ["kind", "tier"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["pickaxe", "axe", "shovel", "hoe"] },
+        "tier": { "enum": ["wood", "stone", "copper", "iron", "gold", "diamond", "netherite"] }
+      }
+    },
     "handheld": { "type": "boolean", "default": false, "description": "With a texture, hold the item like a tool or sword (by the grip, angled) instead of flat like a gem." },
     "keep_on_death": { "type": "boolean", "default": false, "description": "The stack stays with its owner after a death instead of dropping." }
   }

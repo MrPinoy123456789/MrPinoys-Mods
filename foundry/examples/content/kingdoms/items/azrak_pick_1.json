@@ -4,6 +4,7 @@
   "display_name": "Runed War Pick",
   "lore": [
     "Hit: 2 extra damage that ignores armour.",
+    "Mines as a stone pickaxe.",
     "Right click: Ground Slam, 4 damage and a heavy shove to everything within 3 blocks. 12s recharge.",
     "Sneak and right click: Stone Skin, tough but slow for 6s. 90s recharge.",
     "Upgrade: 2 diamonds and 2 iron blocks, crafted with this."
@@ -24,6 +25,10 @@
     ]
   },
   "handheld": true,
+  "tool": {
+    "kind": "pickaxe",
+    "tier": "stone"
+  },
   "require_permission": "race:azrak",
   "locked_message": "Only the Dwarves of Azrak can wield this.",
   "keep_on_death": true,
