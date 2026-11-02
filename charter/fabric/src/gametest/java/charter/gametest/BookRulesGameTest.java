@@ -21,7 +21,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.Slot;
@@ -195,7 +194,7 @@ public final class BookRulesGameTest {
         boolean affiliation = knobs.requireAffiliation;
         knobs.requireAffiliation = false;
         try {
-            ItemFrame frame = new ItemFrame(EntityType.ITEM_FRAME, helper.getLevel());
+            ItemFrame frame = net.minecraft.world.entity.EntityTypes.ITEM_FRAME.create(helper.getLevel(), EntitySpawnReason.COMMAND);
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.PAPER));
             InteractionResult paper = UseEntityCallback.EVENT.invoker().interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, frame, null);
             helper.assertTrue(paper != InteractionResult.FAIL, "An item frame refused plain paper: " + paper);

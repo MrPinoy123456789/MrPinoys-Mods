@@ -144,13 +144,15 @@ public final class Terminals {
      * first thing from {@code Guard}'s use block listener.
      */
     public static InteractionResult useBlock(ServerPlayer player, Level level, InteractionHand hand, BlockHitResult hit) {
-        if (!CharterServer.running() || hand != InteractionHand.MAIN_HAND) return null;
+        if (!CharterServer.running()) return null;
         ItemStack held = player.getItemInHand(hand);
         // Sneaking with something in hand means "place against it", as vanilla treats it.
         if (player.isSecondaryUseActive() && !held.isEmpty()) return null;
         BlockPos pos = hit.getBlockPos();
         boolean terminal = isTerminal(level, pos);
-        if (!terminal && !isOwnNexus(player, level, pos, held)) return null;
+        if (!terminal && !isOwnNexus(player, level, pos, player.getMainHandItem())) return null;
+        // The off hand's half of the same click is answered quietly, so no rule after this one speaks up once the menu is open.
+        if (hand != InteractionHand.MAIN_HAND) return InteractionResult.SUCCESS_SERVER;
         long now = player.level().getServer().getTickCount();
         Long last = LAST_OPEN.get(player.getUUID());
         if (last == null || now - last >= OPEN_GAP_TICKS || now < last) {

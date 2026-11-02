@@ -38,10 +38,18 @@ import java.util.UUID;
  */
 public final class TerminalGameTest {
 
-    /** A right-click on the top of a block, through the whole use block event as a client's click would go. */
+    /**
+     * A right-click on the top of a block, through the game mode's use item on path a client's click takes (every mixin
+     * and the whole use block event), then the off hand's half of the same click.
+     */
     static InteractionResult click(LandKit kit, ServerPlayer player, BlockPos at) {
-        return UseBlockCallback.EVENT.invoker().interact(player, kit.level, InteractionHand.MAIN_HAND,
-                new BlockHitResult(Vec3.atCenterOf(at).add(0, 0.5, 0), Direction.UP, at, false));
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(at).add(0, 0.5, 0), Direction.UP, at, false);
+        InteractionResult main = player.gameMode.useItemOn(player, kit.level, player.getMainHandItem(), InteractionHand.MAIN_HAND, hit);
+        InteractionResult off = UseBlockCallback.EVENT.invoker().interact(player, kit.level, InteractionHand.OFF_HAND, hit);
+        if (main == InteractionResult.SUCCESS_SERVER && off != InteractionResult.SUCCESS_SERVER) {
+            kit.helper.fail("The off hand half of a terminal click answered " + off);
+        }
+        return main;
     }
 
     /** A lectern in the arena, registered as a terminal. */

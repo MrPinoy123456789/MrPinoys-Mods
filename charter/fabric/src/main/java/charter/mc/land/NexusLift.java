@@ -77,6 +77,7 @@ public final class NexusLift {
 
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            if (!CharterServer.running()) return;
             dir = CharterServer.charterDir(server);
             BOOK.load(dir, CharterMod.LOG::warn);
             // A lift still on file means the server stopped mid lift: every such lodestone goes back where it stood.

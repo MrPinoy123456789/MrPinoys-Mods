@@ -103,15 +103,24 @@ public final class LandProtectionGameTest {
     }
 
     @GameTest(maxTicks = 100)
-    public void theNexusCannotBeBrokenByAnyone(GameTestHelper helper) {
+    public void theNexusIsNeverBrokenOnlyLiftedByItsLord(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Nexus");
             kit.keep(lord);
             ServerPlayer stranger = kit.outsider();
-            broke(kit, lord, kit.nexusPos());
-            helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).is(Blocks.LODESTONE), "The Lord broke their own nexus");
             broke(kit, stranger, kit.nexusPos());
             helper.assertTrue(kit.level.getBlockState(kit.nexusPos()).is(Blocks.LODESTONE), "An outsider broke the nexus");
+            // The Lord's mining lifts it into the bound item (NexusLiftGameTest); no plain lodestone drops.
+            var core = kit.rt.state.coresOf(kit.orgOf(lord)).get(0);
+            broke(kit, lord, kit.nexusPos());
+            try {
+                helper.assertTrue(charter.mc.land.NexusLift.lifted(core.id), "The Lord's mining did not lift the nexus");
+                var drops = kit.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                        new net.minecraft.world.phys.AABB(kit.nexusPos()).inflate(3));
+                helper.assertTrue(drops.isEmpty(), "Mining the nexus dropped " + drops);
+            } finally {
+                charter.mc.land.NexusLift.cancel(kit.server, core.id);
+            }
             helper.succeed();
         }
     }

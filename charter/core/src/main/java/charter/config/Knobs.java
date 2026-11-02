@@ -118,8 +118,8 @@ public final class Knobs {
     public String bookGivenTo = "everyone";
     /** Minutes a lifted Nexus lodestone may be carried before it goes back to where it stood. */
     public int nexusLiftMinutes = 10;
-    /** Seconds a lifted Nexus waits for its carrier to come back after logging out before it goes back. */
-    public int nexusLiftLogoutSeconds = 60;
+    /** Seconds a lifted Nexus waits for its carrier to come back after logging out before it goes back (0: at once). */
+    public int nexusLiftLogoutSeconds = 0;
 
     // ---- keep upkeep (wall days; the granary is the upkeep) ----
     /** Days a full granary lasts. It drains by an even share each hour and nothing else changes the drain. */
