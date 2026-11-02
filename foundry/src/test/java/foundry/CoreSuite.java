@@ -34,6 +34,7 @@ public final class CoreSuite {
         itemLocks();
         bonuses();
         bedrockSkins();
+        bedrockMappings();
         raceTraits();
         wingFlight();
         enchanting();
@@ -311,6 +312,30 @@ public final class CoreSuite {
         check(Math.abs(run[2] - 0.53) < 1e-9, "running forward the drift adds to the hop");
         check(foundry.core.RaceTraits.nearest(new double[] {9, 4, 16}) == 1 && foundry.core.RaceTraits.nearest(new double[0]) == -1,
                 "the sense points at the nearest find");
+    }
+
+    /**
+     * The shipped Geyser mappings: every item has a creative category, or Bedrock leaves its recipes out of the recipe
+     * book (Geyser's custom item docs). Race weapons go under equipment.
+     */
+    private static void bedrockMappings() throws Exception {
+        var root = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(
+                java.nio.file.Path.of("examples/bedrock/custom_mappings/foundry.json"))).getAsJsonObject();
+        int total = 0, missing = 0;
+        boolean staff = false;
+        for (var base : root.getAsJsonObject("items").entrySet()) {
+            for (var e : base.getValue().getAsJsonArray()) {
+                var o = e.getAsJsonObject();
+                var options = o.getAsJsonObject("bedrock_options");
+                String category = options.has("creative_category") ? options.get("creative_category").getAsString() : "none";
+                total++;
+                if (category.equals("none")) missing++;
+                if (o.get("bedrock_identifier").getAsString().equals("kingdoms:faeloria_staff_2")) staff = category.equals("equipment");
+            }
+        }
+        check(total > 0 && missing == 0, "every Bedrock item mapping has a creative category, so its recipes show in the recipe book ("
+                + missing + " of " + total + " have none)");
+        check(staff, "the race weapons are filed under equipment");
     }
 
     /** The race looks added to Bedrock skins: the composed image, the geometry and the looks the jar carries. */

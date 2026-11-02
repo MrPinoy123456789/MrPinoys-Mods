@@ -43,6 +43,15 @@ def texture_file(item):
     return os.path.join(BASE, "assets", ns, "textures", path + ".png")
 
 
+def creative_category(item):
+    """Where Bedrock files the item: weapons and tools under equipment, furniture under construction, the rest items."""
+    if item.get("handheld"):
+        return "equipment"
+    if item.get("furniture"):
+        return "construction"
+    return "items"
+
+
 def main():
     mappings = {}
     pack_textures = {}
@@ -67,6 +76,9 @@ def main():
                 "icon": ident,
                 "display_handheld": bool(item.get("handheld")),
                 "allow_offhand": True,
+                # Bedrock lists a recipe in its recipe book only when the result has a creative category (Geyser's
+                # custom item docs); without one the item is left out of the creative inventory and the book.
+                "creative_category": creative_category(item),
             },
             "components": {"minecraft:max_stack_size": int(item.get("stack_size", 64))},
         })

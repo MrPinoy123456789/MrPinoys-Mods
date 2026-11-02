@@ -220,6 +220,10 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
 - Casters and left click (2026-11-02): a left click that lands on a mob or a block with a wand or staff in hand casts its
   bolt (once per click), on Java and Bedrock alike. A controller crosshair rests on the ground or locks onto mobs, so
   before this an Xbox Fae's left click almost never cast the Thorn Bolt.
+- Bedrock recipe book (2026-11-02): every Foundry item mapping now has a Bedrock `creative_category` (race weapons
+  under equipment, the rest under items). Bedrock only lists a recipe in its recipe book when the result has one, so the
+  weapon upgrade recipes were missing for Bedrock players. A side effect: the items also show in the Bedrock creative
+  inventory (creative mode only). Ship with `--bedrock` (the mappings file) and restart.
 
 Full notes and where this differs from the earlier race spec: `docs/RACES.md`, section 7a.
 
