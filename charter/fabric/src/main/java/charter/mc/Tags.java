@@ -118,6 +118,7 @@ public final class Tags {
 
     private static MutableComponent kingdomPart(CharterRuntime rt, String key, String colour) {
         String label = MERCENARY.equals(key) ? Text.get("tag.mercenary")
+                : rt.knobs.tagLabels.containsKey(key) ? rt.knobs.tagLabels.get(key)
                 : rt.state.orgNamed(key).map(charter.org.Organization::name).orElse(key);
         TextColor parsed = parse(colour);
         return Component.literal("[" + label + "] ").withStyle(Style.EMPTY.withColor(parsed == null ? TextColor.fromRgb(0xFFFFFF) : parsed));

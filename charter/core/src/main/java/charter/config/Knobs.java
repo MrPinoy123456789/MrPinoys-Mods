@@ -176,7 +176,12 @@ public final class Knobs {
     public java.util.Map<String, String> tagColors = new java.util.LinkedHashMap<>(java.util.Map.of(
             "everdelle", "#FF69B4", "azurius", "#89CFF0", "faeloria", "#A020F0",
             "azrak", "#FFD700", "aurelia", "#FF6A1A", "mercenary", "#8A0303",
-            "mossbeard's muddle", "#1B5E20"));
+            "mossbeard's muddle", "#388E3C"));
+    /**
+     * A shorter word for the [tag] than the kingdom's name, by the same lower case key as {@code tagColors}. A kingdom with
+     * no entry shows its own name. The kingdom keeps its name everywhere else.
+     */
+    public java.util.Map<String, String> tagLabels = new java.util.LinkedHashMap<>(java.util.Map.of("mossbeard's muddle", "Moss"));
     /**
      * Whether a member's rank shows after their kingdom's tag, "[Faeloria] Queen Heather", over the head, in the tab
      * list and in chat. Only a kingdom whose Lord has edited its ranks shows them; until then the tag is as before.
