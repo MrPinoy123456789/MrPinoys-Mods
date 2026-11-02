@@ -91,7 +91,9 @@ the level). Two more small changes:
 Tests: `charter/fabric/src/gametest/java/charter/gametest/HardeningGameTest.java` (registered in the gametest
 `fabric.mod.json`): the admin node opens `/charter admin` for a non operator through every merged registration; the
 bypass node exempts a builder; both can be taken from an operator; a stand in permissions mod returning false for a
-member's race node does not take the race; a stand in carry handler cannot carry an entity out of a keep.
+member's race node does not take the race; a stand in carry handler cannot carry an entity out of a keep. The last two
+pin the outcome but would also pass without the phase change (the stand in handlers register after Charter's, so
+Charter was asked first anyway in the test); the real check of the ordering is live tests T2 and T8.
 
 ### The race node rule (mandatory)
 
@@ -118,7 +120,7 @@ trait at once (beard, banner, antlers, fins, wings, glide). Charter's early phas
 | `/tp` other players, `@` selectors | | | | | yes | yes |
 | `/give`, `/effect`, `/clear`, `/time`, `/weather` | | | | | yes | yes |
 | Axiom | | | yes (`axiom.default`) | | | yes (always) |
-| Build in the hub, enter closed keeps, move any Nexus (`charter.bypass`) | | | yes | | yes | yes |
+| Build in the hub, enter closed keeps, move any Nexus (`charter.bypass`) | | | only if given for the day (O11) | | yes | yes |
 | `/charter admin ...` and the operators' menu (`charter.admin`) | | | | | yes | yes |
 | `/spark` | | | | | yes | yes |
 | `/dungeon admin`, `/foundry`, Lemon admin, `/servercarry` | | | | | | yes (level 2 or 3) |
@@ -143,7 +145,7 @@ inherits moderator. Full node table:
 | helper | `ledger.commands.root`, `ledger.commands.inspect`, `ledger.commands.search`, `ledger.commands.status`, `banhammer.punish.kick`, `banhammer.punish.tempmute`, `banhammer.duration.helper` |
 | moderator | `ledger.commands.tp`, `ledger.commands.preview`, `ledger.commands.player`, `ledger.commands.rollback` (also covers restore), `banhammer.punish.mute`, `banhammer.punish.tempban`, `banhammer.unpunish.unmute`, `banhammer.unpunish.unban`, `banhammer.duration.moderator`, `minecraft.command.gamemode`, `minecraft.command.gamemode.spectator`, `minecraft.command.gamemode.survival`, `minecraft.command.teleport`, `minecraft.command.tp`; set false: `minecraft.command.gamemode.creative`, `minecraft.command.gamemode.adventure`, `minecraft.command.gamemode.spectator.target`, `minecraft.command.gamemode.survival.target`, `minecraft.command.teleport.targets` |
 | admin | `charter.admin`, `charter.bypass`, `banhammer.punish.ban`, `banhammer.punish.banip`, `banhammer.punish.tempbanip`, `banhammer.unpunish.unbanip`, `banhammer.unpunish.pardon`, `banhammer.duration.admin`, `minecraft.command.gamemode.creative`, `minecraft.command.gamemode.adventure`, `minecraft.command.gamemode.spectator.target`, `minecraft.command.gamemode.survival.target`, `minecraft.command.teleport.targets`, `minecraft.command.give`, `minecraft.command.effect`, `minecraft.command.clear`, `minecraft.command.time`, `minecraft.command.weather`, `minecraft.commands.entity_selectors`, `spark` |
-| builder | `axiom.default`, `charter.bypass`, `minecraft.command.gamemode`, `minecraft.command.gamemode.creative`, `minecraft.command.gamemode.survival`, `minecraft.command.gamemode.spectator`; set false: `minecraft.command.gamemode.adventure` and every `minecraft.command.gamemode.<mode>.target` |
+| builder | `axiom.default`, `minecraft.command.gamemode`, `minecraft.command.gamemode.creative`, `minecraft.command.gamemode.survival`, `minecraft.command.gamemode.spectator`; set false: `minecraft.command.gamemode.adventure` and every `minecraft.command.gamemode.<mode>.target` |
 | (owner) | operator level 4, plus `lp user MrPinoy123456789 parent add admin` |
 
 Node names were taken from the jars: Ledger's from its `subcommands/*Command` classes (all default to level 3; purge to
@@ -192,11 +194,12 @@ become important.
    of the pre wipe world if it matters (owner decision O7), delete the other four, or pull them first (below).
 2. Create a backup now ("Create Backup", name "first 26.3 world", lock it).
 3. Delete and recreate "Daily Backup" (editing a stuck schedule may not clear it). Cron 20 8 * * * (08:20 UTC, the
-   quietest time in the logs), "only when online" off, tasks:
+   existing slot; one day of logs suggests it is quiet, check `minecraft_joinlog` in the panel), "only when online" off, tasks:
    1. command `save-all flush`, offset 0
    2. backup, offset 30 seconds
-   With five slots and no locked backups this keeps five days. Pterodactyl's scheduled backup deletes the oldest
-   unlocked backup when the slots are full; a locked backup takes a slot away from the rotation. If the owner keeps two
+   With five slots and no locked backups this keeps five days. A scheduled backup deletes the oldest
+   unlocked backup when the slots are full (the five consecutive dailies from a schedule that has run since July show
+   the rotation working here); a locked backup takes a slot away from the rotation. If the owner keeps two
    locked backups, only three days rotate.
    Not chosen: `save-off` around the backup. The panel's backup task returns at once while the archive runs for about
    13 minutes, so a `save-on` task would have to be a second schedule; forgetting it stops the world saving. A flush just
@@ -454,8 +457,11 @@ on first start):
 `/server.properties`: only the three keys in the table in section 7 change; the script edits those lines in the live
 file and leaves every other line (passwords, ports, seed) untouched.
 
-LuckPerms: no config file is staged; it writes `config/luckperms/luckperms.conf` with defaults on first start (H2
-storage in `config/luckperms/`, inside panel backups). Groups come from `luckperms-groups.txt`.
+`/config/luckperms/luckperms.conf` (new): the default file LuckPerms 5.5.85 writes on first start, with one change,
+`allow-invalid-usernames = true`. Bedrock names start with a dot (`.Worstly9237`), which LuckPerms rejects by default,
+so `lp user .Name ...` would not resolve for half the players. Storage stays H2 in `config/luckperms/` (inside panel
+backups), `server = "global"`. Groups come from `luckperms-groups.txt`. A Bedrock player can always be named by
+Floodgate UUID instead: `lp user 00000000-0000-0000-0009-01f99022d2b1 info`.
 
 ## 9. Admin runbook: who did what, and putting it right
 
@@ -512,7 +518,7 @@ merged to master first (the deploy skill's rule that master never lags the serve
    node tools/playtest/hardening-stage.mjs --dry
    ```
    It must print `server mods are for Minecraft 26.3; this set is for 26.3`, the three `server.properties` lines, the
-   five jars and three configs, and `Hashes of every jar matched`.
+   five jars and four configs, and `Hashes of every jar matched`.
 3. Stage without a restart:
    ```
    node tools/playtest/hardening-stage.mjs --no-restart
@@ -577,8 +583,12 @@ Results:
   mixin" warnings the live log shows). Vanilla Permissions' targets, built for 26.1.2, all exist in 26.3.
 - The first run found that AntiXray reads `config/antixray.toml`, not the `antixray-fabric.toml` its jar carries; the
   staged file was renamed and a second run read it with no unknown block warnings.
-- Geyser 2.12.1 cannot run in gametest mode (it casts the server to a dedicated server and throws), so the final runs
-  left Geyser and Floodgate out. With them in, every mod including Geyser initialised before that cast.
+- Geyser 2.12.1 cannot run in gametest mode (it casts the server to a dedicated server and throws), so the last run
+  left Geyser out and kept Floodgate: Floodgate booted (`Took 20ms to boot Floodgate`) and the audit was clean with it.
+  Geyser's own mixins are therefore unchecked here; it is unchanged from the live server, where it runs.
+- LuckPerms' default `allow-invalid-usernames = false` would refuse Bedrock names; the staged `luckperms.conf` turns it
+  on (section 8).
+- The staged `ledger.toml` and BanHammer `config.json` came out of a start and stop unchanged.
 
 Not tested here: a real dedicated server start, players joining (Java or Bedrock), LuckPerms commands and node
 names at run time, AntiXray's effect on chunks a client sees, Polymer and AntiXray together on a client, BanHammer's
@@ -586,7 +596,9 @@ commands, a panel backup restore. These are tests T1 to T11 above, on the live s
 
 On the live server after the deploy (owner with one Java and one Bedrock account):
 
-- T1 Boot: log lines in deploy step 6; `/lp info` answers; `/spark tps` answers for the owner.
+- T1 Boot: log lines in deploy step 6; `/lp info` answers; `/spark tps` answers for the owner; re-read
+  `/server.properties` and check the three changed keys stuck (the panel may rewrite that file from its own settings);
+  a Bedrock player joins and `lp user .Name info` resolves.
 - T2 Race nodes: a member of each kingdom still shows their race look and trait (Fairy glides, Fae double jumps,
   Merfolk swim dash); an admin group member who is in no kingdom shows **no** race look; a Foundry race weapon still
   refuses someone of another race.
@@ -623,3 +635,4 @@ On the live server after the deploy (owner with one Java and one Bedrock account
 | O8 | Exclude the old archives from panel backups (`.pteroignore`) | Yes, after pulling them off the server once |
 | O9 | AntiXray strength | Mode 1 now; mode 3 if xrayers are still caught |
 | O10 | simulation-distance 8 | Yes; back to 10 if farm players complain and spark shows room |
+| O11 | Builders also get `charter.bypass` (build by hand in the hub, but also enter closed keeps and move any Nexus) | No by default; give it for the day when a builder needs it |

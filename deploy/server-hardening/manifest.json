@@ -78,7 +78,8 @@
   "configs": [
     { "local": "config/antixray.toml", "remote": "/config/antixray.toml" },
     { "local": "config/ledger.toml", "remote": "/config/ledger.toml" },
-    { "local": "config/banhammer/config.json", "remote": "/config/banhammer/config.json" }
+    { "local": "config/banhammer/config.json", "remote": "/config/banhammer/config.json" },
+    { "local": "config/luckperms/luckperms.conf", "remote": "/config/luckperms/luckperms.conf" }
   ],
   "serverProperties": "server.properties.changes",
   "luckperms": "luckperms-groups.txt",

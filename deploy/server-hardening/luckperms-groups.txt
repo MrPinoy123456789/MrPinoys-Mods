@@ -71,9 +71,10 @@ lp group admin permission set minecraft.commands.entity_selectors true
 lp group admin permission set spark true
 
 # builder: given for a few hours at a time (lp user <name> parent addtemp builder 4h).
-# Axiom without operator, building in the hub, creative mode for themselves only.
+# Axiom without operator and creative mode for themselves only. No charter.bypass: that would also let them move any
+# kingdom's Nexus and walk into closed keeps. For hand building in the hub add it for the afternoon:
+# lp user <name> permission settemp charter.bypass true 4h (owner decision O11).
 lp group builder permission set axiom.default true
-lp group builder permission set charter.bypass true
 lp group builder permission set minecraft.command.gamemode true
 lp group builder permission set minecraft.command.gamemode.creative true
 lp group builder permission set minecraft.command.gamemode.survival true
