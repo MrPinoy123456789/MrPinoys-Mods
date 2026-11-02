@@ -26,7 +26,8 @@
     "SpawnMobGriefingMixin",
     "SpawnRabbitGardenMixin",
     "SpawnHarvestFarmlandMixin",
-    "SpawnServerPlayerMixin"
+    "SpawnServerPlayerMixin",
+    "ChatRankMixin"
   ],
   "injectors": {
     "defaultRequire": 1

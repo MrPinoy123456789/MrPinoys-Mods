@@ -66,6 +66,7 @@ public final class StandingText {
             case MEMBERS_BY_VOTE -> Text.get("book.tip.vote");
             case PLAYER -> Text.get("book.tip.player");
             case ORG -> Text.get("book.tip.org");
+            case RANK -> Text.get("book.tip.rank", "name", line.name());
         };
     }
 
@@ -112,6 +113,7 @@ public final class StandingText {
             }
             case PLAYER -> Text.get("book.holder.player", "name", line.name());
             case ORG -> Text.get("book.holder.org", "name", line.name());
+            case RANK -> Text.get("book.holder.rank", "name", line.name());
             case MEMBERS_BY_VOTE -> Text.get(line.youCanVote() ? "book.holder.vote_you"
                     : newcomer ? "book.holder.vote_newcomer" : "book.holder.vote_not_yet");
         };

@@ -167,6 +167,7 @@ public final class CharterJson {
                         case Holder.OfPlayer p -> out.name("player").value(p.player().value().toString());
                         case Holder.OfOffice o -> out.name("office").value(o.office().value().toString());
                         case Holder.OfOrg o -> out.name("org").value(o.org().value().toString());
+                        case Holder.OfRank r -> out.name("rank").value(r.kingdom().value() + "/" + r.rank());
                     }
                     out.endObject();
                 }
@@ -179,6 +180,14 @@ public final class CharterJson {
                     }
                     in.beginObject();
                     String kind = in.nextName();
+                    if (kind.equals("rank")) {
+                        // A rank of a kingdom: "<kingdom uuid>/<rank id>".
+                        String value = in.nextString();
+                        in.endObject();
+                        int slash = value.indexOf('/');
+                        if (slash < 0) throw new JsonParseException("a rank holder needs kingdom/rank: " + value);
+                        return new Holder.OfRank(new OrgId(UUID.fromString(value.substring(0, slash))), value.substring(slash + 1));
+                    }
                     UUID id = uuid.read(in);
                     in.endObject();
                     return switch (kind) {

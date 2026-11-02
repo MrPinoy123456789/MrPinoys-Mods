@@ -59,6 +59,8 @@ public final class Describe {
             case Holder.OfPlayer p -> player(p.player());
             case Holder.OfOffice o -> Text.get("name.office_holder", "office", office(o.office()));
             case Holder.OfOrg o -> org(o.org());
+            case Holder.OfRank r -> Text.get("name.rank_holder", "rank",
+                    state.ranks.rank(r.kingdom(), r.rank()).map(charter.org.Ranks.Rank::name).orElse(r.rank()), "org", org(r.kingdom()));
         };
     }
 

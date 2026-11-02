@@ -352,6 +352,7 @@ public final class MemberPages {
         if (LeaderPages.leads(player)) {
             buttons.add(go(player, Text.get("book.button.leader"), p -> LeaderPages.desk(p, null)).icon(BookIcons.LEADER));
         }
+        buttons.add(go(player, Text.get("book.ranks.title"), p -> RankPages.list(p, null)).icon(BookIcons.RANKS));
         BookDialogs.show(player, BookDialogs.list(v.orgName(), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
     }
