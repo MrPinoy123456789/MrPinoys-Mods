@@ -123,6 +123,22 @@
         }
       }
     ],
+    "minecraft:red_banner": [
+      {
+        "type": "definition",
+        "model": "kingdoms:aurelia_banner",
+        "bedrock_identifier": "kingdoms:aurelia_banner",
+        "display_name": "Aurelian War Banner",
+        "bedrock_options": {
+          "icon": "kingdoms:aurelia_banner",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
     "minecraft:iron_sword": [
       {
         "type": "definition",
@@ -271,6 +287,54 @@
         }
       }
     ],
+    "minecraft:prismarine_crystals": [
+      {
+        "type": "definition",
+        "model": "kingdoms:dorsal_fin",
+        "bedrock_identifier": "kingdoms:dorsal_fin",
+        "display_name": "Dorsal Fin",
+        "bedrock_options": {
+          "icon": "kingdoms:dorsal_fin",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:brown_dye": [
+      {
+        "type": "definition",
+        "model": "kingdoms:dwarf_beard",
+        "bedrock_identifier": "kingdoms:dwarf_beard",
+        "display_name": "Dwarf Beard",
+        "bedrock_options": {
+          "icon": "kingdoms:dwarf_beard",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:green_dye": [
+      {
+        "type": "definition",
+        "model": "kingdoms:fae_wings",
+        "bedrock_identifier": "kingdoms:fae_wings",
+        "display_name": "Fae Wings",
+        "bedrock_options": {
+          "icon": "kingdoms:fae_wings",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
     "minecraft:blaze_rod": [
       {
         "type": "definition",
@@ -371,6 +435,22 @@
         "display_name": "Kingdom Cape",
         "bedrock_options": {
           "icon": "kingdoms:kingdom_cape",
+          "display_handheld": false,
+          "allow_offhand": true
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      }
+    ],
+    "minecraft:prismarine_shard": [
+      {
+        "type": "definition",
+        "model": "kingdoms:merfolk_fins",
+        "bedrock_identifier": "kingdoms:merfolk_fins",
+        "display_name": "Merfolk Fins",
+        "bedrock_options": {
+          "icon": "kingdoms:merfolk_fins",
           "display_handheld": false,
           "allow_offhand": true
         },
