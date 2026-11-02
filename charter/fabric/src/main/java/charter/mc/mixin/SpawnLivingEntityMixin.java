@@ -25,7 +25,8 @@ public abstract class SpawnLivingEntityMixin {
 
     @Inject(method = "dropAllDeathLoot", at = @At("HEAD"), cancellable = true)
     private void charter$keepLootInSpawn(ServerLevel level, DamageSource source, CallbackInfo ci) {
-        if (SpawnRules.keepsDeathLoot((LivingEntity) (Object) this)) ci.cancel();
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (SpawnRules.keepsDeathLoot(self) || charter.mc.RacePassives.keepsInventory(self)) ci.cancel();
     }
 
     @Inject(method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z",
