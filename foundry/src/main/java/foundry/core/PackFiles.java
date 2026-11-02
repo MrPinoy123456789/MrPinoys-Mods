@@ -44,6 +44,25 @@ public final class PackFiles {
                 + "\"}}],\"fallback\":{\"type\":\"minecraft:model\",\"model\":\"" + flat + "\"}}}\n";
     }
 
+    /**
+     * The item tags enchantable items join (their enchantable "as" list), for the generated data pack: one file per tag,
+     * {@code data/<ns>/tags/item/<path>.json}, adding to the tag (replace false), sorted so the files are stable.
+     */
+    public static Map<String, String> itemTags(ContentSet set) {
+        Map<String, java.util.TreeSet<String>> members = new TreeMap<>();
+        for (ItemDef def : set.items().values()) {
+            for (String tag : def.enchantableAs()) members.computeIfAbsent(tag, t -> new java.util.TreeSet<>()).add(def.id().toString());
+        }
+        Map<String, String> out = new TreeMap<>();
+        for (var e : members.entrySet()) {
+            Ident tag = Ident.parse(e.getKey());
+            StringBuilder values = new StringBuilder();
+            for (String id : e.getValue()) values.append(values.length() == 0 ? "" : ",").append('"').append(id).append('"');
+            out.put("data/" + tag.namespace() + "/tags/item/" + tag.path() + ".json", "{\"replace\":false,\"values\":[" + values + "]}\n");
+        }
+        return out;
+    }
+
     public static Map<String, String> generate(ContentSet set) {
         Map<String, String> out = new TreeMap<>();
         for (ItemDef def : set.items().values()) {

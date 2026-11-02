@@ -16,6 +16,12 @@
   "rarity": "uncommon",
   "attack_damage": 5,
   "attack_speed": 1.6,
+  "enchantable": {
+    "value": 10,
+    "as": [
+      "minecraft:enchantable/melee_weapon"
+    ]
+  },
   "handheld": true,
   "require_permission": "race:aurelia",
   "locked_message": "Only the Humans of Aurelia can wield this.",

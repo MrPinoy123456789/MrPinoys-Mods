@@ -14,6 +14,12 @@
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",
+  "enchantable": {
+    "value": 12,
+    "as": [
+      "foundry:enchantable/magic"
+    ]
+  },
   "handheld": true,
   "require_permission": "race:everdelle",
   "locked_message": "Only the Fairies of Everdelle can wield this.",

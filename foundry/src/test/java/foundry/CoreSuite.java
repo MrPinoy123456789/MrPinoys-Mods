@@ -36,6 +36,7 @@ public final class CoreSuite {
         bedrockSkins();
         raceTraits();
         wingFlight();
+        enchanting();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -570,6 +571,50 @@ public final class CoreSuite {
                     && moved.def().mechanics().isEmpty(), "the old fairy wand is a placeholder replaced by the Everdelle wand");
         } catch (java.io.IOException e) {
             check(false, "the fairy wand example is readable: " + e);
+        }
+    }
+
+    /** Quickcast takes ticks off a cooldown through the host, never below one; enchantable items join their tags. */
+    private static void enchanting() {
+        var m = ItemParser.parse("q.json", withMechanics(
+                "[{\"trigger\":\"on_swing\",\"cooldown_ticks\":16,\"actions\":[{\"type\":\"play_sound\",\"sound\":\"minecraft:block.stone.hit\"}]}]"))
+                .def().mechanics().get(0);
+        int[] cut = {0};
+        var host = new foundry.core.mechanics.MechanicRunner.Host() {
+            public long nowTick() { return 100; }
+            public boolean holds(foundry.core.mechanics.Step c) { return true; }
+            public boolean roll(double p) { return true; }
+            public void perform(foundry.core.mechanics.Step a) { }
+            @Override public int cooldownCut(foundry.core.mechanics.MechanicDef d) { return cut[0]; }
+        };
+        var run = new foundry.core.mechanics.MechanicRunner();
+        run.fire("a", "t:w", 0, m, host);
+        check(run.cooldownLeft("a", "t:w", 0, 100) == 16, "with no Quickcast the cooldown is the item's own");
+        cut[0] = 2;
+        run.fire("b", "t:w", 0, m, host);
+        check(run.cooldownLeft("b", "t:w", 0, 100) == 14, "Quickcast II takes two ticks off");
+        cut[0] = 99;
+        run.fire("c", "t:w", 0, m, host);
+        check(run.cooldownLeft("c", "t:w", 0, 100) == 1, "a cut never takes a cooldown below one tick");
+        try {
+            Path assets = Path.of("examples/assets");
+            var set = ContentLoader.load(Path.of("examples/content"), i -> true, p -> Files.isRegularFile(assets.resolve(p)), p -> {
+                try {
+                    return Files.readString(assets.resolve(p));
+                } catch (java.io.IOException e) {
+                    return null;
+                }
+            });
+            var tags = foundry.core.PackFiles.itemTags(set);
+            String melee = tags.get("data/minecraft/tags/item/enchantable/melee_weapon.json");
+            String magic = tags.get("data/foundry/tags/item/enchantable/magic.json");
+            check(melee != null && melee.contains("kingdoms:azrak_pick_1") && melee.contains("kingdoms:aurelia_oathblade_3")
+                    && melee.contains("kingdoms:azurius_trident_2") && !melee.contains("staff") && melee.contains("\"replace\":false"),
+                    "the melee weapons join the melee weapon enchanting tag, adding to it");
+            check(magic != null && magic.contains("kingdoms:faeloria_staff_1") && magic.contains("kingdoms:everdelle_wand_3")
+                    && !magic.contains("pick"), "the staves and wands join Foundry's magic enchanting tag");
+        } catch (Exception e) {
+            check(false, "the example content loads for the enchanting tags: " + e);
         }
     }
 

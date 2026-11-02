@@ -99,8 +99,8 @@ def tide_trident(t):
     prong = ["prismarine", "prismarine", "gold"][t]
     band = ["copper_trim", "gold", "gold"][t]
     parts = [
-        box(7.4, 8.6, -3, 13, "prismarine_dark", 0.6),
-        box(7.1, 8.9, 1.5, 2.5, band, 0.9), box(7.1, 8.9, 7, 8, band, 0.9),
+        box(7.4, 8.6, -10, 13, "prismarine_dark", 0.6),
+        box(7.1, 8.9, -6, -5, band, 0.9), box(7.1, 8.9, 1.5, 2.5, band, 0.9), box(7.1, 8.9, 7, 8, band, 0.9),
         box(4.4, 11.6, 13, 14.2, band, 0.8),
         box(7.3, 8.7, 14.2, 19, prong, 0.7), box(7.6, 8.4, 19, 20.6, prong, 0.4),
         box(4.4, 5.6, 14.2, 17.6, prong, 0.6), box(4.6, 5.4, 17.6, 18.8, prong, 0.35), box(5.6, 6.4, 16.4, 17.2, prong, 0.4),
@@ -109,7 +109,7 @@ def tide_trident(t):
     if t >= 1:
         parts.append(box(7.3, 8.7, 12.8, 14.4, ["", "pearl", "sea_gem"][t], 1.0))
     if t == 2:
-        parts.append(box(7.2, 8.8, -3.6, -2.6, "gold", 0.8))
+        parts.append(box(7.2, 8.8, -10.6, -9.6, "gold", 0.8))
     return parts
 
 

@@ -9,7 +9,7 @@ Balance (2026-11-02). Each tier's strongest attack is worth about a vanilla swor
 attacks a second, about 9.6 a second), diamond (7, 11.2) and netherite (8, 12.8). A basic ranged attack (a left click
 bolt) does about 60 percent of that, as it is safe at range; the Fairies' wand, a support weapon, about 40 to 50 percent.
 Abilities sit on cooldowns. Roles: the Dwarves' War Pick breaks armour up close, the Humans' Oathblade duels and
-leads, the Merfolk's Tide Trident skirmishes at mid range and is stronger wet, the Fae's Briarthorn Staff controls with
+leads, the Merfolk's Tide Trident fights close, throws, drags foes in and is stronger wet, the Fae's Briarthorn Staff controls with
 poison and roots, and the Fairies' Everdelle Wand supports and harries. Projectiles carry a visible model for Java
 players (Bedrock players see the particle trail), and hits draw their own shapes.
 
@@ -174,25 +174,23 @@ def aurelia(t):
 
 
 def azurius(t):
-    jet = [4, 5, 6][t]
-    wet = 1
+    wet = [1, 1, 2][t]
     throw = [5, 6, 7][t]
     throw_cd = [300, 280, 260][t]
     soak = [80, 100, 120][t]
-    mist = [400, 500, 600][t]
-    mist_cd = [1200, 1100, 1000][t]
+    pull = [2, 3, 4][t]
+    pull_cd = [600, 560, 520][t]
     sea = "#3FC2CF"
     return dict(
-        key="azurius_trident", name="Tide Trident", base="minecraft:bone", damage=[5, 6, 7][t], speed=1.1,
-        lore=[f"Left click: Water Jet, {jet} damage at range, {jet + wet} in water or rain.",
+        key="azurius_trident", name="Tide Trident", base="minecraft:bone", damage=[7, 8, 9][t], speed=1.1,
+        lore=[f"Hit: {wet} extra damage in water or rain.",
               f"Right click: throw the trident, {throw} damage. It flies out, hits, and returns, soaking what it strikes. {secs(throw_cd)}s recharge.",
-              f"Sneak and right click: Riptide Mist, water breathing and speed in water for {secs(mist)}s. {secs(mist_cd)}s recharge."],
+              f"Sneak and right click: Undertow, {pull} damage to everything within 6 blocks, dragged toward you. {secs(pull_cd)}s recharge."],
         mechanics=[
-            {"trigger": "on_swing", "cooldown_ticks": 16, "actions": [sound("minecraft:entity.dolphin.splash", 0.8, 1.5),
-                                                                       bolt("water_jet", 22, 1.5, "minecraft:bubble_pop",
-                                                                            colour=sea)]},
-            hit("water_jet", [damage(jet), shape("burst", 14, 0.6, "hit", particle="minecraft:splash")]),
-            hit("water_jet", [damage(wet, ignore_hit_delay=True), shape("ring", 16, 0.8, "hit", colour=sea)], wet=True),
+            {"trigger": "on_hit_entity", "actions": [sound("minecraft:entity.player.splash", 0.5, 1.6),
+                                                     shape("burst", 8, 0.5, "hit", particle="minecraft:splash")]},
+            {"trigger": "on_hit_entity", "conditions": [{"type": "in_water", "value": True}],
+             "actions": [damage(wet, ignore_hit_delay=True), shape("ring", 14, 0.8, "hit", colour=sea)]},
             use("Trident Throw", throw_cd, [sound("minecraft:item.trident.throw", 1.0, 1.0),
                                             bolt("trident_out", [20, 22, 24][t], 1.4, "minecraft:bubble_pop",
                                                  returns=True, return_tag="trident_back", radius=0.8,
@@ -204,9 +202,12 @@ def azurius(t):
             hit("trident_back", [damage([2, 3, 3][t]), effect("minecraft:slowness", soak // 2, 1, "hit"),
                                  sound("minecraft:item.trident.return", 0.8, 1.2),
                                  shape("burst", 10, 0.5, "hit", particle="minecraft:splash")]),
-            use("Riptide Mist", mist_cd, [sound("minecraft:entity.dolphin.play", 1.0, 1.0),
-                                          effect("minecraft:water_breathing", mist), effect("minecraft:dolphins_grace", mist),
-                                          shape("spiral", 40, 0.8, colour=sea)], True),
+            use("Undertow", pull_cd, [sound("minecraft:entity.elder_guardian.curse", 0.5, 1.6),
+                                      sound("minecraft:ambient.underwater.enter", 1.0, 0.8),
+                                      damage(pull, "area", radius=6), knock(-0.9, 0.15, "area", 6),
+                                      shape("ring", 48, 6.0, colour=sea, size=1.4),
+                                      shape("ring", 32, 3.5, particle="minecraft:splash"),
+                                      shape("spiral", 30, 1.0, particle="minecraft:bubble_pop")], True),
         ],
         upgrade=[None,
                  ["minecraft:prismarine_crystals", "minecraft:prismarine_crystals", "minecraft:prismarine_crystals",
@@ -344,6 +345,11 @@ def main():
             if w["damage"]:
                 item["attack_damage"] = w["damage"]
                 item["attack_speed"] = w["speed"]
+                # the vanilla melee enchantments: Sharpness, Smite, Bane of Arthropods, Knockback, Looting, Fire Aspect
+                item["enchantable"] = {"value": [10, 12, 15][t], "as": ["minecraft:enchantable/melee_weapon"]}
+            else:
+                # the magic weapons' own: Spellpower, Quickcast and Potency (foundry/src/main/resources/data/foundry)
+                item["enchantable"] = {"value": [10, 12, 15][t], "as": ["foundry:enchantable/magic"]}
             node, people = GATES[w["key"]]
             item["handheld"] = True
             item["require_permission"] = "race:" + node

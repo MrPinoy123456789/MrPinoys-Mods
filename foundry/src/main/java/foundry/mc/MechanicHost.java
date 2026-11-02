@@ -142,6 +142,37 @@ public final class MechanicHost implements MechanicRunner.Host {
         return player.getRandom().nextDouble() < probability;
     }
 
+    /**
+     * For tests: runs the on_bolt_hit mechanics tagged {@code tag} of the Foundry item in the player's main hand, as if
+     * its bolt had struck {@code hit}. False when the hand holds no Foundry item.
+     */
+    public static boolean strike(String tag, ServerPlayer player, LivingEntity hit) {
+        if (!(player.getMainHandItem().getItem() instanceof FoundryItem f) || f.def() == null) return false;
+        return fire(Trigger.ON_BOLT_HIT, tag, f.contentId(), f.def().mechanics(), player, hit);
+    }
+
+    /** Magic weapon enchantments (data/foundry/enchantment): bolt damage, left click cooldown, effect length. */
+    static final net.minecraft.resources.ResourceKey<net.minecraft.world.item.enchantment.Enchantment> SPELLPOWER =
+            net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ENCHANTMENT, Identifier.parse("foundry:spellpower"));
+    static final net.minecraft.resources.ResourceKey<net.minecraft.world.item.enchantment.Enchantment> QUICKCAST =
+            net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ENCHANTMENT, Identifier.parse("foundry:quickcast"));
+    static final net.minecraft.resources.ResourceKey<net.minecraft.world.item.enchantment.Enchantment> POTENCY =
+            net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ENCHANTMENT, Identifier.parse("foundry:potency"));
+
+    /** The level of an enchantment on the item this mechanic belongs to, if the player holds it in the main hand. */
+    int level(net.minecraft.resources.ResourceKey<net.minecraft.world.item.enchantment.Enchantment> key) {
+        ItemStack held = player.getMainHandItem();
+        if (!(held.getItem() instanceof FoundryItem f) || !contentId.equals(f.contentId())) return 0;
+        var lookup = player.level().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+        return lookup.get(key).map(h -> net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(h, held)).orElse(0);
+    }
+
+    /** Quickcast: one tick off a left click mechanic's cooldown for each level. */
+    @Override
+    public int cooldownCut(MechanicDef m) {
+        return m.trigger() == Trigger.ON_SWING ? level(QUICKCAST) : 0;
+    }
+
     /** The entity a step acts on: the hit entity for {@code target "hit"}, the acting player otherwise. */
     private LivingEntity targetOf(Step step) {
         return "hit".equals(step.param("target", "self")) && hit != null ? hit : player;
@@ -161,8 +192,10 @@ public final class MechanicHost implements MechanicRunner.Host {
             }
             case "apply_effect" -> BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(action.param("effect", "")))
                     .ifPresent(effect -> {
-                        var instance = new MobEffectInstance(effect, action.intParam("duration", 100),
-                                action.intParam("amplifier", 0));
+                        int ticks = action.intParam("duration", 100);
+                        // Potency: what the weapon does to what it strikes lasts a quarter longer for each level
+                        if ("hit".equals(action.param("target", "self")) && hit != null) ticks = ticks * (4 + level(POTENCY)) / 4;
+                        var instance = new MobEffectInstance(effect, ticks, action.intParam("amplifier", 0));
                         if ("area".equals(action.param("target", "self"))) {
                             double r = action.decimalParam("radius", 1);
                             // Players only, the caster included when the filters allow it.
@@ -175,7 +208,8 @@ public final class MechanicHost implements MechanicRunner.Host {
                         }
                     });
             case "damage" -> {
-                float amount = (float) action.decimalParam("amount", 1);
+                // Spellpower: one more damage for each level on what the weapon strikes (magic weapons only take it)
+                float amount = (float) action.decimalParam("amount", 1) + (hit != null ? level(SPELLPOWER) : 0);
                 if ("area".equals(action.param("target", "self"))) {
                     for (LivingEntity e : around(action)) e.hurtServer(level, level.damageSources().indirectMagic(player, player), amount);
                     return;

@@ -20,7 +20,10 @@ import net.minecraft.world.phys.Vec3;
 final class Effects {
     private Effects() {}
 
-    /** Pushes {@code target} away from {@code from}, across the ground by {@code strength} and up by {@code lift}. */
+    /**
+     * Pushes {@code target} away from {@code from}, across the ground by {@code strength} and up by {@code lift}; a
+     * negative strength pulls it in (an undertow).
+     */
     static void knock(ServerPlayer from, LivingEntity target, double strength, double lift) {
         Vec3 away = target.position().subtract(from.position());
         Vec3 flat = new Vec3(away.x, 0, away.z);

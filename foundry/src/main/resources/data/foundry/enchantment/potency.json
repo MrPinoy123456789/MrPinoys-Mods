@@ -1,0 +1,21 @@
+{
+  "anvil_cost": 2,
+  "description": {
+    "text": "Potency"
+  },
+  "effects": {},
+  "max_cost": {
+    "base": 40,
+    "per_level_above_first": 18
+  },
+  "max_level": 2,
+  "min_cost": {
+    "base": 10,
+    "per_level_above_first": 18
+  },
+  "slots": [
+    "mainhand"
+  ],
+  "supported_items": "#foundry:enchantable/magic",
+  "weight": 5
+}

@@ -14,6 +14,12 @@
   "stack_size": 1,
   "glint": true,
   "rarity": "uncommon",
+  "enchantable": {
+    "value": 10,
+    "as": [
+      "foundry:enchantable/magic"
+    ]
+  },
   "handheld": true,
   "require_permission": "race:faeloria",
   "locked_message": "Only the Fae of Faeloria can wield this.",

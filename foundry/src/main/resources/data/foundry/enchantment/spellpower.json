@@ -1,0 +1,21 @@
+{
+  "anvil_cost": 1,
+  "description": {
+    "text": "Spellpower"
+  },
+  "effects": {},
+  "max_cost": {
+    "base": 21,
+    "per_level_above_first": 10
+  },
+  "max_level": 3,
+  "min_cost": {
+    "base": 1,
+    "per_level_above_first": 10
+  },
+  "slots": [
+    "mainhand"
+  ],
+  "supported_items": "#foundry:enchantable/magic",
+  "weight": 10
+}

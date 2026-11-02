@@ -1,0 +1,21 @@
+{
+  "anvil_cost": 2,
+  "description": {
+    "text": "Quickcast"
+  },
+  "effects": {},
+  "max_cost": {
+    "base": 50,
+    "per_level_above_first": 20
+  },
+  "max_level": 2,
+  "min_cost": {
+    "base": 12,
+    "per_level_above_first": 20
+  },
+  "slots": [
+    "mainhand"
+  ],
+  "supported_items": "#foundry:enchantable/magic",
+  "weight": 5
+}

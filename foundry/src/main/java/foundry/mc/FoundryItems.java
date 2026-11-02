@@ -40,6 +40,7 @@ final class FoundryItems {
                 .rarity(Rarity.valueOf(def.rarity().toUpperCase(Locale.ROOT)));
         if (def.durability() > 0) props.durability(def.durability());
         if (def.glint()) props.component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        if (def.enchantability() > 0) props.enchantable(def.enchantability());
         if (def.worn() && WornItems.trinkets()) TrinketsHook.equippable(props, def.wornSlots());
         if (def.glider()) {
             // Wings are an elytra: the same glider and chest slot components, so the server lets a client glide with them.
