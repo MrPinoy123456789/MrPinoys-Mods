@@ -58,8 +58,6 @@ public final class StandPages {
         List<BookButton> buttons = new ArrayList<>();
         if (mayCut) buttons.add(BookDialogs.act(player, Text.get("book.stand.see_may"), null, p -> MemberPages.rights(p, null)));
         if (decidesCut) buttons.add(BookDialogs.act(player, Text.get("book.stand.see_decides"), null, p -> MemberPages.freedoms(p, null)));
-        buttons.add(BookDialogs.act(player, Text.get("book.button.trinkets"), null, p -> charter.mc.cmd.LandCommands.trinkets(p))
-                .icon(BookIcons.TRINKETS));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.stand.title"), BookDialogs.withNotice(notice, body), buttons,
                 BookDialogs.back(player, p -> MemberPages.home(p, null))));
     }
