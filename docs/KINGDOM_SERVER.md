@@ -263,12 +263,12 @@ Typed, under `/charter admin` (`/charter admin help` prints them all):
   `faction rename <faction> <name>`: a new name; its land, members and history stay.
 - Every `<player>` takes an online name, a UUID, or the name of anyone the server has seen. Every `<faction>` takes a
   name (suggested as you type) or an id in quotes (`"org:..."`). No command was renamed or removed.
-- `moderation`: who is silenced, kept off land or holding Ledger access now, then the last 15 Lord moderation and
+- `moderation`: who is muted, barred from the land or holding Ledger access now, then the last 15 Lord moderation and
   Ledger events with their reasons. `ledger grant|revoke <player>`, `ledger status`: see "Ledger access for a Lord"
   below. The menu has the moderation log under Tools ("What Lords did"), and a Lord's player page has "Ledger access,
   1 hour" (or "Take back Ledger access" while one stands).
 
-## Lords keep order among their own citizens (2026-11-02)
+## Lords discipline their own citizens (2026-11-02)
 
 Kingdom Lords are the moderators of this server; there is no moderator group. A Lord's power stops at their own
 kingdom: they can act only on a member of the kingdom they rule (a member of one of its sub-factions counts), never on
@@ -277,14 +277,30 @@ or anyone holding `charter.admin` or `charter.bypass`. Lords get nothing from Ba
 Charter commands, checked by Charter on the server. Code: `charter/core/src/main/java/charter/moderation/` (the rules)
 and `charter/fabric/src/main/java/charter/mc/cmd/LordCommands.java`, `mc/moderation/` (enforcement).
 
-Typed, so Bedrock Lords use them the same way. The Charter book has no page for them yet (its rule is never to tell a player to type a command):
+In the Charter book, a Lord's Leader's Desk has **Discipline citizens**, so a Lord on Bedrock or a controller never types:
+
+- **Discipline** shows who is held now (muted or barred from the land, with the time left), then the citizens a Lord can
+  act on: held citizens first, then everyone else online. Operators, other Lords and the Lord themselves are not
+  listed. A Lord who also judges finds **Prisoners and justice** here; someone who judges but is no Lord keeps the
+  Justice button on their desk instead, so neither path costs an extra press.
+- Pick a citizen, then **Mute**, **Bar from land** or **Kick**, or lift a hold with **Unmute** or **Lift the bar**. A
+  citizen who is offline can only have a hold lifted.
+- A time from presets within the cap (mute: 5, 10, 30 minutes, 1 hour; suspend: 1, 3, 6, 12 hours; the cap itself is
+  offered when a lower knob cuts the presets), then a reason: five common ones in one press (spamming the chat, rude
+  or hateful words, griefing or stealing, harassing a player, ignoring warnings), or **Another reason** for a text box.
+- Presses from the book in hand: mute or bar from land 7, kick 6, unmute or lift the bar 5. The result lands on
+  Discipline in green, or the refusal on the citizen in red.
+- The book and the commands run one path (`LordActions.run`), so the operator check, the online check, the rules and
+  the word to the operators are the same either way.
+
+Typed, the same powers:
 
 | Command | What it does | Limit |
 |---|---|---|
 | `/charter lord` | what a Lord can do, and which of their citizens are held now | |
-| `/charter lord mute <player> <time> <reason>` | stops the citizen's chat, `/msg`, `/tell`, `/me` (anything that sends a signed message); `/charter` and reading chat still work | at most 1 hour (`lordMuteMaxMinutes`, default 60) |
+| `/charter lord mute <player> <time> <reason>` | mutes the citizen: stops their chat, `/msg`, `/tell`, `/me` (anything that sends a signed message); `/charter` and reading chat still work | at most 1 hour (`lordMuteMaxMinutes`, default 60) |
 | `/charter lord unmute <player>` | lets them speak again | |
-| `/charter lord suspend <player> <time> <reason>` | keeps the citizen off the kingdom's land with the banishment push; they stay a member with their rank, and everywhere else is open | at most 12 hours (`lordSuspendMaxHours`, default 12) |
+| `/charter lord suspend <player> <time> <reason>` | bars the citizen from the kingdom's land with the banishment push; they stay a member with their rank, and everywhere else is open | at most 12 hours (`lordSuspendMaxHours`, default 12) |
 | `/charter lord unsuspend <player>` | lets them back onto the land | |
 | `/charter lord kick <player> <reason>` | disconnects the citizen with the Lord's name and reason; nothing is banned and they may log straight back in | |
 
@@ -296,8 +312,8 @@ Typed, so Bedrock Lords use them the same way. The Charter book has no page for 
 - Operators are asked again at enforcement: someone made an operator after being muted or suspended is let go on their
   next message or step, and the hold is dropped.
 - Every action is a history event (`ModerationEvents.*` in `history.jsonl`, with the reason), a public Chronicle line
-  without the reason ("Ann of Azrak silenced Bob for 10 minutes."), and a line to every operator online and the
-  console (`[Lords] Ann of Azrak silenced Bob for 10 minutes: spam`). `/charter admin moderation` and a player's page
+  without the reason ("Ann of Azrak muted Bob for 10 minutes."), and a line to every operator online and the
+  console (`[Lords] Ann of Azrak muted Bob for 10 minutes: spam`). `/charter admin moderation` and a player's page
   show what is in force.
 - Only the kingdom that suspended a player can lift it or give a new one while it runs, even after the player has
   joined another kingdom.

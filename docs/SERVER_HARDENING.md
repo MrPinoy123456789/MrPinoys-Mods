@@ -151,11 +151,11 @@ target's kingdom, and never to another kingdom's people, another Lord, or anyone
 `charter.bypass`):
 
 - `/charter lord mute|unmute <player> ...`: up to 1 hour.
-- `/charter lord suspend|unsuspend <player> ...`: kept off the kingdom's land, up to 12 hours; they stay a member.
+- `/charter lord suspend|unsuspend <player> ...`: barred from the kingdom's land, up to 12 hours; they stay a member.
 - `/charter lord kick <player> <reason>`: a disconnect; they may rejoin at once.
 
 Every one is journaled with its reason, sent to online admins, and listed by `/charter admin moderation`. Details and
-the exact rules: `docs/KINGDOM_SERVER.md`, "Lords keep order among their own citizens".
+the exact rules: `docs/KINGDOM_SERVER.md`, "Lords discipline their own citizens".
 
 **Temporary Ledger read access for a Lord.** An admin can run `/charter admin ledger grant <player>` for a current
 Lord. Charter runs the LuckPerms temporary nodes `ledger.commands.root`, `.inspect`, `.search` and `.status` for

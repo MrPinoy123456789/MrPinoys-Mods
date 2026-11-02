@@ -1,28 +1,18 @@
 package charter.mc.cmd;
 
-import charter.engine.Action;
-import charter.engine.Actor;
-import charter.engine.Outcome;
-import charter.engine.Reason;
 import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.mc.CharterRuntime;
 import charter.mc.CharterServer;
 import charter.mc.Text;
-import charter.mc.moderation.LordModeration;
+import charter.mc.moderation.LordActions;
 import charter.moderation.LordRules;
-import charter.moderation.actions.LordKick;
-import charter.moderation.actions.LordMute;
-import charter.moderation.actions.LordSuspend;
-import charter.moderation.actions.LordUnmute;
-import charter.moderation.actions.LordUnsuspend;
 import charter.org.PlayerRecord;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -39,9 +29,9 @@ import java.util.Optional;
  *
  * <pre>
  *   /charter lord                                      what you can do, and who is held now
- *   /charter lord mute &lt;player&gt; &lt;time&gt; &lt;reason&gt;       silence a citizen (at most an hour)
+ *   /charter lord mute &lt;player&gt; &lt;time&gt; &lt;reason&gt;       mute a citizen (at most an hour)
  *   /charter lord unmute &lt;player&gt;
- *   /charter lord suspend &lt;player&gt; &lt;time&gt; &lt;reason&gt;    keep a citizen off the kingdom's land (at most 12 hours)
+ *   /charter lord suspend &lt;player&gt; &lt;time&gt; &lt;reason&gt;    bar a citizen from the kingdom's land (at most 12 hours)
  *   /charter lord unsuspend &lt;player&gt;
  *   /charter lord kick &lt;player&gt; &lt;reason&gt;             send a citizen off the server for a moment
  * </pre>
@@ -147,101 +137,49 @@ public final class LordCommands {
     // ---- the actions ----
 
     private static int mute(CommandContext<CommandSourceStack> ctx) {
-        return act(ctx, true, (who, reason) -> new LordMute(who, Args.duration(StringArgumentType.getString(ctx, "time")), reason),
-                (s, target, reason) -> {
-                    long left = rt().state.player(id(target.online())).mutedUntil - rt().clock.now();
-                    String time = Chat.duration(left);
-                    tell(ctx, Text.get("lord.muted_lord", "name", target.name(), "time", time, "reason", reason));
-                    target.online().sendSystemMessage(Chat.bad(Text.get("lord.muted_target", "lord", s.lord.getPlainTextName(),
-                            "org", s.kingdomName, "time", time, "reason", reason)));
-                    return Text.get("lord.op.muted", "lord", s.lord.getPlainTextName(), "org", s.kingdomName, "name", target.name(),
-                            "time", time, "reason", reason);
-                });
+        return act(ctx, LordActions.Kind.MUTE);
     }
 
     private static int suspend(CommandContext<CommandSourceStack> ctx) {
-        return act(ctx, true, (who, reason) -> new LordSuspend(who, Args.duration(StringArgumentType.getString(ctx, "time")), reason),
-                (s, target, reason) -> {
-                    long left = rt().state.player(id(target.online())).suspendedUntil - rt().clock.now();
-                    String time = Chat.duration(left);
-                    tell(ctx, Text.get("lord.suspended_lord", "name", target.name(), "time", time, "reason", reason));
-                    target.online().sendSystemMessage(Chat.bad(Text.get("lord.suspended_target", "lord", s.lord.getPlainTextName(),
-                            "org", s.kingdomName, "time", time, "reason", reason)));
-                    return Text.get("lord.op.suspended", "lord", s.lord.getPlainTextName(), "org", s.kingdomName, "name", target.name(),
-                            "time", time, "reason", reason);
-                });
+        return act(ctx, LordActions.Kind.SUSPEND);
     }
 
     private static int kick(CommandContext<CommandSourceStack> ctx) {
-        return act(ctx, true, (who, reason) -> new LordKick(who, reason), (s, target, reason) -> {
-            tell(ctx, Text.get("lord.kicked_lord", "name", target.name(), "reason", reason));
-            target.online().connection.disconnect(Component.literal(Text.get("lord.kick_target", "lord", s.lord.getPlainTextName(),
-                    "org", s.kingdomName, "reason", reason)));
-            return Text.get("lord.op.kicked", "lord", s.lord.getPlainTextName(), "org", s.kingdomName, "name", target.name(), "reason", reason);
-        });
+        return act(ctx, LordActions.Kind.KICK);
     }
 
     private static int unmute(CommandContext<CommandSourceStack> ctx) {
-        return act(ctx, false, (who, reason) -> new LordUnmute(who), (s, target, reason) -> {
-            tell(ctx, Text.get("lord.unmuted_lord", "name", target.name()));
-            if (target.online() != null) {
-                target.online().sendSystemMessage(Chat.good(Text.get("lord.unmuted_target", "lord", s.lord.getPlainTextName(), "org", s.kingdomName)));
-            }
-            return Text.get("lord.op.unmuted", "lord", s.lord.getPlainTextName(), "org", s.kingdomName, "name", target.name());
-        });
+        return act(ctx, LordActions.Kind.UNMUTE);
     }
 
     private static int unsuspend(CommandContext<CommandSourceStack> ctx) {
-        return act(ctx, false, (who, reason) -> new LordUnsuspend(who), (s, target, reason) -> {
-            tell(ctx, Text.get("lord.unsuspended_lord", "name", target.name()));
-            if (target.online() != null) {
-                target.online().sendSystemMessage(Chat.good(Text.get("lord.unsuspended_target", "lord", s.lord.getPlainTextName(), "org", s.kingdomName)));
-            }
-            return Text.get("lord.op.unsuspended", "lord", s.lord.getPlainTextName(), "org", s.kingdomName, "name", target.name());
-        });
+        return act(ctx, LordActions.Kind.UNSUSPEND);
     }
 
-    private static String reasonOf(CommandContext<CommandSourceStack> ctx) {
+    /** An argument the command may not have (a lift has no time and no reason): empty when absent. */
+    private static String optional(CommandContext<CommandSourceStack> ctx, String name) {
         try {
-            return LordRules.cleanReason(StringArgumentType.getString(ctx, "reason"));
-        } catch (IllegalArgumentException noReasonGiven) {
+            return StringArgumentType.getString(ctx, name);
+        } catch (IllegalArgumentException absent) {
             return "";
         }
     }
 
-    private interface Make {
-        Action make(PlayerId target, String reason);
-    }
-
-    private interface Effect {
-        /** Carries the action out in the world and returns the line the operators are told. */
-        String apply(Setup setup, Resolve.Who target, String reason);
-    }
-
-    private static void tell(CommandContext<CommandSourceStack> ctx, String text) {
-        ctx.getSource().sendSuccess(() -> Chat.good(text), false);
-    }
-
     /**
-     * The one path every Lord action takes: a Lord at the keyboard, a known target, online when the action needs the
-     * world (or when it puts a hold on them), not an operator, then the rules in core, then the effect and a word to
-     * the operators.
+     * Reads the typed arguments and hands them to {@link LordActions#run}, the path the book's Discipline pages take
+     * too, so the operator exemption, the online check, the rules and the word to the operators are the same either way.
      */
-    private static int act(CommandContext<CommandSourceStack> ctx, boolean needsOnline, Make make, Effect effect) {
+    private static int act(CommandContext<CommandSourceStack> ctx, LordActions.Kind kind) {
         Optional<Setup> setup = setup(ctx);
         if (setup.isEmpty()) return 0;
         String wanted = StringArgumentType.getString(ctx, "player");
         Optional<Resolve.Who> who = Resolve.player(ctx, rt());
         if (who.isEmpty()) return fail(ctx, Text.get("lord.no_player", "name", wanted));
-        Resolve.Who target = who.get();
-        if (needsOnline && target.online() == null) return fail(ctx, Text.get("lord.offline", "name", target.name()));
-        // Operators are beyond a Lord's reach. Asked before the rules run, and the same words as any other refusal of power.
-        if (target.online() != null && LordModeration.staff(target.online())) return fail(ctx, Text.get("lord.no_power", "name", target.name()));
-        String reason = reasonOf(ctx);
-        Outcome outcome = rt().engine.run(new Actor.Player(id(setup.get().lord)), make.make(target.id(), reason));
-        if (outcome instanceof Outcome.Refused(Reason refusal)) return fail(ctx, Chat.reason(refusal));
-        String note = effect.apply(setup.get(), target, reason);
-        LordModeration.tellOperators(ctx.getSource().getServer(), note);
+        String time = optional(ctx, "time");
+        long millis = time.isEmpty() ? 0 : Args.duration(time);
+        LordActions.Result result = LordActions.run(setup.get().lord, kind, who.get().id().value(), millis, optional(ctx, "reason"));
+        if (!result.ok()) return fail(ctx, result.line());
+        ctx.getSource().sendSuccess(() -> Chat.good(result.line()), false);
         return 1;
     }
 }

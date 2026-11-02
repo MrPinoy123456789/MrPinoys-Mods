@@ -165,7 +165,7 @@ public final class ChronicleTest {
         golden(events, expected, new TreasuryEvents.TransferredMarks(AT, RIVERSIDE, ASHFALL, 1),
                 IN + "Riverside sent 1 Mark to Ashfall.");
         golden(events, expected, new charter.moderation.ModerationEvents.Muted(AT, ASHFALL, KRIS, GIL, Durations.minutes(10), "spam"),
-                IN + "Kris of Ashfall silenced Gil for 10 minutes.");
+                IN + "Kris of Ashfall muted Gil for 10 minutes.");
         golden(events, expected, new charter.moderation.ModerationEvents.Unmuted(AT, ASHFALL, KRIS, GIL),
                 IN + "Kris of Ashfall let Gil speak again.");
         golden(events, expected, new charter.moderation.ModerationEvents.Suspended(AT, ASHFALL, KRIS, GIL, Durations.hours(2), "griefing"),
