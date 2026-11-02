@@ -266,6 +266,31 @@ public final class WeaponsGameTest {
         });
     }
 
+    /**
+     * A controller's crosshair sits on the ground or locks onto a mob, so a left click with a caster mostly lands on a block
+     * or a mob, which the plain swing watch ignores. With a staff or wand in hand that attack is the cast, and only one.
+     */
+    @GameTest(maxTicks = 120)
+    public void aStaffAttackOnAMobOrTheGroundCastsTheThornBolt(GameTestHelper helper) {
+        var player = holder(helper, "kingdoms:faeloria_staff_1");
+        Mob zombie = still(helper, 1, 2, 3);
+        int before = Bolts.liveFor(player.getUUID());
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker()
+                .interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, zombie, null);
+        helper.assertValueEqual(Bolts.liveFor(player.getUUID()), before + 1, "hitting a mob with the staff casts the thorn bolt");
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker()
+                .interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, zombie, null);
+        helper.assertValueEqual(Bolts.liveFor(player.getUUID()), before + 1, "a second hit in the same moment casts nothing more");
+        helper.runAfterDelay(20, () -> {
+            int now = Bolts.liveFor(player.getUUID());
+            var ground = helper.absolutePos(new net.minecraft.core.BlockPos(1, 1, 1));
+            net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.invoker()
+                    .interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, ground, net.minecraft.core.Direction.UP);
+            helper.assertValueEqual(Bolts.liveFor(player.getUUID()), now + 1, "a left click on the ground with the staff casts too");
+            helper.succeed();
+        });
+    }
+
     /** A cast fizzles when the staff leaves the hand before it fires, as a drawn bow does. */
     @GameTest(maxTicks = 120)
     public void aBedrockCastFizzlesWhenTheStaffLeavesTheHand(GameTestHelper helper) {

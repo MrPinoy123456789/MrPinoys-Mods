@@ -153,6 +153,13 @@ final class FoundryItem extends SimplePolymerItem {
         super.inventoryTick(stack, level, entity, slot);
     }
 
+    /** True for a caster: its left click casts (on_swing) and it has no hit of its own (on_hit_entity). */
+    boolean castsOnAttack() {
+        var list = mechanics();
+        return list.stream().anyMatch(m -> m.trigger() == Trigger.ON_SWING)
+                && list.stream().noneMatch(m -> m.trigger() == Trigger.ON_HIT_ENTITY);
+    }
+
     private boolean hasCharge() {
         return mechanics().stream().anyMatch(MechanicDef::charged);
     }

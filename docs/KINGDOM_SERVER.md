@@ -217,6 +217,9 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   needs for worn armour to show, so a helmet shows with the antlers, beard, fins or cap. A Fae is taught the leaf wing
   double jump (a chat line each login and an action bar hint near the top of a plain jump, at most every 30 s) until
   they have done one; who has learned it is kept in `config/foundry/double_jump_learned.json`.
+- Casters and left click (2026-11-02): a left click that lands on a mob or a block with a wand or staff in hand casts its
+  bolt (once per click), on Java and Bedrock alike. A controller crosshair rests on the ground or locks onto mobs, so
+  before this an Xbox Fae's left click almost never cast the Thorn Bolt.
 
 Full notes and where this differs from the earlier race spec: `docs/RACES.md`, section 7a.
 
