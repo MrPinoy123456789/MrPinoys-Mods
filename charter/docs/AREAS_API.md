@@ -40,6 +40,12 @@ never changes. Before a world runs, and after it stops, the map is empty.
 
 Operators can list it in game with `/charter admin areas`.
 
+## On players' maps
+
+The same land, and nothing more, goes to Java players who run the Charter Maps client mod, for Xaero's World Map and
+Minimap (`docs/KINGDOM_SERVER.md`, "Maps for Xaero's"). Other mods can put markers on those maps (a supply drop, an
+event) with `charter.api.MapMarkers.add` and `remove`.
+
 ## What Charter does with it
 
 - Raider strongholds: a site's centre is never within 8 chunks of any kingdom's land, and a stronghold keeps the

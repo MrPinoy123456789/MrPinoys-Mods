@@ -199,10 +199,57 @@ kingdom currencies will use. Icons come from `foundry/tools/gen_icons.py` (the `
   turns it off.
 - Borders are particle dust (`Signals`): green for your own kingdom, red for others. They show while holding a compass
   or war banner, and `/charter borders` toggles them on without a tool (until the player leaves).
-- Xaero maps: a server cannot draw on Xaero's maps by itself. The only route found is Open Parties and Claims (OPAC,
-  Fabric 26.3 build exists): Charter would mirror its claims into OPAC through `OpenPACServerAPI` with OPAC's own
-  protection off, and players would need OPAC on the client. Not built; whether a server-only install is enough, and
-  whether OPAC accepts a made-up owner UUID per kingdom, are unverified. The `areas.json` land map could feed a web map.
+- Xaero maps: a server cannot draw on Xaero's maps by itself, so Java players who want kingdoms on their maps install
+  the small Charter Maps client mod; see "Maps for Xaero's" below. The `areas.json` land map could also feed a web map.
+
+## Maps for Xaero's
+
+Kingdoms and their borders show in colour on Xaero's World Map and Minimap for Java players who install the Charter
+Maps client mod (`charter-xaero/`, jar `MrPinoys_CharterMaps-0.1.0.jar`, its own README says how to build it). Code on
+the server: `charter/fabric/src/main/java/charter/mc/map/` (`MapSync`, `MapView`, `MapLedger`, `MapMarkerCommands`),
+the wire format in `charter/fabric/src/main/java/charter/mapwire/`, and the marker API `charter.api.MapMarkers`.
+
+- **What players install.** Java Edition only: Fabric, Fabric API, Xaero's World Map 1.47.0 or newer and/or Xaero's
+  Minimap 26.6.0 or newer (Modrinth `xaeros-world-map`, `xaeros-minimap`, both for 26.3), and the Charter Maps jar.
+  Either Xaero mod alone works. Bedrock has no Xaero's maps; nothing changes for Bedrock players.
+- **Handing out the jar.** It is not on Modrinth. Share `MrPinoys_CharterMaps-0.1.0.jar` from `dist/` the way the
+  server shares other files (a Discord channel pin, the Server Manual). Players must get Xaero's mods from Modrinth
+  themselves: they are "All Rights Reserved" and must not be passed around. Nothing is uploaded to the server for this.
+- **Who is sent the map.** Only a player whose client registered the `charter:map` channel (Fabric's `canSend`), so
+  only clients with the mod. Vanilla Java clients never register it and Floodgate players (UUID high half zero) are
+  skipped even if the proxy ever did. The channel is never required: nobody is kicked, warned or logged for not having
+  the mod. Polymer and Geyser never see the payload because it is never sent to those players.
+- **When.** A full snapshot on joining (or when the client registers the channel late), then a delta whenever the map
+  changes: land events (claims, keeps placed, moved or lost, outposts, unclaims) on the next tick, markers at once,
+  and a rebuild every five seconds that catches what moves no land event (a Nexus set down, a rename, a race label or a
+  `tagColors` change). A rebuild that changes nothing sends nothing. It never looks at a block or chunk.
+- **What it carries.** Per kingdom: its id, name, colour (`tagColors`; light grey for the spawn kingdom and dark grey
+  for raiders without an entry, otherwise a steady colour from the name), race label, the admin (spawn) flag, its land
+  per dimension and kind (keep, outpost, plain held land) as row runs of chunks, the keep's core chunk and Nexus block,
+  and outposts as points (the war banner's block). Plus the marker list. A 9 by 9 keep with an outpost and some
+  land in a second dimension is under 160 bytes; a round kingdom of about 450 chunks is under 200.
+- **What it never carries.** Exactly the land `CharterAreas` publishes (`charter/docs/AREAS_API.md`) and nothing more:
+  no outpost phase (raising or raised), no contested grace, no members, food, treasury or wars. A packed outpost is no
+  point. Raider strongholds are outline only (no keep, Nexus or points). A lifted Nexus has no position until it is set
+  down, so the map never follows its carrier. A pure test checks the chunks sent equal the public land map's.
+- **Knobs** in `charter.json`: `mapSyncEnabled` (default true) turns the whole sync off; `mapSyncMarkers` (default
+  true) leaves markers out.
+- **Markers.** For later supply drops: `MapMarkers.add(new MapMarkers.Marker(id, kind, label, dimension, x, y, z,
+  0xRRGGBB, icon, expiresAtMillis))` and `MapMarkers.remove(id)` from any mod, any thread (at most 256; in memory only,
+  so a restart forgets them). Players see them as Xaero waypoints, or as a coloured chunk on a World Map without the
+  Minimap. Operators test with `/charter admin mapmarker add <id> <kind> <colour> <minutes> <label>` (where they stand;
+  colour is six hex digits such as `FFAA00` or a name: gold, yellow, orange, red, green, aqua, blue, purple, pink,
+  white; minutes 0 for no expiry), `/charter admin mapmarker remove <id>` and `/charter admin mapmarker list` (which
+  also says how many players hold the map). New lang keys: `mapmarker.added`, `mapmarker.added_timed`,
+  `mapmarker.bad_colour`, `mapmarker.refused`, `mapmarker.removed`, `mapmarker.none`, `mapmarker.list_none`,
+  `mapmarker.list_head`, `mapmarker.list_line`, `mapmarker.never`, `mapmarker.left`, `mapmarker.sync_off`,
+  `mapmarker.markers_off`.
+- **On the client.** `/chartermap` prints what the client holds and whether each Xaero map is drawing.
+- Unverified until a Java client with Xaero's maps joins: the look (colours, rim, keep heart), tooltips, how fast a
+  change shows, waypoints (Xaero lists third party waypoints only on the default waypoint set or with "all sets" on),
+  and the cost on a large explored map. Tested here: the codec and its defences, deltas, the hidden information rule,
+  and gametests with a recording stand in for the network (modded, vanilla and Floodgate players, a claim, a keep move,
+  a colour change, markers and both knobs).
 
 ## Name tags
 
