@@ -47,6 +47,7 @@ public final class CharterServer {
         ServerLifecycleEvents.SERVER_STARTING.register(CharterServer::start);
         ServerTickEvents.END_SERVER_TICK.register(CharterServer::tick);
         RaceCombatPassives.register();
+        FriendlyFire.register();
         ServerLifecycleEvents.AFTER_SAVE.register((s, flush, force) -> save());
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> join(handler.player));

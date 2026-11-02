@@ -820,6 +820,10 @@ Players with no kingdom and no race (`requireAffiliation`) may still walk the sp
 
 Left out on purpose: lecterns are not on the allowlist (a lectern menu lets anyone take the book, and the Charter book is not a book a lectern holds); anvils are not either (they wear out and break with use); chests, barrels and other containers are refused. A fishing rod cast from outside can still hook a player inside; falling blocks and frost walker are not stopped (only operators build there); turtle eggs and coral are not guarded.
 
+## No friendly fire in a kingdom
+
+`kingdomFriendlyFire` (top level of `charter.json`, default `false`). Off, a member of a kingdom cannot hurt another member of the same kingdom: not by hand, not with arrows, tridents or other projectiles, not with lit TNT they primed and not through a tamed wolf. The hit simply does nothing. Kingdoms are compared at the top, so outposts and offices of one kingdom count as one people. Players from different kingdoms, mercenaries and players with no kingdom fight as before, and a player can still hurt themselves. On, members can fight each other like anyone else.
+
 ## Explosions in kingdoms
 
 `explosionsInKingdoms` (top level of `charter.json`, default `false`). Off, no explosion breaks or sets fire to a block on any claimed land: keeps (core and ring), outposts whether raised or still raising, every other claim, and the admin kingdom, whether or not the claim is protected at the time and whoever lit it, the owner and operators included. That covers TNT, TNT minecarts, creepers, ghast fireballs, withers and wither skulls, end crystals, beds in the Nether, respawn anchors, wind charges and any modded source, because all of them pass through the one list of blocks an explosion is about to break. The fire an explosion starts and the doors and buttons a wind charge toggles use the same list, so they are covered too. The wild is unchanged. Damage to players and mobs is unchanged, except in the spawn (`spawnNoExplosions`). The Nexus, banners and the mod's other fixtures are always spared.

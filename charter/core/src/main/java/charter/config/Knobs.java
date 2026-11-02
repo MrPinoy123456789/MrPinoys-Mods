@@ -167,6 +167,11 @@ public final class Knobs {
     public int faeGlamourGraceTicks = 200;
     /** Fairy (Everdelle) Featherlight: the chance, 0 to 1, to dodge one melee hit. Fairies also take no fall damage. */
     public double fairyDodgeChance = 0.08;
+    /**
+     * Whether members of the same kingdom can hurt each other: by hand, with arrows, tridents and other projectiles,
+     * with lit TNT and through tamed pets. Off: those hits do nothing. A player can still hurt themselves.
+     */
+    public boolean kingdomFriendlyFire = false;
     /** Whether players are told on the action bar when they cross into a kingdom, an outpost, held land or the wild. */
     public boolean entryMessages = true;
     /**
