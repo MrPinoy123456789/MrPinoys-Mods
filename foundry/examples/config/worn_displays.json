@@ -63,6 +63,22 @@
       "head_slot": false,
       "ride": true,
       "swing": true
+    },
+    "chest/banner": {
+      "up": 1.32,
+      "back": 0.3,
+      "side": 0.0,
+      "scale": 1.1,
+      "on_head": false,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "hide_from_wearer": false,
+      "head_slot": false,
+      "ride": true,
+      "swing": false
     }
   },
   "items": {
@@ -81,8 +97,8 @@
       "glide": false
     },
     "race:aurelia": {
-      "item": "kingdoms:kingdom_cape",
-      "slot": "chest/cape",
+      "item": "kingdoms:aurelia_banner",
+      "slot": "chest/banner",
       "glide": false
     },
     "race:faeloria": {

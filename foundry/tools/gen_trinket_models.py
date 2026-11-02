@@ -75,6 +75,9 @@ MATERIALS = {
     "gem": dict(base="#2fbf63", pattern="gem", noise=0, bevel=0),
     "leaf": dict(base="#4f9a3a", pattern="leaf", noise=8, bevel=18),
     "antler": dict(base="#6f4c2e", pattern="ringed", noise=8, bevel=24),
+    "pole": dict(base="#1f1d22", pattern="brushed", noise=5, bevel=22),
+    "silver": dict(base="#c9ced8", pattern="sheen", noise=5, bevel=42),
+    "silver_dark": dict(base="#6f747f", pattern="sheen", noise=5, bevel=30),
     "antler_tip": dict(base="#d8c7a0", pattern="ringed", noise=7, bevel=24),
     "shell": dict(base="#3aa4b6", pattern="ridges", noise=6, bevel=30),
     "slit": dict(base="#173946", pattern="plain", noise=4, bevel=10),
@@ -340,6 +343,165 @@ def paint_beard_icon():
     return img
 
 
+# ---- the Aurelian war banner ----
+# A standard worn on the back: a black iron pole from the small of the back to well above the head, a silver spear
+# finial, a silver crossbar with a tassel at each end, and a swallow tailed black banner hung from the crossbar, carrying
+# the crowned skull. The solid parts are baked like the other models (texture #0); the cloth has its own painted texture (#1).
+BANNER_CLOTH = os.path.join(TEXTURES, "aurelia_banner_cloth.png")
+CLOTH_W, CLOTH_H = 52, 80   # pixels of the cloth picture (13 by 20 model units at 4 texels each)
+CLOTH_TEX = 128              # the cloth texture is 128 by 128; the picture sits at its top left
+
+# The crowned skull, as pixel art (each character one pixel, drawn at twice this size on the cloth).
+SKULL = """..H......H......H..
+.HSH....HSH....HSH.
+.SRS....SRS....SRS.
+.SSSS..SSRSS..SSSS.
+.SSSSSSSSSSSSSSSSS.
+.sHSRSHSSSSSHSRSHs.
+.sssssssssssssssss.
+..OBBBBBBCBBBBBBO..
+.OBWWBBBBBCBBBBBBO.
+.OBWBBBBBCBBBBBBbO.
+.OBDDBBBBBBBBBDDbO.
+.OBDDDDBBBBBDDDDbO.
+.OBBDEEDDBDDEEDBbO.
+.OBBBDEEDBDEEDBBbO.
+.OBBBBDDBBBDDBBBbO.
+..OBBBBBBDBBBBBbO..
+...ObBBBDDDBBBbO...
+...OBTDTDTDTDTbO...
+...ObDTDTDTDTDbO...
+....OOTOTOTOTOO....
+......OOOOOOO......"""
+# A silver crown with blood red gems on a scowling skull: sockets slanting down to the nose, glowing red eyes, a crack
+# down the brow and jagged fangs.
+SKULL_COLOURS = {
+    "H": "#ffffff", "S": "#c9ced8", "s": "#6c717c", "R": "#b0142a",
+    "O": "#050304", "W": "#f8f6f0", "D": "#120a0c", "E": "#ff2a3a", "T": "#ece6d6", "b": "#9f9888", "C": "#3a2a2a",
+}
+SKULL_BONE = "#d9d4c7"
+
+
+def banner():
+    """The solid parts of the banner (pole, finial, crossbar, tassels); the cloth is added in banner_model."""
+    left_tassel = [
+        part((0.4, 21.5, 7.3), (1.6, 26.0, 8.7), "silver_dark"),
+        part((0.1, 20.4, 7.0), (1.9, 21.6, 9.0), "silver"),
+    ]
+    return [
+        part((7.3, -10, 7.3), (8.7, 29.5, 8.7), "pole"),
+        part((6.6, 29.0, 6.6), (9.4, 30.4, 9.4), "silver"),
+        part((7.4, 30.4, 7.4), (8.6, 32.0, 8.6), "silver", rot=("y", 45, (8, 31, 8))),
+        part((0.6, 26.0, 7.0), (15.4, 27.4, 9.0), "silver"),
+        part((6.8, -10, 6.8), (9.2, -8.8, 9.2), "silver_dark"),
+    ] + left_tassel + [mirror(t) for t in left_tassel]
+
+
+def banner_model():
+    elements, texture = bake("aurelia_banner", banner())
+    cu = lambda x: round(x * 16 / CLOTH_TEX, 4)
+    picture = [cu(0), cu(0), cu(CLOTH_W), cu(CLOTH_H)]
+    mirrored = [picture[2], picture[1], picture[0], picture[3]]
+    hem = [cu(2), cu(1), cu(CLOTH_W - 2), cu(3)]  # a strip of the top hem, for the cloth's thin edges
+    cloth = {"from": [1.5, 6.0, 6.4], "to": [14.5, 26.0, 6.8], "faces": {
+        "north": {"uv": picture, "texture": "#1"}, "south": {"uv": mirrored, "texture": "#1"},
+        "east": {"uv": hem, "texture": "#1"}, "west": {"uv": hem, "texture": "#1"},
+        "up": {"uv": hem, "texture": "#1"}, "down": {"uv": hem, "texture": "#1"}}}
+    return elements + [cloth], texture
+
+
+def paint_banner_cloth():
+    """The cloth: a black field shaded in soft folds, a silver border with a dark inner line, silver flourishes in the
+    corners, rings along the top hem, a swallow tail cut into the bottom, and the crowned skull with a faint blood red
+    glow around it."""
+    rng = random.Random("aurelia")
+    img = Image.new("RGBA", (CLOTH_TEX, CLOTH_TEX), (0, 0, 0, 0))
+    w, h = CLOTH_W, CLOTH_H
+    # black and silver: a black field, a silver border with a dark inner line, silver rings and flourishes
+    field, deep, gold, gold_d, hem = rgb("#1a181c"), rgb("#050405"), rgb("#c9ced8"), rgb("#6f747f"), rgb("#0c0b0d")
+    glow = rgb("#3c0a12")  # a faint blood red glow behind the skull
+    tail = 14  # rows of the swallow tail
+    for y in range(h):
+        for x in range(w):
+            # the swallow tail: a V cut up into the bottom of the cloth
+            if y >= h - tail and abs(x + 0.5 - w / 2) < (y - (h - tail)) * (w / 2) / tail:
+                continue
+            fold = 9 * math.sin(x / w * math.pi * 3.0) + 5 * math.sin(x / w * math.pi * 7.0 + 1)
+            light = -abs(y - h * 0.4) / h * 14
+            c = tint(field, fold + light + rng.randint(-5, 5))
+            img.putpixel((x, y), c + (255,))
+    # gold border (2 px) with a dark inner line, following the tail
+    def inside(x, y):
+        if not (0 <= x < w and 0 <= y < h):
+            return False
+        return img.getpixel((x, y))[3] > 0
+    border = []
+    for y in range(h):
+        for x in range(w):
+            if not inside(x, y):
+                continue
+            edge = min([d for d in range(1, 5) if not all(inside(x + dx, y + dy) for dx in range(-d, d + 1)
+                                                         for dy in range(-d, d + 1))] or [9])
+            border.append((x, y, edge))
+    for x, y, edge in border:
+        if y < 4:
+            continue
+        if edge <= 2:
+            img.putpixel((x, y), tint(gold if (x + y) % 6 else gold_d, rng.randint(-8, 8) + (14 if edge == 1 else 0)) + (255,))
+        elif edge == 3:
+            img.putpixel((x, y), deep + (255,))
+    # the top hem, darker, with gold rings where it hangs on the crossbar
+    for y in range(4):
+        for x in range(w):
+            img.putpixel((x, y), tint(hem, rng.randint(-4, 4)) + (255,))
+    for cx in range(5, w - 3, 8):
+        for x, y in [(cx, 0), (cx + 1, 0), (cx - 1, 1), (cx + 2, 1), (cx - 1, 2), (cx + 2, 2), (cx, 3), (cx + 1, 3)]:
+            img.putpixel((x, y), gold + (255,))
+    # corner flourishes
+    for (cx, cy) in [(7, 9), (w - 8, 9), (7, h - tail - 4), (w - 8, h - tail - 4)]:
+        for dx, dy in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (2, 0), (-2, 0), (0, 2), (0, -2)]:
+            img.putpixel((cx + dx, cy + dy), (gold if abs(dx) + abs(dy) < 2 else gold_d) + (255,))
+    # the crowned skull, drawn at twice size, with a dark shadow one step down and right
+    art = SKULL.splitlines()
+    aw, ah = max(len(r) for r in art) * 2, len(art) * 2
+    ox, oy = (w - aw) // 2, 11
+    for pass_shadow, (sx, sy) in [(True, (-2, 0)), (True, (2, 0)), (True, (0, 2)), (True, (0, -2)), (False, (0, 0))]:
+        for r, row in enumerate(art):
+            for c, ch in enumerate(row):
+                if ch == ".":
+                    continue
+                colour = rgb(SKULL_COLOURS.get(ch, SKULL_BONE))
+                for dy in range(2):
+                    for dx in range(2):
+                        x, y = ox + c * 2 + dx + sx, oy + r * 2 + dy + sy
+                        if 0 <= x < w and 0 <= y < h:
+                            if pass_shadow:
+                                img.putpixel((x, y), glow + (255,))
+                            else:
+                                img.putpixel((x, y), tint(colour, rng.randint(-6, 6) if ch in "BSb" else 0) + (255,))
+    return img
+
+
+def paint_banner_icon():
+    """The banner item's flat 16 by 16 icon: the pole, the black swallow tailed cloth with a silver top and a pale skull."""
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    pole, red, gold, bone = rgb("#1f1d22"), rgb("#1a181c"), rgb("#c9ced8"), rgb("#d9d4c7")
+    for y in range(0, 16):
+        img.putpixel((7, y), pole + (255,))
+    for x in range(2, 14):
+        img.putpixel((x, 2), gold + (255,))
+    for y in range(3, 13):
+        for x in range(3, 13):
+            if y >= 10 and abs(x + 0.5 - 8) < (y - 9) * 1.6:
+                continue
+            img.putpixel((x, y), red + (255,))
+    for x, y in [(6, 5), (7, 5), (8, 5), (9, 5), (6, 6), (9, 6), (6, 7), (7, 7), (8, 7), (9, 7), (7, 8), (8, 8)]:
+        img.putpixel((x, y), bone + (255,))
+    for x in (6, 8):
+        img.putpixel((x, 4), gold + (255,))
+    return img
+
+
 # The cape: the vanilla cape box (10 by 16 by 1) and the vanilla cape layout on a 64 by 32 texture. In pixels:
 # up (1,0)-(11,1), down (11,0)-(21,1), side (0,1)-(1,17), outside (1,1)-(11,17), side (11,1)-(12,17), inside (12,1)-(22,17).
 CAPE_PX = {"up": (1, 0, 11, 1), "down": (11, 0, 21, 1), "west": (0, 1, 1, 17), "north": (1, 1, 11, 17),
@@ -473,7 +635,7 @@ def paint_wings():
 # to the display's +x. A body display sits behind the player with its -z toward their back, so these models are built
 # front first as usual and then mirrored front to back (never turned, which would also swap left and right), so their
 # outer face looks out from the back while the pauldron's lames still point out over the arm.
-BACK_ITEMS = {"forgeman_pauldron", "kingdom_cape", "fairy_wings"}
+BACK_ITEMS = {"forgeman_pauldron", "kingdom_cape", "fairy_wings", "aurelia_banner"}
 
 
 def mirror_front_to_back(el):
@@ -571,12 +733,14 @@ def main():
     for name, build in {"forgeman_pauldron": pauldron, "antler_circlet": circlet, "tidal_gills": gills, "dwarf_beard": beard}.items():
         built[name] = bake(name, build())
     built["kingdom_cape"] = (cape_model(), paint_cape())
+    built["aurelia_banner"] = banner_model()
     built["fairy_wings"] = (wings_model(), paint_wings())
     for name, (elements, texture) in built.items():
         if name in BACK_ITEMS:
             elements = [mirror_front_to_back(e) for e in elements]
         model = {
-            "textures": {"0": f"kingdoms:item/worn/{name}", "particle": f"kingdoms:item/worn/{name}"},
+            "textures": {"0": f"kingdoms:item/worn/{name}", "particle": f"kingdoms:item/worn/{name}",
+                         **({"1": "kingdoms:item/worn/aurelia_banner_cloth"} if name == "aurelia_banner" else {})},
             "elements": elements,
             "display": DISPLAY,
         }
@@ -586,6 +750,8 @@ def main():
         texture.save(os.path.join(TEXTURES, name + ".png"))
         print(name, len(elements), "elements,", f"{texture.width}x{texture.height}")
     paint_beard_icon().save(os.path.join(ASSETS, "textures", "item", "dwarf_beard.png"))
+    paint_banner_cloth().save(BANNER_CLOTH)
+    paint_banner_icon().save(os.path.join(ASSETS, "textures", "item", "aurelia_banner.png"))
     write_helmets({"antler_circlet": built["antler_circlet"][0], "dwarf_beard": built["dwarf_beard"][0]})
 
 

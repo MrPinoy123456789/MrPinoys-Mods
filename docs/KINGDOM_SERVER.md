@@ -80,7 +80,7 @@ their race at a glance, and the race traits come with the race:
 | Race (node) | Look | Trait |
 |---|---|---|
 | Azrak Dwarves (`race:azrak`) | A thick Dwarf beard (`kingdoms:dwarf_beard`), combined with any vanilla helmet | Haste (`racePassives`) |
-| Aurelia Humans (`race:aurelia`) | Kingdom Cape (the vanilla cape shape) | Luck (`racePassives`) |
+| Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`): a black swallow tailed banner with a silver border and a crowned, scowling skull, on a black iron pole above the head | Luck (`racePassives`) |
 | Faeloria Fae (`race:faeloria`) | Antlers, combined with any vanilla helmet | Night Vision (`racePassives`) |
 | Azurius Merfolk (`race:azurius`) | Tidal Gills beside the neck | Water Breathing, Dolphin's Grace (`racePassives`) |
 | Everdelle Fairies (`race:everdelle`) | Fairy Wings | Glide, always, with nothing in the chest slot |
@@ -93,7 +93,8 @@ their race at a glance, and the race traits come with the race:
   Bedrock Fairies get the stand in elytra. No durability.
 - The Dwarf beard is a head item like the antlers: served on the head to everyone (hidden in first person), and with a
   vanilla helmet on, the helmet with the beard below it (`kingdoms:dwarf_beard_on_<material>`). The Forgeman's Pauldron is
-  now a keepsake like the other trinket items.
+  now a keepsake like the other trinket items. So is the Kingdom Cape: the Humans carry the war banner instead (a body
+  display on the back, slot placement `chest/banner`; its cloth texture is painted by `gen_trinket_models.py`).
 - The five trinket items stay registered as keepsakes ("a retired trinket, kept for something new later") with no slot,
   effect, lock or glider. Trinkets are locked away: anything left in a trinket slot is cleared (logged), and the
   `/charter trinkets` shortcut and book button are gone. Trinkets Updated and its Polymer patch stay installed for now so

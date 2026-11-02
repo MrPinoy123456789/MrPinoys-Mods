@@ -370,7 +370,7 @@ public final class WornGameTest {
                     def.id() + " worn model file is missing");
             checked++;
         }
-        helper.assertTrue(checked == 6, "Expected six items with a worn model but checked " + checked);
+        helper.assertTrue(checked == 7, "Expected seven items with a worn model but checked " + checked);
         helper.succeed();
     }
 
@@ -378,7 +378,7 @@ public final class WornGameTest {
     @GameTest(maxTicks = 20)
     public void theClientIsSentTheItemModelThePackSelectsOn(GameTestHelper helper) {
         ServerPlayer viewer = player(helper, null);
-        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard"}) {
+        for (String id : new String[] {"forgeman_pauldron", "kingdom_cape", "antler_circlet", "tidal_gills", "fairy_wings", "dwarf_beard", "aurelia_banner"}) {
             String seen = foundry.mc.WornDisplays.clientView(viewer, new ItemStack(item("kingdoms:" + id)));
             foundry.mc.FoundryMod.LOG.info("client stack for kingdoms:{}: {}", id, seen);
             helper.assertTrue(seen.contains("item_model=kingdoms:" + id), "The client does not get item_model kingdoms:" + id + ": " + seen);
@@ -444,6 +444,21 @@ public final class WornGameTest {
                         .equals("kingdoms:dwarf_beard_on_iron"), "With an iron helmet the Dwarf should get the beard on iron: " + combined);
                 helper.succeed();
             });
+        });
+    }
+
+    /** A Human carries the war banner on the back: one display that rides the player, standing above the head. */
+    @GameTest(maxTicks = 60)
+    public void humansCarryTheWarBanner(GameTestHelper helper) {
+        ServerPlayer human = player(helper, "race:aurelia");
+        helper.runAfterDelay(25, () -> {
+            helper.assertTrue(foundry.mc.WornDisplays.shownFor(human.getUUID()) == 1, "A Human shows no banner");
+            helper.assertTrue("display".equals(foundry.mc.WornDisplays.modeOf(human.getUUID(), 0)), "The banner is not a display");
+            var place = foundry.core.WornPlacement.of("chest/banner").orElseThrow();
+            // the finial (model y 32, 24 units above the model's middle) stands above the head (about 1.9 high)
+            float top = place.up() + 24f / 16f * 0.5f * place.scale();
+            helper.assertTrue(top > 2.0f, "The banner's top should stand above the head but is at " + top);
+            helper.succeed();
         });
     }
 }
