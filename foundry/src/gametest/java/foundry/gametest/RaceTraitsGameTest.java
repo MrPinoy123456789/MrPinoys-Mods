@@ -108,14 +108,19 @@ public class RaceTraitsGameTest {
         helper.succeed();
     }
 
-    /** A Dwarf smells a diamond ore close by and is pointed at it; nothing is found for a player of no race. */
+    /**
+     * A Dwarf smells iron close by and is pointed at it, but not a diamond ore nearer still (gems are the Fairies');
+     * a Fairy finds the diamond. Nothing is found for a player of no race.
+     */
     @GameTest(maxTicks = 40)
-    public void dwarvesSmellOre(GameTestHelper helper) {
-        helper.setBlock(new BlockPos(6, 2, 2), Blocks.DEEPSLATE_DIAMOND_ORE);
-        helper.setBlock(new BlockPos(4, 2, 6), Blocks.IRON_ORE);
+    public void dwarvesSmellOreAndFairiesGems(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(3, 2, 2), Blocks.DEEPSLATE_DIAMOND_ORE);
+        helper.setBlock(new BlockPos(6, 2, 6), Blocks.IRON_ORE);
         ServerPlayer dwarf = player(helper, 2.5, 2, 2.5);
         var found = RaceTraitsRuntime.sense(dwarf, trait("race:azrak").sense());
-        helper.assertTrue(helper.absolutePos(new BlockPos(6, 2, 2)).equals(found), "The Dwarf did not smell the diamond ore: " + found);
+        helper.assertTrue(helper.absolutePos(new BlockPos(6, 2, 6)).equals(found), "The Dwarf should smell the iron, not the diamond: " + found);
+        var gem = RaceTraitsRuntime.sense(dwarf, trait("race:everdelle").sense());
+        helper.assertTrue(helper.absolutePos(new BlockPos(3, 2, 2)).equals(gem), "A Fairy should sense the diamond: " + gem);
         helper.assertTrue(trait("race:nobody").sense() == null, "A player of no race has a sense");
         helper.succeed();
     }
@@ -133,18 +138,61 @@ public class RaceTraitsGameTest {
         helper.succeed();
     }
 
-    /** A Human senses a chest that still has its loot to roll, and not an ordinary chest. */
+    /**
+     * A Human senses a surface structure's unopened loot (a village chest) and not an ordinary chest or an unopened
+     * dungeon chest (deep loot is not theirs to find).
+     */
     @GameTest(maxTicks = 40)
-    public void humansSenseUnopenedLoot(GameTestHelper helper) {
+    public void humansSenseSurfaceLoot(GameTestHelper helper) {
         helper.setBlock(new BlockPos(3, 2, 3), Blocks.CHEST);
+        helper.setBlock(new BlockPos(4, 2, 2), Blocks.CHEST);
         helper.setBlock(new BlockPos(6, 2, 6), Blocks.CHEST);
-        if (helper.getLevel().getBlockEntity(helper.absolutePos(new BlockPos(6, 2, 6)))
-                instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity c) {
-            c.setLootTable(net.minecraft.world.level.storage.loot.BuiltInLootTables.SIMPLE_DUNGEON);
-        }
+        loot(helper, new BlockPos(4, 2, 2), net.minecraft.world.level.storage.loot.BuiltInLootTables.SIMPLE_DUNGEON);
+        loot(helper, new BlockPos(6, 2, 6), net.minecraft.world.level.storage.loot.BuiltInLootTables.VILLAGE_WEAPONSMITH);
         ServerPlayer human = player(helper, 2.5, 2, 2.5);
         var found = RaceTraitsRuntime.sense(human, trait("race:aurelia").sense());
-        helper.assertTrue(helper.absolutePos(new BlockPos(6, 2, 6)).equals(found), "The Human should sense the loot chest only: " + found);
+        helper.assertTrue(helper.absolutePos(new BlockPos(6, 2, 6)).equals(found), "The Human should sense the village chest only: " + found);
+        helper.succeed();
+    }
+
+    private static void loot(GameTestHelper helper, BlockPos pos,
+                             net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> table) {
+        if (helper.getLevel().getBlockEntity(helper.absolutePos(pos))
+                instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity c) {
+            c.setLootTable(table);
+        }
+    }
+
+    /**
+     * A Human trades a little cheaper: when a villager starts trading with them, a 10 emerald offer costs 9, a 1 emerald
+     * offer still 1; anyone else pays full price, and the discount comes off a wandering trader when trading stops.
+     */
+    @GameTest(maxTicks = 40)
+    public void humansGetBetterTrades(GameTestHelper helper) {
+        ServerPlayer human = player(helper, 2.5, 2, 2.5);
+        ServerPlayer other = player(helper, 4.5, 2, 4.5);
+        RaceTraitsRuntime.assign(human, trait("race:aurelia"));
+        RaceTraitsRuntime.assign(other, null);
+        var trader = helper.spawn(net.minecraft.world.entity.EntityTypes.WANDERING_TRADER, new BlockPos(3, 2, 3));
+        var offers = trader.getOffers();
+        offers.clear();
+        offers.add(new net.minecraft.world.item.trading.MerchantOffer(
+                new net.minecraft.world.item.trading.ItemCost(net.minecraft.world.item.Items.EMERALD, 10),
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND), 4, 1, 0.05f));
+        offers.add(new net.minecraft.world.item.trading.MerchantOffer(
+                new net.minecraft.world.item.trading.ItemCost(net.minecraft.world.item.Items.EMERALD, 1),
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK), 4, 1, 0.05f));
+        trader.setTradingPlayer(other);
+        helper.assertTrue(offers.get(0).getCostA().getCount() == 10, "Someone of no race got a discount");
+        trader.setTradingPlayer(null);
+        trader.setTradingPlayer(human);
+        int big = offers.get(0).getCostA().getCount(), small = offers.get(1).getCostA().getCount();
+        trader.setTradingPlayer(null);
+        RaceTraitsRuntime.undiscount(trader);
+        int after = offers.get(0).getCostA().getCount();
+        RaceTraitsRuntime.assign(human, null);
+        helper.assertTrue(big == 9 && small == 1, "A Human should pay 9 and 1, pays " + big + " and " + small);
+        helper.assertTrue(after == 10, "The discount stayed on the wandering trader after trading: " + after);
         helper.succeed();
     }
 }

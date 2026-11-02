@@ -214,6 +214,23 @@ public final class CoreSuite {
         check(t.of("race:azrak").stride().ground() == foundry.core.RaceTraits.Ground.UNDERGROUND
                 && t.of("race:azrak").stride().bonus() == 0.15, "Dwarves stride faster underground");
         check(t.of("race:aurelia").mount().speed() == 0.2 && t.of("race:aurelia").mount().jump() == 0.1, "Humans ride faster");
+        check(t.of("race:aurelia").tradeDiscount() == 0.1 && t.of("race:azrak").tradeDiscount() == 0, "only Humans trade cheaper");
+        check(foundry.core.RaceTraits.discount(10, 0.1) == 1 && foundry.core.RaceTraits.discount(3, 0.1) == 0
+                && foundry.core.RaceTraits.discount(1, 0.5) == 0 && foundry.core.RaceTraits.discount(2, 0.5) == 1
+                && foundry.core.RaceTraits.discount(64, 0.1) == 6, "a trade discount rounds and never takes a price below one");
+        var dwarfOres = t.of("race:azrak").sense().blocks();
+        check(!dwarfOres.contains("minecraft:diamond_ore") && !dwarfOres.contains("minecraft:ancient_debris")
+                && dwarfOres.contains("minecraft:iron_ore") && dwarfOres.contains("minecraft:redstone_ore"),
+                "Dwarves smell gold, lapis, emerald, iron, copper and redstone, not diamond or ancient debris");
+        var gems = t.of("race:everdelle").sense();
+        check(gems.blocks().contains("minecraft:diamond_ore") && !gems.blocks().contains("minecraft:glowstone")
+                && gems.radius() >= 6 && gems.radius() <= 8 && gems.every() > 40, "Fairies sense gems, close and slowly");
+        check(t.races().values().stream().noneMatch(r -> r.sense().blocks().contains("minecraft:ancient_debris")),
+                "ancient debris is nobody's to sense");
+        var treasure = t.of("race:aurelia").sense();
+        check(treasure.radius() == 8 && treasure.blocks().stream().allMatch(b -> b.startsWith(foundry.core.RaceTraits.LOOT_PREFIX))
+                && treasure.blocks().stream().noneMatch(b -> b.contains("ancient_city") || b.contains("end_city")
+                        || b.contains("bastion") || b.contains("trial")), "Humans sense surface structure loot only, within 8 blocks");
         check(t.of("race:faeloria").fallDamage() == 0.5 && t.of("race:faeloria").jumpDrift() == 0.15,
                 "the Fae land on half the fall damage and drift forward on a double jump");
         check(t.of("race:mossbeard_s_muddle").stride().ground() == foundry.core.RaceTraits.Ground.WILD,
@@ -222,7 +239,8 @@ public final class CoreSuite {
         check(foundry.core.WornPlacement.FAE_DOUBLE_JUMP == 45, "the Fae double jump cooldown is 45 ticks (10 percent less)");
         for (var race : t.races().values()) {
             for (String b : race.sense().blocks()) {
-                check(b.equals(foundry.core.RaceTraits.LOOT_CHEST) || foundry.core.RaceTraits.BlockMatch.parse(b) != null,
+                check(b.equals(foundry.core.RaceTraits.LOOT_CHEST) || b.startsWith(foundry.core.RaceTraits.LOOT_PREFIX)
+                        || foundry.core.RaceTraits.BlockMatch.parse(b) != null,
                         b + " is a block a sense can look for");
             }
         }

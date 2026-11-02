@@ -75,6 +75,37 @@ public final class RaceTraitsRuntime {
         return of(player).fallDamage();
     }
 
+    /** Each merchant a discount was put on, and what was taken off each offer, so it can be put back. */
+    private static final Map<net.minecraft.world.entity.npc.villager.AbstractVillager, Map<net.minecraft.world.item.trading.MerchantOffer, Integer>>
+            DISCOUNTED = new java.util.WeakHashMap<>();
+
+    /**
+     * Lowers this merchant's prices for a player of a race with a trade discount (the Humans), as trading starts; called
+     * by the MerchantDiscount mixin. Each offer gets the same kind of price change vanilla gives Hero of the Village.
+     */
+    public static void discount(net.minecraft.world.entity.npc.villager.AbstractVillager merchant, ServerPlayer player) {
+        double share = of(player.getUUID()).tradeDiscount();
+        if (share <= 0 || DISCOUNTED.containsKey(merchant)) return;
+        Map<net.minecraft.world.item.trading.MerchantOffer, Integer> taken = new java.util.IdentityHashMap<>();
+        for (var offer : merchant.getOffers()) {
+            int off = RaceTraits.discount(offer.getBaseCostA().getCount(), share);
+            if (off <= 0) continue;
+            offer.addToSpecialPriceDiff(-off);
+            taken.put(offer, off);
+        }
+        DISCOUNTED.put(merchant, taken);
+    }
+
+    /**
+     * Puts the prices back when trading stops. A villager resets its own price changes as it stops (before this runs), so
+     * only a merchant that does not (the wandering trader) has the discount added back.
+     */
+    public static void undiscount(net.minecraft.world.entity.npc.villager.AbstractVillager merchant) {
+        var taken = DISCOUNTED.remove(merchant);
+        if (taken == null || merchant instanceof net.minecraft.world.entity.npc.villager.Villager) return;
+        taken.forEach((offer, off) -> offer.addToSpecialPriceDiff(off));
+    }
+
     /** The fall damage multiplier for this player after their race's cut (what the LivingEntityFall mixin passes on). */
     public static float landing(ServerPlayer player, float multiplier) {
         double cut = fallDamageCut(player.getUUID());
@@ -258,9 +289,11 @@ public final class RaceTraitsRuntime {
         return MATCHERS.computeIfAbsent(sense, s -> {
             List<Matcher> out = new ArrayList<>();
             for (String text : s.blocks()) {
-                if (text.equals(RaceTraits.LOOT_CHEST)) {
+                if (text.equals(RaceTraits.LOOT_CHEST) || text.startsWith(RaceTraits.LOOT_PREFIX)) {
+                    String prefix = text.equals(RaceTraits.LOOT_CHEST) ? "" : text.substring(RaceTraits.LOOT_PREFIX.length());
                     out.add((level, pos, state) -> state.hasBlockEntity()
-                            && level.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity c && c.getLootTable() != null);
+                            && level.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity c && c.getLootTable() != null
+                            && c.getLootTable().identifier().toString().startsWith(prefix));
                     continue;
                 }
                 var match = RaceTraits.BlockMatch.parse(text);

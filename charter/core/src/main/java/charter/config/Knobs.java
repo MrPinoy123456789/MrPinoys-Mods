@@ -134,13 +134,13 @@ public final class Knobs {
     /**
      * Effects a race gives the people who have it, by race node path (the kingdom's name lower case, as in race:azrak) to
      * effect ids. These are the race traits that used to come from the race trinkets: Merfolk (Azurius) breathe water and
-     * swim like dolphins, Dwarves (Azrak) mine faster, Humans (Aurelia) find more luck, the Fae (Faeloria) see in the dark.
-     * The Fairies (Everdelle) glide, which Foundry gives them (no effect needed).
+     * swim like dolphins, Dwarves (Azrak) mine faster, the Fae (Faeloria) see in the dark. The Humans (Aurelia) have no
+     * effect: their passive is better trade deals, which Foundry gives them (race_traits.json trade_discount), and the
+     * Fairies (Everdelle) glide, which Foundry gives them too.
      */
     public java.util.Map<String, List<String>> racePassives = new java.util.LinkedHashMap<>(java.util.Map.of(
             "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace"),
             "azrak", List.of("minecraft:haste"),
-            "aurelia", List.of("minecraft:luck"),
             "faeloria", List.of("minecraft:night_vision")));
     /**
      * Races whose people keep everything when they die: nothing drops and the inventory and experience come back on

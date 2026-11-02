@@ -136,11 +136,11 @@ one sense, on top of the combat and gathering passives every race already has (s
 
 | Race (node) | Movement | Passive | Sense | Combat (Charter) | Gathering |
 |---|---|---|---|---|---|
-| Azrak Dwarves (`race:azrak`) | Deep Stride: +15% walking speed under a roof of blocks | Haste I | Ore sense, 8 blocks: diamond, emerald, gold, lapis ores (and deepslate ones), ancient debris | Bedrock Stance | Fortune I on ores |
-| Aurelia Humans (`race:aurelia`) | Horsemanship: the horse, donkey, mule or camel they ride gets +20% speed and +10% jump | Luck I | Treasure sense, 12 blocks: a chest, barrel or other container that still has its loot to roll | Rally | Looting I on farm animals |
+| Azrak Dwarves (`race:azrak`) | Deep Stride: +15% walking speed under a roof of blocks | Haste I | Ore sense, 8 blocks: gold, lapis, emerald, iron, copper and redstone ores (and deepslate ones); never diamond or ancient debris | Bedrock Stance | Fortune I on ores |
+| Aurelia Humans (`race:aurelia`) | Horsemanship: the horse, donkey, mule or camel they ride gets +20% speed and +10% jump | Better trades: 10% off villager and wandering trader prices (rounded, never below 1) | Treasure sense, 8 blocks: unopened surface structure loot (villages, shipwrecks, buried treasure, mineshafts, ruined portals) | Rally | Looting I on farm animals |
 | Faeloria Fae (`race:faeloria`) | Double jump (2.25 s cooldown, a little forward carry) and half fall damage | Night Vision | Herb sense, 12 blocks: ripe nether wart, torchflower, pitcher plant, wither rose, chorus flower, glow berries on cave vines, ripe cocoa | Glamour | Fortune I on alchemy plants |
 | Azurius Merfolk (`race:azurius`) | Swim dash (2 s cooldown) and Dolphin's Grace | Water Breathing | Tide sense, 10 blocks: sponge, wet sponge, suspicious sand and gravel | Tidewrath | Looting I on water things |
-| Everdelle Fairies (`race:everdelle`) | Glide, always, nothing in the chest slot | none (their Featherlight already spares all fall damage) | Glimmer sense, 10 blocks: redstone ore, glowstone, budding amethyst | Featherlight | Fortune and Looting I on dusts |
+| Everdelle Fairies (`race:everdelle`) | Glide, always, nothing in the chest slot | none (their Featherlight already spares all fall damage) | Glimmer sense, 7 blocks, every 4 s: diamond and emerald ores, amethyst clusters, budding amethyst | Featherlight | Fortune and Looting I on dusts |
 | Mossbeard's Muddle (`race:mossbeard_s_muddle`) | Old Forest Walk: +15% walking speed on living ground (grass, moss, podzol, mycelium, rooted or coarse dirt, mud, leaves) | Keeps everything on death (Charter `racesKeepInventory`) | Kindred sense, 12 blocks: bee nests, beehives, turtle eggs, sniffer eggs, frogspawn | none | none |
 
 How the new traits work (Foundry, `config/foundry/race_traits.json`, built in defaults match the shipped example):
@@ -157,8 +157,20 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   about 6 blocks away". Both reach Bedrock through Geyser. Nothing past the radius is ever revealed. Block lists take
   ids, ids with block state values (`minecraft:cocoa[age=2]`) and `#loot_chest`.
 - Passives stay Charter's `racePassives` (unchanged). Every knob: `stride` (`bonus`, `ground`: underground, wild or
-  anywhere), `mount` (`speed`, `jump`), `fall_damage`, `jump_drift`, `sense` (`name`, `blocks`, `radius`, `every`,
-  `colour`). A race listed in the file replaces its built in traits.
+  anywhere), `mount` (`speed`, `jump`), `fall_damage`, `jump_drift`, `trade_discount`, `sense` (`name`, `blocks`,
+  `radius`, `every`, `colour`). A race listed in the file replaces its built in traits.
+- Better trades (`trade_discount`, Humans 0.1, at most 0.5): when a villager or wandering trader starts trading with
+  the player, each offer's first cost drops by that share, rounded (a 10 emerald offer costs 9, a 3 emerald one stays
+  3), never below one; on the server, the same per offer change vanilla uses for Hero of the Village, with no effect or
+  particles. It comes off when trading stops. Charter Currency's `/shop` is not discounted: its prices are flat per
+  listing with no per player hook, and it does not know races. Humans no longer get Luck (Charter's default
+  `racePassives` no longer lists `aurelia`; a server whose `charter.json` still lists it must remove that entry).
+- Sense lists also take `#loot:<prefix>`: a container that still has its loot to roll whose loot table id starts with
+  the prefix (the Humans' list is `minecraft:chests/village/`, `shipwreck_`, `buried_treasure`, `abandoned_mineshaft` and
+  `ruined_portal`; no ancient cities, end cities, bastions or trial vaults). Ancient debris is nobody's to sense.
+- The Human look is now a sashimono: the pole against the back, an arm from its top reaching back, and the tall black
+  cloth hanging from it beside the pole, so it shows full on from the left and right; three silver bands across its top,
+  the crowned skull below, silver rings where it is laced to the pole.
 
 Where this differs from earlier parts of this document, this section wins:
 - Section 2 gave the Fae "average movement, Jump Boost in green biomes". The build gives them a double jump and half

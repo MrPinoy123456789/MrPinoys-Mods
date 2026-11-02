@@ -38,32 +38,48 @@ public record RaceTraits(Map<String, Trait> races) {
     /**
      * A sense: every {@code every} ticks the blocks within {@code radius} of the player are searched for the listed ones,
      * and the nearest is pointed at, to that player only (a short trail of particles toward it and an action bar line).
-     * A block is an id, an id with block state values ({@code minecraft:cave_vines[berries=true]}) or
-     * {@code #loot_chest} (a chest, barrel or other container that still has its loot to roll).
+     * A block is an id, an id with block state values ({@code minecraft:cave_vines[berries=true]}),
+     * {@code #loot_chest} (a chest, barrel or other container that still has its loot to roll) or {@code #loot:<prefix>}
+     * (such a container whose loot table id starts with the prefix, as in {@code #loot:minecraft:chests/village/}).
      */
     public record Sense(String name, List<String> blocks, int radius, int every, int colour) {}
 
     /**
      * One race's traits. {@code fallDamage} is the share of fall damage taken off (0.5 halves it). {@code jumpDrift} is
      * the forward push of a double jump (blocks per tick along the way the player faces), for a race that has one.
+     * {@code tradeDiscount} is the share taken off villager and wandering trader prices (see {@link #discount}).
      */
-    public record Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense) {}
+    public record Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount) {
+        public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense) {
+            this(stride, mount, fallDamage, jumpDrift, sense, 0);
+        }
+    }
 
     /** The result of reading a file: the traits, and what was wrong with it (the traits are the defaults if unreadable). */
     public record Parsed(RaceTraits traits, List<String> problems) {}
 
     public static final String LOOT_CHEST = "#loot_chest";
+    /** A container whose loot table starts with what follows, as in {@code #loot:minecraft:chests/village/}. */
+    public static final String LOOT_PREFIX = "#loot:";
 
-    public static final List<String> ORES = List.of("minecraft:diamond_ore", "minecraft:deepslate_diamond_ore",
-            "minecraft:emerald_ore", "minecraft:deepslate_emerald_ore", "minecraft:gold_ore", "minecraft:deepslate_gold_ore",
-            "minecraft:lapis_ore", "minecraft:deepslate_lapis_ore", "minecraft:ancient_debris");
+    /** The Dwarves' ores: no diamond and no ancient debris (those are nobody's to smell). */
+    public static final List<String> ORES = List.of("minecraft:gold_ore", "minecraft:deepslate_gold_ore",
+            "minecraft:lapis_ore", "minecraft:deepslate_lapis_ore", "minecraft:emerald_ore", "minecraft:deepslate_emerald_ore",
+            "minecraft:iron_ore", "minecraft:deepslate_iron_ore", "minecraft:copper_ore", "minecraft:deepslate_copper_ore",
+            "minecraft:redstone_ore", "minecraft:deepslate_redstone_ore");
+    /** The Humans' treasure: surface structure loot only (villages, shipwrecks, buried treasure, mineshafts, ruined portals). */
+    public static final List<String> TREASURE = List.of("#loot:minecraft:chests/village/", "#loot:minecraft:chests/shipwreck_",
+            "#loot:minecraft:chests/buried_treasure", "#loot:minecraft:chests/abandoned_mineshaft",
+            "#loot:minecraft:chests/ruined_portal");
     public static final List<String> HERBS = List.of("minecraft:nether_wart[age=3]", "minecraft:torchflower",
             "minecraft:pitcher_plant", "minecraft:wither_rose", "minecraft:chorus_flower",
             "minecraft:cave_vines[berries=true]", "minecraft:cave_vines_plant[berries=true]", "minecraft:cocoa[age=2]");
     public static final List<String> TIDE = List.of("minecraft:sponge", "minecraft:wet_sponge", "minecraft:suspicious_sand",
             "minecraft:suspicious_gravel");
-    public static final List<String> GLIMMER = List.of("minecraft:redstone_ore", "minecraft:deepslate_redstone_ore",
-            "minecraft:glowstone", "minecraft:budding_amethyst");
+    /** The Fairies' gems. */
+    public static final List<String> GLIMMER = List.of("minecraft:diamond_ore", "minecraft:deepslate_diamond_ore",
+            "minecraft:emerald_ore", "minecraft:deepslate_emerald_ore", "minecraft:amethyst_cluster",
+            "minecraft:budding_amethyst");
     public static final List<String> NESTS = List.of("minecraft:bee_nest", "minecraft:beehive", "minecraft:turtle_egg",
             "minecraft:sniffer_egg", "minecraft:frogspawn");
 
@@ -80,10 +96,10 @@ public record RaceTraits(Map<String, Trait> races) {
         r.put("race:azrak", new Trait(new Stride(0.15, Ground.UNDERGROUND), null, 0, 0,
                 new Sense("Ore sense", ORES, 8, 40, 0xE0B040)));
         r.put("race:aurelia", new Trait(null, new Mount(0.2, 0.1), 0, 0,
-                new Sense("Treasure sense", List.of(LOOT_CHEST), 12, 40, 0xC9CED8)));
+                new Sense("Treasure sense", TREASURE, 8, 40, 0xC9CED8), 0.1));
         r.put("race:faeloria", new Trait(null, null, 0.5, 0.15, new Sense("Herb sense", HERBS, 12, 40, 0x7CD35A)));
         r.put("race:azurius", new Trait(null, null, 0, 0, new Sense("Tide sense", TIDE, 10, 40, 0x3FC2CF)));
-        r.put("race:everdelle", new Trait(null, null, 0, 0, new Sense("Glimmer sense", GLIMMER, 10, 40, 0xF59AC4)));
+        r.put("race:everdelle", new Trait(null, null, 0, 0, new Sense("Glimmer sense", GLIMMER, 7, 80, 0xF59AC4)));
         r.put("race:mossbeard_s_muddle", new Trait(new Stride(0.15, Ground.WILD), null, 0, 0,
                 new Sense("Kindred sense", NESTS, 12, 40, 0x6FAF3A)));
         return new RaceTraits(Map.copyOf(r));
@@ -92,7 +108,7 @@ public record RaceTraits(Map<String, Trait> races) {
     /**
      * Parses the file: {@code {"race:azrak": {"stride": {"bonus": 0.15, "ground": "underground"}, "mount": {"speed": 0.2,
      * "jump": 0.1}, "fall_damage": 0.5, "jump_drift": 0.15, "sense": {"name": "Ore sense", "blocks": [...], "radius": 8,
-     * "every": 40, "colour": "#E0B040"}}}}. A race listed in the file replaces the built in one; a race left out keeps it.
+     * "every": 40, "colour": "#E0B040"}, "trade_discount": 0.1}}. A race listed in the file replaces the built in one; a race left out keeps it.
      * A bad file gives the defaults and a problem line.
      */
     public static Parsed parse(String json) {
@@ -149,7 +165,8 @@ public record RaceTraits(Map<String, Trait> races) {
             List<String> blocks = new ArrayList<>();
             if (s.has("blocks")) s.getAsJsonArray("blocks").forEach(b -> blocks.add(b.getAsString()));
             for (String b : blocks) {
-                if (!b.equals(LOOT_CHEST) && BlockMatch.parse(b) == null) problems.add(where + " sense block " + b + " is not a block id");
+                boolean loot = b.equals(LOOT_CHEST) || (b.startsWith(LOOT_PREFIX) && b.length() > LOOT_PREFIX.length());
+                if (!loot && BlockMatch.parse(b) == null) problems.add(where + " sense block " + b + " is not a block id");
             }
             int radius = s.has("radius") ? s.get("radius").getAsInt() : 8;
             if (radius < 1 || radius > 16) {
@@ -167,7 +184,22 @@ public record RaceTraits(Map<String, Trait> races) {
             }
             sense = new Sense(s.has("name") ? s.get("name").getAsString() : "Sense", List.copyOf(blocks), radius, every, colour);
         }
-        return new Trait(stride, mount, fall, drift, sense);
+        double trade = o.has("trade_discount") ? share(o, "trade_discount", where, problems) : 0;
+        if (trade > 0.5) {
+            problems.add(where + " trade_discount must be at most 0.5");
+            trade = 0.5;
+        }
+        return new Trait(stride, mount, fall, drift, sense, trade);
+    }
+
+    /**
+     * How many of an offer's first cost a trade discount takes off: the share of the base count, rounded, and never so
+     * much that the price would go below one (vanilla also keeps every price at one or more). A 10 emerald offer with a
+     * 0.1 discount costs 9; a 3 emerald one stays 3.
+     */
+    public static int discount(int baseCount, double share) {
+        if (share <= 0 || baseCount <= 1) return 0;
+        return Math.max(0, Math.min(baseCount - 1, (int) Math.round(baseCount * share)));
     }
 
     /** A share from 0 to 1; anything outside is clamped and reported. */

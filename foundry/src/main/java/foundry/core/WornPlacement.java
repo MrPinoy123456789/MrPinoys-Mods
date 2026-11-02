@@ -63,8 +63,9 @@ public record WornPlacement(float up, float back, float side, float scale, boole
         slots.put("head/face", new WornPlacement(1.64f, 0f, 0f, 1.0f, true, 0f, 0f, 0f, false, false, true, false));
         slots.put("chest/back", new WornPlacement(1.38f, 0f, 0.38f, 0.9f, false, 0f, 0f, 0f, false, false, true, false));
         // The cape is vanilla's: hung from the top of the back (1.40 up, 0.14 behind), 10 by 16 pixels at scale 1.875.
-        // A war banner on the back: the pole from the small of the back to above the head, the cloth over the shoulders.
-        slots.put("chest/banner", new WornPlacement(1.32f, 0.3f, 0f, 1.1f, false, 0f, 0f, 0f, false, false, true, false));
+        // A war banner on the back (a sashimono): the pole against the back from the waist to above the head, the cloth
+        // hanging from an arm behind the wearer.
+        slots.put("chest/banner", new WornPlacement(1.32f, 0.2f, 0f, 1.1f, false, 0f, 0f, 0f, false, false, true, false));
         slots.put("chest/cape", new WornPlacement(1.40f, 0.14f, 0f, 1.875f, false, 0f, 0f, 0f, false, false, true, true));
         Map<String, WornPlacement> items = new LinkedHashMap<>();
         items.put("kingdoms:fairy_wings", new WornPlacement(1.2f, 0.34f, 0f, 1.3f, false, 0f, 0f, 0f, false, false, true, false));
