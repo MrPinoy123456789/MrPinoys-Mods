@@ -1331,8 +1331,6 @@ public class GraphSolvabilityTest {
 
         entries.addAll(everyMask("iron_door", List.of("encounter"), List.of(),
                 List.of(SituationTags.REDSTONE), DungeonRoomMeta.ACCESS_GATED, 6));
-        entries.addAll(everyMask("flow_puzzle", List.of("encounter"), List.of(),
-                List.of(SituationTags.WATER), DungeonRoomMeta.ACCESS_OPEN, 6));
         entries.addAll(everyMask("pump_room", List.of("loot"), List.of(),
                 List.of(SituationTags.WATER, SituationTags.REDSTONE),
                 DungeonRoomMeta.ACCESS_OPEN, 6));
@@ -1378,8 +1376,6 @@ public class GraphSolvabilityTest {
 
         entries.addAll(everyMaskTier("iron_door", List.of("encounter"), List.of(),
                 List.of(SituationTags.REDSTONE), DungeonRoomMeta.ACCESS_GATED, 6, 1));
-        entries.addAll(everyMaskTier("flow_puzzle", List.of("encounter"), List.of(),
-                List.of(SituationTags.WATER), DungeonRoomMeta.ACCESS_OPEN, 6, 1));
         entries.addAll(everyMaskTier("pump_room", List.of("loot"), List.of(),
                 List.of(SituationTags.WATER, SituationTags.REDSTONE),
                 DungeonRoomMeta.ACCESS_OPEN, 6, 1));

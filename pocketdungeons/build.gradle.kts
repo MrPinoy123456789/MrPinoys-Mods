@@ -442,6 +442,7 @@ for ((taskName, testClass) in mapOf(
     "resetCampaignTest" to "ResetCampaignTest",
     "graphSolvabilityTest" to "GraphSolvabilityTest",
     "layoutFingerprintTest" to "LayoutFingerprintTest",
+    "retiredRoomsTest" to "RetiredRoomsTest",
     "storyGeometryTest" to "StoryGeometryTest",
     // Vertical floors phase 2: per-story door masks.
     "storyDoorMaskTest" to "StoryDoorMaskTest",

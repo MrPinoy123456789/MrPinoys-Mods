@@ -23,7 +23,9 @@ public final class StampDeterminismGameTest {
      * stamper before its parameter record refactor (and matched after it). Zero would
      * mean "not pinned": the test then only checks that two stamps agree.
      */
-    private static final int STAMP_FINGERPRINT = -549531538;
+    private static final int STAMP_FINGERPRINT = 1964260150;
+    // Return chest rooms retired (2026-11-02): re-pinned (was -549531538) because frame_lock, item_plate,
+    // flow_puzzle and sorting_floor left the pool, so seed 7 draws a different set again.
     // The First Night rooms: re-pinned again (was -182528007) when the eighteen Act 0 rooms joined the
     // manifest, so seed 7 draws a different set again.
     // T10: re-pinned once (was 935166682) when Voided stopped voiding puzzle and ordeal cells; the
