@@ -157,7 +157,7 @@ public final class Knobs {
      */
     public java.util.Map<String, String> tagColors = new java.util.LinkedHashMap<>(java.util.Map.of(
             "everdelle", "#FF69B4", "azurius", "#89CFF0", "faeloria", "#A020F0",
-            "azrak", "#8B5A2B", "aurelia", "#FF8C00", "mercenary", "#8A0303"));
+            "azrak", "#FFD700", "aurelia", "#FF6A1A", "mercenary", "#8A0303"));
     /** Whether a keep turns away players who are not its members, not at war with it and not operators. */
     public boolean closedKeeps = false;
     /**
