@@ -18,9 +18,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * An operator names the leader of a kingdom: the player joins it if they are not in it yet and takes the Lord's
- * seat, replacing whoever held it. The vote that guards the Lord's seat and a closed door do not apply to an
- * operator. A player who belongs to another kingdom is refused. Operators only.
+ * An operator names the sole leader of a kingdom: the player joins it if they are not in it yet and takes the Lord's
+ * seat, replacing whoever held it. The office goes back to one seat in which the Lord acts alone, so a kingdom with two
+ * Lords is left with exactly this one. The vote that guards the Lord's seat and a closed door do not apply to an
+ * operator. A player who belongs to another kingdom is refused. Operators only. A second Lord is {@link AppointCoLeader}.
  */
 public record AppointLeader(OrgId org, PlayerId player) implements Action {
 
@@ -53,9 +54,21 @@ public record AppointLeader(OrgId org, PlayerId player) implements Action {
         List<HistoryEvent> events = new ArrayList<>();
         if (!ctx.state.isMember(player, org)) ctx.state.join(player, org, ctx.now);
         Office lord = ctx.state.office(ctx.state.org(org).orElseThrow().governance.deciders).orElseThrow();
-        lord.unseatAll();
-        lord.seat(player, ctx.now);
-        events.add(new GovEvents.OfficeFilled(ctx.now, lord.id, org, player));
+        boolean sat = lord.holds(player);
+        for (Office.Seat seat : new ArrayList<>(lord.holders())) {
+            if (seat.player().equals(player)) continue;
+            lord.unseat(seat.player());
+            events.add(new GovEvents.OfficeVacated(ctx.now, lord.id, org, seat.player(), "replaced"));
+        }
+        if (lord.seats() != 1 || lord.deciding() != Office.Deciding.ALONE) {
+            lord.setSeats(1);
+            lord.setDeciding(Office.Deciding.ALONE);
+            events.add(new GovEvents.SeatsChanged(ctx.now, lord.id, org, 1, Office.Deciding.ALONE));
+        }
+        if (!sat) {
+            lord.seat(player, ctx.now);
+            events.add(new GovEvents.OfficeFilled(ctx.now, lord.id, org, player));
+        }
         return events;
     }
 }

@@ -72,6 +72,38 @@ in an office or making a new one (`Appoint`, `CreateOffice`). Operators and the 
 vacant Lord seat can still be filled by vote or by `/charter admin faction leader`. The "Who decides" page then says the
 server sets it and offers no buttons.
 
+### Two Lords
+
+A kingdom can have two Lords who rule together as equals. Operators choose them; players never can, and there are never
+more than two. In the engine it is the Lord office with two seats in which either holder acts alone, and the book reads
+it as "A lordship with two Lords", never as a council.
+
+- `/charter admin faction coleader "<faction>" <player>` names a second Lord. The sitting Lord keeps the seat; the
+  player joins the kingdom if they are in none (a member of another kingdom is refused). A third Lord is refused. With
+  the seat empty it simply makes them the Lord.
+- `/charter admin faction unlord "<faction>" <player>` removes one Lord, who stays a member. The other rules alone again
+  (the office goes back to one seat). Removing the last Lord leaves the seat empty for an operator to fill.
+- `/charter admin faction leader "<faction>" <player>` still means one Lord: it leaves exactly that player on one seat,
+  so it also undoes two Lords.
+- The same three are buttons on a kingdom's page in the operator menu (`/charter admin`).
+
+**Either Lord alone** holds every Lord power: invite and admit, give powers, spend up to `lordSpendLimitMarks`, declare
+war, move the Nexus, the Leader's Desk, the treasury in Charter Currency.
+
+**Both are needed** to remove, expel or replace the other Lord, to change the seats or how the kingdom is ruled, or to
+rename it. One Lord's attempt is put to the other, and the book says so ("Bob must agree"). Members still cannot vote a
+Lord out.
+
+**One Lord going** (leaving the kingdom, removed, or absent past `absentLordDays`) empties only their own seat: the
+other rules alone on one seat and no election opens. Banishment does not touch membership or seats, for one Lord or two.
+
+To give a kingdom two Lords on the live server (names in quotes when they have spaces):
+
+```
+/charter admin faction leader "Azrak" Alice
+/charter admin faction coleader "Azrak" Bob
+```
+
 ## Race trinkets: opening the screen and how they look
 
 Four race trinkets (Tidal Gills, Forgeman's Pauldron, Kingdom Cape, Antler Circlet) sit in Trinkets Updated slots; the

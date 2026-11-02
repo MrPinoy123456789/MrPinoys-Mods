@@ -364,7 +364,11 @@ public final class ActionEngine {
                     lost = true;
                 }
             }
-            if (lost) openElection(office.id, null);
+            if (!lost) continue;
+            // One absent Lord of two loses only their own seat: the other rules alone and no election opens.
+            Optional<HistoryEvent> settled = charter.gov.Deciders.settleLords(state, office, now);
+            settled.ifPresent(e -> record(new Actor.System(), List.of(e)));
+            if (!office.full()) openElection(office.id, null);
         }
     }
 

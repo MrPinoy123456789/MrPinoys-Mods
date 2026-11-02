@@ -103,6 +103,16 @@ public final class LandCommands {
                                         .then(Commands.argument("player", StringArgumentType.string())
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
                                                 .executes(LandCommands::appointLeader))))
+                        .then(Commands.literal("coleader")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("player", StringArgumentType.string())
+                                                .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
+                                                .executes(LandCommands::appointCoLeader))))
+                        .then(Commands.literal("unlord")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .then(Commands.argument("player", StringArgumentType.string())
+                                                .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
+                                                .executes(LandCommands::removeLord))))
                         .then(Commands.literal("race")
                                 .then(Commands.argument("player", StringArgumentType.string())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getOnlinePlayerNames(), b))
@@ -390,8 +400,30 @@ public final class LandCommands {
         return ok(ctx, Text.get("land.admin.added", "player", who, "name", found.get().name()));
     }
 
-    /** {@code faction leader "<faction>" <player>}: the player joins the kingdom and takes the Lord's seat. */
+    /**
+     * {@code faction leader "<faction>" <player>}: the player joins the kingdom and becomes its only Lord. A kingdom with
+     * two Lords is left with this one: the office goes back to one seat.
+     */
     private static int appointLeader(CommandContext<CommandSourceStack> ctx) {
+        return lordCommand(ctx, "land.admin.leader", (org, id) -> new charter.org.actions.AppointLeader(org, id));
+    }
+
+    /**
+     * {@code faction coleader "<faction>" <player>}: a second Lord, equal to the first. The sitting Lord keeps the seat;
+     * the player joins the kingdom if they are in none. A third Lord is refused.
+     */
+    private static int appointCoLeader(CommandContext<CommandSourceStack> ctx) {
+        return lordCommand(ctx, "land.admin.coleader", (org, id) -> new charter.org.actions.AppointCoLeader(org, id));
+    }
+
+    /** {@code faction unlord "<faction>" <player>}: one Lord loses the seat and stays a member; the other rules alone. */
+    private static int removeLord(CommandContext<CommandSourceStack> ctx) {
+        return lordCommand(ctx, "land.admin.unlord", (org, id) -> new charter.org.actions.RemoveLord(org, id));
+    }
+
+    /** The three Lord commands: find the faction and the player, run the operator action, say what happened. */
+    private static int lordCommand(CommandContext<CommandSourceStack> ctx, String doneKey,
+                                   java.util.function.BiFunction<OrgId, PlayerId, charter.engine.Action> make) {
         CharterRuntime rt = rt();
         String name = StringArgumentType.getString(ctx, "faction");
         var found = rt.state.orgs().stream().filter(o -> o.name().equalsIgnoreCase(name)).findFirst();
@@ -410,10 +442,9 @@ public final class LandCommands {
             id = known.get().id;
             who = known.get().name;
         }
-        Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()),
-                new charter.org.actions.AppointLeader(found.get().id, id));
+        Outcome outcome = rt.engine.run(new Actor.Admin(ctx.getSource().getTextName()), make.apply(found.get().id, id));
         if (outcome instanceof Outcome.Refused(Reason reason)) return fail(ctx, Chat.reason(reason));
-        return ok(ctx, Text.get("land.admin.leader", "player", who, "name", found.get().name()));
+        return ok(ctx, Text.get(doneKey, "player", who, "name", found.get().name()));
     }
 
     private static int adminKingdom(CommandContext<CommandSourceStack> ctx) {

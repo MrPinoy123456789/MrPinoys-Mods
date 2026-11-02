@@ -47,6 +47,15 @@ public final class StateKingdomView implements KingdomView {
     }
 
     @Override
+    public java.util.List<UUID> lordsOf(String orgId) {
+        Optional<Organization> org = find(orgId);
+        if (org.isEmpty() || org.get().governance.deciders == null) return java.util.List.of();
+        return state.office(org.get().governance.deciders)
+                .map(office -> office.holders().stream().map(seat -> seat.player().value()).toList())
+                .orElse(java.util.List.of());
+    }
+
+    @Override
     public String displayName(String orgId) {
         return find(orgId).map(Organization::name).orElse("");
     }

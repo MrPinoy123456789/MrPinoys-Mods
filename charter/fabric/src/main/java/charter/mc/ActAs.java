@@ -46,6 +46,13 @@ public final class ActAs {
             if (office != null) {
                 Outcome proposed = engine.proposeToSeats(player, office, action);
                 if (proposed instanceof Outcome.Refused(Reason why)) return new Ran(refusal(why), false);
+                if (charter.gov.Deciders.twoLords(state, action.actingFor())) {
+                    // Two Lords: the other one must agree, so name them.
+                    java.util.List<String> others = state.office(office).map(o -> o.holders().stream()
+                            .filter(seat -> !seat.player().equals(player)).map(seat -> describe.player(seat.player())).toList())
+                            .orElse(java.util.List.of());
+                    return new Ran(Text.get("book.seats.proposed_lord", "other", String.join(Text.get("book.and"), others)), true);
+                }
                 return new Ran(Text.get("book.seats.proposed", "office", describe.office(office)), true);
             }
         }

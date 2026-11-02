@@ -16,6 +16,7 @@ public final class CoreSuite {
         charter.config.SpawnPolicyTest.run();
         charter.gov.GovernanceTest.run();
         charter.gov.SeatsTest.run();
+        charter.gov.TwoLordsTest.run();
         charter.gov.StandingTest.run();
         charter.org.JoinRequestTest.run();
         charter.org.MercenaryTest.run();

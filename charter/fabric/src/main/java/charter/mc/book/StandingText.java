@@ -63,6 +63,7 @@ public final class StandingText {
             case YOU -> Text.get("book.tip.you");
             case OFFICE -> line.holders().size() <= 1 ? Text.get("book.tip.office_one", "name", String.join(", ", line.holders()))
                     : Text.get(line.together() ? "book.tip.office_together" : "book.tip.office_any");
+            case LORDS -> Text.get("book.tip.lords");
             case MEMBERS_BY_VOTE -> Text.get("book.tip.vote");
             case PLAYER -> Text.get("book.tip.player");
             case ORG -> Text.get("book.tip.org");
@@ -111,6 +112,7 @@ public final class StandingText {
                 yield Text.get(line.together() ? "book.holder.office_together" : "book.holder.office_any",
                         "holders", names, "name", line.name());
             }
+            case LORDS -> Text.get("book.holder.lords", "holders", String.join(Text.get("book.or"), line.holders()), "name", line.name());
             case PLAYER -> Text.get("book.holder.player", "name", line.name());
             case ORG -> Text.get("book.holder.org", "name", line.name());
             case RANK -> Text.get("book.holder.rank", "name", line.name());

@@ -12,6 +12,11 @@ public interface KingdomView {
     /** The Lord of an organization, if the office is filled. */
     Optional<UUID> lordOf(String orgId);
 
+    /** Every Lord of an organization, first seated first: none, one, or two when a kingdom has two Lords. */
+    default java.util.List<UUID> lordsOf(String orgId) {
+        return lordOf(orgId).map(java.util.List::of).orElse(java.util.List.of());
+    }
+
     String displayName(String orgId);
 
     Collection<String> orgIds();

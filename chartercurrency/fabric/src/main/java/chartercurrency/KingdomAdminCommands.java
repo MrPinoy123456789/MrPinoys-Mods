@@ -143,7 +143,8 @@ final class KingdomAdminCommands {
             source.sendSuccess(() -> Messages.body("None yet. /chartercurrency kingdom create <id> [name]"), false);
         }
         for (String id : src.kingdomIds()) {
-            String lord = src.lordOf(id).map(s.names::nameOf).orElse("vacant");
+            var lords = src.lordsOf(id);
+            String lord = lords.isEmpty() ? "vacant" : String.join(" and ", lords.stream().map(s.names::nameOf).toList());
             String members = s.kingdoms.manualActive()
                     ? String.valueOf(s.kingdoms.manual().memberCount(id)) : "n/a";
             source.sendSuccess(() -> Messages.body(id + "  " + src.displayName(id) + "  Lord: " + lord

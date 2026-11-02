@@ -57,6 +57,9 @@ public record Unseat(OrgId org, OfficeId office, PlayerId player) implements Act
     public List<HistoryEvent> apply(ActionContext ctx) {
         Office o = ctx.state.office(office).orElseThrow();
         o.unseat(player);
-        return List.of(new GovEvents.OfficeVacated(ctx.now, o.id, org, player, "removed"));
+        List<HistoryEvent> events = new java.util.ArrayList<>();
+        events.add(new GovEvents.OfficeVacated(ctx.now, o.id, org, player, "removed"));
+        charter.gov.Deciders.settleLords(ctx.state, o, ctx.now).ifPresent(events::add);
+        return events;
     }
 }

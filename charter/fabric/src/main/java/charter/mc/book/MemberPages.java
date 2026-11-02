@@ -5,6 +5,7 @@ import charter.contract.Justice;
 import charter.contract.Term;
 import charter.engine.Outcome;
 import charter.engine.Reason;
+import charter.gov.Deciders;
 import charter.gov.Office;
 import charter.gov.Standing;
 import charter.gov.Vote;
@@ -81,6 +82,7 @@ public final class MemberPages {
         return switch (form) {
             case COMMUNE -> Text.get("book.tip.form_commune");
             case LORDSHIP -> Text.get("book.tip.form_lordship");
+            case CO_LORDSHIP -> Text.get("book.tip.form_co_lordship");
             case COUNCIL -> Text.get(deciders != null && deciders.deciding() == Office.Deciding.TOGETHER
                     ? "book.tip.form_council_together" : "book.tip.form_council_alone");
         };
@@ -127,6 +129,7 @@ public final class MemberPages {
         String form = switch (v.form()) {
             case COMMUNE -> Text.get("book.form.commune");
             case LORDSHIP -> Text.get("book.form.lordship");
+            case CO_LORDSHIP -> Text.get("book.form.co_lordship");
             case COUNCIL -> {
                 Office deciders = deciders(v.org());
                 int seats = deciders == null ? 0 : deciders.seats();
@@ -416,8 +419,7 @@ public final class MemberPages {
             if (deciders != null) for (Office.Seat seat : deciders.holders()) names.add(rt().describe.player(seat.player()));
             List<String> fixed = new ArrayList<>();
             fixed.add(Text.get("book.decides.locked"));
-            fixed.add(Text.get("book.decides.only", "now", deciders == null ? "" : choiceText(deciders.seats(), deciders.deciding()),
-                    "who", names.isEmpty() ? Text.get("book.decides.nobody") : String.join(", ", names)));
+            fixed.add(decidesLine(v.org(), deciders, names));
             BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, fixed), List.of(),
                     BookDialogs.back(player, MemberPages::decidesParent)));
             return;
@@ -430,7 +432,8 @@ public final class MemberPages {
         List<BookButton> buttons = new ArrayList<>();
         if (deciders != null && deciders.holds(me(player))) {
             body.add(Text.get("book.decides.own"));
-            body.add(Text.get("book.decides.now", "now", choiceText(deciders.seats(), deciders.deciding())));
+            body.add(Deciders.twoLords(rt().state, deciders) ? decidesLine(v.org(), deciders, holderNames(deciders))
+                    : Text.get("book.decides.now", "now", choiceText(deciders.seats(), deciders.deciding())));
             buttons.add(go(player, Text.get("book.decides.to_council_alone"), p -> councilSize(p, Office.Deciding.ALONE, null)));
             buttons.add(go(player, Text.get("book.decides.to_council_together"), p -> councilSize(p, Office.Deciding.TOGETHER, null)));
             if (deciders.seats() >= 2) {
@@ -440,8 +443,7 @@ public final class MemberPages {
         } else {
             List<String> names = new ArrayList<>();
             if (deciders != null) for (Office.Seat seat : deciders.holders()) names.add(rt().describe.player(seat.player()));
-            body.add(Text.get("book.decides.only", "now", deciders == null ? "" : choiceText(deciders.seats(), deciders.deciding()),
-                    "who", names.isEmpty() ? Text.get("book.decides.nobody") : String.join(", ", names)));
+            body.add(decidesLine(v.org(), deciders, names));
         }
         BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, body), buttons,
                 BookDialogs.back(player, MemberPages::decidesParent)));
@@ -500,6 +502,21 @@ public final class MemberPages {
         }
         BookDialogs.show(player, BookDialogs.list(Text.get("book.decides.title"), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> faction(p, null))));
+    }
+
+    /** Who decides, in one line: "Two Lords, either may act: Alice and Bob." or the usual line for any other form. */
+    private static String decidesLine(OrgId org, Office deciders, List<String> names) {
+        if (deciders != null && Deciders.twoLords(rt().state, deciders)) {
+            return Text.get("book.decides.two_lords", "names", String.join(Text.get("book.and"), names));
+        }
+        return Text.get("book.decides.only", "now", deciders == null ? "" : choiceText(deciders.seats(), deciders.deciding()),
+                "who", names.isEmpty() ? Text.get("book.decides.nobody") : String.join(", ", names));
+    }
+
+    private static List<String> holderNames(Office office) {
+        List<String> names = new ArrayList<>();
+        for (Office.Seat seat : office.holders()) names.add(rt().describe.player(seat.player()));
+        return names;
     }
 
     private static String choiceText(int seats, Office.Deciding deciding) {

@@ -21,8 +21,13 @@ public interface KingdomSource {
     /** The kingdom id the player belongs to, empty if none. */
     Optional<String> kingdomOf(UUID player);
 
-    /** The Lord of an organization, empty if the office is vacant or the id is unknown. */
+    /** The Lord of an organization, empty if the office is vacant or the id is unknown. With two Lords, the first seated. */
     Optional<UUID> lordOf(String kingdomId);
+
+    /** Every Lord of an organization: none, one, or two when a kingdom has two Lords. */
+    default java.util.List<UUID> lordsOf(String kingdomId) {
+        return lordOf(kingdomId).map(java.util.List::of).orElse(java.util.List.of());
+    }
 
     /** A name for chat; falls back to the id for an unknown organization. */
     String displayName(String kingdomId);
