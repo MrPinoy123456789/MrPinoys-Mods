@@ -198,5 +198,8 @@ public final class MercenaryTest {
         eq("12: without a race name it is the kingdom's name", "Azrak", f.state.raceLabel(azrak));
         f.org(azrak).raceName = "Dwarf";
         eq("12: with one it is the race's name", "Dwarf", f.state.raceLabel(azrak));
+        eq("12: its plural reads right", "Dwarves", f.org(azrak).racePlural());
+        f.org(azrak).raceName = "";
+        eq("12: with no race name the plural keeps the kingdom's name", "Azrak", f.org(azrak).racePlural());
     }
 }

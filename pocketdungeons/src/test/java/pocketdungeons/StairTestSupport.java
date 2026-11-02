@@ -32,8 +32,6 @@ final class StairTestSupport {
         entries.addAll(everyMask("pot_room", List.of("loot"), List.of(SituationTags.TRIAL_KEY), List.of()));
         entries.addAll(everyMask("iron_door", List.of("encounter"), List.of(),
                 List.of(SituationTags.REDSTONE), DungeonRoomMeta.ACCESS_GATED, 6));
-        entries.addAll(everyMask("flow_puzzle", List.of("encounter"), List.of(),
-                List.of(SituationTags.WATER), DungeonRoomMeta.ACCESS_OPEN, 6));
         entries.addAll(everyMask("pump_room", List.of("loot"), List.of(),
                 List.of(SituationTags.WATER, SituationTags.REDSTONE), DungeonRoomMeta.ACCESS_OPEN, 6));
         entries.addAll(everyMask("soft_wall", List.of("corridor"), List.of(),

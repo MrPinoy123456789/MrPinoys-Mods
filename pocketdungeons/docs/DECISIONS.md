@@ -1419,3 +1419,13 @@ Claims come from Charter's `areas.json` through `wildClaimsSource` (empty skips 
 `WildCollapse` warns the people inside at `wildCollapseWarnHours` and ten minutes before `expiresAt` (the lifespan plus up to six hours of jitter seeded by the id), then at the end sweeps loose items into chests by the old lodestone (the phase 3 reset), turns the entrance to rubble and retires the lodestone. The retired list keeps only where its lost and found chests stand, shown by `/dungeon admin wild list`. The 120 second reset warning of the plan is the existing reset warning.
 
 Not built or not checked live: the real placement on a generated world (the gametest world has no terrain, so the world checks run only where a test calls them), the claims file against the live Charter file, and a collapse with players inside in the dungeon dimension.
+
+### Return chest rooms retired (2026-11-02)
+
+Owner, after playing: exclude every room that is a bank of hoppers gated by putting an item in a chest. They do not work the way the design intended and are lame.
+
+Retired: `frame_lock` (one specific key item in the return chest, `Locks.Kind.ITEM_KEY`), `item_plate` and `flow_puzzle` (any item in the return chest, `ITEM_ANY`), and `sorting_floor` (a stick through the filter hopper, `ITEM_KEY`). They are listed in `RetiredRooms.IDS`, which `RoomManifest.queryAnyRotation` honours, so the planner never offers them. Nothing is erased: the manifests, templates, specs, handlers and `Locks` kinds stay, a saved dungeon that already holds one still stamps, and a gametest can stamp one by id. To bring one back, delete its id from the set.
+
+Checked and kept: `gallery` (an ungated plinth room since 2026-09-04), `hold_the_plate` (the Plate Relay, where you hold the lit plate among four corners), `plate_pair`, the Copper Works loading bay (hoppers as set dressing, no gate), `barred_vault` (a vault block, no hopper) and the Altar offering spur (a hopper feeds an optional key payout, not a door). No room uses `Locks.Kind.HOPPER_KEY` any more, so that kind is dead code, left in place.
+
+`layout_fingerprint.txt` and `layout_fingerprint_stairs.txt` were regenerated on purpose: their synthetic pools carried a `flow_puzzle` stand in, which the real pool no longer offers, so it was removed from the fixtures (`GraphSolvabilityTest`, `LayoutFingerprintTest`, `StairTestSupport`). `RetiredRoomsTest` fails if a retired room is ever offered.

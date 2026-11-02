@@ -256,6 +256,9 @@ final class RoomManifest {
     List<Match> queryAnyRotation(int requiredMask, String role, String theme) {
         List<Match> out = new ArrayList<>();
         for (Entry entry : rooms) {
+            if (RetiredRooms.isRetired(entry.name)) {
+                continue;
+            }
             if (role != null && !entry.meta.roles.contains(role)) {
                 continue;
             }

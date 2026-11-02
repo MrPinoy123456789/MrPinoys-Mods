@@ -442,6 +442,7 @@ for ((taskName, testClass) in mapOf(
     "resetCampaignTest" to "ResetCampaignTest",
     "graphSolvabilityTest" to "GraphSolvabilityTest",
     "layoutFingerprintTest" to "LayoutFingerprintTest",
+    "retiredRoomsTest" to "RetiredRoomsTest",
     "storyGeometryTest" to "StoryGeometryTest",
     // Vertical floors phase 2: per-story door masks.
     "storyDoorMaskTest" to "StoryDoorMaskTest",
@@ -527,7 +528,9 @@ for ((taskName, testClass) in mapOf(
     // Owner ask 2026-10-19: the telegraphed area shapes (circle, cone, line) and their tile maths.
     "aoeShapesTest" to "AoEShapesTest",
     // Crew model (decision 2026-10-21, spec 5/6): the act_reward data type.
-    "actRewardDataTest" to "ActRewardDataTest"
+    "actRewardDataTest" to "ActRewardDataTest",
+    // Wild clear gate: asked on every watch tick, never tied to the world clock phase (playtest 2026-11-02).
+    "wildClearGateTest" to "WildClearGateTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
