@@ -965,5 +965,18 @@
   "book.justice.cell_remove": "Remove {cell}",
   "book.justice.cell_name": "Cell {n}",
   "book.justice.cells_none": "No cells yet. Stand in your keep where a cell should be, and mark it.",
-  "book.justice.cells_intro": "Stand where a cell should be, then mark it. Press a cell to remove it."
+  "book.justice.cells_intro": "Stand where a cell should be, then mark it. Press a cell to remove it.",
+  "teleport.bar.home": "Going home. Hold still.",
+  "teleport.bar.keep": "Going to your keep. Hold still.",
+  "teleport.bar.outpost": "Going to your outpost. Hold still.",
+  "teleport.bar.spawn": "Going to spawn. Hold still.",
+  "teleport.bar.hub": "Going to the hub. Hold still.",
+  "teleport.moved.short": "Moved, so you stay.",
+  "teleport.hurt.short": "Hurt, so you stay.",
+  "book.item.name_needs": "Charter ({n} need you)",
+  "book.item.need.vote": "Votes: {n}",
+  "book.item.need.request": "Requests: {n}",
+  "book.item.need.invite": "Invitations: {n}",
+  "book.item.need.war": "Wars: {n}",
+  "book.item.need.custody": "To sentence: {n}"
 }

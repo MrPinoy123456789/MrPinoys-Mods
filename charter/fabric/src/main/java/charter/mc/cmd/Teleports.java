@@ -6,6 +6,7 @@ import charter.land.Core;
 import charter.mc.CharterRuntime;
 import charter.mc.CharterServer;
 import charter.mc.Text;
+import charter.mc.book.Cues;
 import charter.mc.granary.GranaryService;
 import charter.mc.granary.Granaries;
 import charter.mc.land.Fixtures;
@@ -17,8 +18,13 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.BossEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -43,7 +49,8 @@ public final class Teleports {
 
     public enum Kind { HOME, KEEP, OUTPOST, SPAWN, HUB }
 
-    private record Pending(Kind kind, Vec3 start, int ticksLeft, float health) {
+    /** A journey waiting to start. {@code bar} is the boss bar that fills over the warm-up; it goes when the wait ends. */
+    private record Pending(Kind kind, Vec3 start, int ticksLeft, float health, int total, ServerBossEvent bar) {
     }
 
     private record Dest(ServerLevel level, double x, double y, double z, CoreId outpost) {
@@ -80,19 +87,30 @@ public final class Teleports {
                 Pending pending = PENDING.get(id);
                 ServerPlayer player = server.getPlayerList().getPlayer(id);
                 if (player == null) {
-                    PENDING.remove(id);
+                    PENDING.remove(id).bar().removeAllPlayers();
                 } else if (player.position().distanceToSqr(pending.start()) > 0.04) {
                     cancel(player, "teleport.moved");
                 } else if (player.getHealth() < pending.health()) {
                     cancel(player, "teleport.hurt");
                 } else if (pending.ticksLeft() <= 1) {
-                    PENDING.remove(id);
+                    PENDING.remove(id).bar().removeAllPlayers();
                     String refusal = finish(player, pending.kind());
-                    if (refusal != null) player.sendSystemMessage(Chat.bad(refusal));
+                    if (refusal != null) {
+                        player.sendSystemMessage(Chat.bad(refusal));
+                        Cues.actionBar(player, refusal, ChatFormatting.RED);
+                    }
                 } else {
-                    PENDING.put(id, new Pending(pending.kind(), pending.start(), pending.ticksLeft() - 1, Math.min(pending.health(), player.getHealth())));
+                    int left = pending.ticksLeft() - 1;
+                    pending.bar().setProgress(1.0F - (float) left / pending.total());
+                    PENDING.put(id, new Pending(pending.kind(), pending.start(), left, Math.min(pending.health(), player.getHealth()),
+                            pending.total(), pending.bar()));
                 }
             }
+        });
+        // A player who leaves mid wait takes nothing with them: the wait and its bar go.
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            Pending pending = PENDING.remove(handler.player.getUUID());
+            if (pending != null) pending.bar().removeAllPlayers();
         });
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamage, damageTaken, blocked) -> {
             if (damageTaken > 0 && entity instanceof ServerPlayer player && PENDING.containsKey(player.getUUID())) {
@@ -108,13 +126,22 @@ public final class Teleports {
 
     /** Forgets every wait and cooldown (for tests). */
     public static void reset() {
+        for (Pending pending : PENDING.values()) pending.bar().removeAllPlayers();
         PENDING.clear();
         READY_AT.clear();
     }
 
+    /** The boss bar of a waiting journey, or null (for tests). */
+    public static ServerBossEvent bar(ServerPlayer player) {
+        Pending pending = PENDING.get(player.getUUID());
+        return pending == null ? null : pending.bar();
+    }
+
     private static void cancel(ServerPlayer player, String key) {
-        PENDING.remove(player.getUUID());
+        Pending pending = PENDING.remove(player.getUUID());
+        if (pending != null) pending.bar().removeAllPlayers();
         player.sendSystemMessage(Chat.bad(Text.get(key)));
+        Cues.actionBar(player, Text.get(key + ".short"), ChatFormatting.RED);
     }
 
     /** Starts a teleport. Returns the plain line that refuses it, or null when it began (or was done at once). */
@@ -127,7 +154,14 @@ public final class Teleports {
         Object found = destination(player, kind, false);
         if (found instanceof Refusal refusal) return refusal.text();
         if (rt.knobs.teleportWarmupSeconds <= 0) return finish(player, kind);
-        PENDING.put(player.getUUID(), new Pending(kind, player.position(), rt.knobs.teleportWarmupSeconds * 20, player.getHealth()));
+        int total = rt.knobs.teleportWarmupSeconds * 20;
+        // The wait is shown as a boss bar that fills: Bedrock draws it well and it needs no reading. Chat keeps a copy.
+        ServerBossEvent bar = new ServerBossEvent(java.util.UUID.randomUUID(),
+                Component.literal(Text.get("teleport.bar." + kind.name().toLowerCase(java.util.Locale.ROOT))),
+                BossEvent.BossBarColor.GREEN, BossEvent.BossBarOverlay.PROGRESS);
+        bar.setProgress(0.0F);
+        bar.addPlayer(player);
+        PENDING.put(player.getUUID(), new Pending(kind, player.position(), total, player.getHealth(), total, bar));
         player.sendSystemMessage(Chat.line(Text.get("teleport.hold_still", "seconds", rt.knobs.teleportWarmupSeconds)));
         return null;
     }
@@ -141,7 +175,10 @@ public final class Teleports {
         if (kind == Kind.OUTPOST) takeFood(rt, dest.outpost());
         player.teleportTo(dest.level(), dest.x(), dest.y(), dest.z(), Set.of(), player.getYRot(), player.getXRot(), true);
         READY_AT.put(player.getUUID(), rt.clock.now() + rt.knobs.teleportCooldownSeconds * 1000L);
-        player.sendSystemMessage(Chat.good(Text.get("teleport.done." + kind.name().toLowerCase(java.util.Locale.ROOT))));
+        String done = Text.get("teleport.done." + kind.name().toLowerCase(java.util.Locale.ROOT));
+        player.sendSystemMessage(Chat.good(done));
+        Cues.actionBar(player, done, ChatFormatting.GREEN);
+        Cues.arrive(player);
         return null;
     }
 

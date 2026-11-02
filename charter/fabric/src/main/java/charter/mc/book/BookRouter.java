@@ -32,6 +32,7 @@ final class BookRouter {
         rt.state.touch(id, player.getPlainTextName(), rt.clock.now());
         ActAs.Ran ran = ActAs.runDetailed(rt.state, rt.engine, rt.describe, id, action);
         // A proposal put to a council's seats is progress, so it shows green; a refusal shows red.
+        Cues.click(player);
         thenShow.accept(ran.proposed() ? BookResult.ok(ran.line()) : ran.line());
     }
 }
