@@ -1452,3 +1452,28 @@ Valor or Renown: `WildRewards` has a currency seam with nothing plugged in.
 
 Open questions: the counts are a first pass, to tune after a real clear; whether the copper chest gear should become
 war gear; whether wild clears should pay Valor and kingdom Renown once the currency settles.
+
+## 2026-11-02: Wild loot competes with farms
+
+Owner, 2026-11-02: *"we should make holding these dungeons with outposts at the entrance competitive with the
+farms."* Of the three options (pay what farms can't, holding pays tribute, or both) the owner picked the first:
+*"just do A for now, I don't want to put any mechanics like tributes yet"*. Loot only; no new mechanics.
+
+| Thing | Rule | Lives in |
+|---|---|---|
+| Farmable supplies | About five times the first pass: a plain clear pays roughly 90 iron, 80 nether wart, 46 gold and 31 emeralds at tier 1, and 160 iron, 160 wart, 93 gold and 66 emeralds at tier 3 | `tools/gen_wild_loot.py` |
+| Golden apples | By the stack, since farms can't make apples: every vault always pays a stack, and chests weigh them heavier. About 8 a clear at tier 1, 11 at tier 2, 16 at tier 3, 24 at tier 4 | same |
+| War tier | From tier 3 (level 10 up), what no farm makes: enchanted golden apples (about 1 a clear), diamonds (about 8), netherite scrap, ancient debris, and Protection IV and Sharpness V books. Vaults roll once on it; a tier 3 vault pays an enchanted golden apple half the time (three times in four when ominous) and a tier 4 vault always does | same |
+| Tests | `WildLootTest` keeps tiers 1 and 2 to the five supplies, requires the whole war tier from tier 3, allows only those two books, and requires an unconditional golden apple pool in every vault | `WildLootTest` |
+
+The yields assume a typical clear of six chest rolls (the barrel plus the room chests), one vault and two supply
+chests; the generator prints them. Loot tiers come from `KeystoneMath.lootTier`, so the war tier starts at level
+10, not level 8 as first proposed. Of the current offerings, deep_quarry and the_dive reach it at level 10 only,
+gilded_seam at 10 to 12 and chorus_orchard at 10 to 14. Tier 4 (level 20) is unreachable while every `maxLevel` is
+14 or less.
+
+This supersedes the 2026-11-02 war supplies section's removal of enchanted golden apples, which come back from
+tier 3, and adds diamonds and netherite scrap in their place. Raw diamonds, netherite ingots and filler stay out.
+
+Open questions: the counts against real farm rates once kingdoms build them; whether a held dungeon should also pay
+something (tribute, faster resets), set aside by the owner for now.

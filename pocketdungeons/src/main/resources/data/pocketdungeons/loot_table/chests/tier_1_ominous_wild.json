@@ -17,8 +17,8 @@
               "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
-                "min": 2,
-                "max": 5
+                "min": 10,
+                "max": 22
               }
             }
           ]
@@ -32,8 +32,8 @@
               "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
-                "min": 1,
-                "max": 3
+                "min": 6,
+                "max": 14
               }
             }
           ]
@@ -47,8 +47,8 @@
               "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
-                "min": 1,
-                "max": 3
+                "min": 5,
+                "max": 12
               }
             }
           ]
@@ -62,8 +62,8 @@
               "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
-                "min": 2,
-                "max": 5
+                "min": 10,
+                "max": 22
               }
             }
           ]
@@ -71,7 +71,17 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:golden_apple",
-          "weight": 5
+          "weight": 9,
+          "modifier": [
+            {
+              "type": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
         },
         {
           "type": "minecraft:item",

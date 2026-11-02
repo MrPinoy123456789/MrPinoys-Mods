@@ -154,9 +154,11 @@ public final class WildClearGameTest {
             boolean copper = false;
             var copperBlock = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
                     net.minecraft.resources.Identifier.withDefaultNamespace("copper_chest"));
-            // Wild loot is war supplies (owner, 2026-11-02): the barrel holds nothing else.
+            // Wild loot is war supplies (owner, 2026-11-02), plus the war tier from level 10: the barrel holds
+            // nothing else.
             java.util.Set<net.minecraft.world.item.Item> supplies = java.util.Set.of(Items.GOLD_INGOT, Items.GOLDEN_APPLE,
-                    Items.IRON_INGOT, Items.EMERALD, Items.NETHER_WART, Items.TRIAL_KEY);
+                    Items.IRON_INGOT, Items.EMERALD, Items.NETHER_WART, Items.TRIAL_KEY, Items.ENCHANTED_GOLDEN_APPLE,
+                    Items.DIAMOND, Items.NETHERITE_SCRAP, Items.ANCIENT_DEBRIS, Items.ENCHANTED_BOOK, Items.BOOK);
             int barrelStacks = 0;
             for (BlockPos pos : BlockPos.betweenClosed(terminal, terminal.offset(15, 4, 15))) {
                 var block = level.getBlockState(pos).getBlock();
