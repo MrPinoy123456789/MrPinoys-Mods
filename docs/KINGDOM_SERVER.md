@@ -257,10 +257,22 @@ show only plain names.
 
 Text: the jar's `data/charter/lang/en_us.json` holds the new keys. The server's `config/charter/en_us.json` is laid
 over the jar's text key by key, so keys it lacks (all the new ones) show the jar's words; only keys it already has keep
-the old wording. The new keys: `power.manage_ranks`, `book.power.manage_ranks`, `book.grant.power.manage_ranks`,
-`name.rank_holder`, `motion.rank.add`, `motion.rank.rename`, `motion.rank.remove`, `motion.rank.move`,
-`motion.rank.give`, `motion.rank.set_power`, `book.stand.rank`, `book.tip.rank`, `book.holder.rank`, every
-`book.ranks.*` key and every `rank.cmd.*` key. To reword them on the server, add them to that file or delete it so the
+the old wording. The new keys (71): `name.rank_holder`, `power.manage_ranks`, `motion.rank.add`, `motion.rank.rename`,
+`motion.rank.remove`, `motion.rank.move`, `motion.rank.give`, `motion.rank.set_power`, `book.power.manage_ranks`,
+`book.grant.power.manage_ranks`, `book.ranks.title`, `book.ranks.intro`, `book.ranks.entry`,
+`book.ranks.give`, `book.ranks.add`, `book.ranks.not_yours`, `book.ranks.gone`, `book.ranks.about`,
+`book.ranks.top_note`, `book.ranks.default_note`, `book.ranks.no_powers`, `book.ranks.has_powers`,
+`book.ranks.rename`, `book.ranks.up`, `book.ranks.down`, `book.ranks.powers`, `book.ranks.remove`, `book.ranks.moved`,
+`book.ranks.remove_title`, `book.ranks.remove_confirm`, `book.ranks.remove_verb`, `book.ranks.removed`,
+`book.ranks.own_name`, `book.ranks.pick`, `book.ranks.typed`, `book.ranks.name_intro`, `book.ranks.no_name`,
+`book.ranks.rename_title`, `book.ranks.rename_send`, `book.ranks.renamed`, `book.ranks.add_send`, `book.ranks.added`,
+`book.ranks.give_intro`, `book.ranks.give_none`, `book.ranks.give_who`, `book.ranks.give_rank`,
+`book.ranks.give_send`, `book.ranks.given`, `book.ranks.powers_intro`, `book.ranks.toggle_intro`,
+`book.ranks.power_on`, `book.ranks.power_off`, `book.ranks.power_given`, `book.ranks.power_taken`, `book.ranks.yours`,
+`book.ranks.line`, `book.ranks.nobody`, `book.ranks.change`, `book.stand.rank`, `book.tip.rank`, `book.holder.rank`,
+`rank.cmd.head`, `rank.cmd.line`, `rank.cmd.no_kingdom`, `rank.cmd.added`, `rank.cmd.renamed`, `rank.cmd.removed`,
+`rank.cmd.moved`, `rank.cmd.given`, `rank.cmd.power_on`, `rank.cmd.power_off`. 
+To reword them on the server, add them to that file or delete it so the
 next boot writes a fresh copy.
 
 ## Moving a keep

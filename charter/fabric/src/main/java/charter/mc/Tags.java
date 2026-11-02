@@ -68,6 +68,8 @@ public final class Tags {
             if (current != null && current.getName().startsWith(PREFIX)) board.removePlayerFromTeam(player.getScoreboardName(), current);
             return;
         }
+        // Someone else's team: leave the player there, and make no team of ours for the sweep to drop again.
+        if (current != null && !current.getName().startsWith(PREFIX)) return;
         Optional<Ranks.Rank> rank = MERCENARY.equals(key) ? Optional.empty() : shownRank(rt, id);
         String teamName = teamName(key, rank.map(Ranks.Rank::id).orElse(null));
         PlayerTeam team = board.getPlayerTeam(teamName);
@@ -75,7 +77,6 @@ public final class Tags {
         Component prefix = prefix(rt, key, colour, rank.map(Ranks.Rank::name).orElse(null));
         if (!prefix.equals(team.getPlayerPrefix())) team.setPlayerPrefix(prefix);
         if (current == team) return;
-        if (current != null && !current.getName().startsWith(PREFIX)) return; // someone else's team
         board.addPlayerToTeam(player.getScoreboardName(), team);
     }
 

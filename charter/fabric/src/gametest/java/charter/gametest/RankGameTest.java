@@ -246,7 +246,19 @@ public final class RankGameTest {
                 Outcome o = rt.engine.run(new Actor.Admin("gametest"), new SetRankPower(k, knight, forbidden, true));
                 helper.assertTrue(o.refused(), "A rank was given " + forbidden + ": " + o);
             }
-            asPlayer(kit, gil, "charter rank power Knight spend on");
+            // The leader locks guard offices and governance, not ranks: with both on, the Lord still manages ranks.
+            boolean appoint = rt.knobs.leadersAppointOffices;
+            boolean governance = rt.knobs.leadersChangeGovernance;
+            rt.knobs.leadersAppointOffices = false;
+            rt.knobs.leadersChangeGovernance = false;
+            try {
+                helper.assertTrue(rt.engine.run(asLord, new RenameRank(k, knight, "Knight Errant")).done(), "The leader locks stopped a rename");
+                helper.assertTrue(rt.engine.run(asLord, new SetRankPower(k, knight, Power.APPOINT, true)).refused(), "A locked power reached a rank");
+            } finally {
+                rt.knobs.leadersAppointOffices = appoint;
+                rt.knobs.leadersChangeGovernance = governance;
+            }
+            asPlayer(kit, gil, "charter rank power \"Knight Errant\" spend on");
             helper.assertTrue(!Ranks.powers(rt.state, rt.clock.now(), k, knight).contains(Power.SPEND), "A plain member set a rank's power");
 
             // The book offers only what the Lord holds and never a forbidden power.
