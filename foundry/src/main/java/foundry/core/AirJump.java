@@ -42,11 +42,23 @@ public final class AirJump {
         return Math.max(0, readyAt - now);
     }
 
+    /** The push of a double jump with no drift: see {@link #push(float, boolean, boolean, boolean, boolean, double)}. */
+    public static double[] push(float yaw, boolean forward, boolean backward, boolean left, boolean right) {
+        return push(yaw, forward, backward, left, right, 0);
+    }
+
     /**
      * The push of a double jump, as {x, y, z} blocks per tick, for a player facing {@code yaw} degrees (Minecraft's: 0 is
-     * +z) with these movement keys held. Straight up when no key is held; otherwise a hop in the held direction too.
+     * +z) with these movement keys held: a hop in the held direction, plus {@code drift} blocks per tick the way they
+     * face whatever they hold (the Fae's little carry forward, race_traits.json jump_drift).
      */
-    public static double[] push(float yaw, boolean forward, boolean backward, boolean left, boolean right) {
+    public static double[] push(float yaw, boolean forward, boolean backward, boolean left, boolean right, double drift) {
+        double[] keys = keys(yaw, forward, backward, left, right);
+        double r = Math.toRadians(yaw);
+        return new double[] {keys[0] - Math.sin(r) * drift, keys[1], keys[2] + Math.cos(r) * drift};
+    }
+
+    private static double[] keys(float yaw, boolean forward, boolean backward, boolean left, boolean right) {
         double f = (forward ? 1 : 0) - (backward ? 1 : 0);
         double s = (left ? 1 : 0) - (right ? 1 : 0);
         double len = Math.sqrt(f * f + s * s);

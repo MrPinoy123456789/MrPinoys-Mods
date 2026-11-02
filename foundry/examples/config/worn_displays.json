@@ -129,7 +129,7 @@
         "slot": "chest/cape",
         "glide": false,
         "flap": true,
-        "double_jump": 50
+        "double_jump": 45
       }
     ],
     "race:azurius": [

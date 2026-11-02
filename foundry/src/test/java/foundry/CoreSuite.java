@@ -34,6 +34,7 @@ public final class CoreSuite {
         itemLocks();
         bonuses();
         bedrockSkins();
+        raceTraits();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -199,6 +200,52 @@ public final class CoreSuite {
         } catch (java.io.IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** The race traits (race_traits.json): every race one movement and one sense, the parser and the double jump drift. */
+    private static void raceTraits() {
+        var t = foundry.core.RaceTraits.defaults();
+        for (String race : java.util.List.of("race:azrak", "race:aurelia", "race:faeloria", "race:azurius", "race:everdelle",
+                "race:mossbeard_s_muddle")) {
+            var trait = t.of(race);
+            check(trait.sense() != null && trait.sense().radius() <= 12 && !trait.sense().blocks().isEmpty(),
+                    race + " has a sense of at most 12 blocks");
+        }
+        check(t.of("race:azrak").stride().ground() == foundry.core.RaceTraits.Ground.UNDERGROUND
+                && t.of("race:azrak").stride().bonus() == 0.15, "Dwarves stride faster underground");
+        check(t.of("race:aurelia").mount().speed() == 0.2 && t.of("race:aurelia").mount().jump() == 0.1, "Humans ride faster");
+        check(t.of("race:faeloria").fallDamage() == 0.5 && t.of("race:faeloria").jumpDrift() == 0.15,
+                "the Fae land on half the fall damage and drift forward on a double jump");
+        check(t.of("race:mossbeard_s_muddle").stride().ground() == foundry.core.RaceTraits.Ground.WILD,
+                "the folk of Mossbeard's Muddle stride faster on living ground");
+        check(t.of("race:nobody").sense() == null && t.of("race:nobody").stride() == null, "a player of no race has no trait");
+        check(foundry.core.WornPlacement.FAE_DOUBLE_JUMP == 45, "the Fae double jump cooldown is 45 ticks (10 percent less)");
+        for (var race : t.races().values()) {
+            for (String b : race.sense().blocks()) {
+                check(b.equals(foundry.core.RaceTraits.LOOT_CHEST) || foundry.core.RaceTraits.BlockMatch.parse(b) != null,
+                        b + " is a block a sense can look for");
+            }
+        }
+        var cocoa = foundry.core.RaceTraits.BlockMatch.parse("minecraft:cocoa[age=2]");
+        check(cocoa.id().equals("minecraft:cocoa") && cocoa.state().equals(java.util.Map.of("age", "2")), "a block with a state value parses");
+        check(foundry.core.RaceTraits.BlockMatch.parse("not a block") == null && foundry.core.RaceTraits.BlockMatch.parse("minecraft:x[age]") == null,
+                "a bad block id is refused");
+        var tuned = foundry.core.RaceTraits.parse("{\"race:azrak\":{\"stride\":{\"bonus\":0.1,\"ground\":\"anywhere\"}}}");
+        check(tuned.problems().isEmpty() && tuned.traits().of("race:azrak").stride().bonus() == 0.1
+                && tuned.traits().of("race:azrak").sense() == null && tuned.traits().of("race:aurelia").mount() != null,
+                "a race in the file replaces its built in traits; the others keep theirs");
+        check(!foundry.core.RaceTraits.parse("{\"race:azrak\":{\"stride\":{\"bonus\":3}}}").problems().isEmpty(),
+                "a speed share over 1 is reported");
+        check(!foundry.core.RaceTraits.parse("{\"race:azrak\":{\"sense\":{\"blocks\":[\"minecraft:stone\"],\"radius\":64}}}").problems().isEmpty(),
+                "a sense radius over 16 is reported (a sense never reaches far)");
+        check(foundry.core.RaceTraits.parse("nope").problems().size() == 1, "a broken file falls back to the defaults");
+        double[] drift = foundry.core.AirJump.push(0f, false, false, false, false, 0.15);
+        check(Math.abs(drift[2] - 0.15) < 1e-9 && Math.abs(drift[0]) < 1e-9 && drift[1] > 0.5,
+                "a Fae double jump with no key held still carries a little forward");
+        double[] run = foundry.core.AirJump.push(0f, true, false, false, false, 0.15);
+        check(Math.abs(run[2] - 0.53) < 1e-9, "running forward the drift adds to the hop");
+        check(foundry.core.RaceTraits.nearest(new double[] {9, 4, 16}) == 1 && foundry.core.RaceTraits.nearest(new double[0]) == -1,
+                "the sense points at the nearest find");
     }
 
     /** The race looks added to Bedrock skins: the composed image, the geometry and the looks the jar carries. */

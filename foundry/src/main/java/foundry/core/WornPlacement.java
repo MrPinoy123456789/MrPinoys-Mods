@@ -74,8 +74,8 @@ public record WornPlacement(float up, float back, float side, float scale, boole
         return new Table(Map.copyOf(slots), Map.copyOf(items), defaultRaces());
     }
 
-    /** The Fae's double jump cooldown, in ticks: two and a half seconds. */
-    public static final int FAE_DOUBLE_JUMP = 50;
+    /** The Fae's double jump cooldown, in ticks: two and a quarter seconds. */
+    public static final int FAE_DOUBLE_JUMP = 45;
     /** The Merfolk's swim dash cooldown, in ticks: two seconds. */
     public static final int MERFOLK_SWIM_DASH = 40;
 

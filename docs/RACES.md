@@ -129,6 +129,47 @@ Answered in writing on 2026-11-01. Items marked OWNER need a decision before the
 9. Fishing bonus. Postponed by the owner on 2026-11-01. Option 5 above stays open.
 10. A locked item and its slot. A trinket with a race lock (the gills) refuses a right click for anyone else but can still be put in a slot from the Trinkets screen, where it does nothing. Whether a non race player can equip it by right click on a live server is unchecked.
 
+## 7a. Balance pass (2026-11-01): every race one movement trait, one passive and one sense
+
+The owner asked that every race has its own movement trait and about the same total power: one movement, one passive,
+one sense, on top of the combat and gathering passives every race already has (sections 3 and 4). Final table:
+
+| Race (node) | Movement | Passive | Sense | Combat (Charter) | Gathering |
+|---|---|---|---|---|---|
+| Azrak Dwarves (`race:azrak`) | Deep Stride: +15% walking speed under a roof of blocks | Haste I | Ore sense, 8 blocks: diamond, emerald, gold, lapis ores (and deepslate ones), ancient debris | Bedrock Stance | Fortune I on ores |
+| Aurelia Humans (`race:aurelia`) | Horsemanship: the horse, donkey, mule or camel they ride gets +20% speed and +10% jump | Luck I | Treasure sense, 12 blocks: a chest, barrel or other container that still has its loot to roll | Rally | Looting I on farm animals |
+| Faeloria Fae (`race:faeloria`) | Double jump (2.25 s cooldown, a little forward carry) and half fall damage | Night Vision | Herb sense, 12 blocks: ripe nether wart, torchflower, pitcher plant, wither rose, chorus flower, glow berries on cave vines, ripe cocoa | Glamour | Fortune I on alchemy plants |
+| Azurius Merfolk (`race:azurius`) | Swim dash (2 s cooldown) and Dolphin's Grace | Water Breathing | Tide sense, 10 blocks: sponge, wet sponge, suspicious sand and gravel | Tidewrath | Looting I on water things |
+| Everdelle Fairies (`race:everdelle`) | Glide, always, nothing in the chest slot | none (their Featherlight already spares all fall damage) | Glimmer sense, 10 blocks: redstone ore, glowstone, budding amethyst | Featherlight | Fortune and Looting I on dusts |
+| Mossbeard's Muddle (`race:mossbeard_s_muddle`) | Old Forest Walk: +15% walking speed on living ground (grass, moss, podzol, mycelium, rooted or coarse dirt, mud, leaves) | Keeps everything on death (Charter `racesKeepInventory`) | Kindred sense, 12 blocks: bee nests, beehives, turtle eggs, sniffer eggs, frogspawn | none | none |
+
+How the new traits work (Foundry, `config/foundry/race_traits.json`, built in defaults match the shipped example):
+- Movement is server side, so Bedrock players get it: speed bonuses are movement speed attribute modifiers (a share of
+  base speed, 0.15 is three quarters of Speed I), the Human mount bonus is on the mount's own speed and jump attributes
+  and comes off when they get down, the Fae's half fall damage cuts the fall damage multiplier (a mixin), and the double
+  jump and swim dash are velocity pushes. None of it touches the Fairy glide or the wings.
+- The Fae double jump's cooldown is in `worn_displays.json` (`double_jump`, now 45 ticks, 10 percent less); its forward
+  carry is `jump_drift` (0.15 blocks a tick the way they face) in `race_traits.json`. A double jump resets the fall, so
+  the half fall damage applies to whatever fall comes after it.
+- A sense searches the blocks within its radius (1 to 16, knob `radius`) every two seconds (knob `every`), each player
+  on their own beat, and points at the nearest find to that player only: a short trail of coloured dust from the player
+  toward it (two blocks long at most, so it hints rather than marks) and an action bar line, "Ore sense: Diamond Ore,
+  about 6 blocks away". Both reach Bedrock through Geyser. Nothing past the radius is ever revealed. Block lists take
+  ids, ids with block state values (`minecraft:cocoa[age=2]`) and `#loot_chest`.
+- Passives stay Charter's `racePassives` (unchanged). Every knob: `stride` (`bonus`, `ground`: underground, wild or
+  anywhere), `mount` (`speed`, `jump`), `fall_damage`, `jump_drift`, `sense` (`name`, `blocks`, `radius`, `every`,
+  `colour`). A race listed in the file replaces its built in traits.
+
+Where this differs from earlier parts of this document, this section wins:
+- Section 2 gave the Fae "average movement, Jump Boost in green biomes". The build gives them a double jump and half
+  fall damage instead (owner's choice), and no Jump Boost.
+- Section 5's trinkets are retired: the race looks are cosmetic and the effects are Charter's `racePassives`.
+- Section 7 item 1 said nothing more was planned for Humans before the server ships; Horsemanship and Treasure sense
+  are new.
+- Mossbeard's Muddle (the admin kingdom) is not in sections 1 to 6; its traits are only in the table above.
+- Section 2 gives the Fairy a height of 1.2 blocks and the Fae 1.8. Heights are not built (everyone is player sized),
+  and no height or vision for the other races is written anywhere in the repository.
+
 ## 8. Build status
 
 | Part | State |

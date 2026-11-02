@@ -4,7 +4,8 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "CreativeSlotGuard",
-    "LivingEntityGlide"
+    "LivingEntityGlide",
+    "LivingEntityFall"
   ],
   "injectors": {
     "defaultRequire": 1
