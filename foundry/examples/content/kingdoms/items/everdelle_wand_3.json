@@ -3,7 +3,7 @@
   "id": "kingdoms:everdelle_wand_3",
   "display_name": "Everdelle Wand III",
   "lore": [
-    "Left click: a sparkle bolt, 4 damage.",
+    "Left click: a sparkle bolt, 5 damage.",
     "Right click: Mischief, a bolt that hurts and lifts its target off the ground for 2.5s. 16s recharge.",
     "Sneak and right click: Healing Light, regeneration for players within 5 blocks for 12s. 65s recharge.",
     "Fully upgraded."
@@ -14,6 +14,12 @@
   "stack_size": 1,
   "glint": true,
   "rarity": "epic",
+  "enchantable": {
+    "value": 15,
+    "as": [
+      "foundry:enchantable/magic"
+    ]
+  },
   "handheld": true,
   "require_permission": "race:everdelle",
   "locked_message": "Only the Fairies of Everdelle can wield this.",
@@ -54,7 +60,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 4,
+          "amount": 5,
           "target": "hit"
         },
         {

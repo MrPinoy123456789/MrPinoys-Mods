@@ -16,6 +16,13 @@
   "rarity": "epic",
   "attack_damage": 9,
   "attack_speed": 1.0,
+  "enchantable": {
+    "value": 15,
+    "as": [
+      "minecraft:enchantable/melee_weapon",
+      "excellentenchants:swords_axes"
+    ]
+  },
   "handheld": true,
   "require_permission": "race:azrak",
   "locked_message": "Only the Dwarves of Azrak can wield this.",

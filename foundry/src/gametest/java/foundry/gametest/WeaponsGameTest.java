@@ -70,6 +70,61 @@ public final class WeaponsGameTest {
         return weapon + "_" + t;
     }
 
+    private static net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment> enchantment(GameTestHelper helper, String id) {
+        return helper.getLevel().registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
+                .getOrThrow(ResourceKey.create(Registries.ENCHANTMENT, Identifier.parse(id)));
+    }
+
+    /**
+     * The melee race weapons take the vanilla melee enchantments (Sharpness, Looting, Fire Aspect and the rest); the
+     * staves and wands take only Foundry's own three (Spellpower, Quickcast, Potency), which nothing else takes.
+     */
+    @GameTest
+    public void meleeWeaponsTakeMeleeEnchantmentsAndMagicOnesTheirOwn(GameTestHelper helper) {
+        var sharpness = enchantment(helper, "minecraft:sharpness").value();
+        var looting = enchantment(helper, "minecraft:looting").value();
+        var spellpower = enchantment(helper, "foundry:spellpower").value();
+        enchantment(helper, "foundry:quickcast");
+        enchantment(helper, "foundry:potency");
+        for (String melee : List.of("kingdoms:azrak_pick_1", "kingdoms:aurelia_oathblade_2", "kingdoms:azurius_trident_3")) {
+            var stack = new ItemStack(item(melee));
+            helper.assertTrue(stack.has(DataComponents.ENCHANTABLE), melee + " is enchantable");
+            helper.assertTrue(sharpness.isSupportedItem(stack) && looting.isSupportedItem(stack), melee + " takes Sharpness and Looting");
+            helper.assertFalse(spellpower.isSupportedItem(stack), melee + " takes Spellpower");
+        }
+        for (String magic : List.of("kingdoms:faeloria_staff_1", "kingdoms:everdelle_wand_3")) {
+            var stack = new ItemStack(item(magic));
+            helper.assertTrue(stack.has(DataComponents.ENCHANTABLE), magic + " is enchantable");
+            helper.assertTrue(spellpower.isSupportedItem(stack), magic + " takes Spellpower");
+            helper.assertFalse(sharpness.isSupportedItem(stack), magic + " takes Sharpness");
+        }
+        helper.assertFalse(spellpower.isSupportedItem(new ItemStack(Items.DIAMOND_SWORD)), "a sword takes Spellpower");
+        helper.succeed();
+    }
+
+    /** Spellpower III adds 3 to what a wand's sparkle does; Potency II makes Mischief's lift last half again as long. */
+    @GameTest
+    public void spellpowerAndPotencyStrengthenTheWand(GameTestHelper helper) {
+        var plain = holder(helper, "kingdoms:everdelle_wand_1");
+        var charged = holder(helper, "kingdoms:everdelle_wand_1");
+        charged.getMainHandItem().enchant(enchantment(helper, "foundry:spellpower"), 3);
+        charged.getMainHandItem().enchant(enchantment(helper, "foundry:potency"), 2);
+        Mob a = still(helper, 3, 2, 3);
+        Mob b = still(helper, 5, 2, 5);
+        float aBefore = a.getHealth(), bBefore = b.getHealth();
+        helper.assertTrue(foundry.mc.MechanicHost.strike("sparkle", plain, a), "the plain wand's sparkle ran");
+        helper.assertTrue(foundry.mc.MechanicHost.strike("sparkle", charged, b), "the enchanted wand's sparkle ran");
+        float aLost = aBefore - a.getHealth(), bLost = bBefore - b.getHealth();
+        helper.assertTrue(Math.abs(bLost - aLost - 3f) < 0.01f, "Spellpower III should add 3: plain " + aLost + ", enchanted " + bLost);
+        Mob c = still(helper, 1, 2, 5);
+        Mob d = still(helper, 5, 2, 1);
+        foundry.mc.MechanicHost.strike("mischief", plain, c);
+        foundry.mc.MechanicHost.strike("mischief", charged, d);
+        int cTicks = c.getEffect(MobEffects.LEVITATION).getDuration(), dTicks = d.getEffect(MobEffects.LEVITATION).getDuration();
+        helper.assertTrue(dTicks == cTicks * 3 / 2, "Potency II should make the lift half again as long: " + cTicks + " and " + dTicks);
+        helper.succeed();
+    }
+
     @GameTest
     public void everyTierIsRegisteredAndEveryUpgradeCraftsTheNextTier(GameTestHelper helper) {
         var manager = helper.getLevel().getServer().getRecipeManager();

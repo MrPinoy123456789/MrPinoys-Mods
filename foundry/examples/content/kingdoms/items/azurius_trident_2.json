@@ -3,9 +3,9 @@
   "id": "kingdoms:azurius_trident_2",
   "display_name": "Tide Trident II",
   "lore": [
-    "Left click: Water Jet, 5 damage at range, 6 in water or rain.",
+    "Hit: 1 extra damage in water or rain.",
     "Right click: throw the trident, 6 damage. It flies out, hits, and returns, soaking what it strikes. 14s recharge.",
-    "Sneak and right click: Riptide Mist, water breathing and speed in water for 25s. 55s recharge.",
+    "Sneak and right click: Undertow, 3 damage to everything within 6 blocks, dragged toward you. 28s recharge.",
     "Upgrade: a heart of the sea and 2 nautilus shells, crafted with this."
   ],
   "base_item": "minecraft:bone",
@@ -14,55 +14,47 @@
   "stack_size": 1,
   "glint": true,
   "rarity": "rare",
-  "attack_damage": 6,
+  "attack_damage": 8,
   "attack_speed": 1.1,
+  "enchantable": {
+    "value": 12,
+    "as": [
+      "minecraft:enchantable/melee_weapon",
+      "excellentenchants:swords_axes"
+    ]
+  },
   "handheld": true,
   "require_permission": "race:azurius",
   "locked_message": "Only the Merfolk of Azurius can wield this.",
   "keep_on_death": true,
   "mechanics": [
     {
-      "trigger": "on_swing",
-      "cooldown_ticks": 16,
+      "trigger": "on_hit_entity",
       "actions": [
         {
           "type": "play_sound",
-          "sound": "minecraft:entity.dolphin.splash",
-          "volume": 0.8,
-          "pitch": 1.5
-        },
-        {
-          "type": "launch_bolt",
-          "tag": "water_jet",
-          "range": 22,
-          "speed": 1.5,
-          "particle": "minecraft:bubble_pop",
-          "colour": "#3FC2CF"
-        }
-      ]
-    },
-    {
-      "trigger": "on_bolt_hit",
-      "tag": "water_jet",
-      "actions": [
-        {
-          "type": "damage",
-          "amount": 5,
-          "target": "hit"
+          "sound": "minecraft:entity.player.splash",
+          "volume": 0.5,
+          "pitch": 1.6
         },
         {
           "type": "particle_shape",
           "shape": "burst",
-          "count": 14,
-          "radius": 0.6,
+          "count": 8,
+          "radius": 0.5,
           "particle": "minecraft:splash",
           "target": "hit"
         }
       ]
     },
     {
-      "trigger": "on_bolt_hit",
-      "tag": "water_jet",
+      "trigger": "on_hit_entity",
+      "conditions": [
+        {
+          "type": "in_water",
+          "value": true
+        }
+      ],
       "actions": [
         {
           "type": "damage",
@@ -73,16 +65,10 @@
         {
           "type": "particle_shape",
           "shape": "ring",
-          "count": 16,
+          "count": 14,
           "radius": 0.8,
           "colour": "#3FC2CF",
           "target": "hit"
-        }
-      ],
-      "conditions": [
-        {
-          "type": "in_water",
-          "value": true
         }
       ]
     },
@@ -190,9 +176,9 @@
       ]
     },
     {
-      "name": "Riptide Mist",
+      "name": "Undertow",
       "trigger": "on_use",
-      "cooldown_ticks": 1100,
+      "cooldown_ticks": 560,
       "conditions": [
         {
           "type": "is_sneaking",
@@ -202,28 +188,50 @@
       "actions": [
         {
           "type": "play_sound",
-          "sound": "minecraft:entity.dolphin.play",
+          "sound": "minecraft:entity.elder_guardian.curse",
+          "volume": 0.5,
+          "pitch": 1.6
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:ambient.underwater.enter",
           "volume": 1.0,
-          "pitch": 1.0
+          "pitch": 0.8
         },
         {
-          "type": "apply_effect",
-          "effect": "minecraft:water_breathing",
-          "duration": 500,
-          "amplifier": 0
+          "type": "damage",
+          "amount": 3,
+          "target": "area",
+          "radius": 6
         },
         {
-          "type": "apply_effect",
-          "effect": "minecraft:dolphins_grace",
-          "duration": 500,
-          "amplifier": 0
+          "type": "knockback",
+          "strength": -0.9,
+          "lift": 0.15,
+          "target": "area",
+          "radius": 6
+        },
+        {
+          "type": "particle_shape",
+          "shape": "ring",
+          "count": 48,
+          "radius": 6.0,
+          "colour": "#3FC2CF",
+          "size": 1.4
+        },
+        {
+          "type": "particle_shape",
+          "shape": "ring",
+          "count": 32,
+          "radius": 3.5,
+          "particle": "minecraft:splash"
         },
         {
           "type": "particle_shape",
           "shape": "spiral",
-          "count": 40,
-          "radius": 0.8,
-          "colour": "#3FC2CF"
+          "count": 30,
+          "radius": 1.0,
+          "particle": "minecraft:bubble_pop"
         }
       ]
     }

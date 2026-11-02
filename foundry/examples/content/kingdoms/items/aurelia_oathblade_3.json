@@ -16,6 +16,13 @@
   "rarity": "epic",
   "attack_damage": 6,
   "attack_speed": 1.6,
+  "enchantable": {
+    "value": 15,
+    "as": [
+      "minecraft:enchantable/melee_weapon",
+      "excellentenchants:swords_axes"
+    ]
+  },
   "handheld": true,
   "require_permission": "race:aurelia",
   "locked_message": "Only the Humans of Aurelia can wield this.",

@@ -40,6 +40,11 @@ final class FoundryItem extends SimplePolymerItem {
         return def == null ? List.of() : def.mechanics();
     }
 
+    /** The content id this item was registered for. */
+    String contentId() {
+        return contentId;
+    }
+
     /** The live definition, or null while it is missing from the content set. */
     foundry.core.ItemDef def() {
         return FoundryMod.loaded().items().get(ident);

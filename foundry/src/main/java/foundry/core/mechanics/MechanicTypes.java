@@ -55,7 +55,7 @@ public final class MechanicTypes {
         action("give_item", Param.id("item"), Param.integer("count", false, 1, 99), Param.target());
         action("damage", Param.decimal("amount", true, 0.5, 100), Param.target(), Param.bool("ignore_hit_delay"),
                 Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"));
-        action("knockback", Param.decimal("strength", true, 0, 3), Param.decimal("lift", false, 0, 2), Param.target(),
+        action("knockback", Param.decimal("strength", true, -3, 3), Param.decimal("lift", false, 0, 2), Param.target(),
                 Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"));
         action("particle_shape", Param.name("shape"), Param.optId("particle"), Param.colour("colour"),
                 Param.integer("count", false, 1, 200), Param.decimal("radius", false, 0.1, 8), Param.decimal("height", false, -2, 4),

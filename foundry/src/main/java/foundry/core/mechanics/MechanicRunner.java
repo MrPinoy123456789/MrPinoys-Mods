@@ -22,6 +22,11 @@ public final class MechanicRunner {
         boolean roll(double probability);
         /** Performs one validated action. Must not fire mechanics. */
         void perform(Step action);
+
+        /** Ticks taken off this mechanic's cooldown (the Quickcast enchantment); never below one tick. */
+        default int cooldownCut(MechanicDef m) {
+            return 0;
+        }
     }
 
     public enum Outcome { RAN, ON_COOLDOWN, CONDITION_FAILED, CHANCE_FAILED, RATE_LIMITED, REENTERED }
@@ -68,7 +73,7 @@ public final class MechanicRunner {
         if (m.probability() < 1.0 && !host.roll(m.probability())) return Outcome.CHANCE_FAILED;
 
         window.addLast(now);
-        if (m.cooldownTicks() > 0) readyAt.put(key, now + m.cooldownTicks());
+        if (m.cooldownTicks() > 0) readyAt.put(key, now + Math.max(1, m.cooldownTicks() - host.cooldownCut(m)));
         running = true;
         try {
             int count = 0;

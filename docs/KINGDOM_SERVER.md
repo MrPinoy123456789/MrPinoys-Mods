@@ -35,10 +35,31 @@ both). Roles and tier I to III numbers:
 |---|---|---|---|---|---|
 | Runed War Pick (Dwarves) | Armour breaker | 7, 8, 9 at speed 1.0, plus 2, 3, 3 that ignore armour | | Ground Slam: 4, 5, 6 damage and a heavy shove to all within 3 blocks, a ring of dust (12, 11, 10 s) | Stone Skin (unchanged) |
 | Oathblade (Humans) | Duelist and leader | 5, 6, 6 at 1.6, plus 1, 1, 2 and Weakness, a silver sweep arc | | Holy Lance: a visible spear of light, 4, 5, 6 damage, a pillar of light where it lands | Rally (unchanged), a silver ring |
-| Tide Trident (Merfolk) | Mid range skirmisher | 5, 6, 7 at 1.1 | Water Jet every 0.8 s, 4, 5, 6 damage, one more in water or rain | Throw: a visible trident that flies out and returns, 5, 6, 7 damage | Riptide Mist (unchanged) |
+| Tide Trident (Merfolk) | Close fighter that throws and drags | 7, 8, 9 at 1.1, plus 1, 1, 2 in water or rain | (melee) | Throw: a visible trident that flies out and returns, 5, 6, 7 damage | Undertow: 2, 3, 4 damage to all within 6 blocks, dragged toward you (30, 28, 26 s) |
 | Briarthorn Staff (Fae) | Control | none | Thorn Bolt every 0.8 s, 3, 3, 4 and poison | Bramble Burst (hold 1 s): 5, 6, 7 damage, poison and a 2 to 3 s root (Slowness IV), a ring of thorns | Glamour (unchanged) |
-| Everdelle Wand (Fairies) | Support and harassment | none | Sparkle every 0.8 s, 2, 3, 4 damage, 24 blocks | Mischief: lifts the target 1.5 to 2.5 s | Healing Light: regeneration for 8 to 12 s for players within 5 blocks |
+| Everdelle Wand (Fairies) | Support and harassment | none | Sparkle every 0.8 s, 3, 4, 5 damage, 24 blocks | Mischief: lifts the target 1.5 to 2.5 s | Healing Light: regeneration for 8 to 12 s for players within 5 blocks |
 
+- The Tide Trident no longer shoots a water jet on left click (it is a melee weapon, and its model is now long, like a
+  real trident's), and Riptide Mist is gone (the Merfolk already breathe water and have Dolphin's Grace by race); its
+  sneak ability is Undertow.
+- Enchanting (2026-11-02). Items take a new `enchantable` field (`value`, the enchanting table's enchantability, and
+  `as`, the item tags they join, written into the generated data pack). The War Pick, Oathblade and Tide Trident join
+  `minecraft:enchantable/melee_weapon`, so they take Sharpness, Smite, Bane of Arthropods, Knockback, Looting and Fire
+  Aspect at the table and the anvil (enchantability 10, 12, 15 by tier). They also join `excellentenchants:swords_axes`,
+  so with the Excellent Enchants mod installed they take its weapon enchantments too (Decapitator, Ice Aspect,
+  Thrifty, Thunder, Venom, Wisdom, Wither), which work on them because it reads the attacker's weapon on each hit.
+  The staves and wands are left out of that tag on purpose: Excellent Enchants would fire on every bolt and area hit. The staves and wands join
+  `foundry:enchantable/magic` and take Foundry's own three, defined as data pack enchantments in the Foundry jar
+  (`data/foundry/enchantment`), which nothing else takes:
+
+  | Enchantment | Levels | Effect |
+  |---|---|---|
+  | Spellpower | I to III | 1 more damage for each level on everything the weapon strikes (bolts and areas) |
+  | Quickcast | I and II | one tick off the left click cooldown for each level (0.8 s to 0.7 s at II) |
+  | Potency | I and II | what the weapon does to what it strikes (poison, roots, lift, weakness) lasts a quarter longer for each level |
+
+  Fully enchanted, a tier III staff or wand does about 60 to 65 percent of a fully enchanted tier III sword's damage a
+  second, the same share as unenchanted. Unbreaking and Mending do not apply: the weapons never wear out.
 - The Fairies' wand moved out of the demo namespace: `demo:fairy_wand`, `_2` and `_3` are now placeholders with
   `replaced_by` (a new item field), so a wand anyone still carries becomes the Everdelle Wand of the same tier the first
   tick it is in their inventory. Their old upgrade recipes are gone; on a server, delete

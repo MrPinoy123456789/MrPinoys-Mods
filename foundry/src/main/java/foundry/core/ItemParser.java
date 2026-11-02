@@ -44,6 +44,33 @@ public final class ItemParser {
         Ident replacedBy = identField(o, "replaced_by", false, source, problems);
         // A 3D model for the hand (and the ground, frames and shelves); the flat texture stays the fallback.
         Ident heldModel = identField(o, "held_model", false, source, problems);
+        // Enchanting: "enchantable": {"value": 10, "as": ["minecraft:enchantable/melee_weapon"]}. The value is how well
+        // the enchanting table treats it (a sword is 10 to 15); "as" lists the item tags (by enchantment kind) it joins.
+        int enchantability = 0;
+        List<String> enchantableAs = new ArrayList<>();
+        if (o.has("enchantable")) {
+            if (!o.get("enchantable").isJsonObject()) {
+                problems.add(Problem.error(source, "enchantable", "enchantable must be an object.",
+                        "Use { \"value\": 10, \"as\": [\"minecraft:enchantable/melee_weapon\"] }."));
+            } else {
+                JsonObject e = o.getAsJsonObject("enchantable");
+                enchantability = e.has("value") ? e.get("value").getAsInt() : 10;
+                if (enchantability < 1 || enchantability > 50) {
+                    problems.add(Problem.error(source, "enchantable", "enchantable value must be 1 to 50.", "A sword is 10 to 15."));
+                }
+                if (e.has("as") && e.get("as").isJsonArray()) {
+                    for (JsonElement t : e.getAsJsonArray("as")) {
+                        String tag = t.getAsString();
+                        if (Ident.parse(tag) == null) {
+                            problems.add(Problem.error(source, "enchantable", "\"" + tag + "\" is not an item tag id.",
+                                    "Use an id such as minecraft:enchantable/melee_weapon, without the #."));
+                        } else {
+                            enchantableAs.add(tag);
+                        }
+                    }
+                }
+            }
+        }
         if (model != null && texture != null) {
             problems.add(Problem.error(source, "texture", "An item cannot have both model and texture.",
                     "Keep texture to let Foundry build a flat model, or keep model to use your own."));
@@ -116,7 +143,7 @@ public final class ItemParser {
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
         return new Result(new ItemDef(version, id, name, List.copyOf(lore), base, model, texture, stack, durability, glint, rarity, attackDamage, attackSpeed,
                 requirePermission, lockedMessage, keepOnDeath, handheld, List.copyOf(mechanics), List.copyOf(wornSlots), glider, wornModel,
-                replacedBy, heldModel),
+                replacedBy, heldModel, enchantability, List.copyOf(enchantableAs)),
                 problems);
     }
 
