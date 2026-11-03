@@ -31,7 +31,12 @@
     },
     "result": { "type": "string", "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$", "description": "The item produced; never a tag." },
     "count": { "type": "integer", "minimum": 1, "maximum": 99, "default": 1 },
-    "group": { "type": "string", "description": "Optional recipe book group." }
+    "group": { "type": "string", "description": "Optional recipe book group." },
+    "unlock_permission": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+      "description": "Optional permission node (for example race:azrak). Players holding it get the recipe in their recipe book; nobody else is shown it. No ingredient pickup unlock is generated."
+    }
   },
   "allOf": [
     {

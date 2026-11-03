@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azurius_trident_1",
+  "type": "shapeless",
+  "unlock_permission": "race:azurius",
+  "ingredients": [
+    "minecraft:iron_ingot",
+    "minecraft:iron_ingot",
+    "minecraft:kelp",
+    "minecraft:ink_sac"
+  ],
+  "result": "kingdoms:azurius_trident_1"
+}

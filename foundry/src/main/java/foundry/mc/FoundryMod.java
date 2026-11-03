@@ -172,6 +172,7 @@ public final class FoundryMod implements ModInitializer {
             DoubleJump.tick(server);
             SwimDash.tick(server);
             HumanSlide.tick(server);
+            RecipeUnlocks.tick(server);
             RaceTraitsRuntime.tick(server);
             FairyFlight.tick(server);
             BedrockLooks.tick(server);

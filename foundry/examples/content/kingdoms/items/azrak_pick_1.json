@@ -7,6 +7,7 @@
     "Mines as a stone pickaxe.",
     "Right click: Ground Slam, 4 damage and a heavy shove to everything within 3 blocks. 12s recharge.",
     "Sneak and right click: Stone Skin, tough but slow for 6s. 90s recharge.",
+    "Craft: 2 iron ingots, a copper ingot and a cobbled deepslate. Fits the 2 by 2 grid.",
     "Upgrade: 2 diamonds and 2 iron blocks, crafted with this at a crafting table."
   ],
   "base_item": "minecraft:stone_pickaxe",

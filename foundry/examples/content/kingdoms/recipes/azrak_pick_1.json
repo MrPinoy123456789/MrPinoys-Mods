@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:azrak_pick_1",
+  "type": "shapeless",
+  "unlock_permission": "race:azrak",
+  "ingredients": [
+    "minecraft:iron_ingot",
+    "minecraft:iron_ingot",
+    "minecraft:copper_ingot",
+    "minecraft:cobbled_deepslate"
+  ],
+  "result": "kingdoms:azrak_pick_1"
+}
