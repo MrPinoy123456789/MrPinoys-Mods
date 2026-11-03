@@ -396,8 +396,9 @@ public final class CoreSuite {
                 && foundry.core.RaceTraits.discount(64, 0.1) == 6, "a trade discount rounds and never takes a price below one");
         var dwarfOres = t.of("race:azrak").sense().blocks();
         check(!dwarfOres.contains("minecraft:diamond_ore") && !dwarfOres.contains("minecraft:ancient_debris")
-                && dwarfOres.contains("minecraft:iron_ore") && dwarfOres.contains("minecraft:redstone_ore"),
-                "Dwarves smell gold, lapis, emerald, iron, copper and redstone, not diamond or ancient debris");
+                && dwarfOres.contains("minecraft:iron_ore") && dwarfOres.contains("minecraft:redstone_ore")
+                && dwarfOres.contains("minecraft:coal_ore") && dwarfOres.contains("minecraft:deepslate_coal_ore"),
+                "Dwarves smell coal, gold, lapis, emerald, iron, copper and redstone, not diamond or ancient debris");
         var gems = t.of("race:everdelle").sense();
         check(gems.blocks().contains("minecraft:diamond_ore") && !gems.blocks().contains("minecraft:glowstone")
                 && gems.radius() >= 6 && gems.radius() <= 8 && gems.every() > 40, "Fairies sense gems, close and slowly");

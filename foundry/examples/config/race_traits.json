@@ -8,6 +8,8 @@
     "sense": {
       "name": "Ore sense",
       "blocks": [
+        "minecraft:coal_ore",
+        "minecraft:deepslate_coal_ore",
         "minecraft:gold_ore",
         "minecraft:deepslate_gold_ore",
         "minecraft:lapis_ore",
