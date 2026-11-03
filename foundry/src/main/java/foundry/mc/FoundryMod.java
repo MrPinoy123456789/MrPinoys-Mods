@@ -171,6 +171,7 @@ public final class FoundryMod implements ModInitializer {
             Wings.tick(server);
             DoubleJump.tick(server);
             SwimDash.tick(server);
+            HumanSlide.tick(server);
             RaceTraitsRuntime.tick(server);
             FairyFlight.tick(server);
             BedrockLooks.tick(server);
@@ -194,13 +195,14 @@ public final class FoundryMod implements ModInitializer {
             Wings.clear();
             DoubleJump.clear();
             SwimDash.clear();
+            HumanSlide.clear();
             RaceTraitsRuntime.clear();
             FairyFlight.clear();
             BedrockLooks.clear();
         });
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 { Charging.forget(handler.getPlayer().getUUID()); AbilityBar.forget(handler.getPlayer().getUUID()); Wings.forget(handler.getPlayer().getUUID());
-                  DoubleJump.forget(handler.getPlayer().getUUID()); SwimDash.forget(handler.getPlayer().getUUID());
+                  DoubleJump.forget(handler.getPlayer().getUUID()); SwimDash.forget(handler.getPlayer().getUUID()); HumanSlide.forget(handler.getPlayer().getUUID());
                   BedrockLooks.forget(handler.getPlayer().getUUID());
                   RaceTraitsRuntime.forget(handler.getPlayer().getUUID()); FairyFlight.forget(handler.getPlayer().getUUID()); });
         PackBuilds.markBaseline();

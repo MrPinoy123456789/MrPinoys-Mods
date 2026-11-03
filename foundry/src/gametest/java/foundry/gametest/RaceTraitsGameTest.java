@@ -53,6 +53,26 @@ public class RaceTraitsGameTest {
         helper.succeed();
     }
 
+    /** A Human's crouch slide throws them forward the way they face, along the ground; only the Humans have it. */
+    @GameTest(maxTicks = 40)
+    public void humansSlideForwardAndNobodyElseDoes(GameTestHelper helper) {
+        ServerPlayer human = player(helper, 2.5, 2, 2.5);
+        var slide = trait("race:aurelia").slide();
+        helper.assertTrue(slide != null && slide.speed() > 1 && slide.cooldown() >= 40, "The Humans have no slide: " + slide);
+        for (String other : java.util.List.of("race:azrak", "race:faeloria", "race:azurius", "race:everdelle", "race:mossbeard_s_muddle")) {
+            helper.assertTrue(trait(other).slide() == null, other + " can slide");
+        }
+        helper.assertTrue(RaceTraits.parse("{\"race:aurelia\":{\"slide\":{}}}").traits().of("race:aurelia").slide().equals(RaceTraits.Slide.DEFAULT),
+                "an empty slide block should take the defaults");
+        human.setYRot(90f);
+        human.setDeltaMovement(0, -0.08, 0);
+        foundry.mc.HumanSlide.slide(human, slide);
+        var v = human.getDeltaMovement();
+        helper.assertTrue(Math.abs(v.x + slide.speed()) < 1e-6 && Math.abs(v.z) < 1e-6 && v.y == 0,
+                "Facing west the slide should push along the ground to -x: " + v);
+        helper.succeed();
+    }
+
     /** The folk of Mossbeard's Muddle walk faster on living ground (grass) and not on stone. */
     @GameTest(maxTicks = 40)
     public void mossbeardStridesOnLivingGround(GameTestHelper helper) {
