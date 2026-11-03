@@ -11,6 +11,7 @@
       "excellentenchants.gametest.DataGameTest",
       "excellentenchants.gametest.EffectsGameTest",
       "excellentenchants.gametest.CommandGameTest"
+      "excellentenchants.gametest.SpawnerPlacingGameTest"
     ]
   }
 }
