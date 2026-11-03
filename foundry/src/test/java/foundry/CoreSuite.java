@@ -859,6 +859,9 @@ public final class CoreSuite {
             String excellent = tags.get("data/excellentenchants/tags/item/swords_axes.json");
             check(excellent != null && excellent.contains("kingdoms:azurius_trident_1") && !excellent.contains("wand")
                     && !excellent.contains("staff"), "the melee weapons, and only they, take Excellent Enchants' weapon enchantments");
+            String picks = tags.get("data/minecraft/tags/item/pickaxes.json");
+            check(picks != null && picks.contains("kingdoms:azrak_pick_1") && picks.contains("kingdoms:azrak_pick_3")
+                    && !picks.contains("oathblade") && !picks.contains("trident"), "the War Picks, and only they, count as pickaxes for enchanting");
             check(magic != null && magic.contains("kingdoms:faeloria_staff_1") && magic.contains("kingdoms:everdelle_wand_3")
                     && !magic.contains("pick"), "the staves and wands join Foundry's magic enchanting tag");
         } catch (Exception e) {

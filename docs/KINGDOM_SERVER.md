@@ -48,6 +48,9 @@ both). Roles and tier I to III numbers:
   Aspect at the table and the anvil (enchantability 10, 12, 15 by tier). They also join `excellentenchants:swords_axes`,
   so with the Excellent Enchants mod installed they take its weapon enchantments too (Decapitator, Ice Aspect,
   Thrifty, Thunder, Venom, Wisdom, Wither), which work on them because it reads the attacker's weapon on each hit.
+  The War Pick also joins `minecraft:pickaxes` (2026-11-03), so it takes every pickaxe enchantment as well: Efficiency,
+  Fortune and Silk Touch, and Excellent Enchants' Tunnel, Telekinesis and Silk Spawner. Unbreaking and Mending can go
+  on too but do nothing: the War Pick has no durability and never wears out.
   The staves and wands are left out of that tag on purpose: Excellent Enchants would fire on every bolt and area hit. The staves and wands join
   `foundry:enchantable/magic` and take Foundry's own three, defined as data pack enchantments in the Foundry jar
   (`data/foundry/enchantment`), which nothing else takes:

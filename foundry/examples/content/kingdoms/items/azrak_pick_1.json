@@ -21,7 +21,8 @@
     "value": 10,
     "as": [
       "minecraft:enchantable/melee_weapon",
-      "excellentenchants:swords_axes"
+      "excellentenchants:swords_axes",
+      "minecraft:pickaxes"
     ]
   },
   "handheld": true,
