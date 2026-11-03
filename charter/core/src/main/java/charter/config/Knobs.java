@@ -121,8 +121,6 @@ public final class Knobs {
     public boolean mapSyncEnabled = true;
     /** Whether map markers (supply drops, {@code /charter admin mapmarker}) go out with the kingdom map. */
     public boolean mapSyncMarkers = true;
-    /** Who is handed the Charter book automatically: "everyone", "newcomers" (no kingdom and no race) or "none". */
-    public String bookGivenTo = "everyone";
     /** Minutes a lifted Nexus lodestone may be carried before it goes back to where it stood. */
     public int nexusLiftMinutes = 10;
     /** Seconds a lifted Nexus waits for its carrier to come back after logging out before it goes back (0: at once). */
@@ -228,8 +226,6 @@ public final class Knobs {
     public boolean opsGetAdminBook = true;
     /** Whether every player sees a glowing line along nearby keep borders without holding anything. */
     public boolean keepBorderGlow = false;
-    /** Whether a player who has lost their Charter book is given a new one. */
-    public boolean replaceLostBook = true;
     /**
      * Extra effects only for Bedrock players, by race node path. Bedrock has no Dolphin's Grace, so the Merfolk get
      * Speed II while they are in water instead, with no icon and no particles. An entry is an effect id, optionally
@@ -395,9 +391,6 @@ public final class Knobs {
         if (voteDurationHours < 1) out.add("voteDurationHours must be at least 1.");
         if (keepRadiusChunks < 1) out.add("keepRadiusChunks must be at least 1.");
         if (spawnRules == null) out.add("spawnRules must be a section of rules, not null.");
-        if (bookGivenTo == null || !List.of("everyone", "newcomers", "none").contains(bookGivenTo.trim().toLowerCase(java.util.Locale.ROOT))) {
-            out.add("bookGivenTo must be everyone, newcomers or none.");
-        }
         if (nexusLiftMinutes < 1) out.add("nexusLiftMinutes must be at least 1.");
         if (nexusLiftLogoutSeconds < 0) out.add("nexusLiftLogoutSeconds must not be negative.");
         return out;

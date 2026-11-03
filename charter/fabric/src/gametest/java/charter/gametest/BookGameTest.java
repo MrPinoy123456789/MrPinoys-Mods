@@ -116,16 +116,20 @@ public final class BookGameTest {
     // ---- B4 ----
 
     @GameTest(maxTicks = 20)
-    public void aJoinGivesOneBookAndNoMore(GameTestHelper helper) {
+    public void aJoinGivesNoBookButKeepsOnlyOne(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) player.getInventory().setItem(i, ItemStack.EMPTY);
         BookMod.onJoin(player);
-        helper.assertTrue(books(player) == 1, "A join gave " + books(player) + " books");
+        helper.assertTrue(books(player) == 0, "A join handed out " + books(player) + " books");
+        player.getInventory().setItem(2, CharterBook.create(player.getUUID()));
+        player.getInventory().setItem(5, CharterBook.create(player.getUUID()));
         BookMod.onJoin(player);
-        helper.assertTrue(books(player) == 1, "A second join while carrying one gave another");
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) player.getInventory().setItem(i, ItemStack.EMPTY);
-        BookMod.onJoin(player);
-        helper.assertTrue(books(player) == 1, "A player who lost the book did not get a new one");
+        helper.assertTrue(books(player) == 1, "A join left " + books(player) + " books");
+        BookMod.respawned(player);
+        helper.assertTrue(books(player) == 1, "A respawn changed the one book to " + books(player));
+        player.getInventory().setItem(2, ItemStack.EMPTY);
+        BookMod.respawned(player);
+        helper.assertTrue(books(player) == 0, "A respawn handed out a new book");
         helper.succeed();
     }
 
@@ -135,8 +139,6 @@ public final class BookGameTest {
         // Mock players start in creative, where an inventory is never full.
         player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) player.getInventory().setItem(i, new ItemStack(Items.STONE, 64));
-        BookMod.onJoin(player);
-        helper.assertTrue(books(player) == 0, "The book found room in a full inventory");
         ItemEntity dropped = BookMod.giveOrDrop(player, CharterBook.create());
         helper.assertTrue(dropped != null && CharterBook.isBook(dropped.getItem()), "The book was not dropped at the player's feet");
         helper.assertTrue(BookMod.giveOrDrop(emptyHanded(helper), CharterBook.create()) == null, "A book that fits was dropped");

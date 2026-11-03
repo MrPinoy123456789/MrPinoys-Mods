@@ -46,7 +46,7 @@ Not protected on purpose: mob griefing (endermen, ravagers) follows the vanilla
   placing it runs `PlantCamp` and lights a signal campfire on a hay bale beside it.
   Operators hand them out with `/charter admin give nexus|banner [player]`.
 - The **Charter of Rights and Freedoms** is a paper item drawn as a book and quill
-  (`charter: book`), handed to every player who joins without one. Using it, or
+  (`charter: book`), taken from a terminal (a keep lectern). Using it, or
   typing `/charter`, opens a dialog menu: Rights, Freedoms, your situation, your
   faction, its Chronicle; a player with no faction sees Join and Found instead.
   `/charter page` is the old chat page. Buttons run the one-shot

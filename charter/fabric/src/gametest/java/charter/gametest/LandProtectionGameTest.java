@@ -387,19 +387,4 @@ public final class LandProtectionGameTest {
             helper.succeed();
         }
     }
-
-    @GameTest(maxTicks = 100)
-    public void aLostCharterBookIsReplaced(GameTestHelper helper) {
-        try (LandKit kit = new LandKit(helper)) {
-            ServerPlayer player = kit.outsider();
-            player.getInventory().clearContent();
-            helper.assertTrue(!charter.mc.book.BookMod.carriesBook(player), "the player starts with no book");
-            charter.mc.book.BookMod.ensure(player, true);
-            helper.assertTrue(charter.mc.book.BookMod.carriesBook(player), "a book is given");
-            int before = player.getInventory().countItem(net.minecraft.world.item.Items.PAPER);
-            charter.mc.book.BookMod.ensure(player, true);
-            helper.assertTrue(player.getInventory().countItem(net.minecraft.world.item.Items.PAPER) == before, "and not a second one");
-            helper.succeed();
-        }
-    }
 }

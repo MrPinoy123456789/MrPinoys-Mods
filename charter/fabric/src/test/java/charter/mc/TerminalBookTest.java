@@ -24,7 +24,6 @@ final class TerminalBookTest {
         keepTerminalsGoWithTheirKeep();
         theTerminalFileRoundTrips();
         aBadTerminalIsSkipped();
-        whoIsHandedTheBook();
         whoseCopyIsIt();
         liftsAreFoundByKeepIdAndCarrier();
         aLiftEndsForTheRightReason();
@@ -89,19 +88,6 @@ final class TerminalBookTest {
         book.load(dir, warnings::add);
         check("terminals: a broken file leaves none and is left alone", book.isEmpty()
                 && Files.readString(dir.resolve(TerminalBook.FILE_NAME)).equals("not json"));
-    }
-
-    static void whoIsHandedTheBook() {
-        check("book: the knob names", BookRules.mode("everyone") == BookRules.Mode.EVERYONE
-                && BookRules.mode(" Newcomers ") == BookRules.Mode.NEWCOMERS && BookRules.mode("NONE") == BookRules.Mode.NONE);
-        check("book: an unknown or missing knob keeps today's behaviour", BookRules.mode("sometimes") == BookRules.Mode.EVERYONE
-                && BookRules.mode(null) == BookRules.Mode.EVERYONE);
-        check("book: known names", BookRules.known("none") && !BookRules.known("sometimes") && !BookRules.known(null));
-        check("book: everyone gets one", BookRules.gives(BookRules.Mode.EVERYONE, true, true) && BookRules.gives(BookRules.Mode.EVERYONE, false, false));
-        check("book: newcomers only before they join or sign on", BookRules.gives(BookRules.Mode.NEWCOMERS, false, false)
-                && !BookRules.gives(BookRules.Mode.NEWCOMERS, true, true) && !BookRules.gives(BookRules.Mode.NEWCOMERS, false, true)
-                && !BookRules.gives(BookRules.Mode.NEWCOMERS, true, false));
-        check("book: none gives nobody one", !BookRules.gives(BookRules.Mode.NONE, false, false));
     }
 
     static void whoseCopyIsIt() {
