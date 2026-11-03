@@ -180,17 +180,16 @@ final class ShopMenu {
                 .setName(Component.literal(ShopDisplay.displayName(entry))
                         .withStyle(afford ? ChatFormatting.GREEN : ChatFormatting.RED));
 
+        // Price first, in the coins people hold; then the buyer's own balance, labelled so
+        // it never reads as a second price. The lot size lives in the click hint, where
+        // "buy 1" used to leave it unclear whether one item or one lot was meant.
         List<Component> lore = new java.util.ArrayList<>();
-        lore.add(dim(entry.quantity() + " per purchase"));
-        lore.add(Component.empty().append(dim("Costs ")).append(ShopDisplay.priceComponent(entry)));
-        for (Map.Entry<Currency, Long> price : entry.price().entrySet()) {
-            long balance = economy.getBalance(player.getUUID(), price.getKey());
-            lore.add(Messages.balanceLine(price.getKey(), balance));
-        }
-        lore.add(dim("Click: buy 1"));
-        lore.add(dim("Shift-click: buy as many as you can"));
+        lore.add(Messages.body("Price: ").append(ShopDisplay.priceComponent(entry)));
+        lore.add(ShopDisplay.youHave(economy, player.getUUID(), entry, true));
+        lore.add(dim("Click: buy " + entry.quantity()));
+        lore.add(dim("Shift-click: buy all you can afford"));
         if (PurchaseConfirm.required(entry, 1, settings)) {
-            lore.add(Component.literal("Asks before buying")
+            lore.add(Component.literal("Asks you to confirm first")
                     .withStyle(ChatFormatting.YELLOW));
         }
         b.setLore(lore);
@@ -243,24 +242,9 @@ final class ShopMenu {
                 .append(Messages.body(bought + " x " + entry.quantity() + " "
                         + ShopDisplay.displayName(entry)))
                 .append(Messages.good(" (" + (bought * (long) entry.quantity()) + " total) for "))
-                .append(totalPrice(entry, bought))
+                .append(ShopDisplay.priceComponent(entry, bought))
                 .append(Messages.good(".")));
-        for (Map.Entry<Currency, Long> price : entry.price().entrySet()) {
-            long balance = economy.getBalance(player.getUUID(), price.getKey());
-            player.sendSystemMessage(Messages.balanceLine(price.getKey(), balance));
-        }
-    }
-
-    private static Component totalPrice(ShopEntry entry, int lots) {
-        Component out = Component.empty();
-        boolean first = true;
-        for (Map.Entry<Currency, Long> price : entry.price().entrySet()) {
-            if (!first) out = Component.empty().append(out).append(Messages.body(" + "));
-            out = Component.empty().append(out)
-                    .append(Messages.priced(price.getKey(), price.getValue() * lots));
-            first = false;
-        }
-        return out;
+        player.sendSystemMessage(ShopDisplay.youHave(economy, player.getUUID(), entry, false));
     }
 
     // ---- shared -------------------------------------------------------------
@@ -304,7 +288,8 @@ final class ShopMenu {
                                             ServerPlayer player) {
         List<Component> lore = new java.util.ArrayList<>();
         for (Currency currency : currenciesInUse(catalog)) {
-            lore.add(Messages.balanceLine(currency, economy.getBalance(player.getUUID(), currency)));
+            lore.add(Messages.body(currency.displayName() + ": ")
+                    .append(ShopDisplay.coins(currency, economy.getBalance(player.getUUID(), currency))));
         }
         if (lore.isEmpty()) lore.add(dim("Nothing to spend yet"));
 

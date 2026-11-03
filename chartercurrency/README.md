@@ -203,6 +203,11 @@ Places where the spec was silent or ambiguous, and the reading taken.
 - No `REVIEW.md` was supplied, so none is in this folder.
 - A coin amount made only of Marks is shown as `5 Marks`, not `5 Marks (5 Marks)`.
   Every other amount shows the Marks total in brackets.
+  The shop is the exception: its prices and its "You have:" balance line name the
+  coins alone (`8 Sovereigns`), since the Mint strikes gold only and nobody counts
+  in Marks. A shop listing reads: `Price`, `You have`, `Click: buy 16`,
+  `Shift-click: buy all you can afford`, and `Asks you to confirm first` when a
+  purchase needs confirming.
 - `/bank <amount> <denomination>` takes exactly that many of that coin and touches no
   other. `/bank <amount>` (Marks) picks coins with `Wallet.planDeposit`, taking the
   smallest overpayment and returning change as coins. Among plans of equal total,

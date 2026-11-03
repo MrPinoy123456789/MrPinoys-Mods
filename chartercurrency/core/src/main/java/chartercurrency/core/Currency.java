@@ -107,4 +107,33 @@ public record Currency(
         if (parts == 0 || (parts == 1 && onlyBase)) return total;
         return out + " (" + total + ")";
     }
+
+    /**
+     * The coins a player would actually hold for {@code amount}, without the Marks total:
+     * {@code 3 Sovereigns, 2 Crowns, 5 Marks}, or {@code 8 Sovereigns}. This is how the shop
+     * names prices and balances, since nobody counts in Marks once the Mint strikes gold
+     * only. Marks appear only when no larger coin fits. Zero is named in the largest coin
+     * ({@code 0 Sovereigns}) so it reads beside a price. A plain currency is
+     * {@link #describe} unchanged.
+     */
+    public String inCoins(long amount) {
+        if (!hasDenominations()) return describe(amount);
+        if (amount <= 0) return Wallet.format(Math.max(0, amount)) + " " + largestFirst().get(0).shortPlural();
+
+        StringBuilder out = new StringBuilder();
+        long remaining = amount;
+        for (Denomination d : largestFirst()) {
+            long count = remaining / d.value();
+            remaining -= count * d.value();
+            if (count <= 0) continue;
+            if (out.length() > 0) out.append(", ");
+            out.append(d.describe(count));
+        }
+        if (remaining > 0) {
+            // Only reachable when a config has no face value 1; keep the sum honest.
+            if (out.length() > 0) out.append(", ");
+            out.append(Wallet.format(remaining)).append(' ').append(remaining == 1 ? singular : plural);
+        }
+        return out.toString();
+    }
 }

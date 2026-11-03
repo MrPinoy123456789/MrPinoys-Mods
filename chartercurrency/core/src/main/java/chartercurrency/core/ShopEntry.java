@@ -78,12 +78,15 @@ public record ShopEntry(
         return components != null && !components.isBlank();
     }
 
-    /** {@code 640 cobblestone} or {@code 500 cobblestone + 1 diamond}. */
+    /**
+     * {@code 10 Sovereigns} or {@code 7 Sovereigns, 6 Crowns, 4 Marks + 1 gem}: coin in the
+     * coins a player holds ({@link Currency#inCoins}), with no Marks total.
+     */
     public String describePrice() {
         StringBuilder out = new StringBuilder();
         for (Map.Entry<Currency, Long> line : price.entrySet()) {
             if (!out.isEmpty()) out.append(" + ");
-            out.append(line.getKey().describe(line.getValue()));
+            out.append(line.getKey().inCoins(line.getValue()));
         }
         return out.toString();
     }

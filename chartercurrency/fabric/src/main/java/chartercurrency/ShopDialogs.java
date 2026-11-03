@@ -480,7 +480,7 @@ public final class ShopDialogs {
         StringBuilder out = new StringBuilder();
         for (Map.Entry<Currency, Long> line : total.entrySet()) {
             if (!out.isEmpty()) out.append(" + ");
-            out.append(line.getKey().describe(line.getValue()));
+            out.append(line.getKey().inCoins(line.getValue()));
         }
         return out.toString();
     }

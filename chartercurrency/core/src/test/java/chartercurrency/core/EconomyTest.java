@@ -529,6 +529,11 @@ public final class EconomyTest {
         check("a Marks-only amount is not repeated", COIN.describe(5).equals("5 Marks"));
         check("one Mark is singular", COIN.describe(1).equals("1 Mark"));
         check("zero is shown", COIN.describe(0).equals("0 Marks"));
+        check("coins wording drops the Marks total", COIN.inCoins(512).equals("8 Sovereigns"));
+        check("coins wording spells out mixed coins",
+                COIN.inCoins(213).equals("3 Sovereigns, 2 Crowns, 5 Marks"));
+        check("coins wording uses Marks only when nothing larger fits", COIN.inCoins(5).equals("5 Marks"));
+        check("coins wording names zero in Sovereigns", COIN.inCoins(0).equals("0 Sovereigns"));
         check("denomination words resolve",
                 REGISTRY.resolveWord("Crowns").orElseThrow().denomination().id().equals("iron")
                         && REGISTRY.resolveWord("sov").orElseThrow().denomination().id().equals("gold")
@@ -619,6 +624,7 @@ public final class EconomyTest {
         check("valor is neither withdrawable nor payable",
                 !VALOR.withdrawable() && !VALOR.payable());
         check("valor wording", VALOR.describe(24).equals("24 Valor"));
+        check("valor coins wording is plain", VALOR.inCoins(24).equals("24 Valor"));
         e.set(ALEX, VALOR, 100);
         TxResult pay = e.transfer(ALEX, STEVE, VALOR, 10);
         check("paying valor is refused", pay.status() == TxStatus.NOT_PAYABLE);
@@ -1299,7 +1305,7 @@ public final class EconomyTest {
 
         ShopEntry ice = catalog.find("ice").orElseThrow();
         check("price renders with the currency",
-                ice.describePrice().equals("10 Sovereigns (640 Marks)"));
+                ice.describePrice().equals("10 Sovereigns"));
         check("plain price uses the plural correctly",
                 catalog.find("ancient_debris").orElseThrow().describePrice().equals("2 gems"));
 
@@ -1309,7 +1315,7 @@ public final class EconomyTest {
         ShopEntry compound = new ShopEntry("elytra", "minecraft:elytra", 1, both, "Premium", true);
         check("compound price renders both lines",
                 compound.describePrice().equals(
-                        "7 Sovereigns, 6 Crowns, 4 Marks (500 Marks) + 1 gem"));
+                        "7 Sovereigns, 6 Crowns, 4 Marks + 1 gem"));
 
         // Malformed entries are the server owner's typo, and must not crash /shop.
         catalog.put(new ShopEntry("broken", "minecraft:ice", 0, Map.of(COIN, 10L), "X", true));

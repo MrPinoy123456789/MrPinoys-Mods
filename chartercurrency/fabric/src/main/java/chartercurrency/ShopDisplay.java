@@ -1,10 +1,14 @@
 package chartercurrency;
 
 import chartercurrency.core.Currency;
+import chartercurrency.core.EconomyService;
 import chartercurrency.core.ShopEntry;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Rendering rules for a shop entry, shared by the chat listing ({@link ShopCommands})
@@ -47,14 +51,44 @@ final class ShopDisplay {
         return out.toString();
     }
 
-    /** {@code 640 cobblestone} or {@code 500 cobblestone + 1 diamond}, coloured. */
+    /** {@code 8 Sovereigns} or {@code 2 Sovereigns + 24 Valor}, coloured, in coins a player holds. */
     static Component priceComponent(ShopEntry entry) {
-        Component out = Component.empty();
+        return priceComponent(entry, 1);
+    }
+
+    /** The price of {@code lots} purchases, worded as {@link #priceComponent(ShopEntry)}. */
+    static Component priceComponent(ShopEntry entry, int lots) {
+        MutableComponent out = Component.empty();
         boolean first = true;
         for (Map.Entry<Currency, Long> price : entry.price().entrySet()) {
-            if (!first) out = Component.empty().append(out).append(Messages.body(" + "));
-            out = Component.empty().append(out)
-                    .append(Messages.priced(price.getKey(), price.getValue()));
+            if (!first) out.append(Messages.body(" + "));
+            out.append(coins(price.getKey(), price.getValue() * lots));
+            first = false;
+        }
+        return out;
+    }
+
+    /** {@code 3 Sovereigns, 2 Crowns}: an amount as the coins themselves, never a Marks total. */
+    static MutableComponent coins(Currency currency, long value) {
+        return Component.literal(currency.inCoins(value)).withStyle(Messages.colourOf(currency));
+    }
+
+    /**
+     * {@code You have: 3 Sovereigns} or {@code You have: 3 Sovereigns + 12 Valor}: the
+     * buyer's own balance in each currency the price asks for. Labelled so it cannot be
+     * read as a second price. With {@code markShort}, a currency the buyer lacks enough
+     * of is followed by a red {@code (not enough)}.
+     */
+    static Component youHave(EconomyService economy, UUID player, ShopEntry entry, boolean markShort) {
+        MutableComponent out = Messages.body("You have: ");
+        boolean first = true;
+        for (Map.Entry<Currency, Long> price : entry.price().entrySet()) {
+            if (!first) out.append(Messages.body(" + "));
+            long balance = economy.getBalance(player, price.getKey());
+            out.append(coins(price.getKey(), balance));
+            if (markShort && balance < price.getValue()) {
+                out.append(Component.literal(" (not enough)").withStyle(ChatFormatting.RED));
+            }
             first = false;
         }
         return out;
