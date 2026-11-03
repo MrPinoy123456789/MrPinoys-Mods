@@ -101,6 +101,9 @@ both). Roles and tier I to III numbers:
 
   Fully enchanted, a tier III staff does about 60 to 65 percent of a fully enchanted tier III sword's damage a
   second, the same share as unenchanted. Unbreaking and Mending do not apply: the weapons never wear out.
+  Fixed 2026-11-03: the three were missing from `minecraft:in_enchanting_table`, so the table showed costs with
+  "...?" hints and a click did nothing. The jar now adds them to that tag (`data/minecraft/tags/enchantment`); the
+  anvil with a book always worked. `EnchantTableGameTest` enchants every kingdom weapon at a real table.
 - Everdelle Wand rework (2026-11-03): it was the weakest weapon. The sparkle went from 3, 4, 5 to 4, 5, 6 damage (a
   tier III wand now does about 75 percent of a tier III melee weapon's damage a second, at 24 blocks). Mischief was a
   short single target bolt (8 blocks, 2 to 4 damage); it is now an area burst: the bolt flies 24 blocks and bursts on
