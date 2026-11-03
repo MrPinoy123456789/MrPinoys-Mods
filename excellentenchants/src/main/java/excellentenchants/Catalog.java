@@ -56,8 +56,6 @@ public final class Catalog {
                     l -> Numbers.tunnelBlocks(l) + " blocks a swing", null),
             new Entry("telekinesis", "Telekinesis", 1, "pickaxes, axes, shovels, hoes and shears",
                     "what you mine goes straight into your inventory.", false, null, null),
-            new Entry("silk_chest", "Silk Chest", 1, "pickaxes, axes, shovels and hoes",
-                    "a chest you break drops as one item with everything still inside.", true, null, null),
             new Entry("silk_spawner", "Silk Spawner", 1, "pickaxes, axes, shovels and hoes",
                     "a " + pct(Numbers.silkSpawnerChance(1)) + " chance that a spawner you break drops as an item that "
                             + "keeps its mob. Otherwise it breaks as normal.", false, null, null),

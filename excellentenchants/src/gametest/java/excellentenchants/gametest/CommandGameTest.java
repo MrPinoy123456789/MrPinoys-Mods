@@ -22,7 +22,7 @@ public final class CommandGameTest {
         TagKey<Enchantment> table = TagKey.create(Registries.ENCHANTMENT, Identifier.withDefaultNamespace("non_treasure"));
         Set<Object> keys = new HashSet<>();
         for (Field f : Enchants.class.getFields()) {
-            if (f.get(null) instanceof ResourceKey<?> key) keys.add(key);
+            if (f.get(null) instanceof ResourceKey<?> key && !excellentenchants.Retired.KEYS.contains(key)) keys.add(key);
         }
         Set<Object> listed = new HashSet<>();
         for (Catalog.Entry e : Catalog.ALL) {
@@ -37,14 +37,15 @@ public final class CommandGameTest {
                 helper.assertTrue(!line.contains("—") && !line.contains(" -- "), e.id() + " has a dash: " + line);
             }
         }
-        helper.assertTrue(listed.equals(keys) && listed.size() == 15, "the list and Enchants differ: " + listed + " vs " + keys);
+        // Every enchantment except the retired ones (Silk Chest) is listed.
+        helper.assertTrue(listed.equals(keys) && listed.size() == 14, "the list and Enchants differ: " + listed + " vs " + keys);
         helper.succeed();
     }
 
     @GameTest
     public void pagesHoldFiveAndClamp(GameTestHelper helper) {
         helper.assertTrue(Catalog.pages() == 3, "pages " + Catalog.pages());
-        helper.assertTrue(Catalog.page(1).size() == 5 && Catalog.page(3).size() == 5, "five a page");
+        helper.assertTrue(Catalog.page(1).size() == 5 && Catalog.page(3).size() == 4, "five a page, four on the last");
         helper.assertTrue(Catalog.page(99).equals(Catalog.page(3)) && Catalog.page(0).equals(Catalog.page(1)), "clamps");
         helper.assertTrue(Catalog.find("Ice Aspect").isPresent() && Catalog.find("excellentenchants:thunder").isPresent()
                 && Catalog.find("nope").isEmpty(), "find by name and id");

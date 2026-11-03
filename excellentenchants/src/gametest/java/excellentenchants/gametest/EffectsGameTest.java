@@ -147,24 +147,34 @@ public final class EffectsGameTest {
     }
 
     @GameTest
-    public void silkChestKeepsTheContents(GameTestHelper helper) {
+    public void silkChestIsRetired(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        BlockPos pos = helper.absolutePos(new BlockPos(2, 1, 2));
-        level.setBlockAndUpdate(pos, Blocks.CHEST.defaultBlockState());
-        var be = level.getBlockEntity(pos);
-        helper.assertTrue(be instanceof net.minecraft.world.Container, "chest has an inventory");
-        ((net.minecraft.world.Container) be).setItem(0, new ItemStack(Items.DIAMOND, 7));
+        var registry = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        var silk = registry.getOrThrow(Enchants.SILK_CHEST);
+        // Still registered, so old items load, but the table, loot and librarians can no longer roll it.
+        var table = net.minecraft.tags.TagKey.create(Registries.ENCHANTMENT,
+                net.minecraft.resources.Identifier.withDefaultNamespace("non_treasure"));
+        helper.assertTrue(!silk.is(table), "Silk Chest is still in non_treasure");
+
+        // A tool keeps its other enchantments and loses only Silk Chest.
         ItemStack axe = enchanted(level, Items.DIAMOND_AXE, Enchants.SILK_CHEST, 1);
-        player.setItemSlot(EquipmentSlot.MAINHAND, axe);
-        BlockDrops.silkChest(level, player, pos, level.getBlockState(pos), be, axe);
-        helper.assertTrue(level.getBlockState(pos).isAir(), "chest is gone");
-        var items = level.getEntitiesOfClass(ItemEntity.class, new AABB(pos).inflate(2.0));
-        helper.assertTrue(items.size() == 1, "exactly one item dropped, got " + items.size());
-        ItemStack dropped = items.get(0).getItem();
-        helper.assertTrue(dropped.is(Items.CHEST) && dropped.get(DataComponents.CONTAINER) != null
-                && dropped.get(DataComponents.CONTAINER).nonEmptyItemCopyStream().anyMatch(s -> s.is(Items.DIAMOND) && s.getCount() == 7),
-                "the chest item carries the 7 diamonds");
+        axe.enchant(registry.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.EFFICIENCY), 3);
+        ItemStack kept = excellentenchants.Retired.strip(axe);
+        helper.assertTrue(kept == axe && Enchants.level(level, axe, Enchants.SILK_CHEST) == 0, "Silk Chest still on the axe");
+        helper.assertTrue(net.minecraft.world.item.enchantment.EnchantmentHelper.hasAnyEnchantments(axe), "Efficiency was lost");
+
+        // A book with only Silk Chest becomes a plain book; anything without it is left alone.
+        ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
+        book.enchant(silk, 1);
+        ItemStack plain = excellentenchants.Retired.strip(book);
+        helper.assertTrue(plain != null && plain.is(Items.BOOK), "the empty book did not turn plain: " + plain);
+        helper.assertTrue(excellentenchants.Retired.strip(new ItemStack(Items.DIAMOND_PICKAXE)) == null, "untouched stack changed");
+
+        // A carried copy is stripped from the inventory.
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.getInventory().setItem(0, enchanted(level, Items.IRON_PICKAXE, Enchants.SILK_CHEST, 1));
+        helper.assertTrue(excellentenchants.Retired.stripPlayer(player) == 1
+                && Enchants.level(level, player.getInventory().getItem(0), Enchants.SILK_CHEST) == 0, "inventory copy kept it");
         helper.succeed();
     }
 

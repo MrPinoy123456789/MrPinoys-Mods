@@ -6,7 +6,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Clearable;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -14,7 +13,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.TypedEntityData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.SpawnerBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,7 +20,10 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
-/** Silk Chest, Silk Spawner, Tunnel and Telekinesis: everything that changes how a block breaks. */
+/**
+ * Silk Spawner, Tunnel and Telekinesis: everything that changes how a block breaks. Silk Chest used to live here;
+ * it is retired (see Retired) and does nothing now.
+ */
 public final class BlockDrops {
 
     /** Stops Tunnel's extra breaks from tunnelling again. */
@@ -36,10 +37,6 @@ public final class BlockDrops {
             if (!(level instanceof ServerLevel server) || !(player instanceof ServerPlayer sp)) return true;
             if (sp.isCreative()) return true;
             ItemStack tool = sp.getMainHandItem();
-            if (state.getBlock() instanceof ChestBlock && Enchants.level(server, tool, Enchants.SILK_CHEST) > 0 && be != null) {
-                silkChest(server, sp, pos, state, be, tool);
-                return false;
-            }
             int spawner = Enchants.level(server, tool, Enchants.SILK_SPAWNER);
             if (state.getBlock() instanceof SpawnerBlock && spawner > 0 && be != null
                     && OnHit.roll(server, Numbers.silkSpawnerChance(spawner), -1)) {
@@ -55,16 +52,6 @@ public final class BlockDrops {
             int tunnel = Enchants.level(server, tool, Enchants.TUNNEL);
             if (tunnel > 0 && !tunnelling && !sp.isShiftKeyDown()) tunnel(server, sp, pos, state, tunnel);
         });
-    }
-
-    /** The chest comes out as one item with everything still inside it. */
-    public static void silkChest(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state, BlockEntity be, ItemStack tool) {
-        ItemStack stack = new ItemStack(state.getBlock().asItem());
-        stack.applyComponents(be.collectComponents());
-        if (be instanceof Clearable clearable) clearable.clearContent();
-        level.removeBlock(pos, false);
-        Block.popResource(level, pos, stack);
-        tool.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
     }
 
     /** The spawner comes out as an item that remembers what it spawns. */
