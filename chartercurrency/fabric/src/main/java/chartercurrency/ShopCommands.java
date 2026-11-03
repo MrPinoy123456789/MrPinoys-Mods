@@ -173,9 +173,10 @@ public final class ShopCommands {
         for (Map.Entry<Currency, Long> line : entry.price().entrySet()) {
             Currency currency = line.getKey();
             long balance = economy.getBalance(player.getUUID(), currency);
-            player.sendSystemMessage(Messages.balanceLine(currency, balance)
-                    .append(Messages.body("  ->  "))
-                    .append(Messages.amount(currency, Math.max(0, balance - line.getValue()))));
+            player.sendSystemMessage(Messages.body("You have: ")
+                    .append(ShopDisplay.coins(currency, balance))
+                    .append(Messages.body(". After: "))
+                    .append(ShopDisplay.coins(currency, Math.max(0, balance - line.getValue()))));
         }
 
         MutableComponent button = Component.literal("[ Confirm purchase ]")

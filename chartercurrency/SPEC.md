@@ -110,6 +110,9 @@ so a stray import fails the build). All money, mint and earn arithmetic lives in
   defaults above are what ships.
 - Display: `3 Sovereigns, 2 Crowns, 5 Marks (213 Marks)`. Always show the Marks
   total. Zero parts are omitted (`2 Crowns (16 Marks)`).
+- The shop names prices and balances in coins only, with no Marks total:
+  `Price: 8 Sovereigns`, `You have: 3 Sovereigns (not enough)`. Marks appear only
+  when no larger coin fits. A mixed price reads `Price: 2 Sovereigns + 24 Valor`.
 
 Fixed exchange between denominations is correct here even though Cobble Economy
 forbids exchange rates: every denomination comes from the same Mint under the

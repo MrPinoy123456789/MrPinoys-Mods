@@ -106,17 +106,12 @@ final class ShopPurchase {
                         .append(Messages.good(" for "))
                         .append(ShopDisplay.priceComponent(entry))
                         .append(Messages.good(".")));
-                for (Map.Entry<Currency, Long> price : entry.price().entrySet()) {
-                    long balance = economy.getBalance(player.getUUID(), price.getKey());
-                    player.sendSystemMessage(Messages.balanceLine(price.getKey(), balance));
-                }
+                player.sendSystemMessage(ShopDisplay.youHave(economy, player.getUUID(), entry, false));
             }
             case INSUFFICIENT_FUNDS -> {
-                Currency short_ = result.charge().currency();
                 player.sendSystemMessage(Messages.bad("You cannot afford that. It costs "
                         + entry.describePrice() + "."));
-                player.sendSystemMessage(Messages.body("You have "
-                        + short_.describe(economy.getBalance(player.getUUID(), short_)) + "."));
+                player.sendSystemMessage(ShopDisplay.youHave(economy, player.getUUID(), entry, true));
             }
             case INSUFFICIENT_SPACE -> {
                 player.sendSystemMessage(Messages.bad("Your inventory does not have enough space."));
