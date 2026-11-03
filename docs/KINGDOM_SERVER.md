@@ -358,6 +358,14 @@ kingdom's members are held to the spawn rules and every kingdom's claims like an
 
 Test: `AdminKingdomBypassGameTest`.
 
+### Godmode for the admin kingdom
+
+`adminKingdomGodmode` (top level of `charter.json`, default `true`). Every member of an admin kingdom, at any rank, takes
+no damage at all: not from players, mobs, falls, fire, lava, drowning or starving. Only what ignores invulnerability in
+vanilla gets through, `/kill` and falling out of the world, so a stuck staffer can still respawn. Like the pass it comes
+from real membership only, never from standing on the admin kingdom's land, and leaving or being taken out ends it at
+once. Off, they are hurt like anyone else. Code: `AdminGodmode`. Test: `AdminGodmodeGameTest`.
+
 ## Lords discipline their own citizens (2026-11-02)
 
 Kingdom Lords are the moderators of this server; there is no moderator group. A Lord's power stops at their own

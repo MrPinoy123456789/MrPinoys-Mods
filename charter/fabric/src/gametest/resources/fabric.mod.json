@@ -14,6 +14,7 @@
       "charter.gametest.LandPlacementGameTest",
       "charter.gametest.RaceCombatGameTest",
       "charter.gametest.AdminKingdomBypassGameTest",
+      "charter.gametest.AdminGodmodeGameTest",
       "charter.gametest.LocatorBarGameTest",
       "charter.gametest.FriendlyFireGameTest",
       "charter.gametest.CarryGuardGameTest",

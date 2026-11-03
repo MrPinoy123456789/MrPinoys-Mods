@@ -49,6 +49,7 @@ public final class CharterServer {
         RaceCombatPassives.register();
         LocatorBar.register();
         FriendlyFire.register();
+        AdminGodmode.register();
         CarryGuard.register();
         ServerLifecycleEvents.AFTER_SAVE.register((s, flush, force) -> save());
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
