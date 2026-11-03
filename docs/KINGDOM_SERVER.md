@@ -168,7 +168,7 @@ To give a kingdom two Lords on the live server (names in quotes when they have s
 |---|---|---|---|---|---|
 | Azrak Dwarves (`race:azrak`) | Deep Stride: +15% walking speed under a roof of blocks | Haste I | Ore sense, 8 blocks: gold, lapis, emerald, iron, copper and redstone ores (and deepslate ones); never diamond or ancient debris | Bedrock Stance | Fortune I on ores |
 | Aurelia Humans (`race:aurelia`) | Horsemanship: the horse, donkey, mule or camel they ride gets +20% speed and +10% jump | Better trades: 10% off villager and wandering trader prices (rounded, never below 1) | Treasure sense, 8 blocks: unopened surface structure loot (villages, shipwrecks, buried treasure, mineshafts, ruined portals) | Rally | Looting I on farm animals |
-| Faeloria Fae (`race:faeloria`) | Double jump (2.25 s cooldown, a little forward carry) and half fall damage | Night Vision | Herb sense, 12 blocks: ripe nether wart, torchflower, pitcher plant, wither rose, chorus flower, glow berries on cave vines, ripe cocoa | Glamour | Fortune I on alchemy plants |
+| Faeloria Fae (`race:faeloria`) | Wing dash flight (3 bursts the way they look, a slow fall between, recharging in the air) and half fall damage | Night Vision | Herb sense, 12 blocks: ripe nether wart, torchflower, pitcher plant, wither rose, chorus flower, glow berries on cave vines, ripe cocoa | Glamour | Fortune I on alchemy plants |
 | Azurius Merfolk (`race:azurius`) | Swim dash (2 s cooldown) and Dolphin's Grace | Water Breathing | Tide sense, 10 blocks: sponge, wet sponge, suspicious sand and gravel | Tidewrath | Looting I on water things |
 | Everdelle Fairies (`race:everdelle`) | Glide, always, nothing in the chest slot; a takeoff leap (sneak and jump, 5 s cooldown) and 3 wingbeats while gliding (jump), no rockets needed | none (their Featherlight already spares all fall damage) | Glimmer sense, 7 blocks, every 4 s: diamond and emerald ores, amethyst clusters, budding amethyst | Featherlight | Fortune and Looting I on dusts |
 | Mossbeard's Muddle (`race:mossbeard_s_muddle`) | Old Forest Walk: +15% walking speed on living ground (grass, moss, podzol, mycelium, rooted or coarse dirt, mud, leaves) | Keeps everything on death (Charter `racesKeepInventory`) | Kindred sense, 12 blocks: bee nests, beehives, turtle eggs, sniffer eggs, frogspawn | none | none |
@@ -178,9 +178,16 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   base speed, 0.15 is three quarters of Speed I), the Human mount bonus is on the mount's own speed and jump attributes
   and comes off when they get down, the Fae's half fall damage cuts the fall damage multiplier (a mixin), and the double
   jump and swim dash are velocity pushes. None of it touches the Fairy glide or the wings.
-- The Fae double jump's cooldown is in `worn_displays.json` (`double_jump`, now 45 ticks, 10 percent less); its forward
-  carry is `jump_drift` (0.15 blocks a tick the way they face) in `race_traits.json`. A double jump resets the fall, so
-  the half fall damage applies to whatever fall comes after it.
+- The Fae fly by wing dash (`wing_dash` in `race_traits.json`; built 2026-11-02, see
+  `docs/FAELORIA_FLIGHT_OPTIONS.md`): jump in the air beats the leaf wings, a burst the way they look (`forward` 0.6
+  blocks a tick, `up` 0.8 looking straight up, half that looking level, none looking down). After a burst they fall
+  slowly (a short, hidden Slow Falling, renewed while it lasts) until they land or press sneak. `charges` 3, all back on
+  landing and one back every `refill` 30 ticks in the air, at least `gap` 8 ticks apart, so a Fae who paces the bursts
+  stays up. Bursts never leave them faster than `max_speed` 0.65 across the ground (a Fairy glides up to 1.2) and stop
+  climbing above `ceiling` 12 blocks over the ground below. A hit from a mob, a player or a projectile takes a charge
+  and drops them for `hit_drop` 20 ticks; poison, fire and falls do not. With no `wing_dash` block the Fae fly on these
+  defaults; `"charges": 0` brings back the old double jump (`double_jump` cooldown in `worn_displays.json`, forward
+  carry `jump_drift`). A burst resets the fall, so the half fall damage applies to whatever fall comes after it.
 - A sense searches the blocks within its radius (1 to 16, knob `radius`) every two seconds (knob `every`), each player
   on their own beat, and points at the nearest find to that player only: a short trail of coloured dust from the player
   toward it (two blocks long at most, so it hints rather than marks) and an action bar line, "Ore sense: Diamond Ore,
@@ -215,8 +222,9 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   and a tap aimed at the ground or a wall now casts too (Geyser sends it only as a block click). The Bedrock race look
   skins now carry the empty armour bones (helmet, bodyArmor, belt, arm armour, leggings, boots, cape) a Bedrock skin
   needs for worn armour to show, so a helmet shows with the antlers, beard, fins or cap. A Fae is taught the leaf wing
-  double jump (a chat line each login and an action bar hint near the top of a plain jump, at most every 30 s) until
-  they have done one; who has learned it is kept in `config/foundry/double_jump_learned.json`.
+  dash (a chat line each login and an action bar hint near the top of a plain jump, at most every 30 s) until they
+  have done one; who has learned it is kept in `config/foundry/wing_dash_learned.json` (a new file, so every Fae is
+  taught the dash once, even one who knew the old double jump).
 - Casters and left click (2026-11-02): a left click that lands on a mob or a block with a wand or staff in hand casts its
   bolt (once per click), on Java and Bedrock alike. A controller crosshair rests on the ground or locks onto mobs, so
   before this an Xbox Fae's left click almost never cast the Thorn Bolt.
@@ -243,7 +251,7 @@ their race at a glance, and the race traits come with the race:
 |---|---|---|
 | Azrak Dwarves (`race:azrak`) | A thick Dwarf beard (`kingdoms:dwarf_beard`), combined with any vanilla helmet | Haste (`racePassives`) |
 | Aurelia Humans (`race:aurelia`) | The Aurelian war banner on the back (`kingdoms:aurelia_banner`), a sashimono: a black iron pole against the back from the waist to above the head, an arm from its top reaching back, and the tall black cloth hanging from it beside the pole (seen full on from the sides), with three silver bands across the top and a skull under a solid silver crown, its eyes cut in the banner's black | Better trades (Foundry `race_traits.json`; Luck is gone) |
-| Faeloria Fae (`race:faeloria`) | Antlers in a woodland wreath (a leaf band set with white, pink and blue flowers), combined with any vanilla helmet (the wreath sits on the helmet's top); solid leaf wings that flap (`kingdoms:fae_wings`: deep green to amber tipped, serrated, veined) | Night Vision (`racePassives`); a double jump instead of gliding: press jump again in the air for a second hop, once per time off the ground, 2.5 second cooldown, no fall damage from it, with falling leaves and a rustle |
+| Faeloria Fae (`race:faeloria`) | Antlers in a woodland wreath (a leaf band set with white, pink and blue flowers), combined with any vanilla helmet (the wreath sits on the helmet's top); solid leaf wings that flap (`kingdoms:fae_wings`: deep green to amber tipped, serrated, veined) | Night Vision (`racePassives`); wing dash flight instead of gliding: jump in the air beats the wings toward where they look (3 charges, recharging in the air), with a slow fall between beats, no fall damage from it, falling leaves and a rustle |
 | Azurius Merfolk (`race:azurius`) | Fin ears (`kingdoms:merfolk_fins`): a webbed fan behind each ear sweeping back past the head, with a small frill along the jaw, deep blue at the root through aqua to a pearly scalloped edge; on a helmet they sit on its sides. A tall dorsal fin down the spine (`kingdoms:dorsal_fin`) in the same colours | Water Breathing, Dolphin's Grace (`racePassives`); a swim dash: press jump while sprint swimming (or holding sprint in the water) to dart the way you look, 2 second cooldown, with bubbles and a dolphin's splash. Plain jump in the water still rises as usual |
 | Everdelle Fairies (`race:everdelle`) | Fairy Wings that flap (a slow beat standing, livelier moving, a fast flutter in the air, spread wide gliding), shading rose to lilac to aqua to gold, with veins, eye spots and swallowtails; a sparkle trail while gliding | Glide, always, with nothing in the chest slot |
 | Mossbeard's Muddle (`race:mossbeard_s_muddle`, the admin kingdom) | An old blue hat (`kingdoms:bombadil_cap`): a tall felt crown leaning in gentle steps to a slumped tip, a dull gold and brown band, a floppy brim drooping at the front and sides and turned up at the back, and a long curved bright blue feather in the band; combined with any vanilla helmet (the hat sits on the helmet's top) | None of its own |
@@ -253,9 +261,10 @@ their race at a glance, and the race traits come with the race:
   head, as a helmet item).
 - The traits are Charter's `racePassives` (built in defaults, and merged into the server's `charter.json`).
 - The Fae and the Fairies are told apart at a glance: antlers and flowers against nothing on the head, solid green leaves
-  against see through coloured wings, and a hop in the air against a glide. The double jump (`foundry.mc.DoubleJump`,
-  rules in `foundry.core.AirJump`) only counts a fresh press after two ticks in the air, so the ground jump never fires
-  it; the hop is the server telling the client its new motion, so it works on Bedrock too.
+  against see through coloured wings, and short wingbeats and a slow fall against a long glide. The wing dash
+  (`foundry.mc.DoubleJump`, rules in `foundry.core.WingDash`) only counts a fresh press after two ticks in the air, so
+  the ground jump never fires it; the burst is the server telling the client its new motion and the slow fall is the
+  vanilla Slow Falling effect, which the client runs itself, so both work on Bedrock too.
 - The swim dash (`foundry.mc.SwimDash`, rules in `foundry.core.SwimDash`) only counts a fresh press of jump while
   swimming, so jump held from the surface does not fire it. The Tidal Gills are now a keepsake like the other old trinkets.
 - Fairies glide by race: a server mixin (`LivingEntityGlide`) lets them, holding jump while falling starts it on Java, and

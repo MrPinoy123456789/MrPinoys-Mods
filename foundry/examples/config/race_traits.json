@@ -49,6 +49,16 @@
   "race:faeloria": {
     "fall_damage": 0.5,
     "jump_drift": 0.15,
+    "wing_dash": {
+      "charges": 3,
+      "refill": 30,
+      "gap": 8,
+      "up": 0.8,
+      "forward": 0.6,
+      "max_speed": 0.65,
+      "ceiling": 12,
+      "hit_drop": 20
+    },
     "sense": {
       "name": "Herb sense",
       "blocks": [

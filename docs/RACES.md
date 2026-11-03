@@ -138,7 +138,7 @@ one sense, on top of the combat and gathering passives every race already has (s
 |---|---|---|---|---|---|
 | Azrak Dwarves (`race:azrak`) | Deep Stride: +15% walking speed under a roof of blocks | Haste I | Ore sense, 8 blocks: gold, lapis, emerald, iron, copper and redstone ores (and deepslate ones); never diamond or ancient debris | Bedrock Stance | Fortune I on ores |
 | Aurelia Humans (`race:aurelia`) | Horsemanship: the horse, donkey, mule or camel they ride gets +20% speed and +10% jump | Better trades: 10% off villager and wandering trader prices (rounded, never below 1) | Treasure sense, 8 blocks: unopened surface structure loot (villages, shipwrecks, buried treasure, mineshafts, ruined portals) | Rally | Looting I on farm animals |
-| Faeloria Fae (`race:faeloria`) | Double jump (2.25 s cooldown, a little forward carry) and half fall damage | Night Vision | Herb sense, 12 blocks: ripe nether wart, torchflower, pitcher plant, wither rose, chorus flower, glow berries on cave vines, ripe cocoa | Glamour | Fortune I on alchemy plants |
+| Faeloria Fae (`race:faeloria`) | Wing dash flight (3 bursts the way they look, a slow fall between, recharging in the air) and half fall damage | Night Vision | Herb sense, 12 blocks: ripe nether wart, torchflower, pitcher plant, wither rose, chorus flower, glow berries on cave vines, ripe cocoa | Glamour | Fortune I on alchemy plants |
 | Azurius Merfolk (`race:azurius`) | Swim dash (2 s cooldown) and Dolphin's Grace | Water Breathing | Tide sense, 10 blocks: sponge, wet sponge, suspicious sand and gravel | Tidewrath | Looting I on water things |
 | Everdelle Fairies (`race:everdelle`) | Glide, always, nothing in the chest slot; a takeoff leap (sneak and jump, 5 s cooldown) and 3 wingbeats while gliding (jump), no rockets needed | none (their Featherlight already spares all fall damage) | Glimmer sense, 7 blocks, every 4 s: diamond and emerald ores, amethyst clusters, budding amethyst | Featherlight | Fortune and Looting I on dusts |
 | Mossbeard's Muddle (`race:mossbeard_s_muddle`) | Old Forest Walk: +15% walking speed on living ground (grass, moss, podzol, mycelium, rooted or coarse dirt, mud, leaves) | Keeps everything on death (Charter `racesKeepInventory`) | Kindred sense, 12 blocks: bee nests, beehives, turtle eggs, sniffer eggs, frogspawn | none | none |
@@ -148,9 +148,16 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   base speed, 0.15 is three quarters of Speed I), the Human mount bonus is on the mount's own speed and jump attributes
   and comes off when they get down, the Fae's half fall damage cuts the fall damage multiplier (a mixin), and the double
   jump and swim dash are velocity pushes. None of it touches the Fairy glide or the wings.
-- The Fae double jump's cooldown is in `worn_displays.json` (`double_jump`, now 45 ticks, 10 percent less); its forward
-  carry is `jump_drift` (0.15 blocks a tick the way they face) in `race_traits.json`. A double jump resets the fall, so
-  the half fall damage applies to whatever fall comes after it.
+- The Fae fly by wing dash (`wing_dash` in `race_traits.json`; built 2026-11-02, see
+  `docs/FAELORIA_FLIGHT_OPTIONS.md`): jump in the air beats the leaf wings, a burst the way they look (`forward` 0.6
+  blocks a tick, `up` 0.8 looking straight up, half that looking level, none looking down). After a burst they fall
+  slowly (a short, hidden Slow Falling, renewed while it lasts) until they land or press sneak. `charges` 3, all back on
+  landing and one back every `refill` 30 ticks in the air, at least `gap` 8 ticks apart, so a Fae who paces the bursts
+  stays up. Bursts never leave them faster than `max_speed` 0.65 across the ground (a Fairy glides up to 1.2) and stop
+  climbing above `ceiling` 12 blocks over the ground below. A hit from a mob, a player or a projectile takes a charge
+  and drops them for `hit_drop` 20 ticks; poison, fire and falls do not. With no `wing_dash` block the Fae fly on these
+  defaults; `"charges": 0` brings back the old double jump (`double_jump` cooldown in `worn_displays.json`, forward
+  carry `jump_drift`). A burst resets the fall, so the half fall damage applies to whatever fall comes after it.
 - A sense searches the blocks within its radius (1 to 16, knob `radius`) every two seconds (knob `every`), each player
   on their own beat, and points at the nearest find to that player only: a short trail of coloured dust from the player
   toward it (two blocks long at most, so it hints rather than marks) and an action bar line, "Ore sense: Diamond Ore,

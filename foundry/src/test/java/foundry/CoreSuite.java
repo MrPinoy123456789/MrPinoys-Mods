@@ -37,6 +37,7 @@ public final class CoreSuite {
         bedrockMappings();
         raceTraits();
         wingFlight();
+        wingDash();
         enchanting();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
@@ -267,6 +268,67 @@ public final class CoreSuite {
         check(Math.abs(Math.hypot(fast[0], fast[2]) - f.maxSpeed()) < 1e-9, "beats never push past the speed cap (far below a rocket's)");
         check(!foundry.core.RaceTraits.parse("{\"race:everdelle\":{\"flight\":{\"beats\":50}}}").problems().isEmpty(),
                 "too many wingbeats are reported");
+    }
+
+    /** The Fae wing dash (race_traits.json wing_dash): charges, refills in the air, the slow fall, the burst and the ceiling. */
+    private static void wingDash() {
+        var d = foundry.core.RaceTraits.Dash.DEFAULT;
+        check(foundry.core.RaceTraits.defaults().of("race:faeloria").dashOrDefault() == d, "a Fae with no wing_dash set flies on the defaults");
+        var w = new foundry.core.WingDash();
+        check(!w.tick(true, false, true, 0, d), "a jump from the ground is a normal jump");
+        check(!w.tick(true, false, false, 1, d) && !w.tick(false, false, false, 2, d) && w.tick(true, false, false, 3, d),
+                "the jump that left the ground is not a burst; a fresh press in the air is");
+        check(w.charges() == d.charges() - 1 && w.slowFall(3), "a burst spends a charge and starts the slow fall");
+        w.tick(false, false, false, 4, d);
+        check(!w.tick(true, false, false, 5, d) && w.refused() && w.waiting(5, d) == d.gap() - 2, "bursts are a short gap apart");
+        long t = 6;
+        int bursts = 1;
+        while (t < 4 + d.gap() * 3L) {
+            w.tick(false, false, false, t++, d);
+            if (w.tick(true, false, false, t++, d)) bursts++;
+        }
+        check(bursts == d.charges() && w.charges() == 0, "three bursts, then none: " + bursts);
+        check(!w.tick(false, false, false, t, d) && w.slowFall(t), "the slow fall holds with no charges left");
+        long refill = t;
+        while (w.charges() == 0 && t < refill + 100) w.tick(false, false, false, ++t, d);
+        check(w.charges() == 1 && t - refill <= d.refill(), "a charge comes back in the air within " + d.refill() + " ticks");
+        // paced at the refill, the bursts never run out
+        var paced = new foundry.core.WingDash();
+        paced.tick(true, false, true, 0, d);
+        int pacedBursts = 0;
+        for (long n = 1; n < 2000; n++) {
+            boolean press = n % d.refill() == 0;
+            if (paced.tick(press, false, false, n, d)) pacedBursts++;
+        }
+        check(pacedBursts >= 2000 / d.refill() - 1, "a Fae who paces the bursts stays up: " + pacedBursts);
+        paced.tick(false, true, false, 2000, d);
+        check(!paced.slowFall(2000), "a press of sneak ends the slow fall");
+        var held = new foundry.core.WingDash();
+        held.tick(false, true, true, 0, d);
+        for (int n = 1; n <= 3; n++) held.tick(false, true, false, n, d);
+        check(held.tick(true, true, false, 4, d) && held.slowFall(4), "sneak held from before (a Bedrock toggle) does not cancel it");
+        held.hit(5, d);
+        check(!held.slowFall(5) && held.charges() == d.charges() - 2 && held.slowFall(5 + d.hitDrop()), "a hit takes a charge and drops them for a moment");
+        held.tick(false, true, true, 30, d);
+        check(held.charges() == d.charges() && !held.slowFall(31), "landing brings every charge back and ends the slow fall");
+        double[] level = foundry.core.WingDash.burst(0, -0.3, 0, 0f, 0f, d, false);
+        check(Math.abs(level[2] - d.forward()) < 1e-9 && Math.abs(level[0]) < 1e-9 && Math.abs(level[1] - d.up() / 2) < 1e-9,
+                "looking level (south): a push forward and half the lift");
+        double[] up = foundry.core.WingDash.burst(0, 0, 0, 0f, -90f, d, false);
+        check(Math.abs(up[1] - d.up()) < 1e-9 && Math.hypot(up[0], up[2]) < 1e-6, "looking straight up: all lift");
+        double[] down = foundry.core.WingDash.burst(0, -0.2, 0, 0f, 60f, d, false);
+        check(down[1] < d.up() / 8 && down[2] > 0.2, "looking well down: hardly any lift, still a push");
+        check(foundry.core.WingDash.burst(0, -0.2, 0, 0f, 90f, d, false)[1] == 0, "looking straight down: no lift");
+        double[] capped = foundry.core.WingDash.burst(0, 0, 0.6, 0f, 0f, d, false);
+        check(Math.hypot(capped[0], capped[2]) <= d.maxSpeed() + 1e-9 && d.maxSpeed() < 1.2, "bursts never stack past the speed cap, below a Fairy's");
+        double[] high = foundry.core.WingDash.burst(0, 0.3, 0, 0f, -90f, d, true);
+        check(high[1] == 0, "over the ceiling a burst no longer climbs");
+        var parsed = foundry.core.RaceTraits.parse("{\"race:faeloria\":{\"wing_dash\":{\"charges\":2,\"up\":0.9}}}");
+        var pd = parsed.traits().of("race:faeloria").dash();
+        check(parsed.problems().isEmpty() && pd.charges() == 2 && pd.up() == 0.9 && pd.refill() == d.refill(),
+                "wing_dash reads its numbers, the rest from the defaults");
+        check(!foundry.core.RaceTraits.parse("{\"race:faeloria\":{\"wing_dash\":{\"up\":5}}}").problems().isEmpty(),
+                "a wing dash out of range is reported");
     }
 
     /** The race traits (race_traits.json): every race one movement and one sense, the parser and the double jump drift. */
