@@ -116,7 +116,7 @@ public final class DoubleJump {
             burst(player, dash);
             learn(id);
             charges(player, state, dash);
-        } else if (state.refused()) {
+        } else if (state.refused() && state.charges() == 0) {
             AbilityBar.notYet(player, "Leaf wings", state.waiting(now, dash),
                     net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.AZALEA_LEAVES_BREAK));
         } else if (state.refilled()) {
@@ -127,6 +127,9 @@ public final class DoubleJump {
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal(foundry.core.JumpTip.DASH_TEXT), true);
         }
         slowFall(player, state.slowFall(now) && player.isAlive());
+        // the server runs with allow-flight off, and Bedrock moves the player under its own Slow Falling, so a Fae who has
+        // beaten their wings this time in the air is never counted as floating (vanilla kicks after 4 seconds of it)
+        if (state.burstThisAir() && player.connection != null) player.connection.resetFlyingTicks();
     }
 
     /** "Leaf wings ●●○" on the action bar: the charges left. */

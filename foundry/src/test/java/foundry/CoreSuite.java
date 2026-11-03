@@ -323,12 +323,27 @@ public final class CoreSuite {
         check(Math.hypot(capped[0], capped[2]) <= d.maxSpeed() + 1e-9 && d.maxSpeed() < 1.2, "bursts never stack past the speed cap, below a Fairy's");
         double[] high = foundry.core.WingDash.burst(0, 0.3, 0, 0f, -90f, d, true);
         check(high[1] == 0, "over the ceiling a burst no longer climbs");
+        // vanilla falling: 0.08 gravity rising, Slow Falling's 0.01 falling, 0.98 drag; one burst per refill
+        check(heightPerBeat(d, -45f) > 0, "a Fae beating at the refill pace and looking half up holds height: " + heightPerBeat(d, -45f));
+        check(heightPerBeat(d, 0f) < 0, "looking level at that pace they slowly come down: " + heightPerBeat(d, 0f));
         var parsed = foundry.core.RaceTraits.parse("{\"race:faeloria\":{\"wing_dash\":{\"charges\":2,\"up\":0.9}}}");
         var pd = parsed.traits().of("race:faeloria").dash();
         check(parsed.problems().isEmpty() && pd.charges() == 2 && pd.up() == 0.9 && pd.refill() == d.refill(),
                 "wing_dash reads its numbers, the rest from the defaults");
         check(!foundry.core.RaceTraits.parse("{\"race:faeloria\":{\"wing_dash\":{\"up\":5}}}").problems().isEmpty(),
                 "a wing dash out of range is reported");
+    }
+
+    /** Blocks gained (or lost) per burst, bursting once per refill at this pitch for 30 seconds, by vanilla's falling. */
+    private static double heightPerBeat(foundry.core.RaceTraits.Dash d, float pitch) {
+        double y = 0, vy = 0;
+        int ticks = 600;
+        for (int t = 0; t < ticks; t++) {
+            if (t % d.refill() == 0) vy = foundry.core.WingDash.burst(0, vy, 0, 0f, pitch, d, false)[1];
+            y += vy;
+            vy = (vy - (vy <= 0 ? 0.01 : 0.08)) * 0.98;
+        }
+        return y / (ticks / d.refill());
     }
 
     /** The race traits (race_traits.json): every race one movement and one sense, the parser and the double jump drift. */

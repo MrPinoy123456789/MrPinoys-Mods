@@ -628,8 +628,8 @@ public final class WornGameTest {
                     "The slow fall should be a short hidden Slow Falling: " + effect);
             foundry.mc.DoubleJump.slowFall(fae, false);
             helper.assertTrue(fae.getEffect(MobEffects.SLOW_FALLING) == null, "The slow fall did not end");
-            fae.addEffect(new net.minecraft.world.effect.MobEffectInstance(MobEffects.SLOW_FALLING, 600));
             foundry.mc.DoubleJump.slowFall(fae, true);
+            fae.addEffect(new net.minecraft.world.effect.MobEffectInstance(MobEffects.SLOW_FALLING, 600));
             foundry.mc.DoubleJump.slowFall(fae, false);
             helper.assertTrue(fae.getEffect(MobEffects.SLOW_FALLING) != null && fae.getEffect(MobEffects.SLOW_FALLING).getDuration() > 500,
                     "A potion's Slow Falling was taken off");

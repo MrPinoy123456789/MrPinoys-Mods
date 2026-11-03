@@ -183,7 +183,9 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
   blocks a tick, `up` 0.8 looking straight up, half that looking level, none looking down). After a burst they fall
   slowly (a short, hidden Slow Falling, renewed while it lasts) until they land or press sneak. `charges` 3, all back on
   landing and one back every `refill` 30 ticks in the air, at least `gap` 8 ticks apart, so a Fae who paces the bursts
-  stays up. Bursts never leave them faster than `max_speed` 0.65 across the ground (a Fairy glides up to 1.2) and stop
+  stays up: at one burst per refill, looking about half up gains about a block a beat and looking level loses about
+  1.7 (a `refill` of 20 holds height looking level). The server runs with allow-flight off, so a Fae who has beaten
+  their wings is never counted as floating (`resetFlyingTicks`). Bursts never leave them faster than `max_speed` 0.65 across the ground (a Fairy glides up to 1.2) and stop
   climbing above `ceiling` 12 blocks over the ground below. A hit from a mob, a player or a projectile takes a charge
   and drops them for `hit_drop` 20 ticks; poison, fire and falls do not. With no `wing_dash` block the Fae fly on these
   defaults; `"charges": 0` brings back the old double jump (`double_jump` cooldown in `worn_displays.json`, forward
