@@ -20,7 +20,19 @@ public final class Mint {
     /** Ingots a coin costs in the half band. */
     public static final int HALF_BAND_INGOTS = 2;
 
+    /**
+     * The one denomination the Mint strikes (owner, 2026-11-03). Copper and iron come out of mob farms without limit
+     * (drowned, iron golems), so they are not money at the Mint; Copper Marks and Iron Crowns still circulate as
+     * change, from withdrawals and payouts.
+     */
+    public static final String STRUCK = "gold";
+
     private Mint() {}
+
+    /** Whether the Mint strikes coin of this denomination from its metal. */
+    public static boolean strikes(String denominationId) {
+        return STRUCK.equals(denominationId);
+    }
 
     /** The numbers that live in settings.json under {@code mint}. */
     public record Rules(int fullBandPerDay, int halfBandPerDay, int carryOverDays) {

@@ -684,6 +684,9 @@ public final class EconomyTest {
     private static void mintPlanner() {
         section("Mint planner");
 
+        check("the Mint strikes gold only, never the farmed copper or iron",
+                Mint.strikes("gold") && !Mint.strikes("iron") && !Mint.strikes("copper"));
+
         Mint.Plan full = Mint.plan(freshMint(), "iron", 8, 10);
         check("full band first at one ingot per coin",
                 full.coinsFull() == 10 && full.coinsHalf() == 0 && full.ingotsUsed() == 10);
