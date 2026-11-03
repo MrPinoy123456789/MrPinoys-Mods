@@ -36,15 +36,15 @@ public final class MintService {
     public Mint.State state(UUID player, long today) {
         return book.locked(file -> {
             PlayerBook.Player p = file.players.get(player.toString());
-            if (p == null || p.mint == null) return Mint.State.fresh(today, rules);
-            return Mint.rollTo(p.mint, today, rules);
+            if (p == null || p.mint == null) return Mint.State.fresh(today);
+            return Mint.rollTo(p.mint, today);
         });
     }
 
     /** Plan a strike without storing anything. */
     public Mint.Plan preview(UUID player, String denominationId, int faceValue,
                              int ingotsOffered, long today) {
-        return Mint.plan(state(player, today), denominationId, faceValue, ingotsOffered);
+        return Mint.plan(state(player, today), rules, denominationId, faceValue, ingotsOffered);
     }
 
     /**

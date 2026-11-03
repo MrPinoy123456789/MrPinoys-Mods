@@ -318,11 +318,35 @@ Marks; the editor and `/shop` display it in the coin format) or in Valor, or
 both (charged both or neither, as in the fork). The confirm threshold
 (`shop.confirmAt`) works per currency as in the fork.
 
-Ship a small starter catalog in `shop.json` so the shop is not empty: common
-building blocks priced in Marks (ice, sand, glass, terracotta, quartz, concrete
-powder), a few working items in Crowns (rockets, enchanted books), and a few Valor
-listings using the `components` block (a named and trimmed armour piece, a
-custom-named player head). Every price is a placeholder the owner will retune.
+The starter catalog is `core/ShopStarter` (owner, 2026-11-03: the shop needed more
+stock, and its prices were set for the old Mint allowance). 104 listings on eight
+shelves, priced in Marks for the Mint's 320 ingot soft cap (section 8.2), about four
+times the first starter prices:
+
+| Shelf | What | Price range |
+|---|---|---|
+| Building Materials | 25 blocks: sand, gravel, glass, stone and deepslate bricks, terracotta, concrete powder, clay, ice to blue ice, quartz, prismarine, end stone, purpur | 128 to 1024 per stack (blue ice per 16) |
+| Wood | 9 overworld logs, crimson and warped stems, bamboo blocks | 128 to 192 per 64 |
+| Lighting | glowstone, sea lanterns, shroomlight, lanterns, candles | 128 to 512 |
+| Dyes | all 16 colours | 64 per 16 |
+| Garden | 9 saplings, cocoa, cane, cactus, bamboo, kelp, berries, lily pads, nether wart, bone meal | 64 to 192 |
+| Working Items | rockets, name tag, saddle, leads, string, slime, spyglass, compass, map, frames, armour stands, pots, paintings, bookshelves | 64 to 512 |
+| Enchanted Books | Unbreaking III, Efficiency IV, Protection IV, Sharpness V, Power V, Feather Falling IV, Silk Touch, Depth Strider III, Respiration III, Aqua Affinity | 384 to 1280 |
+| Honours (Valor) | the named and trimmed helm, trophy head, banner | unchanged |
+
+- Nothing gold is sold, nor anything that smelts back into gold: bought gold could be
+  struck at the Mint and the shop would become a coin loop. A test enforces it.
+- No Looting or Fortune books (they multiply gold farms) and no Mending.
+- Every item id was checked against the 26.2 and 26.3 jars.
+- A fresh server writes this catalog. An existing server runs
+  `/chartercurrency shop restock`: it adds every starter listing whose key is
+  missing, replaces a listing still exactly as the first starter shipped it (keeping
+  its enabled flag), and leaves anything the owner changed or added. It never
+  removes. Running it twice changes nothing.
+- `shop.confirmAt.coin` now defaults to 2048 (was 512), since most listings would
+  otherwise ask for confirmation. An existing `settings.json` keeps its own value.
+
+Every price is a placeholder the owner will retune.
 
 ### 7.2 The Renown catalogue
 
@@ -392,45 +416,60 @@ cannot be capped, and recipe ingredients cannot check a marker).
 - Right-clicking a bound smithing table **does not open the smithing UI**
   (cancel through Fabric API `UseBlockCallback`, returning a consuming result).
   Instead:
-  - **Holding gold ingots:** strikes Gold Sovereigns from the held stack, as many
-    as the allowance permits.
+  - **Holding gold ingots:** strikes Gold Sovereigns from the held stack, at the
+    day's current rate (section 8.2).
   - **Sneak and right-click while holding gold ingots:** strikes from every stack
     of gold in the main 36 slots.
   - **Holding copper or iron ingots:** strikes nothing and says `The Mint strikes
     gold only. Copper and iron are not money here.` (owner, 2026-11-03: mob farms
     make copper and iron without limit; this supersedes the copper and iron rates).
-  - **Empty hand or anything else:** shows the player's remaining allowance.
-- Rate: 1 gold ingot = 1 Sovereign. Copper Marks and Iron Crowns are no longer
-  struck; they still circulate as change.
+  - **Empty hand or anything else:** shows the player's rate for today.
+- Rate: 1 gold ingot = 1 Sovereign up to the daily soft cap. Copper Marks and Iron
+  Crowns are no longer struck; they still circulate as change.
 - Coins go into the inventory with `giveOrDrop`. A small sound on success (the
   fork has a `Chime` class).
 - Every strike is taxed for the striker's kingdom (section 8.3).
-- `/mint` anywhere shows the remaining allowance.
+- `/mint` anywhere shows the rate for today.
 
-### 8.2 The allowance (counted in Marks of face value, per player)
+### 8.2 The daily soft cap (counted in gold ingots, per player)
 
-| Band | Yield |
+Owner, 2026-11-03: gold may be farmed, because it is the only thing farmed into money
+and it has many other sinks (golden apples, bartering, rails). The Mint therefore has
+a generous soft cap instead of a small allowance.
+
+| Ingots spent today | Cost of one Sovereign |
 |---|---|
-| Full band: 192 Marks per day | 1 ingot per coin |
-| Half band: next 192 Marks per day | 2 ingots per coin |
-| Beyond | Nothing until the daily reset |
+| 1 to 320 (the soft cap) | 1 ingot |
+| 321 to 640 | 2 ingots |
+| 641 to 960 | 4 ingots |
+| every further 320 | doubles, to at most 64 ingots |
 
-- Unused full band carries over for up to 2 extra days (store
-  `fullRemaining`, refilled by 192 each reset, capped at 576). The half band does
-  not carry over (refilled to 192 each reset).
-- The full band is used first. A strike never splits a coin across bands: if a
-  Sovereign (64) does not fit in what remains of the full band, it is struck from
-  the half band if it fits there; otherwise it is not struck.
-- All numbers live in `settings.json` under `mint`.
-- Put this in `core/` as a pure planner:
-  `MintPlan plan(MintState state, int faceValue, int ingotsOffered)` returning
-  ingots used, coins out and the new state. The fabric side only removes the
+- There is no hard stop. A full inventory of gold (2304 ingots) strikes 636
+  Sovereigns in one day: 320 at full rate and 316 past it.
+- The count resets to 0 at midnight. Nothing carries over.
+- Coins are struck one at a time at the cost the day has reached, so a coin that
+  starts below a step is struck at the lower cost. Ingots short of the next coin's
+  cost stay with the player.
+- The day counts every coin struck, taxed or not (section 8.3).
+- `softCapIngots` (320) and `falloffEvery` (320) live in `settings.json` under
+  `mint`. The 64 ingot ceiling is `Mint.MAX_INGOTS_PER_COIN`, fixed in code.
+- This replaces the 192 Mark full band, the 192 Mark half band and their two day
+  carry-over. A `settings.json` with the old keys is rewritten with the new ones
+  at the next load, and a player's stored band numbers are ignored.
+- The planner is pure, in `core/`:
+  `Mint.plan(State state, Rules rules, String denominationId, int faceValue, int ingotsOffered)`
+  returns ingots used, coins out and the new state. The fabric side only removes the
   ingots, gives the coins and saves the state.
 
 Line examples:
-- `Struck 10 Iron Crowns: 8 to you, 2 to Northreach. Today: 112 of 192 left at full rate, then 192 at half.`
-- `Half rate now: 2 ingots per coin.`
-- `The Mint is done with you for today. It reopens at midnight.`
+- `Struck 10 Gold Sovereigns: 8 to you, 2 to Northreach. Today: 310 of 320 gold ingots left at full rate, one Sovereign each.`
+- `Past today's full rate: 2 ingots per Sovereign, 4 after 200 more. Full rate again at midnight.`
+- `A Gold Sovereign costs 2 ingots now.` (when one ingot is offered past the soft cap)
+
+Supply: one player at the soft cap strikes 20,480 Marks a day. Prices set for the old
+allowance (about 154 Marks a day kept) are far too low for a gold farmer; the shop
+was repriced with this change (section 7.1), and Charter's Marks prices (a keep at
+2048) are Charter's to revisit.
 
 ### 8.3 The Mint tax: 2 of every 10 coins
 
@@ -443,17 +482,17 @@ rate is fixed in code at 20 percent and **is not configurable** (owner,
   fifth coin is credited to the kingdom's treasury (as its face value in Marks)
   instead of being given to the player. This is exactly 2 in 10 over time, never
   rounds, and works for a strike of one Sovereign as well as a stack of copper.
-- **The allowance counts every coin struck, taxed or not.** The tax does not let
-  anyone mint more, and the daily supply cap is unchanged. A player's own take
-  from a full band is about 154 Marks a day, not 192.
+- **The soft cap counts every coin struck, taxed or not.** The tax does not let
+  anyone mint more. A player's own take from the full rate is 256 Sovereigns a
+  day, not 320.
 - **Players in no kingdom pay the same 20 percent, and it is destroyed** (never
   struck). Leaving a kingdom therefore never makes minting cheaper, and there is
   no server account that piles up coin.
 - The counter belongs to the player, not to the kingdom; it carries across a
   change of kingdom so nobody can reset it by hopping.
 - The tax is part of the core mint planner:
-  `MintPlan plan(MintState state, int faceValue, int ingotsOffered)` also returns
-  coins to the player, coins to the kingdom and the new tax counter.
+  `Mint.plan` also returns coins to the player, coins to the kingdom and the new
+  tax counter.
 
 ### 8.4 Melting
 
@@ -534,8 +573,8 @@ this file is ignored.
 ```json
 {
   "timezone": "",
-  "mint": { "fullBandPerDay": 192, "halfBandPerDay": 192, "carryOverDays": 2 },
-  "shop": { "confirmAt": { "coin": 512, "valor": 100 } }
+  "mint": { "softCapIngots": 320, "falloffEvery": 320 },
+  "shop": { "confirmAt": { "coin": 2048, "valor": 100 } }
 }
 ```
 
@@ -577,12 +616,12 @@ Keep every forked test passing under the new names, then add:
 - **Denominations:** deposit counts mixed coins at face value; exact deposit;
   overpay with change; not enough in total returns null; `makeChange` gives the
   fewest coins; withdraw rolls back with no inventory space.
-- **Mint planner:** full band first; half band at 2 ingots per coin; no coin
-  split across bands; carry-over refills and caps at 576; nothing past the half
-  band; an odd ingot left in the half band is not consumed.
+- **Mint planner:** one ingot per coin up to the 320 ingot soft cap; the cost
+  doubles every 320 ingots past it, to at most 64; a coin starting below a step
+  costs the lower rate; ingots short of a coin are not consumed; a new day resets.
 - **Mint tax:** every fifth coin per denomination goes to the kingdom; the
   counter persists across strikes (strikes of 3 then 2 tax the fifth); exactly 20
-  percent over 1,000 random strikes; allowance counts taxed coins; no kingdom
+  percent over 1,000 random strikes; the soft cap counts taxed coins; no kingdom
   means the fifth coin is destroyed; the counter survives a kingdom change.
 - **Treasury:** deposit and withdraw follow bank rules; only the Lord withdraws;
   never negative under concurrent withdrawals.
@@ -615,7 +654,7 @@ owner's go-ahead and following `pocketdungeons/CONVENTIONS.md`.
    3 Sovereigns 1 Crown, and `/pay` moves coin.
 3. **Valor.** Item-less currency; `/withdraw` and `/pay` refuse it; shop
    listings in Valor work.
-4. **Mint and treasury.** Bind, strike, allowance, carry-over, the 20 percent
+4. **Mint and treasury.** Bind, strike, the soft cap and falloff, the 20 percent
    tax, kingdom treasuries and `/treasury`, messages, `/mint`. Needs the kingdom
    resolver from milestone 5, so build that resolver first in this milestone.
 5. **Earn and Renown.** Earn endpoint, caps, run de-duplication, probation,

@@ -90,12 +90,18 @@ final class MintListener {
     }
 
     private String allowanceLine(Mint.State st) {
-        long perDay = s.settings.mint.fullBandPerDay();
-        if (st.fullRemaining + st.halfRemaining <= 0) {
-            return "The Mint is done with you for today. It reopens at midnight.";
+        Mint.Rules rules = s.settings.mint;
+        int cost = Mint.ingotsPerCoin(st.ingotsToday, rules);
+        long until = Mint.ingotsUntilFalloff(st.ingotsToday, rules);
+        if (cost == 1) {
+            return "Today: " + until + " of " + rules.softCapIngots()
+                    + " gold ingots left at full rate, one Sovereign each.";
         }
-        return "Today: " + st.fullRemaining + " of " + Math.max(perDay, st.fullRemaining)
-                + " left at full rate, then " + st.halfRemaining + " at half.";
+        if (until < 0) {
+            return "Past today's full rate: " + cost + " ingots per Sovereign until midnight.";
+        }
+        return "Past today's full rate: " + cost + " ingots per Sovereign, " + (cost * 2)
+                + " after " + until + " more. Full rate again at midnight.";
     }
 
     private void strike(ServerPlayer player, Denomination d, boolean everyStack) {
@@ -123,18 +129,12 @@ final class MintListener {
         Mint.Plan plan = s.mint.preview(player.getUUID(), d.id(), d.value(), ingots, today);
         if (!plan.struck()) {
             Mint.State st = s.mint.state(player.getUUID(), today);
-            switch (plan.shortfall()) {
-                case NEED_MORE_INGOTS -> player.sendSystemMessage(Messages.body(
-                        "Half rate now: " + Mint.HALF_BAND_INGOTS + " ingots per coin."));
-                case NOTHING_OFFERED -> player.sendSystemMessage(Messages.body(allowanceLine(st)));
-                default -> {
-                    if (st.fullRemaining + st.halfRemaining <= 0) {
-                        player.sendSystemMessage(Messages.body(allowanceLine(st)));
-                    } else {
-                        player.sendSystemMessage(Messages.body("Not enough allowance left for a "
-                                + d.singular() + ". " + allowanceLine(st)));
-                    }
-                }
+            if (plan.shortfall() == Mint.Shortfall.NEED_MORE_INGOTS) {
+                player.sendSystemMessage(Messages.body("A " + d.singular() + " costs "
+                        + Mint.ingotsPerCoin(st.ingotsToday, s.settings.mint) + " ingots now. "
+                        + allowanceLine(st)));
+            } else {
+                player.sendSystemMessage(Messages.body(allowanceLine(st)));
             }
             return;
         }
@@ -169,10 +169,6 @@ final class MintListener {
         }
         line.append(". ").append(allowanceLine(s.mint.state(player.getUUID(), today)));
         player.sendSystemMessage(Messages.good(line.toString()));
-        if (plan.coinsHalf() > 0) {
-            player.sendSystemMessage(Messages.body(
-                    "Half rate now: " + Mint.HALF_BAND_INGOTS + " ingots per coin."));
-        }
         if (kingdom == null && plan.coinsToKingdom() > 0) {
             player.sendSystemMessage(Messages.body(
                     "You are in no kingdom, so the taxed coin is not kept by anyone."));

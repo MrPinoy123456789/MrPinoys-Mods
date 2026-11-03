@@ -12,6 +12,7 @@ import chartercurrency.core.CurrencyRegistry;
 import chartercurrency.core.EconomyService;
 import chartercurrency.core.ShopCatalog;
 import chartercurrency.core.ShopEntry;
+import chartercurrency.core.ShopStarter;
 import chartercurrency.core.TxResult;
 import chartercurrency.core.Wallet;
 import chartercurrency.dialog.DialogTest;
@@ -88,6 +89,7 @@ public final class AdminCommands {
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop edit", "Edit the shop in a menu"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop list", "List all shop entries"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop reload", "Reload shop.json"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop restock", "Add the starter stock; reprice untouched starter entries"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop add <key> <item> <qty> <price> <currency>", "Add a shop entry"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop remove <key>", "Remove a shop entry"), false);
                     source.sendSuccess(() -> Messages.helpLine("/chartercurrency shop setprice <key> <price> <currency>", "Set an entry's price"), false);
@@ -114,6 +116,7 @@ public final class AdminCommands {
                         .then(Commands.literal("edit").executes(this::shopEdit))
                         .then(Commands.literal("list").executes(this::shopList))
                         .then(Commands.literal("reload").executes(this::shopReload))
+                        .then(Commands.literal("restock").executes(this::shopRestock))
                         .then(Commands.literal("remove")
                                 .then(entryArg().executes(this::shopRemove)))
                         .then(Commands.literal("enable")
@@ -310,6 +313,17 @@ public final class AdminCommands {
         ctx.getSource().sendSuccess(() -> Messages.good(
                 "Reloaded shop.json (" + catalog.size() + " entries)."), true);
         log.admin(ctx.getSource().getTextName() + " reloaded the shop config");
+        return 1;
+    }
+
+    private int shopRestock(CommandContext<CommandSourceStack> ctx) {
+        ShopStarter.Restock done = ShopStarter.restock(catalog);
+        if (done.added() + done.updated() > 0) shopConfig.save(catalog);
+        ctx.getSource().sendSuccess(() -> Messages.good("Restocked: " + done.added() + " added, "
+                + done.updated() + " repriced, " + done.kept() + " left as you set them ("
+                + catalog.size() + " entries)."), true);
+        log.admin(ctx.getSource().getTextName() + " restocked the shop: " + done.added() + " added, "
+                + done.updated() + " repriced, " + done.kept() + " kept");
         return 1;
     }
 

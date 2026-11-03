@@ -55,7 +55,7 @@ public final class EconomySettings {
     /** Time zone for "today" (Mint allowance, daily caps). Blank means the server's own. */
     public String timezone = "";
 
-    /** Mint allowance numbers. The tax rate is NOT here: it is fixed in code. */
+    /** Mint soft cap and falloff. The tax rate is NOT here: it is fixed in code. */
     public chartercurrency.core.Mint.Rules mint = chartercurrency.core.Mint.Rules.defaults();
 
     /** The zone "today" is measured in. A bad name falls back to the system zone. */
@@ -106,7 +106,7 @@ public final class EconomySettings {
             // LinkedHashMap rather than Map.of: this is written back out to settings.json
             // and a randomised order would rewrite the file differently every restart.
             Map<String, Long> out = new LinkedHashMap<>();
-            out.put("coin", 512L);
+            out.put("coin", 2048L);
             out.put("valor", 100L);
             return out;
         }
@@ -198,14 +198,15 @@ public final class EconomySettings {
             }
             if (root.has("timezone")) settings.timezone = root.get("timezone").getAsString();
             JsonObject mintBlock = root.getAsJsonObject("mint");
-            if (mintBlock == null) {
+            if (mintBlock == null || !mintBlock.has("softCapIngots")) {
+                // Missing, or the old band keys (fullBandPerDay, halfBandPerDay, carryOverDays):
+                // write the soft cap keys with their defaults.
                 rewrite = true;
             } else {
                 chartercurrency.core.Mint.Rules d = settings.mint;
                 settings.mint = new chartercurrency.core.Mint.Rules(
-                        Math.max(1, integer(mintBlock, "fullBandPerDay", d.fullBandPerDay())),
-                        Math.max(1, integer(mintBlock, "halfBandPerDay", d.halfBandPerDay())),
-                        Math.max(0, integer(mintBlock, "carryOverDays", d.carryOverDays())));
+                        Math.max(0, integer(mintBlock, "softCapIngots", d.softCapIngots())),
+                        Math.max(1, integer(mintBlock, "falloffEvery", d.falloffEvery())));
             }
             if (!root.has("timezone")) rewrite = true;
         } catch (Exception e) {
@@ -251,9 +252,8 @@ public final class EconomySettings {
         root.add("shop", shop);
         root.addProperty("timezone", timezone);
         JsonObject mintBlock = new JsonObject();
-        mintBlock.addProperty("fullBandPerDay", mint.fullBandPerDay());
-        mintBlock.addProperty("halfBandPerDay", mint.halfBandPerDay());
-        mintBlock.addProperty("carryOverDays", mint.carryOverDays());
+        mintBlock.addProperty("softCapIngots", mint.softCapIngots());
+        mintBlock.addProperty("falloffEvery", mint.falloffEvery());
         root.add("mint", mintBlock);
 
         try {
