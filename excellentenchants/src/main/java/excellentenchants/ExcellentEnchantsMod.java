@@ -21,6 +21,7 @@ public final class ExcellentEnchantsMod implements ModInitializer {
         Armor.register();
         BlockDrops.register();
         Projectiles.register();
+        EnchantsCommand.register();
         LOG.info("Excellent Enchants initialised (server-side only)");
     }
 }
