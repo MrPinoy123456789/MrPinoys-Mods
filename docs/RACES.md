@@ -72,8 +72,13 @@ Always on, and deliberately mild. They are knobs in Charter (`charter.json`), so
 | Fae | Glamour: hostile mobs lose interest at range | Deception | Mobs farther than 6 blocks drop their target; for 10 s after the Fae attacks, they do not |
 | Fairy | Featherlight: no fall damage and a small dodge | Evasion | No fall damage; 8% chance to dodge a melee hit |
 
-Merfolk also mine at normal speed while submerged (vanilla slows submerged mining to a fifth). This is a utility, not
-combat: they already dominate the water, so it only removes the penalty and gives nothing extra.
+Merfolk also mine in the water exactly as fast as standing on land, whether on the sea floor or floating (vanilla slows
+submerged mining to a fifth, and to a fifth again when standing on nothing). This is a utility, not combat: they
+already dominate the water, so it only removes the penalties and gives nothing extra. An Aqua Affinity helmet adds
+nothing on top (before 2026-11-03 it did, and a Merfolk with one mined five times faster than on land). Standing on the
+sea floor they also walk as on land (water movement efficiency 1, what Depth Strider III gives; Depth Strider boots add
+nothing on top). Their Dolphin's Grace (Speed II on Bedrock) is only while swimming, arms paddling, and they have
+Night Vision while their head is under water.
 
 Glamour is the loosest fit. Vanilla has no event for a mob choosing a target and Foundry and Charter use no Mixins, so
 Glamour clears the target of nearby hostile mobs on a short timer instead of preventing it. A mob can still notice a
