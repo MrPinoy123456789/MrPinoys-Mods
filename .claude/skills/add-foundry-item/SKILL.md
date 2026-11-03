@@ -17,6 +17,7 @@ File: `config/foundry/content/<namespace>/items/<name>.json` on the server; in t
 Required: `schema_version` (1), `id` (`namespace:name`, lowercase), `display_name`, `base_item` (a real vanilla item).
 Optional: `lore`, `model`, `texture`, `stack_size` (1 to 99), `durability`, `glint`, `rarity` (common, uncommon, rare, epic),
 `attack_damage` and `attack_speed` (melee numbers), `handheld` (hold a textured item like a tool),
+`tool` (`{"kind": "pickaxe", "tier": "iron"}`: mine as that vanilla tool; without it the item mines like a hand),
 `require_permission` (a node such as `race:azrak`; only holders can use, swing or hit, ops pass), `locked_message`,
 `keep_on_death`.
 

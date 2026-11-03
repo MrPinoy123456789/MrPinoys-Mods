@@ -4,6 +4,7 @@
   "display_name": "Runed War Pick II",
   "lore": [
     "Hit: 3 extra damage that ignores armour.",
+    "Mines as an iron pickaxe.",
     "Right click: Ground Slam, 5 damage and a heavy shove to everything within 3 blocks. 11s recharge.",
     "Sneak and right click: Stone Skin, tough but slow for 7s. 85s recharge.",
     "Upgrade: a netherite ingot and 2 diamonds, crafted with this."
@@ -24,6 +25,10 @@
     ]
   },
   "handheld": true,
+  "tool": {
+    "kind": "pickaxe",
+    "tier": "iron"
+  },
   "require_permission": "race:azrak",
   "locked_message": "Only the Dwarves of Azrak can wield this.",
   "keep_on_death": true,

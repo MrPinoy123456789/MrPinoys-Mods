@@ -84,6 +84,8 @@ both). Roles and tier I to III numbers:
 - Each weapon has `require_permission` `race:<kingdom>`. Charter answers that node for members (`RaceNodes`), through
   the Fabric permission API. Ops pass the lock. A race mod can grant the same nodes later.
 - `keep_on_death` keeps the weapon with its owner. `handheld` makes the icon held like a tool.
+- `tool` makes an item mine as a vanilla tool. The war pick mines as a stone, iron and diamond pickaxe by rank; a
+  Foundry item without `tool` mines like a bare hand whatever its base item.
 - Base items are bone (trident), blaze rod (staff), breeze rod (wand), stone pickaxe, iron sword. Never use `stick`:
   Litematica uses it as a client tool.
 - Bedrock: Geyser cannot read Polymer models. `foundry/tools/gen_bedrock.py` writes the Geyser mappings and the

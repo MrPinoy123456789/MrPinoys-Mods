@@ -40,6 +40,7 @@ final class FoundryItems {
                 .rarity(Rarity.valueOf(def.rarity().toUpperCase(Locale.ROOT)));
         if (def.durability() > 0) props.durability(def.durability());
         if (def.glint()) props.component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        if (def.tool() != null) props.component(DataComponents.TOOL, tool(def.tool()));
         if (def.enchantability() > 0) props.enchantable(def.enchantability());
         if (def.worn() && WornItems.trinkets()) TrinketsHook.equippable(props, def.wornSlots());
         if (def.glider()) {
@@ -68,6 +69,33 @@ final class FoundryItems {
         Item item = Registry.register(BuiltInRegistries.ITEM, id, new FoundryItem(props, base, model, def.id()));
         REGISTERED.put(def.id(), item);
         NAMES.put(def.id(), def.displayName());
+    }
+
+    /**
+     * The vanilla tool component for a kind and tier, built the way vanilla builds its own tools: blocks below the tier
+     * drop nothing, blocks of the kind mine at the tier's speed and drop, everything else at hand speed.
+     */
+    static net.minecraft.world.item.component.Tool tool(ItemDef.Tool t) {
+        var material = switch (t.tier()) {
+            case "wood" -> net.minecraft.world.item.ToolMaterial.WOOD;
+            case "stone" -> net.minecraft.world.item.ToolMaterial.STONE;
+            case "copper" -> net.minecraft.world.item.ToolMaterial.COPPER;
+            case "iron" -> net.minecraft.world.item.ToolMaterial.IRON;
+            case "gold" -> net.minecraft.world.item.ToolMaterial.GOLD;
+            case "diamond" -> net.minecraft.world.item.ToolMaterial.DIAMOND;
+            default -> net.minecraft.world.item.ToolMaterial.NETHERITE;
+        };
+        var mineable = switch (t.kind()) {
+            case "axe" -> net.minecraft.tags.BlockTags.MINEABLE_WITH_AXE;
+            case "shovel" -> net.minecraft.tags.BlockTags.MINEABLE_WITH_SHOVEL;
+            case "hoe" -> net.minecraft.tags.BlockTags.MINEABLE_WITH_HOE;
+            default -> net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE;
+        };
+        var blocks = BuiltInRegistries.acquireBootstrapRegistrationLookup(BuiltInRegistries.BLOCK);
+        return new net.minecraft.world.item.component.Tool(List.of(
+                net.minecraft.world.item.component.Tool.Rule.deniesDrops(blocks.getOrThrow(material.incorrectBlocksForDrops())),
+                net.minecraft.world.item.component.Tool.Rule.minesAndDrops(blocks.getOrThrow(mineable), material.speed())),
+                1.0F, 1, true);
     }
 
     /**

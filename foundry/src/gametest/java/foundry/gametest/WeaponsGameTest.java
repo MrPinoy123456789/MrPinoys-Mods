@@ -102,6 +102,39 @@ public final class WeaponsGameTest {
         helper.succeed();
     }
 
+    /**
+     * The war pick mines as a stone, iron and diamond pickaxe by rank: the same speed on every block and the same blocks
+     * drop as the vanilla pickaxe of that tier, and the client's copy carries the same tool so mining looks right too.
+     */
+    @SuppressWarnings("removal")
+    @GameTest
+    public void theWarPickMinesAsAStoneIronAndDiamondPickaxeByRank(GameTestHelper helper) {
+        var blocks = List.of(net.minecraft.world.level.block.Blocks.STONE, net.minecraft.world.level.block.Blocks.IRON_ORE,
+                net.minecraft.world.level.block.Blocks.DIAMOND_ORE, net.minecraft.world.level.block.Blocks.OBSIDIAN,
+                net.minecraft.world.level.block.Blocks.DEEPSLATE, net.minecraft.world.level.block.Blocks.DIRT,
+                net.minecraft.world.level.block.Blocks.OAK_LOG);
+        var viewer = helper.makeMockServerPlayerInLevel();
+        Item[] vanilla = {Items.STONE_PICKAXE, Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE};
+        for (int rank = 1; rank <= 3; rank++) {
+            var pick = new ItemStack(item(tier("kingdoms:azrak_pick", rank)));
+            var like = new ItemStack(vanilla[rank - 1]);
+            for (var block : blocks) {
+                var state = block.defaultBlockState();
+                helper.assertTrue(pick.getDestroySpeed(state) == like.getDestroySpeed(state),
+                        "war pick " + rank + " mines " + block + " at " + pick.getDestroySpeed(state) + ", not " + like.getDestroySpeed(state));
+                helper.assertTrue(pick.isCorrectToolForDrops(state) == like.isCorrectToolForDrops(state),
+                        "war pick " + rank + " drops " + block + " differently from " + like.getItem());
+            }
+            ItemStack client = net.fabricmc.fabric.api.networking.v1.context.PacketContext.supplyWithContext(viewer.connection,
+                    () -> eu.pb4.polymer.core.api.item.PolymerItemUtils.getPolymerItemStack(pick,
+                            net.fabricmc.fabric.api.networking.v1.context.PacketContext.get(), viewer.registryAccess()));
+            helper.assertTrue(java.util.Objects.equals(client.get(DataComponents.TOOL), pick.get(DataComponents.TOOL)),
+                    "the client's copy of war pick " + rank + " mines as the server's does");
+        }
+        helper.assertFalse(new ItemStack(item("kingdoms:faeloria_staff_1")).has(DataComponents.TOOL), "a staff mines like a hand");
+        helper.succeed();
+    }
+
     /** Spellpower III adds 3 to what a wand's sparkle does; Potency II makes Mischief's lift last half again as long. */
     @GameTest
     public void spellpowerAndPotencyStrengthenTheWand(GameTestHelper helper) {
