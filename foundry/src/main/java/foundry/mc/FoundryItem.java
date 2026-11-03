@@ -189,11 +189,15 @@ final class FoundryItem extends SimplePolymerItem {
         var hold = Charging.end(sp);
         if (hold == null || !hold.contentId().equals(contentId)) return false;
         long held = sp.level().getServer().getTickCount() - hold.startTick();
-        if (held < hold.needTicks()) {
+        var list = mechanics();
+        if (hold.index() < 0 || hold.index() >= list.size()) return false;
+        var m = list.get(hold.index());
+        if (held < m.releaseTicks()) {
             sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Hold longer"), true);
             return false;
         }
-        return MechanicHost.fireCharged(contentId, mechanics(), hold.index(), sp);
+        // A mechanic that allows an early release runs at part charge; any other has waited its full charge here.
+        return MechanicHost.fireCharged(contentId, list, hold.index(), sp, m.chargeOf(held));
     }
 
     /** What the client is told to show: a bow draw for a charged item, and the melee numbers the server uses. */

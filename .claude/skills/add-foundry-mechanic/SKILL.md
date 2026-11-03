@@ -29,7 +29,8 @@ A working example: `foundry/examples/content/demo/items/crystal_sword.json`. The
 ## What is legal
 
 Triggers: `on_use` (right click), `on_hit_entity` (melee hit on a living entity), `on_swing` (left click, including
-at air; not a melee hit and not mining), `on_bolt_hit` (a bolt this item launched landed; needs a `tag`).
+at air; not a melee hit and not mining), `on_bolt_hit` (a bolt this item launched landed; needs a `tag`), `on_parry` (a `parry` this item opened stopped a
+hit; `target "hit"` is the attacker, and it only runs when a living attacker is within 16 blocks).
 
 Actions:
 - `play_sound`: `sound` (id), optional `volume` (0 to 10), `pitch` (0.5 to 2), `target`.
@@ -44,14 +45,25 @@ Actions:
   default 1), `radius` (hit size, default 0.4), `particle`, `require_permission`, `exclude_permission`. Flies along the
   look direction, stops at the first block, never hits the caster, and passes through entities that fail the filters.
   Not allowed under on_bolt_hit. At most 8 live bolts per player, 256 in all.
+- `dash_strike` (on_use only): `range` (1 to 16 blocks at full charge), `amount` (damage at full charge), optional
+  `min_range` and `min_damage` (a fraction, 0 to 1) for the shortest hold, `effect`, `duration`, `amplifier` (put on
+  each thing cut), `colour` (the slash line), `require_permission`, `exclude_permission`. Carries the player along the
+  ground the way they face, steps up one block, stops at walls, and cuts every living thing in the path once. Pair it
+  with `min_charge_ticks` for a hold that can be let go early.
+- `parry` (on_use only): `window` (1 to 40 ticks), optional `refund` (0 to 1 of the recharge given back when it lands).
+  The next melee blow or projectile in the window is cancelled and the item's on_parry mechanics answer the attacker.
+  Explosions, fire, falls, poison and magic are never stopped.
 
 Conditions: `has_permission`: `level` (0 to 4 command level), optional `target`. `is_sneaking`: optional `value`
-(true by default; false means "not sneaking").
+(true by default; false means "not sneaking"). `in_water`: in water or rain. `on_foot`: not riding and not in water.
 
 Mechanic fields besides trigger, conditions, actions: `cooldown_ticks`, `chance`, `name` (a label; when the power is on
-cooldown the player sees "<name> is recharging: 42s" on the action bar) and `tag` (on_bolt_hit only).
+cooldown the player sees "<name> is recharging: 42s" on the action bar), `tag` (on_bolt_hit only), `charge_ticks`
+(on_use only: hold right click this long, then let go) and `min_charge_ticks` (below charge_ticks: the hold may be let
+go from this many ticks at part charge, with a charge meter on the action bar; Bedrock casts wait the full charge).
 
-`target`: `self` (default, the acting player), `hit` (the entity struck; only on `on_hit_entity` and `on_bolt_hit`) or
+`target`: `self` (default, the acting player), `hit` (the entity struck; only on `on_hit_entity`, `on_bolt_hit` and
+`on_parry`) or
 `area` (apply_effect only).
 
 Conditions are checked before the cooldown, so a sneak only power on cooldown stays quiet on a plain right click.

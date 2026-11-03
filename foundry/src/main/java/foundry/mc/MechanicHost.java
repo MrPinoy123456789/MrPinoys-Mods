@@ -43,6 +43,11 @@ public final class MechanicHost implements MechanicRunner.Host {
     private final ServerPlayer player;
     private final LivingEntity hit;
     private final String contentId;
+    /** The mechanic being run and its index in the item's list (a parry remembers which recharge to give back). */
+    private MechanicDef current;
+    private int index = -1;
+    /** How charged a released hold was, 0 to 1; 1 for everything that is not a part charge. */
+    private double charge = 1;
 
     private MechanicHost(ServerPlayer player, LivingEntity hit, String contentId) {
         this.player = player;
@@ -65,6 +70,8 @@ public final class MechanicHost implements MechanicRunner.Host {
             if (m.trigger() != trigger) continue;
             if (m.charged()) continue; // fires on release, through fireCharged
             if (trigger == Trigger.ON_BOLT_HIT && !m.tag().equals(tag)) continue;
+            host.current = m;
+            host.index = i;
             var outcome = RUNNER.fire(player.getStringUUID(), contentId, i, m, host);
             if (outcome == MechanicRunner.Outcome.RAN) {
                 any = true;
@@ -96,14 +103,36 @@ public final class MechanicHost implements MechanicRunner.Host {
         return -1;
     }
 
-    /** Runs the charged mechanic that was armed when the hold began. True when it ran. */
+    /** Runs the charged mechanic that was armed when the hold began, at full charge. True when it ran. */
     static boolean fireCharged(String contentId, List<MechanicDef> mechanics, int index, ServerPlayer player) {
+        return fireCharged(contentId, mechanics, index, player, 1);
+    }
+
+    /** As above, at {@code charge} (0 to 1, see MechanicDef.chargeOf). */
+    static boolean fireCharged(String contentId, List<MechanicDef> mechanics, int index, ServerPlayer player, double charge) {
         if (index < 0 || index >= mechanics.size()) return false;
         MechanicDef m = mechanics.get(index);
         MechanicHost host = new MechanicHost(player, null, contentId);
+        host.current = m;
+        host.index = index;
+        host.charge = Math.max(0, Math.min(1, charge));
         var outcome = RUNNER.fire(player.getStringUUID(), contentId, index, m, host, false);
         if (outcome == MechanicRunner.Outcome.RAN) AbilityBar.started(player, contentId, index, m);
         return outcome == MechanicRunner.Outcome.RAN;
+    }
+
+    /**
+     * A parry opened by mechanic {@code index} landed: gives back {@code ticks} of its recharge and runs the item's
+     * on_parry mechanics against {@code attacker} (null when there is nobody to answer). True when one ran.
+     */
+    static boolean parried(String contentId, List<MechanicDef> mechanics, int index, long ticks, ServerPlayer player,
+            LivingEntity attacker) {
+        if (ticks > 0) {
+            long now = player.level().getServer().getTickCount();
+            long readyAt = RUNNER.refund(player.getStringUUID(), contentId, index, ticks, now);
+            AbilityBar.refunded(player, contentId, index, readyAt);
+        }
+        return attacker != null && fire(Trigger.ON_PARRY, contentId, mechanics, player, attacker);
     }
 
     /** Ticks until this player may use mechanic {@code index} of {@code contentId} again (0 when ready). */
@@ -133,6 +162,7 @@ public final class MechanicHost implements MechanicRunner.Host {
             case "is_sneaking" -> player.isShiftKeyDown() == Boolean.parseBoolean(condition.param("value", "true"));
             // in water or out in the rain: the Merfolk's weapon is stronger wet
             case "in_water" -> player.isInWaterOrRain() == Boolean.parseBoolean(condition.param("value", "true"));
+            case "on_foot" -> Quickdraw.onFoot(player) == Boolean.parseBoolean(condition.param("value", "true"));
             default -> false;
         };
     }
@@ -254,6 +284,10 @@ public final class MechanicHost implements MechanicRunner.Host {
                 if (target instanceof ServerPlayer p) p.sendSystemMessage(Component.literal(action.param("message", "")), true);
             }
             case "launch_bolt" -> Bolts.launch(player, contentId, action);
+            case "dash_strike" -> Quickdraw.strike(player, action, charge);
+            case "parry" -> {
+                if (current != null) Parry.open(player, contentId, index, current.cooldownTicks(), action);
+            }
             case "give_item" -> {
                 if (target instanceof Player p) {
                     var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(action.param("item", "")));

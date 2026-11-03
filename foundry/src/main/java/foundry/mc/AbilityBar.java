@@ -60,6 +60,14 @@ public final class AbilityBar {
         if (m.charged()) player.containerMenu.sendAllDataToRemote();
     }
 
+    /** A tracked ability got part of its recharge back (a parry that landed): it is now ready at {@code readyAt}. */
+    static void refunded(ServerPlayer player, String contentId, int index, long readyAt) {
+        Map<String, Cooling> cooling = COOLING.get(player.getUUID());
+        if (cooling == null) return;
+        cooling.computeIfPresent(contentId + "#" + index,
+                (k, c) -> new Cooling(c.contentId(), c.index(), c.name(), readyAt, c.chime(), c.charged()));
+    }
+
     static void tick(MinecraftServer server) {
         long now = server.getTickCount();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {

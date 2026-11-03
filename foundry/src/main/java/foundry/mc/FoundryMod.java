@@ -158,12 +158,15 @@ public final class FoundryMod implements ModInitializer {
         Swings.register();
         Gate.register();
         Bonuses.register();
+        Parry.register();
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (entity instanceof net.minecraft.server.level.ServerPlayer player && taken > 0 && !blocked) DoubleJump.hurt(player, source);
         });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             Swings.tick(server);
             Charging.tick(server);
+            Charging.meters(server);
+            Parry.tick(server);
             AbilityBar.tick(server);
             Bolts.tick(server);
             WornItems.tick(server);
@@ -190,6 +193,7 @@ public final class FoundryMod implements ModInitializer {
             Swings.clear();
             Bolts.clear();
             Charging.clear();
+            Parry.clear();
             AbilityBar.clear();
             Gate.clear();
             WornDisplays.clear();
@@ -202,7 +206,7 @@ public final class FoundryMod implements ModInitializer {
             BedrockLooks.clear();
         });
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                { Charging.forget(handler.getPlayer().getUUID()); AbilityBar.forget(handler.getPlayer().getUUID()); Wings.forget(handler.getPlayer().getUUID());
+                { Charging.forget(handler.getPlayer().getUUID()); Parry.forget(handler.getPlayer().getUUID()); AbilityBar.forget(handler.getPlayer().getUUID()); Wings.forget(handler.getPlayer().getUUID());
                   DoubleJump.forget(handler.getPlayer().getUUID()); SwimDash.forget(handler.getPlayer().getUUID()); HumanSlide.forget(handler.getPlayer().getUUID());
                   BedrockLooks.forget(handler.getPlayer().getUUID());
                   RaceTraitsRuntime.forget(handler.getPlayer().getUUID()); FairyFlight.forget(handler.getPlayer().getUUID()); });

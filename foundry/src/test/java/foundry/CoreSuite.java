@@ -40,6 +40,7 @@ public final class CoreSuite {
         wingFlight();
         wingDash();
         enchanting();
+        iaijutsu();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -1019,6 +1020,59 @@ public final class CoreSuite {
         var r = ItemParser.parse("e.json", json);
         return r.def() == null && r.problems().stream().anyMatch(p -> p.blocking() && p.message().contains(fragment)
                 && !p.fix().isBlank());
+    }
+
+    /** The Oathblade's Mikiri (parry) and Quickdraw (part-charged dash strike): parsing, the charge maths and the refund. */
+    private static void iaijutsu() {
+        String dash = "{\"type\":\"dash_strike\",\"range\":8,\"min_range\":3,\"amount\":6,\"min_damage\":0.5}";
+        var quick = ItemParser.parse("q.json", withMechanics(mech("on_use", ",\"charge_ticks\":20,\"min_charge_ticks\":5", dash)));
+        check(quick.def() != null, "a dash_strike with a part charge parses: " + quick.problems());
+        var q = quick.def().mechanics().get(0);
+        check(q.minChargeTicks() == 5 && q.releaseTicks() == 5, "min_charge_ticks is kept and is the shortest hold");
+        check(q.chargeOf(5) == 0 && q.chargeOf(20) == 1 && q.chargeOf(60) == 1 && Math.abs(q.chargeOf(12) - 7 / 15.0) < 1e-9,
+                "the charge runs from 0 at the shortest hold to 1 at the full one");
+        var plain = ItemParser.parse("c.json", withMechanics(mech("on_use", ",\"charge_ticks\":20", BOLT))).def().mechanics().get(0);
+        check(plain.releaseTicks() == 20 && plain.chargeOf(20) == 1, "without min_charge_ticks a hold must be full and is full");
+        check(hasError(withMechanics(mech("on_use", ",\"charge_ticks\":20,\"min_charge_ticks\":20", dash)), "below charge_ticks"),
+                "min_charge_ticks must be below charge_ticks");
+        check(hasError(withMechanics(mech("on_use", ",\"min_charge_ticks\":5", dash)), "below charge_ticks"),
+                "min_charge_ticks needs a charge");
+        check(hasError(withMechanics(mech("on_hit_entity", "", dash)), "only works on an on_use"), "dash_strike is a right click only");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"dash_strike\",\"range\":40,\"amount\":6}")), "between"),
+                "the dash range is capped");
+        check(ItemParser.parse("p.json", withMechanics(mech("on_use", "", "{\"type\":\"parry\",\"window\":15,\"refund\":0.5}"))).def() != null,
+                "a parry parses");
+        check(hasError(withMechanics(mech("on_use", "", "{\"type\":\"parry\",\"window\":200}")), "between"), "a parry window is capped");
+        check(hasError(withMechanics(mech("on_swing", "", "{\"type\":\"parry\",\"window\":15}")), "only works on an on_use"),
+                "a parry is a right click only");
+        check(ItemParser.parse("a.json", withMechanics(mech("on_parry", "",
+                "{\"type\":\"damage\",\"amount\":6,\"target\":\"hit\"}"))).def() != null, "on_parry may strike the attacker");
+        check(ItemParser.parse("f.json", withMechanics(mech("on_use", ",\"conditions\":[{\"type\":\"on_foot\",\"value\":true}]", BOLT))).def() != null,
+                "on_foot is a condition");
+
+        check(foundry.core.Iai.reach(0, 3, 8) == 3 && foundry.core.Iai.reach(1, 3, 8) == 8 && foundry.core.Iai.reach(0.5, 3, 8) == 5.5,
+                "the dash reaches 3 blocks at the shortest hold, 8 at full");
+        check(foundry.core.Iai.damage(0, 6, 0.5) == 3 && foundry.core.Iai.damage(1, 6, 0.5) == 6 && foundry.core.Iai.damage(2, 6, 0.5) == 6,
+                "the shortest hold cuts for half, a full one for the whole amount, never more");
+        check(foundry.core.Iai.meter(0.5, 10).equals("▮".repeat(5) + "▯".repeat(5)), "the meter fills with the charge");
+
+        var run = new foundry.core.mechanics.MechanicRunner();
+        long[] tick = {0};
+        foundry.core.mechanics.MechanicRunner.Host host = new foundry.core.mechanics.MechanicRunner.Host() {
+            public long nowTick() { return tick[0]; }
+            public boolean holds(foundry.core.mechanics.Step c) { return true; }
+            public boolean roll(double p) { return true; }
+            public void perform(foundry.core.mechanics.Step a) { }
+        };
+        var parry = new foundry.core.mechanics.MechanicDef(foundry.core.mechanics.Trigger.ON_USE, java.util.List.of(),
+                java.util.List.of(new foundry.core.mechanics.Step("parry", java.util.Map.of("window", "15"))), 240, 1.0);
+        run.fire("a", "k:blade", 0, parry, host);
+        tick[0] = 10;
+        check(run.refund("a", "k:blade", 0, 120, tick[0]) == 120 && run.cooldownLeft("a", "k:blade", 0, tick[0]) == 110,
+                "a parry that lands gives back half the recharge");
+        check(run.refund("a", "k:blade", 0, 500, tick[0]) == 10 && run.cooldownLeft("a", "k:blade", 0, tick[0]) == 0,
+                "a refund never goes past ready");
+        check(run.refund("b", "k:blade", 0, 120, tick[0]) == 10, "a refund with nothing recharging changes nothing");
     }
 
     private static void runner() {
