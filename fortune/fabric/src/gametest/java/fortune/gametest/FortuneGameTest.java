@@ -55,6 +55,25 @@ public final class FortuneGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 200)
+    public void theReelsRunOnRealServerTicks(GameTestHelper helper) {
+        FortuneService service = FortuneKit.service(helper);
+        ServerPlayer player = FortuneKit.player(helper);
+        MachineGui gui = service.open(player, null);
+        gui.pullLever();
+        helper.assertTrue(gui.spinning(), "The reels did not start");
+        // Reel 3 stops 60 ticks after the pull at Java pacing; nothing here calls advance().
+        helper.runAfterDelay(30, () -> helper.assertTrue(gui.spinning(), "The reels stopped before reel 3's stop time"));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(gui.revealed() && !gui.spinning(), "The reels have not stopped on their own yet");
+            int[] payline = gui.lastSpin().spin().outcome().payline();
+            for (int reel = 0; reel < 3; reel++) {
+                helper.assertTrue(gui.paylineShown(reel) == payline[reel], "Reel " + (reel + 1) + " stopped off the rolled symbol");
+            }
+            gui.close();
+        });
+    }
+
     @GameTest
     public void closingMidSpinKeepsTheRewardAndBlocksASecondSpin(GameTestHelper helper) {
         FortuneService service = FortuneKit.service(helper);
@@ -135,8 +154,7 @@ public final class FortuneGameTest {
         FortuneKit.click(player, 22, 0, ContainerInput.PICKUP);
         FortuneKit.click(player, 27, 1, ContainerInput.PICKUP);
         ItemStack carried = player.containerMenu.getCarried();
-        helper.assertTrue(carried.is(Items.EMERALD) && carried.getCount() == 2 || carried.isEmpty(),
-                "The carried stack changed: " + carried);
+        helper.assertTrue(carried.is(Items.EMERALD) && carried.getCount() == 2, "The carried stack changed: " + carried);
         // Emerald is also a reel symbol, so placement is checked by the slot by slot comparison below.
         player.containerMenu.setCarried(ItemStack.EMPTY);
 

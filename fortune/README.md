@@ -15,9 +15,10 @@ JAVA_TOOL_OPTIONS=-Xmx1200m ./gradlew.bat build --no-daemon --console=plain
 JAVA_TOOL_OPTIONS=-Xmx1200m ./gradlew.bat :fabric:runGameTest --no-daemon --console=plain
 ```
 
-Run one Gradle build at a time on this machine. `build` runs the pure suite (`:core:coreTest`); the gametests are
-their own task and write `fabric/build/gametest-report.xml`. The jar is `fabric/build/libs/MrPinoys_Fortune-0.1.0.jar`
-(sgui and the core are inside it).
+Run one Gradle build at a time on this machine. `build` runs the pure suite (`:core:coreTest`) and the gametests
+(Loom wires `runGameTest` into `check`); `runGameTest` alone reruns just the gametests. Both write
+`fabric/build/gametest-report.xml`. The jar is `fabric/build/libs/MrPinoys_Fortune-0.1.0.jar` (sgui and the core are
+inside it).
 
 Layout, as chartercurrency:
 

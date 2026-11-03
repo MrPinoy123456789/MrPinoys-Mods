@@ -31,7 +31,9 @@ public final class MachineBlockGameTest {
 
         BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(at).add(0, 0.5, 0), Direction.UP, at, false);
         int before = player.containerMenu.containerId;
-        InteractionResult main = UseBlockCallback.EVENT.invoker().interact(player, helper.getLevel(), InteractionHand.MAIN_HAND, hit);
+        // The game mode's use item on path a client's click takes (every mixin and the whole use block event), then
+        // the off hand's half of the same click, as Charter's terminal test does.
+        InteractionResult main = player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND, hit);
         InteractionResult off = UseBlockCallback.EVENT.invoker().interact(player, helper.getLevel(), InteractionHand.OFF_HAND, hit);
         helper.assertTrue(main == InteractionResult.SUCCESS_SERVER, "The main hand click was not answered: " + main);
         helper.assertTrue(off == InteractionResult.SUCCESS_SERVER, "The off hand click was not answered: " + off);

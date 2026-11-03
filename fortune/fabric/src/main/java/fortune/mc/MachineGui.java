@@ -126,8 +126,11 @@ public final class MachineGui extends SimpleGui {
         drawAll();
     }
 
-    @Override
-    public void onTick() {
+    /**
+     * One server tick, called by {@link FortuneService#tick} for every open machine. Driven from the server tick
+     * rather than sgui's menu tick so the reels keep time whether or not the player's own tick runs.
+     */
+    void serverTick() {
         if (spinning) advance(1);
     }
 

@@ -295,6 +295,7 @@ public final class FortuneService {
     void tick() {
         prompt.tick(server);
         machines.tick(server);
+        if (!open.isEmpty()) for (MachineGui gui : new ArrayList<>(open.values())) gui.serverTick();
     }
 
     void stop() {

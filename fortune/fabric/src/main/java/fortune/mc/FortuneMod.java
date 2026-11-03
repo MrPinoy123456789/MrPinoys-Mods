@@ -3,11 +3,13 @@ package fortune.mc;
 import fortune.core.Machine;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -26,6 +28,9 @@ public final class FortuneMod implements ModInitializer {
 
     public static final String MOD_ID = "fortune";
     public static final Logger LOG = LoggerFactory.getLogger(MOD_ID);
+
+    /** The use block phase Fortune Machines answer in, ahead of {@link Event#DEFAULT_PHASE}. */
+    public static final Identifier USE_PHASE = Identifier.fromNamespaceAndPath(MOD_ID, "machines");
 
     @Override
     public void onInitialize() {
@@ -55,8 +60,11 @@ public final class FortuneMod implements ModInitializer {
         });
 
         // A right-click on a Fortune Machine opens the machine. Sneaking with something in hand builds against it as
-        // vanilla does. Both hands of the click are answered, so the off hand never places a block into it.
-        UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+        // vanilla does. Both hands of the click are answered, so the off hand never places a block into it. The
+        // listener runs in its own phase ahead of the default one, where Charter refuses block use in the spawn and
+        // for players with no kingdom: a hub machine must answer everyone, as Charter's own terminals do.
+        UseBlockCallback.EVENT.addPhaseOrdering(USE_PHASE, Event.DEFAULT_PHASE);
+        UseBlockCallback.EVENT.register(USE_PHASE, (player, level, hand, hit) -> {
             FortuneService service = Fortune.service();
             if (service == null || level.isClientSide() || !(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
             if (!service.machines().isMachine(level, hit.getBlockPos())) return InteractionResult.PASS;
