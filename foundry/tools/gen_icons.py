@@ -67,24 +67,31 @@ def pick(t):
 
 
 def blade(t):
+    """A katana: a wrapped grip bottom left, a round guard, and a long single edged blade curving up to its point, the
+    bright temper line along the edge. Rank 2 gold and crimson; rank 3 a blackened blade with a glowing edge."""
     img = new()
-    metal = [((190, 195, 205), (235, 238, 245)), ((200, 205, 215), (250, 250, 255)), ((150, 200, 255), (225, 245, 255))][t]
-    line(img, (5, 10), (13, 2), metal[0])
-    line(img, (6, 10), (14, 3), metal[0])
-    line(img, (6, 9), (13, 2), metal[1])
-    dot(img, 14, 1, metal[1])
-    gold = (225, 180, 60) if t else (150, 120, 70)
-    line(img, (3, 9), (6, 12), gold)      # crossguard
-    line(img, (4, 9), (7, 12), gold)
-    line(img, (3, 13), (5, 11), WOOD[0])  # grip
-    line(img, (2, 14), (3, 13), gold)     # pommel
-    if t >= 1:
-        dot(img, 7, 9, (255, 240, 170))
+    steel = [((120, 126, 138), (232, 238, 246)), ((128, 134, 146), (242, 246, 252)), ((40, 38, 48), (90, 220, 255))][t]
+    spine = [(7, 8), (8, 7), (9, 6), (10, 5), (11, 4), (12, 3), (12, 2), (13, 1)]
+    edge = [(8, 8), (9, 7), (10, 6), (11, 5), (12, 4), (13, 3), (13, 2)]
+    for p in spine:
+        dot(img, *p, steel[0])
+    for p in edge:
+        dot(img, *p, steel[1])
+    dot(img, 14, 0, steel[1])                          # the point
+    fitting = [(96, 100, 112), (230, 180, 60), (230, 180, 60)][t]
+    for p in ((5, 9), (6, 9), (6, 10), (7, 10), (7, 11), (5, 10)):
+        dot(img, *p, fitting)                          # the round guard
+    silk = [(28, 26, 32), (150, 30, 42), (28, 26, 32)][t]
+    ray = (232, 226, 210)
+    for p in ((5, 11), (4, 12), (3, 13)):
+        dot(img, *p, silk)                             # the wrap, with the ray skin showing between
+    for p in ((4, 11), (3, 12), (5, 12), (4, 13)):
+        dot(img, *p, ray if p in ((4, 11), (3, 12)) else silk)
+    dot(img, 2, 14, fitting)                           # the pommel cap
     if t == 2:
-        for p in ((10, 4), (11, 5), (9, 3)):
+        dot(img, 1, 15, (200, 40, 50))                 # the red cord
+        for p in ((10, 4), (12, 1)):
             dot(img, *p, (255, 255, 255))
-        dot(img, 5, 7, (120, 190, 255))
-        dot(img, 15, 4, (120, 190, 255))
     return outline(img)
 
 

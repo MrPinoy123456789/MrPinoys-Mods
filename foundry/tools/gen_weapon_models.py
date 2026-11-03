@@ -45,6 +45,10 @@ g.MATERIALS.update({
     "crystal": dict(base="#ffc4e6", pattern="sheen", noise=3, bevel=48),
     "crystal_gold": dict(base="#ffe07a", pattern="sheen", noise=3, bevel=48),
     "wing": dict(base="#e6f4ff", pattern="plain", noise=3, bevel=0, alpha=170),
+    "katana_steel": dict(base="#8e95a3", pattern="brushed", noise=5, bevel=30),
+    "hamon": dict(base="#eef3fa", pattern="sheen", noise=3, bevel=40),
+    "silk_red": dict(base="#8e1b26", pattern="leather", noise=6, bevel=16),
+    "ray_skin": dict(base="#e8e2d2", pattern="dot", noise=6, bevel=14),
 })
 
 
@@ -76,22 +80,47 @@ def war_pick(t):
 
 
 def oathblade(t):
-    blade = ["steel", "steel", "steel"][t]
-    guard = ["iron_dark", "gold", "blade_dark"][t]
+    """A katana: a wrapped grip, a round guard, and a long curved single edged blade whose tip sweeps back toward the
+    spine (+x), its temper line (the hamon) bright along the edge (-x), ending in an angled point. Rank 1 plain steel and
+    black silk over white ray skin; rank 2 a gold guard and crimson silk; rank 3 a blackened blade with a glowing edge
+    and gold fittings."""
+    blade = ["katana_steel", "katana_steel", "blade_dark"][t]
+    hamon = ["hamon", "hamon", "rune_blue"][t]
+    fitting = ["iron_dark", "gold", "gold"][t]
+    silk = ["grip_black", "silk_red", "grip_black"][t]
     parts = [
-        box(7.0, 9.0, 4, 18, blade, 0.4),
-        box(7.5, 8.5, 18, 19.6, blade, 0.3),
-        box(7.8, 8.2, 5, 16.5, "blade_dark" if t == 2 else "iron_dark", 0.45),   # the fuller
-        box(3.6, 12.4, 3.0, 4.2, guard, 0.8),
-        box(3.0, 4.0, 2.4, 4.8, guard, 0.9), box(12.0, 13.0, 2.4, 4.8, guard, 0.9),
-        box(7.3, 8.7, -1.6, 3.0, "grip_black" if t == 2 else "grip", 0.7),
-        box(6.8, 9.2, -3.2, -1.6, guard, 0.9),
+        box(7.3, 8.7, -2.6, 2.4, "ray_skin", 0.6),                                      # the grip under the wrap
+        box(7.05, 8.95, -3.4, -2.6, fitting, 0.75),                                     # the pommel cap
+        box(7.15, 8.85, 2.0, 2.6, fitting, 0.68),                                       # the collar under the guard
+        box(6.0, 10.0, 2.6, 3.2, fitting, 1.6), box(6.5, 9.5, 2.6, 3.2, fitting, 2.0),  # the round guard
+        box(7.2, 8.85, 3.2, 4.0, "copper_trim" if t == 0 else "gold", 0.36),            # the blade collar
     ]
+    for y in (-2.2, -1.0, 0.2, 1.4):                                                    # the silk wrap, crossing
+        parts.append(box(7.25, 8.75, y, y + 0.7, silk, 0.66))
+    # the blade: set back toward the spine a quarter pixel at a time along a gentle curve (a run at one setback is one
+    # box, so the steps stay few and small), then over the last three the edge sweeps up to a straight spine to make the point
+    y, top, n = 4.0, 18.6, 16
+    runs = []
+    for i in range(n):
+        y1 = top if i == n - 1 else round(y + (top - 4.0) / n, 2)
+        u = (i + 0.5) / n
+        spine = 8.8 + round(1.0 * min(u, (n - 3.5) / n) ** 2 * 4) / 4   # straight along the spine through the point
+        width = 1.5 if i < n - 3 else [1.1, 0.75, 0.4][i - (n - 3)]
+        if runs and runs[-1][2] == spine and runs[-1][3] == width:
+            runs[-1][1] = y1
+        else:
+            runs.append([y, y1, spine, width])
+        y = y1
+    for y0, y1, spine, width in runs:
+        x0 = spine - width
+        parts.append(box(x0, spine, y0, y1, blade, 0.22))
+        parts.append(box(x0 - 0.01, x0 + min(0.45, width / 2), y0, y1, hamon, 0.23))  # the bright edge
+    parts.append(box(spine - 0.25, spine, top, top + 0.5, blade, 0.15))                # the very point
     if t >= 1:
-        parts.append(box(7.4, 8.6, -2.9, -1.9, ["", "ruby", "rune_blue"][t], 1.0))
-        parts.append(box(7.5, 8.5, 3.1, 4.1, ["", "ruby", "steel"][t], 0.9))
+        parts += [box(7.1, 7.35, -1.6, -1.1, fitting, 0.7), box(8.65, 8.9, 0.6, 1.1, fitting, 0.7)]   # grip ornaments
     if t == 2:
-        parts += [box(6.9, 7.2, 5, 17, "steel", 0.42), box(8.8, 9.1, 5, 17, "steel", 0.42)]   # bright edges
+        parts += [box(7.6, 8.4, -4.0, -3.4, "ruby", 0.4),                              # a red cord knot at the pommel
+                  box(7.75, 8.25, -6.0, -4.0, "silk_red", 0.18)]
     return parts
 
 
