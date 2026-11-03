@@ -388,4 +388,36 @@ public final class RankGameTest {
             helper.succeed();
         }
     }
+
+    /** An operator sees every kingdom's ranks: who holds each and what each may do, typed and in the Admin Book. */
+    @GameTest(maxTicks = 100)
+    public void anOperatorSeesAKingdomsRanksAndWhoHoldsThem(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            CharterRuntime rt = kit.rt;
+            ServerPlayer lord = kit.faction("OpRk");
+            OrgId k = kit.orgOf(lord);
+            ServerPlayer gil = member(kit, k);
+            List<String> plain = charter.mc.cmd.OpCommands.rankLines(rt, k);
+            helper.assertTrue(plain.get(0).equals(charter.mc.Text.get("admin.ranks.unedited")) && plain.size() == 3,
+                    "An unedited kingdom does not show the note and its two ranks: " + plain);
+            Actor asLord = new Actor.Player(id(lord));
+            rt.engine.run(asLord, new AddRank(k, "Knight"));
+            String knight = rankId(rt, k, "Knight");
+            rt.engine.run(asLord, new GiveRank(k, id(gil), knight));
+            rt.engine.run(asLord, new SetRankPower(k, knight, Power.CLAIM, true));
+            List<String> lines = charter.mc.cmd.OpCommands.rankLines(rt, k);
+            helper.assertTrue(lines.size() == 3, "An edited kingdom with three ranks does not show three lines: " + lines);
+            String gilName = rt.describe.player(id(gil));
+            helper.assertTrue(lines.get(1).startsWith("Knight (1): " + gilName + ". ")
+                    && lines.get(1).contains(charter.mc.Text.get("book.power.claim")), "The Knight line is wrong: " + lines.get(1));
+            helper.assertTrue(lines.get(0).contains(rt.describe.player(id(lord))), "The top rank does not name the Lord: " + lines.get(0));
+            String name = rt.state.org(k).orElseThrow().name();
+            int shown = kit.server.getCommands().getDispatcher().execute("charter admin faction ranks \"" + name + "\"",
+                    kit.server.createCommandSourceStack());
+            helper.assertTrue(shown == 3, "The typed command did not print the three ranks: " + shown);
+            helper.succeed();
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {
+            throw new AssertionError("The ranks command did not parse: " + e.getMessage());
+        }
+    }
 }

@@ -51,6 +51,7 @@ import java.util.Set;
  *   /charter admin votes                         open votes with their numbers, and a link to close each
  *   /charter admin faction remove &lt;faction&gt; &lt;player&gt;   take a member out (a Lord loses the seat too)
  *   /charter admin faction rename &lt;faction&gt; &lt;name&gt;     a new name; the id and everything held stay
+ *   /charter admin faction ranks &lt;faction&gt;             its ranks, top first: who holds each and what each may do
  * </pre>
  */
 public final class OpCommands {
@@ -82,7 +83,10 @@ public final class OpCommands {
                                 .then(Commands.literal("rename")
                                         .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
                                                 .then(Commands.argument("name", StringArgumentType.string())
-                                                        .executes(OpCommands::rename))))))));
+                                                        .executes(OpCommands::rename))))
+                                .then(Commands.literal("ranks")
+                                        .then(Commands.argument("faction", StringArgumentType.string()).suggests(Resolve::factions)
+                                                .executes(OpCommands::ranks)))))));
     }
 
     private static CharterRuntime rt() {
@@ -115,7 +119,7 @@ public final class OpCommands {
     /** One line per operator command, from the lang file so a server can reword it. */
     static final List<String> HELP = List.of("menu", "help", "kingdoms", "keeps", "goto", "player", "votes", "vote_close",
             "faction_create", "faction_add", "faction_remove", "faction_leader", "faction_coleader", "faction_unlord",
-            "faction_rename", "faction_move", "faction_race", "faction_racename", "faction_mixed", "faction_admin",
+            "faction_rename", "faction_ranks", "faction_move", "faction_race", "faction_racename", "faction_mixed", "faction_admin",
             "faction_claims", "dissolve", "moderation", "ledger", "give", "areas", "time", "save", "repair", "npc", "granary", "supply", "chronicle");
 
     private static int help(CommandContext<CommandSourceStack> ctx) {
@@ -154,6 +158,42 @@ public final class OpCommands {
         }
         if (n == 0) say(ctx, Chat.line(Text.get("admin.keeps.none")));
         return n;
+    }
+
+    /** {@code faction ranks "<faction>"}: the kingdom's ranks, top first, who holds each and what each may do. */
+    private static int ranks(CommandContext<CommandSourceStack> ctx) {
+        if (!running(ctx)) return 0;
+        CharterRuntime rt = rt();
+        String name = StringArgumentType.getString(ctx, "faction");
+        Optional<Organization> found = Resolve.faction(rt, name);
+        if (found.isEmpty()) return fail(ctx, Text.get("land.admin.no_faction", "name", name));
+        OrgId kingdom = rt.state.root(found.get().id);
+        say(ctx, Chat.header(Text.get("admin.ranks.header", "name", rt.describe.org(kingdom))));
+        List<String> lines = rankLines(rt, kingdom);
+        for (String line : lines) say(ctx, Chat.line(line));
+        return lines.size();
+    }
+
+    /** Most holders a rank line names before it says how many more there are. */
+    static final int RANK_NAMES = 12;
+
+    /**
+     * One line per rank of a kingdom, top first: "Knight (2): Alice, Bob. Powers: claiming land." With a note first
+     * when the Lord never edited the ladder (its tags then show no rank). Shared by the command and the Admin Book.
+     */
+    public static List<String> rankLines(CharterRuntime rt, OrgId kingdom) {
+        List<String> out = new ArrayList<>();
+        if (!rt.state.ranks.edited(kingdom)) out.add(Text.get("admin.ranks.unedited"));
+        for (charter.org.Ranks.Rank rank : rt.state.ranks.ladder(kingdom)) {
+            List<charter.id.PlayerId> holders = rt.state.ranks.holders(rt.state, kingdom, rank.id());
+            List<String> names = new ArrayList<>();
+            for (charter.id.PlayerId p : holders.subList(0, Math.min(holders.size(), RANK_NAMES))) names.add(rt.describe.player(p));
+            String who = names.isEmpty() ? Text.get("admin.none") : String.join(", ", names);
+            if (holders.size() > RANK_NAMES) who += Text.get("admin.ranks.more", "n", holders.size() - RANK_NAMES);
+            out.add(Text.get("admin.ranks.line", "rank", rank.name(), "count", holders.size(), "holders", who,
+                    "powers", charter.mc.book.RankPages.powersLine(kingdom, rank.id())));
+        }
+        return out;
     }
 
     /** "Alice and Bob", "Alice", or "none". */
