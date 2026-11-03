@@ -41,6 +41,42 @@ public final class NexusMoveGameTest {
         }
     }
 
+    /** /charter admin faction nexus: an operator moves another kingdom's lodestone, only inside that kingdom's keep. */
+    @GameTest(maxTicks = 100)
+    public void anOperatorMovesAnotherKingdomsLodestoneInsideItsKeep(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("NexAdm");
+            var org = kit.orgOf(lord);
+            kit.keep(lord);
+            Core core = kit.rt.state.coresOf(org).get(0);
+            var centre = core.center;
+            String name = kit.rt.state.org(org).orElseThrow().name();
+            BlockPos old = kit.nexusPos();
+            var console = kit.server.createCommandSourceStack();
+            int movedBefore = kit.rt.state.history.of(charter.land.LandEvents.NexusMoved.class).size();
+
+            // Outside the keep: refused, nothing changes.
+            kit.server.getCommands().performPrefixedCommand(console,
+                    "charter admin faction nexus \"" + name + "\" " + (kit.border - 4) + " " + kit.y + " " + kit.zc);
+            var nexus = Fixtures.of(kit.rt.state).first(core.id, Fixtures.Kind.NEXUS);
+            helper.assertTrue(nexus.x() == old.getX() && nexus.z() == old.getZ(), "An operator moved the lodestone outside the keep");
+            helper.assertTrue(kit.level.getBlockState(old).is(Blocks.LODESTONE), "A refused operator move took the lodestone");
+
+            // Inside it, at given coordinates: moved, the keep stays, and the Chronicle has a line.
+            BlockPos to = new BlockPos(old.getX() - 16, kit.y, old.getZ());
+            kit.server.getCommands().performPrefixedCommand(console,
+                    "charter admin faction nexus \"" + name + "\" " + to.getX() + " " + to.getY() + " " + to.getZ());
+            nexus = Fixtures.of(kit.rt.state).first(core.id, Fixtures.Kind.NEXUS);
+            helper.assertTrue(nexus.x() == to.getX() && nexus.z() == to.getZ(), "The operator's move did not move the record: " + nexus);
+            helper.assertTrue(kit.level.getBlockState(new BlockPos(nexus.x(), nexus.y(), nexus.z())).is(Blocks.LODESTONE), "No lodestone at the new spot");
+            helper.assertTrue(kit.level.getBlockState(old).isAir(), "The old lodestone is still there");
+            helper.assertTrue(kit.rt.state.core(core.id).orElseThrow().center.equals(centre), "The keep moved with the lodestone");
+            helper.assertTrue(kit.rt.state.history.of(charter.land.LandEvents.NexusMoved.class).size() == movedBefore + 1,
+                    "The move is not in the history for the Chronicle");
+            helper.succeed();
+        }
+    }
+
     @GameTest(maxTicks = 100)
     public void outsideTheKeepOrWithoutAKingdomItIsRefused(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {

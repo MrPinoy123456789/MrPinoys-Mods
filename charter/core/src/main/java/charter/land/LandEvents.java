@@ -18,6 +18,10 @@ public final class LandEvents {
     public record KeepMoved(long at, OrgId org, CoreId core, ChunkKey fromChunk, ChunkKey toChunk) implements HistoryEvent {
     }
 
+    /** An operator moved a keep's Nexus lodestone within the keep; the keep and its land stay where they are. */
+    public record NexusMoved(long at, OrgId org, CoreId core) implements HistoryEvent {
+    }
+
     public record CampPlanted(long at, OrgId org, CoreId core, ChunkKey center) implements HistoryEvent {
     }
 

@@ -205,6 +205,7 @@ public final class AdminPages {
                 p -> ran(p, "charter admin faction admin " + ref + " " + !org.adminKingdom, again)));
         buttons.add(go(player, Text.get("admin.kingdom.button.bonus"), null, p -> bonusForm(p, id)));
         if (org.isTopLevel()) buttons.add(go(player, Text.get("admin.kingdom.button.move"), null, p -> moveAsk(p, id)));
+        if (org.isTopLevel() && !org.npc) buttons.add(go(player, Text.get("admin.kingdom.button.nexus"), null, p -> nexusAsk(p, id)));
         buttons.add(go(player, Text.get("admin.kingdom.button.dissolve"), null, p -> dissolveAsk(p, id)));
         BookDialogs.show(player, BookDialogs.operatorList(name, with(notice, body), buttons,
                 BookDialogs.back(player, p -> kingdomList(p, null))));
@@ -289,6 +290,22 @@ public final class AdminPages {
                 List.of(BookDialogs.text(Text.get("admin.move.body", "kingdom", name, "x", at.getX(), "y", at.getY(), "z", at.getZ()))),
                 go(player, Text.get("admin.move.yes"), null,
                         p -> ran(p, "charter admin faction move " + FormValues.quote(id.toString()) + " " + at.getX() + " " + at.getY() + " " + at.getZ(), (pp, n) -> kingdom(pp, id, n))),
+                BookDialogs.back(player, p -> kingdom(p, id, null))));
+    }
+
+    /** Moving another kingdom's Nexus within its keep asks first, like moving the keep. */
+    private static void nexusAsk(ServerPlayer player, OrgId id) {
+        var found = rt().state.org(id);
+        if (found.isEmpty()) {
+            kingdom(player, id, null);
+            return;
+        }
+        var at = player.blockPosition();
+        String name = found.get().name();
+        BookDialogs.show(player, BookDialogs.confirm(Text.get("admin.nexus.title", "kingdom", name),
+                List.of(BookDialogs.text(Text.get("admin.nexus.body", "kingdom", name, "x", at.getX(), "y", at.getY(), "z", at.getZ()))),
+                go(player, Text.get("admin.nexus.yes"), null,
+                        p -> ran(p, "charter admin faction nexus " + FormValues.quote(id.toString()) + " " + at.getX() + " " + at.getY() + " " + at.getZ(), (pp, n) -> kingdom(pp, id, n))),
                 BookDialogs.back(player, p -> kingdom(p, id, null))));
     }
 
