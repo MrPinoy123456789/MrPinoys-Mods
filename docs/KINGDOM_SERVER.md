@@ -123,7 +123,8 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
   sea floor at land speed, and `under:minecraft:night_vision`, so they see in the dark under water. A `charter.json`
   that still lists plain `minecraft:dolphins_grace` keeps the old always-on effect until it is changed.
 - Merfolk mine in the water exactly as fast as on land, floating or on the sea floor, and walk the sea floor at land
-  speed (`RaceCombatPassives`). An Aqua Affinity helmet or Depth Strider boots add nothing on top.
+  speed (`RaceCombatPassives`). Floating or treading water, not swimming, they move about as with Depth Strider II;
+  swimming is Dolphin's Grace's. An Aqua Affinity helmet or Depth Strider boots add nothing on top.
 - Bedrock has no Dolphin's Grace effect, so `racePassivesBedrock` gives Bedrock players of a race extra effects on top of
   the normal list: by default Azurius gets `swim:minecraft:speed#1` (Speed II, only while swimming, no icon or
   particles). Entries read the same way. A Floodgate player is recognised by a UUID with a zero high

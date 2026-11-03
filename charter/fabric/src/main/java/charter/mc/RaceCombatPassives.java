@@ -102,14 +102,15 @@ public final class RaceCombatPassives {
         set(player, Attributes.BLOCK_BREAK_SPEED, FLOATING_MINING,
                 floating ? OFF_GROUND_PENALTY - 1 : 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
-        // on the sea floor they walk as on land: water movement efficiency 1 (what Depth Strider III gives), topped up so
-        // Depth Strider boots add nothing on top; swimming is left as it was
+        // in the water but not swimming they get water movement efficiency 1 (what Depth Strider III gives), topped up so
+        // Depth Strider boots add nothing on top: on the sea floor they walk as on land, and floating (where vanilla
+        // halves it) they move about as with Depth Strider II. Swimming is Dolphin's Grace's, so this is taken off then
         AttributeInstance walking = player.getAttribute(Attributes.WATER_MOVEMENT_EFFICIENCY);
         if (walking != null) {
             AttributeModifier held = walking.getModifier(SEA_FLOOR_WALK);
             double without = walking.getValue() - (held == null ? 0 : held.amount());
-            boolean onFloor = merfolk && player.isInWater() && player.onGround();
-            set(player, Attributes.WATER_MOVEMENT_EFFICIENCY, SEA_FLOOR_WALK, onFloor && without < 1 ? 1 - without : 0);
+            boolean wading = merfolk && player.isInWater() && !player.isSwimming();
+            set(player, Attributes.WATER_MOVEMENT_EFFICIENCY, SEA_FLOOR_WALK, wading && without < 1 ? 1 - without : 0);
         }
     }
 

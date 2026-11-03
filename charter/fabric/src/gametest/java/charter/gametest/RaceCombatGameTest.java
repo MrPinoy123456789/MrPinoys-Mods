@@ -162,8 +162,12 @@ public final class RaceCombatGameTest {
         helper.assertTrue(Math.abs(merfolk.getDestroySpeed(stone) - land) < 1e-4,
                 "Floating under water mined at " + merfolk.getDestroySpeed(stone) + ", on land at " + land);
 
+        helper.assertTrue(Math.abs(merfolk.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY) - 1.0) < 1e-9,
+                "Floating, not swimming, water movement efficiency was " + merfolk.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY));
+        merfolk.setSwimming(true);
+        RaceCombatPassives.applyTo(merfolk, kit.rt);
         helper.assertTrue(merfolk.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY) == 0,
-                "Swimming Merfolk were given sea floor walking");
+                "Swimming Merfolk kept the wading boost on top of Dolphin's Grace");
 
         // Dolphin's Grace only while swimming, arms paddling, and off again the moment they stop
         merfolk.setSwimming(false);
