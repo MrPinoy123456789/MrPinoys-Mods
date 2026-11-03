@@ -1,6 +1,7 @@
-# Fortune's Reels: a daily login bonus for the kingdom server
+# Fantasy's Fortune: a daily login bonus for the kingdom server
 
-Draft spec, 2026-11-03. Not built. Owner decisions are marked **Decide** and collected at the end.
+Draft spec, 2026-11-03. Not built. The owner answered the open questions the same day; the answers are folded in
+and listed in section 13.
 
 A separate server-side Fabric mod (`fortune`, Minecraft 26.3, fabric_api 0.165.0+26.3) designed for the kingdom
 server (d212ecae). Once a day each player pulls a three-reel slot machine. Every pull pays, the week is laid out in
@@ -19,7 +20,7 @@ and who come back after a break. The machine is the excuse to log in; Charter is
   protecting come back.
 - **Social over solo.** Kingdom muster, visible wins and Discord posts do more for a small server than any reward
   size. Concurrency is what new players judge a server by.
-- **Fair.** No paid spins, ever. The odds are on the screen. Every pull pays something. The outcome is decided before
+- **Fair.** No extra spins for sale, ever (the coin stake in 6.1 boosts a spin, it never buys one). The odds are on the screen. Every pull pays something. The outcome is decided before
   the reels move, and the animation never fakes near misses.
 
 ## 2. Research behind the design
@@ -43,13 +44,15 @@ learned from dailyquests.
 ## 3. How a player meets it
 
 1. **On join**, after the same short delay `LoginSnapshot` uses (so it lands below the MOTD and pack prompt):
-   - Java: one chat line, `Your reels are loaded. [Spin] [Later]`, and the `block.note_block.chime` sound. Clicking
+   - Java: one chat line, `Fantasy's Fortune: your reels are loaded. [Spin] [Later]`, and the `block.note_block.chime` sound. Clicking
      Spin opens the machine. A countdown line instead when today's spin is used: `Next spin in 6 h 12 min.`
    - Bedrock: chat links cannot be clicked, so Floodgate players get a Cumulus modal form: "Your reels are loaded."
      with **Spin** and **Later**. Spin opens the machine.
 2. **Anywhere**: `/spin` (alias `/daily`) opens the machine.
 3. **At a Fortune Machine**: any block an operator registers (`/fortune admin machine here`, `add`, `remove`, `list`,
-   as Charter's terminals). Suggested: one in the hub and one beside each keep's Nexus. It sparks with end rod
+   as Charter's terminals). One in the hub and one beside each keep's Nexus (owner, 2026-11-03); a
+   `/fortune admin machine keeps` helper places a keep's machine on a free side of its Nexus, as
+   `/charter admin terminal keeps` does, reading Nexus positions from Charter's areas API. It sparks with end rod
    particles (the particle Geyser already shows for Charter's pads). Right-click opens the machine. A win pulled at a
    machine plays its particles and sounds there for everyone nearby, so the hub has a place where people are seen
    winning. No floating label: display entities break Geyser.
@@ -66,7 +69,7 @@ row 1  [ = ][ = ][ ▼ ][ = ][ ▼ ][ = ][ ▼ ][ = ][ = ]
 row 2  [ = ][ = ][ A ][ = ][ B ][ = ][ C ][ = ][ = ]
 row 3  [ ► ][ = ][ A ][ = ][ B ][ = ][ C ][ = ][ ◄ ]    payline
 row 4  [ = ][ = ][ A ][ = ][ B ][ = ][ C ][ = ][ = ]
-row 5  [ODDS][   ][MUSTER][ ][LEVER][ ][ANNALS][ ][CLOSE]
+row 5  [ODDS][MUSTER][NONE][COPPER][LEVER][IRON][GOLD][ANNALS][CLOSE]
 ```
 
 - **Row 0, the week.** Seven slots. Claimed days show the symbol that day landed on, enchanted. Today glows (an
@@ -75,7 +78,8 @@ row 5  [ODDS][   ][MUSTER][ ][LEVER][ ][ANNALS][ ][CLOSE]
   at 64), lore with the streak, the best streak and "Your streak is safe until <date>."
 - **Rows 2 to 4, the reels.** Three columns (2, 4, 6) of three symbols each; the middle row is the payline, marked by
   yellow glass arrows at both ends. Black glass frames everything else.
-- **Row 5, the buttons.** The lever (`minecraft:lever`, "Pull the lever"); Odds (a book; the full paytable, section 6,
+- **Row 5, the buttons.** The lever (`minecraft:lever`, "Pull the lever") with the four stake buttons beside it
+  (6.1); Odds (a book; the full paytable, section 6,
   with real percentages); Muster (the player's kingdom banner, section 7); Annals (a clock; this week's biggest wins
   on the server); Close.
 
@@ -116,8 +120,8 @@ enchanted glint shows on Bedrock in a container.
 
 ### 5.1 The day
 
-A day runs from `rolloverHourUtc` to the next. **Decide** the hour: pick the server's quietest hour, so nobody
-loses a spin mid session. One spin a day; the Second Wind (5.4) is the only extra.
+A day runs from `rolloverHourUtc` to the next: 08:00 UTC (owner, 2026-11-03), the small hours across the US, the
+server's quietest time, so nobody loses a spin mid session. One spin a day; the Second Wind (5.4) is the only extra.
 
 ### 5.2 The week and the streak
 
@@ -128,8 +132,12 @@ loses a spin mid session. One spin a day; the Second Wind (5.4) is the only extr
 - **The reward floor rises with the week:** days 1 and 2 pay at least the no match line; days 3 to 6 at least a
   pair; day 7 at least three of a kind (the Golden Spin uses its own reel weights, section 6).
 - **Milestones** at 7, 30, 60, 100, 200 and 365 claims: a server broadcast, a Discord post, and a keepsake item
-  (a named, enchanted vanilla item; for example a "Charm of the Hundredth Day" heart of the sea). **Decide** whether
-  milestones also give a Charter title.
+  (a named, enchanted vanilla item; for example a "Charm of the Hundredth Day" heart of the sea) and a personal
+  title (owner, 2026-11-03): "the Steadfast" at 7, "the Faithful" at 30, "the Devoted" at 60, "the Centurion" at
+  100, "the Unbroken" at 200, "the Eternal" at 365. Charter's titles are kingdom ranks, not personal titles, so a
+  milestone title is granted by a configured command, by default a LuckPerms suffix
+  (`lp user %player% meta setsuffix 50 " the Faithful"`). Check that the server's chat format shows LuckPerms
+  suffixes before relying on it; if it does not, the keepsake carries the title in its name.
 
 ### 5.3 The First Week (new players)
 
@@ -138,21 +146,23 @@ tip (in chat on Java, in the reveal form on Bedrock):
 
 | Claim | Gift | Tip |
 |---|---|---|
-| 1 | 16 bread, 16 torches | "Pick a kingdom at the hub terminal, or ride as a mercenary." |
-| 2 | Iron pickaxe | "Your race has its own weapon. Check your recipe book." |
-| 3 | 8 iron ingots | "Every keep has a lectern terminal by its Nexus." |
-| 4 | Pair floor and a Valor bonus | "Valor buys from /shop. Coin is struck at a Mint." |
-| 5 | Ender pearls (4) | "Pads in the hub take you to the keeps." |
-| 6 | Pair floor | "Spin with your kingdom: muster bonus." |
+| 1 | 8 emeralds | "Pick a kingdom at the hub terminal, or ride as a mercenary." |
+| 2 | 2 diamonds | "Your race has its own weapon. Check your recipe book." |
+| 3 | 4 ender pearls | "Pads in the hub take you to the keeps." |
+| 4 | 4 blaze rods | "Every keep has a lectern terminal by its Nexus." |
+| 5 | 8 gold ingots | "Coin is struck at a Mint. Stake it here for a bigger spin." |
+| 6 | Pair floor, no gift | "Spin with your kingdom: muster bonus." |
 | 7 | Golden Spin | "Back tomorrow: the reels never close." |
 
-The reels still spin and the payout still applies; the gift is added on top. **Decide** the exact items with the
-owner (the table is a first pass).
+Owner, 2026-11-03: the gifts are items (emeralds, diamonds, ender pearls, blaze rods, gold, then the Golden Spin) and
+no Valor yet. Read as: First Week spins pay these items and the reel's item extras, with no Valor and no Renown, so a
+fresh account (or an alt) earns no Valor in its first seven claims; normal Valor payouts start at claim 8. Day 6 has no
+gift because five were named. Counts are a first pass in `firstWeek`. **Confirm** this reading.
 
 ### 5.4 Second Wind (optional, recommended on)
 
 After `secondWindMinutes` (default 20) online in the same day, the player gets one half value spin and a chat or
-form nudge. It rewards staying on, which is what makes the server look busy to whoever joins next. It never stacks
+form nudge (owner, 2026-11-03: on, 20 minutes). It rewards staying on, which is what makes the server look busy to whoever joins next. It never stacks
 and is lost at rollover.
 
 ### 5.5 Welcome Back
@@ -175,8 +185,8 @@ per player per day so each spin credits the kingdom separately. This gives Valor
 so alts gain nothing by funnelling it), the per-source soft cap, and Renown for the player's kingdom (which already
 waits 7 days of membership). If Charter Currency is absent the mod still runs and pays only item rewards.
 
-**No Coin by default.** Coin enters the world only at a Mint; a daily machine printing Marks would be a second
-faucet. **Decide** whether a small Coin line is ever wanted (it would be `rewardCommands`, off by default).
+**No Coin, ever** (owner, 2026-11-03). Coin enters the world only at a Mint; a daily machine printing Marks would be
+a second faucet. Coin goes the other way: players can stake it (6.1).
 
 Symbols, lowest to highest (all render on Bedrock):
 
@@ -203,6 +213,33 @@ Normal spin paytable (first pass, all in `fortune.json`):
 Expected value about 8 Valor a day, close to one low level dungeon run (`dungeon` is base 10, perLevel 2). The
 Golden Spin uses a table with no "no match" and no pair line (three of a kind guaranteed, Crowns at 2%). The Second
 Wind pays half the level, rounded down, minimum 1.
+
+### 6.1 The coin stake
+
+Before pulling, a player may stake Marks to raise the spin's rewards (owner, 2026-11-03: three tiers, up to 100%).
+
+| Stake | Cost | Bonus |
+|---|---|---|
+| None | 0 | none |
+| Copper | 8 Marks (one Iron Crown) | +25% |
+| Iron | 24 Marks | +50% |
+| Gold | 64 Marks (one Gold Sovereign) | +100% |
+
+- **The bonus multiplies the whole payout**: the Valor (applied as extra `level`, rounded to the nearest level, so it
+  still goes through `earn` and its soft cap) and the counts of the item extras. It does not change the odds; the Odds
+  screen says so.
+- **The stake is spent, whatever the reels show.** It is charged through Charter Currency's `EconomyService` from the
+  player's banked balance (`/bank`) before the roll; a failed charge means no stake and the spin goes ahead unstaked.
+  Nothing returns Coin, so the stake is a Coin sink, not a bet that can pay Coin out. That also keeps it on the right
+  side of real gambling: you cannot win back more Coin than you put in.
+- **The UI:** four buttons on row 5 either side of the lever (none, copper nugget, iron nugget, gold nugget, each with
+  its cost and bonus in the lore); the chosen one glows. The lever's lore repeats "Stake: 24 Marks for +50%". The
+  choice is remembered for next time but never charged until the lever is pulled, and a stake above the player's
+  balance is greyed out. Bedrock sees the same buttons; in `bedrockMode: "form"` it is a dropdown before the spin.
+- **Limits:** one stake per spin. Second Wind and the Welcome Back spin can be staked; First Week spins cannot (no
+  Valor to multiply, and new players should not spend their first coin here). A `stakeEnabled` knob turns it off.
+- **Ledger:** every stake goes to Charter Currency's transaction log with reason `fortune_stake`, and to `spins.jsonl`,
+  so `/fortune admin stats` can show how much Coin the machine drained.
 
 The roll is a server side weighted pick of the result line first, then symbols that make that line, then filler. The
 Odds button shows this table with the live percentages, read from the same config the roll uses.
@@ -259,7 +296,7 @@ guesses. Run it for two weeks before changing anything.
 | `/fortune admin reload` | `fortune.admin` | Reread `fortune.json` |
 
 `config/fortune/fortune.json`: `rolloverHourUtc`, `streakGraceDays`, `secondWindMinutes`, `comebackDays`,
-`firstSpinMinutes`, `musterSize`, `frameTicks`, `frameTicksBedrock`, `bedrockMode`, `payoutCommand`, the symbol list,
+`firstSpinMinutes`, `musterSize`, `stakeEnabled`, `stakeTiers`, `milestoneCommands`, `frameTicks`, `frameTicksBedrock`, `bedrockMode`, `payoutCommand`, the symbol list,
 the normal, Golden and Welcome Back paytables, `firstWeek`, `milestones`, `discordWebhook`, `discordMaxPerHour`.
 State: `<world>/fortune/players.json` (per UUID: last claim day, week position, streak, best streak, total claims,
 second wind used, first week position).
@@ -279,16 +316,25 @@ second wind used, first week position).
   the modal join prompt, glint in a Bedrock container, and the Discord summary.
 - Deploying to d212ecae follows the `deploy-shipped-server` skill and is the master session's call.
 
-## 13. Open questions for the owner
+## 13. Owner answers (2026-11-03)
 
-1. **Name.** "Fortune's Reels" with `/spin`, or another (a kingdom flavoured one such as "The Crown's Favour")?
-2. **Rollover hour** (5.1).
-3. **Coin** from the reels: none (recommended), or a small line.
-4. **Second Wind** on (recommended) or off.
-5. **First Week gifts** (5.3).
-6. **Milestone titles** through Charter's titles, or keepsake items only.
-7. **Muster size** (start at 3).
-8. **Where the machines go**: the hub only, or the hub and every keep (recommended, it puts people at their keeps).
+| Question | Answer |
+|---|---|
+| Name | Fantasy's Fortune (`/spin`, alias `/daily`; mod id `fortune`) |
+| Rollover hour | 08:00 UTC |
+| Coin from the reels | None. Players may stake Coin for up to +100% rewards (6.1) |
+| Second Wind | On, after 20 minutes online |
+| First Week | Emeralds, diamonds, ender pearls, blaze rods, gold, then the Golden Spin; no Valor yet (5.3) |
+| Milestones | Keepsake and title (5.2) |
+| Machines | Hub and every keep (3) |
 
-Recommended first build: sections 3, 4, 5.1, 5.2, 5.5, 6 and 9 to 11. Then the First Week, Second Wind, muster and
-Discord once the stats show who is coming back.
+Still open:
+
+1. **Confirm** the First Week reading in 5.3 (no Valor for the first seven claims; day 6 has no gift).
+2. **Muster size** (start at 3).
+3. **Stake prices** (8, 24, 64 Marks) against what a player banks in a normal week; retune from the stake totals in
+   `/fortune admin stats`.
+4. Whether the chat format shows LuckPerms suffixes, for milestone titles.
+
+Recommended first build: sections 3, 4, 5.1, 5.2, 5.5, 6 (with the stake) and 9 to 11. Then the First Week, Second
+Wind, muster and Discord once the stats show who is coming back.
