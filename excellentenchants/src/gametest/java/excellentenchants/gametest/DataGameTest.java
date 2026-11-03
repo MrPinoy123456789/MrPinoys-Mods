@@ -24,7 +24,7 @@ public final class DataGameTest {
             Map.entry(Enchants.THRIFTY, new int[]{3, 2}),
             Map.entry(Enchants.THUNDER, new int[]{5, 5}),
             Map.entry(Enchants.VENOM, new int[]{2, 10}),
-            Map.entry(Enchants.WISDOM, new int[]{5, 5}),
+            Map.entry(Enchants.WISDOM, new int[]{3, 2}),
             Map.entry(Enchants.WITHER, new int[]{2, 5}),
             Map.entry(Enchants.GHAST, new int[]{1, 1}),
             Map.entry(Enchants.TUNNEL, new int[]{3, 1}),
@@ -60,8 +60,8 @@ public final class DataGameTest {
         helper.assertTrue(Numbers.witherChance(2) == 10 && Numbers.witherSeconds(2) == 8, "wither");
         // Amplifier is the level value minus one.
         helper.assertTrue(Numbers.amplifier(1) == 0 && Numbers.amplifier(5) == 4, "amplifier");
-        // Wisdom multiplies by 1 + 0.5/level, capped at 3, rounding up.
-        helper.assertTrue(Numbers.wisdomMultiplier(1) == 1.5 && Numbers.wisdomMultiplier(5) == 3.0, "wisdom multiplier");
+        // Wisdom multiplies by 1 + 0.5/level, capped at 2.5 (rank III), rounding up.
+        helper.assertTrue(Numbers.wisdomMultiplier(1) == 1.5 && Numbers.wisdomMultiplier(3) == 2.5 && Numbers.wisdomMultiplier(5) == 2.5, "wisdom multiplier");
         helper.assertTrue(Numbers.wisdomXp(5, 1) == 8, "wisdom rounds up");
         // Decapitator 1 + 2/level, Thrifty 1/level, Silk Spawner 25/level.
         helper.assertTrue(Numbers.decapitatorChance(2) == 5 && Numbers.thriftyChance(3) == 3, "decap and thrifty");

@@ -38,7 +38,7 @@ public final class Catalog {
                             + " for " + Numbers.witherSeconds(l) + "s", null),
             new Entry("ice_aspect", "Ice Aspect", 3, SWORDS, "every hit slows and freezes the target.", true,
                     l -> "Slowness " + roman(Numbers.amplifier(l) + 1) + " for " + Numbers.iceAspectSeconds(l) + "s", null),
-            new Entry("wisdom", "Wisdom", 5, SWORDS, "kills drop more experience.", true,
+            new Entry("wisdom", "Wisdom", 3, SWORDS, "kills drop more experience.", true,
                     l -> "x" + num(Numbers.wisdomMultiplier(l)) + " experience", null),
             new Entry("decapitator", "Decapitator", 2, SWORDS,
                     "a chance that a kill drops the victim's head, players included.", false,

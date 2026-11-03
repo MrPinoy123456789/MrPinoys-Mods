@@ -69,7 +69,7 @@ public final class Numbers {
     }
 
     public static double wisdomMultiplier(int level) {
-        return modifier(1, 0.5, 3, level);
+        return modifier(1, 0.5, 2.5, level);
     }
 
     /** The orb total after Wisdom: the plugin rounds the multiplied amount up. */

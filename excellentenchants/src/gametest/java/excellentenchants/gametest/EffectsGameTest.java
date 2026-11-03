@@ -179,6 +179,31 @@ public final class EffectsGameTest {
     }
 
     @GameTest
+    public void wisdomAboveThreeIsLoweredToThree(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var registry = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        helper.assertTrue(registry.getOrThrow(Enchants.WISDOM).value().getMaxLevel() == 3, "Wisdom tops out at III");
+
+        // A Wisdom V sword drops to III and keeps its other enchantments; III and plain items are left alone.
+        ItemStack sword = enchanted(level, Items.DIAMOND_SWORD, Enchants.WISDOM, 5);
+        sword.enchant(registry.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS), 4);
+        helper.assertTrue(excellentenchants.Retired.cap(sword) && Enchants.level(level, sword, Enchants.WISDOM) == 3, "V not lowered");
+        helper.assertTrue(Enchants.level(level, sword, net.minecraft.world.item.enchantment.Enchantments.SHARPNESS) == 4, "Sharpness changed");
+        helper.assertTrue(!excellentenchants.Retired.cap(sword), "a III sword changed again");
+        helper.assertTrue(!excellentenchants.Retired.cap(new ItemStack(Items.DIAMOND_SWORD)), "plain sword changed");
+
+        // A Wisdom IV book in the ender chest drops to III.
+        ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
+        book.enchant(registry.getOrThrow(Enchants.WISDOM), 4);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.getEnderChestInventory().setItem(0, book);
+        excellentenchants.Retired.stripPlayer(player);
+        var stored = net.minecraft.world.item.enchantment.EnchantmentHelper.getEnchantmentsForCrafting(player.getEnderChestInventory().getItem(0));
+        helper.assertTrue(stored.getLevel(registry.getOrThrow(Enchants.WISDOM)) == 3, "book not lowered");
+        helper.succeed();
+    }
+
+    @GameTest
     public void silkSpawnerKeepsTheSpawnedMob(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
