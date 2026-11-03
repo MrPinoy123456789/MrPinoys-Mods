@@ -4,21 +4,23 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The Mint's arithmetic: daily allowance, bands, carry-over and the kingdom tax, with
- * no inventory and no clock. The fabric side removes the ingots, gives the coins and
- * saves the state; it asks this class what should happen.
+ * The Mint's arithmetic: the daily soft cap, its falloff and the kingdom tax, with no
+ * inventory and no clock. The fabric side removes the ingots, gives the coins and saves
+ * the state; it asks this class what should happen.
  *
- * <p>Allowance is counted in Marks of face value. The full band yields a coin for one
- * ingot, the half band for two. The tax is the owner's fixed rule (SPEC 8.3): every
- * fifth coin struck goes to the kingdom, and it is not configurable.
+ * <p>A player's day is counted in ingots spent (owner, 2026-11-03). Up to the soft cap a
+ * coin costs one ingot; past it the cost doubles every {@link Rules#falloffEvery} ingots,
+ * up to {@link #MAX_INGOTS_PER_COIN}. There is no hard stop and no carry-over. The tax is
+ * the owner's fixed rule (SPEC 8.3): every fifth coin struck goes to the kingdom, and it
+ * is not configurable.
  */
 public final class Mint {
 
     /** Every fifth coin is taxed: 2 in 10. Fixed in code on purpose. */
     public static final int TAX_EVERY = 5;
 
-    /** Ingots a coin costs in the half band. */
-    public static final int HALF_BAND_INGOTS = 2;
+    /** The most a coin ever costs, however far past the soft cap. */
+    public static final int MAX_INGOTS_PER_COIN = 64;
 
     /**
      * The one denomination the Mint strikes (owner, 2026-11-03). Copper and iron come out of mob farms without limit
@@ -34,26 +36,44 @@ public final class Mint {
         return STRUCK.equals(denominationId);
     }
 
-    /** The numbers that live in settings.json under {@code mint}. */
-    public record Rules(int fullBandPerDay, int halfBandPerDay, int carryOverDays) {
+    /**
+     * The numbers that live in settings.json under {@code mint}.
+     *
+     * @param softCapIngots ingots a player can strike at one ingot per coin each day
+     * @param falloffEvery  past the soft cap, the cost per coin doubles after every this many ingots
+     */
+    public record Rules(int softCapIngots, int falloffEvery) {
 
         public static Rules defaults() {
-            return new Rules(192, 192, 2);
+            return new Rules(320, 320);
         }
+    }
 
-        /** The most full band a player can bank: a day's worth plus the carry-over. */
-        public long fullCap() {
-            return (long) fullBandPerDay * (1 + Math.max(0, carryOverDays));
-        }
+    /** Ingots the next coin costs after {@code spentToday} ingots have been spent today. */
+    public static int ingotsPerCoin(long spentToday, Rules rules) {
+        if (spentToday < rules.softCapIngots()) return 1;
+        long steps = 1 + (spentToday - rules.softCapIngots()) / Math.max(1, rules.falloffEvery());
+        if (steps >= 6) return MAX_INGOTS_PER_COIN;
+        return (int) Math.min(MAX_INGOTS_PER_COIN, 1L << steps);
+    }
+
+    /**
+     * Ingots still to spend today before the cost per coin next rises, or -1 once it is at
+     * {@link #MAX_INGOTS_PER_COIN} and will not rise again.
+     */
+    public static long ingotsUntilFalloff(long spentToday, Rules rules) {
+        if (ingotsPerCoin(spentToday, rules) >= MAX_INGOTS_PER_COIN) return -1;
+        if (spentToday < rules.softCapIngots()) return rules.softCapIngots() - spentToday;
+        long every = Math.max(1, rules.falloffEvery());
+        long past = spentToday - rules.softCapIngots();
+        return every - past % every;
     }
 
     /** Why a strike produced no coin, when it did not. */
     public enum Shortfall {
         /** Coins were struck. */
         NONE,
-        /** No band has room left for even the smallest coin of this kind today. */
-        EXHAUSTED,
-        /** There is room, but the ingots offered do not cover one coin at the current rate. */
+        /** The ingots offered do not cover one coin at the current rate. */
         NEED_MORE_INGOTS,
         /** Nothing was offered. */
         NOTHING_OFFERED
@@ -62,10 +82,10 @@ public final class Mint {
     /**
      * What a strike does.
      *
-     * @param ingotsUsed      ingots to remove; an odd ingot left in the half band stays
-     * @param coinsStruck     every coin struck, taxed or not (all count against the allowance)
+     * @param ingotsUsed      ingots to remove; ingots short of the next coin's cost stay
+     * @param coinsStruck     every coin struck, taxed or not (all count against the day)
      * @param coinsFull       of those, struck at one ingot each
-     * @param coinsHalf       of those, struck at two ingots each
+     * @param coinsReduced    of those, struck past the soft cap at more than one ingot each
      * @param coinsToPlayer   coins handed to the striker
      * @param coinsToKingdom  coins whose face value goes to the kingdom (or is destroyed)
      * @param marksStruck     face value of every coin struck
@@ -73,7 +93,7 @@ public final class Mint {
      * @param shortfall       why nothing was struck, if nothing was
      * @param after           the state once the strike is applied
      */
-    public record Plan(int ingotsUsed, int coinsStruck, int coinsFull, int coinsHalf,
+    public record Plan(int ingotsUsed, int coinsStruck, int coinsFull, int coinsReduced,
                        int coinsToPlayer, int coinsToKingdom, long marksStruck,
                        long marksToKingdom, Shortfall shortfall, State after) {
         public boolean struck() {
@@ -86,10 +106,10 @@ public final class Mint {
      * side can store it as JSON without this module knowing about Gson.
      */
     public static final class State {
-        /** The day number {@code fullRemaining} and {@code halfRemaining} were last rolled to. */
+        /** The day {@code ingotsToday} was counted on. */
         public long day;
-        public long fullRemaining;
-        public long halfRemaining;
+        /** Ingots spent at the Mint on {@code day}, taxed coins included. */
+        public long ingotsToday;
         /** Coins struck since the last taxed coin, per denomination id. 0 to 4. */
         public Map<String, Integer> taxCounters = new LinkedHashMap<>();
 
@@ -98,85 +118,81 @@ public final class Mint {
         public State copy() {
             State s = new State();
             s.day = day;
-            s.fullRemaining = fullRemaining;
-            s.halfRemaining = halfRemaining;
+            s.ingotsToday = ingotsToday;
             s.taxCounters = new LinkedHashMap<>(taxCounters);
             return s;
         }
 
-        /** A new player's state: a full day's allowance, no carry-over yet. */
-        public static State fresh(long today, Rules rules) {
+        /** A new player's state: nothing spent today. */
+        public static State fresh(long today) {
             State s = new State();
             s.day = today;
-            s.fullRemaining = rules.fullBandPerDay();
-            s.halfRemaining = rules.halfBandPerDay();
             return s;
         }
     }
 
     /**
-     * The state as it stands on {@code today}: the full band is refilled by a day's
-     * worth for every day that has passed (capped at the carry-over limit), and the
-     * half band is reset. Tax counters are kept. A day in the past changes nothing.
+     * The state as it stands on {@code today}: a new day starts from nothing spent. Tax
+     * counters are kept. A day in the past changes nothing.
      */
-    public static State rollTo(State state, long today, Rules rules) {
+    public static State rollTo(State state, long today) {
         State out = state.copy();
-        long days = today - state.day;
-        if (days <= 0) return out;
-        long refill = Math.min(days, Math.max(1, rules.carryOverDays() + 1L)) * rules.fullBandPerDay();
-        out.fullRemaining = Math.min(rules.fullCap(), state.fullRemaining + refill);
-        out.halfRemaining = rules.halfBandPerDay();
+        if (today <= state.day) return out;
+        out.ingotsToday = 0;
         out.day = today;
         return out;
     }
 
-    /** {@link #plan(State, String, int, int)} keying the tax counter by face value. */
-    public static Plan plan(State state, int faceValue, int ingotsOffered) {
-        return plan(state, "v" + faceValue, faceValue, ingotsOffered);
+    /** {@link #plan(State, Rules, String, int, int)} keying the tax counter by face value. */
+    public static Plan plan(State state, Rules rules, int faceValue, int ingotsOffered) {
+        return plan(state, rules, "v" + faceValue, faceValue, ingotsOffered);
     }
 
     /**
      * Plan a strike of one denomination.
      *
-     * <p>The full band is used first. A coin is never split across bands: when the
-     * full band cannot cover another whole coin, the rest come from the half band at
-     * two ingots each, or not at all. The tax counter for the denomination advances by
-     * every coin struck, and every fifth coin is the kingdom's.
+     * <p>Coins are struck one at a time at the cost the day has reached: one ingot each up
+     * to the soft cap, then the falloff. A coin that starts below a step is struck at the
+     * lower cost. Ingots short of the next coin's cost are left with the player. The tax
+     * counter for the denomination advances by every coin struck, and every fifth coin is
+     * the kingdom's.
      *
      * @param state          the state already rolled to today
      * @param denominationId keys the tax counter
      * @param faceValue      Marks per coin; positive
      * @param ingotsOffered  ingots the player is willing to spend; never exceeded
      */
-    public static Plan plan(State state, String denominationId, int faceValue, int ingotsOffered) {
+    public static Plan plan(State state, Rules rules, String denominationId, int faceValue, int ingotsOffered) {
         State after = state.copy();
         if (faceValue <= 0 || ingotsOffered <= 0) {
-            return new Plan(0, 0, 0, 0, 0, 0, 0, 0,
-                    ingotsOffered <= 0 ? Shortfall.NOTHING_OFFERED : Shortfall.EXHAUSTED, after);
+            return new Plan(0, 0, 0, 0, 0, 0, 0, 0, Shortfall.NOTHING_OFFERED, after);
         }
 
-        long fullRoom = state.fullRemaining / faceValue;
-        long halfRoom = state.halfRemaining / faceValue;
+        long spent = state.ingotsToday;
+        int left = ingotsOffered;
+        int coinsFull = 0;
+        int coinsReduced = 0;
+        while (true) {
+            int cost = ingotsPerCoin(spent, rules);
+            if (cost > left) break;
+            left -= cost;
+            spent += cost;
+            if (cost == 1) coinsFull++;
+            else coinsReduced++;
+        }
 
-        int coinsFull = (int) Math.min(ingotsOffered, fullRoom);
-        int ingotsLeft = ingotsOffered - coinsFull;
-        int coinsHalf = (int) Math.min(ingotsLeft / HALF_BAND_INGOTS, halfRoom);
-
-        int coins = coinsFull + coinsHalf;
+        int coins = coinsFull + coinsReduced;
         if (coins == 0) {
-            Shortfall why = fullRoom + halfRoom == 0 ? Shortfall.EXHAUSTED : Shortfall.NEED_MORE_INGOTS;
-            return new Plan(0, 0, 0, 0, 0, 0, 0, 0, why, after);
+            return new Plan(0, 0, 0, 0, 0, 0, 0, 0, Shortfall.NEED_MORE_INGOTS, after);
         }
-
-        after.fullRemaining -= (long) coinsFull * faceValue;
-        after.halfRemaining -= (long) coinsHalf * faceValue;
+        after.ingotsToday = spent;
 
         int counter = state.taxCounters.getOrDefault(denominationId, 0);
         long running = (long) counter + coins;
         int taxed = (int) (running / TAX_EVERY);
         after.taxCounters.put(denominationId, (int) (running % TAX_EVERY));
 
-        return new Plan(coinsFull + HALF_BAND_INGOTS * coinsHalf, coins, coinsFull, coinsHalf,
+        return new Plan(ingotsOffered - left, coins, coinsFull, coinsReduced,
                 coins - taxed, taxed, (long) coins * faceValue, (long) taxed * faceValue,
                 Shortfall.NONE, after);
     }
