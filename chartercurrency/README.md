@@ -52,8 +52,12 @@ Coin enters the world only at a Mint. An op looks at a smithing table and runs
 `/chartercurrency mint bind` (also `unbind`, `list`; sites are in `mints.json`).
 Right-clicking a bound table never opens the smithing screen:
 
-- holding copper, iron or gold ingots strikes coin from them (1 ingot per coin in the
-  full band, 2 in the half band); sneaking strikes from every stack of that metal;
+- holding gold ingots strikes Gold Sovereigns from them (1 ingot per coin in the full
+  band, 2 in the half band); sneaking strikes from every stack of gold;
+- holding copper or iron ingots strikes nothing: "The Mint strikes gold only. Copper and
+  iron are not money here." Mob farms make copper and iron without limit (drowned, iron
+  golems), so from 2026-11-03 only gold is money at the Mint (`Mint.STRUCK`). Copper
+  Marks and Iron Crowns still circulate as change, from withdrawals and payouts;
 - an empty hand, or anything else, shows the allowance. `/mint` shows it anywhere.
 
 The allowance is counted in Marks: 192 a day at full rate (unused full band carries

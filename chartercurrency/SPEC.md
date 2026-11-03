@@ -392,13 +392,16 @@ cannot be capped, and recipe ingredients cannot check a marker).
 - Right-clicking a bound smithing table **does not open the smithing UI**
   (cancel through Fabric API `UseBlockCallback`, returning a consuming result).
   Instead:
-  - **Holding copper, iron or gold ingots:** strikes coins from the held stack,
-    as many as the allowance permits.
-  - **Sneak and right-click while holding ingots:** strikes from every stack of
-    that metal in the main 36 slots.
+  - **Holding gold ingots:** strikes Gold Sovereigns from the held stack, as many
+    as the allowance permits.
+  - **Sneak and right-click while holding gold ingots:** strikes from every stack
+    of gold in the main 36 slots.
+  - **Holding copper or iron ingots:** strikes nothing and says `The Mint strikes
+    gold only. Copper and iron are not money here.` (owner, 2026-11-03: mob farms
+    make copper and iron without limit; this supersedes the copper and iron rates).
   - **Empty hand or anything else:** shows the player's remaining allowance.
-- Rates: 1 copper ingot = 1 Mark, 1 iron ingot = 1 Crown, 1 gold ingot =
-  1 Sovereign.
+- Rate: 1 gold ingot = 1 Sovereign. Copper Marks and Iron Crowns are no longer
+  struck; they still circulate as change.
 - Coins go into the inventory with `giveOrDrop`. A small sound on success (the
   fork has a `Chime` class).
 - Every strike is taxed for the striker's kingdom (section 8.3).

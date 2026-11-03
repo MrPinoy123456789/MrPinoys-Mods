@@ -15,7 +15,8 @@ import net.minecraft.world.level.block.Blocks;
 import java.util.Optional;
 
 /**
- * The Mint: right-click a bound smithing table to strike coin from ingots.
+ * The Mint: right-click a bound smithing table to strike Gold Sovereigns from gold ingots. Copper and iron
+ * ingots are refused ({@link Mint#strikes}): farms make them without limit.
  *
  * <p>Coin enters the world only here. The order of a strike is: plan, take the ingots,
  * commit the state and the tax, give the coin. A strike that cannot take its ingots
@@ -58,6 +59,7 @@ final class MintListener {
         };
     }
 
+    /** The denomination whose ingot this is, struck at the Mint or not. */
     private Optional<Denomination> denominationOf(ItemStack stack) {
         if (stack.isEmpty()) return Optional.empty();
         for (Denomination d : s.coin().denominations()) {
@@ -71,6 +73,10 @@ final class MintListener {
         Optional<Denomination> held = denominationOf(player.getMainHandItem());
         if (held.isEmpty()) {
             showAllowance(player);
+            return;
+        }
+        if (!Mint.strikes(held.get().id())) {
+            player.sendSystemMessage(Messages.body("The Mint strikes gold only. Copper and iron are not money here."));
             return;
         }
         strike(player, held.get(), player.isShiftKeyDown());
