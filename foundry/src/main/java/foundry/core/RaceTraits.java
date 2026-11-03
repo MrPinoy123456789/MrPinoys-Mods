@@ -80,7 +80,7 @@ public record RaceTraits(Map<String, Trait> races) {
      * ticks.
      */
     public record Dash(int charges, int refill, int gap, double up, double forward, double maxSpeed, int ceiling, int hitDrop) {
-        public static final Dash DEFAULT = new Dash(3, 30, 8, 0.8, 0.6, 0.65, 12, 20);
+        public static final Dash DEFAULT = new Dash(3, 30, 8, 0.8, 1.2, 1.3, 12, 20);
     }
 
     /**

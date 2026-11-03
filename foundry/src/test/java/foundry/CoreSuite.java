@@ -321,7 +321,10 @@ public final class CoreSuite {
         check(down[1] < d.up() / 8 && down[2] > 0.2, "looking well down: hardly any lift, still a push");
         check(foundry.core.WingDash.burst(0, -0.2, 0, 0f, 90f, d, false)[1] == 0, "looking straight down: no lift");
         double[] capped = foundry.core.WingDash.burst(0, 0, 0.6, 0f, 0f, d, false);
-        check(Math.hypot(capped[0], capped[2]) <= d.maxSpeed() + 1e-9 && d.maxSpeed() < 1.2, "bursts never stack past the speed cap, below a Fairy's");
+        check(Math.hypot(capped[0], capped[2]) <= d.maxSpeed() + 1e-9 && d.maxSpeed() < 1.7, "bursts never stack past the speed cap, below a rocket's");
+        // a burst looking level carries about 13 blocks (air drag 0.91 a tick until the next charge), twice the first 0.6
+        check(burstReach(d) >= 2 * burstReach(new foundry.core.RaceTraits.Dash(3, 30, 8, 0.8, 0.6, 0.65, 12, 20)) - 0.01
+                && burstReach(d) > 12, "a level burst carries twice as far as the first wing dash: " + burstReach(d));
         double[] high = foundry.core.WingDash.burst(0, 0.3, 0, 0f, -90f, d, true);
         check(high[1] == 0, "over the ceiling a burst no longer climbs");
         // vanilla falling: 0.08 gravity rising, Slow Falling's 0.01 falling, 0.98 drag; one burst per refill
@@ -333,6 +336,16 @@ public final class CoreSuite {
                 "wing_dash reads its numbers, the rest from the defaults");
         check(!foundry.core.RaceTraits.parse("{\"race:faeloria\":{\"wing_dash\":{\"up\":5}}}").problems().isEmpty(),
                 "a wing dash out of range is reported");
+    }
+
+    /** Blocks a burst looking level carries a Fae across the ground before the next charge, by vanilla's air drag. */
+    private static double burstReach(foundry.core.RaceTraits.Dash d) {
+        double v = foundry.core.WingDash.burst(0, 0, 0, 0f, 0f, d, false)[2], reach = 0;
+        for (int t = 0; t < d.refill(); t++) {
+            reach += v;
+            v *= 0.91;
+        }
+        return reach;
     }
 
     /** Blocks gained (or lost) per burst, bursting once per refill at this pitch for 30 seconds, by vanilla's falling. */
