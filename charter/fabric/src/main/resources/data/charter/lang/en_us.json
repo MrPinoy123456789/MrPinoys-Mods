@@ -567,7 +567,7 @@
   "chronicle.realm_empty": "No Realm Chronicle lecterns yet. Use /charter admin realm-chronicle here.",
   "chronicle.realm_line": "Realm Chronicle: {dimension} at {x} {y} {z}",
 
-  "book.item.name": "Charter of Rights and Freedoms",
+  "book.item.name": "Charter",
   "book.item.lore": "Use it to see where you stand.",
   "book.nexus.lore": "Place it to found {name}.",
   "book.not_running": "Charter is not running.",

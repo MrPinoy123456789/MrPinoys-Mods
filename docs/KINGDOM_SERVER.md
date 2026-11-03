@@ -881,7 +881,7 @@ A keep's lectern can move anywhere inside the keep's **core chunk** (the chunk w
 
 ## The Charter book
 
-Nobody is handed the Charter of Rights and Freedoms any more: not on joining, not on respawn and not when one is lost (2026-11-02). Terminals (the keep lecterns) open the same menu, for players with no kingdom and inside the spawn too, and a player who wants a book to carry takes one from there. Code: `charter/fabric/src/main/java/charter/mc/book/` (`BookMod`, `BookRules`, `BoundItems`, `CharterBook`).
+The book item is named just "Charter" (2026-11-03; it was the Charter of Rights and Freedoms). Nobody is handed it any more: not on joining, not on respawn and not when one is lost (2026-11-02). Terminals (the keep lecterns) open the same menu, for players with no kingdom and inside the spawn too, and a player who wants a book to carry takes one from there. Code: `charter/fabric/src/main/java/charter/mc/book/` (`BookMod`, `BookRules`, `BoundItems`, `CharterBook`).
 
 - **One copy, your own.** Each book carries its owner's id. A player carries one copy: extra copies, and any copy that belongs to someone else, are removed at login, on respawn and once a second. A book made before books had owners is adopted by whoever carries it.
 - **It stays with you.** It never drops on death: it is set aside as the player dies and handed back on respawn (a new one is given only if they then carry none). A dropped book can be picked up only by its owner and is gone after twenty seconds. Chests, barrels, shulker boxes, hoppers, bundles, item frames, armor stands and allays refuse it.

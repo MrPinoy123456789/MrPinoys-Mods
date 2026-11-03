@@ -45,7 +45,7 @@ Not protected on purpose: mob griefing (endermen, ravagers) follows the vanilla
   `PlaceNexus`. A **war banner** is a red banner tagged `charter: war_banner`;
   placing it runs `PlantCamp` and lights a signal campfire on a hay bale beside it.
   Operators hand them out with `/charter admin give nexus|banner [player]`.
-- The **Charter of Rights and Freedoms** is a paper item drawn as a book and quill
+- The **Charter** (once the Charter of Rights and Freedoms) is a paper item drawn as a book and quill
   (`charter: book`), taken from a terminal (a keep lectern). Using it, or
   typing `/charter`, opens a dialog menu: Rights, Freedoms, your situation, your
   faction, its Chronicle; a player with no faction sees Join and Found instead.
