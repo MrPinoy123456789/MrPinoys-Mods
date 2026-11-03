@@ -51,6 +51,7 @@ lp group moderator permission set minecraft.command.teleport.targets false
 # admin: Charter's operator commands and pass, give, every game mode, permanent bans
 lp group admin permission set charter.admin true
 lp group admin permission set charter.bypass true
+lp group admin permission set charter.locatorbar true
 lp group admin permission set banhammer.punish.ban true
 lp group admin permission set banhammer.punish.banip true
 lp group admin permission set banhammer.punish.tempbanip true
