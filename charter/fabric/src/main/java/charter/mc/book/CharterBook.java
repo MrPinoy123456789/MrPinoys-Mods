@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The Charter of Rights and Freedoms: a paper item that a vanilla client draws as
+ * The Charter (named the Charter of Rights and Freedoms until 2026-11-03): a paper item that a vanilla client draws as
  * a book and quill, and that opens the {@code /charter} menu when used. It is only a
  * shortcut (docs, C2); the one thing stored on it is the player it belongs to, so a
  * player carries one copy, their own. Using it runs {@code /charter} as the player,
