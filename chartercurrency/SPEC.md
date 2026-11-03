@@ -104,8 +104,10 @@ so a stray import fails the build). All money, mint and earn arithmetic lives in
   later do not break recognition). A plain nugget is not coin; an anvil-renamed
   nugget is not coin.
 - Every coin the mod creates carries the marker plus `minecraft:item_name`
-  (`Copper Mark`, `Iron Crown`, `Gold Sovereign`) and one lore line
-  (`Charter coin, worth 8 Marks`).
+  (`Copper Mark`, `Iron Crown`, `Gold Sovereign`) and two lore lines: its worth in
+  the next coin down (`Charter coin, worth 8 Crowns`; a Mark says only `Charter coin`)
+  and `Right-click: bank this stack`. Carried coin from an older release is given
+  the current lore every 5 seconds so it keeps stacking with new coin.
 - The three are defined in `currencies.json` (section 9), not hard-coded, but the
   defaults above are what ships.
 - Display: `3 Sovereigns, 2 Crowns, 5 Marks (213 Marks)`. Always show the Marks
@@ -181,6 +183,7 @@ The forked commands, with these changes:
 | Command | Behaviour |
 |---|---|
 | `/balance`, `/bal` | Coin (in the display format above) and Valor, with rank in each; plus the player's kingdom and its Renown |
+| Right-click a coin stack | Banks the whole stack in the main hand at face value. A block with its own use (a chest, a bound Mint table) takes the click first |
 | `/bank all` | Deposits every marked coin in the main 36 slots at face value. If plain (unmarked) copper, iron or gold nuggets are present, add one line: `Plain nuggets are not coin and were left alone.` |
 | `/bank <amount> [denomination]` | Deposit an amount. Amount is in Marks unless a denomination word follows |
 | `/withdraw <amount> [denomination]` | With a denomination, gives that many of it. Without one (or with `coin`), the amount is Marks and the mod gives the fewest coins (greedy: Sovereigns, then Crowns, then Marks). All-or-nothing on inventory space |

@@ -78,10 +78,44 @@ final class CoinStacks {
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
 
         stack.set(DataComponents.ITEM_NAME, Component.literal(denomination.singular()));
-        String unit = denomination.value() == 1 ? coin.singular() : coin.plural();
-        stack.set(DataComponents.LORE, new ItemLore(List.of(
-                Component.literal("Charter coin, worth " + denomination.value() + " " + unit)
-                        .withStyle(style -> style.withItalic(false).applyFormat(ChatFormatting.GRAY)))));
+        stack.set(DataComponents.LORE, lore(denomination, coin));
         return stack;
+    }
+
+    /**
+     * The coin's lore: its worth in the next coin down ({@code Charter coin, worth 8 Crowns}),
+     * and how to bank it ({@link CoinBankClick}).
+     */
+    static ItemLore lore(Denomination denomination, Currency coin) {
+        Denomination below = null;
+        for (Denomination d : coin.denominations()) {
+            if (d.value() < denomination.value() && (below == null || d.value() > below.value())) below = d;
+        }
+        String worth = below == null
+                ? "Charter coin"
+                : "Charter coin, worth " + below.describe(denomination.value() / below.value());
+        return new ItemLore(List.of(
+                Component.literal(worth)
+                        .withStyle(style -> style.withItalic(false).applyFormat(ChatFormatting.GRAY)),
+                Component.literal("Right-click: bank this stack")
+                        .withStyle(style -> style.withItalic(false).applyFormat(ChatFormatting.YELLOW))));
+    }
+
+    /**
+     * Brings a coin made by an older release up to today's lore, so it stacks with new
+     * coin and shows the bank hint. Returns true if the stack was changed. The marker,
+     * the count and everything else are left alone.
+     */
+    static boolean refresh(ItemStack stack, Currency coin) {
+        Optional<String> marker = markerOf(stack);
+        if (marker.isEmpty()) return false;
+        for (Denomination d : coin.denominations()) {
+            if (!d.id().equals(marker.get())) continue;
+            ItemLore want = lore(d, coin);
+            if (want.equals(stack.get(DataComponents.LORE))) return false;
+            stack.set(DataComponents.LORE, want);
+            return true;
+        }
+        return false;
     }
 }

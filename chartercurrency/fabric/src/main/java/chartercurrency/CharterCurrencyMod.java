@@ -53,6 +53,9 @@ public final class CharterCurrencyMod implements ModInitializer {
     public static final String MOD_ID = "chartercurrency";
     public static final Logger LOG = LoggerFactory.getLogger(MOD_ID);
 
+    /** How often carried coin is checked for out-of-date lore ({@link CoinStacks#refresh}). */
+    private static final int COIN_REFRESH_TICKS = 100;
+
     private JsonAccountStore store;
     private TransactionLog log;
     private CharterCurrency economy;
@@ -117,6 +120,7 @@ public final class CharterCurrencyMod implements ModInitializer {
         Services.current = services;
         MintListener mintListener = new MintListener(services);
         mintListener.register();
+        new CoinBankClick(services).register();
         TreasuryCommands treasuryCommands = new TreasuryCommands(services, mintListener);
         KingdomAdminCommands kingdomAdmin = new KingdomAdminCommands(services, treasuryCommands);
         services.earn = new EarnService(book, economy, treasury,
@@ -163,8 +167,20 @@ public final class CharterCurrencyMod implements ModInitializer {
             loginSnapshot.onJoin(player, known, server.getTickCount());
         });
 
-        ServerTickEvents.END_SERVER_TICK.register(server ->
-                loginSnapshot.tick(server, server.getTickCount()));
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            loginSnapshot.tick(server, server.getTickCount());
+            // Coin from an older release (other lore) would not stack with new coin, so
+            // carried coin is brought up to date every few seconds. Unchanged stacks cost
+            // one comparison each.
+            if (server.getTickCount() % COIN_REFRESH_TICKS == 0) {
+                for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                    var inv = p.getInventory();
+                    for (int i = 0; i < inv.getContainerSize(); i++) {
+                        CoinStacks.refresh(inv.getItem(i), currencies.coin());
+                    }
+                }
+            }
+        });
 
         // Flush before the process leaves. The debounce window means an unclean kill
         // can cost a few seconds of transactions; a clean stop costs nothing.
