@@ -53,6 +53,11 @@ public final class Claims {
      * first claim lands, so a finished week stays on show until then.
      */
     public static int apply(PlayerRecord record, Plan plan, String headlineSymbol, Settings settings) {
+        record.prevClaimDay = record.lastClaimDay;
+        record.prevWeekPosition = record.weekPosition;
+        record.prevWeekSymbols = new java.util.ArrayList<>(record.weekSymbols);
+        record.prevStreak = record.streak;
+        record.prevBestStreak = record.bestStreak;
         if (record.weekPosition == 0) record.weekSymbols.clear();
         record.weekSymbols.add(headlineSymbol);
         record.weekPosition = plan.weekDay() >= 7 ? 0 : plan.weekDay();
@@ -64,6 +69,21 @@ public final class Claims {
             if (m.claims == record.totalClaims) return m.claims;
         }
         return 0;
+    }
+
+    /**
+     * Gives today's spin back: puts the calendar as it was before today's claim, so the next pull is today's claim
+     * again (same week day, same streak step). The reward already paid stays paid. False when today was not claimed.
+     */
+    public static boolean undoToday(PlayerRecord record, long today) {
+        if (record.lastClaimDay != today) return false;
+        record.lastClaimDay = record.prevClaimDay;
+        record.weekPosition = record.prevWeekPosition;
+        record.weekSymbols = new java.util.ArrayList<>(record.prevWeekSymbols);
+        record.streak = record.prevStreak;
+        record.bestStreak = record.prevBestStreak;
+        record.totalClaims = Math.max(0, record.totalClaims - 1);
+        return true;
     }
 
     /** The last day a claim keeps the streak alive. */

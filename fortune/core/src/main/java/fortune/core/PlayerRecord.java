@@ -22,8 +22,14 @@ public final class PlayerRecord {
     public int totalClaims;
     /** The stake tier chosen last time ("none" or a tier id). Remembered, never charged until the lever is pulled. */
     public String stakeTier = "none";
-    /** Ticks played before the first spin, counted while {@link #totalClaims} is 0. */
-    public long ticksBeforeFirstSpin;
+
+    // ---- the calendar before the last claim, so an operator can give today's spin back ----
+
+    public long prevClaimDay = -1;
+    public int prevWeekPosition;
+    public List<String> prevWeekSymbols = new ArrayList<>();
+    public int prevStreak;
+    public int prevBestStreak;
 
     // ---- the last spin, so reopening the machine shows it and a crash mid payout can finish it ----
 

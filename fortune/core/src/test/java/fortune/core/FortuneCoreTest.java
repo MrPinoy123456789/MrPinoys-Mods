@@ -162,6 +162,11 @@ public final class FortuneCoreTest {
         claimOn(r, s, 216);
         check("the streak resets on an 8 day gap", r.streak == 1);
         check("the best streak is kept", r.bestStreak == 3);
+        check("an operator reset gives today's spin back", Claims.undoToday(r, 216) && Claims.plan(r, 216, s).isPresent());
+        check("and puts the streak and week back", r.streak == 3 && r.weekPosition == 3 && r.totalClaims == 3);
+        check("a reset with nothing claimed today does nothing", !Claims.undoToday(r, 216));
+        claimOn(r, s, 216);
+        check("the re-spin resets the streak again (8 day gap)", r.streak == 1 && r.totalClaims == 4);
         check("streak is safe until the last claim plus the grace", Claims.streakSafeUntil(r, s) == 223);
     }
 
