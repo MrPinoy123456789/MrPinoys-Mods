@@ -573,7 +573,7 @@ public final class WeaponsGameTest {
     }
 
     @GameTest
-    public void aStoneSkinOrRallyIsASneakingRightClickAndAPlainOneAttacks(GameTestHelper helper) {
+    public void aStoneSkinOrQuickdrawIsASneakingRightClickAndAPlainOneAttacks(GameTestHelper helper) {
         var pick = holder(helper, "kingdoms:azrak_pick_1");
         pick.setShiftKeyDown(true);
         item("kingdoms:azrak_pick_1").use(helper.getLevel(), pick, InteractionHand.MAIN_HAND);
@@ -581,10 +581,11 @@ public final class WeaponsGameTest {
         helper.assertValueEqual(Bolts.liveFor(pick.getUUID()), 0, "sneaking launches nothing");
 
         var lord = holder(helper, "kingdoms:aurelia_oathblade_1");
-        var ally = holder(helper, "kingdoms:aurelia_oathblade_1");
         lord.setShiftKeyDown(true);
         item("kingdoms:aurelia_oathblade_1").use(helper.getLevel(), lord, InteractionHand.MAIN_HAND);
-        helper.assertTrue(lord.hasEffect(MobEffects.STRENGTH) && ally.hasEffect(MobEffects.STRENGTH), "Rally strengthens everyone near");
+        helper.assertTrue(lord.isUsingItem() && !foundry.mc.Parry.open(lord.getUUID()),
+                "a sneaking right click on the Oathblade draws for Quickdraw, it does not parry");
+        lord.stopUsingItem();
 
         var attacker = holder(helper, "kingdoms:azrak_pick_1");
         Mob near = still(helper, 2, 2, 3);

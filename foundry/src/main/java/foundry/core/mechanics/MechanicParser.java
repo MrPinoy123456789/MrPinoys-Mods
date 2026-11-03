@@ -89,9 +89,15 @@ public final class MechanicParser {
                         "Remove it, or change the trigger to on_use."));
                 charge = 0;
             }
+            int minCharge = number(o, "min_charge_ticks", 0, source, where, out);
+            if (minCharge < 0 || (minCharge > 0 && minCharge >= charge)) {
+                out.add(Problem.error(source, where + ".min_charge_ticks", "min_charge_ticks must be above 0 and below charge_ticks.",
+                        "Use 5 with charge_ticks 20 to allow a quick release from a quarter second."));
+                minCharge = 0;
+            }
             for (Step c : conditions) check(c, false, source, where + ".conditions", out, trigger);
             for (Step a : actions) check(a, true, source, where + ".actions", out, trigger);
-            if (trigger != null) result.add(new MechanicDef(trigger, conditions, actions, cooldown, chance, name, tag, charge));
+            if (trigger != null) result.add(new MechanicDef(trigger, conditions, actions, cooldown, chance, name, tag, charge, minCharge));
         }
         return result;
     }
@@ -102,10 +108,10 @@ public final class MechanicParser {
                     ? "See the action list in the add-foundry-item skill, or ask for a new action type."
                     : "See the condition list in the add-foundry-item skill."));
         }
-        boolean strikes = trigger == Trigger.ON_HIT_ENTITY || trigger == Trigger.ON_BOLT_HIT;
+        boolean strikes = trigger == Trigger.ON_HIT_ENTITY || trigger == Trigger.ON_BOLT_HIT || trigger == Trigger.ON_PARRY;
         if ("hit".equals(step.params().get("target")) && !strikes) {
-            out.add(Problem.error(source, where, "target \"hit\" only works with an on_hit_entity or on_bolt_hit trigger.",
-                    "Use target \"self\", or change the trigger to on_hit_entity or on_bolt_hit."));
+            out.add(Problem.error(source, where, "target \"hit\" only works with an on_hit_entity, on_bolt_hit or on_parry trigger.",
+                    "Use target \"self\", or change the trigger to on_hit_entity, on_bolt_hit or on_parry."));
         }
         boolean area = "area".equals(step.params().get("target"));
         boolean areaKind = step.type().equals("apply_effect") || step.type().equals("damage") || step.type().equals("knockback");
@@ -117,6 +123,10 @@ public final class MechanicParser {
                 || step.params().containsKey("require_permission") || step.params().containsKey("exclude_permission"))) {
             out.add(Problem.error(source, where, "radius and the permission filters only apply with target \"area\".",
                     "Add \"target\": \"area\", or remove them."));
+        }
+        if (action && (step.type().equals("dash_strike") || step.type().equals("parry")) && trigger != Trigger.ON_USE) {
+            out.add(Problem.error(source, where, step.type() + " only works on an on_use mechanic.",
+                    "Move it to a right click (on_use) mechanic."));
         }
         if (action && step.type().equals("launch_bolt") && trigger == Trigger.ON_BOLT_HIT) {
             out.add(Problem.error(source, where, "A bolt cannot launch another bolt.",

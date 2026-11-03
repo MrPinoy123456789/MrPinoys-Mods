@@ -40,6 +40,19 @@ public final class MechanicRunner {
         return Math.max(0, readyAt.getOrDefault(actor + "|" + contentId + "|" + mechanicIndex, 0L) - now);
     }
 
+    /**
+     * Gives back {@code ticks} of a running recharge (a parry that landed), never past ready. Returns the tick the
+     * mechanic is now ready at.
+     */
+    public long refund(String actor, String contentId, int mechanicIndex, long ticks, long now) {
+        String key = actor + "|" + contentId + "|" + mechanicIndex;
+        Long at = readyAt.get(key);
+        if (at == null || at <= now) return now;
+        long next = Math.max(now, at - ticks);
+        readyAt.put(key, next);
+        return next;
+    }
+
     /** True when the mechanic's conditions hold and it is off cooldown: the check a hold-to-charge start makes. */
     public boolean ready(String actor, String contentId, int mechanicIndex, MechanicDef m, Host host) {
         if (running) return false;

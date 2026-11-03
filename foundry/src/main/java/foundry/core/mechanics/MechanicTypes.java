@@ -67,9 +67,21 @@ public final class MechanicTypes {
                 Param.decimal("radius", false, 0.1, 2), Param.optId("particle"), Param.optId("require_permission"),
                 Param.optId("exclude_permission"), Param.bool("returns"), Param.optName("return_tag"), Param.optId("model"),
                 Param.colour("colour"), Param.bool("spin"), Param.decimal("model_scale", false, 0.1, 3));
+        // Quickdraw: dash the way the player faces, stopping at walls, and cut every living thing passed through once.
+        // range and amount are at full charge; a part charge (see min_charge_ticks) scales down to min_range and
+        // min_damage times the amount.
+        action("dash_strike", Param.decimal("range", true, 1, 16), Param.decimal("min_range", false, 0.5, 16),
+                Param.decimal("amount", true, 0.5, 100), Param.decimal("min_damage", false, 0, 1), Param.optId("effect"),
+                Param.integer("duration", false, 1, 600), Param.integer("amplifier", false, 0, 4), Param.colour("colour"),
+                Param.optId("require_permission"), Param.optId("exclude_permission"));
+        // Mikiri: for window ticks the next melee hit or projectile aimed at the player is cancelled and the item's
+        // on_parry mechanics answer the attacker; a parry that lands gives back refund (0 to 1) of this recharge.
+        action("parry", Param.integer("window", true, 1, 40), Param.decimal("refund", false, 0, 1));
         condition("has_permission", Param.integer("level", true, 0, 4), Param.target());
         condition("is_sneaking", Param.bool("value"));
         condition("in_water", Param.bool("value"));
+        // on foot: not riding anything and not in water (rain does not count)
+        condition("on_foot", Param.bool("value"));
     }
 
     private static void action(String name, Param... p) {
@@ -112,7 +124,7 @@ public final class MechanicTypes {
                 case TARGET -> {
                     if (!TARGETS.contains(v)) {
                         out.add("target \"" + v + "\" is not valid. Use self (the acting player), hit "
-                                + "(the entity struck by an on_hit_entity or on_bolt_hit trigger) or area "
+                                + "(the entity struck by an on_hit_entity or on_bolt_hit trigger, or the attacker for on_parry) or area "
                                 + "(apply_effect only).");
                     }
                 }

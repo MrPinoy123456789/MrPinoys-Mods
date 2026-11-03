@@ -87,6 +87,12 @@ def use(name, cooldown, actions, sneaking, charge=0):
     return m
 
 
+def on_foot(m):
+    """Only when not riding and not in water (the Oathblade's Quickdraw)."""
+    m["conditions"].append({"type": "on_foot", "value": True})
+    return m
+
+
 def hit(tag, actions, wet=False):
     m = {"trigger": "on_bolt_hit", "tag": tag, "actions": actions}
     if wet:
@@ -137,34 +143,40 @@ def azrak(t):
 def aurelia(t):
     smite = [1, 1, 2][t]
     weak = [40, 60, 80][t]
-    lance = [4, 5, 6][t]
-    lance_cd = [300, 280, 260][t]
-    rally = [160, 200, 240][t]
-    rally_cd = [1200, 1100, 1000][t]
-    silver, light = "#C9CED8", "#FFF4C2"
+    counter = [6, 7, 8][t]
+    parry_cd = [240, 220, 200][t]
+    cut = [6, 7, 8][t]
+    draw_cd = [240, 220, 200][t]
+    silver, steel = "#C9CED8", "#F2F4F8"
+    lore = [f"Hit: {smite} extra damage and Weakness for {secs(weak)}s.",
+            "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
+            f"  You counter for {counter} damage, Weakness and Slowness. {secs(parry_cd)}s recharge, half back on a parry.",
+            "Sneak, hold right click and let go: Quickdraw, a dash of up to 8 blocks.",
+            f"  It cuts everything you pass for up to {cut} damage; hold 1s for full. {secs(draw_cd)}s recharge."]
+    answer = [damage(counter, ignore_hit_delay=True), effect("minecraft:weakness", 40, 0, "hit"),
+              effect("minecraft:slowness", 40, 0, "hit"),
+              sound("minecraft:entity.player.attack.crit", 1.0, 1.4),
+              shape("arc", 18, 1.4, "hit", colour=steel, size=1.0)]
+    if t == 2:
+        lore.append("A parry also gives you and allies within 6 blocks Strength for 5s.")
+        answer += [effect("minecraft:strength", 100, 0, "area", 6), shape("ring", 32, 6.0, colour=silver, size=1.2)]
     return dict(
         key="aurelia_oathblade", name="Oathblade", base="minecraft:iron_sword", damage=[5, 6, 6][t], speed=1.6,
-        lore=[f"Hit: {smite} extra damage and Weakness for {secs(weak)}s.",
-              f"Right click: Holy Lance, a spear of light, {lance} damage. {secs(lance_cd)}s recharge.",
-              f"Sneak and right click: Rally, Strength and Speed for you and allies within 6 blocks for {secs(rally)}s. {secs(rally_cd)}s recharge."],
+        lore=lore,
         mechanics=[
             {"trigger": "on_hit_entity", "actions": [damage(smite, ignore_hit_delay=True),
                                                      effect("minecraft:weakness", weak, 0, "hit"),
                                                      sound("minecraft:entity.player.attack.sweep", 0.7, 1.3),
                                                      shape("arc", 14, 1.6, colour=silver, size=0.9)]},
-            use("Holy Lance", lance_cd, [sound("minecraft:entity.blaze.shoot", 0.8, 1.6),
-                                         sound("minecraft:block.beacon.activate", 0.5, 2.0),
-                                         bolt("holy_lance", [16, 18, 20][t], 1.6, "minecraft:end_rod",
-                                              model="minecraft:end_rod", model_scale=1.0, colour=light)], False),
-            hit("holy_lance", [damage(lance), effect("minecraft:weakness", [80, 100, 120][t], 0, "hit"),
-                               sound("minecraft:block.amethyst_block.chime", 1.0, 0.8),
-                               shape("column", 16, 2.5, "hit", particle="minecraft:end_rod"),
-                               shape("burst", 16, 0.8, "hit", colour=light)]),
-            use("Rally", rally_cd, [sound("minecraft:item.goat_horn.sound.0", 1.0, 1.0),
-                                    effect("minecraft:strength", rally, 0, "area", 6),
-                                    effect("minecraft:speed", rally, 0, "area", 6),
-                                    shape("ring", 48, 6.0, colour=silver, size=1.3),
-                                    shape("ring", 24, 3.0, particle="minecraft:end_rod")], True),
+            use("Mikiri", parry_cd, [{"type": "parry", "window": 15, "refund": 0.5},
+                                     sound("minecraft:item.armor.equip_iron", 0.9, 1.5),
+                                     shape("arc", 10, 1.0, colour=silver, size=0.8)], False),
+            {"trigger": "on_parry", "actions": answer},
+            on_foot(dict(use("Quickdraw", draw_cd, [sound("minecraft:item.trident.riptide_1", 0.8, 1.6),
+                                            {"type": "dash_strike", "range": 8, "min_range": 3, "amount": cut,
+                                             "min_damage": 0.5, "effect": "minecraft:slowness", "duration": 20,
+                                             "colour": steel}], True, charge=20),
+                 min_charge_ticks=5)),
         ],
         upgrade=[None,
                  ["minecraft:diamond", "minecraft:diamond", "minecraft:gold_block", "minecraft:gold_block"],
