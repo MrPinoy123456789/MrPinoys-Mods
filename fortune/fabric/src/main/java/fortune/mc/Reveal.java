@@ -25,9 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Telling people about a spin, once its reels have stopped (or the window closed early): the title and subtitle
- * (both clients show them), a chat line, sounds, sparks, and the server lines for big wins and milestones. Nothing
- * about the outcome is said before this runs.
+ * Paying and telling people about a spin, once its reels have stopped (or the window closed early): the payout, then
+ * the title and subtitle (both clients show them), a chat line, sounds, sparks, and the server lines for big wins and
+ * milestones. Nothing about the outcome is said or paid before this runs.
  */
 final class Reveal {
 
@@ -36,6 +36,8 @@ final class Reveal {
 
     static void show(FortuneService service, ServerPlayer player, FortuneService.Pull.Spun pulled, BlockPos machineAt) {
         if (player.hasDisconnected()) return;
+        // Paid now, not at the pull: Charter Currency's own "+N Valor" line and the items arrive with the reveal.
+        service.deliver(player);
         Machine.Spin spin = pulled.spin();
         Settings settings = service.settings();
         String result = service.resultName(spin);

@@ -32,9 +32,9 @@ import java.util.Random;
  * sgui refuses every take, place, shift click and number key, and the player's own inventory is locked while it is
  * open.
  *
- * <p>The window never decides anything. A pull asks {@link FortuneService#pull}, which charges, rolls, saves and pays
- * before this class draws a single frame; the frames then scroll to the result that is already paid. Closing early
- * reveals the result at once.
+ * <p>The window never decides anything. A pull asks {@link FortuneService#pull}, which charges, rolls and saves the
+ * spin with its reward pending before this class draws a single frame; the frames then scroll to that result, and the
+ * reveal pays it. Closing early reveals and pays at once; leaving mid spin keeps it pending for the next join.
  */
 public final class MachineGui extends SimpleGui {
 
@@ -184,7 +184,8 @@ public final class MachineGui extends SimpleGui {
 
     @Override
     public void onRemoved() {
-        // Closed mid spin (or logged out): the reward is already saved and paid, so just tell them what it was.
+        // Closed mid spin: reveal and pay now. Logged out mid spin: the reveal skips a player who has left, so the
+        // saved reward stays pending and is paid on the next join.
         if (spinning) {
             spinning = false;
             revealOnce();
@@ -369,7 +370,7 @@ public final class MachineGui extends SimpleGui {
         String name;
         if (spinning) {
             name = "Skip to the result";
-            lore.add(Messages.lore("The result is already decided and paid.", ChatFormatting.GRAY));
+            lore.add(Messages.lore("The result is already decided and saved.", ChatFormatting.GRAY));
         } else if (canSpin) {
             name = "Pull the lever";
             int day = record.weekPosition + 1;

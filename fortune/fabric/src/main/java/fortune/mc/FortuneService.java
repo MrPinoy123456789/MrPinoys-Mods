@@ -26,10 +26,12 @@ import java.util.function.LongSupplier;
 import java.util.random.RandomGenerator;
 
 /**
- * The running machine for one server. A pull goes: charge the stake, roll, write the claim and result to
- * players.json, pay, and only then hand the spin to the window to animate. Closing the window, logging out or a crash
- * after the save keeps the reward (a payout still pending is finished on the next join) and can never give a second
- * roll that day.
+ * The running machine for one server. A pull goes: charge the stake, roll, write the claim, the result and the
+ * reward (marked pending) to players.json, then hand the spin to the window to animate. The reward is handed over at
+ * the reveal ({@link #deliver}), so neither Charter Currency's "+N Valor" line nor items in the inventory give the
+ * result away while the reels turn (spec section 9). The reward is fixed and on disk before the first frame, so closing
+ * the window reveals and pays at once, logging out or a crash mid spin leaves it pending and it is paid on the next
+ * join, and no path can give a second roll that day.
  */
 public final class FortuneService {
 
@@ -192,8 +194,8 @@ public final class FortuneService {
     // ---- the pull ----
 
     /**
-     * Charges, rolls, saves and pays. Never animates and never tells anyone the result: the window or form does that
-     * through {@link Reveal}. Every refusal is a plain line for the player.
+     * Charges, rolls and saves the spin with its reward pending. Never pays, animates or tells anyone the result: the
+     * window or form does that through {@link Reveal}, which pays first. Every refusal is a plain line for the player.
      */
     public Pull pull(ServerPlayer player, BlockPos at) {
         if (store.broken() != null) return new Pull.Refused("The machine is being repaired. Try again later.");
@@ -204,6 +206,8 @@ public final class FortuneService {
         long today = today();
         Optional<Claims.Plan> plan = machine.plan(record, today);
         if (plan.isEmpty()) return new Pull.Refused("Today's spin is used. Next spin in " + nextSpinIn() + ".");
+        // An earlier reward still pending (an operator reset mid spin) is paid before this spin replaces it.
+        deliver(player);
         if (record.totalClaims == 0 && settings.firstSpinMinutes > 0) {
             long played = player.getStats().getValue(Stats.CUSTOM, Stats.PLAY_TIME);
             long needed = settings.firstSpinMinutes * 1200L;
@@ -241,12 +245,9 @@ public final class FortuneService {
                     new Annals.Win(record.name, machine.resultName(spin.outcome()), spin.reward().level(), today), today));
         }
         if (!store.savePlayers()) {
-            FortuneMod.LOG.error("A spin for {} could not be saved before paying; paying anyway so nothing is lost", record.name);
+            FortuneMod.LOG.error("A spin for {} could not be saved; it is still paid at the reveal", record.name);
         }
         store.appendSpin(logLine(player, record, spin, stake, at));
-
-        Payout.pay(this, player, record);
-        store.savePlayers();
         return new Pull.Spun(spin, milestone, chosen != null && stake == null);
     }
 
@@ -269,7 +270,19 @@ public final class FortuneService {
         return true;
     }
 
-    /** A payout that was decided and saved but not handed over (a crash between the two) is finished here. */
+    /**
+     * Hands over a saved, pending reward: the payout command, items and keepsakes. Called by {@link Reveal} as the
+     * result is shown. Does nothing for a player who has left; their reward stays pending for the next join.
+     */
+    public void deliver(ServerPlayer player) {
+        if (player.hasDisconnected()) return;
+        PlayerRecord record = store.existing(player.getUUID());
+        if (record == null || !record.payPending) return;
+        Payout.pay(this, player, record);
+        store.savePlayers();
+    }
+
+    /** A reward left pending by a logout or crash mid spin is paid on the next join. */
     public void finishPending(ServerPlayer player) {
         PlayerRecord record = store.existing(player.getUUID());
         if (record == null || !record.payPending) return;

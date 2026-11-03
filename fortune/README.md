@@ -55,9 +55,11 @@ Drop the jar in `mods/`. It starts and runs without Charter Currency, Charter or
   +100%, charged from the banked balance through `EconomyApi.economy()` before the roll. A failed charge means the spin
   goes ahead unstaked. The bonus is applied to the Valor (as the nearest level to Valor times the bonus) and to item
   counts, rounding halves up.
-- Order of a pull: charge the stake, roll, write the claim and result to `players.json` (temp file then move), pay,
-  then animate. Closing the window, logging out or a crash mid spin keeps the reward and never allows a second roll that
-  day; a payout left pending by a crash is finished on the next join.
+- Order of a pull: charge the stake, roll, write the claim, the result and the reward (marked pending) to
+  `players.json` (temp file then move), animate, then pay at the reveal. Paying at the reveal keeps Charter Currency's
+  own "+N Valor" chat line and the items from giving the result away while the reels turn (spec section 9). The reward
+  is fixed and on disk before the first frame: closing the window reveals and pays at once, logging out or a crash mid
+  spin leaves it pending and it is paid on the next join, and nothing allows a second roll that day.
 
 ## Commands
 

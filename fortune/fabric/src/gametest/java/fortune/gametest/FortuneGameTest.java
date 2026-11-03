@@ -18,35 +18,41 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The machine in a running server: the payout lands before the first frame, closing mid spin keeps the reward and
- * blocks a second spin, the chest refuses every take, and an unaffordable stake is greyed out and never charged.
+ * The machine in a running server: the reward is fixed and saved before the first frame and paid at the reveal,
+ * closing mid spin pays it and blocks a second spin, leaving mid spin keeps it for the next join, the chest refuses every take, and an unaffordable stake is greyed out and never charged.
  * Every test finishes in the tick it starts, driving the animation by hand.
  */
 public final class FortuneGameTest {
 
     @GameTest
-    public void payoutRunsBeforeTheAnimation(GameTestHelper helper) throws Exception {
+    public void theRewardIsSavedBeforeTheAnimationAndPaidAtTheReveal(GameTestHelper helper) throws Exception {
         FortuneService service = FortuneKit.service(helper);
         ServerPlayer player = FortuneKit.player(helper);
         MachineGui gui = service.open(player, null);
-        helper.assertTrue(!player.entityTags().contains(FortuneKit.PAID_TAG), "Paid before the lever was pulled");
 
         gui.pullLever();
         helper.assertTrue(gui.spinning(), "The reels did not start");
         helper.assertTrue(!gui.revealed(), "The result was revealed before the reels moved");
-        helper.assertTrue(player.entityTags().contains(FortuneKit.PAID_TAG), "The payout command did not run before the first frame");
         PlayerRecord record = service.record(player.getUUID());
         helper.assertTrue(record.claimedOn(service.today()), "The claim was not recorded before the first frame");
-        helper.assertTrue(!record.payPending, "The payout was still pending when the reels started");
+        helper.assertTrue(record.payPending && record.lastLevel >= 1, "The reward was not fixed and pending before the first frame");
 
         Path file = helper.getLevel().getServer().getWorldPath(LevelResource.ROOT).resolve("fortune/players.json");
         helper.assertTrue(Files.exists(file), "players.json was not written before the first frame");
         String saved = Files.readString(file);
         helper.assertTrue(saved.contains(player.getUUID().toString()), "players.json does not hold the spin");
+        helper.assertTrue(saved.contains("\"payPending\": true"), "players.json does not hold the pending reward");
         helper.assertTrue(!Files.exists(file.resolveSibling("players.json.tmp")), "The temporary file was left behind");
+
+        // Spec 9: nothing about the outcome reaches the player while the reels turn, so the payout waits.
+        gui.advance(20);
+        helper.assertTrue(gui.spinning(), "The reels stopped too early for this test");
+        helper.assertTrue(!player.entityTags().contains(FortuneKit.PAID_TAG), "The payout ran while the reels were turning");
 
         gui.advance(200);
         helper.assertTrue(!gui.spinning() && gui.revealed(), "The reels did not stop and reveal");
+        helper.assertTrue(player.entityTags().contains(FortuneKit.PAID_TAG), "The payout command did not run at the reveal");
+        helper.assertTrue(!record.payPending, "The reward was still pending after the reveal");
         int[] payline = gui.lastSpin().spin().outcome().payline();
         for (int reel = 0; reel < 3; reel++) {
             helper.assertTrue(gui.paylineShown(reel) == payline[reel], "Reel " + (reel + 1) + " stopped off the rolled symbol");
@@ -66,6 +72,7 @@ public final class FortuneGameTest {
         helper.runAfterDelay(30, () -> helper.assertTrue(gui.spinning(), "The reels stopped before reel 3's stop time"));
         helper.succeedWhen(() -> {
             helper.assertTrue(gui.revealed() && !gui.spinning(), "The reels have not stopped on their own yet");
+            helper.assertTrue(player.entityTags().contains(FortuneKit.PAID_TAG), "The reveal on real ticks did not pay");
             int[] payline = gui.lastSpin().spin().outcome().payline();
             for (int reel = 0; reel < 3; reel++) {
                 helper.assertTrue(gui.paylineShown(reel) == payline[reel], "Reel " + (reel + 1) + " stopped off the rolled symbol");
@@ -100,6 +107,22 @@ public final class FortuneGameTest {
         helper.assertTrue(service.reset(player.getUUID()), "An operator reset did not give the spin back");
         helper.assertTrue(service.pull(player, null) instanceof FortuneService.Pull.Spun, "The spin given back could not be used");
         helper.assertTrue(service.pull(player, null) instanceof FortuneService.Pull.Refused, "The reset gave more than one spin");
+        helper.succeed();
+    }
+
+    @GameTest
+    public void aSpinLeftBeforeItsRevealIsPaidOnTheNextJoin(GameTestHelper helper) {
+        FortuneService service = FortuneKit.service(helper);
+        ServerPlayer player = FortuneKit.player(helper);
+        // A pull whose window is never revealed: the player left, or the server stopped, mid spin.
+        helper.assertTrue(service.pull(player, null) instanceof FortuneService.Pull.Spun, "The pull did not spin");
+        PlayerRecord record = service.record(player.getUUID());
+        helper.assertTrue(record.payPending, "The unrevealed reward was not kept pending");
+        helper.assertTrue(!player.entityTags().contains(FortuneKit.PAID_TAG), "The unrevealed spin was paid");
+        helper.assertTrue(service.pull(player, null) instanceof FortuneService.Pull.Refused, "Leaving mid spin allowed a second roll");
+        service.finishPending(player);
+        helper.assertTrue(!record.payPending && player.entityTags().contains(FortuneKit.PAID_TAG), "The next join did not pay it");
+        helper.assertTrue(record.totalClaims == 1, "Paying on join counted another claim");
         helper.succeed();
     }
 
