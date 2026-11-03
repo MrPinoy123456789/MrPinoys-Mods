@@ -920,6 +920,7 @@ public final class CoreSuite {
     private static void weaponTiers() throws Exception {
         int items = 0;
         int recipes = 0;
+        int starters = 0;
         for (String ns : java.util.List.of("kingdoms")) {
             Path itemDir = Path.of("examples/content", ns, "items");
             Path recipeDir = Path.of("examples/content", ns, "recipes");
@@ -954,8 +955,26 @@ public final class CoreSuite {
                     recipes++;
                 }
             }
+            // the rank 1 starters: a race's own recipe book only, small enough for the 2 by 2 grid, no pickup unlock
+            try (var files = Files.list(recipeDir)) {
+                for (Path f : files.toList()) {
+                    String name = f.getFileName().toString();
+                    if (!name.matches("(azrak_pick|aurelia_oathblade|azurius_trident|faeloria_staff|everdelle_wand)_1\\.json")) continue;
+                    var r = foundry.core.RecipeParser.parse(name, Files.readString(f));
+                    check(r.def() != null, name + " parses");
+                    String race = name.substring(0, name.indexOf('_'));
+                    check(("race:" + race).equals(r.def().unlockPermission()), name + " unlocks for race:" + race + " only");
+                    check(r.def().ingredients().size() <= 4, name + " fits the 2 by 2 grid");
+                    check(r.def().ingredients().stream().noneMatch(i -> i.startsWith("kingdoms:")), name + " is made from plain materials");
+                    var generated = foundry.core.RecipeFiles.generate(java.util.Map.of(r.def().id(), r.def()));
+                    check(generated.size() == 1 && !generated.containsKey(foundry.core.RecipeFiles.advancementPath(r.def().id())),
+                            name + " gets no pickup advancement (that would show it to every race)");
+                    starters++;
+                }
+            }
         }
         check(items == 15 && recipes == 10, "five weapons of three tiers and ten upgrades are shipped (" + items + " items, " + recipes + " recipes)");
+        check(starters == 5, "every race weapon has a rank 1 recipe (" + starters + ")");
     }
 
     /**
@@ -1229,6 +1248,15 @@ public final class CoreSuite {
                 "generated unlock advancement");
         check(files.get("data/t/recipe/gem.json").contains("\"type\":\"minecraft:crafting_shapeless\"")
                 && files.get("data/t/recipe/gem.json").contains("\"count\":2"), "generated recipe body");
+        var gated = foundry.core.RecipeParser.parse("g.json", "{ \"id\": \"t:g\", \"type\": \"shapeless\","
+                + " \"unlock_permission\": \"race:azrak\", \"ingredients\": [\"minecraft:stick\"], \"result\": \"t:gem\" }");
+        check(gated.def() != null && "race:azrak".equals(gated.def().unlockPermission()), "unlock_permission is read");
+        check(foundry.core.RecipeFiles.generate(java.util.Map.of(gated.def().id(), gated.def())).keySet()
+                .equals(java.util.Set.of("data/t/recipe/g.json")), "a recipe with an unlock permission gets no pickup advancement");
+        var badGate = foundry.core.RecipeParser.parse("g.json", "{ \"id\": \"t:g\", \"type\": \"shapeless\","
+                + " \"unlock_permission\": \"Not A Node\", \"ingredients\": [\"minecraft:stick\"], \"result\": \"t:gem\" }");
+        check(badGate.def() == null && badGate.problems().stream().anyMatch(p -> p.toString().contains("unlock_permission")),
+                "a malformed unlock_permission is refused");
         var shaped = foundry.core.RecipeParser.parse("s.json",
                 "{ \"id\": \"t:s\", \"type\": \"shaped\", \"pattern\": [\"X\"], \"key\": {\"X\": \"minecraft:stick\"}, \"result\": \"t:gem\" }").def();
         var shapedSet = Validator.validate(java.util.List.of(new Validator.Sourced("i.json", item)),

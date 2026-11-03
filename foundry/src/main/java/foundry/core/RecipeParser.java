@@ -44,6 +44,12 @@ public final class RecipeParser {
             type = null;
         }
         String group = o.has("group") ? stringField(o, "group", null, source, problems) : null;
+        String unlockPermission = o.has("unlock_permission")
+                ? stringField(o, "unlock_permission", null, source, problems) : null;
+        if (unlockPermission != null && Ident.parse(unlockPermission) == null) {
+            problems.add(Problem.error(source, "unlock_permission", "unlock_permission must be a permission node like race:azrak.",
+                    "Use namespace:path, for example \"race:azrak\"."));
+        }
         Ident result = identField(o, "result", source, problems);
         int count = intField(o, "count", 1, source, problems);
         if (count < 1 || count > 99) {
@@ -61,7 +67,7 @@ public final class RecipeParser {
 
         if (problems.stream().anyMatch(Problem::blocking)) return new Result(null, problems);
         return new Result(new RecipeDef(version, id, type, List.copyOf(pattern), Map.copyOf(key),
-                List.copyOf(ingredients), result, count, group), problems);
+                List.copyOf(ingredients), result, count, group, unlockPermission), problems);
     }
 
     private static void shaped(JsonObject o, List<String> pattern, Map<String, String> key,

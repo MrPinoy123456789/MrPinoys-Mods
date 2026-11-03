@@ -102,8 +102,9 @@ public final class RecipeFiles {
             if (r.count() != 1) result.addProperty("count", r.count());
             o.add("result", result);
             out.put(recipePath(r.id()), o + "\n");
-            // Without an advancement the recipe works but never shows in the recipe book or raises "New recipe".
-            if (unlockItem(r) != null) out.put(advancementPath(r.id()), advancement(r));
+            // Without an advancement the recipe works but never shows in the recipe book or raises "New recipe". A recipe
+            // with an unlock permission is handed out by the Minecraft layer to the players holding that node instead.
+            if (r.unlockPermission() == null && unlockItem(r) != null) out.put(advancementPath(r.id()), advancement(r));
         }
         return out;
     }

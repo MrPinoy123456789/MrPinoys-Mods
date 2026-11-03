@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:everdelle_wand_1",
+  "type": "shapeless",
+  "unlock_permission": "race:everdelle",
+  "ingredients": [
+    "minecraft:stick",
+    "minecraft:iron_ingot",
+    "minecraft:feather",
+    "#minecraft:small_flowers"
+  ],
+  "result": "kingdoms:everdelle_wand_1"
+}

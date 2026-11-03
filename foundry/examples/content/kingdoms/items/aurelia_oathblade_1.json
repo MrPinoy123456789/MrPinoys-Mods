@@ -6,6 +6,7 @@
     "Hit: 1 extra damage and Weakness for 2s.",
     "Right click: Holy Lance, a spear of light, 4 damage. 15s recharge.",
     "Sneak and right click: Rally, Strength and Speed for you and allies within 6 blocks for 8s. 60s recharge.",
+    "Craft: 2 iron ingots, a gold ingot and a leather. Fits the 2 by 2 grid.",
     "Upgrade: 2 diamonds and 2 gold blocks, crafted with this at a crafting table."
   ],
   "base_item": "minecraft:iron_sword",

@@ -308,6 +308,21 @@ GATES = {"azrak_pick": ("azrak", "Dwarves of Azrak"), "aurelia_oathblade": ("aur
          "azurius_trident": ("azurius", "Merfolk of Azurius"), "faeloria_staff": ("faeloria", "Fae of Faeloria"),
          "everdelle_wand": ("everdelle", "Fairies of Everdelle")}
 
+# The rank 1 recipe of each weapon: a cheap starter, so a player who loses one can make another. Only players of the race
+# get it in their recipe book (unlock_permission); 4 items or fewer, so it fits the inventory's 2 by 2 grid.
+STARTERS = {
+    "azrak_pick": (["minecraft:iron_ingot", "minecraft:iron_ingot", "minecraft:copper_ingot", "minecraft:cobbled_deepslate"],
+                   "2 iron ingots, a copper ingot and a cobbled deepslate"),
+    "aurelia_oathblade": (["minecraft:iron_ingot", "minecraft:iron_ingot", "minecraft:gold_ingot", "minecraft:leather"],
+                          "2 iron ingots, a gold ingot and a leather"),
+    "azurius_trident": (["minecraft:iron_ingot", "minecraft:iron_ingot", "minecraft:kelp", "minecraft:ink_sac"],
+                        "2 iron ingots, a kelp and an ink sac"),
+    "faeloria_staff": (["minecraft:stick", "minecraft:iron_ingot", "minecraft:vine", "minecraft:sweet_berries"],
+                       "a stick, an iron ingot, a vine and sweet berries"),
+    "everdelle_wand": (["minecraft:stick", "minecraft:iron_ingot", "minecraft:feather", "#minecraft:small_flowers"],
+                       "a stick, an iron ingot, a feather and any small flower"),
+}
+
 
 def ident(key, tier):
     return f"{DEFAULT_NS}:{key}_{tier + 1}"
@@ -333,6 +348,8 @@ def main():
             item_id = ident(w["key"], t)
             ns, path = item_id.split(":")
             lore = list(w["lore"])
+            if t == 0:
+                lore.append("Craft: " + STARTERS[w["key"]][1] + ". Fits the 2 by 2 grid.")
             if t < 2:
                 nxt = build(t + 1)
                 # more than 4 items (this weapon counts) will not fit the inventory's 2 by 2 grid, so say where to craft it
@@ -363,6 +380,10 @@ def main():
             item["mechanics"] = w["mechanics"]
             write(os.path.join(ROOT, ns, "items", path + ".json"), item)
             count += 1
+            if t == 0:
+                write(os.path.join(ROOT, ns, "recipes", path + ".json"), {
+                    "schema_version": 1, "id": item_id, "type": "shapeless", "unlock_permission": "race:" + node,
+                    "ingredients": STARTERS[w["key"]][0], "result": item_id})
             if t > 0:
                 prev = ident(w["key"], t - 1)
                 recipe = {"schema_version": 1, "id": item_id, "type": "shapeless",
@@ -378,7 +399,7 @@ def main():
         recipe = os.path.join(ROOT, ns, "recipes", path + ".json")
         if os.path.exists(recipe):
             os.remove(recipe)
-    print(f"wrote {count} items, {count - len(WEAPONS)} recipes and {len(MOVED)} moved placeholders")
+    print(f"wrote {count} items, {count} recipes and {len(MOVED)} moved placeholders")
 
 
 if __name__ == "__main__":

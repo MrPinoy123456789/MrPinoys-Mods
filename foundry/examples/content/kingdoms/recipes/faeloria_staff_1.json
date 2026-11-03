@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:faeloria_staff_1",
+  "type": "shapeless",
+  "unlock_permission": "race:faeloria",
+  "ingredients": [
+    "minecraft:stick",
+    "minecraft:iron_ingot",
+    "minecraft:vine",
+    "minecraft:sweet_berries"
+  ],
+  "result": "kingdoms:faeloria_staff_1"
+}

@@ -6,6 +6,8 @@ import java.util.Map;
 /**
  * A recipe definition, version 1 of the recipe schema. Fields mirror schema/recipe.v1.schema.json; keep the two
  * in step. Ingredients and keys are item ids, or {@code #tag} entries that validation only shape-checks.
+ * {@code unlockPermission}, when set, is the permission node that puts the recipe in a player's recipe book (a race
+ * weapon's starter recipe); such a recipe gets no "holding the first ingredient" unlock.
  */
 public record RecipeDef(
         int schemaVersion,
@@ -16,7 +18,8 @@ public record RecipeDef(
         List<String> ingredients,
         Ident result,
         int count,
-        String group) {
+        String group,
+        String unlockPermission) {
 
     public static final int SCHEMA_VERSION = 1;
     public static final List<String> TYPES = List.of("shaped", "shapeless");

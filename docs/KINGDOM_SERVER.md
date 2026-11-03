@@ -27,6 +27,32 @@ Five weapons, three tiers each, in `foundry/examples/content/kingdoms`: `kingdom
 `foundry/tools/gen_weapons.py`; never hand edit the JSON, change the script and re-run it. Upgrades are shapeless
 recipes with the lower tier first, unlocked through generated advancements.
 
+Rank 1 recipes (2026-11-03). A lost rank 1 weapon can be made again from plain materials, 4 items each so it fits the
+inventory's 2 by 2 grid (Java and Bedrock):
+
+| Weapon | Recipe |
+|---|---|
+| Runed War Pick | 2 iron ingots, a copper ingot and a cobbled deepslate |
+| Oathblade | 2 iron ingots, a gold ingot and a leather |
+| Tide Trident | 2 iron ingots, a kelp and an ink sac |
+| Briarthorn Staff | a stick, an iron ingot, a vine and sweet berries |
+| Everdelle Wand | a stick, an iron ingot, a feather and any small flower |
+
+- The recipe carries `unlock_permission` (`race:<kingdom>`). Foundry (`RecipeUnlocks`) checks every online player every
+  2 s: a player who holds the race node gets the recipe in their recipe book, the vanilla "New Recipes" toast on Java
+  and a chat line ("Runed War Pick is in your recipe book. Craft: ...") that Bedrock shows too. Losing the race takes the
+  recipe out of the book again. Operators are not given every race's recipe. Such a recipe gets no "holding the first
+  ingredient" advancement, which would have shown every race's weapon to everyone holding an iron ingot.
+- Each rank 1 weapon's lore has a "Craft:" line with the same text.
+- Ranks 2 and 3 are unchanged: each appears in the book when its player first holds the rank below.
+- Crafting itself is not race locked, for any rank: anyone with the materials can craft a race weapon in a crafting
+  table, but only its race can use it (`require_permission`). The recipe book just does not show it to other races.
+- Upgrades take only the real lower rank. A plain base item (a stone pickaxe for the war pick, an iron sword, bone,
+  breeze rod or blaze rod), or one renamed and dressed to look like the weapon, crafts nothing
+  (`WeaponsGameTest.aPlainBaseItemCraftsNoUpgrade`). The server registers each weapon as its own item; the base item is
+  only what clients are shown. On Java, Polymer sends the book the weapon's own name, look and lore. Bedrock is drawn by
+  Geyser and may name the base item in the recipe (a "stone pickaxe" in the war pick upgrade); that is display only.
+
 Redesign (2026-11-02). Balance yardstick: each tier's best attack is worth about a vanilla sword of that tier (iron 9.6
 damage a second, diamond 11.2, netherite 12.8); a left click bolt at most 70 percent of it (a core check enforces
 both). Roles and tier I to III numbers:

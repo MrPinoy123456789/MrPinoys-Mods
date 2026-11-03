@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:aurelia_oathblade_1",
+  "type": "shapeless",
+  "unlock_permission": "race:aurelia",
+  "ingredients": [
+    "minecraft:iron_ingot",
+    "minecraft:iron_ingot",
+    "minecraft:gold_ingot",
+    "minecraft:leather"
+  ],
+  "result": "kingdoms:aurelia_oathblade_1"
+}

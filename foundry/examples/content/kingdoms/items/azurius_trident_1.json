@@ -6,6 +6,7 @@
     "Hit: 1 extra damage in water or rain.",
     "Right click: throw the trident, 5 damage. It flies out, hits, and returns, soaking what it strikes. 15s recharge.",
     "Sneak and right click: Undertow, 2 damage to everything within 6 blocks, dragged toward you. 30s recharge.",
+    "Craft: 2 iron ingots, a kelp and an ink sac. Fits the 2 by 2 grid.",
     "Upgrade: 4 prismarine crystals and a nautilus shell, crafted with this at a crafting table."
   ],
   "base_item": "minecraft:bone",

@@ -227,6 +227,122 @@ public final class WeaponsGameTest {
         helper.succeed();
     }
 
+    /** Lays a recipe's ingredients in a 3 by 3 grid the way a player would, first item of each ingredient. */
+    private static List<ItemStack> grid(net.minecraft.world.item.crafting.RecipeHolder<?> holder) {
+        List<ItemStack> grid = new java.util.ArrayList<>();
+        for (var ingredient : holder.value().placementInfo().ingredients()) {
+            grid.add(new ItemStack(ingredient.items().findFirst().orElseThrow().value()));
+        }
+        return grid;
+    }
+
+    private static java.util.Optional<net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>> craft(
+            net.minecraft.server.level.ServerLevel level, List<ItemStack> grid) {
+        var padded = new java.util.ArrayList<>(grid);
+        while (padded.size() < 9) padded.add(ItemStack.EMPTY);
+        return level.getServer().getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,
+                net.minecraft.world.item.crafting.CraftingInput.of(3, 3, padded), level);
+    }
+
+    /**
+     * Every rank 1 weapon has a starter recipe of plain materials, 4 items or fewer so it fits the inventory grid, and
+     * those items craft exactly that recipe (not a vanilla one, and no vanilla recipe is shadowed).
+     */
+    @GameTest
+    public void everyRankOneCraftsFromPlainMaterials(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var manager = level.getServer().getRecipeManager();
+        var advancements = level.getServer().getAdvancements();
+        for (String weapon : WEAPONS) {
+            String id = tier(weapon, 1);
+            var key = ResourceKey.create(Registries.RECIPE, Identifier.parse(id));
+            var holder = manager.byKey(key);
+            helper.assertTrue(holder.isPresent(), id + " has a rank 1 recipe");
+            var grid = grid(holder.get());
+            helper.assertTrue(grid.size() <= 4, id + " fits the 2 by 2 grid (" + grid.size() + " items)");
+            var found = craft(level, grid);
+            helper.assertTrue(found.isPresent() && found.get().id().equals(key), id + " crafts from " + grid + ", found " + found);
+            helper.assertTrue(craftsResult(level, grid, id), id + " gives the weapon");
+            // no pickup unlock: holding an iron ingot must not put every race's weapon in every book
+            helper.assertTrue(advancements.get(Identifier.fromNamespaceAndPath("kingdoms", "recipes/foundry/" + id.substring(9))) == null,
+                    id + " has no pickup advancement");
+        }
+        helper.succeed();
+    }
+
+    private static boolean craftsResult(net.minecraft.server.level.ServerLevel level, List<ItemStack> grid, String id) {
+        var padded = new java.util.ArrayList<>(grid);
+        while (padded.size() < 9) padded.add(ItemStack.EMPTY);
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, padded);
+        return craft(level, grid).map(h -> h.value().assemble(input).is(item(id))).orElse(false);
+    }
+
+    /**
+     * The recipe book may draw a rank 1 weapon as its base item (a stone pickaxe for the war pick), but the server only
+     * takes the real weapon: a plain base item, or one renamed and dressed up to look like the weapon, crafts no
+     * upgrade. Covers all ten upgrade recipes.
+     */
+    @GameTest
+    public void aPlainBaseItemCraftsNoUpgrade(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var manager = level.getServer().getRecipeManager();
+        for (String weapon : WEAPONS) {
+            for (int t = 2; t <= 3; t++) {
+                String id = tier(weapon, t);
+                String lower = tier(weapon, t - 1);
+                var grid = grid(manager.byKey(ResourceKey.create(Registries.RECIPE, Identifier.parse(id))).orElseThrow());
+                int slot = -1;
+                for (int i = 0; i < grid.size(); i++) if (grid.get(i).is(item(lower))) slot = i;
+                helper.assertTrue(slot >= 0, id + " takes " + lower);
+                helper.assertTrue(craft(level, grid).isPresent(), id + " crafts with the real " + lower);
+                var def = foundry.mc.FoundryMod.loaded().items().get(foundry.core.Ident.parse(lower));
+                Item base = item(def.baseItem().toString());
+                var real = new ItemStack(item(lower));
+                var plain = new java.util.ArrayList<>(grid);
+                plain.set(slot, new ItemStack(base));
+                helper.assertTrue(craft(level, plain).isEmpty(), id + " must not craft from a plain " + base);
+                var dressed = new ItemStack(base);
+                dressed.set(DataComponents.ITEM_NAME, real.get(DataComponents.ITEM_NAME));
+                dressed.set(DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal(def.displayName()));
+                dressed.set(DataComponents.LORE, real.get(DataComponents.LORE));
+                dressed.set(DataComponents.ITEM_MODEL, Identifier.parse(lower));
+                var fake = new java.util.ArrayList<>(grid);
+                fake.set(slot, dressed);
+                helper.assertTrue(craft(level, fake).isEmpty(), id + " must not craft from a " + base + " dressed as " + lower);
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A rank 1 recipe goes into the recipe book of a player of that race (with the chat line every client shows) and
+     * no one else's; it comes out again if the race is taken away.
+     */
+    @GameTest
+    public void rankOneRecipesUnlockForTheirRaceOnly(GameTestHelper helper) {
+        @SuppressWarnings("removal")
+        var player = helper.makeMockServerPlayerInLevel();
+        var book = player.getRecipeBook();
+        java.util.function.Function<String, ResourceKey<net.minecraft.world.item.crafting.Recipe<?>>> key =
+                id -> ResourceKey.create(Registries.RECIPE, Identifier.parse(id));
+        helper.assertTrue(foundry.mc.RecipeUnlocks.check(player) == 0, "a player with no race gets no race recipe");
+        TestPerms.grant(player, "race:azrak");
+        try {
+            helper.assertTrue(foundry.mc.RecipeUnlocks.check(player) == 1, "a Dwarf gets exactly one new recipe");
+            helper.assertTrue(book.contains(key.apply("kingdoms:azrak_pick_1")), "the war pick recipe is in the Dwarf's book");
+            for (String weapon : WEAPONS) {
+                if (weapon.equals("kingdoms:azrak_pick")) continue;
+                helper.assertFalse(book.contains(key.apply(tier(weapon, 1))), tier(weapon, 1) + " is not in a Dwarf's book");
+            }
+            helper.assertTrue(foundry.mc.RecipeUnlocks.check(player) == 0, "a second check adds nothing (one toast, one chat line)");
+        } finally {
+            TestPerms.revoke(player, "race:azrak");
+        }
+        foundry.mc.RecipeUnlocks.check(player);
+        helper.assertFalse(book.contains(key.apply("kingdoms:azrak_pick_1")), "the recipe leaves the book with the race");
+        helper.succeed();
+    }
+
     @GameTest
     public void theMeleeWeaponsCarryTheirOwnAttackNumbers(GameTestHelper helper) {
         var pick = new ItemStack(item("kingdoms:azrak_pick_1"));

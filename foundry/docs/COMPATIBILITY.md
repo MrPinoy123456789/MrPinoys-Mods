@@ -29,7 +29,7 @@ resource-pack-extras, sound-patcher and virtual-entity. It does not contain SGUI
 | Hold to charge (charge_ticks) | Verified in gametest, not in a client | Server: `startUsingItem`, `releaseUsing`. Client: a `consumable` component with the bow animation and a very long time on the client stack only. Needs a real client check of the draw pose |
 | Returning bolts (returns, return_tag) | Verified in gametest, not in a client | The bolt turns on a hit, a block or the end of its range and homes on the caster, passing through blocks |
 | Armour-piercing and in-window bonus hits (damage ignore_hit_delay) | Verified in gametest | `indirect_magic` is in `#minecraft:bypasses_armor` in 26.3 data (checked on 26.2, recheck on 26.3); the option clears the target's hit window so a bonus after a swing lands in full |
-| Recipe book entries and "New recipe" toast | Not verified in a client | One generated advancement per recipe, rewarded on first holding its first ingredient; how Polymer shows the Foundry item in the book is unchecked |
+| Recipe book entries and "New recipe" toast | Not verified in a client | One generated advancement per recipe, rewarded on first holding its first ingredient; a recipe with `unlock_permission` has none and is awarded by `RecipeUnlocks` to the node's holders (gametest). Polymer sends a Foundry ingredient as an item stack template of the client stack (name, look, lore), so Java should draw the real item; Geyser on Bedrock may name the base item. The server only accepts the real item (gametest) |
 | Furniture | Not verified | Needs D3 |
 | Custom blocks | Not verified | Needs D4; expect a hard cap on distinct blocks |
 | Armor appearance | Not verified | Depends on 26.3 equipment asset support |
