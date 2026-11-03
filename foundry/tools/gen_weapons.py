@@ -149,16 +149,16 @@ def aurelia(t):
     draw_cd = [240, 220, 200][t]
     silver, steel = "#C9CED8", "#F2F4F8"
     lore = [f"Hit: {smite} extra damage and Weakness for {secs(weak)}s.",
-            f"Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped and you counter for {counter} damage, "
-            f"Weakness and Slowness. {secs(parry_cd)}s recharge, half back when a parry lands.",
-            f"Sneak and hold right click, then let go: Quickdraw, dash up to 8 blocks and cut everything you pass for up to "
-            f"{cut} damage. A full second's hold goes furthest. {secs(draw_cd)}s recharge."]
+            "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
+            f"  You counter for {counter} damage, Weakness and Slowness. {secs(parry_cd)}s recharge, half back on a parry.",
+            "Sneak, hold right click and let go: Quickdraw, a dash of up to 8 blocks.",
+            f"  It cuts everything you pass for up to {cut} damage; hold 1s for full. {secs(draw_cd)}s recharge."]
     answer = [damage(counter, ignore_hit_delay=True), effect("minecraft:weakness", 40, 0, "hit"),
               effect("minecraft:slowness", 40, 0, "hit"),
               sound("minecraft:entity.player.attack.crit", 1.0, 1.4),
               shape("arc", 18, 1.4, "hit", colour=steel, size=1.0)]
     if t == 2:
-        lore.append("A parry that lands gives you and allies within 6 blocks Strength for 5s.")
+        lore.append("A parry also gives you and allies within 6 blocks Strength for 5s.")
         answer += [effect("minecraft:strength", 100, 0, "area", 6), shape("ring", 32, 6.0, colour=silver, size=1.2)]
     return dict(
         key="aurelia_oathblade", name="Oathblade", base="minecraft:iron_sword", damage=[5, 6, 6][t], speed=1.6,

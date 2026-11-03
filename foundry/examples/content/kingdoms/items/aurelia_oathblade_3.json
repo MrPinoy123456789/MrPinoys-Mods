@@ -4,9 +4,11 @@
   "display_name": "Oathblade III",
   "lore": [
     "Hit: 2 extra damage and Weakness for 4s.",
-    "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped and you counter for 8 damage, Weakness and Slowness. 10s recharge, half back when a parry lands.",
-    "Sneak and hold right click, then let go: Quickdraw, dash up to 8 blocks and cut everything you pass for up to 8 damage. A full second's hold goes furthest. 10s recharge.",
-    "A parry that lands gives you and allies within 6 blocks Strength for 5s.",
+    "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
+    "  You counter for 8 damage, Weakness and Slowness. 10s recharge, half back on a parry.",
+    "Sneak, hold right click and let go: Quickdraw, a dash of up to 8 blocks.",
+    "  It cuts everything you pass for up to 8 damage; hold 1s for full. 10s recharge.",
+    "A parry also gives you and allies within 6 blocks Strength for 5s.",
     "Fully upgraded."
   ],
   "base_item": "minecraft:iron_sword",

@@ -206,4 +206,32 @@ public final class OathbladeGameTest {
         helper.assertTrue(!player.isUsingItem(), "no draw starts while riding");
         helper.succeed();
     }
+    @GameTest(maxTicks = 40)
+    public void aHoldThatEndsWithoutAReleaseIsForgotten(GameTestHelper helper) {
+        var player = human(helper, "kingdoms:aurelia_oathblade_1", 1.5, 1.5);
+        player.setShiftKeyDown(true);
+        item("kingdoms:aurelia_oathblade_1").use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        helper.assertTrue(foundry.mc.Charging.holding(player.getUUID()), "the draw is a hold");
+        // switching slot mid draw stops the use with no release
+        player.stopUsingItem();
+        helper.runAfterDelay(4, () -> {
+            helper.assertTrue(!foundry.mc.Charging.holding(player.getUUID()), "a hold dropped without a release is forgotten");
+            helper.succeed();
+        });
+    }
+
+    /** Sneak and right click while sprinting: the Human slide and the Quickdraw draw both start, in the same tick. */
+    @GameTest(maxTicks = 60)
+    public void aSlideAndAQuickdrawDrawStartTogether(GameTestHelper helper) {
+        var player = human(helper, "kingdoms:aurelia_oathblade_1", 1.5, 1.5);
+        var slide = foundry.core.RaceTraits.Slide.DEFAULT;
+        foundry.mc.HumanSlide.slide(player, slide);
+        player.setShiftKeyDown(true);
+        var blade = item("kingdoms:aurelia_oathblade_1");
+        blade.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        var v = player.getDeltaMovement();
+        helper.assertTrue(Math.abs(v.z - slide.speed()) < 1e-6, "the slide keeps its push: " + v);
+        helper.assertTrue(player.isUsingItem() && foundry.mc.Charging.holding(player.getUUID()), "and the draw has started");
+        helper.succeed();
+    }
 }

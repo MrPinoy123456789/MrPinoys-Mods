@@ -4,8 +4,10 @@
   "display_name": "Oathblade",
   "lore": [
     "Hit: 1 extra damage and Weakness for 2s.",
-    "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped and you counter for 6 damage, Weakness and Slowness. 12s recharge, half back when a parry lands.",
-    "Sneak and hold right click, then let go: Quickdraw, dash up to 8 blocks and cut everything you pass for up to 6 damage. A full second's hold goes furthest. 12s recharge.",
+    "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
+    "  You counter for 6 damage, Weakness and Slowness. 12s recharge, half back on a parry.",
+    "Sneak, hold right click and let go: Quickdraw, a dash of up to 8 blocks.",
+    "  It cuts everything you pass for up to 6 damage; hold 1s for full. 12s recharge.",
     "Craft: 2 iron ingots, a gold ingot and leather. Fits the 2 by 2 grid.",
     "Upgrade: 2 diamonds and 2 gold blocks, crafted with this at a crafting table."
   ],

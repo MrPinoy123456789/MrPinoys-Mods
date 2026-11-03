@@ -14,7 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
  * usable, so a hold would never end. For them a tap starts a cast instead, which fires by itself after the same charge
  * time while the item is still in the same hand, so the wait (and the balance) is the same for both editions.
  */
-final class Charging {
+public final class Charging {
     record Hold(String contentId, int index, long startTick, int needTicks) {}
 
     private static final Map<UUID, Hold> HOLDS = new HashMap<>();
@@ -85,10 +85,19 @@ final class Charging {
     static void meters(net.minecraft.server.MinecraftServer server) {
         long now = server.getTickCount();
         if (now % 2 != 0) return;
-        for (var e : HOLDS.entrySet()) {
+        var holds = HOLDS.entrySet().iterator();
+        while (holds.hasNext()) {
+            var e = holds.next();
             ServerPlayer player = server.getPlayerList().getPlayer(e.getKey());
             Hold h = e.getValue();
-            if (player != null) meter(player, h.contentId(), h.index(), now - h.startTick());
+            // A hold ends without a release when the player switches slot, drops the item or dies: forget it, or its
+            // meter would stay on their action bar.
+            if (player == null || !player.isAlive() || !player.isUsingItem()
+                    || !(player.getUseItem().getItem() instanceof FoundryItem item) || !item.contentId().equals(h.contentId())) {
+                holds.remove();
+                continue;
+            }
+            meter(player, h.contentId(), h.index(), now - h.startTick());
         }
         for (var e : CASTS.entrySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(e.getKey());
@@ -127,6 +136,11 @@ final class Charging {
                         player.getRandom().nextLong()));
             }
         }
+    }
+
+    /** True while this player has a hold under way (for tests). */
+    public static boolean holding(UUID player) {
+        return HOLDS.containsKey(player);
     }
 
     static int live() {
