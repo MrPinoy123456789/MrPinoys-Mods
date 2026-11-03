@@ -21,6 +21,9 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
  * An enchanted book left with nothing on it becomes a plain book.
  *
  * <p>Retired so far: Silk Chest (picked a chest up with everything in it).
+ *
+ * <p>The same sweep lowers any of this mod's enchantments carried above its top rank to that rank, for ranks
+ * taken away later: Wisdom went from five ranks to three, so a Wisdom IV or V sword becomes Wisdom III.
  */
 public final class Retired {
 
@@ -37,14 +40,55 @@ public final class Retired {
         });
     }
 
-    /** Strips every carried item; returns how many items changed. */
+    /** Strips and caps every carried item; returns how many items lost a retired enchantment. */
     public static int stripPlayer(ServerPlayer player) {
         int changed = stripAll(player.getInventory()) + stripAll(player.getEnderChestInventory());
         if (changed > 0) {
             player.sendSystemMessage(Component.literal("Silk Chest has been retired, so it was taken off "
-                    + (changed == 1 ? "one of your items." : changed + " of your items.")).withStyle(ChatFormatting.GRAY));
+                    + items(changed)).withStyle(ChatFormatting.GRAY));
+        }
+        int capped = capAll(player.getInventory()) + capAll(player.getEnderChestInventory());
+        if (capped > 0) {
+            player.sendSystemMessage(Component.literal("Wisdom now stops at III, so enchantments above their top rank were lowered on "
+                    + items(capped)).withStyle(ChatFormatting.GRAY));
         }
         return changed;
+    }
+
+    private static String items(int n) {
+        return n == 1 ? "one of your items." : n + " of your items.";
+    }
+
+    private static int capAll(Container container) {
+        int changed = 0;
+        for (int i = 0; i < container.getContainerSize(); i++) {
+            if (cap(container.getItem(i))) changed++;
+        }
+        if (changed > 0) container.setChanged();
+        return changed;
+    }
+
+    /** Lowers this mod's enchantments that sit above their top rank to that rank; returns whether it changed. */
+    public static boolean cap(ItemStack stack) {
+        if (stack.isEmpty() || !overRank(stack)) return false;
+        EnchantmentHelper.updateEnchantments(stack, enchants -> {
+            for (Holder<Enchantment> holder : Set.copyOf(enchants.keySet())) {
+                int max = holder.value().getMaxLevel();
+                if (ours(holder) && enchants.getLevel(holder) > max) enchants.set(holder, max);
+            }
+        });
+        return true;
+    }
+
+    private static boolean overRank(ItemStack stack) {
+        for (var entry : EnchantmentHelper.getEnchantmentsForCrafting(stack).entrySet()) {
+            if (ours(entry.getKey()) && entry.getIntValue() > entry.getKey().value().getMaxLevel()) return true;
+        }
+        return false;
+    }
+
+    private static boolean ours(Holder<Enchantment> holder) {
+        return holder.unwrapKey().map(k -> k.identifier().getNamespace().equals(ExcellentEnchantsMod.MOD_ID)).orElse(false);
     }
 
     private static int stripAll(Container container) {
