@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "excellentenchants.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "BlockItemSpawnerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

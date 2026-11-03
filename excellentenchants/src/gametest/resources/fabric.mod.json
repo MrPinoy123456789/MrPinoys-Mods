@@ -9,7 +9,8 @@
   "entrypoints": {
     "fabric-gametest": [
       "excellentenchants.gametest.DataGameTest",
-      "excellentenchants.gametest.EffectsGameTest"
+      "excellentenchants.gametest.EffectsGameTest",
+      "excellentenchants.gametest.SpawnerPlacingGameTest"
     ]
   }
 }
