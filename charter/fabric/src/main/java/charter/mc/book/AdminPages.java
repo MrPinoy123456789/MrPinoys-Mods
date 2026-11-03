@@ -193,6 +193,8 @@ public final class AdminPages {
         List<BookButton> buttons = new ArrayList<>();
         buttons.add(go(player, Text.get("admin.kingdom.button.goto"), null, p -> ran(p, "charter admin goto " + ref, again)));
         buttons.add(go(player, Text.get("admin.kingdom.button.members", "n", rt().state.members(id).size()), null, p -> members(p, id, 0)));
+        buttons.add(go(player, Text.get("admin.kingdom.button.ranks", "n", rt().state.ranks.ladder(rt().state.root(id)).size()), null,
+                p -> ranks(p, id)));
         buttons.add(go(player, Text.get("admin.kingdom.button.add"), null, p -> addMemberForm(p, id)));
         buttons.add(go(player, Text.get("admin.kingdom.button.leader"), null, p -> leaderForm(p, id)));
         buttons.add(go(player, Text.get("admin.kingdom.button.coleader"), null, p -> coleaderForm(p, id)));
@@ -323,13 +325,31 @@ public final class AdminPages {
         List<BookButton> buttons = new ArrayList<>();
         for (charter.org.MemberRecord m : all.subList(at * OP_PAGE, Math.min(all.size(), (at + 1) * OP_PAGE))) {
             java.util.UUID uuid = m.player().value();
-            buttons.add(go(player, rt().describe.player(m.player()), null, p -> playerPage(p, uuid, null)));
+            String rank = rt().state.ranks.rankOf(rt().state, m.player()).map(charter.org.Ranks.Rank::name).orElse("");
+            buttons.add(go(player, Text.get("admin.members.entry", "name", rt().describe.player(m.player()), "rank", rank), null,
+                    p -> playerPage(p, uuid, null)));
         }
         if (at > 0) buttons.add(go(player, Text.get("book.page.prev"), null, p -> members(p, id, at - 1)));
         if (at < pages - 1) buttons.add(go(player, Text.get("book.page.next"), null, p -> members(p, id, at + 1)));
         List<net.minecraft.network.chat.Component> body = List.of(BookDialogs.text(Text.get("admin.members.intro",
                 "kingdom", found.get().name(), "count", all.size(), "page", at + 1, "pages", pages)));
         BookDialogs.show(player, BookDialogs.operatorList(Text.get("admin.members.title", "kingdom", found.get().name()), body, buttons,
+                BookDialogs.back(player, p -> kingdom(p, id, null))));
+    }
+
+    /** The kingdom's ranks, top first, who holds each and what each may do; read only (a Lord edits them in their book). */
+    static void ranks(ServerPlayer player, OrgId id) {
+        var found = rt().state.org(id);
+        if (found.isEmpty()) {
+            kingdomList(player, null);
+            return;
+        }
+        OrgId kingdom = rt().state.root(id);
+        List<net.minecraft.network.chat.Component> body = new ArrayList<>();
+        for (String line : charter.mc.cmd.OpCommands.rankLines(rt(), kingdom)) body.add(BookDialogs.text(line));
+        List<BookButton> buttons = List.of(go(player, Text.get("admin.kingdom.button.members", "n", rt().state.members(id).size()), null,
+                p -> members(p, id, 0)));
+        BookDialogs.show(player, BookDialogs.operatorList(Text.get("admin.ranks.title", "kingdom", rt().describe.org(kingdom)), body, buttons,
                 BookDialogs.back(player, p -> kingdom(p, id, null))));
     }
 
