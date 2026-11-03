@@ -6,7 +6,7 @@
     "Hit: 2 extra damage that ignores armour.",
     "Right click: Ground Slam, 4 damage and a heavy shove to everything within 3 blocks. 12s recharge.",
     "Sneak and right click: Stone Skin, tough but slow for 6s. 90s recharge.",
-    "Upgrade: 2 diamonds and 2 iron blocks, crafted with this."
+    "Upgrade: 2 diamonds and 2 iron blocks, crafted with this at a crafting table."
   ],
   "base_item": "minecraft:stone_pickaxe",
   "texture": "kingdoms:item/azrak_pick_1",
