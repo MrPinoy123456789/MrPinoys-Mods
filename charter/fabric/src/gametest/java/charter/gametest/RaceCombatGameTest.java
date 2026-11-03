@@ -3,14 +3,22 @@ package charter.gametest;
 import charter.engine.Actor;
 import charter.id.PlayerId;
 import charter.mc.RaceCombatPassives;
+import charter.mc.RacePassives;
 import charter.org.actions.AddMember;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 
 /** The race combat passives on a real server: attribute modifiers, fall immunity, the dodge and the master switch. */
 public final class RaceCombatGameTest {
@@ -114,6 +122,15 @@ public final class RaceCombatGameTest {
             RaceCombatPassives.applyTo(merfolk, kit.rt);
             helper.assertTrue(Math.abs(merfolk.getAttributeValue(Attributes.SUBMERGED_MINING_SPEED) - 1.0) < 1e-9,
                     "Submerged mining speed was " + merfolk.getAttributeValue(Attributes.SUBMERGED_MINING_SPEED));
+            // in the same test: only one kingdom can be named Azurius, and the race comes from that name
+            // the built in defaults, not whatever an older charter.json in the test run still lists
+            var passives = kit.rt.knobs.racePassives;
+            kit.rt.knobs.racePassives = new charter.config.Knobs().racePassives;
+            try {
+                inTheWater(helper, kit, merfolk);
+            } finally {
+                kit.rt.knobs.racePassives = passives;
+            }
             kit.rt.knobs.raceCombat = false;
             try {
                 RaceCombatPassives.applyTo(merfolk, kit.rt);
@@ -123,5 +140,68 @@ public final class RaceCombatGameTest {
             }
             helper.succeed();
         }
+    }
+
+    /**
+     * Vanilla's own mining speed on stone, which is what the client and server both use: a Merfolk floating in the water,
+     * feet off the sea floor, mines exactly as fast as standing on land, and an Aqua Affinity helmet adds nothing on top.
+     */
+    private static void inTheWater(GameTestHelper helper, LandKit kit, ServerPlayer merfolk) {
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
+        merfolk.teleportTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5);
+        merfolk.setOnGround(true);
+        RaceCombatPassives.applyTo(merfolk, kit.rt);
+        float land = merfolk.getDestroySpeed(stone);
+
+        for (int dy = 0; dy < 3; dy++) kit.level.setBlockAndUpdate(at.above(dy), Blocks.WATER.defaultBlockState());
+        merfolk.baseTick();
+        merfolk.setOnGround(false);
+        helper.assertTrue(merfolk.isInWater() && merfolk.isEyeInFluid(FluidTags.WATER), "The Merfolk is not under water");
+        RaceCombatPassives.applyTo(merfolk, kit.rt);
+        helper.assertTrue(Math.abs(merfolk.getDestroySpeed(stone) - land) < 1e-4,
+                "Floating under water mined at " + merfolk.getDestroySpeed(stone) + ", on land at " + land);
+
+        helper.assertTrue(merfolk.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY) == 0,
+                "Swimming Merfolk were given sea floor walking");
+
+        // Dolphin's Grace only while swimming, arms paddling, and off again the moment they stop
+        merfolk.setSwimming(false);
+        RacePassives.applyWaterTo(merfolk, kit.rt);
+        helper.assertTrue(!merfolk.hasEffect(MobEffects.DOLPHINS_GRACE), "Dolphin's Grace without swimming");
+        merfolk.setSwimming(true);
+        RacePassives.applyWaterTo(merfolk, kit.rt);
+        helper.assertTrue(merfolk.hasEffect(MobEffects.DOLPHINS_GRACE), "No Dolphin's Grace while swimming");
+        merfolk.setSwimming(false);
+        RacePassives.applyWaterTo(merfolk, kit.rt);
+        helper.assertTrue(!merfolk.hasEffect(MobEffects.DOLPHINS_GRACE), "Dolphin's Grace stayed after swimming stopped");
+        helper.assertTrue(merfolk.hasEffect(MobEffects.NIGHT_VISION), "No night vision with the head under water");
+        helper.assertTrue(merfolk.getEffect(MobEffects.NIGHT_VISION).getDuration() > 200, "Under water night vision would blink");
+
+        merfolk.setOnGround(true);
+        RaceCombatPassives.applyTo(merfolk, kit.rt);
+        helper.assertTrue(Math.abs(merfolk.getDestroySpeed(stone) - land) < 1e-4,
+                "On the sea floor mined at " + merfolk.getDestroySpeed(stone) + ", on land at " + land);
+        helper.assertTrue(Math.abs(merfolk.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY) - 1.0) < 1e-9,
+                "On the sea floor water movement efficiency was " + merfolk.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY));
+
+        // what an Aqua Affinity helmet does: the submerged speed times 5
+        Identifier aqua = Identifier.withDefaultNamespace("enchantment.aqua_affinity");
+        merfolk.getAttribute(Attributes.SUBMERGED_MINING_SPEED).addOrUpdateTransientModifier(
+                new AttributeModifier(aqua, 4.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        try {
+            merfolk.setOnGround(false);
+            RaceCombatPassives.applyTo(merfolk, kit.rt);
+            helper.assertTrue(Math.abs(merfolk.getDestroySpeed(stone) - land) < 1e-4,
+                    "With Aqua Affinity, floating mined at " + merfolk.getDestroySpeed(stone) + ", on land at " + land);
+        } finally {
+            merfolk.getAttribute(Attributes.SUBMERGED_MINING_SPEED).removeModifier(aqua);
+            for (int dy = 0; dy < 3; dy++) kit.level.setBlockAndUpdate(at.above(dy), Blocks.AIR.defaultBlockState());
+            merfolk.baseTick();
+            merfolk.setOnGround(true);
+        }
+        RacePassives.applyWaterTo(merfolk, kit.rt);
+        helper.assertTrue(!merfolk.isEyeInFluid(FluidTags.WATER) && !merfolk.hasEffect(MobEffects.NIGHT_VISION),
+                "Night vision stayed after leaving the water");
     }
 }

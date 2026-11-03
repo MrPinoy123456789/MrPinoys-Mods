@@ -101,6 +101,7 @@ public final class CharterServer {
         if (ticks % RacePassives.EVERY_TICKS == 0) RacePassives.apply(s, runtime);
         if (ticks % RacePassives.WATER_EVERY_TICKS == 0) RacePassives.applyWater(s, runtime);
         if (ticks % RaceCombatPassives.EVERY_TICKS == 0) RaceCombatPassives.apply(s, runtime);
+        else RaceCombatPassives.applyMining(s, runtime);
         if (ticks % Tags.EVERY_TICKS == 0) Tags.apply(s, runtime);
         if (ticks % LocatorBar.EVERY_TICKS == 0) LocatorBar.apply(s);
         if (runtime.knobs.closedKeeps && ticks % charter.mc.land.KeepGate.EVERY_TICKS == 0) charter.mc.land.KeepGate.apply(s, runtime);

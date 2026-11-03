@@ -5,6 +5,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.effect.MobEffectInstance;
 
 import java.util.List;
@@ -35,31 +36,72 @@ public final class RacePassives {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) applyTo(player, rt);
     }
 
-    /** Refreshes the effects of this one player's race. */
+    /** Refreshes the always-on effects of this one player's race; water and swim entries are the quick pass's. */
     public static void applyTo(ServerPlayer player, CharterRuntime rt) {
         if (!player.isAlive()) return;
-        for (String id : effectsOf(rt, new PlayerId(player.getUUID()))) {
-            BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(id))
-                    .ifPresent(effect -> player.addEffect(new MobEffectInstance(effect, LASTS_TICKS, 0, true, false, true)));
+        for (String text : effectsOf(rt, new PlayerId(player.getUUID()))) {
+            Entry entry = parse(text);
+            if (entry.conditional()) continue;
+            BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(entry.id())).ifPresent(effect ->
+                    player.addEffect(new MobEffectInstance(effect, LASTS_TICKS, entry.amplifier(), true, false, true)));
         }
     }
 
-    /** How often the water-only effects are refreshed, in ticks, and how long each lasts: it fades fast on leaving the water. */
-    public static final int WATER_EVERY_TICKS = 10;
-    static final int WATER_LASTS_TICKS = 30;
+    /**
+     * How often the water and swim effects are refreshed, in ticks, and how long each lasts: it fades fast on leaving the
+     * water. A swim effect is taken off at once when the player stops swimming.
+     */
+    public static final int WATER_EVERY_TICKS = 5;
+    static final int WATER_LASTS_TICKS = 15;
 
     /** A Floodgate (Bedrock) player has a UUID whose high half is zero. */
     public static boolean isBedrock(java.util.UUID id) {
         return id.getMostSignificantBits() == 0L;
     }
 
-    /** One entry of the Bedrock list: an effect id, whether it is for water only, and its amplifier. */
-    record Entry(String id, boolean waterOnly, int amplifier) {
+    /**
+     * One entry of a race's list: an effect id, when it applies ("" always, "water" while in water, "swim" while
+     * swimming with arms paddling, "under" while the head is under water) and its amplifier ("#1").
+     */
+    record Entry(String id, String when, int amplifier) {
+        boolean waterOnly() {
+            return when.equals("water");
+        }
+
+        boolean swimOnly() {
+            return when.equals("swim");
+        }
+
+        boolean underOnly() {
+            return when.equals("under");
+        }
+
+        boolean conditional() {
+            return !when.isEmpty();
+        }
+
+        boolean appliesTo(ServerPlayer player) {
+            return switch (when) {
+                case "water" -> player.isInWater();
+                case "swim" -> player.isSwimming() && player.isInWater();
+                case "under" -> player.isEyeInFluid(FluidTags.WATER);
+                default -> true;
+            };
+        }
     }
 
+    private static final List<String> CONDITIONS = List.of("water", "swim", "under");
+    private static final Identifier NIGHT_VISION = Identifier.withDefaultNamespace("night_vision");
+
     static Entry parse(String text) {
-        boolean water = text.startsWith("water:");
-        String rest = water ? text.substring("water:".length()) : text;
+        String when = "";
+        String rest = text;
+        for (String condition : CONDITIONS) {
+            if (text.startsWith(condition + ":")) {
+                when = condition;
+                rest = text.substring(condition.length() + 1);
+            }
+        }
         int amp = 0;
         int hash = rest.indexOf('#');
         if (hash >= 0) {
@@ -70,7 +112,7 @@ public final class RacePassives {
             }
             rest = rest.substring(0, hash);
         }
-        return new Entry(rest, water, Math.max(0, amp));
+        return new Entry(rest, when, Math.max(0, amp));
     }
 
     /** The Bedrock-only effects of this player's race; none for a Java player. */
@@ -81,20 +123,43 @@ public final class RacePassives {
                 .orElse(List.of()).stream().map(RacePassives::parse).toList();
     }
 
-    /** The quick pass: Bedrock players in water get their water-only effects, invisibly. */
+    /**
+     * The quick pass: water and swim effects from the race's list (with their icon), and every Bedrock extra
+     * (invisibly).
+     */
     public static void applyWater(MinecraftServer server, CharterRuntime rt) {
-        if (rt.knobs.racePassivesBedrock.isEmpty()) return;
+        if (rt.knobs.racePassivesBedrock.isEmpty() && rt.knobs.racePassives.isEmpty()) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) applyWaterTo(player, rt);
     }
 
     public static void applyWaterTo(ServerPlayer player, CharterRuntime rt) {
         if (!player.isAlive()) return;
-        for (Entry entry : bedrockEffectsOf(rt, player)) {
-            if (entry.waterOnly() && !player.isInWater()) continue;
-            int lasts = entry.waterOnly() ? WATER_LASTS_TICKS : LASTS_TICKS;
-            BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(entry.id()))
-                    .ifPresent(effect -> player.addEffect(new MobEffectInstance(effect, lasts, entry.amplifier(), true, false, false)));
+        for (String text : effectsOf(rt, new PlayerId(player.getUUID()))) {
+            Entry entry = parse(text);
+            if (entry.conditional()) quick(player, entry, true);
         }
+        for (Entry entry : bedrockEffectsOf(rt, player)) quick(player, entry, false);
+    }
+
+    /**
+     * Refreshes one entry while it applies, and takes a water, swim or under entry off at once when it stops. Night
+     * vision is held as long as the always-on effects, since it blinks when nearly out; the rest last a moment.
+     */
+    private static void quick(ServerPlayer player, Entry entry, boolean icon) {
+        BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(entry.id())).ifPresent(effect -> {
+            boolean nightVision = Identifier.parse(entry.id()).equals(NIGHT_VISION);
+            int lasts = !entry.conditional() || nightVision ? LASTS_TICKS : WATER_LASTS_TICKS;
+            if (entry.appliesTo(player)) {
+                player.addEffect(new MobEffectInstance(effect, lasts, entry.amplifier(), true, false, icon));
+                return;
+            }
+            MobEffectInstance held = player.getEffect(effect);
+            // only ours: ambient, the same strength and no longer than we give, so a potion of the same effect stays
+            if (entry.conditional() && held != null && held.isAmbient() && held.getAmplifier() == entry.amplifier()
+                    && held.getDuration() <= lasts) {
+                player.removeEffect(effect);
+            }
+        });
     }
 
     /** The effect ids of this player's race; none when they have no race or it gives none. */

@@ -134,10 +134,13 @@ public final class Knobs {
      * effect ids. These are the race traits that used to come from the race trinkets: Merfolk (Azurius) breathe water and
      * swim like dolphins, Dwarves (Azrak) mine faster, the Fae (Faeloria) see in the dark. The Humans (Aurelia) have no
      * effect: their passive is better trade deals, which Foundry gives them (race_traits.json trade_discount), and the
-     * Fairies (Everdelle) glide, which Foundry gives them too.
+     * Fairies (Everdelle) glide, which Foundry gives them too. An entry may start "water:" (only while in water),
+     * "swim:" (only while swimming, arms paddling) or "under:" (only while the head is under water) and end "#" and an
+     * amplifier. The Merfolk's Dolphin's Grace is swim only, so walking on the sea floor is land speed, not dolphin
+     * speed, and they see in the dark under water.
      */
     public java.util.Map<String, List<String>> racePassives = new java.util.LinkedHashMap<>(java.util.Map.of(
-            "azurius", List.of("minecraft:water_breathing", "minecraft:dolphins_grace"),
+            "azurius", List.of("minecraft:water_breathing", "swim:minecraft:dolphins_grace", "under:minecraft:night_vision"),
             "azrak", List.of("minecraft:haste"),
             "faeloria", List.of("minecraft:night_vision")));
     /**
@@ -233,11 +236,12 @@ public final class Knobs {
     public boolean keepBorderGlow = false;
     /**
      * Extra effects only for Bedrock players, by race node path. Bedrock has no Dolphin's Grace, so the Merfolk get
-     * Speed II while they are in water instead, with no icon and no particles. An entry is an effect id, optionally
-     * after "water:" (only while the player is in water) and before "#" and an amplifier: {@code water:minecraft:speed#1}.
+     * Speed II while they swim instead, with no icon and no particles. An entry is an effect id, optionally after
+     * "water:" (only while the player is in water) or "swim:" (only while swimming) and before "#" and an amplifier:
+     * {@code swim:minecraft:speed#1}.
      */
     public java.util.Map<String, List<String>> racePassivesBedrock = new java.util.LinkedHashMap<>(java.util.Map.of(
-            "azurius", List.of("water:minecraft:speed#1")));
+            "azurius", List.of("swim:minecraft:speed#1")));
     /** Whether a kingdom's deciders may change its form of government (Lordship, council, Commune). Off: only operators can. */
     public boolean leadersChangeGovernance = true;
     /** Whether anyone may be put into an office, or a new office made, by the people who hold power. Off: only operators, and the members' elections. */

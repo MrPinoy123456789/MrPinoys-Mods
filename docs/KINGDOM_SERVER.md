@@ -117,9 +117,16 @@ A player's race is a kingdom's race, stored on `PlayerRecord.race` and read with
   refreshes them every 5 seconds for everyone who has the race, members and mercenaries alike. The default gives the
   Merfolk (Azurius) Water Breathing and Dolphin's Grace; the effects fade within seconds of losing the race. Other
   races have none yet; add entries such as `"faeloria": ["minecraft:night_vision"]` to the config to give them some.
+  Entries read `[water:|swim:|under:]<effect id>[#amplifier]`: `water:` only while in water, `swim:` only while
+  swimming (arms paddling), `under:` only while the head is under water; each is taken off the moment it stops
+  applying. From 2026-11-03 the Merfolk have `swim:minecraft:dolphins_grace`, so they are fast swimming but walk the
+  sea floor at land speed, and `under:minecraft:night_vision`, so they see in the dark under water. A `charter.json`
+  that still lists plain `minecraft:dolphins_grace` keeps the old always-on effect until it is changed.
+- Merfolk mine in the water exactly as fast as on land, floating or on the sea floor, and walk the sea floor at land
+  speed (`RaceCombatPassives`). An Aqua Affinity helmet or Depth Strider boots add nothing on top.
 - Bedrock has no Dolphin's Grace effect, so `racePassivesBedrock` gives Bedrock players of a race extra effects on top of
-  the normal list: by default Azurius gets `water:minecraft:speed#1` (Speed II, only while in water, no icon or
-  particles). Entries read `[water:]<effect id>[#amplifier]`. A Floodgate player is recognised by a UUID with a zero high
+  the normal list: by default Azurius gets `swim:minecraft:speed#1` (Speed II, only while swimming, no icon or
+  particles). Entries read the same way. A Floodgate player is recognised by a UUID with a zero high
   half. Untested on a real Bedrock client: whether Bedrock swimming speed responds to Speed is the open question; if it
   does not, change the list in `charter.json` (for example drop it) with no new build.
 - Planned, not designed: an altar that swaps a player's race.

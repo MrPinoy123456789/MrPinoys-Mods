@@ -34,8 +34,10 @@ public final class RaceCombatPassives {
     private static final Identifier KNOCKBACK = Identifier.fromNamespaceAndPath("charter", "race_knockback");
     private static final Identifier DAMAGE = Identifier.fromNamespaceAndPath("charter", "race_damage");
     private static final Identifier SUBMERGED_MINING = Identifier.fromNamespaceAndPath("charter", "race_submerged_mining");
-    /** Vanilla slows submerged mining to a fifth (the attribute's base is 0.2); +0.8 brings it back to 1. */
-    private static final double SUBMERGED_MINING_RESTORE = 0.8;
+    private static final Identifier FLOATING_MINING = Identifier.fromNamespaceAndPath("charter", "race_floating_mining");
+    private static final Identifier SEA_FLOOR_WALK = Identifier.fromNamespaceAndPath("charter", "race_sea_floor_walk");
+    /** Vanilla divides mining by this when the player stands on nothing, floating in the water included. */
+    private static final double OFF_GROUND_PENALTY = 5.0;
 
     private RaceCombatPassives() {
     }
@@ -68,10 +70,47 @@ public final class RaceCombatPassives {
                 + RaceCombat.rallyBonus(rt.knobs, race, alliesNear(player, rt));
         set(player, Attributes.ATTACK_DAMAGE, DAMAGE, damage);
 
-        set(player, Attributes.SUBMERGED_MINING_SPEED, SUBMERGED_MINING,
-                rt.knobs.raceCombat && RaceCombat.MERFOLK.equals(race) ? SUBMERGED_MINING_RESTORE : 0);
+        mining(player, rt, race);
 
         if (rt.knobs.raceCombat && RaceCombat.FAE.equals(race)) glamour(player, rt, race);
+    }
+
+    /** The Merfolk water part only, run every tick so touching the sea floor or pushing off it takes effect at once. */
+    public static void applyMining(MinecraftServer server, CharterRuntime rt) {
+        if (!rt.knobs.raceCombat) return;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.isAlive()) mining(player, rt, raceOf(rt, player).orElse(""));
+        }
+    }
+
+    /**
+     * Merfolk mine in the water exactly as fast as standing on land, never faster. Vanilla slows them twice: a fifth with
+     * the eyes under water (the submerged attribute, base 0.2) and a fifth again when standing on nothing. The submerged
+     * value is topped up to exactly 1, so an Aqua Affinity helmet (which multiplies it by 5) adds nothing on top; while
+     * in the water and off the ground the break speed is multiplied by 5 to cancel the second fifth.
+     */
+    private static void mining(ServerPlayer player, CharterRuntime rt, String race) {
+        boolean merfolk = rt.knobs.raceCombat && RaceCombat.MERFOLK.equals(race);
+        AttributeInstance submerged = player.getAttribute(Attributes.SUBMERGED_MINING_SPEED);
+        if (submerged != null) {
+            AttributeModifier held = submerged.getModifier(SUBMERGED_MINING);
+            double without = submerged.getValue() / (held == null ? 1 : 1 + held.amount());
+            set(player, Attributes.SUBMERGED_MINING_SPEED, SUBMERGED_MINING,
+                    merfolk && without > 0 && without < 1 ? 1 / without - 1 : 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        }
+        boolean floating = merfolk && player.isInWater() && !player.onGround();
+        set(player, Attributes.BLOCK_BREAK_SPEED, FLOATING_MINING,
+                floating ? OFF_GROUND_PENALTY - 1 : 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+
+        // on the sea floor they walk as on land: water movement efficiency 1 (what Depth Strider III gives), topped up so
+        // Depth Strider boots add nothing on top; swimming is left as it was
+        AttributeInstance walking = player.getAttribute(Attributes.WATER_MOVEMENT_EFFICIENCY);
+        if (walking != null) {
+            AttributeModifier held = walking.getModifier(SEA_FLOOR_WALK);
+            double without = walking.getValue() - (held == null ? 0 : held.amount());
+            boolean onFloor = merfolk && player.isInWater() && player.onGround();
+            set(player, Attributes.WATER_MOVEMENT_EFFICIENCY, SEA_FLOOR_WALK, onFloor && without < 1 ? 1 - without : 0);
+        }
     }
 
     /** Fae Glamour: hostile mobs that target a Fae from beyond the range lose that target. */
@@ -108,14 +147,19 @@ public final class RaceCombatPassives {
 
     /** Holds {@code amount} as a modifier under {@code id}, or removes it when the amount is zero. */
     private static void set(ServerPlayer player, Holder<Attribute> attribute, Identifier id, double amount) {
+        set(player, attribute, id, amount, AttributeModifier.Operation.ADD_VALUE);
+    }
+
+    private static void set(ServerPlayer player, Holder<Attribute> attribute, Identifier id, double amount,
+                            AttributeModifier.Operation operation) {
         AttributeInstance instance = player.getAttribute(attribute);
         if (instance == null) return;
         AttributeModifier held = instance.getModifier(id);
-        if (amount == 0) {
+        if (Math.abs(amount) < 1e-9) {
             if (held != null) instance.removeModifier(id);
             return;
         }
-        if (held != null && held.amount() == amount) return;
-        instance.addOrUpdateTransientModifier(new AttributeModifier(id, amount, AttributeModifier.Operation.ADD_VALUE));
+        if (held != null && Math.abs(held.amount() - amount) < 1e-9 && held.operation() == operation) return;
+        instance.addOrUpdateTransientModifier(new AttributeModifier(id, amount, operation));
     }
 }
