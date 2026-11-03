@@ -22,6 +22,8 @@ public final class LandMod {
         Crossings.register();
         LandCommands.register();
         NexusLift.register();
+        LecternLift.register();
+        charter.mc.cmd.LecternCommands.register();
         charter.mc.cmd.OpCommands.register();
         // The runtime is made when the server starts; follow its history once it is up.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {

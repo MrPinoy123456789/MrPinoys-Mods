@@ -58,7 +58,7 @@ public final class TerminalCommands {
 
     /**
      * Puts a lectern terminal beside the Nexus of every keep that has none, for keeps founded before terminals existed.
-     * NPC keeps and keeps whose lodestone is lifted are skipped. Runs from the command only, never from a chunk event.
+     * NPC keeps, keeps whose lodestone is lifted and keeps whose lectern is lifted are skipped. Runs from the command only, never from a chunk event.
      */
     private static int keeps(CommandContext<CommandSourceStack> ctx) {
         if (!CharterServer.running()) return fail(ctx, Text.get("teleport.not_running"));
@@ -69,6 +69,8 @@ public final class TerminalCommands {
         for (charter.land.Core core : List.copyOf(rt.state.cores())) {
             if (!core.isKeep() || rt.state.org(core.owner).map(o -> o.npc).orElse(true)) continue;
             if (!Terminals.book().ofCore(core.id.value().toString()).isEmpty()) continue;
+            // A lifted lectern is still the keep's: it is set down or goes back by itself.
+            if (charter.mc.land.LecternLift.lifted(core.id)) continue;
             charter.mc.land.Fixtures.Fixture nexus = charter.mc.land.Fixtures.of(rt.state).first(core.id, charter.mc.land.Fixtures.Kind.NEXUS);
             if (nexus == null) continue;
             net.minecraft.server.level.ServerLevel level = Terminals.levelOf(ctx.getSource().getServer(), nexus.dimension());

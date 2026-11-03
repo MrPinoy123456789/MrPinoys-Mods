@@ -79,6 +79,7 @@ public final class DefaultTemplates {
         t.put("LandEvents.Contested", "On {when}, {count#claim} of {org} lost their anchor and stood contested. Unless something took them up again, they would be lost.");
         t.put("LandEvents.Rescued", "On {when}, {count#claim} of {org} were taken up again and held.");
         t.put("LandEvents.Lapsed", "On {when}, {count#claim} of {org} were lost for good.");
+        t.put("LandEvents.LecternMoved", "On {when}, the keep lectern of {org} was moved by an operator.");
 
         // ---- sieges (SiegeEvents) ----
         t.put("SiegeEvents.CampActive", "On {when}, {owner} finished raising an outpost.");

@@ -115,6 +115,12 @@ public final class Guard {
         if (!(player instanceof ServerPlayer sp) || !CharterServer.running()) return true;
         Fixtures.Fixture fixture = Protection.fixtureAt(level, pos);
         if (fixture != null) return Placement.allowBreak(sp, level, pos, fixture);
+        // A keep's lectern never breaks as a plain block: the Lord's mining lifts it as a bound item.
+        charter.land.Core lecternKeep = LecternLift.keepOf(level, pos);
+        if (lecternKeep != null) {
+            LecternLift.tryLift(sp, level, pos, lecternKeep);
+            return false;
+        }
         if (Protection.mayAct(player, level, pos)) return true;
         Protection.deny(player, level, pos);
         return false;

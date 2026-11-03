@@ -55,6 +55,17 @@ public final class LiftBook {
     }
 
     private final Map<String, Lift> byKeep = new LinkedHashMap<>();
+    private final String fileName;
+
+    /** The lifted Nexus book, saved as {@link #FILE_NAME}. */
+    public LiftBook() {
+        this(FILE_NAME);
+    }
+
+    /** A book saved under another file name in the same folder (the lifted keep lecterns). */
+    public LiftBook(String fileName) {
+        this.fileName = fileName;
+    }
 
     public boolean isEmpty() {
         return byKeep.isEmpty();
@@ -118,7 +129,7 @@ public final class LiftBook {
 
     public void load(Path dir, Consumer<String> warn) {
         byKeep.clear();
-        Path file = dir.resolve(FILE_NAME);
+        Path file = dir.resolve(fileName);
         if (!Files.exists(file)) return;
         try {
             JsonElement root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
@@ -157,10 +168,10 @@ public final class LiftBook {
         }
         JsonObject root = new JsonObject();
         root.add("lifts", list);
-        Path file = dir.resolve(FILE_NAME);
+        Path file = dir.resolve(fileName);
         try {
             Files.createDirectories(dir);
-            Path tmp = dir.resolve(FILE_NAME + ".tmp");
+            Path tmp = dir.resolve(fileName + ".tmp");
             Files.writeString(tmp, GSON.toJson(root) + "\n", StandardCharsets.UTF_8);
             Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {

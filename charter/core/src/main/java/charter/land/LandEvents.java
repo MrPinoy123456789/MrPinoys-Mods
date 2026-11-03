@@ -46,4 +46,8 @@ public final class LandEvents {
     /** The grace ended and these claims are no longer claims. */
     public record Lapsed(long at, OrgId org, int count) implements HistoryEvent {
     }
+
+    /** An operator moved a keep's lectern terminal within the keep's core chunk; the keep and its Nexus stay. */
+    public record LecternMoved(long at, OrgId org, CoreId core) implements HistoryEvent {
+    }
 }

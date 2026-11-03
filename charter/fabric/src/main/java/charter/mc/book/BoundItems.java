@@ -3,6 +3,7 @@ package charter.mc.book;
 import charter.mc.CharterServer;
 import charter.mc.Text;
 import charter.mc.land.HopperGate;
+import charter.mc.land.LecternLift;
 import charter.mc.land.NexusLift;
 import charter.mc.land.SpawnRules;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -31,10 +32,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Items that stay with their player: the Charter book and a lifted Nexus. Neither goes into a chest, hopper, bundle,
+ * Items that stay with their player: the Charter book, a lifted Nexus and a lifted keep lectern. None goes into a chest, hopper, bundle,
  * item frame, armor stand or allay ({@code BoundSlotMixin}, {@code BoundBundleMixin}, the hopper gate and the use
  * entity listener here). A dropped Charter book can be picked up only by its owner and is gone after
- * {@link #BOOK_DROP_TICKS}; a lifted Nexus cannot be dropped at all ({@code BoundDropMixin}).
+ * {@link #BOOK_DROP_TICKS}; a lifted Nexus or lectern cannot be dropped at all ({@code BoundDropMixin}).
  */
 public final class BoundItems {
 
@@ -67,9 +68,14 @@ public final class BoundItems {
         });
     }
 
-    /** The Charter book or a lifted Nexus. */
+    /** The Charter book, a lifted Nexus or a lifted keep lectern. */
     public static boolean isBound(ItemStack stack) {
-        return stack != null && !stack.isEmpty() && (CharterBook.isBook(stack) || NexusLift.isLiftedItem(stack));
+        return stack != null && !stack.isEmpty() && (CharterBook.isBook(stack) || lifted(stack));
+    }
+
+    /** A lifted Nexus or a lifted keep lectern. */
+    private static boolean lifted(ItemStack stack) {
+        return NexusLift.isLiftedItem(stack) || LecternLift.isLiftedItem(stack);
     }
 
     /** Entities a right-click puts the held item into. */
@@ -93,7 +99,7 @@ public final class BoundItems {
      * left alone (the lift has already ended by then). Returns true when the drop is refused.
      */
     public static boolean refusesDrop(ServerPlayer player, ItemStack stack) {
-        if (placingBack || !player.isAlive() || !NexusLift.isLiftedItem(stack)) return false;
+        if (placingBack || !player.isAlive() || !lifted(stack)) return false;
         placingBack = true;
         try {
             player.getInventory().placeItemBackInInventory(stack, net.minecraft.util.Prediction.SERVER_ONLY);
@@ -113,7 +119,7 @@ public final class BoundItems {
     public static InteractionResult useBlock(ServerPlayer player, Level level, InteractionHand hand, BlockHitResult hit) {
         ItemStack stack = player.getItemInHand(hand);
         boolean book = CharterBook.isBook(stack);
-        boolean lifted = NexusLift.isLiftedItem(stack);
+        boolean lifted = lifted(stack);
         if (!book && !lifted) return null;
         BlockPos pos = hit.getBlockPos();
         boolean takesItem = level.getBlockEntity(pos) instanceof Container
@@ -131,7 +137,7 @@ public final class BoundItems {
         if (WATCHED.isEmpty() || !CharterServer.running()) return;
         WATCHED.removeIf(item -> {
             if (item.isRemoved()) return true;
-            if (NexusLift.isLiftedItem(item.getItem()) || item.getAge() >= BOOK_DROP_TICKS) {
+            if (lifted(item.getItem()) || item.getAge() >= BOOK_DROP_TICKS) {
                 item.discard();
                 return true;
             }

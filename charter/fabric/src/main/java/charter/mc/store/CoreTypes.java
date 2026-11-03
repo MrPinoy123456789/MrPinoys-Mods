@@ -85,6 +85,7 @@ public final class CoreTypes {
                 .register("land.place_nexus", PlaceNexus.class)
                 .register("land.plant_camp", PlantCamp.class)
                 .register("land.claim", ClaimLand.class)
+                .register("land.record_lectern_move", charter.land.actions.RecordLecternMove.class)
                 .register("land.unclaim", Unclaim.class)
                 .register("land.lose_core", LoseCore.class)
                 .register("land.move_keep", MoveKeep.class)
