@@ -101,6 +101,9 @@ both). Roles and tier I to III numbers:
 
   Fully enchanted, a tier III staff or wand does about 60 to 65 percent of a fully enchanted tier III sword's damage a
   second, the same share as unenchanted. Unbreaking and Mending do not apply: the weapons never wear out.
+  Fixed 2026-11-03: the three were missing from `minecraft:in_enchanting_table`, so the table showed costs with
+  "...?" hints and a click did nothing. The jar now adds them to that tag (`data/minecraft/tags/enchantment`); the
+  anvil with a book always worked. `EnchantTableGameTest` enchants every kingdom weapon at a real table.
 - The Fairies' wand moved out of the demo namespace: `demo:fairy_wand`, `_2` and `_3` are now placeholders with
   `replaced_by` (a new item field), so a wand anyone still carries becomes the Everdelle Wand of the same tier the first
   tick it is in their inventory. Their old upgrade recipes are gone; on a server, delete
