@@ -3,8 +3,9 @@
   "id": "kingdoms:everdelle_wand_3",
   "display_name": "Everdelle Wand III",
   "lore": [
-    "Left click: a sparkle bolt, 5 damage.",
-    "Right click: Mischief, a bolt that hurts and lifts its target off the ground for 2.5s. 16s recharge.",
+    "Left click: a sparkle bolt, 6 damage.",
+    "Right click: Mischief, a bolt that bursts where it lands. 10s recharge.",
+    "  Every enemy within 4 blocks takes 6 damage and floats for 2.5s. Fairies are spared.",
     "Sneak and right click: Healing Light, regeneration for players within 5 blocks for 12s. 65s recharge.",
     "Fully upgraded."
   ],
@@ -51,7 +52,8 @@
           "model": "minecraft:nether_star",
           "model_scale": 0.35,
           "spin": true,
-          "colour": "#F59AC4"
+          "colour": "#F59AC4",
+          "exclude_permission": "race:everdelle"
         }
       ]
     },
@@ -61,7 +63,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 5,
+          "amount": 6,
           "target": "hit"
         },
         {
@@ -77,7 +79,7 @@
     {
       "name": "Mischief",
       "trigger": "on_use",
-      "cooldown_ticks": 320,
+      "cooldown_ticks": 200,
       "conditions": [
         {
           "type": "is_sneaking",
@@ -94,13 +96,15 @@
         {
           "type": "launch_bolt",
           "tag": "mischief",
-          "range": 8,
-          "speed": 1.0,
+          "range": 24,
+          "speed": 1.2,
           "particle": "minecraft:witch",
           "model": "minecraft:feather",
           "model_scale": 0.6,
           "spin": true,
-          "colour": "#B48CFF"
+          "colour": "#B48CFF",
+          "bursts": true,
+          "exclude_permission": "race:everdelle"
         }
       ]
     },
@@ -110,31 +114,58 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 4,
-          "target": "hit"
+          "amount": 6,
+          "target": "impact",
+          "radius": 4.0,
+          "exclude_permission": "race:everdelle"
         },
         {
           "type": "apply_effect",
           "effect": "minecraft:levitation",
           "duration": 50,
           "amplifier": 0,
-          "target": "hit"
+          "target": "impact",
+          "radius": 4.0,
+          "exclude_permission": "race:everdelle"
         },
         {
-          "type": "particle_shape",
-          "shape": "spiral",
-          "count": 30,
-          "radius": 0.7,
-          "particle": "minecraft:witch",
-          "target": "hit"
+          "type": "play_sound",
+          "sound": "minecraft:entity.firework_rocket.large_blast",
+          "volume": 1.0,
+          "pitch": 1.4,
+          "target": "impact"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.allay.death",
+          "volume": 0.6,
+          "pitch": 1.8,
+          "target": "impact"
         },
         {
           "type": "particle_shape",
           "shape": "ring",
-          "count": 20,
-          "radius": 0.9,
+          "count": 40,
+          "radius": 4.0,
+          "colour": "#B48CFF",
+          "size": 1.3,
+          "target": "impact"
+        },
+        {
+          "type": "particle_shape",
+          "shape": "ring",
+          "count": 24,
+          "radius": 2.0,
           "particle": "minecraft:cloud",
-          "target": "hit"
+          "target": "impact"
+        },
+        {
+          "type": "particle_shape",
+          "shape": "burst",
+          "count": 30,
+          "radius": 1.2,
+          "particle": "minecraft:witch",
+          "target": "impact"
         }
       ]
     },

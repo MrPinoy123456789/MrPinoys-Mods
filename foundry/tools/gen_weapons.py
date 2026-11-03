@@ -26,6 +26,12 @@ def sound(name, volume=1.0, pitch=1.0):
     return {"type": "play_sound", "sound": name, "volume": volume, "pitch": pitch}
 
 
+def sound_at(name, volume=1.0, pitch=1.0):
+    a = sound(name, volume, pitch)
+    a["target"] = "impact"
+    return a
+
+
 def effect(name, ticks, amp=0, target=None, radius=None):
     a = {"type": "apply_effect", "effect": name, "duration": ticks, "amplifier": amp}
     if target:
@@ -271,30 +277,44 @@ def faeloria(t):
 
 
 def everdelle(t):
-    spark = [3, 4, 5][t]
+    spark = [4, 5, 6][t]
+    blast = [4, 5, 6][t]
+    reach = [3.0, 3.5, 4.0][t]
     lift = [30, 40, 50][t]
-    mis_cd = [400, 360, 320][t]
+    mis_cd = [280, 240, 200][t]
     heal = [160, 200, 240][t]
     heal_cd = [1500, 1400, 1300][t]
     pink = "#F59AC4"
+    # the wand never touches its own kingdom: its bolts fly through Fairies and the burst passes them by
+    own = "race:everdelle"
+
+    def spare(a):
+        a["exclude_permission"] = own
+        return a
+
     return dict(
         key="everdelle_wand", name="Everdelle Wand", base="minecraft:breeze_rod", damage=0, speed=0,
         lore=[f"Left click: a sparkle bolt, {spark} damage.",
-              f"Right click: Mischief, a bolt that hurts and lifts its target off the ground for {secs(lift)}s. {secs(mis_cd)}s recharge.",
+              f"Right click: Mischief, a bolt that bursts where it lands. {secs(mis_cd)}s recharge.",
+              f"  Every enemy within {reach:g} blocks takes {blast} damage and floats for {secs(lift)}s. Fairies are spared.",
               f"Sneak and right click: Healing Light, regeneration for players within 5 blocks for {secs(heal)}s. {secs(heal_cd)}s recharge."],
         mechanics=[
-            {"trigger": "on_swing", "cooldown_ticks": 16, "actions": [sound("minecraft:entity.allay.item_thrown", 1.0, 1.9),
+            {"name": "Sparkle Bolt", "trigger": "on_swing", "cooldown_ticks": 16, "actions": [sound("minecraft:entity.allay.item_thrown", 1.0, 1.9),
                                                                        sound("minecraft:entity.firework_rocket.twinkle", 0.6, 1.6),
-                                                                       bolt("sparkle", 24, 1.4, "minecraft:end_rod",
-                                                                            model="minecraft:nether_star", model_scale=0.35,
-                                                                            spin=True, colour=pink)]},
+                                                                       spare(bolt("sparkle", 24, 1.4, "minecraft:end_rod",
+                                                                                  model="minecraft:nether_star", model_scale=0.35,
+                                                                                  spin=True, colour=pink))]},
             hit("sparkle", [damage(spark), shape("burst", 12, 0.5, "hit", colour=pink)]),
             use("Mischief", mis_cd, [sound("minecraft:entity.evoker.cast_spell", 0.7, 1.8),
-                                     bolt("mischief", 8, 1.0, "minecraft:witch", model="minecraft:feather",
-                                          model_scale=0.6, spin=True, colour="#B48CFF")], False),
-            hit("mischief", [damage([2, 3, 4][t]), effect("minecraft:levitation", lift, 0, "hit"),
-                             shape("spiral", 30, 0.7, "hit", particle="minecraft:witch"),
-                             shape("ring", 20, 0.9, "hit", particle="minecraft:cloud")]),
+                                     spare(bolt("mischief", 24, 1.2, "minecraft:witch", model="minecraft:feather",
+                                                model_scale=0.6, spin=True, colour="#B48CFF", bursts=True))], False),
+            hit("mischief", [spare(damage(blast, "impact", radius=reach)),
+                             spare(effect("minecraft:levitation", lift, 0, "impact", reach)),
+                             sound_at("minecraft:entity.firework_rocket.large_blast", 1.0, 1.4),
+                             sound_at("minecraft:entity.allay.death", 0.6, 1.8),
+                             shape("ring", 40, reach, "impact", colour="#B48CFF", size=1.3),
+                             shape("ring", 24, reach * 0.5, "impact", particle="minecraft:cloud"),
+                             shape("burst", 30, 1.2, "impact", particle="minecraft:witch")]),
             use("Healing Light", heal_cd, [sound("minecraft:entity.player.levelup", 0.7, 1.6),
                                            effect("minecraft:regeneration", heal, [0, 1, 1][t], "area", 5),
                                            shape("ring", 40, 5.0, colour=pink, size=1.3),

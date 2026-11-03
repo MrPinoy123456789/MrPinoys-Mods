@@ -65,7 +65,7 @@ both). Roles and tier I to III numbers:
 | Oathblade (Humans) | Duelist | 5, 6, 6 at 1.6, plus 1, 1, 2 and Weakness, a silver sweep arc | | Mikiri: a 0.75 s parry; the next melee hit or projectile is stopped and the attacker is countered for 6, 7, 8 with 2 s Weakness and Slowness; half the recharge back when it lands; at III it also gives Strength I for 5 s to you and allies within 6 blocks (12, 11, 10 s) | Quickdraw (hold, let go): dash up to 10 blocks along the ground, straight through mobs, and cut everything passed for up to 6, 7, 8 and 1 s Slowness; a release from 0.25 s goes 3 blocks at half damage, full at 1 s; stops at walls, not in water or riding (12, 11, 10 s) |
 | Tide Trident (Merfolk) | Close fighter that throws and drags | 7, 8, 9 at 1.1, plus 1, 1, 2 in water or rain | (melee) | Throw: a visible trident that flies out and returns, 5, 6, 7 damage | Undertow: 2, 3, 4 damage to all within 6 blocks, dragged toward you (30, 28, 26 s) |
 | Briarthorn Staff (Fae) | Control | none | Thorn Bolt every 0.8 s, 3, 3, 4 and poison | Bramble Burst (hold 1 s): 5, 6, 7 damage, poison and a 2 to 3 s root (Slowness IV), a ring of thorns | Glamour (unchanged) |
-| Everdelle Wand (Fairies) | Support and harassment | none | Sparkle every 0.8 s, 3, 4, 5 damage, 24 blocks | Mischief: lifts the target 1.5 to 2.5 s | Healing Light: regeneration for 8 to 12 s for players within 5 blocks |
+| Everdelle Wand (Fairies) | Ranged crowd control and support | none | Sparkle every 0.8 s, 4, 5, 6 damage, 24 blocks | Mischief: a bolt that bursts where it lands (a body, a block, or 24 blocks out); every enemy within 3, 3.5, 4 blocks takes 4, 5, 6 damage and floats for 1.5 to 2.5 s; 14, 12, 10 s recharge | Healing Light: regeneration for 8 to 12 s for players within 5 blocks |
 
 - The Oathblade (2026-11-03) traded Holy Lance and Rally for Iaijutsu, Mikiri and Quickdraw above. The dash is a push
   over about half a second (1.25 blocks a tick), not a teleport: the client carries the player, so walls stop it and mobs
@@ -99,8 +99,20 @@ both). Roles and tier I to III numbers:
   | Quickcast | I and II | one tick off the left click cooldown for each level (0.8 s to 0.7 s at II) |
   | Potency | I and II | what the weapon does to what it strikes (poison, roots, lift, weakness) lasts a quarter longer for each level |
 
-  Fully enchanted, a tier III staff or wand does about 60 to 65 percent of a fully enchanted tier III sword's damage a
+  Fully enchanted, a tier III staff does about 60 to 65 percent of a fully enchanted tier III sword's damage a
   second, the same share as unenchanted. Unbreaking and Mending do not apply: the weapons never wear out.
+  Fixed 2026-11-03: the three were missing from `minecraft:in_enchanting_table`, so the table showed costs with
+  "...?" hints and a click did nothing. The jar now adds them to that tag (`data/minecraft/tags/enchantment`); the
+  anvil with a book always worked. `EnchantTableGameTest` enchants every kingdom weapon at a real table.
+- Everdelle Wand rework (2026-11-03): it was the weakest weapon. The sparkle went from 3, 4, 5 to 4, 5, 6 damage (a
+  tier III wand now does about 75 percent of a tier III melee weapon's damage a second, at 24 blocks). Mischief was a
+  short single target bolt (8 blocks, 2 to 4 damage); it is now an area burst: the bolt flies 24 blocks and bursts on
+  whatever it meets, a body, a wall or the floor, or at the end of its flight. Every enemy within 3, 3.5, 4 blocks of the
+  spot takes 4, 5, 6 damage (plus Spellpower) and floats for 1.5, 2, 2.5 s (stretched by Potency). Recharge 14, 12, 10 s
+  (was 20, 18, 16). No friendly fire: both wand bolts fly through `race:everdelle` players and the burst passes them by,
+  so a Fairy is never hurt or lifted by a Fairy's wand. (Charter's `kingdomFriendlyFire` already stopped the damage
+  between kingdom members; the filter also stops the lift, which is an effect, not damage.) The engine side is new and
+  general: `launch_bolt` takes `bursts`, and on_bolt_hit steps take `target "impact"` (see the add-foundry-mechanic skill).
 - The Fairies' wand moved out of the demo namespace: `demo:fairy_wand`, `_2` and `_3` are now placeholders with
   `replaced_by` (a new item field), so a wand anyone still carries becomes the Everdelle Wand of the same tier the first
   tick it is in their inventory. Their old upgrade recipes are gone; on a server, delete

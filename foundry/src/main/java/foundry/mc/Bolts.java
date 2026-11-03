@@ -50,6 +50,8 @@ public final class Bolts {
         /** A returning bolt (a thrown weapon) flies back to its caster after it lands or runs out of range. */
         final boolean returns;
         final String returnTag;
+        /** A bursting bolt lands wherever it stops (a block, or the end of its flight), not only on an entity. */
+        final boolean bursts;
         boolean coming;
         int returnTicks;
         /** On the way back a bolt hits each entity once, and not the one it has just left. */
@@ -70,6 +72,7 @@ public final class Bolts {
             this.remaining = spec.decimalParam("range", 10);
             this.returns = Boolean.parseBoolean(spec.param("returns", "false"));
             this.returnTag = spec.param("return_tag", "");
+            this.bursts = Boolean.parseBoolean(spec.param("bursts", "false"));
             this.dir = owner.getLookAngle().normalize();
             this.pos = owner.getEyePosition().add(dir.scale(0.5)).add(0, -0.15, 0);
             String colour = spec.param("colour", "");
@@ -201,6 +204,8 @@ public final class Bolts {
             if (block.getType() != HitResult.Type.MISS) {
                 b.level.sendParticles(ParticleTypes.POOF, block.getLocation().x, block.getLocation().y, block.getLocation().z,
                         2, 0.05, 0.05, 0.05, 0.01);
+                // burst just short of the face, so the spot is in the open air the targets stand in
+                if (b.bursts) landed(b, owner, null, b.tag, block.getLocation().subtract(b.dir.scale(0.2)));
                 return b.returns ? turnBack(b, null) : false;
             }
             b.pos = next;
@@ -210,6 +215,7 @@ public final class Bolts {
         }
         b.remaining -= travel;
         if (b.remaining > 0) return true;
+        if (b.bursts) landed(b, owner, null, b.tag, b.pos);
         return b.returns ? turnBack(b, null) : false;
     }
 
@@ -263,9 +269,14 @@ public final class Bolts {
     }
 
     private static void landed(Bolt b, ServerPlayer owner, LivingEntity struck, String tag) {
+        landed(b, owner, struck, tag, struck.position());
+    }
+
+    /** Runs the on_bolt_hit mechanics: {@code struck} is null for a bursting bolt that met a block or ran out. */
+    private static void landed(Bolt b, ServerPlayer owner, LivingEntity struck, String tag, Vec3 at) {
         var ident = foundry.core.Ident.parse(b.contentId);
         var def = ident == null ? null : FoundryMod.loaded().items().get(ident);
         if (def == null) return;
-        MechanicHost.fire(Trigger.ON_BOLT_HIT, tag, b.contentId, def.mechanics(), owner, struck);
+        MechanicHost.fire(Trigger.ON_BOLT_HIT, tag, b.contentId, def.mechanics(), owner, struck, at);
     }
 }
