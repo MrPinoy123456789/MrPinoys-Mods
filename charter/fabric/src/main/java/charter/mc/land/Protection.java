@@ -32,8 +32,8 @@ import java.util.UUID;
  * whether the claim is protected right now; it never reimplements that rule.
  *
  * <p>Who may act inside a protected claim (DESIGN.md §9.5): a member of the
- * owning faction (any organization in its tree), except in a keep's core chunk,
- * where building needs the power to place cores or an exception registered by
+ * owning faction (any organization in its tree). With the coreChunkMembersBuild knob off, a keep's core chunk
+ * is the exception: building there needs the power to place cores or an exception registered by
  * another feature (the granary). Outsiders may only walk.
  */
 public final class Protection {
@@ -146,8 +146,8 @@ public final class Protection {
         }
         if (claim == null) return true;
         if (!counted && !isMemberOf(player, claim)) return false;
-        if (claim.kind() != ClaimKind.KEEP_CORE) return true;
         CharterRuntime rt = rt();
+        if (claim.kind() != ClaimKind.KEEP_CORE || rt.knobs.coreChunkMembersBuild) return true;
         if (player instanceof ServerPlayer sp) {
             for (CoreChunkException e : CORE_CHUNK_EXCEPTIONS) {
                 if (e.allows(sp, claim, pos)) return true;

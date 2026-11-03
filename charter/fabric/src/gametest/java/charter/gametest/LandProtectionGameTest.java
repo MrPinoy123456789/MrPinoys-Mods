@@ -89,6 +89,7 @@ public final class LandProtectionGameTest {
             kit.rt.state.touch(new PlayerId(member.getUUID()), member.getPlainTextName(), kit.rt.clock.now());
             kit.rt.state.join(new PlayerId(member.getUUID()), org, kit.rt.clock.now());
 
+            kit.rt.knobs.coreChunkMembersBuild = false;
             BlockPos inCore = kit.nexusPos().east(3);
             BlockPos inRing = kit.pos(8, 0);
             kit.level.setBlockAndUpdate(inCore, Blocks.COBBLESTONE.defaultBlockState());
@@ -98,6 +99,9 @@ public final class LandProtectionGameTest {
             helper.assertTrue(kit.level.getBlockState(inCore).is(Blocks.COBBLESTONE), "A plain member broke a block in the core chunk");
             helper.assertTrue(broke(kit, member, inRing), "A member could not break a block in the keep's ring");
             helper.assertTrue(broke(kit, lord, inCore), "The Lord, who may place cores, could not break in the core chunk");
+            kit.rt.knobs.coreChunkMembersBuild = true;
+            kit.level.setBlockAndUpdate(inCore, Blocks.COBBLESTONE.defaultBlockState());
+            helper.assertTrue(broke(kit, member, inCore), "A member could not break in the core chunk with coreChunkMembersBuild on");
             helper.succeed();
         }
     }
