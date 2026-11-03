@@ -207,6 +207,11 @@ public final class Knobs {
      */
     public boolean adminKingdomBypass = true;
     /**
+     * Whether members of an admin kingdom (any rank) take no damage at all. Only {@code /kill} and falling out of the
+     * world get through. Membership only, never standing on its land; removal ends it at once.
+     */
+    public boolean adminKingdomGodmode = true;
+    /**
      * Whether only players holding {@code charter.locatorbar} (operators by default) see other players on the locator bar.
      * Everyone else still shows on an admin's bar. Only matters while the {@code locator_bar} game rule is on. Off: the
      * game rule alone decides, for everyone.
