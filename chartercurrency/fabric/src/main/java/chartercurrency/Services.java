@@ -27,6 +27,8 @@ final class Services {
     final KingdomRuntime kingdoms;
     final MintSites sites;
     EarnService earn;
+    /** The Banks; set once the mod has wired them, null before. */
+    BankSites banks;
     volatile java.util.List<Treasury.CatalogEntry> catalog = java.util.List.of();
 
     Services(EconomySettings settings, CurrencyRegistry currencies, EconomyService economy,

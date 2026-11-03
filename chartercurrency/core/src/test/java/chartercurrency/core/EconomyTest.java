@@ -77,6 +77,7 @@ public final class EconomyTest {
         kingdomSource();
         mintPlanner();
         mintTax();
+        banks();
         treasury();
         earnRules();
         renownRules();
@@ -95,6 +96,52 @@ public final class EconomyTest {
         for (String f : failures) System.out.println("FAIL  " + f);
         System.out.printf("%n%d passed, %d failed%n", passed, failures.size());
         if (!failures.isEmpty()) System.exit(1);
+    }
+
+    // ---- banks ----------------------------------------------------------------
+
+    private static void banks() {
+        section("Banks");
+        java.util.Optional<String> red = java.util.Optional.of("org:red");
+        java.util.Optional<String> blue = java.util.Optional.of("org:blue");
+        java.util.Optional<String> none = java.util.Optional.empty();
+        Banks banks = new Banks();
+
+        check("a Lord places a Bank on their own land",
+                banks.check(false, red, true, true, red).equals(new Banks.Placement(Banks.Refusal.NONE, red)));
+        check("a member who is not a Lord is refused",
+                banks.check(false, red, false, true, red).refusal() == Banks.Refusal.NOT_A_LORD);
+        check("a player in no kingdom is refused",
+                banks.check(false, none, false, true, red).refusal() == Banks.Refusal.NO_KINGDOM);
+        check("a Lord on another kingdom's land is refused",
+                banks.check(false, red, true, true, blue).refusal() == Banks.Refusal.NOT_YOUR_LAND);
+        check("a Lord on nobody's land is refused",
+                banks.check(false, red, true, true, none).refusal() == Banks.Refusal.NOT_YOUR_LAND);
+        check("without land records only an operator places one",
+                banks.check(false, red, true, false, none).refusal() == Banks.Refusal.NO_LAND
+                        && banks.check(true, red, false, false, none).allowed());
+        check("an operator's Bank belongs to whoever holds the land",
+                banks.check(true, red, false, true, blue).kingdom().equals(blue));
+
+        String site = Banks.key("minecraft:overworld", -3, 64, 40);
+        check("a placed Bank is recorded", banks.add(site, red) && banks.isBank(site));
+        check("one Bank per kingdom",
+                banks.check(false, red, true, true, red).refusal() == Banks.Refusal.ALREADY_HAS_ONE);
+        check("an operator is held to one per kingdom too",
+                banks.check(true, red, false, true, red).refusal() == Banks.Refusal.ALREADY_HAS_ONE);
+        check("another kingdom may still place theirs", banks.check(false, blue, true, true, blue).allowed());
+        check("Banks on nobody's land are not limited",
+                banks.add(Banks.key("minecraft:overworld", 500, 70, 500), none)
+                        && banks.check(true, none, false, true, none).allowed());
+        check("a Bank knows its kingdom", banks.kingdomOf(site).equals(red) && banks.siteOf("org:red").equals(java.util.Optional.of(site)));
+        check("its chunk is found, negative coordinates included",
+                banks.inChunk("minecraft:overworld", -1, 2) && !banks.inChunk("minecraft:overworld", 0, 2)
+                        && !banks.inChunk("minecraft:the_nether", -1, 2));
+        check("a removed Bank frees the kingdom's slot",
+                banks.remove(site) && banks.check(false, red, true, true, red).allowed()
+                        && !banks.inChunk("minecraft:overworld", -1, 2));
+        check("stored sites load back",
+                new Banks(java.util.Map.of(site, "org:red")).kingdomOf(site).equals(red));
     }
 
     // ---- currency registry --------------------------------------------------

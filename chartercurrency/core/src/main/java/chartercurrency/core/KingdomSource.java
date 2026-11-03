@@ -34,4 +34,14 @@ public interface KingdomSource {
 
     /** Every organization id this source knows. */
     Collection<String> kingdomIds();
+
+    /** Whether this source knows who holds land, so {@link #landOwner} means something. */
+    default boolean knowsLand() {
+        return false;
+    }
+
+    /** The kingdom id holding a chunk, empty when nobody does or land is unknown. */
+    default Optional<String> landOwner(String dimension, int chunkX, int chunkZ) {
+        return Optional.empty();
+    }
 }

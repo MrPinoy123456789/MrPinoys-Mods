@@ -49,7 +49,15 @@ up to the starter stock).
 
 ## The Mint and kingdom treasuries
 
-Coin enters the world only at a Mint. An op looks at a smithing table and runs
+Coin enters the world only at a Mint. The usual Mint is any smithing table in the
+same chunk as a **Bank**: a vault block a kingdom's Lord sets on their own land, one per
+kingdom (ops hand them out with `/chartercurrency bank give [player]`; `bank list`,
+`bank forget <kingdom>`). Right-clicking a Bank opens a chest menu with the player's
+money, Bank all, Take out 1, 8 or 64 Sovereigns, the Mint's rules for today and the
+shop; looking at a Bank or a Mint shows one line on the action bar. Breaking a Bank
+drops it back as an item. SPEC section 8.0 has the rules.
+
+An op can also bind any smithing table as a Mint: look at it and run
 `/chartercurrency mint bind` (also `unbind`, `list`; sites are in `mints.json`).
 Right-clicking a bound table never opens the smithing screen:
 

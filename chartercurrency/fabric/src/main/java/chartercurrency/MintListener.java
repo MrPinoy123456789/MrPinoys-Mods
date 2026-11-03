@@ -15,7 +15,7 @@ import net.minecraft.world.level.block.Blocks;
 import java.util.Optional;
 
 /**
- * The Mint: right-click a bound smithing table to strike Gold Sovereigns from gold ingots. Copper and iron
+ * The Mint: right-click a bound smithing table, or any smithing table in a Bank's chunk, to strike Gold Sovereigns from gold ingots. Copper and iron
  * ingots are refused ({@link Mint#strikes}): farms make them without limit.
  *
  * <p>Coin enters the world only here. The order of a strike is: plan, take the ingots,
@@ -39,7 +39,7 @@ final class MintListener {
                 return InteractionResult.PASS;
             }
             BlockPos pos = hit.getBlockPos();
-            if (!level.getBlockState(pos).is(Blocks.SMITHING_TABLE) || !s.sites.isBound(level, pos)) {
+            if (!level.getBlockState(pos).is(Blocks.SMITHING_TABLE) || !isMint(level, pos)) {
                 return InteractionResult.PASS;
             }
             // Only the main hand acts; the off-hand pass is consumed so the table's own
@@ -47,6 +47,14 @@ final class MintListener {
             if (hand == net.minecraft.world.InteractionHand.MAIN_HAND) use(sp);
             return InteractionResult.CONSUME;
         });
+    }
+
+    /**
+     * A table an operator bound, or any smithing table in the chunk of a Bank
+     * ({@link BankStation}). Every Mint works the same; the tax follows the striker.
+     */
+    boolean isMint(net.minecraft.world.level.Level level, BlockPos pos) {
+        return s.sites.isBound(level, pos) || (s.banks != null && s.banks.inChunkOf(level, pos));
     }
 
     /** The ingot item a denomination is struck from, by denomination id. */
@@ -87,6 +95,11 @@ final class MintListener {
         Mint.State st = s.mint.state(player.getUUID(), s.settings.today());
         player.sendSystemMessage(Messages.body(allowanceLine(st)));
         player.sendSystemMessage(Messages.body("One coin in five goes to your kingdom's treasury."));
+    }
+
+    /** Today's allowance in one line, for the Bank menu and the look-at line. */
+    String allowanceFor(ServerPlayer player) {
+        return allowanceLine(s.mint.state(player.getUUID(), s.settings.today()));
     }
 
     private String allowanceLine(Mint.State st) {

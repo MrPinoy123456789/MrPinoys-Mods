@@ -66,6 +66,14 @@ final class KingdomAdminCommands {
                         .then(Commands.literal("bind").executes(ctx -> mintSite(ctx, true)))
                         .then(Commands.literal("unbind").executes(ctx -> mintSite(ctx, false)))
                         .then(Commands.literal("list").executes(this::mintList)))
+                .then(Commands.literal("bank")
+                        .then(Commands.literal("give")
+                                .executes(ctx -> bankGive(ctx, null))
+                                .then(player().executes(ctx -> bankGive(ctx, "player"))))
+                        .then(Commands.literal("list").executes(this::bankList))
+                        .then(Commands.literal("forget")
+                                .then(Commands.argument("kingdom", StringArgumentType.string()).suggests(kingdoms())
+                                        .executes(this::bankForget))))
                 .then(Commands.literal("treasury")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("kingdom", StringArgumentType.string()).suggests(kingdoms())
@@ -247,6 +255,52 @@ final class KingdomAdminCommands {
         var sites = s.sites.list();
         source.sendSuccess(() -> Messages.title("MINTS (" + sites.size() + ")"), false);
         for (String site : sites) source.sendSuccess(() -> Messages.body("  " + site), false);
+        return 1;
+    }
+
+    // ---- banks ----------------------------------------------------------------
+
+    private int bankGive(CommandContext<CommandSourceStack> ctx, String arg) throws CommandSyntaxException {
+        ServerPlayer target;
+        if (arg == null) {
+            target = ctx.getSource().getPlayerOrException();
+        } else {
+            String name = StringArgumentType.getString(ctx, arg);
+            target = ctx.getSource().getServer().getPlayerList().getPlayerByName(name);
+            if (target == null) {
+                ctx.getSource().sendFailure(Messages.bad(name + " is not online."));
+                return 0;
+            }
+        }
+        ItemBank.give(target, BankStation.item(), 1);
+        String who = target.getName().getString();
+        ctx.getSource().sendSuccess(() -> Messages.good("Gave a Bank to " + who + "."), true);
+        s.log.admin(op(ctx) + " gave a Bank to " + who);
+        return 1;
+    }
+
+    private int bankList(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        var banks = s.banks.snapshot();
+        source.sendSuccess(() -> Messages.title("BANKS (" + banks.size() + ")"), false);
+        banks.forEach((site, kingdom) -> source.sendSuccess(() -> Messages.body("  "
+                + (kingdom.isEmpty() ? "nobody's" : s.kingdoms.source().displayName(kingdom))
+                + ": " + BankStation.coordinates(site)), false));
+        return 1;
+    }
+
+    /** Frees a kingdom's Bank slot when its Bank is gone in a way the server never saw. */
+    private int bankForget(CommandContext<CommandSourceStack> ctx) {
+        Optional<String> org = orgArg(ctx);
+        if (org.isEmpty()) return 0;
+        Optional<String> site = s.banks.siteOf(org.get());
+        if (site.isEmpty() || !s.banks.remove(site.get())) {
+            ctx.getSource().sendFailure(Messages.bad(s.kingdoms.source().displayName(org.get()) + " has no Bank."));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Messages.good("Forgot " + s.kingdoms.source().displayName(org.get())
+                + "'s Bank at " + BankStation.coordinates(site.get()) + ". The vault block, if any, is now plain."), true);
+        s.log.admin(op(ctx) + " forgot the Bank at " + site.get());
         return 1;
     }
 
