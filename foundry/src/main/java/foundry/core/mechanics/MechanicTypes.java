@@ -67,10 +67,12 @@ public final class MechanicTypes {
                 Param.decimal("radius", false, 0.1, 2), Param.optId("particle"), Param.optId("require_permission"),
                 Param.optId("exclude_permission"), Param.bool("returns"), Param.optName("return_tag"), Param.optId("model"),
                 Param.colour("colour"), Param.bool("spin"), Param.decimal("model_scale", false, 0.1, 3));
-        // Quickdraw: dash the way the player faces, stopping at walls, and cut every living thing passed through once.
+        // Quickdraw: push the player along the ground the way they face (speed blocks a tick), through mobs and stopped by
+        // walls, and cut every living thing passed once.
         // range and amount are at full charge; a part charge (see min_charge_ticks) scales down to min_range and
         // min_damage times the amount.
         action("dash_strike", Param.decimal("range", true, 1, 16), Param.decimal("min_range", false, 0.5, 16),
+                Param.decimal("speed", false, 0.5, 3),
                 Param.decimal("amount", true, 0.5, 100), Param.decimal("min_damage", false, 0, 1), Param.optId("effect"),
                 Param.integer("duration", false, 1, 600), Param.integer("amplifier", false, 0, 4), Param.colour("colour"),
                 Param.optId("require_permission"), Param.optId("exclude_permission"));

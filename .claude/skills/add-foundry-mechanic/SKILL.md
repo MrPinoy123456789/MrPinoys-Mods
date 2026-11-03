@@ -46,12 +46,14 @@ Actions:
   look direction, stops at the first block, never hits the caster, and passes through entities that fail the filters.
   Not allowed under on_bolt_hit. At most 8 live bolts per player, 256 in all.
 - `dash_strike` (on_use only): `range` (1 to 16 blocks at full charge), `amount` (damage at full charge), optional
-  `min_range` and `min_damage` (a fraction, 0 to 1) for the shortest hold, `effect`, `duration`, `amplifier` (put on
-  each thing cut), `colour` (the slash line), `require_permission`, `exclude_permission`. Carries the player along the
-  ground the way they face, steps up one block, stops at walls, and cuts every living thing in the path once. Pair it
+  `min_range` and `min_damage` (a fraction, 0 to 1) for the shortest hold, `speed` (blocks a tick, default 1.25),
+  `effect`, `duration`, `amplifier` (put on each thing cut), `colour` (the slash line), `require_permission`,
+  `exclude_permission`. Pushes the player along the ground the way they face for range / speed ticks (a push, not a
+  teleport: walls stop it, mobs do not), and cuts every living thing passed once. Pair it
   with `min_charge_ticks` for a hold that can be let go early.
 - `parry` (on_use only): `window` (1 to 40 ticks), optional `refund` (0 to 1 of the recharge given back when it lands).
   The next melee blow or projectile in the window is cancelled and the item's on_parry mechanics answer the attacker.
+  A parry needs a fresh press: a held right click repeating does not fire it.
   Explosions, fire, falls, poison and magic are never stopped.
 
 Conditions: `has_permission`: `level` (0 to 4 command level), optional `target`. `is_sneaking`: optional `value`

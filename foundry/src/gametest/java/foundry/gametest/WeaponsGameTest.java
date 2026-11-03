@@ -381,6 +381,14 @@ public final class WeaponsGameTest {
     public void aChargedRightClickStartsAHoldAndFiresOnlyWhenReleasedLateEnough(GameTestHelper helper) {
         var player = holder(helper, "kingdoms:faeloria_staff_1");
         var staff = item("kingdoms:faeloria_staff_1");
+        // a hold starts only once the client has been sent a copy it can draw (Charging.poses)
+        helper.runAfterDelay(DRAW_SETTLES, () -> chargedHold(helper, player, staff));
+    }
+
+    /** Ticks after a player takes up a charged weapon (or changes sneak) before a right click may start a hold. */
+    static final int DRAW_SETTLES = 8;
+
+    private static void chargedHold(GameTestHelper helper, ServerPlayer player, Item staff) {
         var used = staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
         helper.assertTrue(player.isUsingItem(), "right click starts a hold, like drawing a bow");
         helper.assertTrue(used != null && Bolts.liveFor(player.getUUID()) == 0, "nothing fires while holding");
@@ -508,13 +516,15 @@ public final class WeaponsGameTest {
     public void theStaffHoldIsDecidedAtTheStartNotWhenYouLetGo(GameTestHelper helper) {
         var player = holder(helper, "kingdoms:faeloria_staff_1");
         var staff = item("kingdoms:faeloria_staff_1");
-        staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
-        player.setShiftKeyDown(true);   // starts sneaking halfway through the hold
-        helper.runAfterDelay(24, () -> {
-            staff.releaseUsing(player.getMainHandItem(), helper.getLevel(), player, 0);
-            helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 1, "the burst still fires");
-            helper.assertTrue(!player.hasEffect(MobEffects.INVISIBILITY), "and sneaking at release does not cast Glamour");
-            helper.succeed();
+        helper.runAfterDelay(DRAW_SETTLES, () -> {
+            staff.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+            player.setShiftKeyDown(true);   // starts sneaking halfway through the hold
+            helper.runAfterDelay(24, () -> {
+                staff.releaseUsing(player.getMainHandItem(), helper.getLevel(), player, 0);
+                helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 1, "the burst still fires");
+                helper.assertTrue(!player.hasEffect(MobEffects.INVISIBILITY), "and sneaking at release does not cast Glamour");
+                helper.succeed();
+            });
         });
     }
 
@@ -582,10 +592,6 @@ public final class WeaponsGameTest {
 
         var lord = holder(helper, "kingdoms:aurelia_oathblade_1");
         lord.setShiftKeyDown(true);
-        item("kingdoms:aurelia_oathblade_1").use(helper.getLevel(), lord, InteractionHand.MAIN_HAND);
-        helper.assertTrue(lord.isUsingItem() && !foundry.mc.Parry.open(lord.getUUID()),
-                "a sneaking right click on the Oathblade draws for Quickdraw, it does not parry");
-        lord.stopUsingItem();
 
         var attacker = holder(helper, "kingdoms:azrak_pick_1");
         Mob near = still(helper, 2, 2, 3);
@@ -593,7 +599,13 @@ public final class WeaponsGameTest {
         item("kingdoms:azrak_pick_1").use(helper.getLevel(), attacker, InteractionHand.MAIN_HAND);
         helper.assertTrue(near.getHealth() < before, "a plain right click Ground Slams what stands within 3 blocks");
         helper.assertTrue(attacker.getHealth() == attacker.getMaxHealth(), "the slam does not hurt its caster");
-        helper.succeed();
+        helper.runAfterDelay(DRAW_SETTLES, () -> {
+            item("kingdoms:aurelia_oathblade_1").use(helper.getLevel(), lord, InteractionHand.MAIN_HAND);
+            helper.assertTrue(lord.isUsingItem() && !foundry.mc.Parry.open(lord.getUUID()),
+                    "a sneaking right click on the Oathblade draws for Quickdraw, it does not parry");
+            lord.stopUsingItem();
+            helper.succeed();
+        });
     }
 
     @GameTest
@@ -605,9 +617,10 @@ public final class WeaponsGameTest {
         helper.assertTrue(foundry.mc.Gate.allowed(member, foundry.mc.FoundryMod.loaded().items().get(foundry.core.Ident.parse("kingdoms:faeloria_staff_1"))),
                 "the Fae can wield the staff");
         staff.use(helper.getLevel(), stranger, InteractionHand.MAIN_HAND);
-        helper.assertTrue(!stranger.isUsingItem(), "a stranger cannot even start charging the staff");
+        helper.assertTrue(!stranger.isUsingItem() && !foundry.mc.Charging.casting(stranger.getUUID()),
+                "a stranger cannot even start charging the staff");
         staff.use(helper.getLevel(), member, InteractionHand.MAIN_HAND);
-        helper.assertTrue(member.isUsingItem(), "a member can");
+        helper.assertTrue(member.isUsingItem() || foundry.mc.Charging.casting(member.getUUID()), "a member can");
         member.stopUsingItem();
 
         // The node is per kingdom: the Fae cannot lift a dwarf's pick.

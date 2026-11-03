@@ -33,11 +33,72 @@ public final class Charging {
     static void forget(UUID player) {
         HOLDS.remove(player);
         CASTS.remove(player);
+        SHOWN.remove(player);
+        LAST_PRESS.remove(player);
     }
 
     static void clear() {
         HOLDS.clear();
         CASTS.clear();
+        SHOWN.clear();
+        LAST_PRESS.clear();
+    }
+
+    /**
+     * A Java client holding right click on an item that has no draw repeats the use every 4 ticks. A press counts as
+     * fresh only after a gap longer than that, so a held click is one press, and a power that needs a fresh press (a
+     * parry) does not go off by itself the moment its recharge is over.
+     */
+    static final int REPEAT_TICKS = 5;
+    private static final Map<UUID, Long> LAST_PRESS = new HashMap<>();
+
+    /** Records a right click and answers whether it is a new press rather than a held one repeating. */
+    static boolean press(ServerPlayer player) {
+        long now = player.level().getServer().getTickCount();
+        Long last = LAST_PRESS.put(player.getUUID(), now);
+        return last == null || now - last > REPEAT_TICKS;
+    }
+
+    /**
+     * What a Java client was last sent for the charged item in its main hand: whether that copy can be drawn like a bow,
+     * and from which tick. The draw is offered only when a right click would start a hold (the right sneak state, off
+     * recharge), because a client that can draw starts the bow pose and slows the player on every right click, the
+     * ones that parry too. {@link #poses} resends the inventory whenever that changes.
+     */
+    private record Shown(String contentId, int slot, boolean draw, long since) {}
+
+    private static final Map<UUID, Shown> SHOWN = new HashMap<>();
+    /** How long a newly offered draw is given to reach the client before a hold is trusted to it. */
+    static final int SETTLE_TICKS = 5;
+    /** A hold the client never lets go of (it never started drawing) is dropped after this long. */
+    static final int STUCK_TICKS = 200;
+
+    static void poses(net.minecraft.server.MinecraftServer server) {
+        long now = server.getTickCount();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            UUID id = player.getUUID();
+            if (!(player.getMainHandItem().getItem() instanceof FoundryItem item) || !item.hasCharge()
+                    || foundry.core.Floodgate.isBedrock(id)) {
+                SHOWN.remove(id);
+                continue;
+            }
+            boolean draw = item.drawShown(player);
+            int slot = player.getInventory().getSelectedSlot();
+            Shown last = SHOWN.get(id);
+            if (last != null && last.contentId().equals(item.contentId()) && last.slot() == slot && last.draw() == draw) continue;
+            player.containerMenu.sendAllDataToRemote();
+            SHOWN.put(id, new Shown(item.contentId(), slot, draw, now));
+        }
+    }
+
+    /**
+     * True when the client has had a drawable copy of {@code contentId} long enough to be drawing it now, so a hold
+     * started on the server will get its release. Otherwise a sneaking right click becomes a cast that fires by itself.
+     */
+    public static boolean drawSettled(ServerPlayer player, String contentId) {
+        Shown s = SHOWN.get(player.getUUID());
+        return s != null && s.draw() && s.contentId().equals(contentId)
+                && player.level().getServer().getTickCount() - s.since() >= SETTLE_TICKS;
     }
 
     /** A Bedrock cast: the armed mechanic fires at {@code fireTick} if the item is still in {@code hand}. */
@@ -50,7 +111,7 @@ public final class Charging {
     }
 
     /** True while this player has a cast waiting to fire. */
-    static boolean casting(UUID player) {
+    public static boolean casting(UUID player) {
         return CASTS.containsKey(player);
     }
 
@@ -92,8 +153,9 @@ public final class Charging {
             Hold h = e.getValue();
             // A hold ends without a release when the player switches slot, drops the item or dies: forget it, or its
             // meter would stay on their action bar.
-            if (player == null || !player.isAlive() || !player.isUsingItem()
+            if (player == null || !player.isAlive() || !player.isUsingItem() || now - h.startTick() > STUCK_TICKS
                     || !(player.getUseItem().getItem() instanceof FoundryItem item) || !item.contentId().equals(h.contentId())) {
+                if (player != null && player.isUsingItem() && now - h.startTick() > STUCK_TICKS) player.stopUsingItem();
                 holds.remove();
                 continue;
             }
