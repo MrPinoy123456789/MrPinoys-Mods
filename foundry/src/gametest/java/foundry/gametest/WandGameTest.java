@@ -149,14 +149,40 @@ public final class WandGameTest {
         });
     }
 
+    /**
+     * Mischief bursts where it lands, on a wall as well as on a body: every enemy around the spot is hurt and lifted,
+     * and a Fairy standing in it is neither (the bolt flies through her too).
+     */
     @GameTest
-    public void aBoltStopsShortOfItsRange(GameTestHelper helper) {
+    @SuppressWarnings("removal")
+    public void aMischiefBurstOnAWallHitsEveryEnemyAroundAndSparesFairies(GameTestHelper helper) {
+        for (int x = 0; x < 4; x++) {
+            for (int y = 2; y < 5; y++) helper.setBlock(new net.minecraft.core.BlockPos(x, y, 6), net.minecraft.world.level.block.Blocks.STONE);
+        }
         var player = holder(helper, 1.5, 1.5);
-        LivingEntity zombie = helper.spawn(EntityTypes.ZOMBIE, 1, 2, 12);
-        ((net.minecraft.world.entity.Mob) zombie).setNoAi(true);
+        // husks either side of the bolt's line, so it passes them and bursts on the wall behind
+        LivingEntity left = helper.spawn(EntityTypes.HUSK, new net.minecraft.world.phys.Vec3(0.3, 2, 5));
+        LivingEntity right = helper.spawn(EntityTypes.HUSK, new net.minecraft.world.phys.Vec3(2.7, 2, 5));
+        ((net.minecraft.world.entity.Mob) left).setNoAi(true);
+        ((net.minecraft.world.entity.Mob) right).setNoAi(true);
+        // a Fairy standing right in the bolt's path and inside the burst
+        var fairy = helper.makeMockServerPlayerInLevel();
+        fairy.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        fairy.connection.handleAcceptPlayerLoad(new net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket());
+        var at = helper.absoluteVec(new net.minecraft.world.phys.Vec3(1.5, 2, 4));
+        fairy.snapTo(at.x, at.y, at.z, 0f, 0f);
+        TestPerms.grant(fairy, "race:everdelle");
+        float leftBefore = left.getHealth(), rightBefore = right.getHealth(), fairyBefore = fairy.getHealth();
         wand().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
         helper.runAfterDelay(12, () -> {
-            helper.assertTrue(!zombie.hasEffect(MobEffects.LEVITATION), "Mischief reaches six blocks, not ten");
+            helper.assertValueEqual(Bolts.liveFor(player.getUUID()), 0, "the bolt has landed");
+            helper.assertTrue(left.getHealth() <= leftBefore - 3.9f && right.getHealth() <= rightBefore - 3.9f,
+                    "both husks are hurt by the burst, they lost " + (leftBefore - left.getHealth()) + " and "
+                            + (rightBefore - right.getHealth()));
+            helper.assertTrue(left.hasEffect(MobEffects.LEVITATION) && right.hasEffect(MobEffects.LEVITATION), "and lifted");
+            helper.assertTrue(fairy.getHealth() == fairyBefore && !fairy.hasEffect(MobEffects.LEVITATION),
+                    "the Fairy in the path and the burst is untouched");
+            helper.assertTrue(!player.hasEffect(MobEffects.LEVITATION), "and so is the caster");
             helper.succeed();
         });
     }

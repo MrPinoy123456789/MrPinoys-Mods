@@ -113,9 +113,19 @@ public final class MechanicParser {
             out.add(Problem.error(source, where, "target \"hit\" only works with an on_hit_entity, on_bolt_hit or on_parry trigger.",
                     "Use target \"self\", or change the trigger to on_hit_entity, on_bolt_hit or on_parry."));
         }
-        boolean area = "area".equals(step.params().get("target"));
+        boolean impact = "impact".equals(step.params().get("target"));
         boolean areaKind = step.type().equals("apply_effect") || step.type().equals("damage") || step.type().equals("knockback");
-        if (area && (!action || !areaKind || !step.params().containsKey("radius"))) {
+        if (impact && (trigger != Trigger.ON_BOLT_HIT || !(areaKind || step.type().equals("play_sound")
+                || step.type().equals("particle_shape")))) {
+            out.add(Problem.error(source, where, "target \"impact\" works only in an on_bolt_hit mechanic, on apply_effect, damage, "
+                    + "knockback, play_sound and particle_shape.", "Move it to the bolt's on_bolt_hit mechanic."));
+        }
+        if (impact && areaKind && !step.params().containsKey("radius")) {
+            out.add(Problem.error(source, where, "target \"impact\" on " + step.type() + " needs a radius.",
+                    "Use { \"type\": \"damage\", \"target\": \"impact\", \"radius\": 3, ... }."));
+        }
+        boolean area = "area".equals(step.params().get("target")) || impact;
+        if (area && !impact && (!action || !areaKind || !step.params().containsKey("radius"))) {
             out.add(Problem.error(source, where, "target \"area\" works only on apply_effect, damage and knockback, and needs a radius.",
                     "Use { \"type\": \"damage\", \"target\": \"area\", \"radius\": 3, ... }."));
         }

@@ -18,6 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -42,6 +43,8 @@ public final class MechanicHost implements MechanicRunner.Host {
 
     private final ServerPlayer player;
     private final LivingEntity hit;
+    /** Where an on_bolt_hit bolt landed (the entity struck, or the block or the end of its flight), or null. */
+    private Vec3 impact;
     private final String contentId;
     /** The mechanic being run and its index in the item's list (a parry remembers which recharge to give back). */
     private MechanicDef current;
@@ -80,8 +83,18 @@ public final class MechanicHost implements MechanicRunner.Host {
     /** Fires every mechanic of {@code trigger} (for on_bolt_hit, only those with {@code tag}). True when one ran. */
     static boolean fire(Trigger trigger, String tag, String contentId, List<MechanicDef> mechanics, ServerPlayer player,
             LivingEntity hit) {
+        return fire(trigger, tag, contentId, mechanics, player, hit, null);
+    }
+
+    /**
+     * A bolt landing: as above, with the spot it landed for target "impact". {@code hit} is null when it burst on a
+     * block or at the end of its flight; steps aimed at the hit entity are then skipped.
+     */
+    static boolean fire(Trigger trigger, String tag, String contentId, List<MechanicDef> mechanics, ServerPlayer player,
+            LivingEntity hit, Vec3 impact) {
         boolean any = false;
         MechanicHost host = new MechanicHost(player, hit, contentId);
+        host.impact = impact;
         for (int i = 0; i < mechanics.size(); i++) {
             MechanicDef m = mechanics.get(i);
             if (m.trigger() != trigger) continue;
@@ -211,7 +224,7 @@ public final class MechanicHost implements MechanicRunner.Host {
      */
     public static boolean strike(String tag, ServerPlayer player, LivingEntity hit) {
         if (!(player.getMainHandItem().getItem() instanceof FoundryItem f) || f.def() == null) return false;
-        return fire(Trigger.ON_BOLT_HIT, tag, f.contentId(), f.def().mechanics(), player, hit);
+        return fire(Trigger.ON_BOLT_HIT, tag, f.contentId(), f.def().mechanics(), player, hit, hit.position());
     }
 
     /** Magic weapon enchantments (data/foundry/enchantment): bolt damage, left click cooldown, effect length. */
@@ -244,6 +257,13 @@ public final class MechanicHost implements MechanicRunner.Host {
     @Override
     public void perform(Step action) {
         ServerLevel level = player.level();
+        String aim = action.param("target", "self");
+        // a bolt that burst on a block struck nobody: what was meant for the struck entity is skipped, not turned on the caster
+        if ("hit".equals(aim) && hit == null && impact != null) return;
+        if ("impact".equals(aim)) {
+            if (impact != null) atImpact(level, action);
+            return;
+        }
         LivingEntity target = targetOf(action);
         switch (action.type()) {
             case "play_sound" -> {
@@ -316,6 +336,49 @@ public final class MechanicHost implements MechanicRunner.Host {
             default -> FoundryMod.LOG.warn("Foundry: no handler for action type {}; the registry and host are out of step.",
                     action.type());
         }
+    }
+
+    /**
+     * Target "impact": the step acts around where the bolt landed. Effects, damage and knockback reach every living thing
+     * within the radius of it (never the caster, narrowed by the filters); a sound or a shape plays at the spot.
+     */
+    private void atImpact(ServerLevel level, Step action) {
+        switch (action.type()) {
+            case "play_sound" -> {
+                var sound = BuiltInRegistries.SOUND_EVENT.getValue(Identifier.parse(action.param("sound", "")));
+                if (sound != null) {
+                    level.playSound(null, impact.x, impact.y, impact.z, sound, SoundSource.PLAYERS,
+                            (float) action.decimalParam("volume", 1.0), (float) action.decimalParam("pitch", 1.0));
+                }
+            }
+            case "particle_shape" -> Effects.shapeAt(level, player, impact, 1, action);
+            case "apply_effect" -> BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(action.param("effect", "")))
+                    .ifPresent(effect -> {
+                        // Potency stretches it, as on a struck target
+                        int ticks = action.intParam("duration", 100) * (4 + level(POTENCY)) / 4;
+                        for (LivingEntity e : nearImpact(action)) {
+                            e.addEffect(new MobEffectInstance(effect, ticks, action.intParam("amplifier", 0)));
+                        }
+                    });
+            case "damage" -> {
+                float amount = (float) action.decimalParam("amount", 1) + level(SPELLPOWER);
+                for (LivingEntity e : nearImpact(action)) e.hurtServer(level, level.damageSources().indirectMagic(player, player), amount);
+            }
+            case "knockback" -> {
+                for (LivingEntity e : nearImpact(action)) {
+                    Effects.knockFrom(impact, player, e, action.decimalParam("strength", 0.5), action.decimalParam("lift", 0.2));
+                }
+            }
+            default -> { }
+        }
+    }
+
+    /** Every living thing within the step's radius of the impact, measured to the nearest point of its body. */
+    private List<LivingEntity> nearImpact(Step action) {
+        double r = action.decimalParam("radius", 3);
+        return player.level().getEntitiesOfClass(LivingEntity.class, new net.minecraft.world.phys.AABB(impact, impact).inflate(r),
+                e -> e != player && e.isAlive() && !e.isSpectator()
+                        && e.getBoundingBox().distanceToSqr(impact) <= r * r && passesFilters(action, e));
     }
 
     /**

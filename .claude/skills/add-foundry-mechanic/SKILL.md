@@ -44,7 +44,9 @@ Actions:
 - `launch_bolt`: `tag` (name), optional `range` (1 to 64 blocks, default 10), `speed` (0.2 to 3 blocks per tick,
   default 1), `radius` (hit size, default 0.4), `particle`, `require_permission`, `exclude_permission`. Flies along the
   look direction, stops at the first block, never hits the caster, and passes through entities that fail the filters.
-  Not allowed under on_bolt_hit. At most 8 live bolts per player, 256 in all.
+  Not allowed under on_bolt_hit. At most 8 live bolts per player, 256 in all. With `"bursts": true` it also lands
+  (runs its on_bolt_hit mechanics with no struck entity) when it meets a block or reaches the end of its range, so its
+  `target "impact"` steps go off there; steps aimed at `hit` are skipped when nothing was struck.
 - `dash_strike` (on_use only): `range` (1 to 16 blocks at full charge), `amount` (damage at full charge), optional
   `min_range` and `min_damage` (a fraction, 0 to 1) for the shortest hold, `speed` (blocks a tick, default 1.25),
   `effect`, `duration`, `amplifier` (put on each thing cut), `colour` (the slash line), `require_permission`,
@@ -65,8 +67,12 @@ cooldown the player sees "<name> is recharging: 42s" on the action bar), `tag` (
 go from this many ticks at part charge, with a charge meter on the action bar; Bedrock casts wait the full charge).
 
 `target`: `self` (default, the acting player), `hit` (the entity struck; only on `on_hit_entity`, `on_bolt_hit` and
-`on_parry`) or
-`area` (apply_effect only).
+`on_parry`), `area` (everything within `radius`; see apply_effect, damage and knockback) or `impact` (on_bolt_hit
+only: where the bolt landed, the struck entity's feet or the spot a bursting bolt stopped). On apply_effect, damage and
+knockback, `impact` needs a `radius` and reaches every living thing within it of the spot (measured to the nearest point
+of its body), never the caster, narrowed by `require_permission` and `exclude_permission`; knockback pushes away from
+the spot. On play_sound and particle_shape it plays at the spot. Use `"exclude_permission": "race:<kingdom>"` on the bolt
+and on each impact step to spare the caster's own kingdom.
 
 Conditions are checked before the cooldown, so a sneak only power on cooldown stays quiet on a plain right click.
 Cooldowns are per player and per mechanic, held in memory (a restart clears them), and independent of each other, so

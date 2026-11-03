@@ -41,6 +41,7 @@ public final class CoreSuite {
         wingDash();
         enchanting();
         iaijutsu();
+        impact();
         System.out.println("CoreSuite OK, " + checks + " checks");
     }
 
@@ -1023,6 +1024,24 @@ public final class CoreSuite {
     }
 
     /** The Oathblade's Mikiri (parry) and Quickdraw (part-charged dash strike): parsing, the charge maths and the refund. */
+    /** Target "impact": where an on_bolt_hit bolt landed, for a bolt that bursts on a block as well as on a body. */
+    private static void impact() {
+        String burst = "{\"type\":\"damage\",\"amount\":5,\"target\":\"impact\",\"radius\":3.5,\"exclude_permission\":\"race:everdelle\"}";
+        check(ItemParser.parse("i.json", withMechanics(mech("on_bolt_hit", ",\"tag\":\"m\"", burst))).def() != null,
+                "an on_bolt_hit may hurt everything around the impact, sparing a node");
+        check(ItemParser.parse("s.json", withMechanics(mech("on_bolt_hit", ",\"tag\":\"m\"",
+                "{\"type\":\"particle_shape\",\"shape\":\"ring\",\"radius\":3,\"target\":\"impact\"}"))).def() != null,
+                "a shape may be drawn at the impact");
+        check(hasError(withMechanics(mech("on_use", "", burst)), "on_bolt_hit"), "impact is for on_bolt_hit only");
+        check(hasError(withMechanics(mech("on_bolt_hit", ",\"tag\":\"m\"",
+                "{\"type\":\"damage\",\"amount\":5,\"target\":\"impact\"}")), "needs a radius"), "an impact hit needs a radius");
+        check(hasError(withMechanics(mech("on_bolt_hit", ",\"tag\":\"m\"",
+                "{\"type\":\"give_item\",\"item\":\"minecraft:stick\",\"target\":\"impact\"}")), "works only"),
+                "impact does not give items");
+        check(ItemParser.parse("b.json", withMechanics(mech("on_use", "",
+                "{\"type\":\"launch_bolt\",\"tag\":\"m\",\"bursts\":true}"))).def() != null, "a bolt may burst");
+    }
+
     private static void iaijutsu() {
         String dash = "{\"type\":\"dash_strike\",\"range\":8,\"min_range\":3,\"amount\":6,\"min_damage\":0.5}";
         var quick = ItemParser.parse("q.json", withMechanics(mech("on_use", ",\"charge_ticks\":20,\"min_charge_ticks\":5", dash)));

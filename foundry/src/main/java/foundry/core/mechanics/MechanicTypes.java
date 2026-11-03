@@ -33,9 +33,11 @@ public final class MechanicTypes {
      * Valid values for the {@code target} parameter; absent means the acting player. {@code area} means: for
      * apply_effect, every player within {@code radius} of the acting player (allies and the caster); for damage and
      * knockback, every living thing within {@code radius} of the entity struck (or of the caster when nothing was
-     * struck), never the caster. All narrowed by the permission filters.
+     * struck), never the caster. All narrowed by the permission filters. {@code impact} (on_bolt_hit only) means the
+     * spot the bolt landed: for apply_effect, damage and knockback, every living thing within {@code radius} of it,
+     * never the caster and narrowed by the filters; for play_sound and particle_shape, the spot itself.
      */
-    public static final List<String> TARGETS = List.of("self", "hit", "area");
+    public static final List<String> TARGETS = List.of("self", "hit", "area", "impact");
 
     /** The shapes particle_shape can draw (see the Minecraft layer for what each looks like). */
     public static final List<String> SHAPES = List.of("ring", "burst", "line", "column", "arc", "spiral");
@@ -66,7 +68,7 @@ public final class MechanicTypes {
         action("launch_bolt", Param.name("tag"), Param.decimal("range", false, 1, 64), Param.decimal("speed", false, 0.2, 3),
                 Param.decimal("radius", false, 0.1, 2), Param.optId("particle"), Param.optId("require_permission"),
                 Param.optId("exclude_permission"), Param.bool("returns"), Param.optName("return_tag"), Param.optId("model"),
-                Param.colour("colour"), Param.bool("spin"), Param.decimal("model_scale", false, 0.1, 3));
+                Param.colour("colour"), Param.bool("spin"), Param.decimal("model_scale", false, 0.1, 3), Param.bool("bursts"));
         // Quickdraw: push the player along the ground the way they face (speed blocks a tick), through mobs and stopped by
         // walls, and cut every living thing passed once.
         // range and amount are at full charge; a part charge (see min_charge_ticks) scales down to min_range and
@@ -126,8 +128,8 @@ public final class MechanicTypes {
                 case TARGET -> {
                     if (!TARGETS.contains(v)) {
                         out.add("target \"" + v + "\" is not valid. Use self (the acting player), hit "
-                                + "(the entity struck by an on_hit_entity or on_bolt_hit trigger, or the attacker for on_parry) or area "
-                                + "(apply_effect only).");
+                                + "(the entity struck by an on_hit_entity or on_bolt_hit trigger, or the attacker for on_parry), area "
+                                + "(everything within a radius) or impact (around where an on_bolt_hit bolt landed).");
                     }
                 }
                 case BOOL -> {

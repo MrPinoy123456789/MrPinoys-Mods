@@ -25,7 +25,12 @@ final class Effects {
      * negative strength pulls it in (an undertow).
      */
     static void knock(ServerPlayer from, LivingEntity target, double strength, double lift) {
-        Vec3 away = target.position().subtract(from.position());
+        knockFrom(from.position(), from, target, strength, lift);
+    }
+
+    /** As {@link #knock}, away from a spot (where a bolt burst); straight below it, along the caster's look. */
+    static void knockFrom(Vec3 centre, ServerPlayer from, LivingEntity target, double strength, double lift) {
+        Vec3 away = target.position().subtract(centre);
         Vec3 flat = new Vec3(away.x, 0, away.z);
         flat = flat.lengthSqr() < 1.0E-4 ? from.getLookAngle().multiply(1, 0, 1) : flat;
         flat = flat.normalize().scale(strength * (1 - target.getAttributeValue(
@@ -41,14 +46,23 @@ final class Effects {
      * {@code colour} draws coloured dust in place of the particle.
      */
     static void shape(ServerLevel level, ServerPlayer caster, LivingEntity struck, Step action) {
+        LivingEntity at = struck != null ? struck : caster;
+        shapeAt(level, caster, at.position(), at.getBbHeight(), action, at == caster);
+    }
+
+    /** As {@link #shape}, centred on a spot (where a bolt burst) as if something {@code tall} blocks high stood there. */
+    static void shapeAt(ServerLevel level, ServerPlayer caster, Vec3 feet, double tall, Step action) {
+        shapeAt(level, caster, feet, tall, action, false);
+    }
+
+    private static void shapeAt(ServerLevel level, ServerPlayer caster, Vec3 feet, double tall, Step action, boolean onCaster) {
         ParticleOptions particle = particle(action);
         if (particle == null) return;
-        LivingEntity at = struck != null ? struck : caster;
         String shape = action.param("shape", "ring");
         int count = action.intParam("count", 24);
         double r = action.decimalParam("radius", 1.5);
         double h = action.decimalParam("height", 0.1);
-        Vec3 base = at.position().add(0, h, 0);
+        Vec3 base = feet.add(0, h, 0);
         switch (shape) {
             case "ring" -> {
                 for (int i = 0; i < count; i++) {
@@ -57,7 +71,7 @@ final class Effects {
                 }
             }
             case "burst" -> {
-                Vec3 mid = at.position().add(0, at.getBbHeight() / 2, 0);
+                Vec3 mid = feet.add(0, tall / 2, 0);
                 var random = level.getRandom();
                 for (int i = 0; i < count; i++) {
                     Vec3 d = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize().scale(r * random.nextDouble());
@@ -66,7 +80,7 @@ final class Effects {
             }
             case "line" -> {
                 Vec3 from = caster.getEyePosition().add(0, -0.3, 0);
-                Vec3 to = at == caster ? from.add(caster.getLookAngle().scale(r)) : at.position().add(0, at.getBbHeight() / 2, 0);
+                Vec3 to = onCaster ? from.add(caster.getLookAngle().scale(r)) : feet.add(0, tall / 2, 0);
                 for (int i = 0; i <= count; i++) {
                     Vec3 p = from.lerp(to, (double) i / count);
                     send(level, particle, p.x, p.y, p.z);
@@ -88,7 +102,7 @@ final class Effects {
                 }
             }
             case "spiral" -> {
-                double height = Math.max(1, at.getBbHeight());
+                double height = Math.max(1, tall);
                 for (int i = 0; i < count; i++) {
                     double t = (double) i / count;
                     double a = t * Math.PI * 6;
