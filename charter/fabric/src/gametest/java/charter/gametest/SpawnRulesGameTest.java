@@ -44,6 +44,8 @@ public final class SpawnRulesGameTest {
         kit.keep(lord);
         kit.rt.state.org(kit.orgOf(lord)).orElseThrow().adminKingdom = true;
         kit.rt.knobs.spawnRulesEnabled = true;
+        // These tests are about the spawn rules for players without the pass; the admin kingdom pass is tested on its own.
+        kit.rt.knobs.adminKingdomBypass = false;
         SpawnRules.refresh();
         return lord;
     }
@@ -51,6 +53,7 @@ public final class SpawnRulesGameTest {
     private static void ordinary(LandKit kit, ServerPlayer lord) {
         kit.rt.state.org(kit.orgOf(lord)).ifPresent(o -> o.adminKingdom = false);
         kit.rt.knobs.spawnRulesEnabled = true;
+        kit.rt.knobs.adminKingdomBypass = true;
         SpawnRules.refresh();
     }
 
@@ -179,6 +182,7 @@ public final class SpawnRulesGameTest {
             helper.assertTrue(broke(kit, member, ring), "A member of an ordinary kingdom could not break in its ring");
 
             kit.rt.state.org(kit.orgOf(lord)).orElseThrow().adminKingdom = true;
+            kit.rt.knobs.adminKingdomBypass = false;
             SpawnRules.refresh();
             try {
                 kit.level.setBlockAndUpdate(ring, Blocks.COBBLESTONE.defaultBlockState());
@@ -193,6 +197,10 @@ public final class SpawnRulesGameTest {
                 helper.assertTrue(kit.level.getBlockState(place).isAir(), "A member placed a block in the spawn");
                 click(kit, member, new ItemStack(Items.WATER_BUCKET), place.below());
                 helper.assertTrue(kit.level.getFluidState(place).isEmpty(), "A member emptied a bucket in the spawn");
+
+                // With the admin kingdom pass on, its members build in the spawn like operators.
+                kit.rt.knobs.adminKingdomBypass = true;
+                helper.assertTrue(broke(kit, member, ring), "With adminKingdomBypass on a member could not break in the spawn");
                 helper.succeed();
             } finally {
                 ordinary(kit, lord);

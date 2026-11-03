@@ -77,7 +77,16 @@ permissions mod says something (`charter/fabric/src/main/java/charter/mc/Charter
 | `charter.bypass` | The operator pass in the world: spawn rules (`SpawnRules.isOp`), walking into closed keeps (`KeepGate`), moving or lifting any kingdom's Nexus (`NexusMove`, `NexusLift`, `BoundItems`), and the `requireAffiliation` look only rule | operator level 2 |
 
 Either node can be given to someone who is not an operator, or set to false for an operator (LuckPerms' value wins over
-the level). Two more small changes:
+the level).
+
+**The admin kingdom pass (`adminKingdomBypass`, default on).** Every member of an admin kingdom, at any rank, also has
+`charter.bypass`, decided by Charter from membership and not by LuckPerms, so setting the node to false in LuckPerms does
+not take it from them; turn the knob off or take them out of the kingdom. On top of the node they may build, break and
+use things on any kingdom's claims (the node alone does not allow that). It never gives `charter.admin`, and it does not
+count as staff for Lord discipline (`LordModeration.staff` reads the node only). Anyone the operators put in the admin
+kingdom gets this, so keep its membership to trusted staff. See "The admin kingdom pass" in `docs/KINGDOM_SERVER.md`.
+
+Two more small changes:
 
 - **Race nodes are answered first.** `RaceNodes` now registers in its own event phase `charter:race_nodes`, ordered
   before the default phase where LuckPerms answers. A member of Azrak holds `race:azrak` whatever LuckPerms says. A
