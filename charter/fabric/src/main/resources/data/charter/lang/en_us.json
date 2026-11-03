@@ -1199,6 +1199,7 @@
   "admin.player.offline": "{name} ({uuid}): last seen {ago} ago.",
   "admin.player.member": "Member of {org} for {time}. Offices: {offices}.",
   "admin.player.no_kingdom": "In no kingdom.",
+  "admin.player.rank": "Rank in {kingdom}: {rank}. {powers}",
   "admin.player.race": "Race: {race}.",
   "admin.player.held": "Held by {by}: {time} left.",
   "admin.player.banished": "Banished from {org}.",

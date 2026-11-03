@@ -411,6 +411,10 @@ public final class RankGameTest {
             helper.assertTrue(lines.get(1).startsWith("Knight (1): " + gilName + ". ")
                     && lines.get(1).contains(charter.mc.Text.get("book.power.claim")), "The Knight line is wrong: " + lines.get(1));
             helper.assertTrue(lines.get(0).contains(rt.describe.player(id(lord))), "The top rank does not name the Lord: " + lines.get(0));
+            // The player's own page (the typed player command and the Admin Book) says their rank.
+            List<String> page = charter.mc.cmd.OpCommands.playerLines(rt, new charter.mc.cmd.Resolve.Who(id(gil), gilName, gil));
+            helper.assertTrue(page.stream().anyMatch(l -> l.startsWith(charter.mc.Text.get("admin.player.rank", "kingdom",
+                    rt.describe.org(k), "rank", "Knight", "powers", "").strip())), "The player page does not show the rank: " + page);
             String name = rt.state.org(k).orElseThrow().name();
             int shown = kit.server.getCommands().getDispatcher().execute("charter admin faction ranks \"" + name + "\"",
                     kit.server.createCommandSourceStack());

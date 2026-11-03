@@ -302,6 +302,7 @@ Typed, under `/charter admin` (`/charter admin help` prints them all):
 - `kingdoms`: each kingdom with its Lords, members and Nexus. `keeps`: every keep's Nexus block, with a Go link.
 - `faction ranks <faction>`: its ranks, top first: how many hold each, their names (the first 12), and the powers
   each carries. The menu has the same on each kingdom's page ("Ranks"), and its member list shows each member's rank.
+  `player <player>` and the menu's player page also say the player's rank and what it may do.
 - `goto <faction>`: go to a kingdom's Nexus, in any dimension. `player <player>`: the facts on the player's page.
 - `votes`: open votes with their numbers and a Close now link. `vote close <number>` now suggests the numbers.
 - `faction remove <faction> <player>`: take a member out (a Lord loses the seat too).

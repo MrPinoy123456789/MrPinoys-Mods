@@ -280,6 +280,8 @@ public final class OpCommands {
             List<String> offices = rt.state.offices(org).stream().filter(o -> o.holds(id)).map(o -> o.name).toList();
             out.add(Text.get("admin.player.member", "org", rt.describe.org(org), "time", Chat.duration(now - member.get().joinedAt()),
                     "offices", offices.isEmpty() ? Text.get("admin.none") : String.join(", ", offices)));
+            rt.state.ranks.rankOf(rt.state, id).ifPresent(rank -> out.add(Text.get("admin.player.rank", "rank", rank.name(),
+                    "kingdom", rt.describe.org(rt.state.root(org)), "powers", charter.mc.book.RankPages.powersLine(rt.state.root(org), rank.id()))));
         } else {
             out.add(Text.get("admin.player.no_kingdom"));
         }
