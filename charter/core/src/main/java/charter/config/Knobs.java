@@ -201,6 +201,11 @@ public final class Knobs {
     public boolean showRankTags = true;
     /** Whether the rank also shows before a name in chat. Off: chat shows the kingdom tag only, the name tag keeps the rank. */
     public boolean rankInChat = true;
+    /**
+     * Whether a keep's members may build, break and use things in its core chunk like anywhere else in the keep. The Nexus
+     * and the lectern stay protected either way (only the Lord lifts them). Off: the core chunk needs the power to place cores.
+     */
+    public boolean coreChunkMembersBuild = true;
     /** Whether a keep turns away players who are not its members, not at war with it and not operators. */
     public boolean closedKeeps = false;
     /**
