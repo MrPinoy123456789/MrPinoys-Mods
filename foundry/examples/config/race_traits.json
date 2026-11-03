@@ -27,6 +27,10 @@
     }
   },
   "race:aurelia": {
+    "slide": {
+      "speed": 1.7,
+      "cooldown": 60
+    },
     "mount": {
       "speed": 0.2,
       "jump": 0.1

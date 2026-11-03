@@ -50,18 +50,23 @@ public record RaceTraits(Map<String, Trait> races) {
      * {@code tradeDiscount} is the share taken off villager and wandering trader prices (see {@link #discount}).
      */
     public record Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount,
-                        Flight flight, Dash dash) {
+                        Flight flight, Dash dash, Slide slide) {
         public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense) {
-            this(stride, mount, fallDamage, jumpDrift, sense, 0, null, null);
+            this(stride, mount, fallDamage, jumpDrift, sense, 0, null, null, null);
         }
 
         public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount) {
-            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, null, null);
+            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, null, null, null);
         }
 
         public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount,
                      Flight flight) {
-            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, flight, null);
+            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, flight, null, null);
+        }
+
+        public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount,
+                     Flight flight, Dash dash) {
+            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, flight, dash, null);
         }
 
         /** The wing dash for a race that double jumps: this race's own, or {@link Dash#DEFAULT} when it names none. */
@@ -79,6 +84,15 @@ public record RaceTraits(Map<String, Trait> races) {
      * land or press sneak; a hit from a mob, a player or a projectile takes a charge and drops them for {@code hitDrop}
      * ticks.
      */
+    /**
+     * The Human slide (see {@link CrouchSlide}): sprinting on the ground, a fresh press of sneak throws them forward the way they
+     * run at {@code speed} blocks per tick (the ground's friction stops it within about 4 blocks at 1.7), then not again for
+     * {@code cooldown} ticks.
+     */
+    public record Slide(double speed, int cooldown) {
+        public static final Slide DEFAULT = new Slide(1.7, 60);
+    }
+
     public record Dash(int charges, int refill, int gap, double up, double forward, double maxSpeed, int ceiling, int hitDrop) {
         public static final Dash DEFAULT = new Dash(3, 30, 8, 0.8, 1.2, 1.3, 12, 20);
     }
@@ -132,7 +146,7 @@ public record RaceTraits(Map<String, Trait> races) {
         r.put("race:azrak", new Trait(new Stride(0.15, Ground.UNDERGROUND), null, 0, 0,
                 new Sense("Ore sense", ORES, 8, 40, 0xE0B040)));
         r.put("race:aurelia", new Trait(null, new Mount(0.2, 0.1), 0, 0,
-                new Sense("Treasure sense", TREASURE, 8, 40, 0xC9CED8), 0.1));
+                new Sense("Treasure sense", TREASURE, 8, 40, 0xC9CED8), 0.1, null, null, Slide.DEFAULT));
         r.put("race:faeloria", new Trait(null, null, 0.5, 0.15, new Sense("Herb sense", HERBS, 12, 40, 0x7CD35A)));
         r.put("race:azurius", new Trait(null, null, 0, 0, new Sense("Tide sense", TIDE, 10, 40, 0x3FC2CF)));
         r.put("race:everdelle", new Trait(null, null, 0, 0, new Sense("Glimmer sense", GLIMMER, 7, 80, 0xF59AC4), 0,
@@ -264,7 +278,17 @@ public record RaceTraits(Map<String, Trait> races) {
                     Math.max(0, Math.min(1.5, up)), Math.max(0, Math.min(1.5, forward)), Math.max(0.1, Math.min(3, max)),
                     Math.max(1, Math.min(64, ceiling)), Math.max(0, hitDrop));
         }
-        return new Trait(stride, mount, fall, drift, sense, trade, flight, dash);
+        Slide slide = null;
+        if (o.has("slide")) {
+            JsonObject sl = o.getAsJsonObject("slide");
+            double speed = sl.has("speed") ? sl.get("speed").getAsDouble() : Slide.DEFAULT.speed();
+            int cooldown = sl.has("cooldown") ? sl.get("cooldown").getAsInt() : Slide.DEFAULT.cooldown();
+            if (speed <= 0 || speed > 2.5 || cooldown < 10) {
+                problems.add(where + " slide: speed above 0 up to 2.5, cooldown 10 ticks or more");
+            }
+            slide = new Slide(Math.max(0.1, Math.min(2.5, speed)), Math.max(10, cooldown));
+        }
+        return new Trait(stride, mount, fall, drift, sense, trade, flight, dash, slide);
     }
 
     /**

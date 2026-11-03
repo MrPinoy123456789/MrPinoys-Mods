@@ -362,6 +362,24 @@ public final class CoreSuite {
 
     /** The race traits (race_traits.json): every race one movement and one sense, the parser and the double jump drift. */
     private static void raceTraits() {
+        var sl = new foundry.core.CrouchSlide();
+        check(!sl.tick(true, false, true, 0, 60), "sneak while walking is just a crouch");
+        sl.tick(false, true, true, 1, 60);
+        check(sl.tick(true, false, true, 2, 60) && !sl.refused(), "sneak just after sprinting on the ground slides (sprint stops on the press)");
+        sl.tick(false, true, true, 3, 60);
+        check(!sl.tick(true, true, true, 4, 60) && sl.refused() && sl.waiting(4) == 58, "a slide before the cooldown is refused, with the wait");
+        sl.tick(false, true, true, 70, 60);
+        check(!sl.tick(true, true, false, 71, 60) && !sl.refused(), "no slide in the air");
+        var held = new foundry.core.CrouchSlide();
+        held.tick(true, false, true, 0, 60);
+        check(!held.tick(true, true, true, 1, 60), "sneak held from before (a Bedrock toggle) does not slide");
+        var late = new foundry.core.CrouchSlide();
+        late.tick(false, true, true, 0, 60);
+        for (int t = 1; t <= foundry.core.CrouchSlide.SPRINT_GRACE + 1; t++) late.tick(false, false, true, t, 60);
+        check(!late.tick(true, false, true, foundry.core.CrouchSlide.SPRINT_GRACE + 2, 60), "sneak long after sprinting stopped is a crouch");
+        double[] west = foundry.core.CrouchSlide.push(90f, 1.7);
+        check(Math.abs(west[0] + 1.7) < 1e-9 && Math.abs(west[1]) < 1e-9, "facing west (yaw 90) the slide goes -x");
+        check(!foundry.core.RaceTraits.parse("{\"race:aurelia\":{\"slide\":{\"speed\":9}}}").problems().isEmpty(), "a slide too fast is reported");
         var t = foundry.core.RaceTraits.defaults();
         for (String race : java.util.List.of("race:azrak", "race:aurelia", "race:faeloria", "race:azurius", "race:everdelle",
                 "race:mossbeard_s_muddle")) {
