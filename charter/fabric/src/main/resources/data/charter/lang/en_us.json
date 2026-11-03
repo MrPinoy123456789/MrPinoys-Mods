@@ -1104,6 +1104,7 @@
   "book.ranks.default_note": "Every member starts at this rank. It cannot be removed or moved, but it can be renamed.",
   "book.ranks.no_powers": "Carries no powers.",
   "book.ranks.has_powers": "Powers: {powers}.",
+  "book.ranks.top_powers": "Holds every power: this rank rules the kingdom.",
   "book.ranks.rename": "Rename",
   "book.ranks.up": "Move up",
   "book.ranks.down": "Move down",

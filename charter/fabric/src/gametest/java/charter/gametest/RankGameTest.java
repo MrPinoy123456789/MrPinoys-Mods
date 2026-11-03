@@ -411,6 +411,10 @@ public final class RankGameTest {
             helper.assertTrue(lines.get(1).startsWith("Knight (1): " + gilName + ". ")
                     && lines.get(1).contains(charter.mc.Text.get("book.power.claim")), "The Knight line is wrong: " + lines.get(1));
             helper.assertTrue(lines.get(0).contains(rt.describe.player(id(lord))), "The top rank does not name the Lord: " + lines.get(0));
+            helper.assertTrue(lines.get(0).endsWith(charter.mc.Text.get("book.ranks.top_powers")), "The top rank says the Lord has no powers: " + lines.get(0));
+            List<String> lordPage = charter.mc.cmd.OpCommands.playerLines(rt, new charter.mc.cmd.Resolve.Who(id(lord), rt.describe.player(id(lord)), lord));
+            helper.assertTrue(lordPage.stream().noneMatch(l -> l.contains(charter.mc.Text.get("book.ranks.no_powers"))),
+                    "The Lord's player page says they carry no powers: " + lordPage);
             // The player's own page (the typed player command and the Admin Book) says their rank.
             List<String> page = charter.mc.cmd.OpCommands.playerLines(rt, new charter.mc.cmd.Resolve.Who(id(gil), gilName, gil));
             helper.assertTrue(page.stream().anyMatch(l -> l.startsWith(charter.mc.Text.get("admin.player.rank", "kingdom",
