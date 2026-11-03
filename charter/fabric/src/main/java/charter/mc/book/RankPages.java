@@ -147,8 +147,12 @@ public final class RankPages {
                 BookDialogs.back(player, p -> ranks(p, null))));
     }
 
-    /** "Powers: declaring war, claiming land." or "Carries no powers." */
+    /**
+     * "Powers: declaring war, claiming land." or "Carries no powers." The top rank's powers come from the Lord's seat,
+     * not from grants to the rank, so it says it holds them all.
+     */
     public static String powersLine(OrgId kingdom, String rankId) {
+        if (rankId.equals(Ranks.TOP)) return Text.get("book.ranks.top_powers");
         Set<Power> powers = Ranks.powers(rt().state, rt().clock.now(), kingdom, rankId);
         if (powers.isEmpty()) return Text.get("book.ranks.no_powers");
         List<String> names = new ArrayList<>();
