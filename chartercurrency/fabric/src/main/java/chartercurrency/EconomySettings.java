@@ -106,7 +106,7 @@ public final class EconomySettings {
             // LinkedHashMap rather than Map.of: this is written back out to settings.json
             // and a randomised order would rewrite the file differently every restart.
             Map<String, Long> out = new LinkedHashMap<>();
-            out.put("coin", 512L);
+            out.put("coin", 2048L);
             out.put("valor", 100L);
             return out;
         }

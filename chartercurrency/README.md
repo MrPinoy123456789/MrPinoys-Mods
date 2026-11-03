@@ -44,7 +44,8 @@ Denomination words: `mark marks copper`, `crown crowns iron`, `sovereign soverei
 gold sov`, `coin coins`.
 
 Admin (op level 2): `/chartercurrency balance|set|add|remove`, and the shop editor
-under `/chartercurrency shop`.
+under `/chartercurrency shop` (including `shop restock`, which brings an existing shop
+up to the starter stock).
 
 ## The Mint and kingdom treasuries
 
@@ -155,7 +156,12 @@ a tier does belongs to Charter. Placeholders in commands: `%kingdom%`, `%kingdom
    right-click it with ingots.
 4. Pocket Dungeons: set its `payoutCommand` to
    `chartercurrency earn %player% dungeon %level%`.
-5. Retune `shop.json` (every starter price is a placeholder) and `earn.json`.
+5. Retune `shop.json` (every starter price is a placeholder) and `earn.json`. The
+   starter has 104 listings on eight shelves (`core/ShopStarter`, SPEC 7.1). A server
+   with an older `shop.json` gets the new stock with `/chartercurrency shop restock`:
+   it adds what is missing and reprices only listings still at the first starter
+   price, so prices you set are kept. Nothing gold is ever sold (it would loop
+   through the Mint).
    `/chartercurrency reload` applies settings, earn, the Renown catalogue and the shop;
    `currencies.json` needs a restart.
 6. `/chartercurrency stats` shows the coin supply (banked plus treasuries), minting,

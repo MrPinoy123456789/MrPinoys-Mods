@@ -318,11 +318,35 @@ Marks; the editor and `/shop` display it in the coin format) or in Valor, or
 both (charged both or neither, as in the fork). The confirm threshold
 (`shop.confirmAt`) works per currency as in the fork.
 
-Ship a small starter catalog in `shop.json` so the shop is not empty: common
-building blocks priced in Marks (ice, sand, glass, terracotta, quartz, concrete
-powder), a few working items in Crowns (rockets, enchanted books), and a few Valor
-listings using the `components` block (a named and trimmed armour piece, a
-custom-named player head). Every price is a placeholder the owner will retune.
+The starter catalog is `core/ShopStarter` (owner, 2026-11-03: the shop needed more
+stock, and its prices were set for the old Mint allowance). 104 listings on eight
+shelves, priced in Marks for the Mint's 320 ingot soft cap (section 8.2), about four
+times the first starter prices:
+
+| Shelf | What | Price range |
+|---|---|---|
+| Building Materials | 25 blocks: sand, gravel, glass, stone and deepslate bricks, terracotta, concrete powder, clay, ice to blue ice, quartz, prismarine, end stone, purpur | 128 to 1024 per stack (blue ice per 16) |
+| Wood | 9 overworld logs, crimson and warped stems, bamboo blocks | 128 to 192 per 64 |
+| Lighting | glowstone, sea lanterns, shroomlight, lanterns, candles | 128 to 512 |
+| Dyes | all 16 colours | 64 per 16 |
+| Garden | 9 saplings, cocoa, cane, cactus, bamboo, kelp, berries, lily pads, nether wart, bone meal | 64 to 192 |
+| Working Items | rockets, name tag, saddle, leads, string, slime, spyglass, compass, map, frames, armour stands, pots, paintings, bookshelves | 64 to 512 |
+| Enchanted Books | Unbreaking III, Efficiency IV, Protection IV, Sharpness V, Power V, Feather Falling IV, Silk Touch, Depth Strider III, Respiration III, Aqua Affinity | 384 to 1280 |
+| Honours (Valor) | the named and trimmed helm, trophy head, banner | unchanged |
+
+- Nothing gold is sold, nor anything that smelts back into gold: bought gold could be
+  struck at the Mint and the shop would become a coin loop. A test enforces it.
+- No Looting or Fortune books (they multiply gold farms) and no Mending.
+- Every item id was checked against the 26.2 and 26.3 jars.
+- A fresh server writes this catalog. An existing server runs
+  `/chartercurrency shop restock`: it adds every starter listing whose key is
+  missing, replaces a listing still exactly as the first starter shipped it (keeping
+  its enabled flag), and leaves anything the owner changed or added. It never
+  removes. Running it twice changes nothing.
+- `shop.confirmAt.coin` now defaults to 2048 (was 512), since most listings would
+  otherwise ask for confirmation. An existing `settings.json` keeps its own value.
+
+Every price is a placeholder the owner will retune.
 
 ### 7.2 The Renown catalogue
 
@@ -550,7 +574,7 @@ this file is ignored.
 {
   "timezone": "",
   "mint": { "softCapIngots": 320, "falloffEvery": 320 },
-  "shop": { "confirmAt": { "coin": 512, "valor": 100 } }
+  "shop": { "confirmAt": { "coin": 2048, "valor": 100 } }
 }
 ```
 

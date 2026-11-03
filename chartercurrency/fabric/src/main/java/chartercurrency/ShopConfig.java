@@ -4,6 +4,7 @@ import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
 import chartercurrency.core.ShopCatalog;
 import chartercurrency.core.ShopEntry;
+import chartercurrency.core.ShopStarter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -268,39 +269,13 @@ public final class ShopConfig {
     }
 
     /**
-     * The worked example from the spec, so a fresh server has a shop to look at and a
-     * file to copy the shape from. Every one of these prices is a guess and is meant
-     * to be changed.
+     * The starter catalog ({@link ShopStarter}), so a fresh server has a shop to look at
+     * and a file to copy the shape from. Every one of these prices is a guess and is
+     * meant to be changed. An existing shop gets the same stock with
+     * {@code /chartercurrency shop restock}.
      */
     private void writeDefaults() {
-        ShopCatalog catalog = new ShopCatalog();
-        Currency coin = CurrencyRegistry.COIN;
-        Currency valor = CurrencyRegistry.VALOR;
-        String building = "Building Materials";
-        String working = "Working Items";
-        String honours = "Honours";
-
-        // Every price is a placeholder the owner will retune. Prices are in Marks.
-        catalog.put(ShopEntry.of("ice", "minecraft:ice", 64, coin, 64, building));
-        catalog.put(ShopEntry.of("sand", "minecraft:sand", 64, coin, 32, building));
-        catalog.put(ShopEntry.of("glass", "minecraft:glass", 64, coin, 64, building));
-        catalog.put(ShopEntry.of("terracotta", "minecraft:terracotta", 64, coin, 96, building));
-        catalog.put(ShopEntry.of("quartz", "minecraft:quartz_block", 64, coin, 192, building));
-        catalog.put(ShopEntry.of("concrete_powder", "minecraft:white_concrete_powder", 64, coin, 96, building));
-        catalog.put(ShopEntry.of("rockets", "minecraft:firework_rocket", 64, coin, 128, working));
-        catalog.put(ShopEntry.of("book_unbreaking", "minecraft:enchanted_book", 1, coin, 192, working,
-                "{\"minecraft:stored_enchantments\":{\"minecraft:unbreaking\":3}}"));
-        catalog.put(ShopEntry.of("book_efficiency", "minecraft:enchanted_book", 1, coin, 256, working,
-                "{\"minecraft:stored_enchantments\":{\"minecraft:efficiency\":4}}"));
-        catalog.put(ShopEntry.of("champion_helm", "minecraft:iron_helmet", 1, valor, 150, honours,
-                "{\"minecraft:item_name\":\"Champion's Helm\","
-                        + "\"minecraft:trim\":{\"material\":\"minecraft:gold\",\"pattern\":\"minecraft:silence\"}}"));
-        catalog.put(ShopEntry.of("champion_head", "minecraft:player_head", 1, valor, 80, honours,
-                "{\"minecraft:item_name\":\"Champion's Trophy\"}"));
-        catalog.put(ShopEntry.of("valor_banner", "minecraft:white_banner", 1, valor, 40, honours,
-                "{\"minecraft:item_name\":\"Banner of Valor\"}"));
-
-        save(catalog);
-        CharterCurrencyMod.LOG.info("Wrote a starter shop.json -- edit it to set your own prices");
+        save(ShopStarter.catalog());
+        CharterCurrencyMod.LOG.info("Wrote a starter shop.json; edit it to set your own prices");
     }
 }

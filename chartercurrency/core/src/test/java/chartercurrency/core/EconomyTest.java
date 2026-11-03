@@ -86,6 +86,7 @@ public final class EconomyTest {
         inventoryMath();
         formatting();
         shopCatalog();
+        shopStarter();
         purchasing();
         leaderboards();
         leaderboardMultiCurrency();
@@ -1222,6 +1223,63 @@ public final class EconomyTest {
         catalog.put(ShopEntry.of("packed_ice", "minecraft:packed_ice", 64, COIN, 1_280, "Building Materials"));
         catalog.put(ShopEntry.of("ancient_debris", "minecraft:ancient_debris", 1, GEM, 2, "Rare Resources"));
         return catalog;
+    }
+
+    private static void shopStarter() {
+        section("Shop starter and restock");
+
+        ShopCatalog starter = ShopStarter.catalog();
+        check("the starter lists 104 entries, no key used twice", starter.size() == 104);
+        boolean allValid = true;
+        boolean noGold = true;
+        boolean noFarmBooks = true;
+        for (ShopEntry e : starter.all()) {
+            allValid &= e.isValid() && e.enabled();
+            noGold &= !e.itemId().contains("gold");
+            String c = e.components() == null ? "" : e.components();
+            noFarmBooks &= !c.contains("looting") && !c.contains("fortune") && !c.contains("mending");
+        }
+        check("every starter entry is valid and enabled", allValid);
+        check("nothing gold is sold: bought gold could be struck at the Mint", noGold);
+        check("no Looting, Fortune or Mending books", noFarmBooks);
+        check("categories in shelf order", starter.categories().equals(List.of(
+                ShopStarter.BUILDING, ShopStarter.WOOD, ShopStarter.LIGHT, ShopStarter.DYES,
+                ShopStarter.GARDEN, ShopStarter.WORKING, ShopStarter.BOOKS, ShopStarter.HONOURS)));
+        boolean neverCheaper = true;
+        for (ShopEntry old : ShopStarter.previous().all()) {
+            ShopEntry now = starter.find(old.key()).orElseThrow();
+            for (Map.Entry<Currency, Long> line : old.price().entrySet()) {
+                neverCheaper &= now.price().getOrDefault(line.getKey(), 0L) >= line.getValue();
+            }
+        }
+        check("no first starter listing got cheaper", neverCheaper);
+
+        ShopCatalog untouched = ShopStarter.previous();
+        ShopStarter.Restock first = ShopStarter.restock(untouched);
+        check("an untouched old shop: 92 added, 9 repriced, none kept",
+                first.added() == 92 && first.updated() == 9 && first.kept() == 0);
+        check("it then matches the starter",
+                untouched.size() == 104 && untouched.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 128
+                        && untouched.find("book_unbreaking").orElseThrow().category().equals(ShopStarter.BOOKS));
+        ShopStarter.Restock again = ShopStarter.restock(untouched);
+        check("a second restock changes nothing",
+                again.added() == 0 && again.updated() == 0 && again.kept() == 0);
+
+        ShopCatalog owned = ShopStarter.previous();
+        ShopEntry sand = owned.find("sand").orElseThrow();
+        owned.put(ShopEntry.of("sand", sand.itemId(), sand.quantity(), CurrencyRegistry.COIN, 40, sand.category()));
+        ShopEntry ice = owned.find("ice").orElseThrow();
+        owned.put(new ShopEntry(ice.key(), ice.itemId(), ice.quantity(), ice.price(), ice.category(), false,
+                ice.components()));
+        owned.put(ShopEntry.of("elytra", "minecraft:elytra", 1, CurrencyRegistry.COIN, 9000, "Rare"));
+        ShopStarter.Restock mixed = ShopStarter.restock(owned);
+        check("a price the owner set is kept",
+                mixed.kept() == 1 && owned.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 40);
+        check("a disabled starter entry is repriced but stays disabled",
+                !owned.find("ice").orElseThrow().enabled()
+                        && owned.find("ice").orElseThrow().price().get(CurrencyRegistry.COIN) == 256);
+        check("the owner's own listing is never touched",
+                owned.find("elytra").orElseThrow().price().get(CurrencyRegistry.COIN) == 9000);
     }
 
     private static void shopCatalog() {
