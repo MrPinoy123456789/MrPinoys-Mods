@@ -12,6 +12,9 @@ public final class JumpTip {
     public static final String TEXT = "Fae wings: press jump again in the air for a second leap";
     public static final String WELCOME = "Your leaf wings lift a second jump: jump, then press jump again while in the air. "
             + "It comes back when you land.";
+    public static final String DASH_TEXT = "Fae wings: press jump in the air to beat your wings the way you look";
+    public static final String DASH_WELCOME = "Your leaf wings let you fly: jump, then press jump in the air to beat them the way "
+            + "you look, and you drift down slowly between beats. Pace the beats and you stay up. Sneak to drop.";
 
     private JumpTip() {}
 

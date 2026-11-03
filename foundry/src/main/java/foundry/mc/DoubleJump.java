@@ -1,6 +1,8 @@
 package foundry.mc;
 
 import foundry.core.AirJump;
+import foundry.core.RaceTraits;
+import foundry.core.WingDash;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -10,6 +12,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -21,14 +25,25 @@ import net.minecraft.world.phys.Vec3;
  * packet a knockback sends); it works on vanilla and Bedrock clients alike. The fall distance is reset, so the hop never
  * adds fall damage. A burst of falling leaves and a rustle mark it for everyone nearby.
  *
+ * <p>The Fae fly with it: unless their race_traits.json {@code wing_dash} sets no charges, the double jump is a wing dash
+ * ({@link WingDash}): a few bursts the way they look, recharging in the air, with a slow fall between them, so a Fae can
+ * stay up for good at a fraction of a Fairy's speed. The {@code double_jump} cooldown in worn_displays.json then only
+ * marks the race as one that double jumps.
+ *
  * <p>Until a Fae has done one double jump they are taught it: a chat line the first time they are seen each login, and
  * an action bar hint near the top of a plain jump, at most every 30 seconds (JumpTip). Who has learned it is kept in
- * config/foundry/double_jump_learned.json, so the hints stop for good.
+ * config/foundry/wing_dash_learned.json, so the hints stop for good.
  */
 public final class DoubleJump {
     /** Each Fae's cooldown in ticks, refreshed every {@value WornDisplays#SCAN_EVERY} ticks; absent for other races. */
     private static final Map<UUID, Integer> COOLDOWN = new HashMap<>();
     private static final Map<UUID, AirJump> STATE = new HashMap<>();
+    private static final Map<UUID, WingDash> DASH = new HashMap<>();
+    /** Players wearing the Slow Falling this put on (so a potion's is never taken off). */
+    private static final java.util.Set<UUID> FLOATING = new java.util.HashSet<>();
+    /** How long each slow fall lasts, and how low it may run before it is renewed. */
+    static final int SLOW_FALL_TICKS = 12;
+    static final int SLOW_FALL_RENEW = 5;
     private static final Map<UUID, Long> TIP_AT = new HashMap<>();
     private static final java.util.Set<UUID> LEARNED = new java.util.HashSet<>();
     private static boolean learnedLoaded;
@@ -54,7 +69,9 @@ public final class DoubleJump {
                 }
                 if (cooldown > 0) {
                     if (COOLDOWN.put(player.getUUID(), cooldown) == null && !learned(player.getUUID())) {
-                        player.sendSystemMessage(net.minecraft.network.chat.Component.literal(foundry.core.JumpTip.WELCOME)
+                        boolean dash = RaceTraitsRuntime.of(player.getUUID()).dashOrDefault().charges() > 0;
+                        player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                                        dash ? foundry.core.JumpTip.DASH_WELCOME : foundry.core.JumpTip.WELCOME)
                                 .withStyle(net.minecraft.ChatFormatting.GREEN));
                     }
                 } else {
@@ -66,11 +83,16 @@ public final class DoubleJump {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             Integer cooldown = COOLDOWN.get(player.getUUID());
             if (cooldown == null) continue;
-            AirJump state = STATE.computeIfAbsent(player.getUUID(), id -> new AirJump());
             var input = player.getLastClientInput();
             boolean grounded = player.onGround() || player.isInWater() || player.isInLava() || player.isPassenger()
                     || player.getAbilities().flying || player.isFallFlying() || player.onClimbable() || !player.isAlive()
                     || player.isSpectator();
+            RaceTraits.Dash dash = RaceTraitsRuntime.of(player.getUUID()).dashOrDefault();
+            if (dash.charges() > 0) {
+                dashTick(player, dash, input.jump(), input.shift(), grounded, now);
+                continue;
+            }
+            AirJump state = STATE.computeIfAbsent(player.getUUID(), id -> new AirJump());
             if (state.tick(input.jump(), grounded, now, cooldown)) {
                 hop(player, AirJump.push(player.getYRot(), input.forward(), input.backward(), input.left(), input.right(),
                         RaceTraitsRuntime.of(player.getUUID()).jumpDrift()));
@@ -86,6 +108,97 @@ public final class DoubleJump {
         }
     }
 
+    /** One tick of a Fae's wing dash: bursts, the charge line, the slow fall and the hint. */
+    private static void dashTick(ServerPlayer player, RaceTraits.Dash dash, boolean jump, boolean sneak, boolean grounded, long now) {
+        UUID id = player.getUUID();
+        WingDash state = DASH.computeIfAbsent(id, k -> new WingDash());
+        if (state.tick(jump, sneak, grounded, now, dash)) {
+            burst(player, dash);
+            learn(id);
+            charges(player, state, dash);
+        } else if (state.refused() && state.charges() == 0) {
+            AbilityBar.notYet(player, "Leaf wings", state.waiting(now, dash),
+                    net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.AZALEA_LEAVES_BREAK));
+        } else if (state.refilled()) {
+            charges(player, state, dash);
+        } else if (foundry.core.JumpTip.show(learned(id), state.airTicks(), state.burstThisAir(), now,
+                TIP_AT.getOrDefault(id, Long.MIN_VALUE))) {
+            TIP_AT.put(id, now);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(foundry.core.JumpTip.DASH_TEXT), true);
+        }
+        slowFall(player, state.slowFall(now) && player.isAlive());
+        // the server runs with allow-flight off, and Bedrock moves the player under its own Slow Falling, so a Fae who has
+        // beaten their wings this time in the air is never counted as floating (vanilla kicks after 4 seconds of it)
+        if (state.burstThisAir() && player.connection != null) player.connection.resetFlyingTicks();
+    }
+
+    /** "Leaf wings ●●○" on the action bar: the charges left. */
+    private static void charges(ServerPlayer player, WingDash state, RaceTraits.Dash dash) {
+        int left = state.charges();
+        player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Leaf wings " + "●".repeat(left)
+                + "○".repeat(Math.max(0, dash.charges() - left))), true);
+    }
+
+    /** Beats a Fae's wings: a burst the way they look (see {@link WingDash#burst}). Public so a test can drive it. */
+    public static void burst(ServerPlayer player, RaceTraits.Dash dash) {
+        Vec3 v = player.getDeltaMovement();
+        double[] after = WingDash.burst(v.x, v.y, v.z, player.getYRot(), player.getXRot(), dash, overCeiling(player, dash.ceiling()));
+        player.setDeltaMovement(after[0], after[1], after[2]);
+        player.syncVelocity = true;
+        player.resetFallDistance();
+        flourish(player);
+    }
+
+    /**
+     * True when nothing solid (or water) is within {@code ceiling} blocks below the player, so a burst should not climb.
+     * It looks straight down from the player rather than at the map's top block, so under trees or in a cave it measures
+     * the floor they are over.
+     */
+    public static boolean overCeiling(ServerPlayer player, int ceiling) {
+        var level = player.level();
+        var pos = player.blockPosition().mutable();
+        for (int i = 0; i <= ceiling; i++) {
+            var state = level.getBlockState(pos);
+            if (!state.getCollisionShape(level, pos).isEmpty() || !state.getFluidState().isEmpty()) return false;
+            pos.move(0, -1, 0);
+        }
+        return true;
+    }
+
+    /**
+     * Holds the slow fall while {@code want}: a short Slow Falling with no particles and no icon, renewed before it runs
+     * out, so it ends within a moment of landing, a sneak press or a hit. The player's client runs Slow Falling itself
+     * (Java and Bedrock), so the fall is smooth whatever the lag. Only the effect this put on is ever taken off: a Fae who
+     * drank a Slow Falling potion keeps it. Public so a test can drive it.
+     */
+    public static void slowFall(ServerPlayer player, boolean want) {
+        UUID id = player.getUUID();
+        var current = player.getEffect(MobEffects.SLOW_FALLING);
+        if (want) {
+            if (current == null || (FLOATING.contains(id) && current.getDuration() <= SLOW_FALL_RENEW)) {
+                player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, SLOW_FALL_TICKS, 0, true, false, false));
+                FLOATING.add(id);
+            }
+        } else if (FLOATING.remove(id) && current != null && current.getDuration() <= SLOW_FALL_TICKS) {
+            player.removeEffect(MobEffects.SLOW_FALLING);
+        }
+    }
+
+    /** A hit from a mob, a player or a projectile: a Fae in the air loses a charge and drops for a moment. */
+    public static void hurt(ServerPlayer player, net.minecraft.world.damagesource.DamageSource source) {
+        if (source.getEntity() == null && source.getDirectEntity() == null) return;
+        WingDash state = DASH.get(player.getUUID());
+        if (state == null) return;
+        RaceTraits.Dash dash = RaceTraitsRuntime.of(player.getUUID()).dashOrDefault();
+        state.hit(player.level().getServer().getTickCount(), dash);
+        slowFall(player, false);
+    }
+
+    /** This player's wing dash, or null before their first tick as a Fae (for tests). */
+    public static WingDash dashOf(UUID player) {
+        return DASH.get(player);
+    }
+
     /** Lifts the player and tells their client, with leaves and a rustle; public so a test can drive it. */
     public static void hop(ServerPlayer player, double[] push) {
         Vec3 now = player.getDeltaMovement();
@@ -93,6 +206,11 @@ public final class DoubleJump {
         player.setDeltaMovement(now.x * 0.4 + push[0], push[1], now.z * 0.4 + push[2]);
         player.syncVelocity = true;
         player.resetFallDistance();
+        flourish(player);
+    }
+
+    /** Falling leaves and a rustle where the wings beat. */
+    private static void flourish(ServerPlayer player) {
         if (player.level() instanceof ServerLevel level) {
             level.sendParticles(ParticleTypes.CHERRY_LEAVES, player.getX(), player.getY() + 0.2, player.getZ(), 10, 0.4, 0.1,
                     0.4, 0.02);
@@ -106,19 +224,23 @@ public final class DoubleJump {
     static void forget(UUID player) {
         COOLDOWN.remove(player);
         STATE.remove(player);
+        DASH.remove(player);
+        FLOATING.remove(player);
         TIP_AT.remove(player);
     }
 
     static void clear() {
         COOLDOWN.clear();
         STATE.clear();
+        DASH.clear();
+        FLOATING.clear();
         TIP_AT.clear();
         LEARNED.clear();
         learnedLoaded = false;
     }
 
     private static java.nio.file.Path learnedFile() {
-        return FoundryMod.contentRoot().resolveSibling("double_jump_learned.json");
+        return FoundryMod.contentRoot().resolveSibling("wing_dash_learned.json");
     }
 
     /** True once this player has done a double jump (ever), so they are not taught it again. */
@@ -134,7 +256,7 @@ public final class DoubleJump {
                     }
                 }
             } catch (Exception e) {
-                FoundryMod.LOG.warn("Foundry: could not read double_jump_learned.json: {}", e.toString());
+                FoundryMod.LOG.warn("Foundry: could not read wing_dash_learned.json: {}", e.toString());
             }
         }
         return LEARNED.contains(player);
@@ -152,7 +274,7 @@ public final class DoubleJump {
             java.nio.file.Files.createDirectories(learnedFile().getParent());
             java.nio.file.Files.writeString(learnedFile(), root + "\n");
         } catch (java.io.IOException e) {
-            FoundryMod.LOG.warn("Foundry: could not save double_jump_learned.json: {}", e.toString());
+            FoundryMod.LOG.warn("Foundry: could not save wing_dash_learned.json: {}", e.toString());
         }
     }
 }

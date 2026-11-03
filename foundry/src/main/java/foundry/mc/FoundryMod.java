@@ -158,6 +158,9 @@ public final class FoundryMod implements ModInitializer {
         Swings.register();
         Gate.register();
         Bonuses.register();
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
+            if (entity instanceof net.minecraft.server.level.ServerPlayer player && taken > 0 && !blocked) DoubleJump.hurt(player, source);
+        });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             Swings.tick(server);
             Charging.tick(server);

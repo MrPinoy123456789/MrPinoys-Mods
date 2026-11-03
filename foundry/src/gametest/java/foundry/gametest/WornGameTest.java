@@ -602,6 +602,55 @@ public final class WornGameTest {
         });
     }
 
+    /**
+     * The Fae fly by wing dash: a burst the way they look, then a slow fall that is the effect's own (short, hidden) and
+     * never a potion's; a mob's hit costs a charge, poison does not.
+     */
+    @GameTest(maxTicks = 120)
+    public void theFaeWingDashBurstsAndFallsSlowly(GameTestHelper helper) {
+        ServerPlayer fae = player(helper, "race:faeloria");
+        helper.runAfterDelay(25, () -> {
+            var d = foundry.core.RaceTraits.Dash.DEFAULT;
+            var state = foundry.mc.DoubleJump.dashOf(fae.getUUID());
+            helper.assertTrue(state != null, "The Fae has no wing dash");
+            fae.setYRot(0f);
+            fae.setXRot(0f);
+            fae.setDeltaMovement(0, -0.3, 0);
+            fae.fallDistance = 6;
+            helper.assertFalse(foundry.mc.DoubleJump.overCeiling(fae, d.ceiling()), "The floor below is not found");
+            foundry.mc.DoubleJump.burst(fae, d);
+            var v = fae.getDeltaMovement();
+            helper.assertTrue(Math.abs(v.z - d.forward()) < 1e-6 && Math.abs(v.y - d.up() / 2) < 1e-6 && fae.fallDistance == 0,
+                    "A level burst south should push forward and lift: " + v);
+            foundry.mc.DoubleJump.slowFall(fae, true);
+            var effect = fae.getEffect(MobEffects.SLOW_FALLING);
+            helper.assertTrue(effect != null && !effect.showIcon() && !effect.isVisible() && effect.getDuration() <= 12,
+                    "The slow fall should be a short hidden Slow Falling: " + effect);
+            foundry.mc.DoubleJump.slowFall(fae, false);
+            helper.assertTrue(fae.getEffect(MobEffects.SLOW_FALLING) == null, "The slow fall did not end");
+            foundry.mc.DoubleJump.slowFall(fae, true);
+            fae.addEffect(new net.minecraft.world.effect.MobEffectInstance(MobEffects.SLOW_FALLING, 600));
+            foundry.mc.DoubleJump.slowFall(fae, false);
+            helper.assertTrue(fae.getEffect(MobEffects.SLOW_FALLING) != null && fae.getEffect(MobEffects.SLOW_FALLING).getDuration() > 500,
+                    "A potion's Slow Falling was taken off");
+        });
+        // a new player cannot be hurt for their first 60 ticks, so the hits wait
+        helper.runAfterDelay(70, () -> {
+            var d = foundry.core.RaceTraits.Dash.DEFAULT;
+            var state = foundry.mc.DoubleJump.dashOf(fae.getUUID());
+            long now = helper.getLevel().getServer().getTickCount();
+            state.tick(false, false, false, now, d);
+            int before = state.charges();
+            foundry.mc.DoubleJump.hurt(fae, helper.getLevel().damageSources().magic());
+            helper.assertTrue(state.charges() == before, "Damage with no attacker took a charge");
+            var zombie = helper.spawn(net.minecraft.world.entity.EntityTypes.ZOMBIE, 4, 2, 4);
+            fae.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(zombie), 1f);
+            helper.assertTrue(state.charges() == before - 1, "A mob's hit did not take a charge: " + state.charges() + " of " + before);
+            zombie.discard();
+            helper.succeed();
+        });
+    }
+
     /** Only a race with a double jump gets one. */
     @GameTest(maxTicks = 40)
     public void onlyTheFaeDoubleJump(GameTestHelper helper) {

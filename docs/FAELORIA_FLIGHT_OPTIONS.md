@@ -1,4 +1,13 @@
-# Faeloria flight: options (2026-11-02, not built)
+# Faeloria flight: options (2026-11-02)
+
+**Decision (2026-11-02): the owner chose a fourth option, Wing Dash, and it is built on `feature/fae-wing-dash`.** A
+jump in the air beats the wings toward where the Fae looks (about 4 blocks of climb looking up, about 6 blocks of
+travel looking level), with a slow fall between beats; 3 charges, all back on landing and one every 1.5 s in the air,
+so a Fae who paces the beats and looks about half up stays up for good, at about half a Fairy's top speed. Bursts stop climbing 12 blocks over
+the ground below, and a hit from a mob, player or projectile costs a charge and drops them for a second. Numbers are
+`wing_dash` in `race_traits.json`; see docs/KINGDOM_SERVER.md. Options A to C below are kept for the record.
+
+Open: whether Fae (like Fairies) flying over keep walls is fine for Charter wars.
 
 The owner wants Faeloria (Fae) flight to be very different from the Everdelle Fairies, still feel like real flying,
 and stay roughly balanced against them. Nothing here is built. Pick one (or ask for changes) and it gets built on a

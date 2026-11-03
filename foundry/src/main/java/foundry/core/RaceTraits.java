@@ -50,14 +50,37 @@ public record RaceTraits(Map<String, Trait> races) {
      * {@code tradeDiscount} is the share taken off villager and wandering trader prices (see {@link #discount}).
      */
     public record Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount,
-                        Flight flight) {
+                        Flight flight, Dash dash) {
         public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense) {
-            this(stride, mount, fallDamage, jumpDrift, sense, 0, null);
+            this(stride, mount, fallDamage, jumpDrift, sense, 0, null, null);
         }
 
         public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount) {
-            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, null);
+            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, null, null);
         }
+
+        public Trait(Stride stride, Mount mount, double fallDamage, double jumpDrift, Sense sense, double tradeDiscount,
+                     Flight flight) {
+            this(stride, mount, fallDamage, jumpDrift, sense, tradeDiscount, flight, null);
+        }
+
+        /** The wing dash for a race that double jumps: this race's own, or {@link Dash#DEFAULT} when it names none. */
+        public Dash dashOrDefault() {
+            return dash != null ? dash : Dash.DEFAULT;
+        }
+    }
+
+    /**
+     * The Fae wing dash (see {@link WingDash}), for a race that double jumps: {@code charges} bursts (0 keeps the plain
+     * once per air double jump), all back on landing and one back every {@code refill} ticks in the air, at least
+     * {@code gap} ticks apart. A burst pushes {@code forward} blocks per tick the way the player looks and lifts up to
+     * {@code up} (looking straight up), and never leaves them moving faster than {@code maxSpeed} across the ground. Above
+     * {@code ceiling} blocks over the ground below a burst no longer climbs. After a burst they fall slowly until they
+     * land or press sneak; a hit from a mob, a player or a projectile takes a charge and drops them for {@code hitDrop}
+     * ticks.
+     */
+    public record Dash(int charges, int refill, int gap, double up, double forward, double maxSpeed, int ceiling, int hitDrop) {
+        public static final Dash DEFAULT = new Dash(3, 30, 8, 0.8, 0.6, 0.65, 12, 20);
     }
 
     /**
@@ -220,7 +243,28 @@ public record RaceTraits(Map<String, Trait> races) {
                     Math.max(0, Math.min(10, beats)), Math.max(0, Math.min(1.5, lift)), Math.max(0, Math.min(1, push)),
                     Math.max(1, f.has("refill") ? f.get("refill").getAsInt() : 200), Math.max(0.1, Math.min(3, max)));
         }
-        return new Trait(stride, mount, fall, drift, sense, trade, flight);
+        Dash dash = null;
+        if (o.has("wing_dash")) {
+            JsonObject d = o.getAsJsonObject("wing_dash");
+            Dash def = Dash.DEFAULT;
+            int charges = d.has("charges") ? d.get("charges").getAsInt() : def.charges();
+            int refill = d.has("refill") ? d.get("refill").getAsInt() : def.refill();
+            int gap = d.has("gap") ? d.get("gap").getAsInt() : def.gap();
+            double up = d.has("up") ? d.get("up").getAsDouble() : def.up();
+            double forward = d.has("forward") ? d.get("forward").getAsDouble() : def.forward();
+            double max = d.has("max_speed") ? d.get("max_speed").getAsDouble() : def.maxSpeed();
+            int ceiling = d.has("ceiling") ? d.get("ceiling").getAsInt() : def.ceiling();
+            int hitDrop = d.has("hit_drop") ? d.get("hit_drop").getAsInt() : def.hitDrop();
+            if (charges < 0 || charges > 10 || refill < 1 || gap < 0 || up < 0 || up > 1.5 || forward < 0 || forward > 1.5
+                    || max <= 0 || max > 3 || ceiling < 1 || ceiling > 64 || hitDrop < 0) {
+                problems.add(where + " wing_dash: charges 0 to 10, refill 1 or more, gap 0 or more, up and forward 0 to 1.5,"
+                        + " max_speed above 0 up to 3, ceiling 1 to 64, hit_drop 0 or more");
+            }
+            dash = new Dash(Math.max(0, Math.min(10, charges)), Math.max(1, refill), Math.max(0, gap),
+                    Math.max(0, Math.min(1.5, up)), Math.max(0, Math.min(1.5, forward)), Math.max(0.1, Math.min(3, max)),
+                    Math.max(1, Math.min(64, ceiling)), Math.max(0, hitDrop));
+        }
+        return new Trait(stride, mount, fall, drift, sense, trade, flight, dash);
     }
 
     /**
