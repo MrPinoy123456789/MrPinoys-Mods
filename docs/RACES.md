@@ -77,7 +77,9 @@ submerged mining to a fifth, and to a fifth again when standing on nothing). Thi
 already dominate the water, so it only removes the penalties and gives nothing extra. An Aqua Affinity helmet adds
 nothing on top (before 2026-11-03 it did, and a Merfolk with one mined five times faster than on land). Standing on the
 sea floor they also walk as on land (water movement efficiency 1, what Depth Strider III gives; Depth Strider boots add
-nothing on top). Their Dolphin's Grace (Speed II on Bedrock) is only while swimming, arms paddling, and they have
+nothing on top). Floating or treading water, not swimming, the same boost is halved by vanilla, so they move about as
+with Depth Strider II. Their Dolphin's Grace (Speed II on Bedrock) is only while swimming, arms paddling (it has no
+real levels: vanilla only checks whether a player has it), and they have
 Night Vision while their head is under water.
 
 Glamour is the loosest fit. Vanilla has no event for a mob choosing a target and Foundry and Charter use no Mixins, so
