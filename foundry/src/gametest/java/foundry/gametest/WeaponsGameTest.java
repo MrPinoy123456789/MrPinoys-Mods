@@ -191,6 +191,42 @@ public final class WeaponsGameTest {
         helper.succeed();
     }
 
+    /**
+     * Each upgrade crafts: the shipped recipe's ingredients, as a player lays them in a crafting table, give the next rank
+     * (the server's own recipe lookup, the one the crafting table runs).
+     */
+    @GameTest
+    public void everyUpgradeCraftsFromItsIngredients(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var manager = level.getServer().getRecipeManager();
+        for (String weapon : WEAPONS) {
+            for (int t = 2; t <= 3; t++) {
+                String id = tier(weapon, t);
+                var holder = manager.byKey(ResourceKey.create(Registries.RECIPE, Identifier.parse(id)));
+                helper.assertTrue(holder.isPresent(), id + " has an upgrade recipe");
+                List<ItemStack> grid = new java.util.ArrayList<>();
+                for (var ingredient : holder.get().value().placementInfo().ingredients()) {
+                    grid.add(new ItemStack(ingredient.items().findFirst().orElseThrow().value()));
+                }
+                Item before = item(tier(weapon, t - 1));
+                helper.assertTrue(grid.stream().anyMatch(s -> s.is(before)), id + " is made from rank " + (t - 1));
+                // more than 4 items will not fit the inventory's 2 by 2 grid: the lower rank's lore has to say so
+                if (grid.size() > 4) {
+                    var lore = new ItemStack(before).get(DataComponents.LORE);
+                    helper.assertTrue(lore != null && lore.lines().stream().anyMatch(l -> l.getString().contains("at a crafting table")),
+                            id + " needs " + grid.size() + " items, so rank " + (t - 1) + " says to use a crafting table");
+                }
+                while (grid.size() < 9) grid.add(ItemStack.EMPTY);
+                var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, grid);
+                var found = manager.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level);
+                helper.assertTrue(found.isPresent(), id + " does not craft from " + grid);
+                var out = found.get().value().assemble(input);
+                helper.assertTrue(out.is(item(id)), id + " crafts " + out);
+            }
+        }
+        helper.succeed();
+    }
+
     @GameTest
     public void theMeleeWeaponsCarryTheirOwnAttackNumbers(GameTestHelper helper) {
         var pick = new ItemStack(item("kingdoms:azrak_pick_1"));

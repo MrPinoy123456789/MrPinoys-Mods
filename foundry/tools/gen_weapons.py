@@ -335,7 +335,9 @@ def main():
             lore = list(w["lore"])
             if t < 2:
                 nxt = build(t + 1)
-                lore.append("Upgrade: " + nxt["upgrade_text"][t + 1] + ", crafted with this.")
+                # more than 4 items (this weapon counts) will not fit the inventory's 2 by 2 grid, so say where to craft it
+                where = " at a crafting table" if 1 + len(nxt["upgrade"][t + 1]) > 4 else ""
+                lore.append("Upgrade: " + nxt["upgrade_text"][t + 1] + ", crafted with this" + where + ".")
             else:
                 lore.append("Fully upgraded.")
             item = {"schema_version": 1, "id": item_id, "display_name": w["name"] + NUMERALS[t], "lore": lore,
