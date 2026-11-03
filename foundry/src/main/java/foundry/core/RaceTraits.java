@@ -113,7 +113,7 @@ public record RaceTraits(Map<String, Trait> races) {
     public static final String LOOT_PREFIX = "#loot:";
 
     /** The Dwarves' ores: no diamond and no ancient debris (those are nobody's to smell). */
-    public static final List<String> ORES = List.of("minecraft:gold_ore", "minecraft:deepslate_gold_ore",
+    public static final List<String> ORES = List.of("minecraft:coal_ore", "minecraft:deepslate_coal_ore", "minecraft:gold_ore", "minecraft:deepslate_gold_ore",
             "minecraft:lapis_ore", "minecraft:deepslate_lapis_ore", "minecraft:emerald_ore", "minecraft:deepslate_emerald_ore",
             "minecraft:iron_ore", "minecraft:deepslate_iron_ore", "minecraft:copper_ore", "minecraft:deepslate_copper_ore",
             "minecraft:redstone_ore", "minecraft:deepslate_redstone_ore");
