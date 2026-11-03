@@ -32,7 +32,7 @@ import java.util.UUID;
 
 /**
  * The Charter book's rules: one copy per player, their own; it outlives death without dropping; the portable button
- * gives one and never a second; the {@code bookGivenTo} knob; and the book stays out of containers, bundles, frames
+ * gives one and never a second; nobody is handed one otherwise; and the book stays out of containers, bundles, frames
  * and other players' hands. Knobs changed here are put back in the same tick.
  */
 public final class BookRulesGameTest {
@@ -139,38 +139,20 @@ public final class BookRulesGameTest {
     }
 
     @GameTest(maxTicks = 100)
-    public void bookGivenToDecidesWhoIsHandedOne(GameTestHelper helper) {
+    public void nobodyIsHandedABookOnlyTheButtonGivesOne(GameTestHelper helper) {
         try (LandKit kit = new LandKit(helper)) {
-            var knobs = CharterServer.runtime().knobs;
-            String was = knobs.bookGivenTo;
-            try {
-                ServerPlayer lord = kit.faction("BookGift");
-                ServerPlayer merc = kit.outsider();
-                kit.rt.engine.run(new charter.engine.Actor.Admin("gametest"),
-                        new charter.org.actions.SetRace(new charter.id.PlayerId(merc.getUUID()), kit.orgOf(lord)));
-                ServerPlayer newcomer = kit.outsider();
-                for (ServerPlayer p : java.util.List.of(lord, merc, newcomer)) {
-                    for (int i = 0; i < p.getInventory().getContainerSize(); i++) p.getInventory().setItem(i, ItemStack.EMPTY);
-                }
-
-                knobs.bookGivenTo = "newcomers";
-                for (ServerPlayer p : java.util.List.of(lord, merc, newcomer)) BookMod.ensure(p, true);
-                helper.assertTrue(books(newcomer) == 1, "newcomers: a newcomer was not handed a book");
-                helper.assertTrue(books(lord) == 0 && books(merc) == 0, "newcomers: a member or a mercenary was handed a book");
-
-                knobs.bookGivenTo = "none";
-                ServerPlayer another = emptyHanded(helper);
-                BookMod.ensure(another, true);
-                BookMod.onJoin(another);
-                helper.assertTrue(books(another) == 0, "none: a book was handed out");
-                helper.assertTrue(BookResult.isOk(BookMod.giveNew(another)) && books(another) == 1, "none: the button did not work");
-
-                knobs.bookGivenTo = "everyone";
-                BookMod.ensure(lord, true);
-                helper.assertTrue(books(lord) == 1, "everyone: the Lord was not handed a book");
-            } finally {
-                knobs.bookGivenTo = was;
+            ServerPlayer lord = kit.faction("BookGift");
+            ServerPlayer merc = kit.outsider();
+            kit.rt.engine.run(new charter.engine.Actor.Admin("gametest"),
+                    new charter.org.actions.SetRace(new charter.id.PlayerId(merc.getUUID()), kit.orgOf(lord)));
+            ServerPlayer newcomer = kit.outsider();
+            for (ServerPlayer p : java.util.List.of(lord, merc, newcomer)) {
+                for (int i = 0; i < p.getInventory().getContainerSize(); i++) p.getInventory().setItem(i, ItemStack.EMPTY);
+                BookMod.onJoin(p);
+                BookMod.respawned(p);
             }
+            helper.assertTrue(books(lord) == 0 && books(merc) == 0 && books(newcomer) == 0, "A book was handed out without asking");
+            helper.assertTrue(BookResult.isOk(BookMod.giveNew(newcomer)) && books(newcomer) == 1, "The button did not give a book");
             helper.succeed();
         }
     }

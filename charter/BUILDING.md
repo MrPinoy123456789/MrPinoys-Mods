@@ -259,8 +259,9 @@ are in DESIGN.md §23, 2026-10-27.
   `run_command` click on `/charter act <token>`; the token is one-shot and bound to
   the player the screen was built for (`BookDialogs.act`). A token pressed by anyone
   else does nothing. The suite allows a Mixin only when nothing else works.
-- **C2.** Every join hands a book to a player who carries none (`BookMod.onJoin`).
-  Nothing is recorded: a player who loses theirs gets another next join.
+- **C2.** Nobody is handed a book (changed 2026-11-02). A join only removes extra
+  copies (`BookMod.onJoin`); a player takes a book from a terminal's "Get a new
+  Charter book" button.
 - **Dialog house rules** (from Pocket Dungeons' dialog-screens skill): a list with no
   buttons cannot be encoded, so `BookDialogs.list` becomes a notice; every screen has
   an exit that Esc runs (Close, or Back on a screen opened from another); there is no

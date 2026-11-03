@@ -735,9 +735,6 @@ All three are server-side, so Java and Bedrock players (through Geyser) see the 
 - `keepBorderGlow` (`KeepBorders`): end rod particles along the ground edge of every keep within 40 blocks of a player,
   with nothing in hand. It replaces the hand-built stone walls. End rod maps cleanly to Bedrock; coloured dust may not,
   so the line is one colour. Off by default.
-- `replaceLostBook` (on by default): the Charter book is the only way into the menu on console and Bedrock, where there
-  is no typing a command, so a player who carries no book is given one within five seconds and on respawn
-  (`BookMod.ensure`), not only when they next join.
 - Instant villager restock is not in Charter. It is its own small mod, `instantrestock/` (`MrPinoys_InstantRestock`),
   one mixin, no settings.
 
@@ -827,12 +824,12 @@ A keep's lectern can move anywhere inside the keep's **core chunk** (the chunk w
 
 ## The Charter book
 
-New players are still handed the Charter of Rights and Freedoms (`BookMod.onJoin`, `ensure`), but nobody has to depend on it: terminals open the same menu. Code: `charter/fabric/src/main/java/charter/mc/book/` (`BookMod`, `BookRules`, `BoundItems`, `CharterBook`).
+Nobody is handed the Charter of Rights and Freedoms any more: not on joining, not on respawn and not when one is lost (2026-11-02). Terminals (the keep lecterns) open the same menu, for players with no kingdom and inside the spawn too, and a player who wants a book to carry takes one from there. Code: `charter/fabric/src/main/java/charter/mc/book/` (`BookMod`, `BookRules`, `BoundItems`, `CharterBook`).
 
 - **One copy, your own.** Each book carries its owner's id. A player carries one copy: extra copies, and any copy that belongs to someone else, are removed at login, on respawn and once a second. A book made before books had owners is adopted by whoever carries it.
 - **It stays with you.** It never drops on death: it is set aside as the player dies and handed back on respawn (a new one is given only if they then carry none). A dropped book can be picked up only by its owner and is gone after twenty seconds. Chests, barrels, shulker boxes, hoppers, bundles, item frames, armor stands and allays refuse it.
-- **"Get a new Charter book".** A button on the Newcomer Home (under More when the Home is full) and under More on a Member Home. It gives a copy if the player carries none, whatever `bookGivenTo` says; if they already carry one it says "You already carry your Charter book. You can only carry one." and gives nothing.
-- **`bookGivenTo`** in `charter.json`: `everyone` (the default, the behaviour before the knob), `newcomers` (only players with no kingdom and no race; once they join or sign on, a lost book is not replaced) or `none` (nobody is handed one; the button still works). `replaceLostBook` still decides whether a lost book comes back on respawn and on the five second pass, for the players `bookGivenTo` covers.
+- **"Get a new Charter book".** A button on the Newcomer Home (under More when the Home is full) and under More on a Member Home, so a terminal gives one. It is the only way to a new copy. It gives a copy if the player carries none; if they already carry one it says "You already carry your Charter book. You can only carry one." and gives nothing.
+- The `bookGivenTo` and `replaceLostBook` knobs are gone. An old `charter.json` that still has them loads as before; the two keys are ignored.
 
 ## The lang override trap
 

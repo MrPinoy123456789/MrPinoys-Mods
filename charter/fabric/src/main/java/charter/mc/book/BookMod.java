@@ -21,12 +21,12 @@ public final class BookMod {
     }
 
     /**
-     * Hands a book to a joining player who carries none (C2). Nothing is saved: a
-     * player who loses their book gets another the next time they join.
+     * A joining player keeps one Charter book at most; nobody is handed one. A player with no book gets one from a
+     * terminal (a lectern) or the menu's "Get a new Charter book" button ({@link #giveNew}).
      */
     public static void onJoin(ServerPlayer player) {
         if (!CharterServer.running()) return;
-        ensure(player, false);
+        removeExtras(player);
         AdminBook.ensure(player);
     }
 
@@ -40,21 +40,6 @@ public final class BookMod {
             if (CharterBook.isBook(player.getItemBySlot(slot))) return true;
         }
         return false;
-    }
-
-    /**
-     * Gives the player a book if they carry none. On console and Bedrock the book is the only way into the menu, since
-     * there is no typing a command, so a lost one is replaced at once and not only when they next join. Who is handed
-     * one at all is the {@code bookGivenTo} knob ({@link #autoGive}); extra copies go whatever it says.
-     */
-    public static void ensure(ServerPlayer player, boolean lost) {
-        removeExtras(player);
-        if (carriesBook(player)) return;
-        if (!autoGive(player)) return;
-        giveBook(player, CharterBook.create(player.getUUID()));
-        // A new stack carries no glint or count yet: the next refresh writes them.
-        SHOWN.remove(player.getUUID());
-        player.sendSystemMessage(Component.literal(Text.get(lost ? "book.replaced" : "book.given")).withStyle(ChatFormatting.GOLD));
     }
 
     /**
@@ -134,39 +119,25 @@ public final class BookMod {
         };
     }
 
-    /** Whether this player is handed a book automatically, by the {@code bookGivenTo} knob. */
-    public static boolean autoGive(ServerPlayer player) {
-        if (!CharterServer.running()) return false;
-        var rt = CharterServer.runtime();
-        var id = new charter.id.PlayerId(player.getUUID());
-        return BookRules.gives(BookRules.mode(rt.knobs.bookGivenTo), rt.state.membership(id).isPresent(), rt.state.raceOf(id).isPresent());
-    }
-
     /**
-     * The menu's "Get a new Charter book" button: a fresh copy for portable use, whatever {@code bookGivenTo} says, but
-     * never a second one. Returns the result line for the page (a {@link BookResult#ok} line when it was given).
+     * The menu's "Get a new Charter book" button, which a terminal opens too: the only way to a fresh copy, and never a
+     * second one. Returns the result line for the page (a {@link BookResult#ok} line when it was given).
      */
     public static String giveNew(ServerPlayer player) {
         removeExtras(player);
         if (carriesBook(player)) return Text.get("book.new.already");
         giveBook(player, CharterBook.create(player.getUUID()));
+        // A new stack carries no glint or count yet: the next refresh writes them.
         SHOWN.remove(player.getUUID());
         return BookResult.ok(Text.get("book.new.given"));
     }
 
-    /** Once a second for everyone online: a second book is deleted, whether or not lost books are replaced. */
+    /** Once a second for everyone online: a second book is deleted. */
     public static void removeExtrasAll(net.minecraft.server.MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (!player.isAlive() || player.isSpectator()) continue;
             removeExtras(player);
             AdminBook.police(player);
-        }
-    }
-
-    /** One pass over everyone online: whoever has no book gets one. */
-    public static void ensureAll(net.minecraft.server.MinecraftServer server) {
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (player.isAlive() && !player.isSpectator()) ensure(player, true);
         }
     }
 
@@ -300,17 +271,14 @@ public final class BookMod {
         return STASH.containsKey(id);
     }
 
-    /**
-     * Hands back the book taken at death, unless the player already carries one; then, with {@code replaceLostBook} on,
-     * gives one to a player the {@code bookGivenTo} knob covers who still has none. Called on respawn.
-     */
+    /** Hands back the book taken at death, unless the player already carries one. Called on respawn; nothing new is given. */
     public static void respawned(ServerPlayer player) {
         ItemStack book = STASH.remove(player.getUUID());
         if (book != null && !carriesBook(player)) {
             giveBook(player, book);
             SHOWN.remove(player.getUUID());
         }
-        if (CharterServer.running() && CharterServer.runtime().knobs.replaceLostBook) ensure(player, true);
+        removeExtras(player);
     }
 
     /** A totem saved a player whose book was taken at death: once they are alive again, it goes back. */

@@ -51,8 +51,8 @@ public final class MorePages {
     }
 
     /**
-     * "Get a new Charter book": a copy to carry, for a player who reaches the menu through a terminal. It works whatever
-     * the {@code bookGivenTo} knob says, and never gives a second copy. The result shows on {@code page}.
+     * "Get a new Charter book": a copy to carry, for a player who reaches the menu through a terminal. Nobody is handed
+     * one any other way, and it never gives a second copy. The result shows on {@code page}.
      */
     static BookButton newBook(ServerPlayer player, java.util.function.BiConsumer<ServerPlayer, String> page) {
         return BookDialogs.act(player, Text.get("book.button.new_book"), null, p -> page.accept(p, BookMod.giveNew(p))).icon(BookIcons.NEW_BOOK);

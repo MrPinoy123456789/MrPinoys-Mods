@@ -44,18 +44,18 @@ public final class BookOutsideGameTest {
     @GameTest(maxTicks = 20)
     public void theBookGoesIntoTheLastHotbarSlotWhenFree(GameTestHelper helper) {
         ServerPlayer player = emptyHanded(helper);
-        BookMod.ensure(player, true);
+        BookMod.giveNew(player);
         helper.assertTrue(CharterBook.isBook(player.getInventory().getItem(8)), "The book is not in hotbar slot 9");
 
         ServerPlayer full = emptyHanded(helper);
         full.getInventory().setItem(8, new ItemStack(Items.STONE));
         full.getInventory().setItem(0, new ItemStack(Items.STONE));
-        BookMod.ensure(full, true);
+        BookMod.giveNew(full);
         helper.assertTrue(CharterBook.isBook(full.getInventory().getItem(1)), "With slot 9 taken the book is not in the first free hotbar slot");
 
         ServerPlayer packed = emptyHanded(helper);
         for (int i = 0; i < 9; i++) packed.getInventory().setItem(i, new ItemStack(Items.STONE));
-        BookMod.ensure(packed, true);
+        BookMod.giveNew(packed);
         helper.assertTrue(BookMod.carriesBook(packed), "With the hotbar full the book was not put in the inventory");
         helper.succeed();
     }
@@ -65,7 +65,7 @@ public final class BookOutsideGameTest {
         try (LandKit kit = new LandKit(helper)) {
             ServerPlayer lord = kit.faction("Glint");
             OrgId org = kit.orgOf(lord);
-            BookMod.ensure(lord, true);
+            BookMod.giveNew(lord);
             BookMod.refresh(lord);
             ItemStack stack = book(lord);
             helper.assertTrue(stack != null, "The lord has no book");
@@ -101,7 +101,7 @@ public final class BookOutsideGameTest {
     @GameTest(maxTicks = 20)
     public void aKeptBookNeverShowsSomeoneElsesCount(GameTestHelper helper) {
         ServerPlayer player = emptyHanded(helper);
-        BookMod.ensure(player, true);
+        BookMod.giveNew(player);
         BookMod.refresh(player);
         // A book picked up from someone else, still glinting with their count, lands first in the inventory.
         ItemStack theirs = CharterBook.create();
