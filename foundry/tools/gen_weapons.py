@@ -151,7 +151,7 @@ def aurelia(t):
     lore = [f"Hit: {smite} extra damage and Weakness for {secs(weak)}s.",
             "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
             f"  You counter for {counter} damage, Weakness and Slowness. {secs(parry_cd)}s recharge, half back on a parry.",
-            "Sneak, hold right click and let go: Quickdraw, a dash of up to 8 blocks.",
+            "Sneak, hold right click and let go: Quickdraw, a dash of up to 10 blocks.",
             f"  It cuts everything you pass for up to {cut} damage; hold 1s for full. {secs(draw_cd)}s recharge."]
     answer = [damage(counter, ignore_hit_delay=True), effect("minecraft:weakness", 40, 0, "hit"),
               effect("minecraft:slowness", 40, 0, "hit"),
@@ -173,7 +173,7 @@ def aurelia(t):
                                      shape("arc", 10, 1.0, colour=silver, size=0.8)], False),
             {"trigger": "on_parry", "actions": answer},
             on_foot(dict(use("Quickdraw", draw_cd, [sound("minecraft:item.trident.riptide_1", 0.8, 1.6),
-                                            {"type": "dash_strike", "range": 8, "min_range": 3, "amount": cut,
+                                            {"type": "dash_strike", "range": 10, "min_range": 3, "amount": cut,
                                              "min_damage": 0.5, "effect": "minecraft:slowness", "duration": 20,
                                              "colour": steel}], True, charge=20),
                  min_charge_ticks=5)),

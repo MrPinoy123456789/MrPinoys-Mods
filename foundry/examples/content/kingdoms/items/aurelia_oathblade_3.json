@@ -6,7 +6,7 @@
     "Hit: 2 extra damage and Weakness for 4s.",
     "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
     "  You counter for 8 damage, Weakness and Slowness. 10s recharge, half back on a parry.",
-    "Sneak, hold right click and let go: Quickdraw, a dash of up to 8 blocks.",
+    "Sneak, hold right click and let go: Quickdraw, a dash of up to 10 blocks.",
     "  It cuts everything you pass for up to 8 damage; hold 1s for full. 10s recharge.",
     "A parry also gives you and allies within 6 blocks Strength for 5s.",
     "Fully upgraded."
@@ -174,7 +174,7 @@
         },
         {
           "type": "dash_strike",
-          "range": 8,
+          "range": 10,
           "min_range": 3,
           "amount": 8,
           "min_damage": 0.5,

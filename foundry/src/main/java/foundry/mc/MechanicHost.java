@@ -60,6 +60,23 @@ public final class MechanicHost implements MechanicRunner.Host {
         return fire(trigger, "", contentId, mechanics, player, hit);
     }
 
+    /**
+     * A right click: as {@link #fire(Trigger, String, List, ServerPlayer, LivingEntity)}, but a power with a parry runs
+     * only on a fresh press, never from a held click repeating (see Charging.press).
+     */
+    static boolean fire(Trigger trigger, String contentId, List<MechanicDef> mechanics, ServerPlayer player,
+            LivingEntity hit, boolean fresh) {
+        if (fresh) return fire(trigger, "", contentId, mechanics, player, hit);
+        List<MechanicDef> kept = new ArrayList<>();
+        for (MechanicDef m : mechanics) {
+            boolean parries = m.actions().stream().anyMatch(a -> a.type().equals("parry"));
+            // keep the indexes (cooldowns are keyed by them): a power left out becomes one this trigger never runs
+            kept.add(parries ? new MechanicDef(Trigger.WHILE_WORN, m.conditions(), m.actions(), m.cooldownTicks(),
+                    m.probability(), m.name(), m.tag(), m.chargeTicks(), m.minChargeTicks()) : m);
+        }
+        return fire(trigger, "", contentId, kept, player, hit);
+    }
+
     /** Fires every mechanic of {@code trigger} (for on_bolt_hit, only those with {@code tag}). True when one ran. */
     static boolean fire(Trigger trigger, String tag, String contentId, List<MechanicDef> mechanics, ServerPlayer player,
             LivingEntity hit) {

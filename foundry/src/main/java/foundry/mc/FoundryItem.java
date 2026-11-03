@@ -84,18 +84,46 @@ final class FoundryItem extends SimplePolymerItem {
      */
     private InteractionResult bedrockUse(ServerPlayer sp, InteractionHand hand) {
         var list = mechanics();
+        boolean fresh = Charging.press(sp);
         if (Charging.casting(sp.getUUID())) return InteractionResult.CONSUME;
         int armed = MechanicHost.armedCharge(contentId, list, sp);
-        if (armed >= 0) {
-            var m = list.get(armed);
-            Charging.cast(sp, new Charging.Cast(contentId, armed, sp.level().getServer().getTickCount() + m.chargeTicks(), hand));
-            String what = m.name() == null || m.name().isBlank() ? "spell" : m.name();
-            sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Casting " + what + "... keep it in hand"), true);
-            return InteractionResult.CONSUME;
-        }
-        if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
-        if (hasCharge()) AbilityBar.poke(sp);
+        if (armed >= 0) return cast(sp, armed, hand);
+        if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null, fresh)) return InteractionResult.SUCCESS;
+        if (hasCharge() && fresh) AbilityBar.poke(sp);
         return null;
+    }
+
+    /** Starts a cast of the charged mechanic at {@code armed}: it fires by itself after its full charge (Charging.tick). */
+    private InteractionResult cast(ServerPlayer sp, int armed, InteractionHand hand) {
+        var m = mechanics().get(armed);
+        Charging.cast(sp, new Charging.Cast(contentId, armed, sp.level().getServer().getTickCount() + m.chargeTicks(), hand));
+        String what = m.name() == null || m.name().isBlank() ? "spell" : m.name();
+        sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Casting " + what + "... keep it in hand"), true);
+        return InteractionResult.CONSUME;
+    }
+
+    /**
+     * Whether the copy of this item sent to {@code viewer} may be drawn like a bow. A Java client draws on every right
+     * click of a drawable item, slowing the player, so the draw is offered only while a right click would start a hold:
+     * a charged power is off recharge and the player's sneak matches its is_sneaking condition (or a hold is under
+     * way). Bedrock never draws (a tap casts), so for Bedrock it stays as it was: on while the charged power is ready.
+     */
+    boolean drawShown(ServerPlayer viewer) {
+        if (!hasCharge()) return false;
+        var list = mechanics();
+        if (Charging.holding(viewer.getUUID())) return true;
+        if (MechanicHost.chargeRecharging(contentId, list, viewer)) return false;
+        if (foundry.core.Floodgate.isBedrock(viewer.getUUID())) return true;
+        for (MechanicDef m : list) {
+            if (m.trigger() != Trigger.ON_USE || !m.charged()) continue;
+            boolean matches = true;
+            for (var c : m.conditions()) {
+                if (c.type().equals("is_sneaking")
+                        && Boolean.parseBoolean(c.param("value", "true")) != viewer.isShiftKeyDown()) matches = false;
+            }
+            if (matches) return true;
+        }
+        return false;
     }
 
     /** Fires the charged mechanic a Bedrock cast armed (Charging.tick). True when it ran. */
@@ -117,17 +145,22 @@ final class FoundryItem extends SimplePolymerItem {
                 return used != null ? used : super.use(level, player, hand);
             }
             var list = mechanics();
-            // A charged mechanic starts a hold, and fires when it is released after long enough.
+            boolean fresh = Charging.press(sp);
+            if (Charging.casting(sp.getUUID())) return InteractionResult.CONSUME;
+            // A charged mechanic starts a hold, and fires when it is released after long enough. When the client was
+            // only just offered the draw (it pressed sneak a moment ago) it may not be drawing and would never let go,
+            // so that press casts instead, firing by itself at full charge.
             int armed = MechanicHost.armedCharge(contentId, list, sp);
             if (armed >= 0) {
+                if (!Charging.drawSettled(sp, contentId)) return cast(sp, armed, hand);
                 Charging.begin(sp, new Charging.Hold(contentId, armed, sp.level().getServer().getTickCount(),
                         list.get(armed).chargeTicks()));
                 sp.startUsingItem(hand);
                 return InteractionResult.CONSUME;
             }
-            if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null)) return InteractionResult.SUCCESS;
-            // Nothing could run (a charged ability recharging): answer with the ability line instead of silence.
-            if (hasCharge()) AbilityBar.poke(sp);
+            if (MechanicHost.fire(Trigger.ON_USE, contentId, list, sp, null, fresh)) return InteractionResult.SUCCESS;
+            // Nothing could run (a charged ability recharging): answer a new press with the ability line.
+            if (hasCharge() && fresh) AbilityBar.poke(sp);
         }
         return super.use(level, player, hand);
     }
@@ -163,17 +196,17 @@ final class FoundryItem extends SimplePolymerItem {
                 && list.stream().noneMatch(m -> m.trigger() == Trigger.ON_HIT_ENTITY);
     }
 
-    /** True when the charged ability is recharging for the player this packet goes to. */
-    private boolean rechargingFor(PacketContext context) {
-        if (context == null) return false;
+    /** Whether the copy for the player this packet goes to may be drawn (see drawShown); true when nobody is known. */
+    private boolean drawFor(PacketContext context) {
+        if (context == null) return true;
         var profile = context.get(PacketContext.GAME_PROFILE);
         var server = context.get(PacketContext.SERVER_INSTANCE);
-        if (profile == null || server == null) return false;
+        if (profile == null || server == null) return true;
         ServerPlayer viewer = server.getPlayerList().getPlayer(profile.id());
-        return viewer != null && MechanicHost.chargeRecharging(contentId, mechanics(), viewer);
+        return viewer == null || drawShown(viewer);
     }
 
-    private boolean hasCharge() {
+    boolean hasCharge() {
         return mechanics().stream().anyMatch(MechanicDef::charged);
     }
 
@@ -225,7 +258,7 @@ final class FoundryItem extends SimplePolymerItem {
         // Held for a "long" time on the client, so it never finishes by itself; the server decides at release. While the
         // charged ability recharges for the player this copy is for, it is left off, so their client draws no pose for a
         // press that cannot do anything (AbilityBar resends the inventory when it starts and when it is back).
-        if (hasCharge() && !rechargingFor(context)) out.set(net.minecraft.core.component.DataComponents.CONSUMABLE, CHARGE_LOOK);
+        if (hasCharge() && drawFor(context)) out.set(net.minecraft.core.component.DataComponents.CONSUMABLE, CHARGE_LOOK);
     }
 
     @Override

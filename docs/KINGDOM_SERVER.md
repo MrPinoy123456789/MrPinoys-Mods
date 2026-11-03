@@ -62,12 +62,17 @@ both). Roles and tier I to III numbers:
 | Weapon | Role | Melee | Left click | Right click | Sneak and right click |
 |---|---|---|---|---|---|
 | Runed War Pick (Dwarves) | Armour breaker | 7, 8, 9 at speed 1.0, plus 2, 3, 3 that ignore armour | | Ground Slam: 4, 5, 6 damage and a heavy shove to all within 3 blocks, a ring of dust (12, 11, 10 s) | Stone Skin (unchanged) |
-| Oathblade (Humans) | Duelist | 5, 6, 6 at 1.6, plus 1, 1, 2 and Weakness, a silver sweep arc | | Mikiri: a 0.75 s parry; the next melee hit or projectile is stopped and the attacker is countered for 6, 7, 8 with 2 s Weakness and Slowness; half the recharge back when it lands; at III it also gives Strength I for 5 s to you and allies within 6 blocks (12, 11, 10 s) | Quickdraw (hold, let go): dash up to 8 blocks along the ground and cut everything passed for up to 6, 7, 8 and 1 s Slowness; a release from 0.25 s goes 3 blocks at half damage, full at 1 s; stops at walls, not in water or riding (12, 11, 10 s) |
+| Oathblade (Humans) | Duelist | 5, 6, 6 at 1.6, plus 1, 1, 2 and Weakness, a silver sweep arc | | Mikiri: a 0.75 s parry; the next melee hit or projectile is stopped and the attacker is countered for 6, 7, 8 with 2 s Weakness and Slowness; half the recharge back when it lands; at III it also gives Strength I for 5 s to you and allies within 6 blocks (12, 11, 10 s) | Quickdraw (hold, let go): dash up to 10 blocks along the ground, straight through mobs, and cut everything passed for up to 6, 7, 8 and 1 s Slowness; a release from 0.25 s goes 3 blocks at half damage, full at 1 s; stops at walls, not in water or riding (12, 11, 10 s) |
 | Tide Trident (Merfolk) | Close fighter that throws and drags | 7, 8, 9 at 1.1, plus 1, 1, 2 in water or rain | (melee) | Throw: a visible trident that flies out and returns, 5, 6, 7 damage | Undertow: 2, 3, 4 damage to all within 6 blocks, dragged toward you (30, 28, 26 s) |
 | Briarthorn Staff (Fae) | Control | none | Thorn Bolt every 0.8 s, 3, 3, 4 and poison | Bramble Burst (hold 1 s): 5, 6, 7 damage, poison and a 2 to 3 s root (Slowness IV), a ring of thorns | Glamour (unchanged) |
 | Everdelle Wand (Fairies) | Support and harassment | none | Sparkle every 0.8 s, 3, 4, 5 damage, 24 blocks | Mischief: lifts the target 1.5 to 2.5 s | Healing Light: regeneration for 8 to 12 s for players within 5 blocks |
 
-- The Oathblade (2026-11-03) traded Holy Lance and Rally for Iaijutsu, Mikiri and Quickdraw above. Holding sneak
+- The Oathblade (2026-11-03) traded Holy Lance and Rally for Iaijutsu, Mikiri and Quickdraw above. The dash is a push
+  over about half a second (1.25 blocks a tick), not a teleport: the client carries the player, so walls stop it and mobs
+  do not. The sword is drawable (the bow pose, which slows a Java player) only while sneaking with Quickdraw ready, so a
+  plain right click never poses; a held right click is one press, so the parry needs a new press once it is back. A
+  sneak and right click in the moment after pressing sneak (before the client has the drawable copy) casts instead and
+  dashes at full charge after a second. Holding sneak
   and right click shows a charge meter ("Quickdraw" and ten cells) on the action bar with a rising note; Bedrock players
   tap and wait, and always get the full charge after a second. The parry stops melee blows and projectiles only, never
   explosions, fire, falls, poison or magic, and answers only an attacker within 16 blocks (an arrow from further away is
