@@ -442,8 +442,11 @@ public final class MachineGui extends SimpleGui {
         return new GuiElementBuilder(item).setName(Component.empty()).hideTooltip().build();
     }
 
-    /** A plain left or right click. Number keys, drags, double clicks and drops do nothing. */
+    /**
+     * A plain left or right click (a tap on Bedrock). Shift clicks, number keys, drags, double clicks, middle clicks
+     * and drops do nothing, so no stray key can pull the lever.
+     */
     private static boolean clickable(ClickType type) {
-        return (type.isLeft || type.isRight) && !type.numKey && !type.isDragging;
+        return type == ClickType.MOUSE_LEFT || type == ClickType.MOUSE_RIGHT;
     }
 }

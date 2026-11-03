@@ -124,6 +124,15 @@ public final class FortuneService {
         return machines;
     }
 
+    /** Makes a block a Fortune Machine (the admin command's path). False when it already is one. */
+    public boolean addMachine(net.minecraft.world.level.Level level, BlockPos pos) {
+        return machines.add(level, pos);
+    }
+
+    public boolean removeMachine(net.minecraft.world.level.Level level, BlockPos pos) {
+        return machines.remove(level, pos);
+    }
+
     JoinPrompt prompt() {
         return prompt;
     }
@@ -261,7 +270,7 @@ public final class FortuneService {
     }
 
     /** A payout that was decided and saved but not handed over (a crash between the two) is finished here. */
-    void finishPending(ServerPlayer player) {
+    public void finishPending(ServerPlayer player) {
         PlayerRecord record = store.existing(player.getUUID());
         if (record == null || !record.payPending) return;
         FortuneMod.LOG.info("Finishing an unpaid Fortune spin for {}", player.getPlainTextName());
