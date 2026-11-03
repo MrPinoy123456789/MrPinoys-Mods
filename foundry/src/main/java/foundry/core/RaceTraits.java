@@ -86,11 +86,11 @@ public record RaceTraits(Map<String, Trait> races) {
      */
     /**
      * The Human slide (see {@link CrouchSlide}): sprinting on the ground, a fresh press of sneak throws them forward the way they
-     * run at {@code speed} blocks per tick (the ground's friction stops it within about 4 blocks at 1.7), then not again for
+     * run at {@code speed} blocks per tick (the ground's friction stops it within about 6 blocks at 2.55), then not again for
      * {@code cooldown} ticks.
      */
     public record Slide(double speed, int cooldown) {
-        public static final Slide DEFAULT = new Slide(1.7, 60);
+        public static final Slide DEFAULT = new Slide(2.55, 40);
     }
 
     public record Dash(int charges, int refill, int gap, double up, double forward, double maxSpeed, int ceiling, int hitDrop) {
@@ -283,10 +283,10 @@ public record RaceTraits(Map<String, Trait> races) {
             JsonObject sl = o.getAsJsonObject("slide");
             double speed = sl.has("speed") ? sl.get("speed").getAsDouble() : Slide.DEFAULT.speed();
             int cooldown = sl.has("cooldown") ? sl.get("cooldown").getAsInt() : Slide.DEFAULT.cooldown();
-            if (speed <= 0 || speed > 2.5 || cooldown < 10) {
-                problems.add(where + " slide: speed above 0 up to 2.5, cooldown 10 ticks or more");
+            if (speed <= 0 || speed > 3 || cooldown < 10) {
+                problems.add(where + " slide: speed above 0 up to 3, cooldown 10 ticks or more");
             }
-            slide = new Slide(Math.max(0.1, Math.min(2.5, speed)), Math.max(10, cooldown));
+            slide = new Slide(Math.max(0.1, Math.min(3, speed)), Math.max(10, cooldown));
         }
         return new Trait(stride, mount, fall, drift, sense, trade, flight, dash, slide);
     }
