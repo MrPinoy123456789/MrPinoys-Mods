@@ -33,8 +33,8 @@ inventory's 2 by 2 grid (Java and Bedrock):
 | Weapon | Recipe |
 |---|---|
 | Runed War Pick | 2 iron ingots, a copper ingot and a cobbled deepslate |
-| Oathblade | 2 iron ingots, a gold ingot and a leather |
-| Tide Trident | 2 iron ingots, a kelp and an ink sac |
+| Oathblade | 2 iron ingots, a gold ingot and leather |
+| Tide Trident | 2 iron ingots, kelp and an ink sac |
 | Briarthorn Staff | a stick, an iron ingot, a vine and sweet berries |
 | Everdelle Wand | a stick, an iron ingot, a feather and any small flower |
 
@@ -44,6 +44,8 @@ inventory's 2 by 2 grid (Java and Bedrock):
   recipe out of the book again. Operators are not given every race's recipe. Such a recipe gets no "holding the first
   ingredient" advancement, which would have shown every race's weapon to everyone holding an iron ingot.
 - Each rank 1 weapon's lore has a "Craft:" line with the same text.
+- Deploy the jar and the content together, in one restart. An older Foundry jar ignores `unlock_permission` and would
+  unlock all five recipes for anyone holding an iron ingot or a stick.
 - Ranks 2 and 3 are unchanged: each appears in the book when its player first holds the rank below.
 - Crafting itself is not race locked, for any rank: anyone with the materials can craft a race weapon in a crafting
   table, but only its race can use it (`require_permission`). The recipe book just does not show it to other races.
