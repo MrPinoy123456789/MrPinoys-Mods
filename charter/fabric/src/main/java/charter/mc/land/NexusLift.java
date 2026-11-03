@@ -202,7 +202,7 @@ public final class NexusLift {
         Cues.actionBar(player, Text.get("nexus_lift.lifted_short"), ChatFormatting.AQUA);
     }
 
-    private static boolean mayLift(CharterRuntime rt, ServerPlayer player, Core core, boolean op) {
+    static boolean mayLift(CharterRuntime rt, ServerPlayer player, Core core, boolean op) {
         if (op) return true;
         OrgId root = rt.state.root(core.owner);
         PlayerId id = new PlayerId(player.getUUID());
@@ -355,19 +355,23 @@ public final class NexusLift {
     /** Removes every lifted Nexus a player has that is not the one they are carrying for a lift under way. */
     static void sweep(ServerPlayer player) {
         LiftBook.Lift mine = BOOK.byCarrier(player.getUUID());
-        String keepId = mine == null ? null : mine.id();
+        sweep(player, NexusLift::isLiftedItem, mine == null ? null : mine.id());
+    }
+
+    /** Removes every item of this kind a player has whose lift is not {@code keepId} (shared with {@link LecternLift}). */
+    static void sweep(ServerPlayer player, java.util.function.Predicate<ItemStack> kind, String keepId) {
         var inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
-            if (isLiftedItem(stack) && !java.util.Objects.equals(liftIdOf(stack), keepId)) inventory.setItem(i, ItemStack.EMPTY);
+            if (kind.test(stack) && !java.util.Objects.equals(liftIdOf(stack), keepId)) inventory.setItem(i, ItemStack.EMPTY);
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack stack = player.getItemBySlot(slot);
-            if (isLiftedItem(stack) && !java.util.Objects.equals(liftIdOf(stack), keepId)) player.setItemSlot(slot, ItemStack.EMPTY);
+            if (kind.test(stack) && !java.util.Objects.equals(liftIdOf(stack), keepId)) player.setItemSlot(slot, ItemStack.EMPTY);
         }
         if (player.containerMenu != null) {
             ItemStack carried = player.containerMenu.getCarried();
-            if (isLiftedItem(carried) && !java.util.Objects.equals(liftIdOf(carried), keepId)) player.containerMenu.setCarried(ItemStack.EMPTY);
+            if (kind.test(carried) && !java.util.Objects.equals(liftIdOf(carried), keepId)) player.containerMenu.setCarried(ItemStack.EMPTY);
         }
     }
 

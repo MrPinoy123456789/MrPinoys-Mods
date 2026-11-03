@@ -148,6 +148,8 @@ public final class Terminals {
         ItemStack held = player.getItemInHand(hand);
         // Sneaking with something in hand means "place against it", as vanilla treats it.
         if (player.isSecondaryUseActive() && !held.isEmpty()) return null;
+        // A carried keep lectern is being set down, never a click that opens the menu.
+        if (charter.mc.land.LecternLift.isLiftedItem(player.getMainHandItem())) return null;
         BlockPos pos = hit.getBlockPos();
         boolean terminal = isTerminal(level, pos);
         if (!terminal && !isOwnNexus(player, level, pos, player.getMainHandItem())) return null;
@@ -207,6 +209,8 @@ public final class Terminals {
      * that moved); a keep that was lost leaves its lectern standing as a plain block.
      */
     public static void dropKeep(MinecraftServer server, CoreId core, boolean takeBlocks) {
+        // A keep that moved gets a new lectern beside its new Nexus, so a lectern someone is carrying is not put back.
+        if (takeBlocks) charter.mc.land.LecternLift.cancel(server, core);
         List<TerminalBook.Terminal> gone = BOOK.removeCore(core.value().toString());
         if (gone.isEmpty()) return;
         save();

@@ -8,6 +8,8 @@ import charter.mc.book.BookDialogs;
 import charter.mc.book.BookScreen;
 import charter.mc.book.CharterMenu;
 import charter.mc.chronicle.Chronicles;
+import charter.mc.land.Fixtures;
+import charter.mc.land.LecternLift;
 import charter.mc.land.SpawnRules;
 import charter.mc.terminal.TerminalBook;
 import charter.mc.terminal.Terminals;
@@ -293,6 +295,198 @@ public final class TerminalGameTest {
             } finally {
                 Terminals.remove(spot);
                 kit.server.getPlayerList().deop(op.nameAndId());
+            }
+            helper.succeed();
+        }
+    }
+
+    // ---- moving the keep lectern ----
+
+    private static int liftedLecterns(ServerPlayer player) {
+        int n = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            if (LecternLift.isLiftedItem(player.getInventory().getItem(i))) n++;
+        }
+        return n;
+    }
+
+    private static ItemStack liftedLectern(ServerPlayer player) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            if (LecternLift.isLiftedItem(player.getInventory().getItem(i))) return player.getInventory().getItem(i);
+        }
+        throw new AssertionError("The player carries no lifted lectern");
+    }
+
+    /** The block of the keep's one lectern terminal; fails unless there is exactly one and a lectern stands there. */
+    private static BlockPos keepLectern(LandKit kit, Core core, String why) {
+        List<TerminalBook.Terminal> mine = Terminals.book().ofCore(core.id.value().toString());
+        kit.helper.assertTrue(mine.size() == 1, why + ": the keep has " + mine.size() + " lectern terminals, not one");
+        TerminalBook.Spot s = mine.get(0).spot();
+        BlockPos at = new BlockPos(s.x(), s.y(), s.z());
+        kit.helper.assertTrue(kit.level.getBlockState(at).is(Blocks.LECTERN), why + ": no lectern stands at the keep's terminal " + at);
+        return at;
+    }
+
+    private static Fixtures.Fixture nexusOf(LandKit kit, Core core) {
+        return Fixtures.of(kit.rt.state).first(core.id, Fixtures.Kind.NEXUS);
+    }
+
+    @GameTest(maxTicks = 100)
+    public void theLordCarriesTheKeepLecternAndSetsItDownOnlyInTheCoreChunk(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("LecLift");
+            kit.keep(lord);
+            Core core = kit.rt.state.coresOf(kit.orgOf(lord)).get(0);
+            Fixtures.Fixture nexus = nexusOf(kit, core);
+            BlockPos old = keepLectern(kit, core, "A new keep");
+            ServerPlayer member = kit.outsider();
+            helper.assertTrue(kit.rt.engine.run(new charter.engine.Actor.Admin("gametest"),
+                    new charter.org.actions.AddMember(kit.orgOf(lord), new charter.id.PlayerId(member.getUUID()))).done(), "The member did not join");
+            try {
+                // Nobody but the Lord lifts it, and a refused break leaves it standing (no plain lectern drops).
+                for (ServerPlayer who : List.of(member, kit.outsider(), kit.faction("LecLiftR"))) {
+                    who.teleportTo(old.getX() + 2, old.getY(), old.getZ());
+                    who.gameMode.destroyBlock(old);
+                    helper.assertTrue(keepLectern(kit, core, "A player who may not lift it mined it").equals(old) && liftedLecterns(who) == 0,
+                            "A player who may not lift the keep lectern got it");
+                }
+
+                lord.teleportTo(old.getX() + 1, old.getY(), old.getZ() + 1);
+                lord.gameMode.destroyBlock(old);
+                helper.assertTrue(LecternLift.lifted(core.id) && liftedLecterns(lord) == 1, "Mining the keep lectern did not lift it");
+                helper.assertTrue(kit.level.getBlockState(old).isAir() && !Terminals.isTerminal(kit.level, old),
+                        "The old spot still holds a lectern or a terminal while it is carried");
+                helper.assertTrue(Terminals.book().ofCore(core.id.value().toString()).isEmpty(), "The keep kept a terminal while its lectern is carried");
+                ItemStack item = liftedLectern(lord);
+                helper.assertTrue(item.is(net.minecraft.world.item.Items.LECTERN) && item.getMaxStackSize() == 1, "The lifted lectern is not a lectern that stacks to one");
+                helper.assertTrue(!new net.minecraft.world.inventory.Slot(new net.minecraft.world.SimpleContainer(9), 0, 0, 0).mayPlace(item),
+                        "A chest slot took the lifted lectern");
+                helper.assertTrue(lord.drop(lord.getInventory().removeItem(lord.getInventory().findSlotMatchingItem(item), 1), false,
+                        net.minecraft.util.Prediction.SERVER_ONLY) == null && liftedLecterns(lord) == 1, "The lifted lectern was dropped");
+
+                // While it is carried, the operator's backfill does not give the keep a second lectern.
+                kit.server.getCommands().performPrefixedCommand(kit.server.createCommandSourceStack(), "charter admin terminal keeps");
+                helper.assertTrue(Terminals.book().ofCore(core.id.value().toString()).isEmpty(), "terminal keeps placed a lectern while it is carried");
+
+                // Inside the keep but outside its core chunk: refused, and the item stays.
+                BlockPos outside = kit.nexusPos().offset(16, 0, 0);
+                kit.placeOn(lord, liftedLectern(lord), outside);
+                helper.assertTrue(!kit.level.getBlockState(outside).is(Blocks.LECTERN) && LecternLift.lifted(core.id) && liftedLecterns(lord) == 1,
+                        "The lifted lectern was set down outside the core chunk");
+
+                // In the core chunk: it stands there as the keep's terminal, and the Nexus has not moved.
+                BlockPos to = kit.nexusPos().offset(4, 0, 3);
+                kit.placeOn(lord, liftedLectern(lord), to);
+                helper.assertTrue(keepLectern(kit, core, "Setting it down in the core chunk").equals(to), "The keep lectern is not where it was set down");
+                helper.assertTrue(!LecternLift.lifted(core.id) && liftedLecterns(lord) == 0, "The lift did not end when it was set down");
+                helper.assertTrue(nexusOf(kit, core).equals(nexus), "Moving the lectern moved the Nexus");
+                lord.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+                opensHome(kit, lord, to, "the Lord at the moved keep lectern");
+            } finally {
+                LecternLift.cancel(kit.server, core.id);
+            }
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void aWarOrDeathPutsTheCarriedLecternBack(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("LecWar");
+            kit.keep(lord);
+            Core core = kit.rt.state.coresOf(kit.orgOf(lord)).get(0);
+            BlockPos old = keepLectern(kit, core, "A new keep");
+            ServerPlayer rival = kit.faction("LecWarR");
+            charter.siege.WarBook.Goal goal = new charter.siege.WarBook.Goal();
+            goal.id = -1;
+            goal.attacker = kit.orgOf(rival);
+            goal.defender = kit.orgOf(lord);
+            goal.outpost = core.id;
+            goal.opensAt = Long.MAX_VALUE;
+            goal.expiresAt = Long.MAX_VALUE;
+            var wars = kit.rt.state.wars;
+            try {
+                wars.goals.add(goal);
+                lord.gameMode.destroyBlock(old);
+                helper.assertTrue(!LecternLift.lifted(core.id) && keepLectern(kit, core, "Lifting it at war").equals(old), "The lectern was lifted at war");
+                wars.goals.remove(goal);
+
+                lord.gameMode.destroyBlock(old);
+                helper.assertTrue(LecternLift.lifted(core.id), "The lectern was not lifted in peace");
+                wars.goals.add(goal);
+                LecternLift.check(kit.server);
+                helper.assertTrue(!LecternLift.lifted(core.id) && keepLectern(kit, core, "A war beginning while it is carried").equals(old)
+                        && liftedLecterns(lord) == 0, "A war did not put the carried lectern back");
+                wars.goals.remove(goal);
+
+                lord.gameMode.destroyBlock(old);
+                net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DEATH.invoker().allowDeath(lord, lord.damageSources().generic(), 1000f);
+                helper.assertTrue(!LecternLift.lifted(core.id) && keepLectern(kit, core, "The carrier dying").equals(old) && liftedLecterns(lord) == 0,
+                        "Dying did not put the carried lectern back");
+            } finally {
+                wars.goals.remove(goal);
+                LecternLift.cancel(kit.server, core.id);
+            }
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void theKeepLecternMovesByCommandOnlyInsideTheCoreChunk(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("LecCmd");
+            kit.keep(lord);
+            Core core = kit.rt.state.coresOf(kit.orgOf(lord)).get(0);
+            Fixtures.Fixture nexus = nexusOf(kit, core);
+            BlockPos old = keepLectern(kit, core, "A new keep");
+            String name = kit.rt.state.org(kit.orgOf(lord)).orElseThrow().name();
+
+            // The Lord, a chunk east: inside the keep but not its core chunk, so refused.
+            lord.teleportTo(kit.nexusPos().getX() + 16.5, kit.y, kit.nexusPos().getZ() + 0.5);
+            kit.server.getCommands().performPrefixedCommand(lord.createCommandSourceStack(), "charter lectern move");
+            helper.assertTrue(keepLectern(kit, core, "A refused Lord's move").equals(old), "The lectern moved outside the core chunk");
+
+            BlockPos mine = kit.nexusPos().offset(-5, 0, -4);
+            lord.teleportTo(mine.getX() + 0.5, mine.getY(), mine.getZ() + 0.5);
+            kit.server.getCommands().performPrefixedCommand(lord.createCommandSourceStack(), "charter lectern move");
+            helper.assertTrue(keepLectern(kit, core, "The Lord's move").equals(mine) && kit.level.getBlockState(old).isAir(),
+                    "The Lord's /charter lectern move did not move the lectern to their feet");
+            helper.assertTrue(nexusOf(kit, core).equals(nexus), "Moving the lectern moved the Nexus");
+
+            // An operator from the console: refused outside the core chunk, and moved inside it with a Chronicle entry.
+            var console = kit.server.createCommandSourceStack();
+            int before = kit.rt.state.history.of(charter.land.LandEvents.LecternMoved.class).size();
+            BlockPos far = kit.nexusPos().offset(16, 0, 0);
+            kit.server.getCommands().performPrefixedCommand(console,
+                    "charter admin faction lectern \"" + name + "\" " + far.getX() + " " + far.getY() + " " + far.getZ());
+            helper.assertTrue(keepLectern(kit, core, "A refused operator move").equals(mine), "An operator moved the lectern outside the core chunk");
+            BlockPos theirs = kit.nexusPos().offset(3, 0, -6);
+            kit.server.getCommands().performPrefixedCommand(console,
+                    "charter admin faction lectern \"" + name + "\" " + theirs.getX() + " " + theirs.getY() + " " + theirs.getZ());
+            helper.assertTrue(keepLectern(kit, core, "The operator's move").equals(theirs) && kit.level.getBlockState(mine).isAir(),
+                    "The operator's move did not move the lectern");
+            helper.assertTrue(kit.rt.state.history.of(charter.land.LandEvents.LecternMoved.class).size() == before + 1,
+                    "The operator's lectern move is not in the history for the Chronicle");
+            helper.succeed();
+        }
+    }
+
+    @GameTest(maxTicks = 100)
+    public void aMovedKeepEndsTheLecternLiftAndGetsOneLectern(GameTestHelper helper) {
+        try (LandKit kit = new LandKit(helper)) {
+            ServerPlayer lord = kit.faction("LecKeep");
+            kit.keep(lord);
+            Core core = kit.rt.state.coresOf(kit.orgOf(lord)).get(0);
+            BlockPos old = keepLectern(kit, core, "A new keep");
+            try {
+                lord.gameMode.destroyBlock(old);
+                helper.assertTrue(LecternLift.lifted(core.id), "The lectern was not lifted");
+                // What a keep move does once the new Nexus stands (Placement.recordNexus): a lectern beside it.
+                Terminals.placeBeside(kit.rt, kit.level, kit.nexusPos(), core.id);
+                helper.assertTrue(!LecternLift.lifted(core.id) && liftedLecterns(lord) == 0, "A moved keep left the lectern lift going");
+                keepLectern(kit, core, "A moved keep");
+            } finally {
+                LecternLift.cancel(kit.server, core.id);
             }
             helper.succeed();
         }

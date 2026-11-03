@@ -52,6 +52,8 @@ public final class Placement {
         var player = ctx.getPlayer();
         // A lifted Nexus answers for itself: only inside its own keep, and an operator may set down any kingdom's.
         if (player instanceof ServerPlayer lifter && NexusLift.isLiftedItem(ctx.getItemInHand())) return NexusLift.place(ctx, lifter, original);
+        // So does a lifted keep lectern: only inside its own keep's core chunk.
+        if (player instanceof ServerPlayer carrier && LecternLift.isLiftedItem(ctx.getItemInHand())) return LecternLift.place(ctx, carrier, original);
         if (player != null && !Protection.mayAct(player, level, pos)) {
             Protection.deny(player, level, pos);
             return InteractionResult.FAIL;

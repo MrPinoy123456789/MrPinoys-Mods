@@ -97,6 +97,7 @@ public final class ChronicleStoryTest {
         golden(new LandEvents.Contested(AT, ASHFALL, 1, 0), IN + "1 claim of Ashfall lost their anchor and stood contested. Unless something took them up again, they would be lost.");
         golden(new LandEvents.Rescued(AT, ASHFALL, 2), IN + "2 claims of Ashfall were taken up again and held.");
         golden(new LandEvents.Lapsed(AT, ASHFALL, 4), IN + "4 claims of Ashfall were lost for good.");
+        golden(new LandEvents.LecternMoved(AT, ASHFALL, KEEP), IN + "the keep lectern of Ashfall was moved by an operator.");
         // sieges
         golden(new SiegeEvents.CampActive(AT, 0, CAMP, EASTERN), IN + "the Eastern Guard finished raising an outpost.");
         golden(new SiegeEvents.WarDeclared(AT, 0, 1, ASHFALL, EASTERN, CAMP, 99),
