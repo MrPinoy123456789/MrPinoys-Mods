@@ -65,6 +65,7 @@ public final class CharterCurrencyMod implements ModInitializer {
     private JsonStateFile<Treasury.State> treasuryFile;
     private JsonStateFile<KingdomRuntime.File> kingdomsFile;
     private JsonStateFile<MintSites.File> minesFile;
+    private JsonStateFile<BankSites.File> banksFile;
 
     @Override
     public void onInitialize() {
@@ -120,6 +121,11 @@ public final class CharterCurrencyMod implements ModInitializer {
         Services.current = services;
         MintListener mintListener = new MintListener(services);
         mintListener.register();
+        banksFile = new JsonStateFile<>(configDir, "banks.json", BankSites.File.class);
+        BankSites bankSites = new BankSites(banksFile.load(), banksFile::markDirty);
+        banksFile.bind(bankSites::json);
+        services.banks = bankSites;
+        new BankStation(services, bankSites, mintListener).register();
         new CoinBankClick(services).register();
         TreasuryCommands treasuryCommands = new TreasuryCommands(services, mintListener);
         KingdomAdminCommands kingdomAdmin = new KingdomAdminCommands(services, treasuryCommands);
@@ -193,6 +199,7 @@ public final class CharterCurrencyMod implements ModInitializer {
             treasuryFile.close();
             kingdomsFile.close();
             minesFile.close();
+            banksFile.close();
         });
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {

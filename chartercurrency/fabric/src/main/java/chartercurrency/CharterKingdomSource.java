@@ -53,4 +53,35 @@ final class CharterKingdomSource implements KingdomSource {
     public Collection<String> kingdomIds() {
         return view.orgIds();
     }
+
+    @Override
+    public boolean knowsLand() {
+        try {
+            charter.api.CharterAreas.class.getName();
+            return true;
+        } catch (LinkageError older) {
+            // A Charter jar from before the public land map.
+            return false;
+        }
+    }
+
+    /**
+     * The kingdom holding a chunk, from Charter's public land map. The map names a kingdom,
+     * not its id, so the name is matched back to an id here.
+     */
+    @Override
+    public Optional<String> landOwner(String dimension, int chunkX, int chunkZ) {
+        Optional<charter.api.Area> area;
+        try {
+            area = charter.api.CharterAreas.areaAt(dimension, chunkX, chunkZ);
+        } catch (LinkageError older) {
+            return Optional.empty();
+        }
+        if (area.isEmpty()) return Optional.empty();
+        String name = area.get().kingdom();
+        for (String id : view.orgIds()) {
+            if (name.equals(view.displayName(id))) return Optional.of(id);
+        }
+        return Optional.empty();
+    }
 }

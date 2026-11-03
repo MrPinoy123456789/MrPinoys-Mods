@@ -415,8 +415,34 @@ spent; an admin can refund with `renown add`). Commons is bought from by ops onl
 Coin enters the world only here. There is no crafting recipe for coins (a recipe
 cannot be capped, and recipe ingredients cannot check a marker).
 
+### 8.0 The Bank (owner, 2026-11-03)
+
+- A **Bank** is a vault block with the marker `{"chartercurrency":{"bank":true}}` on its
+  item. An op hands one out with `/chartercurrency bank give [player]`.
+- **Placing:** a kingdom's Lord sets it on that kingdom's own land (keep, outpost or other
+  held land, read from Charter's public land map). A kingdom has **one** Bank. An op may
+  place one anywhere; it belongs to whoever holds the land, and one on nobody's land is
+  not limited. Without Charter's land map only an op may place one. A refused placement
+  places nothing and says why. Sites are in `banks.json`. Rules: `core/Banks`, under test.
+- **Using:** right-click opens a chest menu (Bedrock gets it through Geyser): the
+  player's money (in the bank and carried), Bank all your coin, Take out 1, 8 or 64
+  Sovereigns, the Mint's rules and today's allowance, and Open the shop. The buttons run
+  `/bank all`, `/withdraw <n> gold` and `/shop`, so the menu and chat never differ.
+  Every Bank works the same for every player.
+- **The Mint:** any smithing table in the Bank's chunk is a Mint (section 8.1). Its
+  smithing screen is gone, as on any Mint. Tables bound by an op keep working.
+- **Looking** at a Bank or a Mint puts one line on the action bar: the bank balance, or
+  the Mint's allowance for today.
+- **Breaking:** a vault drops nothing, so a broken Bank drops its Bank item and frees the
+  kingdom's slot. A Bank removed another way (`/setblock`, an explosion) is forgotten
+  when its chunk is next loaded; `/chartercurrency bank forget <kingdom>` frees a slot
+  by hand, and `/chartercurrency bank list` shows every Bank.
+- The vault is tamed: every click on it is taken, it has no loot and a key nobody can
+  hold, and it shows a gold nugget.
+
 ### 8.1 Mint blocks
 
+- A smithing table in a Bank's chunk is a Mint with no command (section 8.0).
 - An op looks at a smithing table and runs `/chartercurrency mint bind` (also
   `unbind`, `list`). Bound positions are stored in `mints.json`.
 - Right-clicking a bound smithing table **does not open the smithing UI**
