@@ -150,7 +150,6 @@ public final class WarPages {
         List<net.minecraft.network.chat.Component> body = List.of(
                 BookDialogs.text(Text.get("book.war.confirm", "org", org, "site", rt.describe.core(outpost),
                         "from", from == null ? "?" : rt.describe.core(from.id))),
-                BookDialogs.text(Text.get("book.war.confirm_skin")),
                 BookDialogs.text(Text.get("book.war.confirm_notice", "hours", rt.knobs.warGoalNoticeHours, "minutes", rt.knobs.outpostCaptureMinutes,
                         "total", rt.knobs.warGoalHours, "attackers", rt.knobs.warMinAttackers)),
                 BookDialogs.text(Text.get("book.war.confirm_lapse", "days", rt.knobs.truceDays,

@@ -69,6 +69,10 @@ public final class WarGameTest {
 
                 // The War page names the other nation's outpost; the confirm says what it takes; declaring works.
                 WarPages.page(attackerLord, null);
+                press(helper, attackerLord, Text.get("book.war.how"));
+                helper.assertTrue(BookDialogs.LAST.get(attackerLord.getUUID()).violations().isEmpty(),
+                        "How war works breaks the screen rules: " + BookDialogs.LAST.get(attackerLord.getUUID()).violations());
+                WarPages.page(attackerLord, null);
                 String name = rt.describe.org(dove);
                 // Targets are named by direction and distance from where the player stands.
                 String prefix = BookDialogs.clip(name, 10) + ":";
@@ -76,6 +80,8 @@ public final class WarGameTest {
                         .filter(l -> l.startsWith(prefix)).findFirst().orElse("no target named " + prefix);
                 press(helper, attackerLord, button);
                 String confirm = String.join("\n", body(attackerLord));
+                helper.assertTrue(BookDialogs.LAST.get(attackerLord.getUUID()).violations().isEmpty(),
+                        "The declare confirm page breaks the screen rules: " + BookDialogs.LAST.get(attackerLord.getUUID()).violations());
                 helper.assertTrue(confirm.contains("touch"), "The confirm page does not say the war is between touching outposts: " + confirm);
                 helper.assertTrue(confirm.contains("12 hours"), "The confirm page does not give the notice: " + confirm);
                 press(helper, attackerLord, Text.get("book.war.declare_yes"));
@@ -100,10 +106,11 @@ public final class WarGameTest {
                 GamePort port = GamePort.of(rt);
                 long before = port.marks(hawk);
                 long deposit = theirs.depositMarks;
+                long stake = goal.stakeMarks;
                 SiegeWorld.beforeStep(kit.server, rt);
                 rt.sim.advance(Durations.MINUTE);
                 helper.assertTrue(rt.state.core(theirs.id).isEmpty(), "Holding the chunk did not capture the outpost");
-                helper.assertTrue(port.marks(hawk) == before + deposit,
+                helper.assertTrue(port.marks(hawk) == before + stake + deposit,
                         "The deposit did not go to the attackers");
                 helper.assertTrue(rt.state.history.has(SiegeEvents.OutpostCaptured.class), "The capture was not recorded");
                 helper.assertTrue(kit.level.getBlockState(banner).isAir(),
