@@ -83,6 +83,22 @@ final class GranaryDisplays {
         return last.get(core);
     }
 
+    /** Whether a display at this point stands where the label of a store whose first container is at {@code pos} goes. */
+    static boolean over(Pos pos, double x, double y, double z) {
+        return Math.abs(x - (pos.x() + 0.5)) <= 1 && Math.abs(y - (pos.y() + 1.6)) <= 1 && Math.abs(z - (pos.z() + 0.5)) <= 1;
+    }
+
+    /** Removes every tagged display standing over this position (a label left from an earlier run). */
+    void discardAt(ServerLevel level, Pos pos) {
+        double x = pos.x() + 0.5;
+        double y = pos.y() + 1.6;
+        double z = pos.z() + 0.5;
+        AABB box = new AABB(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1);
+        for (Display.TextDisplay found : level.getEntitiesOfClass(Display.TextDisplay.class, box, e -> e.entityTags().contains(TAG))) {
+            found.discard();
+        }
+    }
+
     /** A tagged display already at the spot, left by an earlier run; any extras are removed. */
     private static Display.TextDisplay adopt(ServerLevel level, double x, double y, double z) {
         AABB box = new AABB(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1);

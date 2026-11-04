@@ -45,6 +45,9 @@ import java.util.OptionalDouble;
  * <li>A chest placed in a keep's core chunk by a member becomes its granary, and
  * chests touching it join, up to {@code granaryMaxChests}. A barrel (or chest)
  * placed beside a war banner in a camp's chunk becomes its store.</li>
+ * <li>With {@code keepGranary} off, keeps need no food: a chest placed in a keep's
+ * chunk stays an ordinary chest, and the granaries keeps already had are released
+ * when the server starts ({@link #releaseKeepGranaries}). Outposts keep their store.</li>
  * <li>Right-clicking one opens {@link GranaryScreen}, or is refused to outsiders.</li>
  * <li>{@link #around} wraps every sim step so the real items follow what core ate.</li>
  * </ul>
@@ -61,6 +64,8 @@ public final class Granaries {
     private static final List<Pending> PENDING = new ArrayList<>();
     /** Chunks that loaded since the last tick, reconciled on the next one. */
     private static final java.util.Set<ChunkKey> LOADED = new java.util.LinkedHashSet<>();
+    /** Granary labels that loaded since the last tick, checked on the next one for a granary still under them. */
+    private static final List<net.minecraft.world.entity.Display.TextDisplay> LABELS = new ArrayList<>();
     private static long ticks;
 
     private Granaries() {
@@ -72,6 +77,10 @@ public final class Granaries {
         ServerLifecycleEvents.SERVER_STARTING.register(Granaries::start);
         ServerLifecycleEvents.SERVER_STARTED.register(s -> {
             if (CharterServer.running()) CharterServer.runtime().state.history.listen(Granaries::onHistory);
+            int released = releaseKeepGranaries();
+            if (released > 0) {
+                CharterMod.LOG.info("Charter: keeps need no food (keepGranary is off), so {} keep granaries were released; their chests are ordinary chests again and nothing in them was touched", released);
+            }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
         // Never touch a chest while its chunk is loading: taking an item marks the chunk
@@ -82,6 +91,14 @@ public final class Granaries {
             if (service != null) {
                 var pos = chunk.getPos();
                 LOADED.add(new ChunkKey(level.dimension().identifier().toString(), pos.x(), pos.z()));
+            }
+        });
+        // A label is a saved entity, so one whose granary was released (or razed) while
+        // its chunk was away comes back with the chunk. Noted here, never touched in the
+        // load event itself, and removed on the next tick when no granary is under it.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            if (entity instanceof net.minecraft.world.entity.Display.TextDisplay label && label.entityTags().contains(GranaryDisplays.TAG)) {
+                LABELS.add(label);
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(Granaries::tick);
@@ -105,6 +122,7 @@ public final class Granaries {
 
     private static void stop() {
         DISPLAYS.forgetAll();
+        LABELS.clear();
         service = null;
     }
 
@@ -166,6 +184,13 @@ public final class Granaries {
             PENDING.clear();
             for (Pending p : now) placed(server, p);
         }
+        if (!LABELS.isEmpty()) {
+            List<net.minecraft.world.entity.Display.TextDisplay> now = List.copyOf(LABELS);
+            LABELS.clear();
+            for (var label : now) {
+                if (!label.isRemoved() && !overSite(label)) label.discard();
+            }
+        }
         if (ticks % DISPLAY_TICKS == 0) showDisplays();
     }
 
@@ -177,6 +202,8 @@ public final class Granaries {
             ChunkKey chunk = new ChunkKey(p.level().dimension().identifier().toString(), at.getX() >> 4, at.getZ() >> 4);
             Core core = service.coreAtChunk(chunk).orElse(null);
             if (core == null) continue;
+            // Keeps need no food: the chest stays an ordinary chest.
+            if (core.isKeep() && !service.runtime().knobs.keepGranary) continue;
             if (service.access(new PlayerId(player.getUUID()), core) == Access.NONE) continue;
             String problem = service.link(core, p.level(), at, true, true);
             if (problem == null) {
@@ -217,6 +244,44 @@ public final class Granaries {
         if (service.book().site(lost.core()) == null) return;
         service.book().remove(lost.core());
         forget(lost.core());
+    }
+
+    /**
+     * With {@code keepGranary} off, keeps need no food, so every keep's granary record
+     * is released: its chests open as ordinary chests again. Only the link goes. Nothing
+     * in the world is moved or deleted: every item stays in its chest, and removals
+     * still queued for a chest that was away are dropped rather than applied, so that
+     * food stays too. The keep's food count, which only mirrored the chests, is emptied,
+     * and the label above the chest is removed (now if it is loaded, else when it next
+     * loads). Outposts and camps keep their store. Called when the server has started;
+     * returns how many keeps were released.
+     */
+    public static int releaseKeepGranaries() {
+        if (service == null || service.runtime().knobs.keepGranary) return 0;
+        int released = 0;
+        for (Site site : service.book().sites()) {
+            Core core = service.coreOf(site).orElse(null);
+            if (core == null || !core.isKeep()) continue;
+            service.book().remove(site.core);
+            service.runtime().state.siege.store(site.core).provisions = new charter.food.Provisions();
+            forget(site.core);
+            if (service.loaded(site)) {
+                ServerLevel level = service.level(site.dimension);
+                for (Pos pos : site.containers) DISPLAYS.discardAt(level, pos);
+            }
+            released++;
+        }
+        return released;
+    }
+
+    /** Whether a granary label stands over a registered granary or camp store. */
+    private static boolean overSite(net.minecraft.world.entity.Display.TextDisplay label) {
+        String dimension = label.level().dimension().identifier().toString();
+        for (Site site : service.book().sites()) {
+            if (!site.dimension.equals(dimension) || site.containers.isEmpty()) continue;
+            if (GranaryDisplays.over(site.containers.getFirst(), label.getX(), label.getY(), label.getZ())) return true;
+        }
+        return false;
     }
 
     /** Drops a site's display (the site is being removed by hand). */
