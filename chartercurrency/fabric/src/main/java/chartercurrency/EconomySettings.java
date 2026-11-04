@@ -62,6 +62,12 @@ public final class EconomySettings {
      */
     public boolean coinModels = false;
 
+    /**
+     * Whether analytics lines are written under {@code analytics/} (SPEC section 10). Off:
+     * no analytics file is written at all.
+     */
+    public boolean analyticsEnabled = true;
+
     /** Mint soft cap and falloff. The tax rate is NOT here: it is fixed in code. */
     public chartercurrency.core.Mint.Rules mint = chartercurrency.core.Mint.Rules.defaults();
 
@@ -222,6 +228,12 @@ public final class EconomySettings {
             } else {
                 settings.coinModels = bool(coins, "models", settings.coinModels);
             }
+            JsonObject analytics = root.getAsJsonObject("analytics");
+            if (analytics == null) {
+                rewrite = true;
+            } else {
+                settings.analyticsEnabled = bool(analytics, "enabled", settings.analyticsEnabled);
+            }
         } catch (Exception e) {
             CharterCurrencyMod.LOG.warn("Could not read settings.json; using defaults", e);
             return settings;
@@ -271,6 +283,9 @@ public final class EconomySettings {
         JsonObject coins = new JsonObject();
         coins.addProperty("models", coinModels);
         root.add("coins", coins);
+        JsonObject analytics = new JsonObject();
+        analytics.addProperty("enabled", analyticsEnabled);
+        root.add("analytics", analytics);
 
         try {
             Files.createDirectories(file.getParent());

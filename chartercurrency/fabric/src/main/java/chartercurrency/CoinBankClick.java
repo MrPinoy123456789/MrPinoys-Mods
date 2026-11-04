@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.Denomination;
 import chartercurrency.core.TxResult;
@@ -71,6 +72,9 @@ final class CoinBankClick {
                 .append(ShopDisplay.coins(coin, result.actorBalance()))
                 .append(Messages.good(".")));
         s.log.tx(player.getName().getString() + " deposited " + marks + " coin by right-click ("
-                + count + " " + d.id() + ") (balance " + result.actorBalance() + ")");
+                + count + " " + d.id() + ") (balance " + result.actorBalance() + ")",
+                Analytics.Event.of(Analytics.DEPOSIT).player(player.getUUID(), player.getName().getString())
+                        .currency(Analytics.COIN).amount(marks).balanceAfter(result.actorBalance())
+                        .put("via", "right_click").put("denomination", d.id()).put("count", count));
     }
 }

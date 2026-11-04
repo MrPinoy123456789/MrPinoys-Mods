@@ -120,6 +120,9 @@ public final class CharterCurrencyMod implements ModInitializer {
         Services services = new Services(settings, currencies, economy, leaderboard, names, log,
                 treasury, book, mintService, kingdoms, sites);
         Services.current = services;
+        AnalyticsRecorder analytics = new AnalyticsRecorder(configDir, services, settings.analyticsEnabled);
+        services.analytics = analytics;
+        log.analytics = analytics;
         MintListener mintListener = new MintListener(services);
         mintListener.register();
         banksFile = new JsonStateFile<>(configDir, "banks.json", BankSites.File.class);
@@ -176,6 +179,7 @@ public final class CharterCurrencyMod implements ModInitializer {
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             loginSnapshot.tick(server, server.getTickCount());
+            analytics.tick(server);
             // Coin from an older release (other lore) would not stack with new coin, so
             // carried coin is brought up to date every few seconds. Unchanged stacks cost
             // one comparison each.
@@ -196,6 +200,7 @@ public final class CharterCurrencyMod implements ModInitializer {
             economy.shutdown();
             store.close();
             log.close();
+            analytics.close();
             playersFile.close();
             treasuryFile.close();
             kingdomsFile.close();
@@ -217,6 +222,7 @@ public final class CharterCurrencyMod implements ModInitializer {
                     treasury.totalSupply(), treasury.orgIds().size(), statsCommands.coinSupply());
             LOG.info("Charter Currency ready: {} shop entries, kingdoms from {}",
                     catalog.size(), kingdoms.activeName());
+            analytics.started(server);
         });
 
         LOG.info("Charter Currency initialised (server-side only)");

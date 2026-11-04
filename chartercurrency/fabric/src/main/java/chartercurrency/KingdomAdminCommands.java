@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
 import chartercurrency.core.Denomination;
@@ -330,7 +331,10 @@ final class KingdomAdminCommands {
                 + s.coin().describe(amount) + (add ? " to " : " from ") + org.get()
                 + ". Balance " + s.coin().describe(s.treasury.balance(org.get())) + "."), true);
         s.log.admin(op(ctx) + (add ? " added " : " removed ") + amount + " Marks "
-                + (add ? "to" : "from") + " the " + org.get() + " treasury");
+                + (add ? "to" : "from") + " the " + org.get() + " treasury",
+                Analytics.Event.of(Analytics.TREASURY_ADMIN).kingdom(org.get()).currency(Analytics.COIN)
+                        .amount(amount).balanceAfter(s.treasury.balance(org.get()))
+                        .put("delta", add ? amount : -amount).put("by", op(ctx)));
         return 1;
     }
 
@@ -379,7 +383,11 @@ final class KingdomAdminCommands {
                 online.sendSystemMessage(Messages.good("Received ").append(Messages.priced(coin, marks))
                         .append(Messages.good(" from the " + s.kingdoms.source().displayName(org.get()) + " treasury.")));
             }
-            s.log.admin(op(ctx) + " paid " + marks + " Marks from the " + org.get() + " treasury to " + who);
+            s.log.admin(op(ctx) + " paid " + marks + " Marks from the " + org.get() + " treasury to " + who,
+                    Analytics.Event.of(Analytics.TREASURY_PAY).player(target.get(), who).kingdom(org.get())
+                            .currency(Analytics.COIN).amount(marks).balanceAfter(s.treasury.balance(org.get()))
+                            .put("to", "bank").put("playerBalanceAfter", s.economy.getBalance(target.get(), coin))
+                            .put("by", op(ctx)));
             return 1;
         }
 
@@ -412,7 +420,10 @@ final class KingdomAdminCommands {
                 .append(Messages.good(" from the " + s.kingdoms.source().displayName(org.get()) + " treasury.")));
         source.sendSuccess(() -> Messages.good("Handed " + coin.describe(marks) + " from " + org.get()
                 + " to " + who + "."), true);
-        s.log.admin(op(ctx) + " gave " + marks + " Marks of coin from the " + org.get() + " treasury to " + who);
+        s.log.admin(op(ctx) + " gave " + marks + " Marks of coin from the " + org.get() + " treasury to " + who,
+                Analytics.Event.of(Analytics.TREASURY_GIVE).player(target.get(), who).kingdom(org.get())
+                        .currency(Analytics.COIN).amount(marks).balanceAfter(s.treasury.balance(org.get()))
+                        .put("to", "inventory").put("by", op(ctx)));
         return 1;
     }
 }

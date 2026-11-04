@@ -640,12 +640,17 @@ this file is ignored.
   "timezone": "",
   "mint": { "softCapIngots": 320, "falloffEvery": 320 },
   "coins": { "models": false },
+  "analytics": { "enabled": true },
   "shop": { "confirmAt": { "coin": 20480, "valor": 100 } }
 }
 ```
 
 `coins.models` turns on the coin looks (section 4.1). Leave it off until the resource
 pack with the coin models is live.
+
+`analytics.enabled` (default on) writes the analytics files of section 10.1. Off, no
+analytics file is written. An older `settings.json` without the block gets it written
+in at load, as the `coins` block was.
 
 ## 10. State and logs
 
@@ -655,8 +660,73 @@ pack with the coin models is live.
 | `players.json` | Per player: mint state and tax counters, per-source soft cap remaining, Renown generated today, last resolved kingdom and since when, last reset day |
 | `kingdoms_state.json` | Per kingdom and Commons: Renown balance, lifetime earned, bought catalog keys; per kingdom: coin treasury in Marks, lifetime Mint tax collected; one ledger for both |
 | `transactions.log` | Append-only: every deposit, withdraw, pay, purchase, strike, earn and Renown purchase, with actor and amounts |
+| `analytics/events-YYYY-MM-DD.jsonl` | One JSON line for every movement `transactions.log` records (section 10.1) |
+| `analytics/snapshots.jsonl` | One JSON line a day: supply, concentration, flows, Valor, treasuries, shop sales (section 10.1) |
 
 Write all state files the same way the fork writes `accounts.json`.
+
+### 10.1 Analytics (owner, 2026-11-04)
+
+`transactions.log` is free text for a person to read. Analytics is the same history
+for a program to read. It is additive: `transactions.log` writes exactly what it
+wrote before. Both files are written from a background queue; a failure to write is
+logged once and never reaches gameplay. The pure part (line format, snapshot maths,
+the day's flows) is `core/Analytics`, under test.
+
+**Event lines.** `analytics/events-YYYY-MM-DD.jsonl`, the day taken in the
+`settings.json` timezone. Every line starts with the same fields:
+
+| Field | Meaning |
+|---|---|
+| `ts` | Epoch milliseconds |
+| `type` | One of the types below |
+| `player`, `name` | UUID and name of the player the movement belongs to, when there is one |
+| `kingdom` | The kingdom: the treasury's, the Mint tax's, or the player's at that moment; `null` for none |
+| `currency` | `coin`, `valor`, `renown`, or `compound` for a shop price in several currencies |
+| `amount` | Marks for coin (canonical; 64 Marks are a Gold Sovereign), the currency's own unit otherwise |
+| `balanceAfter` | Where known: the player's bank balance, or for a treasury event the treasury's |
+
+| `type` | From | Extra fields |
+|---|---|---|
+| `strike` | The Mint | `denomination`, `ingots`, `coinsStruck`, `coinsToPlayer`, `coinsBanked` (pockets full), `coinsToKingdom`, `taxMarks`, `taxKept` (false: no kingdom, the tax is destroyed) |
+| `deposit`, `withdraw` | `/bank`, right-click deposit | `via`, `change`, `denomination`, `count` |
+| `pay` | `/pay` | `to`, `toName`, `toBalanceAfter` |
+| `shop_purchase` | The shop | `item` (listing key), `itemId`, `quantity` (items per purchase), `price` (currency to amount for one purchase) |
+| `treasury_deposit`, `treasury_withdraw` | `/treasury` | `change` |
+| `treasury_pay`, `treasury_give` | `/chartercurrency treasury pay\|give` | `to`, `playerBalanceAfter`, `by` |
+| `treasury_admin` | `/chartercurrency treasury add\|remove` | `delta`, `by` |
+| `charter_charge`, `charter_credit` | Charter charging or crediting a treasury or a wallet | `from` or `to`, `reason` |
+| `admin_balance` | `/chartercurrency set\|add\|remove` | `op`, `delta` (the actual change, so `set` is measurable), `by` |
+| `valor_earn` | `/chartercurrency earn` | `source`, `level`, `run`, `valorRaw`, `halved`, `hardCapped`, `renown`, `renownTo`, `outcome` |
+| `renown_buy`, `renown_admin` | The Renown catalogue, `/chartercurrency renown add\|remove` | `item`, or `delta` and `by` |
+
+Renown is not coin or Valor; its two types are included because the same log lines
+carry them.
+
+**Snapshots.** `analytics/snapshots.jsonl` gets one line at each day rollover, for
+the day that ended (`"reason": "rollover"`), and one at startup when the file has no
+line for today yet (`"reason": "startup"`). A server that was down over midnight
+writes no rollover line for that night. Each line:
+
+- `coin`: `banked`, `treasuries`, `carriedOnline` and `onlinePlayers`, `counted` (their
+  sum), and `carriedNote`. Carried coin is counted for players online at that moment
+  only, from their main 36 slots; offline players' coin and coin in chests are never
+  counted, and the line says so.
+- `today`: `minted`, `taxCollected` and `taxDestroyed` from the players' daily totals in
+  `players.json` (kept whether or not analytics is on); `created` and `createdBy`
+  (`mint`, `charter`, `admin`); `destroyed` and `destroyedBy` (`mintTax`, `shop`,
+  `charter`, `admin`); `eventLines`, how many event lines the day had. Everything but
+  the Mint numbers comes from that day's event lines, so it counts only what was
+  logged while analytics was on.
+- `accounts` (accounts holding banked coin), `top` (the ten largest banked balances:
+  uuid, name, Marks), `concentration` (`topMarks`, `topShare` of all banked coin, and
+  the Gini coefficient over banked balances).
+- `valor`: `inAccounts`, `earned`, `earnedBySource`.
+- `kingdoms`: per treasury, `id`, `name`, `treasury`, lifetime `taxCollected`, `renown`.
+- `shop`: per listing sold that day, `purchases`, `items`, `revenue` by currency.
+
+`/chartercurrency stats history [days]` prints the last snapshot lines, coin in Gold
+Sovereigns first with Marks in brackets.
 
 ## 11. Admin commands (op level 2, `Commands.LEVEL_GAMEMASTERS`)
 
@@ -673,6 +743,7 @@ Write all state files the same way the fork writes `accounts.json`.
 | `/chartercurrency mint bind\|unbind\|list` | Section 8.1 |
 | `/chartercurrency shop ...` | The fork's shop admin and editor |
 | `/chartercurrency stats` | Coin supply (banked plus a note that carried coin is not counted), Marks minted today and this week, Mint tax collected and destroyed, Valor earned today by source, Renown and treasury by kingdom |
+| `/chartercurrency stats history [days]` | The last snapshot lines (default 7, at most 60), coin in Gold Sovereigns with Marks in brackets (section 10.1) |
 | `/chartercurrency reload` | Reload every config except accounts |
 
 Every admin action is logged with the operator's name. The startup log prints
@@ -704,6 +775,11 @@ Keep every forked test passing under the new names, then add:
   fork's multi-thread pattern).
 - **Concurrency:** eight threads awarding to one kingdom never lose or duplicate
   Renown.
+- **Analytics:** the event line shape and field order; a kingdom the event names
+  wins over the looked up one; escaping; concentration (equal balances, a known
+  Gini, the top ten of twelve, no coin); the top list; the day's flows (shop sales,
+  compound prices, what is created and destroyed, transfers ignored); the snapshot
+  line; Marks shown as Sovereigns.
 
 ## 13. Optional change in Pocket Dungeons (ask the owner first)
 

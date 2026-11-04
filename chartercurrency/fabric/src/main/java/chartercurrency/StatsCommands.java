@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.EarnService;
 import chartercurrency.core.MintService;
@@ -7,7 +8,9 @@ import chartercurrency.core.ShopCatalog;
 import chartercurrency.core.ShopEntry;
 import chartercurrency.core.Treasury;
 import chartercurrency.core.Wallet;
+import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -40,7 +43,10 @@ final class StatsCommands {
     void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("chartercurrency")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                .then(Commands.literal("stats").executes(this::stats))
+                .then(Commands.literal("stats").executes(this::stats)
+                        .then(Commands.literal("history").executes(ctx -> history(ctx, 7))
+                                .then(Commands.argument("days", IntegerArgumentType.integer(1, 60))
+                                        .executes(ctx -> history(ctx, IntegerArgumentType.getInteger(ctx, "days"))))))
                 .then(Commands.literal("reload").executes(this::reload)));
     }
 
@@ -100,6 +106,74 @@ final class StatsCommands {
         return 1;
     }
 
+    /**
+     * {@code /chartercurrency stats history [days]}: the last snapshot lines from
+     * {@code analytics/snapshots.jsonl}, two lines each. Coin is quoted in Gold Sovereigns
+     * first, with Marks in brackets.
+     */
+    private int history(CommandContext<CommandSourceStack> ctx, int count) {
+        CommandSourceStack source = ctx.getSource();
+        if (s.analytics == null) {
+            source.sendFailure(Messages.bad("Analytics is not running."));
+            return 0;
+        }
+        List<JsonObject> lines;
+        try {
+            lines = s.analytics.history(count);
+        } catch (java.io.IOException | RuntimeException e) {
+            CharterCurrencyMod.LOG.warn("Could not read the analytics snapshots", e);
+            source.sendFailure(Messages.bad("Could not read analytics/snapshots.jsonl; see the server log."));
+            return 0;
+        }
+        source.sendSuccess(Messages::rule, false);
+        source.sendSuccess(() -> Messages.title("CHARTER CURRENCY HISTORY"), false);
+        if (lines.isEmpty()) {
+            String why = s.analytics.enabled() ? "No snapshot yet. One is taken at startup and at each new day."
+                    : "No snapshot yet, and analytics is off in settings.json.";
+            source.sendSuccess(() -> Messages.body(why), false);
+        }
+        source.sendSuccess(() -> Messages.body("Sovereigns first, Marks in brackets. Carried coin counts online players only."), false);
+        for (JsonObject line : lines) {
+            String day = text(line, "day") + ("startup".equals(text(line, "reason")) ? ", at startup" : ", end of day");
+            JsonObject coin = line.getAsJsonObject("coin");
+            JsonObject today = line.getAsJsonObject("today");
+            JsonObject conc = line.getAsJsonObject("concentration");
+            JsonObject valor = line.getAsJsonObject("valor");
+            String first = day + ": " + coin(num(coin, "counted")) + " counted. Banked " + coin(num(coin, "banked"))
+                    + ", treasuries " + coin(num(coin, "treasuries")) + ", carried by " + num(coin, "onlinePlayers")
+                    + " online " + coin(num(coin, "carriedOnline")) + ".";
+            long sales = 0;
+            JsonObject shop = line.getAsJsonObject("shop");
+            if (shop != null) {
+                for (var e : shop.entrySet()) sales += num(e.getValue().getAsJsonObject(), "purchases");
+            }
+            double share = conc == null || !conc.has("topShare") ? 0 : conc.get("topShare").getAsDouble();
+            double gini = conc == null || !conc.has("gini") ? 0 : conc.get("gini").getAsDouble();
+            String second = "  Minted " + coin(num(today, "minted")) + ", destroyed " + coin(num(today, "destroyed"))
+                    + ", tax " + coin(num(today, "taxCollected")) + ". " + num(line, "accounts") + " accounts; top 10 hold "
+                    + String.format(java.util.Locale.ROOT, "%.1f", share * 100) + "%, Gini "
+                    + String.format(java.util.Locale.ROOT, "%.2f", gini) + ". Shop: " + sales + " sales. Valor earned "
+                    + Wallet.format(num(valor, "earned")) + ".";
+            source.sendSuccess(() -> Messages.body(first), false);
+            source.sendSuccess(() -> Messages.body(second), false);
+        }
+        source.sendSuccess(Messages::rule, false);
+        return 1;
+    }
+
+    /** Marks as {@code 1,234.5 Sovereigns (79,008 Marks)}. */
+    private static String coin(long marks) {
+        return Analytics.sovereigns(marks) + " Sovereigns (" + Wallet.format(marks) + " Marks)";
+    }
+
+    private static long num(JsonObject o, String key) {
+        return o != null && o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsLong() : 0;
+    }
+
+    private static String text(JsonObject o, String key) {
+        return o != null && o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : "?";
+    }
+
     /** Reload everything except accounts.json and the coin denominations. */
     private int reload(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();
@@ -108,6 +182,8 @@ final class StatsCommands {
             s.settings.timezone = fresh.timezone;
             s.settings.mint = fresh.mint;
             s.settings.coinModels = fresh.coinModels;
+            s.settings.analyticsEnabled = fresh.analyticsEnabled;
+            if (s.analytics != null) s.analytics.setEnabled(fresh.analyticsEnabled);
             CoinStacks.models = fresh.coinModels;
             s.settings.shop.confirmAt = fresh.shop.confirmAt;
             s.mint.setRules(fresh.mint);

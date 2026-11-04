@@ -91,6 +91,7 @@ public final class EconomyTest {
         purchasing();
         leaderboards();
         leaderboardMultiCurrency();
+        analytics();
 
         System.out.println();
         for (String f : failures) System.out.println("FAIL  " + f);
@@ -1670,6 +1671,119 @@ public final class EconomyTest {
         pool.shutdown();
         try { pool.awaitTermination(60, TimeUnit.SECONDS); }
         catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
+    }
+
+    // ---- analytics -------------------------------------------------------------
+
+    private static java.util.Map<String, Object> ev(Object... kv) {
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < kv.length; i += 2) m.put((String) kv[i], kv[i + 1]);
+        return m;
+    }
+
+    private static void analytics() {
+        section("Analytics");
+        UUID who = UUID.fromString("00000000-0000-0000-0000-00000000000a");
+
+        // The line shape.
+        String line = Analytics.Event.of(Analytics.SHOP_PURCHASE).player(who, "Al \"Q\"")
+                .currency("coin").amount(640).balanceAfter(1000).put("item", "gold_ingot")
+                .put("quantity", 1).put("price", java.util.Map.of("coin", 640L)).toJson(1234L, "kingdom:red");
+        check("an event line starts with ts, type, player, name and kingdom",
+                line.startsWith("{\"ts\":1234,\"type\":\"shop_purchase\",\"player\":\"" + who
+                        + "\",\"name\":\"Al \\\"Q\\\"\",\"kingdom\":\"kingdom:red\","));
+        check("an event line carries currency, amount, balanceAfter and its own fields",
+                line.contains("\"currency\":\"coin\",\"amount\":640,\"balanceAfter\":1000,\"item\":\"gold_ingot\"")
+                        && line.contains("\"price\":{\"coin\":640}") && line.endsWith("}"));
+        check("an event line is one line", !line.contains("\n"));
+        String tax = Analytics.Event.of(Analytics.STRIKE).player(who, "Al").kingdom(null).amount(5)
+                .toJson(1L, "kingdom:ignored");
+        check("a kingdom the event names wins over the looked up one, even none",
+                tax.contains("\"kingdom\":null") && !tax.contains("ignored"));
+        check("control characters are escaped",
+                Analytics.json(java.util.Map.of("k", "a\tb\u0001")).equals("{\"k\":\"a\\tb\\u0001\"}"));
+        check("the day's event file is named by date",
+                Analytics.eventFile(java.time.LocalDate.of(2026, 11, 4)).equals("events-2026-11-04.jsonl"));
+
+        // Concentration.
+        Analytics.Concentration even = Analytics.concentration(List.of(10L, 10L, 10L, 10L));
+        check("equal balances have a Gini of 0 and the top hold everything",
+                even.gini() == 0 && even.topShare() == 1.0 && even.accounts() == 4 && even.total() == 40);
+        check("a Gini of 1 and 3 is 0.25", Analytics.concentration(List.of(3L, 1L)).gini() == 0.25);
+        Analytics.Concentration none = Analytics.concentration(List.of(0L, 0L));
+        check("no coin anywhere is all zeros", none.accounts() == 0 && none.gini() == 0 && none.topShare() == 0);
+        List<Long> twelve = new ArrayList<>();
+        for (int i = 0; i < 11; i++) twelve.add(10L);
+        twelve.add(1000L);
+        Analytics.Concentration c12 = Analytics.concentration(twelve);
+        check("the top ten of twelve hold 1090 of 1110", c12.topMarks() == 1090 && c12.topShare() == 0.982);
+        check("one large holder among small ones pushes the Gini up", c12.gini() > 0.8 && c12.gini() < 1);
+
+        List<Analytics.Holding> holdings = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            holdings.add(new Analytics.Holding(new UUID(0, i), "p" + (char) ('a' + i), i == 3 ? 0 : 100 + (i % 3)));
+        }
+        List<Analytics.Holding> top = Analytics.top(holdings);
+        check("the top list has ten, largest first, no empty accounts",
+                top.size() == 10 && top.get(0).marks() == 102 && top.get(9).marks() == 100
+                        && top.stream().noneMatch(h -> h.marks() == 0));
+        check("ties in the top list go by name", top.get(0).name().equals("pc") && top.get(1).name().equals("pf"));
+
+        // The day's flows.
+        Analytics.DayFlows flows = new Analytics.DayFlows();
+        flows.add(ev("type", "shop_purchase", "currency", "coin", "amount", 640L, "item", "gold_ingot",
+                "quantity", 1L, "price", ev("coin", 640L)));
+        flows.add(ev("type", "shop_purchase", "currency", "coin", "amount", 640L, "item", "gold_ingot",
+                "quantity", 1L, "price", ev("coin", 640L)));
+        flows.add(ev("type", "shop_purchase", "currency", "compound", "item", "helm", "quantity", 1L,
+                "price", ev("coin", 100L, "valor", 50L)));
+        flows.add(ev("type", "charter_charge", "currency", "coin", "amount", 2048L));
+        flows.add(ev("type", "charter_credit", "currency", "coin", "amount", 256L));
+        flows.add(ev("type", "admin_balance", "currency", "coin", "amount", 10L, "delta", -30L));
+        flows.add(ev("type", "admin_balance", "currency", "coin", "amount", 500L, "delta", 500L));
+        flows.add(ev("type", "admin_balance", "currency", "valor", "amount", 9L, "delta", 9L));
+        flows.add(ev("type", "treasury_admin", "currency", "coin", "amount", 70L, "delta", -70L));
+        flows.add(ev("type", "deposit", "currency", "coin", "amount", 999L));
+        flows.add(ev("type", "pay", "currency", "coin", "amount", 999L));
+        Analytics.DayFlows.Sales ingots = flows.shop.get("gold_ingot");
+        check("shop sales count purchases, items and revenue per listing",
+                ingots != null && ingots.purchases == 2 && ingots.items == 2 && ingots.revenue.get("coin") == 1280);
+        check("a compound price counts in each of its currencies",
+                flows.shop.get("helm").revenue.get("coin") == 100 && flows.shop.get("helm").revenue.get("valor") == 50);
+        check("coin spent in the shop, charged by Charter or removed by an admin is destroyed",
+                flows.destroyed.get("shop") == 1380 && flows.destroyed.get("charter") == 2048
+                        && flows.destroyed.get("admin") == 100);
+        check("coin credited by Charter or added by an admin is created; Valor is not coin",
+                flows.created.get("charter") == 256 && flows.created.get("admin") == 500);
+        check("deposits and payments only move coin", flows.events == 11 && flows.created.size() == 2);
+
+        // The snapshot line.
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 11, 3);
+        Analytics.SnapshotInput input = new Analytics.SnapshotInput(99L, day, "rollover", 64_000, 12_800, 2_208, 3,
+                List.of(new Analytics.Holding(who, "Al", 64_000)), 3_200, 640, 128, 700,
+                java.util.Map.of("dungeon", 230L), List.of(new Analytics.KingdomRow("kingdom:red", "Red", 12_800, 640, 5)));
+        String snap = Analytics.snapshot(input, flows);
+        check("a snapshot names its day and why it was taken",
+                snap.startsWith("{\"ts\":99,\"day\":\"2026-11-03\",\"reason\":\"rollover\""));
+        check("a snapshot says offline carried coin is not counted",
+                snap.contains("\"carriedOnline\":2208") && snap.contains("offline players") && snap.contains("\"counted\":79008"));
+        check("a snapshot adds the Mint to what the events created and its lost tax to what they destroyed",
+                snap.contains("\"created\":3956") && snap.contains("\"mint\":3200")
+                        && snap.contains("\"destroyed\":3656") && snap.contains("\"mintTax\":128"));
+        check("a snapshot lists the top balances, concentration, Valor, kingdoms and shop",
+                snap.contains("\"accounts\":1") && snap.contains("\"top\":[{\"player\":\"" + who + "\",\"name\":\"Al\",\"marks\":64000}]")
+                        && snap.contains("\"topShare\":1") && snap.contains("\"earned\":230")
+                        && snap.contains("\"id\":\"kingdom:red\",\"name\":\"Red\",\"treasury\":12800")
+                        && snap.contains("\"gold_ingot\":{\"purchases\":2,\"items\":2,\"revenue\":{\"coin\":1280}}"));
+        check("a day with no event lines still snapshots", Analytics.snapshot(input, new Analytics.DayFlows())
+                .contains("\"created\":3200"));
+
+        // Sovereigns.
+        check("Marks read as Sovereigns",
+                Analytics.sovereigns(64).equals("1") && Analytics.sovereigns(79_008).equals("1,234.5")
+                        && Analytics.sovereigns(96).equals("1.5") && Analytics.sovereigns(1).equals("0.02")
+                        && Analytics.sovereigns(127).equals("1.98") && Analytics.sovereigns(0).equals("0")
+                        && Analytics.sovereigns(640).equals("10"));
     }
 
     private static void section(String name) {

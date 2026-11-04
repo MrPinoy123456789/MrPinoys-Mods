@@ -50,14 +50,34 @@ public final class TransactionLog {
         writerThread.start();
     }
 
+    /** Where the same movements go as analytics lines (SPEC section 10); null until wired. */
+    volatile AnalyticsRecorder analytics;
+
     /** A normal player-initiated movement. */
     public void tx(String message) {
         write("[Economy] " + message);
     }
 
+    /** The same, with its analytics line. The text written here does not change. */
+    public void tx(String message, chartercurrency.core.Analytics.Event event) {
+        tx(message);
+        recordAnalytics(event);
+    }
+
     /** An operator changing balances directly. Kept visually distinct on purpose. */
     public void admin(String message) {
         write("[Economy/Admin] " + message);
+    }
+
+    /** The same, with its analytics line. The text written here does not change. */
+    public void admin(String message, chartercurrency.core.Analytics.Event event) {
+        admin(message);
+        recordAnalytics(event);
+    }
+
+    private void recordAnalytics(chartercurrency.core.Analytics.Event event) {
+        AnalyticsRecorder recorder = analytics;
+        if (recorder != null) recorder.record(event);
     }
 
     private void write(String line) {

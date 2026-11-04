@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.Denomination;
 import chartercurrency.core.Mint;
@@ -213,6 +214,14 @@ final class MintListener {
                 + " Marks, " + plan.ingotsUsed() + " ingots); to player " + plan.coinsToPlayer()
                 + (banked > 0 ? " (" + banked + " banked, pockets full)" : "")
                 + ", tax " + plan.marksToKingdom() + " Marks to "
-                + (kingdom == null ? "nobody (destroyed)" : kingdom));
+                + (kingdom == null ? "nobody (destroyed)" : kingdom),
+                Analytics.Event.of(Analytics.STRIKE).player(player.getUUID(), actor).kingdom(kingdom)
+                        .currency(Analytics.COIN).amount(plan.marksStruck())
+                        .balanceAfter(s.economy.getBalance(player.getUUID(), coin))
+                        .put("denomination", d.id()).put("ingots", plan.ingotsUsed())
+                        .put("coinsStruck", plan.coinsStruck()).put("coinsToPlayer", plan.coinsToPlayer())
+                        .put("coinsBanked", banked).put("coinsToKingdom", plan.coinsToKingdom())
+                        .put("taxMarks", plan.marksToKingdom())
+                        .put("taxKept", kingdom != null && paid > 0));
     }
 }

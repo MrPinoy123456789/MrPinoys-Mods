@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.EconomyService;
 import chartercurrency.core.Shop;
@@ -77,7 +78,7 @@ final class ShopPurchase {
 
         if (result.ok()) {
             log.tx(player.getName().getString() + " purchased " + entry.quantity()
-                    + " " + entry.key() + " for " + entry.describePrice());
+                    + " " + entry.key() + " for " + entry.describePrice(), purchaseEvent(player, entry));
             grantOnboarding(player);
         }
 
@@ -85,6 +86,26 @@ final class ShopPurchase {
             announce(economy, player, entry, result);
         }
         return result;
+    }
+
+    /**
+     * The analytics line for a purchase: the listing, how many items it delivers, and what
+     * was paid in each currency. A single currency price is also the line's currency and
+     * amount, so a coin purchase reads like every other coin line.
+     */
+    static Analytics.Event purchaseEvent(ServerPlayer player, ShopEntry entry) {
+        java.util.Map<String, Long> price = new java.util.LinkedHashMap<>();
+        entry.price().forEach((currency, amount) -> price.put(currency.id(), amount));
+        Analytics.Event event = Analytics.Event.of(Analytics.SHOP_PURCHASE)
+                .player(player.getUUID(), player.getName().getString());
+        if (price.size() == 1) {
+            var only = price.entrySet().iterator().next();
+            event.currency(only.getKey()).amount(only.getValue());
+        } else {
+            event.currency("compound");
+        }
+        return event.put("item", entry.key()).put("itemId", entry.itemId())
+                .put("quantity", entry.quantity()).put("price", price);
     }
 
     /** First purchase only -- {@code award} is a no-op once the criterion is already met. */

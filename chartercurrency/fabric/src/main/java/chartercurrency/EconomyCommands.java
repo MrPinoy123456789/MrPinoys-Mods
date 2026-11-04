@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -344,7 +345,10 @@ public final class EconomyCommands {
         if (all && only == null) plainNuggetNote(source, player);
         log.tx(player.getName().getString() + " deposited " + credited + " coin"
                 + (plan.change() > 0 ? " (change " + plan.change() + ")" : "")
-                + " (balance " + balance + ")");
+                + " (balance " + balance + ")",
+                Analytics.Event.of(Analytics.DEPOSIT).player(player.getUUID(), player.getName().getString())
+                        .currency(Analytics.COIN).amount(credited).balanceAfter(balance)
+                        .put("via", "command").put("change", plan.change()));
         return 1;
     }
 
@@ -449,7 +453,9 @@ public final class EconomyCommands {
                 .append(Messages.good(".")), false);
         source.sendSuccess(() -> Messages.balanceLine(coin, result.actorBalance()), false);
         log.tx(player.getName().getString() + " withdrew " + marks + " coin"
-                + " (balance " + result.actorBalance() + ")");
+                + " (balance " + result.actorBalance() + ")",
+                Analytics.Event.of(Analytics.WITHDRAW).player(player.getUUID(), player.getName().getString())
+                        .currency(Analytics.COIN).amount(marks).balanceAfter(result.actorBalance()));
         return 1;
     }
 
@@ -526,7 +532,11 @@ public final class EconomyCommands {
                     + " is offline; the funds have been deposited into their bank."), false);
         }
 
-        log.tx(sender.getName().getString() + " paid " + display + " " + amount + " coin");
+        log.tx(sender.getName().getString() + " paid " + display + " " + amount + " coin",
+                Analytics.Event.of(Analytics.PAY).player(sender.getUUID(), sender.getName().getString())
+                        .currency(Analytics.COIN).amount(amount).balanceAfter(result.actorBalance())
+                        .put("to", targetId.toString()).put("toName", display)
+                        .put("toBalanceAfter", result.targetBalance()));
         return 1;
     }
 
