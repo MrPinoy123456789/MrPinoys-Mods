@@ -60,6 +60,30 @@ public final class NewcomerPages {
         return false;
     }
 
+    /** Players who were shown the join title since they last logged in; cleared on disconnect. */
+    private static final java.util.Set<java.util.UUID> TITLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Forget a player who left, so the next login shows the title again. */
+    public static void forgetTitle(java.util.UUID player) {
+        TITLED.remove(player);
+    }
+
+    /**
+     * Once per session, a player in no kingdom is told where to start. A title reaches Bedrock; chat lines may not.
+     * Returns whether a title was sent.
+     */
+    public static boolean welcomeTitle(ServerPlayer player) {
+        if (!CharterServer.running()) return false;
+        if (rt().state.membership(me(player)).isPresent()) return false;
+        if (!TITLED.add(player.getUUID())) return false;
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(10, 80, 20));
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
+                Component.literal(Text.get("join.subtitle")).withStyle(ChatFormatting.YELLOW)));
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                Component.literal(Text.get("join.title")).withStyle(ChatFormatting.GOLD)));
+        return true;
+    }
+
     // ---- Home ----
 
     /** Invitations shown as their own button on Home; with more, one "Invitations (N)" button opens Needs you. */
@@ -169,7 +193,8 @@ public final class NewcomerPages {
         if (!alone(player)) return;
         CharterRuntime rt = rt();
         List<Organization> orgs = rt.state.orgs().stream().filter(o -> o.isTopLevel() && o.exists() && !o.npc && !o.adminKingdom)
-                .sorted(Comparator.comparingInt((Organization o) -> rt.state.members(o.id).size()).reversed()).toList();
+                .sorted(Comparator.comparingInt((Organization o) -> rt.state.members(o.id).size())
+                        .thenComparing(Organization::name)).toList();
         List<net.minecraft.network.chat.Component> body = new ArrayList<>();
         List<BookButton> buttons = new ArrayList<>();
         if (orgs.isEmpty()) {
@@ -178,12 +203,42 @@ public final class NewcomerPages {
         }
         for (Organization org : orgs.stream().limit(FACTIONS_MAX).toList()) {
             OrgId id = org.id;
-            String label = Text.get("book.join.entry", "org", BookDialogs.clip(org.name(), 10), "race", BookDialogs.clip(org.raceLabel(), 8));
+            String label = chooserLabel(org.name(), org.raceLabel(), rt.state.members(id).size());
             buttons.add(go(player, label, p -> faction(p, id, null)).icon(BookIcons.FACTION));
         }
         if (orgs.size() > FACTIONS_MAX) body.add(BookDialogs.text(Text.get("book.join.more")));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.join.title"), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> home(p, null))));
+    }
+
+    /** Longest button label that fits a phone dialog (Bedrock). */
+    static final int LABEL_MAX = 24;
+
+    /** "Azrak, the Dwarf (5)": the kingdom, its race and its member count, never longer than {@link #LABEL_MAX}. */
+    public static String chooserLabel(String name, String race, int members) {
+        int orgMax = 10, raceMax = 8;
+        String label = Text.get("book.join.entry", "org", BookDialogs.clip(name, orgMax), "race", BookDialogs.clip(race, raceMax),
+                "members", members);
+        while (label.length() > LABEL_MAX && (orgMax > 4 || raceMax > 4)) {
+            if (orgMax >= raceMax && orgMax > 4) orgMax--; else raceMax--;
+            label = Text.get("book.join.entry", "org", BookDialogs.clip(name, orgMax), "race", BookDialogs.clip(race, raceMax),
+                    "members", members);
+        }
+        return label;
+    }
+
+    /** Lowercase letters and digits of a race name: the suffix of its {@code race.traits.<slug>} key. */
+    public static String raceSlug(String race) {
+        return race == null ? "" : race.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    }
+
+    /** The names of the kingdom's Lords (the holders of its deciding office), in seat order. */
+    public static List<String> lordNames(CharterRuntime rt, OrgId id) {
+        List<String> names = new ArrayList<>();
+        charter.gov.Deciders.of(rt.state, id).ifPresent(office -> {
+            for (charter.gov.Office.Seat seat : office.holders()) names.add(rt.describe.player(seat.player()));
+        });
+        return names;
     }
 
     private static String formText(Standing.Form form) {
@@ -209,10 +264,17 @@ public final class NewcomerPages {
         Standing.View v = Standing.asNewcomer(rt.state, rt.engine, id, now);
         Organization org = rt.state.org(id).orElseThrow();
         List<net.minecraft.network.chat.Component> body = new ArrayList<>();
-        long keeps = rt.state.coresOf(id).stream().filter(c -> c.isKeep()).count();
-        body.add(BookDialogs.text(Component.literal(Text.get("book.join.about", "form", formText(v.form()),
-                "members", rt.state.members(id).size(), "keeps", keeps)).withStyle(ChatFormatting.GOLD)));
-        body.add(BookDialogs.text(Text.get(org.mixedRace ? "book.freedoms.mixed_open" : "book.freedoms.mixed_closed",
+        int members = rt.state.members(id).size();
+        List<String> lords = lordNames(rt, id);
+        String joined = String.join(Text.get("book.and"), lords);
+        String about = lords.isEmpty() ? Text.get("book.join.about_none", "org", org.name(), "race", org.raceLabel(), "members", members)
+                : lords.size() > 1 ? Text.get("book.join.about_two", "org", org.name(), "race", org.raceLabel(),
+                        "form", formText(v.form()), "rulers", joined, "members", members)
+                : Text.get("book.join.about", "org", org.name(), "race", org.raceLabel(), "rulers", joined, "members", members);
+        body.add(BookDialogs.text(Component.literal(about).withStyle(ChatFormatting.GOLD)));
+        String trait = "race.traits." + raceSlug(org.raceLabel());
+        if (Text.has(trait)) body.add(BookDialogs.text(Text.get(trait)));
+        body.add(BookDialogs.text(Text.get(org.mixedRace ? "book.freedoms.mixed_open" : "book.join.race_for_good",
                 "org", org.name(), "race", org.raceLabel())));
         // Say plainly what a member can and cannot do about their ruler.
         String rule = Text.get(v.form() == Standing.Form.COMMUNE ? "book.join.commune_rule"
@@ -223,11 +285,19 @@ public final class NewcomerPages {
             rule += " " + Text.get("book.join.waiting");
         } else if (asked.isEmpty()) {
             buttons.add(go(player, Text.get("book.button.ask"), p -> BookRouter.run(p, new Apply(me(p), id),
-                    line -> faction(p, id, BookResult.of(line, Text.get("book.join.asked", "org", rt.describe.org(id)))))).icon(BookIcons.JOIN));
+                    line -> faction(p, id, BookResult.of(line, askedText(rt, id))))).icon(BookIcons.JOIN));
         }
         body.add(BookDialogs.text(rule));
         BookDialogs.show(player, BookDialogs.list(v.orgName(), lines(notice, body), buttons,
                 BookDialogs.back(player, p -> join(p, null))));
+    }
+
+    /** What a player is told after asking: the kingdom and who must say yes, by name. */
+    public static String askedText(CharterRuntime rt, OrgId id) {
+        List<String> lords = lordNames(rt, id);
+        String org = rt.describe.org(id);
+        return lords.isEmpty() ? Text.get("book.join.asked_none", "org", org)
+                : Text.get("book.join.asked", "org", org, "lords", String.join(Text.get("book.and"), lords));
     }
 
     // ---- Found your own ----
