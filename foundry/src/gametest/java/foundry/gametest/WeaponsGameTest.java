@@ -660,4 +660,34 @@ public final class WeaponsGameTest {
         helper.assertTrue(player.getInventory().countItem(item("kingdoms:azrak_pick_1")) == 1, "handing back twice does not duplicate it");
         helper.succeed();
     }
+
+    /** Bramble Burst roots and poisons every creature around where it lands; a Fae standing in it is spared. */
+    @GameTest
+    @SuppressWarnings("removal")
+    public void aBrambleBurstRootsEveryEnemyAroundAndSparesTheFae(GameTestHelper helper) {
+        var caster = holder(helper, "kingdoms:faeloria_staff_1");
+        Mob struck = (Mob) helper.spawn(EntityTypes.PIG, 3, 2, 5);   // not undead: poison passes the undead by
+        Mob beside = (Mob) helper.spawn(EntityTypes.PIG, 5, 2, 5);
+        struck.setNoAi(true);
+        beside.setNoAi(true);
+        var fae = helper.makeMockServerPlayerInLevel();
+        fae.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        fae.connection.handleAcceptPlayerLoad(new net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket());
+        var at = helper.absoluteVec(new net.minecraft.world.phys.Vec3(3.5, 2, 6.5));
+        fae.snapTo(at.x, at.y, at.z, 0f, 0f);
+        TestPerms.grant(fae, "race:faeloria");
+        float struckBefore = struck.getHealth(), besideBefore = beside.getHealth(), faeBefore = fae.getHealth();
+        helper.assertTrue(foundry.mc.MechanicHost.strike("bramble", caster, struck), "the burst ran");
+        helper.assertTrue(struckBefore - struck.getHealth() >= 5.9f && besideBefore - beside.getHealth() >= 5.9f,
+                "both pigs take the full 6, they lost " + (struckBefore - struck.getHealth()) + " and "
+                        + (besideBefore - beside.getHealth()));
+        for (Mob m : List.of(struck, beside)) {
+            helper.assertTrue(m.hasEffect(MobEffects.POISON) && m.hasEffect(MobEffects.SLOWNESS)
+                    && m.getEffect(MobEffects.SLOWNESS).getAmplifier() == 3, "both are poisoned and rooted");
+        }
+        helper.assertTrue(fae.getHealth() == faeBefore && !fae.hasEffect(MobEffects.SLOWNESS) && !fae.hasEffect(MobEffects.POISON),
+                "the Fae in the burst is untouched");
+        helper.assertTrue(!caster.hasEffect(MobEffects.SLOWNESS), "and so is the caster");
+        helper.succeed();
+    }
 }

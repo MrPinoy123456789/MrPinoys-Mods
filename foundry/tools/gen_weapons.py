@@ -236,35 +236,49 @@ def azurius(t):
 
 
 def faeloria(t):
-    thorn = [3, 3, 4][t]
-    burst = [5, 6, 7][t]
+    thorn = [4, 5, 6][t]
+    venom = [60, 80, 100][t]
+    burst = [6, 7, 8][t]
+    reach = 3.0
     root = [40, 50, 60][t]
-    burst_cd = [300, 280, 260][t]
+    burst_cd = [240, 220, 200][t]
     glam = [160, 200, 240][t]
-    glam_cd = [1800, 1700, 1600][t]
+    glam_cd = [1200, 1100, 1000][t]
     leaf = "#7CD35A"
+    # the staff never touches its own kingdom: its bolts fly through the Fae and the burst passes them by
+    own = "race:faeloria"
+
+    def spare(a):
+        a["exclude_permission"] = own
+        return a
+
     return dict(
         key="faeloria_staff", name="Briarthorn Staff", base="minecraft:blaze_rod", damage=0, speed=0,
-        lore=[f"Left click: Thorn Bolt, {thorn} damage and poison.",
-              f"Right click: hold for a second, then let go. Bramble Burst, {burst} damage, roots the target for {secs(root)}s. {secs(burst_cd)}s recharge.",
+        lore=[f"Left click: Thorn Bolt, {thorn} damage and {secs(venom)}s of poison.",
+              f"Right click: hold for a second, then let go (on Bedrock: tap once and keep it in hand). Bramble Burst bursts where it lands. {secs(burst_cd)}s recharge.",
+              f"  Every enemy within {reach:g} blocks takes {burst} damage, is poisoned and rooted for {secs(root)}s. The Fae are spared.",
               f"Sneak and right click: Glamour, invisible and swift for {secs(glam)}s. {secs(glam_cd)}s recharge."],
         mechanics=[
-            {"trigger": "on_swing", "cooldown_ticks": 16, "actions": [sound("minecraft:block.sweet_berry_bush.pick_berries", 1.0, 1.4),
-                                                                       bolt("thorn", [28, 30, 32][t], 1.4, "minecraft:composter",
-                                                                            model="minecraft:pointed_dripstone", model_scale=0.5,
-                                                                            colour=leaf)]},
-            hit("thorn", [damage(thorn), effect("minecraft:poison", [40, 60, 80][t], 0, "hit"),
+            {"name": "Thorn Bolt", "trigger": "on_swing", "cooldown_ticks": 16,
+             "actions": [sound("minecraft:block.sweet_berry_bush.pick_berries", 1.0, 1.4),
+                         spare(bolt("thorn", 36, 1.4, "minecraft:composter", model="minecraft:pointed_dripstone",
+                                    model_scale=0.5, colour=leaf))]},
+            hit("thorn", [damage(thorn), effect("minecraft:poison", venom, 0, "hit"),
                           shape("burst", 10, 0.5, "hit", colour=leaf)]),
             use("Bramble Burst", burst_cd, [sound("minecraft:entity.evoker.cast_spell", 1.0, 1.3),
                                             shape("spiral", 24, 0.6, particle="minecraft:spore_blossom_air"),
-                                            bolt("bramble", 30, 1.6, "minecraft:spore_blossom_air", radius=0.9,
-                                                 model="minecraft:spore_blossom", model_scale=0.8, spin=True, colour=leaf)],
+                                            spare(bolt("bramble", 36, 1.6, "minecraft:spore_blossom_air", radius=0.9,
+                                                       model="minecraft:spore_blossom", model_scale=0.8, spin=True,
+                                                       colour=leaf, bursts=True))],
                 False, charge=20),
-            hit("bramble", [damage(burst), effect("minecraft:poison", [100, 120, 140][t], 0, "hit"),
-                            effect("minecraft:slowness", root, 3, "hit"),
-                            sound("minecraft:block.sweet_berry_bush.place", 1.0, 0.6),
-                            shape("ring", 32, 1.2, "hit", colour="#3F7D33", size=1.4),
-                            shape("spiral", 30, 0.9, "hit", particle="minecraft:composter")]),
+            hit("bramble", [spare(damage(burst, "impact", radius=reach)),
+                            spare(effect("minecraft:poison", [100, 120, 140][t], 0, "impact", reach)),
+                            spare(effect("minecraft:slowness", root, 3, "impact", reach)),
+                            sound_at("minecraft:block.sweet_berry_bush.place", 1.0, 0.6),
+                            sound_at("minecraft:block.azalea_leaves.break", 1.0, 0.8),
+                            shape("ring", 40, reach, "impact", colour="#3F7D33", size=1.4),
+                            shape("ring", 24, reach * 0.5, "impact", particle="minecraft:composter"),
+                            shape("burst", 30, 1.2, "impact", particle="minecraft:spore_blossom_air")]),
             use("Glamour", glam_cd, [sound("minecraft:entity.illusioner.mirror_move", 1.0, 1.2),
                                      effect("minecraft:invisibility", glam), effect("minecraft:speed", glam, 0),
                                      shape("burst", 30, 1.0, particle="minecraft:witch")], True),
@@ -277,8 +291,8 @@ def faeloria(t):
 
 
 def everdelle(t):
-    spark = [4, 5, 6][t]
-    blast = [4, 5, 6][t]
+    spark = [5, 6, 7][t]
+    blast = [5, 6, 7][t]
     reach = [3.0, 3.5, 4.0][t]
     lift = [30, 40, 50][t]
     mis_cd = [280, 240, 200][t]
@@ -301,12 +315,12 @@ def everdelle(t):
         mechanics=[
             {"name": "Sparkle Bolt", "trigger": "on_swing", "cooldown_ticks": 16, "actions": [sound("minecraft:entity.allay.item_thrown", 1.0, 1.9),
                                                                        sound("minecraft:entity.firework_rocket.twinkle", 0.6, 1.6),
-                                                                       spare(bolt("sparkle", 24, 1.4, "minecraft:end_rod",
+                                                                       spare(bolt("sparkle", 36, 1.4, "minecraft:end_rod",
                                                                                   model="minecraft:nether_star", model_scale=0.35,
                                                                                   spin=True, colour=pink))]},
             hit("sparkle", [damage(spark), shape("burst", 12, 0.5, "hit", colour=pink)]),
             use("Mischief", mis_cd, [sound("minecraft:entity.evoker.cast_spell", 0.7, 1.8),
-                                     spare(bolt("mischief", 24, 1.2, "minecraft:witch", model="minecraft:feather",
+                                     spare(bolt("mischief", 36, 1.2, "minecraft:witch", model="minecraft:feather",
                                                 model_scale=0.6, spin=True, colour="#B48CFF", bursts=True))], False),
             hit("mischief", [spare(damage(blast, "impact", radius=reach)),
                              spare(effect("minecraft:levitation", lift, 0, "impact", reach)),

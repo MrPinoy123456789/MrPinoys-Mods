@@ -3,9 +3,9 @@
   "id": "kingdoms:everdelle_wand_3",
   "display_name": "Everdelle Wand III",
   "lore": [
-    "Left click: a sparkle bolt, 6 damage.",
+    "Left click: a sparkle bolt, 7 damage.",
     "Right click: Mischief, a bolt that bursts where it lands. 10s recharge.",
-    "  Every enemy within 4 blocks takes 6 damage and floats for 2.5s. Fairies are spared.",
+    "  Every enemy within 4 blocks takes 7 damage and floats for 2.5s. Fairies are spared.",
     "Sneak and right click: Healing Light, regeneration for players within 5 blocks for 12s. 65s recharge.",
     "Fully upgraded."
   ],
@@ -46,7 +46,7 @@
         {
           "type": "launch_bolt",
           "tag": "sparkle",
-          "range": 24,
+          "range": 36,
           "speed": 1.4,
           "particle": "minecraft:end_rod",
           "model": "minecraft:nether_star",
@@ -63,7 +63,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 6,
+          "amount": 7,
           "target": "hit"
         },
         {
@@ -96,7 +96,7 @@
         {
           "type": "launch_bolt",
           "tag": "mischief",
-          "range": 24,
+          "range": 36,
           "speed": 1.2,
           "particle": "minecraft:witch",
           "model": "minecraft:feather",
@@ -114,7 +114,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 6,
+          "amount": 7,
           "target": "impact",
           "radius": 4.0,
           "exclude_permission": "race:everdelle"
