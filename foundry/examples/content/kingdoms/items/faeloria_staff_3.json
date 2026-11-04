@@ -126,7 +126,11 @@
           "amount": 8,
           "target": "impact",
           "radius": 3.0,
-          "exclude_permission": "race:faeloria"
+          "exclude_permission": "race:faeloria",
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "apply_effect",
@@ -135,7 +139,11 @@
           "amplifier": 0,
           "target": "impact",
           "radius": 3.0,
-          "exclude_permission": "race:faeloria"
+          "exclude_permission": "race:faeloria",
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "apply_effect",
@@ -144,7 +152,11 @@
           "amplifier": 3,
           "target": "impact",
           "radius": 3.0,
-          "exclude_permission": "race:faeloria"
+          "exclude_permission": "race:faeloria",
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "play_sound",

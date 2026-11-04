@@ -202,14 +202,22 @@
           "type": "damage",
           "amount": 3,
           "target": "area",
-          "radius": 6
+          "radius": 6,
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "knockback",
           "strength": -0.9,
           "lift": 0.15,
           "target": "area",
-          "radius": 6
+          "radius": 6,
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "particle_shape",

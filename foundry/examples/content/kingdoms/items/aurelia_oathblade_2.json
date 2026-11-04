@@ -3,7 +3,7 @@
   "id": "kingdoms:aurelia_oathblade_2",
   "display_name": "Oathblade II",
   "lore": [
-    "Hit: 1 extra damage and Weakness for 3s.",
+    "Hit: 1 extra damage, and a 1 in 4 chance of Weakness for 3s.",
     "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
     "  You counter for 7 damage, Weakness and Slowness. 11s recharge, half back on a parry.",
     "Sneak, hold right click and let go: Quickdraw, a dash of up to 10 blocks.",
@@ -40,13 +40,6 @@
           "ignore_hit_delay": true
         },
         {
-          "type": "apply_effect",
-          "effect": "minecraft:weakness",
-          "duration": 60,
-          "amplifier": 0,
-          "target": "hit"
-        },
-        {
           "type": "play_sound",
           "sound": "minecraft:entity.player.attack.sweep",
           "volume": 0.7,
@@ -59,6 +52,19 @@
           "radius": 1.6,
           "colour": "#C9CED8",
           "size": 0.9
+        }
+      ]
+    },
+    {
+      "trigger": "on_hit_entity",
+      "chance": 0.25,
+      "actions": [
+        {
+          "type": "apply_effect",
+          "effect": "minecraft:weakness",
+          "duration": 60,
+          "amplifier": 0,
+          "target": "hit"
         }
       ]
     },
@@ -163,7 +169,11 @@
           "min_damage": 0.5,
           "effect": "minecraft:slowness",
           "duration": 20,
-          "colour": "#F2F4F8"
+          "colour": "#F2F4F8",
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         }
       ],
       "charge_ticks": 20,

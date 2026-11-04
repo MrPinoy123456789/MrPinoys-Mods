@@ -130,7 +130,8 @@ public final class MechanicParser {
                     "Use { \"type\": \"damage\", \"target\": \"area\", \"radius\": 3, ... }."));
         }
         if (action && areaKind && !area && (step.params().containsKey("radius")
-                || step.params().containsKey("require_permission") || step.params().containsKey("exclude_permission"))) {
+                || step.params().containsKey("require_permission") || step.params().containsKey("exclude_permission")
+                || step.params().containsKey("exclude"))) {
             out.add(Problem.error(source, where, "radius and the permission filters only apply with target \"area\".",
                     "Add \"target\": \"area\", or remove them."));
         }

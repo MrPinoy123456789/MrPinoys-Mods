@@ -37,6 +37,9 @@ Actions:
 - `apply_effect`: `effect` (id), `duration` (ticks, 20 per second), optional `amplifier`, `target`. With
   `"target": "area"` it needs `radius` (0.5 to 16) and affects players within that radius, the caster included, narrowed
   by optional `require_permission` and `exclude_permission` (node ids such as `race:fairy`).
+  `damage`, `knockback`, `apply_effect` and `dash_strike` also take `"exclude": [...]`, a closed list of `villagers`,
+  `tamed`, `passive` (not a monster or a player) and `players`, skipped by every area selector. Give every area action
+  `["villagers", "tamed"]` unless it should hurt them.
 - `give_item`: `item` (id), optional `count`, `target`. Skipped with a warning when the target is not a player.
 - `damage`: `amount` (0.5 to 100), `target`. Magic damage credited to the caster, so protection mods can intercept it.
 - `spawn_particles`: `particle` (a plain particle id), optional `count`, `spread`, `speed`, `target`.

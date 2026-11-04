@@ -118,7 +118,11 @@
           "amount": 5,
           "target": "impact",
           "radius": 3.0,
-          "exclude_permission": "race:everdelle"
+          "exclude_permission": "race:everdelle",
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "apply_effect",
@@ -127,7 +131,11 @@
           "amplifier": 0,
           "target": "impact",
           "radius": 3.0,
-          "exclude_permission": "race:everdelle"
+          "exclude_permission": "race:everdelle",
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "play_sound",
@@ -193,7 +201,11 @@
           "duration": 160,
           "amplifier": 0,
           "target": "area",
-          "radius": 5
+          "radius": 5,
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         },
         {
           "type": "particle_shape",

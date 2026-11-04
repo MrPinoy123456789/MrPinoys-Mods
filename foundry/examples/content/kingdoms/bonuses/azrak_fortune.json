@@ -6,8 +6,8 @@
   "level": 1,
   "cap": 3,
   "targets": [
-    "#minecraft:coal_ores", "#minecraft:iron_ores", "#minecraft:copper_ores", "#minecraft:gold_ores",
+    "#minecraft:coal_ores", "#minecraft:iron_ores", "#minecraft:copper_ores", "minecraft:gold_ore", "minecraft:deepslate_gold_ore",
     "#minecraft:lapis_ores", "#minecraft:diamond_ores", "#minecraft:emerald_ores",
-    "minecraft:nether_quartz_ore", "minecraft:nether_gold_ore"
+    "minecraft:nether_quartz_ore"
   ]
 }

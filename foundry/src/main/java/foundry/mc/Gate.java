@@ -8,7 +8,9 @@ import java.util.Map;
 import java.util.UUID;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -59,6 +61,14 @@ public final class Gate {
             if (player instanceof ServerPlayer sp && !check(sp, defOf(sp.getItemInHand(hand)))) return InteractionResult.FAIL;
             return InteractionResult.PASS;
         });
+        // A locked item that is also a tool (the War Pick) must not mine for anyone outside its race either: refuse the
+        // start of the dig, and the break itself in case another path reaches it.
+        AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
+            if (player instanceof ServerPlayer sp && !check(sp, defOf(sp.getItemInHand(hand)))) return InteractionResult.FAIL;
+            return InteractionResult.PASS;
+        });
+        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
+                !(player instanceof ServerPlayer sp) || allowed(sp, defOf(sp.getMainHandItem())));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayer sp) setAside(sp);
             return true;

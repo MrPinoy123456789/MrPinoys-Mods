@@ -210,7 +210,22 @@ public final class MechanicHost implements MechanicRunner.Host {
         String require = step.param("require_permission", "");
         String exclude = step.param("exclude_permission", "");
         if (!require.isEmpty() && !permissionCheck.test(entity, Identifier.parse(require))) return false;
-        return exclude.isEmpty() || !permissionCheck.test(entity, Identifier.parse(exclude));
+        if (!exclude.isEmpty() && permissionCheck.test(entity, Identifier.parse(exclude))) return false;
+        for (String kind : foundry.core.mechanics.MechanicTypes.excluded(step)) {
+            if (spared(kind, entity)) return false;
+        }
+        return true;
+    }
+
+    /** True when the entity is one of the kind an {@code exclude} entry names (see MechanicTypes.EXCLUDES). */
+    static boolean spared(String kind, LivingEntity entity) {
+        return switch (kind) {
+            case "villagers" -> entity instanceof net.minecraft.world.entity.npc.villager.AbstractVillager;
+            case "tamed" -> entity instanceof net.minecraft.world.entity.OwnableEntity pet && pet.getOwnerReference() != null;
+            case "passive" -> !(entity instanceof net.minecraft.world.entity.monster.Enemy) && !(entity instanceof Player);
+            case "players" -> entity instanceof Player;
+            default -> false;
+        };
     }
 
     @Override
