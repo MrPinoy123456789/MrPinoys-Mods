@@ -3,9 +3,10 @@
   "id": "kingdoms:faeloria_staff_1",
   "display_name": "Briarthorn Staff",
   "lore": [
-    "Left click: Thorn Bolt, 3 damage and poison.",
-    "Right click: hold for a second, then let go (on Bedrock: tap once and keep it in hand). Bramble Burst, 5 damage, roots the target for 2s. 15s recharge.",
-    "Sneak and right click: Glamour, invisible and swift for 8s. 90s recharge.",
+    "Left click: Thorn Bolt, 4 damage and 3s of poison.",
+    "Right click: hold for a second, then let go (on Bedrock: tap once and keep it in hand). Bramble Burst bursts where it lands. 12s recharge.",
+    "  Every enemy within 3 blocks takes 6 damage, is poisoned and rooted for 2s. The Fae are spared.",
+    "Sneak and right click: Glamour, invisible and swift for 8s. 60s recharge.",
     "Craft: a stick, an iron ingot, a vine and sweet berries. Fits the 2 by 2 grid.",
     "Upgrade: 3 amethyst shards and an ender pearl, crafted with this at a crafting table."
   ],
@@ -40,12 +41,13 @@
         {
           "type": "launch_bolt",
           "tag": "thorn",
-          "range": 28,
+          "range": 36,
           "speed": 1.4,
           "particle": "minecraft:composter",
           "model": "minecraft:pointed_dripstone",
           "model_scale": 0.5,
-          "colour": "#7CD35A"
+          "colour": "#7CD35A",
+          "exclude_permission": "race:faeloria"
         }
       ]
     },
@@ -55,13 +57,13 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 3,
+          "amount": 4,
           "target": "hit"
         },
         {
           "type": "apply_effect",
           "effect": "minecraft:poison",
-          "duration": 40,
+          "duration": 60,
           "amplifier": 0,
           "target": "hit"
         },
@@ -78,7 +80,7 @@
     {
       "name": "Bramble Burst",
       "trigger": "on_use",
-      "cooldown_ticks": 300,
+      "cooldown_ticks": 240,
       "conditions": [
         {
           "type": "is_sneaking",
@@ -102,14 +104,16 @@
         {
           "type": "launch_bolt",
           "tag": "bramble",
-          "range": 30,
+          "range": 36,
           "speed": 1.6,
           "particle": "minecraft:spore_blossom_air",
           "radius": 0.9,
           "model": "minecraft:spore_blossom",
           "model_scale": 0.8,
           "spin": true,
-          "colour": "#7CD35A"
+          "colour": "#7CD35A",
+          "bursts": true,
+          "exclude_permission": "race:faeloria"
         }
       ],
       "charge_ticks": 20
@@ -120,52 +124,74 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 5,
-          "target": "hit"
+          "amount": 6,
+          "target": "impact",
+          "radius": 3.0,
+          "exclude_permission": "race:faeloria"
         },
         {
           "type": "apply_effect",
           "effect": "minecraft:poison",
           "duration": 100,
           "amplifier": 0,
-          "target": "hit"
+          "target": "impact",
+          "radius": 3.0,
+          "exclude_permission": "race:faeloria"
         },
         {
           "type": "apply_effect",
           "effect": "minecraft:slowness",
           "duration": 40,
           "amplifier": 3,
-          "target": "hit"
+          "target": "impact",
+          "radius": 3.0,
+          "exclude_permission": "race:faeloria"
         },
         {
           "type": "play_sound",
           "sound": "minecraft:block.sweet_berry_bush.place",
           "volume": 1.0,
-          "pitch": 0.6
+          "pitch": 0.6,
+          "target": "impact"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:block.azalea_leaves.break",
+          "volume": 1.0,
+          "pitch": 0.8,
+          "target": "impact"
         },
         {
           "type": "particle_shape",
           "shape": "ring",
-          "count": 32,
-          "radius": 1.2,
+          "count": 40,
+          "radius": 3.0,
           "colour": "#3F7D33",
           "size": 1.4,
-          "target": "hit"
+          "target": "impact"
         },
         {
           "type": "particle_shape",
-          "shape": "spiral",
-          "count": 30,
-          "radius": 0.9,
+          "shape": "ring",
+          "count": 24,
+          "radius": 1.5,
           "particle": "minecraft:composter",
-          "target": "hit"
+          "target": "impact"
+        },
+        {
+          "type": "particle_shape",
+          "shape": "burst",
+          "count": 30,
+          "radius": 1.2,
+          "particle": "minecraft:spore_blossom_air",
+          "target": "impact"
         }
       ]
     },
     {
       "name": "Glamour",
       "trigger": "on_use",
-      "cooldown_ticks": 1800,
+      "cooldown_ticks": 1200,
       "conditions": [
         {
           "type": "is_sneaking",
