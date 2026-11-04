@@ -78,6 +78,11 @@ final class MintListener {
     }
 
     private void use(ServerPlayer player) {
+        Optional<String> coinHeld = CoinStacks.markerOf(player.getMainHandItem());
+        if (coinHeld.isPresent()) {
+            melt(player, coinHeld.get(), player.isShiftKeyDown());
+            return;
+        }
         Optional<Denomination> held = denominationOf(player.getMainHandItem());
         if (held.isEmpty()) {
             showAllowance(player);
@@ -116,6 +121,46 @@ final class MintListener {
         }
         return "Past today's full rate: " + cost + " ingots per " + per + " Sovereigns, " + (cost * 2)
                 + " after " + until + " more. Full rate again at midnight.";
+    }
+
+    /**
+     * Melts held coin back into ingots at the rate it was struck ({@link Mint#melt}): 10
+     * Sovereigns to one gold ingot. Coin cannot be crafted ({@link CoinCrafting}), so this is
+     * the only way back. The coins are taken first, then the ingots given; a shortfall
+     * changes nothing.
+     */
+    private void melt(ServerPlayer player, String coinId, boolean everyStack) {
+        Currency coin = s.coin();
+        Denomination d = null;
+        for (Denomination each : coin.denominations()) {
+            if (each.id().equals(coinId)) d = each;
+        }
+        if (d == null || !Mint.strikes(d.id())) {
+            player.sendSystemMessage(Messages.body("The Mint melts Sovereigns only."));
+            return;
+        }
+        Denomination sovereign = d;
+        Item ingot = ingotFor(d).orElseThrow();
+        long carried = ItemBank.count(player, stack -> CoinStacks.isCoin(stack, sovereign));
+        long offered = everyStack ? carried : Math.min(carried, player.getMainHandItem().getCount());
+        Mint.Melt plan = Mint.melt((int) Math.min(Integer.MAX_VALUE, offered));
+        if (!plan.melted()) {
+            player.sendSystemMessage(Messages.body(Mint.COINS_PER_STRIKE + " " + d.plural()
+                    + " melt into one gold ingot. Sneak to melt every Sovereign you carry."));
+            return;
+        }
+        if (!ItemBank.removeExactly(player, stack -> CoinStacks.isCoin(stack, sovereign), plan.coinsUsed())) {
+            player.sendSystemMessage(Messages.bad("Could not take the coins. Nothing was melted."));
+            return;
+        }
+        long dropped = ItemBank.give(player, ingot, plan.ingots());
+        Chime.purchased(player);
+        player.sendSystemMessage(Messages.good("Melted " + plan.coinsUsed() + " " + d.plural() + " into "
+                + plan.ingots() + (plan.ingots() == 1 ? " gold ingot." : " gold ingots.")));
+        String actor = player.getName().getString();
+        if (dropped > 0) CharterCurrencyMod.LOG.warn("Melted ingots for {} overflowed capacity by {}", actor, dropped);
+        s.log.tx(actor + " melted " + plan.coinsUsed() + " " + d.id() + " (" + (long) plan.coinsUsed() * d.value()
+                + " Marks) into " + plan.ingots() + " ingots");
     }
 
     private void strike(ServerPlayer player, Denomination d, boolean everyStack) {

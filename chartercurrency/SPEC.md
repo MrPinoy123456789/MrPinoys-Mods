@@ -463,6 +463,8 @@ cannot be capped, and recipe ingredients cannot check a marker).
   - **Holding copper or iron ingots:** strikes nothing and says `The Mint strikes
     gold only. Copper and iron are not money here.` (owner, 2026-11-03: mob farms
     make copper and iron without limit; this supersedes the copper and iron rates).
+  - **Holding Sovereigns:** melts them back, 10 to one gold ingot; sneak melts
+    every Sovereign carried (section 8.4).
   - **Empty hand or anything else:** shows the player's rate for today.
 - Rate: 1 gold ingot = 10 Sovereigns up to the daily soft cap (owner, 2026-11-03;
   `Mint.COINS_PER_STRIKE`, fixed in code). Copper Marks and Iron Crowns are no
@@ -540,9 +542,21 @@ rate is fixed in code at 20 percent and **is not configurable** (owner,
 
 ### 8.4 Melting
 
-Coin cannot be melted or crafted (owner, 2026-11-03). At 10 Sovereigns an ingot,
-nine coins melted into a gold ingot and struck again gave a Lord who withdraws the
-tax 1 Sovereign more per ingot: up to 320 Sovereigns a day made from nothing.
+Sovereigns melt back at the Mint at the rate they were struck: **10 Sovereigns to
+one gold ingot** (owner, 2026-11-03). The vanilla `9 nuggets -> 1 ingot` recipe would
+have made 9 coins an ingot, which a Lord who withdraws the tax could turn into 10
+again: up to 320 Sovereigns a day from nothing. So the recipe is closed to coin and
+the Mint is the only way back.
+
+- **At a Mint, holding Sovereigns:** right-click melts the held stack, 10 coins per
+  ingot; sneak and right-click melts every Sovereign carried. Coins short of the
+  next ingot stay. No tax and no daily count: a melt and a strike at full rate give
+  back exactly what went in. Line: `Melted 20 Gold Sovereigns into 2 gold ingots.`
+- Fewer than 10: `10 Gold Sovereigns melt into one gold ingot. Sneak to melt every
+  Sovereign you carry.` Crowns and Marks: `The Mint melts Sovereigns only.`
+- The arithmetic is `Mint.melt`, under test.
+
+Crafting with coin:
 
 - No recipe matches while any slot of its input holds a marked coin: the crafting
   grid, the 2 by 2 inventory grid, the crafter, furnaces and every other recipe

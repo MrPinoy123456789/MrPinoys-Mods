@@ -796,6 +796,15 @@ public final class EconomyTest {
         check("a full inventory of gold (2304 ingots) yields 320 + 160 + 80 + 40 + 20 + 10 + 6 strikes",
                 farm.coinsStruck() == 6360 && farm.coinsFull() == 3200 && farm.ingotsUsed() == 2304);
 
+        check("10 Sovereigns melt into one ingot",
+                Mint.melt(10).ingots() == 1 && Mint.melt(10).coinsUsed() == 10);
+        check("coins short of the next ingot are kept",
+                Mint.melt(27).ingots() == 2 && Mint.melt(27).coinsUsed() == 20);
+        check("9 coins melt into nothing", !Mint.melt(9).melted() && Mint.melt(9).coinsUsed() == 0);
+        check("nothing offered melts nothing", !Mint.melt(0).melted() && !Mint.melt(-5).melted());
+        check("a melt and a strike at full rate give back what went in",
+                Mint.plan(freshMint(), RULES, "gold", 64, Mint.melt(640).ingots()).coinsStruck() == 640);
+
         Mint.Rules none = new Mint.Rules(0, 320);
         check("a soft cap of 0 starts at two ingots per strike", Mint.ingotsPerStrike(0, none) == 2);
 

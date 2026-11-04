@@ -79,8 +79,10 @@ over. `softCapIngots` and `falloffEvery` live in `settings.json` under `mint` (a
 file with the band keys is rewritten at load); `timezone` there sets when the day turns
 over.
 
-Coin cannot be melted or crafted: no recipe matches while a marked coin is in its
-input (`mixin/RecipeMeltMixin`), so nine Sovereigns no longer make a gold ingot.
+Sovereigns melt back only at the Mint, 10 to one gold ingot (the rate they were
+struck at): hold them and right-click a Mint, sneak to melt all. No recipe matches
+while a marked coin is in its input (`mixin/RecipeMeltMixin`), so the vanilla nine
+nuggets recipe cannot melt coin at 9.
 
 The Mint tax is fixed in code and cannot be configured: every fifth coin struck, per
 player and per denomination, goes to the player's kingdom treasury; the player keeps

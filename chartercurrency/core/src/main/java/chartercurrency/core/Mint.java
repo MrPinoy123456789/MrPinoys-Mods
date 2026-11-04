@@ -35,6 +35,27 @@ public final class Mint {
 
     private Mint() {}
 
+    /**
+     * Melting back at the Mint (owner, 2026-11-03): {@link #COINS_PER_STRIKE} coins of the
+     * struck denomination give one ingot, the same rate they were struck at, so a strike
+     * and a melt never make money from nothing. No tax and no daily count.
+     *
+     * @param coinsUsed coins to take; coins short of the next ingot stay with the player
+     * @param ingots    ingots to give
+     */
+    public record Melt(int coinsUsed, int ingots) {
+        public boolean melted() {
+            return ingots > 0;
+        }
+    }
+
+    /** What melting {@code coinsOffered} coins does. */
+    public static Melt melt(int coinsOffered) {
+        if (coinsOffered <= 0) return new Melt(0, 0);
+        int ingots = coinsOffered / COINS_PER_STRIKE;
+        return new Melt(ingots * COINS_PER_STRIKE, ingots);
+    }
+
     /** Whether the Mint strikes coin of this denomination from its metal. */
     public static boolean strikes(String denominationId) {
         return STRUCK.equals(denominationId);
