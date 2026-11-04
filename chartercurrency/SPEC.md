@@ -333,32 +333,40 @@ both (charged both or neither, as in the fork). The confirm threshold
 (`shop.confirmAt`) works per currency as in the fork.
 
 The starter catalog is `core/ShopStarter` (owner, 2026-11-03: the shop needed more
-stock, and its prices were set for the old Mint allowance). 104 listings on eight
-shelves, priced in Marks for the Mint's 320 ingot soft cap (section 8.2), about four
-times the first starter prices:
+stock, and its prices were set for the old Mint allowance). 105 listings on nine
+shelves, priced in Marks for the Mint's 320 ingot soft cap (section 8.2). They were
+first set at about four times the first starter prices, then raised tenfold
+(`ShopStarter.PRICE_SCALE`, owner, 2026-11-03) when one gold ingot became 10
+Sovereigns:
 
 | Shelf | What | Price range |
 |---|---|---|
-| Building Materials | 25 blocks: sand, gravel, glass, stone and deepslate bricks, terracotta, concrete powder, clay, ice to blue ice, quartz, prismarine, end stone, purpur | 128 to 1024 per stack (blue ice per 16) |
-| Wood | 9 overworld logs, crimson and warped stems, bamboo blocks | 128 to 192 per 64 |
-| Lighting | glowstone, sea lanterns, shroomlight, lanterns, candles | 128 to 512 |
-| Dyes | all 16 colours | 64 per 16 |
-| Garden | 9 saplings, cocoa, cane, cactus, bamboo, kelp, berries, lily pads, nether wart, bone meal | 64 to 192 |
-| Working Items | rockets, name tag, saddle, leads, string, slime, spyglass, compass, map, frames, armour stands, pots, paintings, bookshelves | 64 to 512 |
-| Enchanted Books | Unbreaking III, Efficiency IV, Protection IV, Sharpness V, Power V, Feather Falling IV, Silk Touch, Depth Strider III, Respiration III, Aqua Affinity | 384 to 1280 |
-| Honours (Valor) | the named and trimmed helm, trophy head, banner | unchanged |
+| Building Materials | 25 blocks: sand, gravel, glass, stone and deepslate bricks, terracotta, concrete powder, clay, ice to blue ice, quartz, prismarine, end stone, purpur | 1280 to 10,240 per stack (blue ice per 16) |
+| Wood | 9 overworld logs, crimson and warped stems, bamboo blocks | 1280 to 1920 per 64 |
+| Lighting | glowstone, sea lanterns, shroomlight, lanterns, candles | 1280 to 5120 |
+| Dyes | all 16 colours | 640 per 16 |
+| Garden | 9 saplings, cocoa, cane, cactus, bamboo, kelp, berries, lily pads, nether wart, bone meal | 640 to 1920 |
+| Working Items | rockets, name tag, saddle, leads, string, slime, spyglass, compass, map, frames, armour stands, pots, paintings, bookshelves | 640 to 5120 |
+| Enchanted Books | Unbreaking III, Efficiency IV, Protection IV, Sharpness V, Power V, Feather Falling IV, Silk Touch, Depth Strider III, Respiration III, Aqua Affinity | 3840 to 12,800 |
+| Honours (Valor) | the named and trimmed helm, trophy head, banner | unchanged, Valor is not scaled |
+| Gold | one gold ingot | 640 (10 Sovereigns), not scaled |
 
-- Nothing gold is sold, nor anything that smelts back into gold: bought gold could be
-  struck at the Mint and the shop would become a coin loop. A test enforces it.
+- **The gold ingot is the way back from coin to metal** (owner, 2026-11-03). It costs
+  exactly what the Mint strikes from it (`ShopStarter.GOLD_INGOT_MARKS`, 10 times
+  64), so it is never a loop: an ingot bought and struck again gives back 10
+  Sovereigns, two of them the kingdom's. Nothing else gold is sold, nor anything
+  that smelts back into gold. A test enforces both.
 - No Looting or Fortune books (they multiply gold farms) and no Mending.
 - Every item id was checked against the 26.2 and 26.3 jars.
 - A fresh server writes this catalog. An existing server runs
   `/chartercurrency shop restock`: it adds every starter listing whose key is
-  missing, replaces a listing still exactly as the first starter shipped it (keeping
-  its enabled flag), and leaves anything the owner changed or added. It never
-  removes. Running it twice changes nothing.
-- `shop.confirmAt.coin` now defaults to 2048 (was 512), since most listings would
-  otherwise ask for confirmation. An existing `settings.json` keeps its own value.
+  missing (the gold ingot among them), replaces a listing still exactly as an
+  earlier starter shipped it (the first one, or the one priced for one Sovereign an
+  ingot; keeping its enabled flag), and leaves anything the owner changed or added.
+  It never removes. Running it twice changes nothing.
+- `shop.confirmAt.coin` now defaults to 20,480 (was 2048, and 512 before that),
+  since most listings would otherwise ask for confirmation. An existing
+  `settings.json` keeps its own value.
 
 Every price is a placeholder the owner will retune.
 
@@ -463,8 +471,8 @@ cannot be capped, and recipe ingredients cannot check a marker).
   - **Holding copper or iron ingots:** strikes nothing and says `The Mint strikes
     gold only. Copper and iron are not money here.` (owner, 2026-11-03: mob farms
     make copper and iron without limit; this supersedes the copper and iron rates).
-  - **Holding Sovereigns:** melts them back, 10 to one gold ingot; sneak melts
-    every Sovereign carried (section 8.4).
+  - **Holding coin:** melts nothing and says `The Mint does not melt coin. A gold
+    ingot is 10 Sovereigns in the shop: /shop` (section 8.4).
   - **Empty hand or anything else:** shows the player's rate for today.
 - Rate: 1 gold ingot = 10 Sovereigns up to the daily soft cap (owner, 2026-11-03;
   `Mint.COINS_PER_STRIKE`, fixed in code). Copper Marks and Iron Crowns are no
@@ -512,7 +520,8 @@ Line examples:
 - `Your pockets were full, so 300 Gold Sovereigns went straight into your bank.`
 
 Supply: one player at the soft cap strikes 3200 Sovereigns (204,800 Marks) a day,
-ten times what the shop and Charter were priced for at one Sovereign an ingot. Prices set for the old
+ten times the old rate. The shop was repriced tenfold to match (section 7.1); Charter's
+Marks prices are Charter's own settings. Prices set for the old
 allowance (about 154 Marks a day kept) are far too low for a gold farmer; the shop
 was repriced with this change (section 7.1), and Charter's Marks prices (a keep at
 2048) are Charter's to revisit.
@@ -542,21 +551,11 @@ rate is fixed in code at 20 percent and **is not configurable** (owner,
 
 ### 8.4 Melting
 
-Sovereigns melt back at the Mint at the rate they were struck: **10 Sovereigns to
-one gold ingot** (owner, 2026-11-03). The vanilla `9 nuggets -> 1 ingot` recipe would
-have made 9 coins an ingot, which a Lord who withdraws the tax could turn into 10
-again: up to 320 Sovereigns a day from nothing. So the recipe is closed to coin and
-the Mint is the only way back.
-
-- **At a Mint, holding Sovereigns:** right-click melts the held stack, 10 coins per
-  ingot; sneak and right-click melts every Sovereign carried. Coins short of the
-  next ingot stay. No tax and no daily count: a melt and a strike at full rate give
-  back exactly what went in. Line: `Melted 20 Gold Sovereigns into 2 gold ingots.`
-- Fewer than 10: `10 Gold Sovereigns melt into one gold ingot. Sneak to melt every
-  Sovereign you carry.` Crowns and Marks: `The Mint melts Sovereigns only.`
-- The arithmetic is `Mint.melt`, under test.
-
-Crafting with coin:
+Coin is never melted. The way back to metal is the shop's gold ingot at **10
+Sovereigns** (owner, 2026-11-03), the rate it was struck at (section 7.1). The
+vanilla `9 nuggets -> 1 ingot` recipe would have made 9 coins an ingot, which a Lord
+who withdraws the tax could turn into 10 again: up to 320 Sovereigns a day from
+nothing. So no recipe takes coin:
 
 - No recipe matches while any slot of its input holds a marked coin: the crafting
   grid, the 2 by 2 inventory grid, the crafter, furnaces and every other recipe
@@ -641,7 +640,7 @@ this file is ignored.
   "timezone": "",
   "mint": { "softCapIngots": 320, "falloffEvery": 320 },
   "coins": { "models": false },
-  "shop": { "confirmAt": { "coin": 2048, "valor": 100 } }
+  "shop": { "confirmAt": { "coin": 20480, "valor": 100 } }
 }
 ```
 

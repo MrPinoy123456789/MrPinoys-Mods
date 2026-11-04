@@ -79,10 +79,12 @@ over. `softCapIngots` and `falloffEvery` live in `settings.json` under `mint` (a
 file with the band keys is rewritten at load); `timezone` there sets when the day turns
 over.
 
-Sovereigns melt back only at the Mint, 10 to one gold ingot (the rate they were
-struck at): hold them and right-click a Mint, sneak to melt all. No recipe matches
-while a marked coin is in its input (`mixin/RecipeMeltMixin`), so the vanilla nine
-nuggets recipe cannot melt coin at 9.
+Coin is never melted: no recipe matches while a marked coin is in its input
+(`mixin/RecipeMeltMixin`), so the vanilla nine nuggets recipe cannot turn 9 coins
+into an ingot. The way back to metal is the shop's gold ingot at 10 Sovereigns, the
+rate it was struck at. Starter shop coin prices are ten times what they were at one
+Sovereign an ingot; `/chartercurrency shop restock` reprices a live shop's untouched
+starter listings and adds the ingot.
 
 The Mint tax is fixed in code and cannot be configured: every fifth coin struck, per
 player and per denomination, goes to the player's kingdom treasury; the player keeps

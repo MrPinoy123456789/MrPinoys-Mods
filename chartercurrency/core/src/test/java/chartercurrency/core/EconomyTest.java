@@ -796,15 +796,6 @@ public final class EconomyTest {
         check("a full inventory of gold (2304 ingots) yields 320 + 160 + 80 + 40 + 20 + 10 + 6 strikes",
                 farm.coinsStruck() == 6360 && farm.coinsFull() == 3200 && farm.ingotsUsed() == 2304);
 
-        check("10 Sovereigns melt into one ingot",
-                Mint.melt(10).ingots() == 1 && Mint.melt(10).coinsUsed() == 10);
-        check("coins short of the next ingot are kept",
-                Mint.melt(27).ingots() == 2 && Mint.melt(27).coinsUsed() == 20);
-        check("9 coins melt into nothing", !Mint.melt(9).melted() && Mint.melt(9).coinsUsed() == 0);
-        check("nothing offered melts nothing", !Mint.melt(0).melted() && !Mint.melt(-5).melted());
-        check("a melt and a strike at full rate give back what went in",
-                Mint.plan(freshMint(), RULES, "gold", 64, Mint.melt(640).ingots()).coinsStruck() == 640);
-
         Mint.Rules none = new Mint.Rules(0, 320);
         check("a soft cap of 0 starts at two ingots per strike", Mint.ingotsPerStrike(0, none) == 2);
 
@@ -1292,22 +1283,31 @@ public final class EconomyTest {
         section("Shop starter and restock");
 
         ShopCatalog starter = ShopStarter.catalog();
-        check("the starter lists 104 entries, no key used twice", starter.size() == 104);
+        check("the starter lists 105 entries, no key used twice", starter.size() == 105);
         boolean allValid = true;
         boolean noGold = true;
         boolean noFarmBooks = true;
         for (ShopEntry e : starter.all()) {
             allValid &= e.isValid() && e.enabled();
-            noGold &= !e.itemId().contains("gold");
+            noGold &= !e.itemId().contains("gold") || e.key().equals("gold_ingot");
             String c = e.components() == null ? "" : e.components();
             noFarmBooks &= !c.contains("looting") && !c.contains("fortune") && !c.contains("mending");
         }
         check("every starter entry is valid and enabled", allValid);
-        check("nothing gold is sold: bought gold could be struck at the Mint", noGold);
+        check("nothing gold is sold but the ingot: other gold could be struck at the Mint", noGold);
+        ShopEntry ingot = starter.find("gold_ingot").orElseThrow();
+        check("a gold ingot costs exactly the 10 Sovereigns the Mint strikes from it",
+                ingot.quantity() == 1 && ingot.price().get(CurrencyRegistry.COIN) == 640
+                        && ingot.price().size() == 1 && ShopStarter.GOLD_INGOT_MARKS == 640);
+        Mint.Plan restruck = Mint.plan(freshMint(), RULES, "gold", 64, 1);
+        check("an ingot bought and struck again makes no money",
+                restruck.marksStruck() == ingot.price().get(CurrencyRegistry.COIN)
+                        && restruck.coinsToPlayer() * 64L < ingot.price().get(CurrencyRegistry.COIN));
         check("no Looting, Fortune or Mending books", noFarmBooks);
         check("categories in shelf order", starter.categories().equals(List.of(
                 ShopStarter.BUILDING, ShopStarter.WOOD, ShopStarter.LIGHT, ShopStarter.DYES,
-                ShopStarter.GARDEN, ShopStarter.WORKING, ShopStarter.BOOKS, ShopStarter.HONOURS)));
+                ShopStarter.GARDEN, ShopStarter.WORKING, ShopStarter.BOOKS, ShopStarter.HONOURS,
+                ShopStarter.GOLD)));
         boolean neverCheaper = true;
         for (ShopEntry old : ShopStarter.previous().all()) {
             ShopEntry now = starter.find(old.key()).orElseThrow();
@@ -1319,14 +1319,26 @@ public final class EconomyTest {
 
         ShopCatalog untouched = ShopStarter.previous();
         ShopStarter.Restock first = ShopStarter.restock(untouched);
-        check("an untouched old shop: 92 added, 9 repriced, none kept",
-                first.added() == 92 && first.updated() == 9 && first.kept() == 0);
+        check("an untouched old shop: 93 added, 9 repriced, none kept",
+                first.added() == 93 && first.updated() == 9 && first.kept() == 0);
         check("it then matches the starter",
-                untouched.size() == 104 && untouched.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 128
+                untouched.size() == 105 && untouched.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 1280
                         && untouched.find("book_unbreaking").orElseThrow().category().equals(ShopStarter.BOOKS));
         ShopStarter.Restock again = ShopStarter.restock(untouched);
         check("a second restock changes nothing",
                 again.added() == 0 && again.updated() == 0 && again.kept() == 0);
+
+        check("coin prices are ten times the one-Sovereign-an-ingot starter",
+                ShopStarter.PRICE_SCALE == 10
+                        && starter.find("blue_ice").orElseThrow().price().get(CurrencyRegistry.COIN) == 10_240
+                        && starter.find("book_sharpness").orElseThrow().price().get(CurrencyRegistry.COIN) == 12_800);
+        check("Valor prices are not scaled",
+                starter.find("champion_helm").orElseThrow().price().get(CurrencyRegistry.VALOR) == 150);
+        ShopCatalog oneToOne = ShopStarter.atOneSovereignAnIngot();
+        ShopStarter.Restock scaled = ShopStarter.restock(oneToOne);
+        check("a shop at one Sovereign an ingot: every coin listing is repriced, the ingot added",
+                scaled.added() == 1 && scaled.updated() == 101 && scaled.kept() == 0
+                        && oneToOne.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 1280);
 
         ShopCatalog owned = ShopStarter.previous();
         ShopEntry sand = owned.find("sand").orElseThrow();
@@ -1340,7 +1352,7 @@ public final class EconomyTest {
                 mixed.kept() == 1 && owned.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 40);
         check("a disabled starter entry is repriced but stays disabled",
                 !owned.find("ice").orElseThrow().enabled()
-                        && owned.find("ice").orElseThrow().price().get(CurrencyRegistry.COIN) == 256);
+                        && owned.find("ice").orElseThrow().price().get(CurrencyRegistry.COIN) == 2560);
         check("the owner's own listing is never touched",
                 owned.find("elytra").orElseThrow().price().get(CurrencyRegistry.COIN) == 9000);
     }

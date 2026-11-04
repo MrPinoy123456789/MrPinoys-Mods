@@ -315,7 +315,6 @@ final class BankStation {
         mintLore.add(dim("Any smithing table in this chunk."));
         mintLore.add(dim("Hold gold ingots and right-click it."));
         mintLore.add(dim("One gold ingot strikes " + Mint.COINS_PER_STRIKE + " Sovereigns."));
-        mintLore.add(dim("Hold Sovereigns and right-click: " + Mint.COINS_PER_STRIKE + " melt into one ingot."));
         mintLore.add(dim("Sneak and right-click: strike them all."));
         mintLore.add(Messages.body(mint.allowanceFor(player)));
         mintLore.add(dim("One coin in five goes to your kingdom."));
