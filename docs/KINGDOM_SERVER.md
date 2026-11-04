@@ -653,6 +653,20 @@ nugget look for clients without the pack). They have no recipes, no mechanics an
 kingdom currencies will use. Icons come from `foundry/tools/gen_icons.py` (the `COINS` table). Deploy with
 `--content --bedrock`; give one with `/foundry give <player> kingdoms:gold_coin 16`.
 
+The Charter Currency coins (2026-11-03) are a separate thing: vanilla nuggets that Charter Currency marks with
+`custom_data` and stamps with `minecraft:item_model`, so their identity never changes. Foundry's pack serves the looks:
+
+| Coin | Vanilla item | `item_model` |
+|---|---|---|
+| Gold Sovereign (a sun) | `minecraft:gold_nugget` | `chartercurrency:gold_sovereign` |
+| Iron Crown (a crown) | `minecraft:iron_nugget` | `chartercurrency:iron_crown` |
+| Copper Mark (a lozenge) | `minecraft:copper_nugget` | `chartercurrency:copper_mark` |
+
+The files are plain assets under `foundry/examples/assets/chartercurrency` (`items/`, `models/item/`, `textures/item/`),
+drawn by `foundry/tools/gen_coins.py`; no Foundry code is involved. `gen_bedrock.py` maps them for Geyser through its
+`SKINS` list, keyed on the item model. Deploy with `--content --bedrock` (the content set now uploads the
+`chartercurrency` asset folders); a Java client sees them once the pack is resent, a Bedrock one after a Geyser restart.
+
 ## Entering messages and borders
 
 - `Crossings` tells a player on the action bar when they enter a kingdom ("Entering Azrak, land of the Dwarf"), an
