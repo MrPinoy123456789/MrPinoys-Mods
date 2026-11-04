@@ -144,6 +144,41 @@ public final class EconomyTest {
                         && !banks.inChunk("minecraft:overworld", -1, 2));
         check("stored sites load back",
                 new Banks(java.util.Map.of(site, "org:red")).kingdomOf(site).equals(red));
+
+        // The menu's treasury Take buttons: shown to ops, and to whoever the spending governor says may spend that much.
+        KingdomSource lordOnly = new KingdomSource() {
+            public java.util.Optional<String> kingdomOf(UUID player) { return red; }
+            public java.util.Optional<UUID> lordOf(String id) { return java.util.Optional.of(STEVE); }
+            public String displayName(String id) { return id; }
+            public java.util.Collection<String> kingdomIds() { return java.util.List.of("org:red"); }
+        };
+        check("menu: the Lord sees Take, with no limit by default",
+                Banks.showsTreasuryTake(lordOnly, "org:red", STEVE, false, 6400));
+        check("menu: a member does not", !Banks.showsTreasuryTake(lordOnly, "org:red", ALEX, false, 64));
+        check("menu: an op always does", Banks.showsTreasuryTake(lordOnly, "org:red", ALEX, true, 64));
+        check("menu: nothing for a zero amount, a missing kingdom or a missing player",
+                !Banks.showsTreasuryTake(lordOnly, "org:red", STEVE, true, 0)
+                        && !Banks.showsTreasuryTake(lordOnly, null, STEVE, false, 64)
+                        && !Banks.showsTreasuryTake(lordOnly, "org:red", null, false, 64)
+                        && !Banks.showsTreasuryTake(null, "org:red", STEVE, false, 64));
+        KingdomSource granted = new KingdomSource() {
+            public java.util.Optional<String> kingdomOf(UUID player) { return red; }
+            public java.util.Optional<UUID> lordOf(String id) { return java.util.Optional.of(STEVE); }
+            public String displayName(String id) { return id; }
+            public java.util.Collection<String> kingdomIds() { return java.util.List.of("org:red"); }
+            public boolean governsSpending() { return true; }
+            public boolean maySpend(String id, UUID player, long marks) { return player.equals(ALEX) && marks <= 640; }
+        };
+        check("menu: a governor that knows grants decides, limit included",
+                Banks.showsTreasuryTake(granted, "org:red", ALEX, false, 640)
+                        && !Banks.showsTreasuryTake(granted, "org:red", ALEX, false, 641)
+                        && !Banks.showsTreasuryTake(granted, "org:red", STEVE, false, 64));
+        check("menu: the default maySpend follows the spend limit",
+                lordOnly.maySpend("org:red", STEVE, Long.MAX_VALUE) && !lordOnly.maySpend("org:red", ALEX, 1)
+                        && !lordOnly.maySpend("org:red", STEVE, 0));
+        check("menu: the Give and Take presets are in Sovereigns, small to large",
+                java.util.Arrays.equals(Banks.TREASURY_GIVES, new int[]{1, 10})
+                        && java.util.Arrays.equals(Banks.TREASURY_TAKES, new int[]{1, 10, 100}));
     }
 
     // ---- currency registry --------------------------------------------------

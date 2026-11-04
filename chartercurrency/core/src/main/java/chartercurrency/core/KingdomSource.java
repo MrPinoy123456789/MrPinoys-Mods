@@ -47,6 +47,18 @@ public interface KingdomSource {
                 ? java.util.OptionalLong.of(Long.MAX_VALUE) : java.util.OptionalLong.empty();
     }
 
+    /**
+     * May this player take {@code marks} of coin from the organization's treasury in one action, by the rules of
+     * whoever governs spending. The default reads {@link #spendLimit}; Charter answers from its grants. This is
+     * the question the Bank menu asks before it shows a Take button; the withdrawal itself still goes through
+     * the governing door ({@link Treasury#mayWithdrawCoin}, or Charter's Withdraw when Charter governs).
+     */
+    default boolean maySpend(String kingdomId, UUID player, long marks) {
+        if (marks <= 0) return false;
+        java.util.OptionalLong limit = spendLimit(kingdomId, player);
+        return limit.isPresent() && marks <= limit.getAsLong();
+    }
+
     /** A name for chat; falls back to the id for an unknown organization. */
     String displayName(String kingdomId);
 

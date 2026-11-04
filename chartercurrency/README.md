@@ -52,9 +52,16 @@ up to the starter stock).
 Coin enters the world only at a Mint. The usual Mint is any smithing table in the
 same chunk as a **Bank**: a vault block a kingdom's Lord sets on their own land, one per
 kingdom (ops hand them out with `/chartercurrency bank give [player]`; `bank list`,
-`bank forget <kingdom>`). Right-clicking a Bank opens a chest menu with the player's
-money, Bank all, Take out 1, 8 or 64 Sovereigns, the Mint's rules for today and the
-shop; looking at a Bank or a Mint shows one line on the action bar. Breaking a Bank
+`bank forget <kingdom>`). Right-clicking a Bank opens a chest menu in three rows:
+the player's money (Bank all, Take out 1, 8 or 64 Sovereigns); their kingdom's
+treasury (its balance and last three ledger lines, Give all or 1 or 10 Sovereigns for
+any member, Take 1, 10 or 100 Sovereigns for whoever may spend it); and the services
+(the Mint's rules for today, the ledger in chat, the shop). The Take buttons only show
+to a player the spending governor would let through, asked with
+`KingdomSource.maySpend` (Charter answers from its grants and the Lord's limit), and
+they run that governor's own door: `/charter vault withdraw` under Charter, else
+`/treasury withdraw`. Looking at a Bank or a Mint shows one line on the action bar;
+Bedrock players get the same chest menu through Geyser. Breaking a Bank
 drops it back as an item. SPEC section 8.0 has the rules.
 
 An op can also bind any smithing table as a Mint: look at it and run

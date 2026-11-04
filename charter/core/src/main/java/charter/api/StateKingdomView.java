@@ -4,6 +4,11 @@ import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.org.Organization;
 import charter.state.CharterState;
+import charter.grant.AuthorityResolver;
+import charter.grant.Power;
+import charter.grant.ScopeNeed;
+import charter.grant.Who;
+import charter.time.Clock;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -13,9 +18,16 @@ import java.util.UUID;
 public final class StateKingdomView implements KingdomView {
 
     private final CharterState state;
+    private final Clock clock;
 
+    /** A view whose spend answers use the wall clock for grant expiry. */
     public StateKingdomView(CharterState state) {
+        this(state, System::currentTimeMillis);
+    }
+
+    public StateKingdomView(CharterState state, Clock clock) {
         this.state = state;
+        this.clock = clock;
     }
 
     /** The id string a provider sees for an organization. */
@@ -53,6 +65,15 @@ public final class StateKingdomView implements KingdomView {
         return state.office(org.get().governance.deciders)
                 .map(office -> office.holders().stream().map(seat -> seat.player().value()).toList())
                 .orElse(java.util.List.of());
+    }
+
+    @Override
+    public boolean maySpend(String orgId, UUID player, long marks) {
+        Optional<Organization> org = find(orgId);
+        if (org.isEmpty() || player == null || marks <= 0) return false;
+        return new AuthorityResolver(state, clock.now())
+                .resolve(new Who.AsPlayer(new PlayerId(player)), org.get().id, Power.SPEND, ScopeNeed.spend(marks), false)
+                .ok();
     }
 
     @Override

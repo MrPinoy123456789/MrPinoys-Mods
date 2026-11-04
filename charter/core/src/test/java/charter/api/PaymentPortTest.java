@@ -46,6 +46,7 @@ public final class PaymentPortTest {
         aWithdrawalIsTheProvidersToMake();
         theKingdomViewAnswersByOrganizationId();
         aLordSpendsWithoutALimitByDefault();
+        theKingdomViewAnswersWhoMaySpend();
         oldGrantScopesKeepTheirLimit();
     }
 
@@ -171,6 +172,25 @@ public final class PaymentPortTest {
         g.admin(new Deposit(brine, 1000));
         check("lord: the dial still sets a limit when one is wanted", g.as(KRIS, new Withdraw(brine, 100, KRIS)).done());
         eq("lord: and a spend over it needs a vote", "needs_vote", g.as(KRIS, new Withdraw(brine, 101, KRIS)).reasonKey());
+    }
+
+    static void theKingdomViewAnswersWhoMaySpend() {
+        Fixture f = new Fixture();
+        f.knobs.lordSpendLimitMarks = 640;
+        PlayerId carol = player("Carol");
+        OrgId ashfall = f.found("Ashfall", Preset.LORDSHIP, KRIS, BOB, carol);
+        f.admin(new Deposit(ashfall, 100_000));
+        StateKingdomView view = new StateKingdomView(f.state, f.clock);
+        String id = ashfall.toString();
+        check("spend: the Lord may take up to the Lord's limit", view.maySpend(id, KRIS.value(), 640));
+        check("spend: and not one Mark over it", !view.maySpend(id, KRIS.value(), 641));
+        check("spend: a plain member may not", !view.maySpend(id, BOB.value(), 1));
+        check("spend: a granted member may, within the grant", f.as(KRIS, new charter.grant.actions.GrantPower(ashfall,
+                charter.grant.Power.SPEND, new charter.grant.Holder.OfPlayer(carol), GrantScope.spendUpTo(64), false, 0)).done()
+                && view.maySpend(id, carol.value(), 64) && !view.maySpend(id, carol.value(), 65));
+        check("spend: a stranger, a bad id and a zero amount are refused",
+                !view.maySpend(id, player("Nobody").value(), 1) && !view.maySpend("org:nonsense", KRIS.value(), 1)
+                        && !view.maySpend(id, KRIS.value(), 0));
     }
 
     static void oldGrantScopesKeepTheirLimit() {
