@@ -1,6 +1,7 @@
 package charter.chronicle;
 
 import charter.contract.Party;
+import charter.gov.GovEvents;
 import charter.grant.Holder;
 import charter.history.History;
 import charter.history.HistoryEvent;
@@ -10,15 +11,18 @@ import charter.id.OfficeId;
 import charter.id.OrgId;
 import charter.id.PlayerId;
 import charter.org.OrgEvents;
+import charter.treasury.TreasuryEvents;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Turns history entries into prose (DESIGN.md §17). The template is found by the
@@ -27,6 +31,11 @@ import java.util.Optional;
  * An event with no template gets the fallback line; nothing here throws on odd
  * history.
  *
+ * <p>The second edition (docs/2026-11-04-chronicle-design.md) adds to every told
+ * entry a <b>headline</b> (no date, the name first), a {@link Tier} (who is told)
+ * and a standing story title ({@link Stories}). {@link #tell} gives all of it for a
+ * run of entries, with one happening that left several entries told once.
+ *
  * <p>Admin events (PLAN.md §3) are left out unless {@code includeAdmin} is set, so
  * test scenarios do not pollute the story. When shown, the {@code _admin} template
  * is added after the line.
@@ -34,6 +43,17 @@ import java.util.Optional;
 public final class ChronicleRenderer {
 
     private static final String LAST_RESORT = "Something was recorded on {when}.";
+    /** Marks to a Gold Sovereign. */
+    public static final long MARKS_PER_SOVEREIGN = 64;
+
+    /**
+     * One told happening: its line and headline, where it goes, its story title if any,
+     * the names it involves, and which entries (by index into the list given to
+     * {@link #tell}) it covers.
+     */
+    public record Told(String line, String headline, Tier tier, Optional<String> story, HistoryEvent event,
+                       int first, int last, List<String> orgs, List<String> players) {
+    }
 
     private final TemplateSet templates;
     private final Calendar calendar;
@@ -47,24 +67,90 @@ public final class ChronicleRenderer {
         this.includeAdmin = includeAdmin;
     }
 
-    /** The line for one entry, or empty when it is an admin event and admin events are hidden. */
+    /** The line for one entry, or empty when it is hidden. */
     public Optional<String> render(History.Entry entry) {
+        return tellOne(entry, 0).map(Told::line);
+    }
+
+    /** The headline for one entry, or empty when it is hidden. */
+    public Optional<String> headline(History.Entry entry) {
+        return tellOne(entry, 0).map(Told::headline);
+    }
+
+    /**
+     * Where this entry's line goes. Hidden entries (admin, routine, raiders, silenced)
+     * are {@link Tier#QUIET}. A defection, a crowning and an abdication are the realm's
+     * whatever their template says; a treasury movement under one Sovereign is quiet.
+     */
+    public Tier tier(History.Entry entry) {
+        if (entry.admin() && !includeAdmin) return Tier.QUIET;
+        HistoryEvent event = entry.event();
+        if (routine(event) || touchesNpc(event)) return Tier.QUIET;
+        Optional<Template> t = templates.get(TemplateSet.keyOf(event.getClass()));
+        if (t.map(x -> x.text().isBlank()).orElse(false)) return Tier.QUIET;
+        if (event instanceof OrgEvents.Joined j && j.from() != null) return Tier.REALM;
+        if (event instanceof GovEvents.OfficeFilled f && names.isDeciders(f.office())) return Tier.REALM;
+        if (event instanceof GovEvents.OfficeVacated v && names.isDeciders(v.office())) return Tier.REALM;
+        if (event instanceof TreasuryEvents.DepositedMarks d && d.marks() < MARKS_PER_SOVEREIGN) return Tier.QUIET;
+        if (event instanceof TreasuryEvents.WithdrawnMarks w && w.marks() < MARKS_PER_SOVEREIGN) return Tier.QUIET;
+        return t.map(Template::tier).orElse(Tier.KINGDOM);
+    }
+
+    private Optional<Told> tellOne(History.Entry entry, int index) {
         if (entry.admin() && !includeAdmin) return Optional.empty();
         HistoryEvent event = entry.event();
         if (routine(event)) return Optional.empty();
         if (touchesNpc(event)) return Optional.empty();
         String key = TemplateSet.keyOf(event.getClass());
-        String text = templates.get(key).map(Template::text)
+        Optional<Template> template = templates.get(key);
+        String text = template.map(Template::text)
                 .or(() -> templates.get(TemplateSet.FALLBACK).map(Template::text))
                 .orElse(LAST_RESORT);
         Map<String, Object> fields = fields(event);
-        String line = fill(text, event, entry, fields);
+        String plain = fill(text, event, entry, fields);
         // A template rewritten to nothing silences its event.
-        if (line.isBlank()) return Optional.empty();
+        if (plain.isBlank()) return Optional.empty();
+        String line = plain;
+        Optional<String> story = Stories.of(event, names);
+        String headline = template.map(Template::headline).map(h -> fill(h, event, entry, fields)).filter(h -> !h.isBlank())
+                .orElseGet(() -> headlineFrom(plain));
+        if (story.isPresent()) {
+            line = line + " " + story.get() + ".";
+            headline = headline + " " + story.get() + ".";
+        }
         if (entry.admin()) {
             line += templates.get(TemplateSet.ADMIN).map(t -> " " + fill(t.text(), event, entry, fields)).orElse("");
         }
-        return Optional.of(line);
+        Set<String> orgs = new LinkedHashSet<>();
+        Set<String> players = new LinkedHashSet<>();
+        collectNames(fields.values(), orgs, players);
+        return Optional.of(new Told(line, headline, tier(entry), story, event, index, index, List.copyOf(orgs), List.copyOf(players)));
+    }
+
+    /** A headline made from a line: the date clause dropped, the first sentence kept, a capital to open. */
+    static String headlineFrom(String line) {
+        String s = line;
+        if (s.startsWith("On ")) {
+            int comma = s.indexOf(", ");
+            // "On day 3, the second week of Eclipse, year 2, X ..." has up to three commas before the sentence.
+            int cut = -1;
+            int from = 0;
+            for (int i = 0; i < 3 && comma >= 0; i++) {
+                String clause = s.substring(from, comma);
+                if (clause.startsWith("On day") || clause.startsWith("the ") || clause.startsWith("year ")) {
+                    cut = comma + 2;
+                    from = cut;
+                    comma = s.indexOf(", ", from);
+                } else {
+                    break;
+                }
+            }
+            if (cut > 0) s = s.substring(cut);
+        }
+        int end = s.indexOf(". ");
+        if (end > 0) s = s.substring(0, end + 1);
+        if (!s.isEmpty()) s = Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        return s;
     }
 
     /**
@@ -74,15 +160,22 @@ public final class ChronicleRenderer {
      */
     public List<String> render(List<History.Entry> entries) {
         List<String> lines = new ArrayList<>();
+        for (Told told : tell(entries)) lines.add(told.line());
+        return lines;
+    }
+
+    /** Everything told about these entries, oldest first, with the same folding as {@link #render(List)}. */
+    public List<Told> tell(List<History.Entry> entries) {
+        List<Told> out = new ArrayList<>();
         if (includeAdmin) {
-            for (History.Entry entry : entries) render(entry).ifPresent(lines::add);
-            return lines;
+            for (int i = 0; i < entries.size(); i++) tellOne(entries.get(i), i).ifPresent(out::add);
+            return out;
         }
         int i = 0;
         while (i < entries.size()) {
             History.Entry entry = entries.get(i);
             HistoryEvent event = entry.event();
-            if (partOfFounding(event, entries) || partOfSeating(event, entries)) {
+            if (partOfFounding(event, entries)) {
                 i++;
                 continue;
             }
@@ -127,17 +220,20 @@ public final class ChronicleRenderer {
                         break;
                     }
                 }
-                List<String> names = new ArrayList<>();
-                for (PlayerId p : who) names.add(this.names.player(p));
-                lines.add("On " + calendar.dayPhrase(first.at()) + ", " + join(names) + " joined " + this.names.org(first.org())
-                        + (trueBody ? ", making it a true body" : "") + ".");
+                List<String> people = new ArrayList<>();
+                for (PlayerId p : who) people.add(this.names.player(p));
+                String org = this.names.org(first.org());
+                String line = "On " + calendar.dayPhrase(first.at()) + ", " + join(people) + " joined " + org
+                        + (trueBody ? ", making it a true body" : "") + ".";
+                String headline = join(people) + " joined " + org + ".";
+                out.add(new Told(line, headline, Tier.KINGDOM, Optional.empty(), first, i, k - 1, List.of(org), List.copyOf(people)));
                 i = k;
                 continue;
             }
-            render(entry).ifPresent(lines::add);
+            tellOne(entry, i).ifPresent(out::add);
             i++;
         }
-        return lines;
+        return out;
     }
 
     /** A plain join of a player faction, with the default wording, that is safe to fold into a shorter line. */
@@ -173,21 +269,6 @@ public final class ChronicleRenderer {
         return false;
     }
 
-    /**
-     * A change of seats at the same moment as someone taking up or leaving that office (an operator naming a second
-     * Lord, or one of two Lords going) is told by that line: "Bob took up the office of Lord in Azrak" says it, and
-     * "2 seats, deciding ALONE" would not.
-     */
-    private static boolean partOfSeating(HistoryEvent event, List<History.Entry> entries) {
-        if (!(event instanceof charter.gov.GovEvents.SeatsChanged seats)) return false;
-        for (History.Entry other : entries) {
-            HistoryEvent o = other.event();
-            if (o instanceof charter.gov.GovEvents.OfficeFilled f && f.office().equals(seats.office()) && f.at() == seats.at()) return true;
-            if (o instanceof charter.gov.GovEvents.OfficeVacated v && v.office().equals(seats.office()) && v.at() == seats.at()) return true;
-        }
-        return false;
-    }
-
     /** Everyday traffic that would drown the story: food carried in when no siege needed it. */
     static boolean routine(HistoryEvent event) {
         return event instanceof charter.siege.SiegeEvents.FoodDeposited f && !f.underSiege()
@@ -210,6 +291,19 @@ public final class ChronicleRenderer {
             }
         }
         return false;
+    }
+
+    private void collectNames(Collection<?> values, Set<String> orgs, Set<String> players) {
+        for (Object value : values) {
+            if (value instanceof OrgId id) orgs.add(names.org(id));
+            else if (value instanceof PlayerId id) players.add(names.player(id));
+            else if (value instanceof Holder.OfOrg h) orgs.add(names.org(h.org()));
+            else if (value instanceof Holder.OfPlayer h) players.add(names.player(h.player()));
+            else if (value instanceof Party p) {
+                if (p.isPlayer()) players.add(names.player(p.player()));
+                else orgs.add(names.org(p.org()));
+            } else if (value instanceof Collection<?> c) collectNames(c, orgs, players);
+        }
     }
 
     private static Map<String, Object> fields(HistoryEvent event) {
@@ -251,10 +345,11 @@ public final class ChronicleRenderer {
         int hash = spec.indexOf('#');
         int q = spec.indexOf('?');
         if (hash >= 0 && (q < 0 || hash < q)) {
-            // {count#claim}: the number and the noun, "1 claim" or "3 claims"
+            // {count#claim}: the number and the noun, "1 claim" or "3 claims"; {marks#coin}: Sovereigns and Marks
             Object n = lookup(spec.substring(0, hash), event, entry, fields);
             String noun = spec.substring(hash + 1);
             if (!(n instanceof Number number)) return "unknown";
+            if (noun.equals("coin")) return coins(number.longValue());
             return number + " " + noun + (number.longValue() == 1 ? "" : "s");
         }
         String name = q < 0 ? spec : spec.substring(0, q);
@@ -264,6 +359,15 @@ public final class ChronicleRenderer {
             return on ? spec.substring(q + 1).replace("%", show(name, value)) : "";
         }
         return value == null ? "unknown" : show(name, value);
+    }
+
+    /** Marks told the owner's way: "2 Sovereigns", "1 Sovereign and 20 Marks", "15 Marks". */
+    public static String coins(long marks) {
+        long sovereigns = marks / MARKS_PER_SOVEREIGN;
+        long rest = marks % MARKS_PER_SOVEREIGN;
+        if (sovereigns == 0) return plural(rest, "Mark");
+        if (rest == 0) return plural(sovereigns, "Sovereign");
+        return plural(sovereigns, "Sovereign") + " and " + plural(rest, "Mark");
     }
 
     private Object lookup(String name, HistoryEvent event, History.Entry entry, Map<String, Object> fields) {
@@ -283,7 +387,6 @@ public final class ChronicleRenderer {
         if (value instanceof Holder.OfPlayer h) return names.player(h.player());
         if (value instanceof Holder.OfOffice h) return "the " + names.office(h.office());
         if (value instanceof Holder.OfOrg h) return names.org(h.org());
-        if (value instanceof Holder.OfRank h) return "a rank of " + names.org(h.kingdom());
         if (value instanceof CoreId id) return names.core(id);
         if (value instanceof ChunkKey c) return (c.x() * 16 + 8) + ", " + (c.z() * 16 + 8);
         if (value instanceof Party p) return p.isPlayer() ? names.player(p.player()) : names.org(p.org());

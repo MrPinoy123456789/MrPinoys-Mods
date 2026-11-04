@@ -106,7 +106,8 @@ public final class CoreTypes {
                 .registerNested(SiegeEvents.class, HistoryEvent.class)
                 .registerNested(charter.npc.NpcEvents.class, HistoryEvent.class)
                 .registerNested(charter.moderation.ModerationEvents.class, HistoryEvent.class)
-                .registerNested(StoreEvents.class, HistoryEvent.class);
+                .registerNested(StoreEvents.class, HistoryEvent.class)
+                .registerNested(charter.chronicle.MilestoneEvents.class, HistoryEvent.class);
         RankTypes.register(actions, events);
         Persistence.block(CoreBlocks.block("join_requests", CoreTypes::writeRequests, CoreTypes::readRequests));
         Persistence.block(CoreBlocks.block("breakaways", CoreTypes::writeBreakaways, CoreTypes::readBreakaways));

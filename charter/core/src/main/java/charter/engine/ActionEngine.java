@@ -134,6 +134,12 @@ public final class ActionEngine {
         for (HistoryEvent event : events) {
             state.history.record(event, actor.describe(), admin);
         }
+        // Milestones (a kingdom's fifth member, its first war) are the realm's news whoever caused them,
+        // so they are recorded as the rules' own, never as the admin's.
+        if (events.isEmpty()) return;
+        for (HistoryEvent milestone : charter.chronicle.Milestones.after(state, events)) {
+            state.history.record(milestone, new Actor.System().describe(), false);
+        }
     }
 
     /** Records events the rules produce on their own (timers, the siege), outside any action. */

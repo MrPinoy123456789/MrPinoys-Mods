@@ -3,8 +3,8 @@
 Design for upgrading Charter's Chronicle, the Chronicle pages of the Charter book, and
 the feed from which Lemon Berry, with the owner approving every line, tells the Chronicle on Discord.
 Written 2026-11-04 from the owner's brief, the 2026-11-04 Discord community study
-("Realm Chronicle Research"), and the code on master at f0685d35. Design only; nothing
-here is built.
+("Realm Chronicle Research"), and the code on master at f0685d35. C1 to C3 of section 6
+were built the same day on `feature/chronicle-design`; C4 to C6 are design only.
 
 ## 1. What the Chronicle is for
 
@@ -329,6 +329,26 @@ fixed table in 3.3. Gord stays what it is today: account links and join requests
 
 C1 to C3 are core and file work, testable without a server. Deploy follows the owner's
 rule: only the master session deploys d212ecae.
+
+**Built 2026-11-04 (C1 to C3).** `Template` carries a headline and a `Tier`;
+`TemplateSet.overlay` fills a server's plain-string line with the built in headline and
+tier, so every existing `templates.json` still loads. `ChronicleRenderer.tell` gives each
+told happening its line, headline, tier, story title and the names involved, with the
+same folding as the books; `tier` makes a defection, a crowning and an abdication the
+realm's, and a treasury movement under one Sovereign quiet. `Stories` is the fixed title
+table. `MilestoneEvents` (MembersReached at 5, 10, 20; FirstOf war, outpost taken,
+outpost held) are derived by `Milestones.after` and recorded by the engine as the
+rules' own, so an operator's hand still counts. Marks render as Sovereigns through
+`{n#coin}`. `ChronicleFeed` writes the JSON objects; `ChronicleFeedFile` appends them to
+`<world>/charter/chronicle-feed.jsonl` from the lectern tick, resumes from the last
+line's `n`, and starts from now on a server that gains the feed with history behind it
+(knob `chronicleFeed`, default on). `templates.json` now writes objects with `line`,
+`headline` and `tier`. Tests: `ChronicleEditionTest` (core) and two new checks in
+`ChronicleBookTest` (fabric). Not built: the Joined headline is derived from the line
+("Gil joined Ashfall after leaving Riverside. The Betrayal.") rather than the design's
+"left X for Y" wording, since one template cannot say both forms; "The Long Siege" and
+the member-count condition on "Held the Line" were dropped as needing state the renderer
+does not have.
 
 ## 7. Tests
 

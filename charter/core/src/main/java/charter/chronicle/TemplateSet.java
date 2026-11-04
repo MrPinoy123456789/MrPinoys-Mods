@@ -8,9 +8,9 @@ import java.util.Optional;
 /**
  * The Chronicle's voice, as data: templates keyed by event record name. Core has
  * no JSON, so this takes plain strings; the fabric side reads
- * {@code templates.json} and hands the map over. Later milestones add entries
- * (their own event keys) without touching code, and a server overrides any entry
- * by overlaying its own file on {@link DefaultTemplates#get()}.
+ * {@code templates.json} and hands the entries over. A server overrides any entry
+ * by overlaying its own file on {@link DefaultTemplates#get()}; an entry it gives as
+ * a plain line keeps the built in headline and tier.
  */
 public final class TemplateSet {
 
@@ -35,11 +35,24 @@ public final class TemplateSet {
         return this;
     }
 
-    /** A copy of this set with the other set's entries added or replacing. */
+    public TemplateSet put(String key, String text, String headline, Tier tier) {
+        templates.put(key, new Template(key, text, headline, tier));
+        return this;
+    }
+
+    public TemplateSet put(Template template) {
+        templates.put(template.key(), template);
+        return this;
+    }
+
+    /**
+     * A copy of this set with the other set's entries added or replacing. An entry
+     * of the other set that has no headline or tier takes this set's.
+     */
     public TemplateSet overlay(TemplateSet other) {
         TemplateSet out = new TemplateSet();
         out.templates.putAll(templates);
-        out.templates.putAll(other.templates);
+        other.templates.forEach((key, template) -> out.templates.put(key, template.completedBy(templates.get(key))));
         return out;
     }
 

@@ -107,7 +107,7 @@ public final class ChronicleStoryTest {
         golden(new SiegeEvents.OutpostCaptured(AT, 0, 1, ASHFALL, EASTERN, CAMP, CHUNK, 0, 8),
                 IN + "Ashfall took the outpost of the Eastern Guard, banner and land.");
         golden(new SiegeEvents.WarLapsed(AT, 0, 1, ASHFALL, EASTERN, CAMP),
-                IN + "the war of Ashfall on the outpost of the Eastern Guard ran out and nothing was taken. They may not fight again for a while.");
+                IN + "the war of Ashfall on the outpost of the Eastern Guard ran out and nothing was taken. They may not fight again for a while. Held the Line.");
         golden(new SiegeEvents.KeepRunningLow(AT, 0, KEEP, ASHFALL, 7),
                 IN + "the granary of the keep of Ashfall was down to 7 days of food. Ashfall was told to feed it.");
         golden(new SiegeEvents.KeepLapsed(AT, 0, KEEP, ASHFALL, CHUNK),

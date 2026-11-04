@@ -106,7 +106,7 @@ public final class ChronicleTest {
         golden(events, expected, new OrgEvents.Invited(AT, ASHFALL, GIL),
                 IN + "Ashfall invited Gil to join them.");
         golden(events, expected, new OrgEvents.Joined(AT, ASHFALL, GIL, RIVERSIDE),
-                IN + "Gil joined Ashfall after leaving Riverside.");
+                IN + "Gil joined Ashfall after leaving Riverside. The Betrayal.");
         golden(events, expected, new OrgEvents.Left(AT, ASHFALL, GIL),
                 IN + "Gil left Ashfall.");
         golden(events, expected, new OrgEvents.Expelled(AT, ASHFALL, GIL),
