@@ -22,6 +22,7 @@ public final class CoreSuite {
         identifiers();
         parsing();
         loading();
+        wrongShapesAndExcludeLists();
         packFiles();
         furniture();
         mechanics();
@@ -1326,6 +1327,61 @@ public final class CoreSuite {
                 java.util.List.of(), i -> true, p -> true, p -> offAtlasModel, java.util.List.of());
         check(modelOffAtlas.problems().stream().anyMatch(p -> p.blocking() && p.message().contains("pink and black")),
                 "a model texture outside textures/item/ and textures/block/ is an error (the client would draw it missing)");
+    }
+
+    /** Wrong shaped content costs a problem line, never the boot (audit FO-3); exclude lists are a closed set (FO-4). */
+    private static void wrongShapesAndExcludeLists() throws Exception {
+        String[][] bad = {
+            {"lore", "\"lore\": [{\"text\": \"hi\"}]"},
+            {"value", "\"enchantable\": {\"value\": \"high\"}"},
+            {"enchantable", "\"enchantable\": {\"value\": 10, \"as\": [{\"x\": 1}]}"},
+            {"glint", "\"glint\": {\"on\": true}"},
+            {"keep_on_death", "\"keep_on_death\": \"yes\""},
+            {"tool", "\"tool\": {\"kind\": {\"a\": 1}, \"tier\": \"iron\"}"},
+        };
+        for (String[] b : bad) {
+            String json = GOOD.replace("\"stack_size\": 1,", "\"stack_size\": 1, " + b[1] + ",");
+            var r = ItemParser.parse("bad.json", json);
+            check(r.def() == null && r.problems().stream().anyMatch(p -> p.where().equals(b[0]) && p.blocking()),
+                    b[0] + " of the wrong shape is a problem, not an exception: " + b[1]);
+        }
+        // and through the loader, a RuntimeException from any parser is a problem on that file, the rest still loads
+        Path root = Files.createTempDirectory("foundry-shapes");
+        Path items = Files.createDirectories(root.resolve("t").resolve("items"));
+        Files.writeString(items.resolve("sword.json"), GOOD);
+        Files.writeString(items.resolve("broken.json"), GOOD.replace("t:sword", "t:broken")
+                .replace("\"stack_size\": 1,", "\"stack_size\": 1, \"lore\": [{\"text\": \"hi\"}],"));
+        Files.writeString(items.resolve("mech.json"), GOOD.replace("t:sword", "t:mech").replace("\"stack_size\": 1,",
+                "\"stack_size\": 1, \"mechanics\": {\"not\": \"a list\"},"));
+        ContentSet set = ContentLoader.load(root, i -> VANILLA.contains(i.toString()), p -> false, p -> null);
+        check(set.items().containsKey(Ident.parse("t:sword")) && !set.items().containsKey(Ident.parse("t:broken")),
+                "a file of the wrong shape is skipped and the others still load");
+        check(set.problems().stream().anyMatch(p -> p.content().contains("broken.json") && p.blocking()), "the broken file is named");
+
+        String mech = "\"mechanics\": [{\"trigger\": \"on_use\", \"actions\": [{\"type\": \"damage\", \"amount\": 2, "
+                + "\"target\": \"area\", \"radius\": 3, \"exclude\": %s}]}]";
+        String sword = GOOD.replace("\"durability\": 500", "\"durability\": 500, %s");
+        check(ItemParser.parse("m.json", sword.formatted(mech.formatted("[\"villagers\", \"tamed\", \"passive\", \"players\"]"))).def() != null,
+                "every named exclude is accepted");
+        var unknown = ItemParser.parse("m.json", sword.formatted(mech.formatted("[\"cows\"]")));
+        check(unknown.def() == null && unknown.problems().stream().anyMatch(p -> p.message().contains("cows")), "an unknown exclude is refused");
+        check(ItemParser.parse("m.json", sword.formatted(mech.formatted("\"villagers\""))).def() == null, "exclude must be a list");
+        var single = ItemParser.parse("m.json", sword.formatted(
+                "\"mechanics\": [{\"trigger\": \"on_use\", \"actions\": [{\"type\": \"damage\", \"amount\": 2, \"exclude\": [\"tamed\"]}]}]"));
+        check(single.def() == null, "exclude only applies with an area target");
+        var shipped = ItemParser.parse("azrak_pick_1.json", Files.readString(Path.of("examples/content/kingdoms/items/azrak_pick_1.json"))).def();
+        var slam = shipped.mechanics().stream().flatMap(m -> m.actions().stream())
+                .filter(a -> a.type().equals("damage") && "area".equals(a.params().get("target"))).findFirst().orElseThrow();
+        check(foundry.core.mechanics.MechanicTypes.excluded(slam).equals(java.util.List.of("villagers", "tamed")),
+                "the shipped Ground Slam spares villagers and tamed animals");
+        for (String f : new String[] {"aurelia_oathblade_3", "azurius_trident_1", "faeloria_staff_2", "everdelle_wand_3"}) {
+            var d = ItemParser.parse(f + ".json", Files.readString(Path.of("examples/content/kingdoms/items/" + f + ".json"))).def();
+            boolean allSpare = d.mechanics().stream().flatMap(m -> m.actions().stream())
+                    .filter(a -> a.type().equals("dash_strike") || (java.util.Set.of("damage", "knockback", "apply_effect").contains(a.type())
+                            && ("area".equals(a.params().get("target")) || "impact".equals(a.params().get("target")))))
+                    .allMatch(a -> foundry.core.mechanics.MechanicTypes.excluded(a).containsAll(java.util.List.of("villagers", "tamed")));
+            check(allSpare, f + " area actions all spare villagers and tamed animals");
+        }
     }
 
     private static void loading() throws Exception {

@@ -54,15 +54,15 @@ public final class ItemParser {
                         "Use { \"value\": 10, \"as\": [\"minecraft:enchantable/melee_weapon\"] }."));
             } else {
                 JsonObject e = o.getAsJsonObject("enchantable");
-                enchantability = e.has("value") ? e.get("value").getAsInt() : 10;
+                enchantability = intField(e, "value", 10, source, problems);
                 if (enchantability < 1 || enchantability > 50) {
                     problems.add(Problem.error(source, "enchantable", "enchantable value must be 1 to 50.", "A sword is 10 to 15."));
                 }
                 if (e.has("as") && e.get("as").isJsonArray()) {
                     for (JsonElement t : e.getAsJsonArray("as")) {
-                        String tag = t.getAsString();
-                        if (Ident.parse(tag) == null) {
-                            problems.add(Problem.error(source, "enchantable", "\"" + tag + "\" is not an item tag id.",
+                        String tag = t.isJsonPrimitive() ? t.getAsString() : null;
+                        if (tag == null || Ident.parse(tag) == null) {
+                            problems.add(Problem.error(source, "enchantable", "\"" + (tag == null ? t : tag) + "\" is not an item tag id.",
                                     "Use an id such as minecraft:enchantable/melee_weapon, without the #."));
                         } else {
                             enchantableAs.add(tag);
@@ -86,12 +86,19 @@ public final class ItemParser {
                 problems.add(Problem.error(source, "lore", "lore must be a list of text lines.",
                         "Use [\"line one\", \"line two\"]."));
             } else {
-                for (JsonElement e : (JsonArray) o.get("lore")) lore.add(e.getAsString());
+                for (JsonElement e : (JsonArray) o.get("lore")) {
+                    if (e.isJsonPrimitive()) {
+                        lore.add(e.getAsString());
+                    } else {
+                        problems.add(Problem.error(source, "lore", "Each lore line must be plain text, not " + e + ".",
+                                "Use [\"line one\", \"line two\"]."));
+                    }
+                }
             }
         }
         int stack = intField(o, "stack_size", 64, source, problems);
         int durability = intField(o, "durability", 0, source, problems);
-        boolean glint = o.has("glint") && o.get("glint").getAsBoolean();
+        boolean glint = boolField(o, "glint", source, problems);
         String rarity = stringField(o, "rarity", "common", source, problems);
         double attackDamage = decimalField(o, "attack_damage", 0, 0, 100, source, problems);
         double attackSpeed = decimalField(o, "attack_speed", 0, 0, 16, source, problems);
@@ -111,8 +118,8 @@ public final class ItemParser {
                     "Use a namespaced node such as race:azrak."));
         }
         String lockedMessage = stringField(o, "locked_message", "This item is not yours to use.", source, problems);
-        boolean keepOnDeath = o.has("keep_on_death") && o.get("keep_on_death").getAsBoolean();
-        boolean handheld = o.has("handheld") && o.get("handheld").getAsBoolean();
+        boolean keepOnDeath = boolField(o, "keep_on_death", source, problems);
+        boolean handheld = boolField(o, "handheld", source, problems);
 
         var mechanics = foundry.core.mechanics.MechanicParser.parse(source, id == null ? source : id.toString(),
                 o.get("mechanics"), problems);
@@ -134,13 +141,13 @@ public final class ItemParser {
                 }
             }
         }
-        boolean glider = o.has("glider") && o.get("glider").getAsBoolean();
+        boolean glider = boolField(o, "glider", source, problems);
         // Mining: "tool": {"kind": "pickaxe", "tier": "iron"} mines as that vanilla tool does (speed and which blocks drop).
         ItemDef.Tool tool = null;
         if (o.has("tool")) {
             JsonObject t = o.get("tool").isJsonObject() ? o.getAsJsonObject("tool") : null;
-            String kind = t != null && t.has("kind") ? t.get("kind").getAsString() : "";
-            String tier = t != null && t.has("tier") ? t.get("tier").getAsString() : "";
+            String kind = t != null ? stringField(t, "kind", "", source, problems) : "";
+            String tier = t != null ? stringField(t, "tier", "", source, problems) : "";
             if (!ItemDef.TOOL_KINDS.contains(kind) || !ItemDef.TOOL_TIERS.contains(tier)) {
                 problems.add(Problem.error(source, "tool", "tool needs a kind (" + String.join(", ", ItemDef.TOOL_KINDS)
                         + ") and a tier (" + String.join(", ", ItemDef.TOOL_TIERS) + ").",
@@ -169,6 +176,14 @@ public final class ItemParser {
             out.add(Problem.error(src, key, key + " must be a whole number.", "Use a number such as " + dflt + "."));
             return dflt;
         }
+    }
+
+    private static boolean boolField(JsonObject o, String key, String src, List<Problem> out) {
+        if (!o.has(key)) return false;
+        var v = o.get(key);
+        if (v.isJsonPrimitive() && v.getAsJsonPrimitive().isBoolean()) return v.getAsBoolean();
+        out.add(Problem.error(src, key, key + " must be true or false.", "Use true or false without quotes."));
+        return false;
     }
 
     private static double decimalField(JsonObject o, String key, double dflt, double min, double max, String src, List<Problem> out) {

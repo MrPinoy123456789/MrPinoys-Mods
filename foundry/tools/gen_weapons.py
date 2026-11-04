@@ -108,6 +108,20 @@ def hit(tag, actions, wet=False):
     return m
 
 
+# Area actions spare the keep's villagers and the Lord's horse and dogs (audit FO-4); the engine reads this closed list.
+BYSTANDERS = ["villagers", "tamed"]
+
+
+def spare_bystanders(mechanics):
+    """Marks every area action (an area or impact target) and every dash cut so villagers and tamed pets are skipped."""
+    for m in mechanics:
+        for a in m["actions"]:
+            area = a.get("target") in ("area", "impact")
+            if a["type"] in ("damage", "knockback", "apply_effect") and area or a["type"] == "dash_strike":
+                a["exclude"] = list(BYSTANDERS)
+    return mechanics
+
+
 def secs(ticks):
     s = ticks / 20
     return str(int(s)) if s == int(s) else str(s)
@@ -439,7 +453,7 @@ def main():
             item["require_permission"] = "race:" + node
             item["locked_message"] = "Only the " + people + " can wield this."
             item["keep_on_death"] = True
-            item["mechanics"] = w["mechanics"]
+            item["mechanics"] = spare_bystanders(w["mechanics"])
             write(os.path.join(ROOT, ns, "items", path + ".json"), item)
             count += 1
             if t == 0:

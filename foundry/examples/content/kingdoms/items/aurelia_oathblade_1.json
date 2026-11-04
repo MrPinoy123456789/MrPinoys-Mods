@@ -170,7 +170,11 @@
           "min_damage": 0.5,
           "effect": "minecraft:slowness",
           "duration": 20,
-          "colour": "#F2F4F8"
+          "colour": "#F2F4F8",
+          "exclude": [
+            "villagers",
+            "tamed"
+          ]
         }
       ],
       "charge_ticks": 20,

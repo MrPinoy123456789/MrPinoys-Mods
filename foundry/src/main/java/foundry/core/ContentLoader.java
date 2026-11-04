@@ -59,6 +59,10 @@ public final class ContentLoader {
                 } catch (IOException e) {
                     problems.add(Problem.error(src, "file", "Could not read the file: " + e.getMessage(),
                             "Check the file exists and is not locked."));
+                } catch (RuntimeException e) {
+                    // a parser that meets a shape it did not expect must cost this file, never the boot
+                    problems.add(Problem.error(src, "file", "The file could not be read as content (" + e + ").",
+                            "Check the file against the schema; the rest of the content still loads."));
                 }
             }
         } catch (IOException e) {

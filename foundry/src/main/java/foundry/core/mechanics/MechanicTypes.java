@@ -12,7 +12,7 @@ import java.util.TreeMap;
 public final class MechanicTypes {
     private MechanicTypes() {}
 
-    public enum Kind { ID, INT, DECIMAL, TARGET, BOOL, NAME, TEXT, COLOUR }
+    public enum Kind { ID, INT, DECIMAL, TARGET, BOOL, NAME, TEXT, COLOUR, EXCLUDE }
 
     public record Param(String name, Kind kind, boolean required, double min, double max) {
         static Param id(String n) { return new Param(n, Kind.ID, true, 0, 0); }
@@ -25,6 +25,7 @@ public final class MechanicTypes {
         static Param optName(String n) { return new Param(n, Kind.NAME, false, 0, 0); }
         static Param text(String n) { return new Param(n, Kind.TEXT, true, 0, 0); }
         static Param colour(String n) { return new Param(n, Kind.COLOUR, false, 0, 0); }
+        static Param exclude() { return new Param("exclude", Kind.EXCLUDE, false, 0, 0); }
     }
 
     public record Spec(String name, List<Param> params) {}
@@ -38,6 +39,30 @@ public final class MechanicTypes {
      * never the caster and narrowed by the filters; for play_sound and particle_shape, the spot itself.
      */
     public static final List<String> TARGETS = List.of("self", "hit", "area", "impact");
+
+    /**
+     * What an area action may be told to skip: {@code villagers} (villagers and wandering traders), {@code tamed} (any
+     * animal with an owner), {@code passive} (anything that is not a monster or a player) and {@code players}. A closed
+     * list, written as {@code "exclude": ["villagers", "tamed"]}.
+     */
+    public static final List<String> EXCLUDES = List.of("villagers", "tamed", "passive", "players");
+
+    /** The exclude list of a step (empty when it has none or it is malformed; check() reports the latter). */
+    public static List<String> excluded(Step step) {
+        String v = step.params().get("exclude");
+        if (v == null) return List.of();
+        try {
+            var parsed = com.google.gson.JsonParser.parseString(v);
+            if (!parsed.isJsonArray()) return List.of();
+            List<String> out = new ArrayList<>();
+            for (var e : parsed.getAsJsonArray()) {
+                if (e.isJsonPrimitive() && EXCLUDES.contains(e.getAsString())) out.add(e.getAsString());
+            }
+            return out;
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+    }
 
     /** The shapes particle_shape can draw (see the Minecraft layer for what each looks like). */
     public static final List<String> SHAPES = List.of("ring", "burst", "line", "column", "arc", "spiral");
@@ -53,12 +78,14 @@ public final class MechanicTypes {
                 Param.target());
         action("apply_effect", Param.id("effect"), Param.integer("duration", true, 1, 72000),
                 Param.integer("amplifier", false, 0, 255), Param.target(), Param.decimal("radius", false, 0.5, 16),
-                Param.optId("require_permission"), Param.optId("exclude_permission"));
+                Param.optId("require_permission"), Param.optId("exclude_permission"), Param.exclude());
         action("give_item", Param.id("item"), Param.integer("count", false, 1, 99), Param.target());
         action("damage", Param.decimal("amount", true, 0.5, 100), Param.target(), Param.bool("ignore_hit_delay"),
-                Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"));
+                Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"),
+                Param.exclude());
         action("knockback", Param.decimal("strength", true, -3, 3), Param.decimal("lift", false, 0, 2), Param.target(),
-                Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"));
+                Param.decimal("radius", false, 0.5, 8), Param.optId("require_permission"), Param.optId("exclude_permission"),
+                Param.exclude());
         action("particle_shape", Param.name("shape"), Param.optId("particle"), Param.colour("colour"),
                 Param.integer("count", false, 1, 200), Param.decimal("radius", false, 0.1, 8), Param.decimal("height", false, -2, 4),
                 Param.decimal("size", false, 0.2, 4), Param.target());
@@ -77,7 +104,7 @@ public final class MechanicTypes {
                 Param.decimal("speed", false, 0.5, 3),
                 Param.decimal("amount", true, 0.5, 100), Param.decimal("min_damage", false, 0, 1), Param.optId("effect"),
                 Param.integer("duration", false, 1, 600), Param.integer("amplifier", false, 0, 4), Param.colour("colour"),
-                Param.optId("require_permission"), Param.optId("exclude_permission"));
+                Param.optId("require_permission"), Param.optId("exclude_permission"), Param.exclude());
         // Mikiri: for window ticks the next melee hit or projectile aimed at the player is cancelled and the item's
         // on_parry mechanics answer the attacker; a parry that lands gives back refund (0 to 1) of this recharge.
         action("parry", Param.integer("window", true, 1, 40), Param.decimal("refund", false, 0, 1));
@@ -142,6 +169,19 @@ public final class MechanicTypes {
                         out.add(p.name() + " \"" + v + "\" must be 1 to 32 characters of a to z, 0 to 9 and underscore.");
                     } else if (p.name().equals("shape") && !SHAPES.contains(v)) {
                         out.add("shape \"" + v + "\" is not one of " + SHAPES + ".");
+                    }
+                }
+                case EXCLUDE -> {
+                    try {
+                        var parsed = com.google.gson.JsonParser.parseString(v);
+                        if (!parsed.isJsonArray()) throw new IllegalArgumentException();
+                        for (var e : parsed.getAsJsonArray()) {
+                            if (!e.isJsonPrimitive() || !EXCLUDES.contains(e.getAsString())) {
+                                out.add("exclude holds " + e + ", which is not one of " + EXCLUDES + ".");
+                            }
+                        }
+                    } catch (RuntimeException e) {
+                        out.add("exclude must be a list such as [\"villagers\", \"tamed\"], using only " + EXCLUDES + ".");
                     }
                 }
                 case COLOUR -> {

@@ -606,6 +606,22 @@ public final class WeaponsGameTest {
         helper.succeed();
     }
 
+    /** Ground Slam is an area attack: it must leave a keep's villagers and a tame pet alone (audit FO-4). */
+    @GameTest
+    public void groundSlamSparesVillagersAndTamedPets(GameTestHelper helper) {
+        var dwarf = holder(helper, "kingdoms:azrak_pick_1");
+        var villager = (LivingEntity) helper.spawn(EntityTypes.VILLAGER, 2, 2, 3);
+        var wolf = (net.minecraft.world.entity.animal.wolf.Wolf) helper.spawn(EntityTypes.WOLF, 3, 2, 2);
+        wolf.tame(dwarf);
+        Mob zombie = still(helper, 2, 2, 1);
+        float villagerBefore = villager.getHealth(), wolfBefore = wolf.getHealth(), zombieBefore = zombie.getHealth();
+        item("kingdoms:azrak_pick_1").use(helper.getLevel(), dwarf, InteractionHand.MAIN_HAND);
+        helper.assertTrue(zombie.getHealth() < zombieBefore, "the slam still hurts a zombie beside them");
+        helper.assertTrue(villager.getHealth() == villagerBefore, "the villager is unhurt");
+        helper.assertTrue(wolf.getHealth() == wolfBefore, "and so is the tamed wolf");
+        helper.succeed();
+    }
+
     @GameTest
     public void aStoneSkinOrQuickdrawIsASneakingRightClickAndAPlainOneAttacks(GameTestHelper helper) {
         var pick = holder(helper, "kingdoms:azrak_pick_1");
