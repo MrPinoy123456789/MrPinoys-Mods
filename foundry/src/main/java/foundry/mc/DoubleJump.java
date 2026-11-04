@@ -30,6 +30,10 @@ import net.minecraft.world.phys.Vec3;
  * stay up for good at a fraction of a Fairy's speed. The {@code double_jump} cooldown in worn_displays.json then only
  * marks the race as one that double jumps.
  *
+ * <p>A Fae with a mace in the main hand folds their wings for a dive ({@link WingDash#dive}): no slow fall, and a
+ * burst only steers, never climbing and never breaking the fall. The height the wings gave is no smash: a mace hit
+ * counts only the drop below where the wings first climbed this time in the air ({@link #creditFall}).
+ *
  * <p>Until a Fae has done one double jump they are taught it: a chat line the first time they are seen each login, and
  * an action bar hint near the top of a plain jump, at most every 30 seconds (JumpTip). Who has learned it is kept in
  * config/foundry/wing_dash_learned.json, so the hints stop for good.
@@ -112,15 +116,19 @@ public final class DoubleJump {
     private static void dashTick(ServerPlayer player, RaceTraits.Dash dash, boolean jump, boolean sneak, boolean grounded, long now) {
         UUID id = player.getUUID();
         WingDash state = DASH.computeIfAbsent(id, k -> new WingDash());
+        boolean diving = diving(player);
         if (state.tick(jump, sneak, grounded, now, dash)) {
             burst(player, dash);
             learn(id);
-            charges(player, state, dash);
+            if (diving) state.dive();
+            charges(player, state, dash, diving);
+        } else if (diving && state.dive()) {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Leaf wings folded: diving"), true);
         } else if (state.refused() && state.charges() == 0) {
             AbilityBar.notYet(player, "Leaf wings", state.waiting(now, dash),
                     net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.AZALEA_LEAVES_BREAK));
         } else if (state.refilled()) {
-            charges(player, state, dash);
+            charges(player, state, dash, diving);
         } else if (foundry.core.JumpTip.show(learned(id), state.airTicks(), state.burstThisAir(), now,
                 TIP_AT.getOrDefault(id, Long.MIN_VALUE))) {
             TIP_AT.put(id, now);
@@ -132,21 +140,47 @@ public final class DoubleJump {
         if (state.burstThisAir() && player.connection != null) player.connection.resetFlyingTicks();
     }
 
-    /** "Leaf wings ●●○" on the action bar: the charges left. */
-    private static void charges(ServerPlayer player, WingDash state, RaceTraits.Dash dash) {
+    /** "Leaf wings ●●○" on the action bar: the charges left, and whether the wings are folded for a dive. */
+    private static void charges(ServerPlayer player, WingDash state, RaceTraits.Dash dash, boolean diving) {
         int left = state.charges();
         player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Leaf wings " + "●".repeat(left)
-                + "○".repeat(Math.max(0, dash.charges() - left))), true);
+                + "○".repeat(Math.max(0, dash.charges() - left)) + (diving ? " (folded: diving)" : "")), true);
     }
 
-    /** Beats a Fae's wings: a burst the way they look (see {@link WingDash#burst}). Public so a test can drive it. */
+    /** True while this Fae holds a mace in the main hand, so the wings fold for a dive. Public so a test can drive it. */
+    public static boolean diving(ServerPlayer player) {
+        return player.getMainHandItem().is(net.minecraft.world.item.Items.MACE);
+    }
+
+    /**
+     * Beats a Fae's wings: a burst the way they look (see {@link WingDash#burst}), noting where a climb began. Diving with
+     * a mace the burst only steers ({@link WingDash#dive}): it never climbs or slows the drop, and keeps the fall so far.
+     * Public so a test can drive it.
+     */
     public static void burst(ServerPlayer player, RaceTraits.Dash dash) {
+        boolean diving = diving(player);
         Vec3 v = player.getDeltaMovement();
-        double[] after = WingDash.burst(v.x, v.y, v.z, player.getYRot(), player.getXRot(), dash, overCeiling(player, dash.ceiling()));
+        double[] after = diving ? WingDash.dive(v.x, v.y, v.z, player.getYRot(), player.getXRot(), dash)
+                : WingDash.burst(v.x, v.y, v.z, player.getYRot(), player.getXRot(), dash, overCeiling(player, dash.ceiling()));
         player.setDeltaMovement(after[0], after[1], after[2]);
         player.syncVelocity = true;
-        player.resetFallDistance();
+        if (!diving) {
+            player.resetFallDistance();
+            WingDash state = DASH.get(player.getUUID());
+            if (state != null) state.climbedFrom(player.getY());
+        }
         flourish(player);
+    }
+
+    /**
+     * Just before a Fae with a mace in hand hits (the PlayerMaceDive mixin): the fall the smash counts is cut to the drop
+     * below where their wings first climbed this time in the air ({@link WingDash#credit}), so climbing with the wings and
+     * then taking out the mace gives no free smash. Other weapons are untouched, so a sword still crits. Public so a test
+     * can drive it.
+     */
+    public static void creditFall(ServerPlayer player) {
+        WingDash state = DASH.get(player.getUUID());
+        if (state != null && diving(player)) player.fallDistance = state.credit(player.fallDistance, player.getY());
     }
 
     /**

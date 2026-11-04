@@ -314,6 +314,34 @@ public final class CoreSuite {
         check(!held.slowFall(5) && held.charges() == d.charges() - 2 && held.slowFall(5 + d.hitDrop()), "a hit takes a charge and drops them for a moment");
         held.tick(false, true, true, 30, d);
         check(held.charges() == d.charges() && !held.slowFall(31), "landing brings every charge back and ends the slow fall");
+        // a mace in hand folds the wings: the slow fall ends until a burst made without it
+        var dive = new foundry.core.WingDash();
+        dive.tick(false, false, true, 0, d);
+        for (int n = 1; n <= 3; n++) dive.tick(false, false, false, n, d);
+        check(!dive.dive(), "folding before any burst ends no slow fall");
+        check(dive.tick(true, false, false, 4, d) && dive.slowFall(4), "a burst starts the slow fall");
+        check(dive.dive() && !dive.slowFall(5), "a mace in hand ends the slow fall");
+        check(!dive.dive() && !dive.tick(false, false, false, 5, d) && !dive.slowFall(6), "it stays ended with the mace still held");
+        check(dive.charges() == d.charges() - 1, "folding costs no charge");
+        check(dive.tick(true, false, false, 4 + d.gap(), d) && dive.slowFall(4 + d.gap()), "the next burst without a mace floats again");
+        double[] diveUp = foundry.core.WingDash.dive(0, -0.7, 0, 0f, -90f, d);
+        check(diveUp[1] == -0.7, "a dive burst looking straight up neither climbs nor slows the drop");
+        double[] diveLevel = foundry.core.WingDash.dive(0, -0.7, 0, 0f, 0f, d);
+        double[] plainLevel = foundry.core.WingDash.burst(0, -0.7, 0, 0f, 0f, d, false);
+        check(diveLevel[1] == -0.7 && diveLevel[2] == plainLevel[2] && diveLevel[0] == plainLevel[0],
+                "a dive burst steers across the ground as far as a plain one");
+        check(foundry.core.WingDash.dive(0, 0.4, 0, 0f, -90f, d)[1] == 0.4, "rising when the mace comes out, a dive burst adds no lift");
+        // wing height is no smash: only the drop below where the wings first climbed counts
+        var smash = new foundry.core.WingDash();
+        check(smash.credit(9, 60) == 9, "a drop with no burst (a cliff, a wind charge) counts in full");
+        smash.climbedFrom(80);
+        smash.climbedFrom(76);
+        smash.climbedFrom(83);
+        check(smash.credit(12, 79) == 0, "climbed with the wings, then the mace out above the climb: no smash");
+        check(smash.credit(12, 70) == 6, "below the lowest climb only that drop counts: " + smash.credit(12, 70));
+        check(smash.credit(3, 60) == 3, "never more than the fall itself");
+        smash.tick(false, false, true, 100, d);
+        check(smash.credit(9, 60) == 9, "landing forgets the climb");
         double[] level = foundry.core.WingDash.burst(0, -0.3, 0, 0f, 0f, d, false);
         check(Math.abs(level[2] - d.forward()) < 1e-9 && Math.abs(level[0]) < 1e-9 && Math.abs(level[1] - d.up() / 2) < 1e-9,
                 "looking level (south): a push forward and half the lift");
