@@ -540,11 +540,17 @@ rate is fixed in code at 20 percent and **is not configurable** (owner,
 
 ### 8.4 Melting
 
-Marked coins still fit the vanilla `9 nuggets -> 1 ingot` recipe. Blocking it needs
-a mixin. At 10 Sovereigns an ingot a lone player still loses by melting (9 coins in,
-8 kept after tax), but a Lord who withdraws the tax comes out 1 Sovereign ahead per
-ingot, within the soft cap: up to 320 Sovereigns a day made from nothing. Open
-question for the owner (2026-11-03): block coins in crafting, or accept it.
+Coin cannot be melted or crafted (owner, 2026-11-03). At 10 Sovereigns an ingot,
+nine coins melted into a gold ingot and struck again gave a Lord who withdraws the
+tax 1 Sovereign more per ingot: up to 320 Sovereigns a day made from nothing.
+
+- No recipe matches while any slot of its input holds a marked coin: the crafting
+  grid, the 2 by 2 inventory grid, the crafter, furnaces and every other recipe
+  type. The result slot simply stays empty. Plain nuggets craft as usual.
+- `mixin/RecipeMeltMixin` cancels both public `RecipeManager.getRecipeFor` lookups
+  (the plain one and the hinted one; the `ResourceKey` overload goes through the
+  hinted one) when `CoinCrafting.holdsCoin` sees the marker. A recipe ingredient
+  cannot check `custom_data`, and Fabric API has no crafting event.
 
 ## 9. Config files (`config/chartercurrency/`)
 

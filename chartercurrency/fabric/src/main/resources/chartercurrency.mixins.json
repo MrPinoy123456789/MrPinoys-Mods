@@ -3,7 +3,8 @@
   "package": "chartercurrency.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "CustomClickMixin"
+    "CustomClickMixin",
+    "RecipeMeltMixin"
   ],
   "injectors": {
     "defaultRequire": 1
