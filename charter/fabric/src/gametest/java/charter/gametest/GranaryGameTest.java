@@ -39,6 +39,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -86,6 +88,13 @@ public final class GranaryGameTest {
     private static int OPEN;
     private static int savedUpkeepDays;
     private static int savedMaxChests;
+    private static boolean savedKeepGranary;
+
+    /**
+     * Keeps that need no food: these tests turn {@code keepGranary} off, which every other
+     * granary test needs on, so they run in a batch of their own.
+     */
+    private static final String GRANARY_OFF = "charter-gametest:granary_off";
 
     /** Two factions, Ashfall's keep with a chest granary, and Brinewatch's camp beside it. */
     private static final class World implements AutoCloseable {
@@ -123,6 +132,7 @@ public final class GranaryGameTest {
             if (OPEN++ == 0) {
                 savedUpkeepDays = rt.knobs.keepUpkeepDays;
                 savedMaxChests = rt.knobs.granaryMaxChests;
+                savedKeepGranary = rt.knobs.keepGranary;
             }
             build();
         }
@@ -200,8 +210,10 @@ public final class GranaryGameTest {
             if (--OPEN == 0) {
                 rt.knobs.keepUpkeepDays = savedUpkeepDays;
                 rt.knobs.granaryMaxChests = savedMaxChests;
+                rt.knobs.keepGranary = savedKeepGranary;
             }
             svc.book().remove(keep.id);
+            if (camp != null) svc.book().remove(camp.id);
             // Leave no keep or camp behind in the shared state.
             for (Core core : java.util.Arrays.asList(camp, keep)) {
                 if (core != null && rt.state.core(core.id).isPresent()) {
@@ -426,6 +438,100 @@ public final class GranaryGameTest {
                 w.close();
             }
         });
+    }
+
+    // ---- keeps that need no food ----
+
+    @GameTest(maxTicks = 200, environment = GRANARY_OFF)
+    public void aChestPlacedInAKeepThatNeedsNoFoodStaysOrdinary(GameTestHelper helper) {
+        World w = new World(helper, 10, false);
+        w.rt.knobs.keepGranary = false;
+        BlockPos at = new BlockPos(w.cx * 16 + 5, Y, w.cz * 16 + 5);
+        w.lord.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.CHEST));
+        rightClick(w.lord, w.level, at.below());
+        w.level.setBlock(at, Blocks.AIR.defaultBlockState(), 3); // an empty chest, never one left by an earlier test
+        w.level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
+        helper.runAfterDelay(3, () -> {
+            try {
+                helper.assertTrue(w.svc.book().at(OW, new Pos(at.getX(), at.getY(), at.getZ())) == null,
+                        "A chest placed in a keep that needs no food became its granary");
+                helper.assertTrue(w.svc.book().site(w.keep.id) == null, "A keep that needs no food has a granary");
+                w.lord.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+                helper.assertTrue(rightClick(w.lord, w.level, at) == InteractionResult.PASS,
+                        "The chest does not open as an ordinary chest");
+                helper.succeed();
+            } finally {
+                w.close();
+            }
+        });
+    }
+
+    @GameTest(maxTicks = 200, environment = GRANARY_OFF)
+    public void keepGranariesAreReleasedWhenKeepsNeedNoFood(GameTestHelper helper) {
+        World w = new World(helper, 12);
+        w.level.setChunkForced(w.cx + 2, w.cz, true);
+        Container chest;
+        Display.TextDisplay stale;
+        try {
+            // A keep granary from before keeps needed no food, with food in it and a removal still queued.
+            chest = w.chest(0);
+            put(chest, KELP, 40);
+            put(chest, BREAD, 50);
+            GranaryBook.Site keepSite = w.svc.book().site(w.keep.id);
+            w.svc.reconcile(keepSite, null);
+            keepSite.queued.put("minecraft:bread", 5);
+            // And the camp's store, which stays.
+            BlockPos store = placeChest(w, new BlockPos((w.cx + 2) * 16 + 4, Y, w.cz * 16 + 4));
+            helper.assertTrue(w.svc.link(w.camp, w.level, store, false, true) == null, "The camp store was not linked");
+            Granaries.refreshDisplays();
+            Display.TextDisplay keepLabel = Granaries.displayEntity(w.keep.id);
+            helper.assertTrue(keepLabel != null && !keepLabel.isRemoved(), "The keep granary shows no label");
+            helper.assertTrue(Granaries.displayEntity(w.camp.id) != null, "The camp store shows no label");
+
+            w.rt.knobs.keepGranary = false;
+            int released = Granaries.releaseKeepGranaries();
+            helper.assertTrue(released >= 1, "No keep granary was released");
+            helper.assertTrue(w.svc.book().site(w.keep.id) == null, "The keep granary is still linked");
+            helper.assertTrue(count(chest, KELP) == 40 && count(chest, BREAD) == 50,
+                    "Releasing the granary touched the chest: kelp " + count(chest, KELP) + ", bread " + count(chest, BREAD));
+            helper.assertTrue(mirror(w, KELP) == 0 && mirror(w, BREAD) == 0, "The released keep still counts the chest's food");
+            GranaryBook.Site campSite = w.svc.book().site(w.camp.id);
+            helper.assertTrue(campSite != null && campSite.containers.size() == 1, "The camp store was released too");
+            helper.assertTrue(keepLabel.isRemoved(), "The released granary's label is still standing");
+            helper.assertTrue(Granaries.releaseKeepGranaries() == 0, "A second release found more to release");
+            w.lord.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            helper.assertTrue(rightClick(w.lord, w.level, w.chestAt(0)) == InteractionResult.PASS,
+                    "The released chest does not open as an ordinary chest");
+
+            // A label left by an earlier run comes back with its chunk: with no granary under it, it goes.
+            BlockPos at = w.chestAt(0);
+            stale = EntityTypes.TEXT_DISPLAY.create(w.level, EntitySpawnReason.COMMAND);
+            stale.setPos(at.getX() + 0.5, at.getY() + 1.6, at.getZ() + 0.5);
+            stale.addTag("charter_granary");
+            w.level.addFreshEntity(stale);
+            // The same event a chunk's saved entities fire as they come back.
+            net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD.invoker().onLoad(stale, w.level);
+            helper.assertTrue(!stale.isRemoved(), "The load event removed the label itself instead of on the next tick");
+        } catch (RuntimeException e) {
+            release(w);
+            throw e;
+        }
+        helper.runAfterDelay(3, () -> {
+            try {
+                helper.assertTrue(stale.isRemoved(), "A granary label with no granary under it was kept");
+                Display.TextDisplay campLabel = Granaries.displayEntity(w.camp.id);
+                helper.assertTrue(campLabel != null && !campLabel.isRemoved(), "The camp store's label was removed");
+                helper.assertTrue(count(chest, KELP) == 40 && count(chest, BREAD) == 50, "The released chest changed afterwards");
+                helper.succeed();
+            } finally {
+                release(w);
+            }
+        });
+    }
+
+    private static void release(World w) {
+        w.level.setChunkForced(w.cx + 2, w.cz, false);
+        w.close();
     }
 
     // ---- the food table ----
