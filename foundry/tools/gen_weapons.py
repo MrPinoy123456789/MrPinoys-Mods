@@ -277,8 +277,8 @@ def faeloria(t):
 
 
 def everdelle(t):
-    spark = [4, 5, 6][t]
-    blast = [4, 5, 6][t]
+    spark = [5, 6, 7][t]
+    blast = [5, 6, 7][t]
     reach = [3.0, 3.5, 4.0][t]
     lift = [30, 40, 50][t]
     mis_cd = [280, 240, 200][t]
@@ -301,12 +301,12 @@ def everdelle(t):
         mechanics=[
             {"name": "Sparkle Bolt", "trigger": "on_swing", "cooldown_ticks": 16, "actions": [sound("minecraft:entity.allay.item_thrown", 1.0, 1.9),
                                                                        sound("minecraft:entity.firework_rocket.twinkle", 0.6, 1.6),
-                                                                       spare(bolt("sparkle", 24, 1.4, "minecraft:end_rod",
+                                                                       spare(bolt("sparkle", 36, 1.4, "minecraft:end_rod",
                                                                                   model="minecraft:nether_star", model_scale=0.35,
                                                                                   spin=True, colour=pink))]},
             hit("sparkle", [damage(spark), shape("burst", 12, 0.5, "hit", colour=pink)]),
             use("Mischief", mis_cd, [sound("minecraft:entity.evoker.cast_spell", 0.7, 1.8),
-                                     spare(bolt("mischief", 24, 1.2, "minecraft:witch", model="minecraft:feather",
+                                     spare(bolt("mischief", 36, 1.2, "minecraft:witch", model="minecraft:feather",
                                                 model_scale=0.6, spin=True, colour="#B48CFF", bursts=True))], False),
             hit("mischief", [spare(damage(blast, "impact", radius=reach)),
                              spare(effect("minecraft:levitation", lift, 0, "impact", reach)),

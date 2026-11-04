@@ -3,9 +3,9 @@
   "id": "kingdoms:everdelle_wand_1",
   "display_name": "Everdelle Wand",
   "lore": [
-    "Left click: a sparkle bolt, 4 damage.",
+    "Left click: a sparkle bolt, 5 damage.",
     "Right click: Mischief, a bolt that bursts where it lands. 14s recharge.",
-    "  Every enemy within 3 blocks takes 4 damage and floats for 1.5s. Fairies are spared.",
+    "  Every enemy within 3 blocks takes 5 damage and floats for 1.5s. Fairies are spared.",
     "Sneak and right click: Healing Light, regeneration for players within 5 blocks for 8s. 75s recharge.",
     "Craft: a stick, an iron ingot, a feather and any small flower. Fits the 2 by 2 grid.",
     "Upgrade: 3 amethyst shards and a glow ink sac, crafted with this at a crafting table."
@@ -47,7 +47,7 @@
         {
           "type": "launch_bolt",
           "tag": "sparkle",
-          "range": 24,
+          "range": 36,
           "speed": 1.4,
           "particle": "minecraft:end_rod",
           "model": "minecraft:nether_star",
@@ -64,7 +64,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 4,
+          "amount": 5,
           "target": "hit"
         },
         {
@@ -97,7 +97,7 @@
         {
           "type": "launch_bolt",
           "tag": "mischief",
-          "range": 24,
+          "range": 36,
           "speed": 1.2,
           "particle": "minecraft:witch",
           "model": "minecraft:feather",
@@ -115,7 +115,7 @@
       "actions": [
         {
           "type": "damage",
-          "amount": 4,
+          "amount": 5,
           "target": "impact",
           "radius": 3.0,
           "exclude_permission": "race:everdelle"
