@@ -126,6 +126,9 @@ public final class Protection {
         if (rt == null || !rt.knobs.requireAffiliation || !(player instanceof ServerPlayer sp)) return false;
         PlayerId id = new PlayerId(player.getUUID());
         if (rt.state.membership(id).isPresent() || rt.state.raceOf(id).isPresent()) return false;
+        // An applicant waiting on a Lord may act in the open: not in spawn and not on any held land.
+        if (rt.knobs.applicantsActInWild && rt.state.joinRequestOf(id).isPresent() && !SpawnRules.inSpawn(player)
+                && !claimed(player.level(), player.blockPosition())) return false;
         return !charter.mc.CharterPerms.bypass(sp);
     }
 

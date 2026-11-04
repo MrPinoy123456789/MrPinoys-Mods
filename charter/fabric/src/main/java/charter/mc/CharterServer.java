@@ -54,7 +54,10 @@ public final class CharterServer {
         ServerLifecycleEvents.AFTER_SAVE.register((s, flush, force) -> save());
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> stop());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> join(handler.player));
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, s) -> charter.mc.land.KeepGate.forget(handler.player.getUUID()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, s) -> {
+            charter.mc.land.KeepGate.forget(handler.player.getUUID());
+            charter.mc.book.NewcomerPages.forgetTitle(handler.player.getUUID());
+        });
         net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (runtime != null) charter.mc.book.BookMod.respawned(newPlayer);
             if (runtime != null) charter.mc.book.AdminBook.ensure(newPlayer);
@@ -154,6 +157,7 @@ public final class CharterServer {
         }
         give(player);
         charter.mc.book.BookMod.onJoin(player);
+        charter.mc.book.NewcomerPages.welcomeTitle(player);
         charter.mc.map.MapSync.join(player);
     }
 

@@ -52,7 +52,8 @@
       "charter.gametest.RankGameTest",
       "charter.gametest.MapSyncGameTest",
       "charter.gametest.LordModerationGameTest",
-      "charter.gametest.DisciplineGameTest"
+      "charter.gametest.DisciplineGameTest",
+      "charter.gametest.NewcomerFirstMinutesGameTest"
     ]
   },
   "mixins": [
