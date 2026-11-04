@@ -5,6 +5,7 @@ import charter.food.FoodTable;
 import charter.food.Mouths;
 import charter.id.CoreId;
 import charter.id.OrgId;
+import charter.id.PlayerId;
 import charter.land.Claim;
 import charter.land.ClaimKind;
 import charter.land.Core;
@@ -92,14 +93,29 @@ public final class SiegeRules {
     // ---- claims ----
 
     /**
-     * Whether a claim is protected right now: a keep's claims always are (protected keeps, K1); an outpost's only once it has finished raising and while no open war names it.
+     * Whether a claim is protected right now against everyone who is not at war with its owner: a keep's claims always
+     * are (protected keeps, K1); an outpost's only once it has finished raising. An open war does not change this
+     * answer; it lifts protection only for the attackers, see {@link #protectedClaimFor}.
      */
     public boolean protectedClaim(Claim claim) {
         if (claim.core() == null) return true;
         Optional<Core> core = state.core(claim.core());
         if (core.isEmpty()) return true;
         if (core.get().isKeep()) return true;
-        // An outpost is protected once raised, unless a war that names it has opened for capture.
-        return core.get().activeCamp() && !state.wars.opened(core.get().id);
+        return core.get().activeCamp();
+    }
+
+    /**
+     * Whether a claim is protected against this player. Same as {@link #protectedClaim}, except that a member of the
+     * attacking nation of an open war is not protected from at the outpost the war names. Everyone else, including
+     * every other nation, keeps the protection.
+     */
+    public boolean protectedClaimFor(Claim claim, PlayerId player) {
+        if (!protectedClaim(claim)) return false;
+        if (player == null || claim.core() == null) return true;
+        WarBook.Goal goal = state.wars.goals.stream()
+                .filter(g -> g.opened && g.outpost.equals(claim.core())).findFirst().orElse(null);
+        if (goal == null) return true;
+        return state.membership(player).map(m -> !state.root(m.org()).equals(goal.attacker)).orElse(true);
     }
 }

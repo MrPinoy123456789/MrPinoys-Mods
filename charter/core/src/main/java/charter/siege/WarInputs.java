@@ -11,7 +11,7 @@ public interface WarInputs {
     /** Members of the attacking nation standing in the outpost's chunk. */
     int attackers(WarBook.Goal goal, Core outpost);
 
-    /** Members of the organization that owns the outpost standing in its chunk. */
+    /** Members of the organization that owns the outpost standing anywhere in the outpost's claims. */
     int defenders(Core outpost);
 
     WarInputs NONE = new WarInputs() {

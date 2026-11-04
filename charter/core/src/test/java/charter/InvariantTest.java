@@ -98,6 +98,7 @@ public final class InvariantTest {
         System.out.println("invariants: justice actions that succeeded: " + JUSTICE_DONE);
         check("invariants: arrests and sentences really happen in the random worlds", JUSTICE_DONE.getOrDefault("Arrest", 0) > 0
                 && JUSTICE_DONE.getOrDefault("Confine", 0) + JUSTICE_DONE.getOrDefault("Sentence", 0) + JUSTICE_DONE.getOrDefault("Execute", 0) > 0);
+        check("invariants: wars really get declared in the random worlds", JUSTICE_DONE.getOrDefault("DeclareWar", 0) > 0);
     }
 
     // ---- one world ----
@@ -118,6 +119,11 @@ public final class InvariantTest {
             f.knobs.campRaisingHours = 0.25;
             // A weekly cap above the per-sentence caps, so each cap can be broken (and caught) on its own.
             f.knobs.weeklyPunishmentCapHours = 48;
+            // Random presence, so some wars are held, some lapse and some are captured.
+            sim.inputs(new charter.siege.WarInputs() {
+                public int attackers(charter.siege.WarBook.Goal goal, Core outpost) { return rng.nextInt(3); }
+                public int defenders(Core outpost) { return rng.nextInt(6) == 0 ? 1 : 0; }
+            });
         }
 
         <T> T pick(List<T> list) {
@@ -205,7 +211,7 @@ public final class InvariantTest {
         Action action() {
             OrgId org = org();
             PlayerId p = player();
-            int roll = rng.nextInt(34);
+            int roll = rng.nextInt(35);
             if (org == null && roll > 1) roll = rng.nextInt(2);
             preferred = null;
             // Half the arrests are made on a faction's own land by its Lord, so custody really happens.
@@ -289,6 +295,22 @@ public final class InvariantTest {
                     yield c == null ? new charter.contract.actions.DepositPersonal(p, Currency.DIAMOND, 3)
                             : new charter.contract.actions.Breach(c.id, rng.nextBoolean() ? c.imposer : c.subject);
                 }
+                case 34 -> {
+                    // A war on a neighbouring outpost when one exists; otherwise plant beside a random outpost to make one.
+                    List<Core> outposts = f.state.cores().stream().filter(c -> !c.isKeep()).toList();
+                    var land = new LandGraph(f.state, f.knobs);
+                    for (Core mine : outposts) {
+                        if (!f.state.root(mine.owner).equals(org)) continue;
+                        for (Core theirs : outposts) {
+                            if (!f.state.root(theirs.owner).equals(org) && land.touching(mine, theirs)) {
+                                yield new charter.siege.actions.DeclareWar(org, theirs.id);
+                            }
+                        }
+                    }
+                    Core beside = pick(outposts);
+                    yield beside == null ? new PlantCamp(org, chunk())
+                            : new PlantCamp(org, new ChunkKey(beside.center.dimension(), beside.center.x() + rng.nextInt(3) - 1, beside.center.z() + rng.nextInt(3) - 1));
+                }
                 default -> new ClaimLand(org, chunk());
             };
         }
@@ -355,6 +377,7 @@ public final class InvariantTest {
                     if (acted != null && acted.getClass().getPackageName().equals("charter.contract.actions")) {
                         JUSTICE_DONE.merge(acted.getClass().getSimpleName(), 1, Integer::sum);
                     }
+                    if (acted instanceof charter.siege.actions.DeclareWar) JUSTICE_DONE.merge("DeclareWar", 1, Integer::sum);
                 }
             }
             String broken = invariants(w.f.state, w.f.clock.now());
@@ -411,6 +434,10 @@ public final class InvariantTest {
             if (!resolver.valid(grant)) continue;
             String chain = chainProblem(s, grant, now);
             if (chain != null) return "6: grant " + grant.id + " works but " + chain;
+        }
+        for (charter.siege.WarBook.Goal goal : s.wars.goals) {
+            if (goal.stakeMarks < 0 || goal.progress < 0) return "18: war goal " + goal.id + " has a negative stake or progress";
+            if (s.org(goal.attacker).isEmpty() || s.org(goal.defender).isEmpty()) return "18: war goal " + goal.id + " names a missing nation";
         }
         Set<ChunkKey> chunks = new HashSet<>();
         charter.config.Knobs knobs = new charter.config.Knobs();

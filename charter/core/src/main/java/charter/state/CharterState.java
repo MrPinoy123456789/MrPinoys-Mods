@@ -406,7 +406,7 @@ public final class CharterState {
         cores.remove(id);
         siege.stores.remove(id);
         siege.keeps.remove(id);
-        wars.goals.removeIf(g -> g.outpost.equals(id));
+        // A war goal that names this outpost stays: the siege step ends it with an event, a truce and the stake settled.
     }
 
     public Optional<Claim> claim(ClaimId id) {

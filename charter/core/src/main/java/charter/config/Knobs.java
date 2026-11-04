@@ -369,8 +369,27 @@ public final class Knobs {
     public int warGoalNoticeHours = 12;
     /** Hours of siege time a goal lasts from its declaration before it lapses. */
     public int warGoalHours = 48;
-    /** Minutes the attackers must hold an outpost's chunk, with no defender in it, to capture it. */
+    /** Minutes the attackers must hold an outpost's chunk, with no defender anywhere in the outpost, to capture it. */
     public int outpostCaptureMinutes = 10;
+    /**
+     * Percent of the target outpost's deposit the attackers stake when they declare a war. They get it back if they
+     * capture the outpost or the target is lost some other way; they forfeit it to the defenders if the war lapses.
+     * Owner's number (2026-11-04): half, so a war nobody turns up for costs real coin. Tune with {@code outpostDepositMarks}.
+     */
+    public int warStakePercent = 50;
+    /**
+     * Members of the attacking nation who must be standing in the outpost's chunk for the capture clock to run.
+     * Owner's number (2026-11-04): 1, because it is the easiest rule to explain. The audit proposed 2 so one player
+     * cannot take an outpost alone. This is the number most likely to need changing for balance after the first real
+     * war; watch who wins and how many were present before raising it.
+     */
+    public int warMinAttackers = 1;
+    /**
+     * Hours of siege time in which unattended capture progress halves (unattended means fewer than
+     * {@code warMinAttackers} attackers present). Owner's number (2026-11-04): one hour, so three minutes a day over
+     * several days never adds up to a capture.
+     */
+    public double warDecayHalfLifeHours = 1.0;
     /** Minutes after a capture in which only the captors may plant an outpost in that chunk. */
     public int outpostWinnerWindowMinutes = 30;
     /** Days a new keep's empty granary cannot lapse it. */

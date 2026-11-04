@@ -93,6 +93,18 @@ public final class Protection {
         return rt.sim.rules().protectedClaim(claim) ? claim : null;
     }
 
+    /**
+     * The claim covering this block when it is protected from this player right now, else null. An open war lifts the
+     * protection of the outpost it names for members of the attacking nation only.
+     */
+    public static Claim guardedClaimFor(Level level, BlockPos pos, Player player) {
+        CharterRuntime rt = rt();
+        if (rt == null) return null;
+        Claim claim = claimAt(level, pos);
+        if (claim == null) return null;
+        return rt.sim.rules().protectedClaimFor(claim, new PlayerId(player.getUUID())) ? claim : null;
+    }
+
     public static boolean guarded(Level level, BlockPos pos) {
         return guardedClaim(level, pos) != null;
     }
@@ -135,7 +147,7 @@ public final class Protection {
         Boolean spawn = SpawnRules.actorVerdict(player, level, pos);
         if (spawn != null) return spawn;
         if (isDrifter(player)) return false;
-        Claim claim = guardedClaim(level, pos);
+        Claim claim = guardedClaimFor(level, pos, player);
         // An admin kingdom's members do admin work on any kingdom's land (adminKingdomBypass).
         if (claim != null && player instanceof ServerPlayer member && charter.mc.CharterPerms.adminKingdomMember(member)) return true;
         boolean counted = false;
