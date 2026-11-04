@@ -85,6 +85,18 @@ operator level 2.
 - `<world>/fortune/spins.jsonl`: one line per spin (UTC time, UUID, day, result, level, extras, stake). Stakes carry
   the reason `fortune_stake` here and in the server log.
 
+## Milestone titles
+
+Milestones (7, 30, 60, 100, 200, 365 claims) give a named keepsake with the title ("the Steadfast" and so on) and a
+server line. `milestoneCommands` is empty by default, so no title is set anywhere else. To give titles as a LuckPerms
+suffix once chat is checked to show suffixes, set:
+
+```json
+"milestoneCommands": ["lp user %player% meta setsuffix 50 \" %title%\""]
+```
+
+That replaces any priority 50 suffix the player already has.
+
 ## Not built yet
 
 The knobs exist in `fortune.json` and default off; turning them on does nothing yet: the First Week

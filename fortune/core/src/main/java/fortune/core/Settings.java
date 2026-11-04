@@ -103,11 +103,12 @@ public final class Settings {
             new Milestone(200, "the Unbroken", "minecraft:nautilus_shell", "Charm of the Two Hundredth Day"),
             new Milestone(365, "the Eternal", "minecraft:nether_star", "Charm of the Year")));
     /**
-     * Run as the console when a milestone is reached; {@code %player%} and {@code %title%}. The default gives a
-     * LuckPerms suffix: check the chat format shows suffixes before relying on it (the keepsake carries the title too).
+     * Run as the console when a milestone is reached; {@code %player%} and {@code %title%}. Empty by default (owner,
+     * 2026-11-04): a LuckPerms suffix such as {@code lp user %player% meta setsuffix 50 " %title%"} would replace a
+     * suffix the player already has, and nobody has checked that chat shows suffixes. The keepsake carries the title
+     * in its name either way.
      */
-    public List<String> milestoneCommands = new ArrayList<>(List.of(
-            "lp user %player% meta setsuffix 50 \" %title%\""));
+    public List<String> milestoneCommands = new ArrayList<>();
 
     // ---- not built yet: knobs exist, default off ----
 
