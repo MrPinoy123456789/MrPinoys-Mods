@@ -60,7 +60,7 @@ final class FortuneKit {
         player.connection.handleContainerClick(packet);
     }
 
-    /** Banked Marks per player, and every charge made. Never deposits: there is nothing a stake pays back. */
+    /** Banked Coin per player, in the bank's unit (64 Marks to a Sovereign), and every charge made. Never deposits: there is nothing a stake pays back. */
     static final class FakeBank implements StakeBank {
         final Map<UUID, Long> balances = new ConcurrentHashMap<>();
         final List<UUID> charges = java.util.Collections.synchronizedList(new ArrayList<>());

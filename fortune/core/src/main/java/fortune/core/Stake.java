@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The coin stake. A player may spend Marks before a pull to raise the spin's rewards. The bonus multiplies the whole
+ * The coin stake. A player may spend Gold Sovereigns before a pull to raise the spin's rewards. The bonus multiplies the whole
  * payout: the Valor (paid as extra levels, rounded to the nearest level so it still goes through {@code earn} and its
  * soft cap) and the counts of the item extras. It never changes the odds and it never pays Coin back: a
  * {@link Reward} has no Coin in it, and {@link Paytable} refuses Coin items as extras.
@@ -63,9 +63,27 @@ public final class Stake {
         return chosen != null && charged ? chosen : null;
     }
 
-    /** True when a tier can be offered to a player with this many Marks banked. */
-    public static boolean affordable(Settings.StakeTier tier, long balance) {
-        return tier.cost > 0 && balance >= tier.cost;
+    /** Marks in one Gold Sovereign. Charter Currency banks Coin in Marks; players only ever see Sovereigns. */
+    public static final long MARKS_PER_SOVEREIGN = 64;
+
+    /** A tier's price in the bank's unit (Marks). */
+    public static long costMarks(Settings.StakeTier tier) {
+        return tier.sovereigns * MARKS_PER_SOVEREIGN;
+    }
+
+    /** Whole Sovereigns in a bank balance; loose change below one Sovereign does not count. */
+    public static long sovereigns(long marks) {
+        return Math.max(0, marks) / MARKS_PER_SOVEREIGN;
+    }
+
+    /** True when a tier can be offered to a player with this bank balance (in Marks). */
+    public static boolean affordable(Settings.StakeTier tier, long balanceMarks) {
+        return tier.sovereigns > 0 && balanceMarks >= costMarks(tier);
+    }
+
+    /** "1 Sovereign" or "4 Sovereigns". */
+    public static String sovereignText(long count) {
+        return count + (count == 1 ? " Sovereign" : " Sovereigns");
     }
 
     /** A tier by id from the settings, or null for "none" or an unknown id. */

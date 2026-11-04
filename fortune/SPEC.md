@@ -185,7 +185,7 @@ per player per day so each spin credits the kingdom separately. This gives Valor
 so alts gain nothing by funnelling it), the per-source soft cap, and Renown for the player's kingdom (which already
 waits 7 days of membership). If Charter Currency is absent the mod still runs and pays only item rewards.
 
-**No Coin, ever** (owner, 2026-11-03). Coin enters the world only at a Mint; a daily machine printing Marks would be
+**No Coin, ever** (owner, 2026-11-03). Coin enters the world only at a Mint; a daily machine printing Coin would be
 a second faucet. Coin goes the other way: players can stake it (6.1).
 
 Symbols, lowest to highest (all render on Bedrock):
@@ -216,14 +216,16 @@ Wind pays half the level, rounded down, minimum 1.
 
 ### 6.1 The coin stake
 
-Before pulling, a player may stake Marks to raise the spin's rewards (owner, 2026-11-03: three tiers, up to 100%).
+Before pulling, a player may stake Gold Sovereigns to raise the spin's rewards (owner, 2026-11-03: three tiers, up to
+100%). Owner, 2026-11-04: prices are whole Sovereigns only, never lower denominations, and a Sovereign is a tenth of a
+gold ingot, so the tiers cost half an ingot, one ingot and two ingots.
 
 | Stake | Cost | Bonus |
 |---|---|---|
 | None | 0 | none |
-| Copper | 8 Marks (one Iron Crown) | +25% |
-| Iron | 24 Marks | +50% |
-| Gold | 64 Marks (one Gold Sovereign) | +100% |
+| Small | 5 Sovereigns | +25% |
+| Big | 10 Sovereigns | +50% |
+| High roller | 20 Sovereigns | +100% |
 
 - **The bonus multiplies the whole payout**: the Valor (applied as extra `level`, rounded to the nearest level, so it
   still goes through `earn` and its soft cap) and the counts of the item extras. It does not change the odds; the Odds
@@ -232,8 +234,8 @@ Before pulling, a player may stake Marks to raise the spin's rewards (owner, 202
   player's banked balance (`/bank`) before the roll; a failed charge means no stake and the spin goes ahead unstaked.
   Nothing returns Coin, so the stake is a Coin sink, not a bet that can pay Coin out. That also keeps it on the right
   side of real gambling: you cannot win back more Coin than you put in.
-- **The UI:** four buttons on row 5 either side of the lever (none, copper nugget, iron nugget, gold nugget, each with
-  its cost and bonus in the lore); the chosen one glows. The lever's lore repeats "Stake: 24 Marks for +50%". The
+- **The UI:** four buttons on row 5 either side of the lever (none, then gold nuggets stacked 5, 10 and 20, each with
+  its cost and bonus in the lore); the chosen one glows. The lever's lore repeats "Stake: 10 Sovereigns for +50%". The
   choice is remembered for next time but never charged until the lever is pulled, and a stake above the player's
   balance is greyed out. Bedrock sees the same buttons; in `bedrockMode: "form"` it is a dropdown before the spin.
 - **Limits:** one stake per spin. Second Wind and the Welcome Back spin can be staked; First Week spins cannot (no
@@ -332,7 +334,7 @@ Still open:
 
 1. **Confirm** the First Week reading in 5.3 (no Valor for the first seven claims; day 6 has no gift).
 2. **Muster size** (start at 3).
-3. **Stake prices** (8, 24, 64 Marks) against what a player banks in a normal week; retune from the stake totals in
+3. **Stake prices** (5, 10, 20 Sovereigns) against what a player banks in a normal week; retune from the stake totals in
    `/fortune admin stats`.
 4. Whether the chat format shows LuckPerms suffixes, for milestone titles.
 

@@ -50,8 +50,8 @@ public final class Machine {
             throw new IllegalArgumentException("welcomeBackTable must be three of a kind only");
         }
         for (Settings.StakeTier tier : settings.stakeTiers) {
-            if (tier.id == null || "none".equals(tier.id) || tier.cost <= 0 || tier.bonusPercent <= 0) {
-                throw new IllegalArgumentException("Each stake tier needs an id (not \"none\"), a cost and a bonus above 0");
+            if (tier.id == null || "none".equals(tier.id) || tier.sovereigns <= 0 || tier.bonusPercent <= 0) {
+                throw new IllegalArgumentException("Each stake tier needs an id (not \"none\"), a price in sovereigns and a bonus above 0");
             }
         }
         if (settings.rolloverHourUtc < 0 || settings.rolloverHourUtc > 23) {

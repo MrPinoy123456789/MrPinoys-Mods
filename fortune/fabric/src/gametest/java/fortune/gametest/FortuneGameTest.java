@@ -203,15 +203,16 @@ public final class FortuneGameTest {
     public void anUnaffordableStakeIsGreyedOutAndNeverCharged(GameTestHelper helper) {
         FortuneService service = FortuneKit.service(helper);
         ServerPlayer player = FortuneKit.player(helper);
-        FortuneKit.BANK.balances.put(player.getUUID(), 10L);
-        // Gold was chosen once, back when they were richer; it is remembered but only 10 Marks are banked now.
-        service.chooseStake(player.getUUID(), "gold");
+        FortuneKit.BANK.balances.put(player.getUUID(), 5 * 64L + 10L);
+        // The high roller (20 Sovereigns) was chosen once, back when they were richer; it is remembered, but only five
+        // Sovereigns and some loose change are banked now.
+        service.chooseStake(player.getUUID(), "high");
         MachineGui gui = service.open(player, null);
         int goldSlot = MachineGui.STAKE_SLOTS[2];
         helper.assertTrue(gui.getGuiElement(goldSlot).getItemStack().is(Items.STAINED_GLASS_PANE.gray()),
-                "The gold stake was not greyed out at 10 Marks");
-        helper.assertTrue(gui.getGuiElement(MachineGui.STAKE_SLOTS[0]).getItemStack().is(Items.COPPER_NUGGET),
-                "The affordable copper stake was not offered");
+                "The 20 Sovereign stake was not greyed out at 5 Sovereigns banked");
+        helper.assertTrue(gui.getGuiElement(MachineGui.STAKE_SLOTS[0]).getItemStack().is(Items.GOLD_NUGGET),
+                "The affordable 5 Sovereign stake was not offered");
         FortuneKit.click(player, goldSlot, 0, ContainerInput.PICKUP);
         helper.assertTrue(FortuneKit.BANK.chargesFor(player.getUUID()) == 0, "Clicking a greyed out stake charged it");
 
@@ -221,21 +222,21 @@ public final class FortuneGameTest {
         helper.assertTrue(spun.spin().stake() == null, "An unaffordable stake was applied");
         helper.assertTrue(spun.stakeFailed(), "The player was not told the stake did not go through");
         helper.assertTrue(FortuneKit.BANK.chargesFor(player.getUUID()) == 0, "An unaffordable stake was charged");
-        helper.assertTrue(FortuneKit.BANK.balance(player.getUUID()) == 10L, "The balance changed");
+        helper.assertTrue(FortuneKit.BANK.balance(player.getUUID()) == 5 * 64L + 10L, "The balance changed");
         gui.close();
 
         // An affordable stake, chosen by clicking its button, is charged once before the roll and only then.
         ServerPlayer rich = FortuneKit.player(helper);
-        FortuneKit.BANK.balances.put(rich.getUUID(), 30L);
+        FortuneKit.BANK.balances.put(rich.getUUID(), 15 * 64L);
         MachineGui richGui = service.open(rich, null);
         FortuneKit.click(rich, MachineGui.STAKE_SLOTS[0], 0, ContainerInput.PICKUP);
-        helper.assertTrue("copper".equals(service.record(rich.getUUID()).stakeTier), "Clicking the copper stake did not choose it");
+        helper.assertTrue("small".equals(service.record(rich.getUUID()).stakeTier), "Clicking the 5 Sovereign stake did not choose it");
         helper.assertTrue(FortuneKit.BANK.chargesFor(rich.getUUID()) == 0, "Choosing a stake charged it before the pull");
         richGui.pullLever();
         FortuneService.Pull.Spun staked = richGui.lastSpin();
-        helper.assertTrue(staked.spin().stake() != null && "copper".equals(staked.spin().stake().id), "The copper stake was not applied");
-        helper.assertTrue(FortuneKit.BANK.chargesFor(rich.getUUID()) == 1 && FortuneKit.BANK.balance(rich.getUUID()) == 22L,
-                "The copper stake was not charged exactly 8 Marks once");
+        helper.assertTrue(staked.spin().stake() != null && "small".equals(staked.spin().stake().id), "The 5 Sovereign stake was not applied");
+        helper.assertTrue(FortuneKit.BANK.chargesFor(rich.getUUID()) == 1 && FortuneKit.BANK.balance(rich.getUUID()) == 10 * 64L,
+                "The 5 Sovereign stake was not charged exactly five Sovereigns, once");
         helper.assertTrue(staked.spin().reward().level() >= staked.spin().outcome().row().level(), "A stake lowered the reward");
         richGui.close();
         helper.succeed();

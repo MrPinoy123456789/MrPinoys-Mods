@@ -51,8 +51,8 @@ Drop the jar in `mods/`. It starts and runs without Charter Currency, Charter or
 - Items: the paytable's extras (iron, emeralds, diamonds), the jackpot keepsake and the milestone keepsakes. Vanilla
   items only. Coin is never created: a paytable that lists a Coin item (copper, iron or gold nugget, or
   `kingdoms:gold_coin`) is refused at load.
-- The coin stake is the only Coin path, and it only takes: Copper 8 Marks for +25%, Iron 24 for +50%, Gold 64 for
-  +100%, charged from the banked balance through `EconomyApi.economy()` before the roll. A failed charge means the spin
+- The coin stake is the only Coin path, and it only takes, in whole Gold Sovereigns (a tenth of a gold ingot each):
+  5 Sovereigns for +25%, 10 for +50%, 20 for +100%, charged from the banked balance through `EconomyApi.economy()` before the roll. A failed charge means the spin
   goes ahead unstaked. The bonus is applied to the Valor (as the nearest level to Valor times the bonus) and to item
   counts, rounding halves up.
 - Order of a pull: charge the stake, roll, write the claim, the result and the reward (marked pending) to

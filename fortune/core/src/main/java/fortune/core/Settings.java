@@ -37,10 +37,11 @@ public final class Settings {
     // ---- the coin stake ----
 
     public boolean stakeEnabled = true;
+    /** Priced in whole Gold Sovereigns (a tenth of a gold ingot each): half an ingot, one ingot, two ingots. */
     public List<StakeTier> stakeTiers = new ArrayList<>(List.of(
-            new StakeTier("copper", "Copper stake", "minecraft:copper_nugget", 8, 25),
-            new StakeTier("iron", "Iron stake", "minecraft:iron_nugget", 24, 50),
-            new StakeTier("gold", "Gold stake", "minecraft:gold_nugget", 64, 100)));
+            new StakeTier("small", "Small stake", "minecraft:gold_nugget", 5, 25),
+            new StakeTier("big", "Big stake", "minecraft:gold_nugget", 10, 50),
+            new StakeTier("high", "High roller", "minecraft:gold_nugget", 20, 100)));
 
     // ---- the machine ----
 
@@ -188,18 +189,18 @@ public final class Settings {
         public String id;
         public String name;
         public String item;
-        /** In Marks, Charter Currency's Coin unit. */
-        public long cost;
+        /** In Gold Sovereigns. The server deals only in Sovereigns; the bank counts 64 Marks to one. */
+        public int sovereigns;
         public int bonusPercent;
 
         public StakeTier() {
         }
 
-        public StakeTier(String id, String name, String item, long cost, int bonusPercent) {
+        public StakeTier(String id, String name, String item, int sovereigns, int bonusPercent) {
             this.id = id;
             this.name = name;
             this.item = item;
-            this.cost = cost;
+            this.sovereigns = sovereigns;
             this.bonusPercent = bonusPercent;
         }
     }

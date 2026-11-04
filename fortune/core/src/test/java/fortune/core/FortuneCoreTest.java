@@ -281,11 +281,16 @@ public final class FortuneCoreTest {
             bad.normalTable.get(5).extras = new ArrayList<>(List.of(new Settings.Extra(coin, 1)));
             check("a paytable paying " + coin + " is refused", refuses(() -> new Machine(bad)));
         }
-        Settings.StakeTier gold = Stake.tier(s, "gold");
+        Settings.StakeTier gold = Stake.tier(s, "high");
         check("a failed charge means no stake", Stake.applied(gold, false) == null);
         check("a good charge applies the stake", Stake.applied(gold, true) == gold);
-        check("64 Marks affords gold", Stake.affordable(gold, 64));
-        check("63 Marks does not", !Stake.affordable(gold, 63));
+        check("the stakes are 5, 10 and 20 Sovereigns", Stake.tier(s, "small").sovereigns == 5
+                && Stake.tier(s, "big").sovereigns == 10 && gold.sovereigns == 20);
+        check("20 Sovereigns cost 1280 Marks at the bank", Stake.costMarks(gold) == 1280);
+        check("20 Sovereigns banked afford the high roller", Stake.affordable(gold, 1280));
+        check("loose change short of 20 Sovereigns does not", !Stake.affordable(gold, 1279));
+        check("a balance shows in whole Sovereigns", Stake.sovereigns(255) == 3 && Stake.sovereigns(-5) == 0);
+        check("Sovereign text", Stake.sovereignText(1).equals("1 Sovereign") && Stake.sovereignText(4).equals("4 Sovereigns"));
         check("\"none\" is no tier", Stake.tier(s, "none") == null);
     }
 
@@ -314,13 +319,13 @@ public final class FortuneCoreTest {
 
         List<SpinStats.Entry> log = new ArrayList<>();
         log.add(new SpinStats.Entry(699, "a", 1, false, 0));
-        log.add(new SpinStats.Entry(699, "b", 1, false, 24));
-        log.add(new SpinStats.Entry(700, "a", 2, false, 8));
+        log.add(new SpinStats.Entry(699, "b", 1, false, 2));
+        log.add(new SpinStats.Entry(700, "a", 2, false, 1));
         log.add(new SpinStats.Entry(700, "c", 1, true, 0));
         SpinStats.Report report = SpinStats.of(log, 700);
         check("D1 is the share of yesterday's spinners back today", Math.abs(report.d1() - 0.5) < 1e-9);
         check("daily spinners covers 14 days", report.spinnersByDay().size() == 14 && report.spinnersByDay().get(700L) == 2);
-        check("stake totals add up", report.stakeMarks() == 32 && report.stakedSpins() == 2);
+        check("stake totals add up", report.stakeSovereigns() == 3 && report.stakedSpins() == 2);
         check("welcome backs counted", report.welcomeBacks() == 1);
     }
 

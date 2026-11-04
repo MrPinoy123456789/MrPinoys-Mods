@@ -232,7 +232,7 @@ final class FortuneCommands {
                 entries.add(new SpinStats.Entry(o.get("day").getAsLong(), o.get("uuid").getAsString(),
                         o.has("streak") ? o.get("streak").getAsInt() : 0,
                         o.has("welcomeBack") && o.get("welcomeBack").getAsBoolean(),
-                        o.has("stakeMarks") ? o.get("stakeMarks").getAsLong() : 0));
+                        o.has("stakeSovereigns") ? o.get("stakeSovereigns").getAsLong() : 0));
             } catch (RuntimeException e) {
                 // A damaged line is skipped, not fatal.
             }
@@ -248,7 +248,7 @@ final class FortuneCommands {
         r.streakSpread().forEach((k, v) -> spread.append(spread.isEmpty() ? "" : ", ").append(k).append(": ").append(v));
         source.sendSuccess(() -> Messages.plain("Streaks: " + spread + "."), false);
         source.sendSuccess(() -> Messages.plain("Welcome Back spins: " + r.welcomeBacks() + ". Stakes: " + r.stakedSpins()
-                + " spins drained " + r.stakeMarks() + " Marks."), false);
+                + " spins drained " + fortune.core.Stake.sovereignText(r.stakeSovereigns()) + "."), false);
         source.sendSuccess(() -> Messages.plain("Kingdom muster counts: not built yet."), false);
         return 1;
     }

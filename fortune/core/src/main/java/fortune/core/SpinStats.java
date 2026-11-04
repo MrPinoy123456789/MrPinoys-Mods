@@ -9,16 +9,16 @@ import java.util.Set;
 
 /**
  * {@code /fortune admin stats}, from the spin log: daily spinners for the last 14 days, D1 and D7 return rates, the
- * streak spread, Welcome Back spins and the Coin the stake drained. Retune from these numbers, not from guesses.
+ * streak spread, Welcome Back spins and the Sovereigns the stake drained. Retune from these numbers, not from guesses.
  */
 public final class SpinStats {
 
     /** One line of {@code spins.jsonl}, as much of it as the stats need. */
-    public record Entry(long day, String player, int streak, boolean welcomeBack, long stakeMarks) {
+    public record Entry(long day, String player, int streak, boolean welcomeBack, long stakeSovereigns) {
     }
 
     public record Report(Map<Long, Integer> spinnersByDay, double d1, double d7, Map<String, Integer> streakSpread,
-                         int welcomeBacks, long stakeMarks, int stakedSpins) {
+                         int welcomeBacks, long stakeSovereigns, int stakedSpins) {
     }
 
     private SpinStats() {
@@ -29,7 +29,7 @@ public final class SpinStats {
         Map<String, Integer> latestStreak = new HashMap<>();
         Map<String, Long> latestDay = new HashMap<>();
         int welcomeBacks = 0;
-        long marks = 0;
+        long sovereigns = 0;
         int staked = 0;
         for (Entry e : entries) {
             byDay.computeIfAbsent(e.day(), d -> new HashSet<>()).add(e.player());
@@ -39,8 +39,8 @@ public final class SpinStats {
             }
             if (e.day() > today - 14) {
                 if (e.welcomeBack()) welcomeBacks++;
-                if (e.stakeMarks() > 0) {
-                    marks += e.stakeMarks();
+                if (e.stakeSovereigns() > 0) {
+                    sovereigns += e.stakeSovereigns();
                     staked++;
                 }
             }
@@ -60,7 +60,7 @@ public final class SpinStats {
             String bucket = s >= 30 ? "30+" : s >= 7 ? "7 to 29" : s >= 2 ? "2 to 6" : "1";
             spread.merge(bucket, 1, Integer::sum);
         }
-        return new Report(daily, d1, d7, spread, welcomeBacks, marks, staked);
+        return new Report(daily, d1, d7, spread, welcomeBacks, sovereigns, staked);
     }
 
     /** The share of {@code before} also in {@code after}, or -1 when {@code before} is empty. */

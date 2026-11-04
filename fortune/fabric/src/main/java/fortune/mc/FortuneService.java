@@ -220,7 +220,7 @@ public final class FortuneService {
         Settings.StakeTier chosen = stakeOffered() ? Stake.tier(settings, record.stakeTier) : null;
         boolean charged = false;
         if (chosen != null && Stake.affordable(chosen, bank.balance(id))) {
-            charged = bank.charge(id, record.name, chosen.cost);
+            charged = bank.charge(id, record.name, Stake.costMarks(chosen));
         }
         Settings.StakeTier stake = Stake.applied(chosen, charged);
 
@@ -336,7 +336,7 @@ public final class FortuneService {
         line.put("streak", record.streak);
         line.put("welcomeBack", spin.plan().kind() == Claims.Kind.WELCOME_BACK);
         line.put("stake", stake == null ? "none" : stake.id);
-        line.put("stakeMarks", stake == null ? 0 : stake.cost);
+        line.put("stakeSovereigns", stake == null ? 0 : stake.sovereigns);
         line.put("stakeReason", stake == null ? "" : "fortune_stake");
         if (at != null) line.put("machine", at.getX() + "," + at.getY() + "," + at.getZ());
         return line;

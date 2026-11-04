@@ -4,6 +4,7 @@ import chartercurrency.EconomyApi;
 import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
 import chartercurrency.core.EconomyService;
+import fortune.core.Stake;
 
 import java.util.UUID;
 
@@ -35,7 +36,8 @@ final class CurrencyBank implements StakeBank {
         EconomyService economy = EconomyApi.economy();
         if (economy == null || marks <= 0) return false;
         boolean ok = economy.withdraw(player, coin(), marks).ok();
-        if (ok) FortuneMod.LOG.info("[Economy] fortune_stake: {} ({}) staked {} Marks at Fantasy's Fortune", name, player, marks);
+        if (ok) FortuneMod.LOG.info("[Economy] fortune_stake: {} ({}) staked {} at Fantasy's Fortune ({} Marks)", name, player,
+                Stake.sovereignText(Stake.sovereigns(marks)), marks);
         return ok;
     }
 

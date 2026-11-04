@@ -322,7 +322,7 @@ public final class MachineGui extends SimpleGui {
             GuiElementBuilder none = new GuiElementBuilder(Items.PAPER)
                     .setName(Messages.name("No stake", noneChosen ? ChatFormatting.GREEN : ChatFormatting.WHITE))
                     .setLore(List.of(Messages.lore("Spin for the base reward.", ChatFormatting.GRAY),
-                            Messages.lore("You have " + balance + " Marks banked.", ChatFormatting.DARK_GRAY)))
+                            Messages.lore("You have " + Stake.sovereignText(Stake.sovereigns(balance)) + " banked.", ChatFormatting.DARK_GRAY)))
                     .setCallback((i, t, a, g) -> {
                         if (clickable(t) && !spinning) {
                             service.chooseStake(player.getUUID(), "none");
@@ -377,7 +377,7 @@ public final class MachineGui extends SimpleGui {
             lore.add(Messages.lore("Day " + day + " of 7. " + floorText(day), ChatFormatting.GRAY));
             Settings.StakeTier chosen = service.stakeOffered() ? Stake.tier(service.settings(), record.stakeTier) : null;
             lore.add(Messages.lore(chosen == null ? "Stake: none"
-                    : "Stake: " + chosen.cost + " Marks for +" + chosen.bonusPercent + "%", ChatFormatting.YELLOW));
+                    : "Stake: " + Stake.sovereignText(chosen.sovereigns) + " for +" + chosen.bonusPercent + "%", ChatFormatting.YELLOW));
             lore.add(Messages.lore("\"Do you feel lucky?\" Every pull pays something.", ChatFormatting.DARK_GRAY));
         } else {
             name = "Come back tomorrow";
@@ -394,21 +394,22 @@ public final class MachineGui extends SimpleGui {
 
     private GuiElement stakeButton(Settings.StakeTier tier, Settings.StakeTier chosen, long balance) {
         boolean affordable = Stake.affordable(tier, balance);
-        String title = tier.name + ": " + tier.cost + " Marks";
+        String title = tier.name + ": " + Stake.sovereignText(tier.sovereigns);
         if (!affordable) {
             return new GuiElementBuilder(Items.STAINED_GLASS_PANE.gray())
                     .setName(Messages.name(title, ChatFormatting.DARK_GRAY))
                     .setLore(List.of(Messages.lore("+" + tier.bonusPercent + "% Valor and items", ChatFormatting.DARK_GRAY),
-                            Messages.lore("You have " + balance + " Marks banked.", ChatFormatting.RED)))
+                            Messages.lore("You have " + Stake.sovereignText(Stake.sovereigns(balance)) + " banked.", ChatFormatting.RED)))
                     .setCallback((i, t, a, g) -> {
                         if (clickable(t)) {
-                            player.sendSystemMessage(Messages.bad("You need " + tier.cost + " Marks in your bank for the " + tier.name.toLowerCase() + "."));
+                            player.sendSystemMessage(Messages.bad("You need " + Stake.sovereignText(tier.sovereigns) + " in your bank for that stake."));
                         }
                     })
                     .build();
         }
         boolean selected = chosen != null && chosen.id.equals(tier.id);
         GuiElementBuilder b = new GuiElementBuilder(ItemIds.item(tier.item, Items.GOLD_NUGGET))
+                .setCount(Math.max(1, Math.min(64, tier.sovereigns)))
                 .setName(Messages.name(title, selected ? ChatFormatting.GREEN : ChatFormatting.WHITE))
                 .setLore(List.of(Messages.lore("+" + tier.bonusPercent + "% Valor and items", ChatFormatting.YELLOW),
                         Messages.lore("Same odds, bigger rewards.", ChatFormatting.GRAY),
