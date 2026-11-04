@@ -183,7 +183,7 @@ a tier does belongs to Charter. Placeholders in commands: `%kingdom%`, `%kingdom
 | File | Holds |
 |---|---|
 | `currencies.json` | Coin denominations (items, face values, words) and Valor. The coin marker is not configurable |
-| `settings.json` | Leaderboards, login snapshot, logging, `timezone`, `mint` soft cap numbers, `shop.confirmAt` per currency. There is no Mint tax setting: it is fixed at one coin in five |
+| `settings.json` | Leaderboards, login snapshot, logging, `timezone`, `mint` soft cap numbers, `coins.models` (coin looks from Foundry's pack; off until that pack is live), `shop.confirmAt` per currency. There is no Mint tax setting: it is fixed at one coin in five |
 | `earn.json` | Earn sources and the Renown rules |
 | `renown_catalog.json` | What Renown buys |
 | `shop.json` | The shop; prices in `coin`, `valor` or both |

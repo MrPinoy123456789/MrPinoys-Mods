@@ -55,6 +55,13 @@ public final class EconomySettings {
     /** Time zone for "today" (Mint allowance, daily caps). Blank means the server's own. */
     public String timezone = "";
 
+    /**
+     * {@code coins.models}: coins wear their own look from Foundry's resource pack
+     * ({@link CoinStacks#MODELS}). Off by default; turn it on only once the pack with
+     * the coin models is live, or clients draw the missing texture.
+     */
+    public boolean coinModels = false;
+
     /** Mint soft cap and falloff. The tax rate is NOT here: it is fixed in code. */
     public chartercurrency.core.Mint.Rules mint = chartercurrency.core.Mint.Rules.defaults();
 
@@ -209,6 +216,12 @@ public final class EconomySettings {
                         Math.max(1, integer(mintBlock, "falloffEvery", d.falloffEvery())));
             }
             if (!root.has("timezone")) rewrite = true;
+            JsonObject coins = root.getAsJsonObject("coins");
+            if (coins == null) {
+                rewrite = true;
+            } else {
+                settings.coinModels = bool(coins, "models", settings.coinModels);
+            }
         } catch (Exception e) {
             CharterCurrencyMod.LOG.warn("Could not read settings.json; using defaults", e);
             return settings;
@@ -255,6 +268,9 @@ public final class EconomySettings {
         mintBlock.addProperty("softCapIngots", mint.softCapIngots());
         mintBlock.addProperty("falloffEvery", mint.falloffEvery());
         root.add("mint", mintBlock);
+        JsonObject coins = new JsonObject();
+        coins.addProperty("models", coinModels);
+        root.add("coins", coins);
 
         try {
             Files.createDirectories(file.getParent());

@@ -72,6 +72,7 @@ public final class CharterCurrencyMod implements ModInitializer {
         Path configDir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
 
         EconomySettings settings = EconomySettings.load(configDir);
+        CoinStacks.models = settings.coinModels;
         CurrencyRegistry currencies = CurrencyConfig.load(configDir);
 
         store = new JsonAccountStore(configDir);

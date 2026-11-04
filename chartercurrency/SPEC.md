@@ -108,6 +108,14 @@ so a stray import fails the build). All money, mint and earn arithmetic lives in
   the next coin down (`Charter coin, worth 8 Crowns`; a Mark says only `Charter coin`)
   and `Right-click: bank this stack`. Carried coin from an older release is given
   the current lore every 5 seconds so it keeps stacking with new coin.
+- **Coin looks** (owner, 2026-11-03): Foundry's resource pack draws each coin as a
+  struck coin, not a nugget: `chartercurrency:gold_sovereign` (a sun),
+  `chartercurrency:iron_crown` (a crown) and `chartercurrency:copper_mark` (a
+  lozenge), with Geyser mappings for Bedrock. With `coins.models` on in
+  `settings.json`, every coin made carries that `minecraft:item_model`, and carried
+  coin is given it by the same 5 second refresh. Turned off again, the refresh puts
+  the nugget look back. Off by default: a client without the pack would draw the
+  missing texture. `/chartercurrency reload` applies a change.
 - The three are defined in `currencies.json` (section 9), not hard-coded, but the
   defaults above are what ships.
 - Display: `3 Sovereigns, 2 Crowns, 5 Marks (213 Marks)`. Always show the Marks
@@ -612,9 +620,13 @@ this file is ignored.
 {
   "timezone": "",
   "mint": { "softCapIngots": 320, "falloffEvery": 320 },
+  "coins": { "models": false },
   "shop": { "confirmAt": { "coin": 2048, "valor": 100 } }
 }
 ```
+
+`coins.models` turns on the coin looks (section 4.1). Leave it off until the resource
+pack with the coin models is live.
 
 ## 10. State and logs
 

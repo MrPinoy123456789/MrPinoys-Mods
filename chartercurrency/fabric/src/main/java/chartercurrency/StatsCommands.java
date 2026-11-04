@@ -107,6 +107,8 @@ final class StatsCommands {
             EconomySettings fresh = EconomySettings.load(configDir);
             s.settings.timezone = fresh.timezone;
             s.settings.mint = fresh.mint;
+            s.settings.coinModels = fresh.coinModels;
+            CoinStacks.models = fresh.coinModels;
             s.settings.shop.confirmAt = fresh.shop.confirmAt;
             s.mint.setRules(fresh.mint);
 
