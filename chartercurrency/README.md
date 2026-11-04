@@ -70,12 +70,21 @@ Right-clicking a bound table never opens the smithing screen:
 - an empty hand, or anything else, shows today's rate. `/mint` shows it anywhere.
 
 The soft cap is counted in gold ingots per player per day (owner, 2026-11-03: gold may
-be farmed, since it is the only thing farmed into money and has other sinks). The first
-320 ingots strike one Sovereign each; past that a Sovereign costs 2 ingots, then 4 after
-another 320, doubling every 320 to at most 64. There is no hard stop and nothing carries
+be farmed, since it is the only thing farmed into money and has other sinks). One gold
+ingot strikes 10 Sovereigns (`Mint.COINS_PER_STRIKE`, fixed in code). The first 320
+ingots strike at that rate; past that 10 Sovereigns cost 2 ingots, then 4 after another
+320, doubling every 320 to at most 64. Coins that do not fit in the player's pockets go
+straight into their bank. There is no hard stop and nothing carries
 over. `softCapIngots` and `falloffEvery` live in `settings.json` under `mint` (an old
 file with the band keys is rewritten at load); `timezone` there sets when the day turns
 over.
+
+Coin is never melted: no recipe matches while a marked coin is in its input
+(`mixin/RecipeMeltMixin`), so the vanilla nine nuggets recipe cannot turn 9 coins
+into an ingot. The way back to metal is the shop's gold ingot at 10 Sovereigns, the
+rate it was struck at. Starter shop coin prices are ten times what they were at one
+Sovereign an ingot; `/chartercurrency shop restock` reprices a live shop's untouched
+starter listings and adds the ingot.
 
 The Mint tax is fixed in code and cannot be configured: every fifth coin struck, per
 player and per denomination, goes to the player's kingdom treasury; the player keeps
@@ -181,7 +190,7 @@ a tier does belongs to Charter. Placeholders in commands: `%kingdom%`, `%kingdom
 | File | Holds |
 |---|---|
 | `currencies.json` | Coin denominations (items, face values, words) and Valor. The coin marker is not configurable |
-| `settings.json` | Leaderboards, login snapshot, logging, `timezone`, `mint` soft cap numbers, `shop.confirmAt` per currency. There is no Mint tax setting: it is fixed at one coin in five |
+| `settings.json` | Leaderboards, login snapshot, logging, `timezone`, `mint` soft cap numbers, `coins.models` (coin looks from Foundry's pack; off until that pack is live), `shop.confirmAt` per currency. There is no Mint tax setting: it is fixed at one coin in five |
 | `earn.json` | Earn sources and the Renown rules |
 | `renown_catalog.json` | What Renown buys |
 | `shop.json` | The shop; prices in `coin`, `valor` or both |

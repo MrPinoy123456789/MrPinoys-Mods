@@ -749,29 +749,34 @@ public final class EconomyTest {
         check("the default soft cap is 320 ingots, falling off every 320",
                 RULES.softCapIngots() == 320 && RULES.falloffEvery() == 320);
 
+        check("a strike is 10 coins", Mint.COINS_PER_STRIKE == 10);
+        Mint.Plan oneIngot = Mint.plan(freshMint(), RULES, "gold", 64, 1);
+        check("one gold ingot strikes 10 Sovereigns",
+                oneIngot.coinsStruck() == 10 && oneIngot.ingotsUsed() == 1 && oneIngot.marksStruck() == 640);
+
         Mint.Plan full = Mint.plan(freshMint(), RULES, "gold", 64, 10);
-        check("under the soft cap a Sovereign costs one ingot",
-                full.coinsFull() == 10 && full.coinsReduced() == 0 && full.ingotsUsed() == 10);
-        check("the day counts ingots spent", full.after().ingotsToday == 10);
-        check("marks struck are face value", full.marksStruck() == 640);
+        check("under the soft cap 10 Sovereigns cost one ingot",
+                full.coinsFull() == 100 && full.coinsReduced() == 0 && full.ingotsUsed() == 10);
+        check("the day counts ingots spent, not coins", full.after().ingotsToday == 10);
+        check("marks struck are face value", full.marksStruck() == 6400);
 
         Mint.Plan whole = Mint.plan(freshMint(), RULES, "gold", 64, 320);
-        check("all 320 at full rate", whole.coinsFull() == 320 && whole.coinsReduced() == 0);
+        check("all 320 ingots at full rate: 3200 coins", whole.coinsFull() == 3200 && whole.coinsReduced() == 0);
 
         Mint.Plan straddle = Mint.plan(spentMint(318), RULES, "gold", 64, 6);
-        check("past the soft cap: 2 at full rate, then 2 at two ingots each",
-                straddle.coinsFull() == 2 && straddle.coinsReduced() == 2 && straddle.ingotsUsed() == 6
+        check("past the soft cap: 2 strikes at full rate, then 2 at two ingots each",
+                straddle.coinsFull() == 20 && straddle.coinsReduced() == 20 && straddle.ingotsUsed() == 6
                         && straddle.after().ingotsToday == 324);
 
         check("cost doubles every 320 ingots past the cap",
-                Mint.ingotsPerCoin(0, RULES) == 1 && Mint.ingotsPerCoin(319, RULES) == 1
-                        && Mint.ingotsPerCoin(320, RULES) == 2 && Mint.ingotsPerCoin(639, RULES) == 2
-                        && Mint.ingotsPerCoin(640, RULES) == 4 && Mint.ingotsPerCoin(960, RULES) == 8
-                        && Mint.ingotsPerCoin(1280, RULES) == 16 && Mint.ingotsPerCoin(1600, RULES) == 32
-                        && Mint.ingotsPerCoin(1920, RULES) == 64);
+                Mint.ingotsPerStrike(0, RULES) == 1 && Mint.ingotsPerStrike(319, RULES) == 1
+                        && Mint.ingotsPerStrike(320, RULES) == 2 && Mint.ingotsPerStrike(639, RULES) == 2
+                        && Mint.ingotsPerStrike(640, RULES) == 4 && Mint.ingotsPerStrike(960, RULES) == 8
+                        && Mint.ingotsPerStrike(1280, RULES) == 16 && Mint.ingotsPerStrike(1600, RULES) == 32
+                        && Mint.ingotsPerStrike(1920, RULES) == 64);
         check("the cost tops out at 64 ingots, however far past",
-                Mint.ingotsPerCoin(1_000_000, RULES) == Mint.MAX_INGOTS_PER_COIN
-                        && Mint.ingotsPerCoin(Long.MAX_VALUE / 2, RULES) == Mint.MAX_INGOTS_PER_COIN);
+                Mint.ingotsPerStrike(1_000_000, RULES) == Mint.MAX_INGOTS_PER_STRIKE
+                        && Mint.ingotsPerStrike(Long.MAX_VALUE / 2, RULES) == Mint.MAX_INGOTS_PER_STRIKE);
 
         check("ingots until the cost rises",
                 Mint.ingotsUntilFalloff(0, RULES) == 320 && Mint.ingotsUntilFalloff(300, RULES) == 20
@@ -779,20 +784,20 @@ public final class EconomyTest {
         check("no further rise once at the top", Mint.ingotsUntilFalloff(1920, RULES) == -1);
 
         Mint.Plan odd = Mint.plan(spentMint(320), RULES, "gold", 64, 5);
-        check("an ingot short of the next coin is not consumed",
-                odd.coinsStruck() == 2 && odd.ingotsUsed() == 4);
+        check("an ingot short of the next strike is not consumed",
+                odd.coinsStruck() == 20 && odd.ingotsUsed() == 4);
         Mint.Plan one = Mint.plan(spentMint(320), RULES, "gold", 64, 1);
-        check("one ingot cannot buy a coin past the soft cap",
+        check("one ingot cannot buy a strike past the soft cap",
                 !one.struck() && one.shortfall() == Mint.Shortfall.NEED_MORE_INGOTS && one.ingotsUsed() == 0);
         check("nothing offered", Mint.plan(freshMint(), RULES, "gold", 64, 0).shortfall()
                 == Mint.Shortfall.NOTHING_OFFERED);
 
         Mint.Plan farm = Mint.plan(freshMint(), RULES, "gold", 64, 2304);
-        check("a full inventory of gold (2304 ingots) yields 320 + 160 + 80 + 40 + 20 + 10 + 6 coins",
-                farm.coinsStruck() == 636 && farm.coinsFull() == 320 && farm.ingotsUsed() == 2304);
+        check("a full inventory of gold (2304 ingots) yields 320 + 160 + 80 + 40 + 20 + 10 + 6 strikes",
+                farm.coinsStruck() == 6360 && farm.coinsFull() == 3200 && farm.ingotsUsed() == 2304);
 
         Mint.Rules none = new Mint.Rules(0, 320);
-        check("a soft cap of 0 starts at two ingots per coin", Mint.ingotsPerCoin(0, none) == 2);
+        check("a soft cap of 0 starts at two ingots per strike", Mint.ingotsPerStrike(0, none) == 2);
 
         // the day
         Mint.State used = spentMint(500);
@@ -809,34 +814,29 @@ public final class EconomyTest {
     private static void mintTax() {
         section("Mint tax");
 
-        Mint.State s = freshMint();
-        Mint.Plan first = Mint.plan(s, RULES, "gold", 64, 3);
-        check("3 coins: none taxed yet", first.coinsToKingdom() == 0 && first.coinsToPlayer() == 3);
-        check("counter holds 3", first.after().taxCounters.get("gold") == 3);
-        Mint.Plan second = Mint.plan(first.after(), RULES, "gold", 64, 2);
-        check("strikes of 3 then 2 tax the fifth",
-                second.coinsToKingdom() == 1 && second.coinsToPlayer() == 1
-                        && second.after().taxCounters.get("gold") == 0);
-
-        Mint.Plan ten = Mint.plan(freshMint(), RULES, "gold", 64, 10);
-        check("10 coins: 8 to the player, 2 to the kingdom",
+        Mint.Plan ten = Mint.plan(freshMint(), RULES, "gold", 64, 1);
+        check("one ingot, 10 coins: 8 to the player, 2 to the kingdom",
                 ten.coinsToPlayer() == 8 && ten.coinsToKingdom() == 2 && ten.marksToKingdom() == 128);
-        check("the day counts taxed coins' ingots", ten.after().ingotsToday == 10
-                && ten.marksStruck() == 640);
+        check("the day counts the taxed coins' ingot", ten.after().ingotsToday == 1
+                && ten.marksStruck() == 640 && ten.after().taxCounters.get("gold") == 0);
         Mint.Plan reduced = Mint.plan(spentMint(320), RULES, "gold", 64, 20);
         check("coins past the soft cap are taxed the same",
-                reduced.coinsStruck() == 10 && reduced.coinsToKingdom() == 2);
-        Mint.Plan single = Mint.plan(freshMint(), RULES, "gold", 64, 1);
-        check("a single Sovereign works with the counter", single.coinsToKingdom() == 0
-                && single.after().taxCounters.get("gold") == 1);
+                reduced.coinsStruck() == 100 && reduced.coinsToKingdom() == 20);
+        Mint.State three = freshMint();
+        three.taxCounters.put("gold", 3);
+        Mint.Plan carried = Mint.plan(three, RULES, "gold", 64, 1);
+        check("a carried counter still takes exactly 2 of 10",
+                carried.coinsToKingdom() == 2 && carried.coinsToPlayer() == 8
+                        && carried.after().taxCounters.get("gold") == 3);
         Mint.State four = freshMint();
         four.taxCounters.put("gold", 4);
-        check("the fifth Sovereign is the kingdom's",
-                Mint.plan(four, RULES, "gold", 64, 1).marksToKingdom() == 64);
+        check("a counter of 4 still takes 2 of 10",
+                Mint.plan(four, RULES, "gold", 64, 1).marksToKingdom() == 128);
         Mint.State mixed = freshMint();
         mixed.taxCounters.put("iron", 4);
+        Mint.Plan copper = Mint.plan(mixed, RULES, "copper", 1, 1);
         check("counters are per denomination",
-                Mint.plan(mixed, RULES, "copper", 1, 1).coinsToKingdom() == 0);
+                copper.after().taxCounters.get("iron") == 4 && copper.after().taxCounters.get("copper") == 0);
 
         // exactly 20 percent over 1,000 random strikes
         java.util.Random random = new java.util.Random(7);
@@ -858,21 +858,22 @@ public final class EconomyTest {
         MintService service = new MintService(book, treasury, RULES);
         long today = 100;
         Mint.Plan a = service.preview(ALEX, "gold", 64, 3, today);
-        service.commit(ALEX, a, "northreach", "Alex", today);
+        long paidNorth = service.commit(ALEX, a, "northreach", "Alex", today);
         Mint.Plan b = service.preview(ALEX, "gold", 64, 2, today);
         long paid = service.commit(ALEX, b, "southmark", "Alex", today);
-        check("the counter survives a change of kingdom: the new kingdom gets the fifth coin",
-                paid == 64 && treasury.balance("southmark") == 64 && treasury.balance("northreach") == 0);
+        check("each strike pays the striker's kingdom of the moment",
+                paidNorth == 384 && paid == 256 && treasury.balance("southmark") == 256
+                        && treasury.balance("northreach") == 384);
         check("the tax lands in the treasury and its lifetime total",
-                treasury.taxCollected("southmark") == 64);
+                treasury.taxCollected("southmark") == 256);
 
         Mint.Plan c = service.preview(STEVE, "gold", 64, 10, today);
         long destroyedPaid = service.commit(STEVE, c, null, "Steve", today);
-        check("no kingdom: the fifth coin is destroyed, nothing is credited",
-                destroyedPaid == 0 && treasury.totalSupply() == 64);
+        check("no kingdom: the taxed coins are destroyed, nothing is credited",
+                destroyedPaid == 0 && treasury.totalSupply() == 640);
         check("stats record minted and destroyed",
-                book.stat(MintService.STAT_MINTED, today, 1) == 960);
-        check("destroyed tax is tracked", book.stat(MintService.STAT_TAX_DESTROYED, today, 1) == 128);
+                book.stat(MintService.STAT_MINTED, today, 1) == 9600);
+        check("destroyed tax is tracked", book.stat(MintService.STAT_TAX_DESTROYED, today, 1) == 1280);
         check("the day persists per player",
                 service.state(ALEX, today).ingotsToday == 5
                         && service.state(STEVE, today).ingotsToday == 10);
@@ -880,7 +881,7 @@ public final class EconomyTest {
                 service.state(ALEX, today + 1).ingotsToday == 0);
         Mint.Plan late = service.preview(ALEX, "gold", 64, 330, today);
         check("the service applies the soft cap",
-                late.coinsFull() == 315 && late.coinsReduced() == 7 && late.ingotsUsed() == 329);
+                late.coinsFull() == 3150 && late.coinsReduced() == 70 && late.ingotsUsed() == 329);
     }
 
     // ---- treasury -----------------------------------------------------------
@@ -1282,22 +1283,31 @@ public final class EconomyTest {
         section("Shop starter and restock");
 
         ShopCatalog starter = ShopStarter.catalog();
-        check("the starter lists 104 entries, no key used twice", starter.size() == 104);
+        check("the starter lists 105 entries, no key used twice", starter.size() == 105);
         boolean allValid = true;
         boolean noGold = true;
         boolean noFarmBooks = true;
         for (ShopEntry e : starter.all()) {
             allValid &= e.isValid() && e.enabled();
-            noGold &= !e.itemId().contains("gold");
+            noGold &= !e.itemId().contains("gold") || e.key().equals("gold_ingot");
             String c = e.components() == null ? "" : e.components();
             noFarmBooks &= !c.contains("looting") && !c.contains("fortune") && !c.contains("mending");
         }
         check("every starter entry is valid and enabled", allValid);
-        check("nothing gold is sold: bought gold could be struck at the Mint", noGold);
+        check("nothing gold is sold but the ingot: other gold could be struck at the Mint", noGold);
+        ShopEntry ingot = starter.find("gold_ingot").orElseThrow();
+        check("a gold ingot costs exactly the 10 Sovereigns the Mint strikes from it",
+                ingot.quantity() == 1 && ingot.price().get(CurrencyRegistry.COIN) == 640
+                        && ingot.price().size() == 1 && ShopStarter.GOLD_INGOT_MARKS == 640);
+        Mint.Plan restruck = Mint.plan(freshMint(), RULES, "gold", 64, 1);
+        check("an ingot bought and struck again makes no money",
+                restruck.marksStruck() == ingot.price().get(CurrencyRegistry.COIN)
+                        && restruck.coinsToPlayer() * 64L < ingot.price().get(CurrencyRegistry.COIN));
         check("no Looting, Fortune or Mending books", noFarmBooks);
         check("categories in shelf order", starter.categories().equals(List.of(
                 ShopStarter.BUILDING, ShopStarter.WOOD, ShopStarter.LIGHT, ShopStarter.DYES,
-                ShopStarter.GARDEN, ShopStarter.WORKING, ShopStarter.BOOKS, ShopStarter.HONOURS)));
+                ShopStarter.GARDEN, ShopStarter.WORKING, ShopStarter.BOOKS, ShopStarter.HONOURS,
+                ShopStarter.GOLD)));
         boolean neverCheaper = true;
         for (ShopEntry old : ShopStarter.previous().all()) {
             ShopEntry now = starter.find(old.key()).orElseThrow();
@@ -1309,14 +1319,26 @@ public final class EconomyTest {
 
         ShopCatalog untouched = ShopStarter.previous();
         ShopStarter.Restock first = ShopStarter.restock(untouched);
-        check("an untouched old shop: 92 added, 9 repriced, none kept",
-                first.added() == 92 && first.updated() == 9 && first.kept() == 0);
+        check("an untouched old shop: 93 added, 9 repriced, none kept",
+                first.added() == 93 && first.updated() == 9 && first.kept() == 0);
         check("it then matches the starter",
-                untouched.size() == 104 && untouched.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 128
+                untouched.size() == 105 && untouched.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 1280
                         && untouched.find("book_unbreaking").orElseThrow().category().equals(ShopStarter.BOOKS));
         ShopStarter.Restock again = ShopStarter.restock(untouched);
         check("a second restock changes nothing",
                 again.added() == 0 && again.updated() == 0 && again.kept() == 0);
+
+        check("coin prices are ten times the one-Sovereign-an-ingot starter",
+                ShopStarter.PRICE_SCALE == 10
+                        && starter.find("blue_ice").orElseThrow().price().get(CurrencyRegistry.COIN) == 10_240
+                        && starter.find("book_sharpness").orElseThrow().price().get(CurrencyRegistry.COIN) == 12_800);
+        check("Valor prices are not scaled",
+                starter.find("champion_helm").orElseThrow().price().get(CurrencyRegistry.VALOR) == 150);
+        ShopCatalog oneToOne = ShopStarter.atOneSovereignAnIngot();
+        ShopStarter.Restock scaled = ShopStarter.restock(oneToOne);
+        check("a shop at one Sovereign an ingot: every coin listing is repriced, the ingot added",
+                scaled.added() == 1 && scaled.updated() == 101 && scaled.kept() == 0
+                        && oneToOne.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 1280);
 
         ShopCatalog owned = ShopStarter.previous();
         ShopEntry sand = owned.find("sand").orElseThrow();
@@ -1330,7 +1352,7 @@ public final class EconomyTest {
                 mixed.kept() == 1 && owned.find("sand").orElseThrow().price().get(CurrencyRegistry.COIN) == 40);
         check("a disabled starter entry is repriced but stays disabled",
                 !owned.find("ice").orElseThrow().enabled()
-                        && owned.find("ice").orElseThrow().price().get(CurrencyRegistry.COIN) == 256);
+                        && owned.find("ice").orElseThrow().price().get(CurrencyRegistry.COIN) == 2560);
         check("the owner's own listing is never touched",
                 owned.find("elytra").orElseThrow().price().get(CurrencyRegistry.COIN) == 9000);
     }

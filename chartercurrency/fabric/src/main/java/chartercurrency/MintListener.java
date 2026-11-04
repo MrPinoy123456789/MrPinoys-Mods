@@ -78,6 +78,12 @@ final class MintListener {
     }
 
     private void use(ServerPlayer player) {
+        if (CoinStacks.markerOf(player.getMainHandItem()).isPresent()) {
+            // Coin is never melted (CoinCrafting); the shop sells the ingot at the Mint's rate.
+            player.sendSystemMessage(Messages.body("The Mint does not melt coin. A gold ingot is "
+                    + Mint.COINS_PER_STRIKE + " Sovereigns in the shop: /shop"));
+            return;
+        }
         Optional<Denomination> held = denominationOf(player.getMainHandItem());
         if (held.isEmpty()) {
             showAllowance(player);
@@ -104,16 +110,17 @@ final class MintListener {
 
     private String allowanceLine(Mint.State st) {
         Mint.Rules rules = s.settings.mint;
-        int cost = Mint.ingotsPerCoin(st.ingotsToday, rules);
+        int cost = Mint.ingotsPerStrike(st.ingotsToday, rules);
         long until = Mint.ingotsUntilFalloff(st.ingotsToday, rules);
+        int per = Mint.COINS_PER_STRIKE;
         if (cost == 1) {
             return "Today: " + until + " of " + rules.softCapIngots()
-                    + " gold ingots left at full rate, one Sovereign each.";
+                    + " gold ingots left at full rate, " + per + " Sovereigns each.";
         }
         if (until < 0) {
-            return "Past today's full rate: " + cost + " ingots per Sovereign until midnight.";
+            return "Past today's full rate: " + cost + " ingots per " + per + " Sovereigns until midnight.";
         }
-        return "Past today's full rate: " + cost + " ingots per Sovereign, " + (cost * 2)
+        return "Past today's full rate: " + cost + " ingots per " + per + " Sovereigns, " + (cost * 2)
                 + " after " + until + " more. Full rate again at midnight.";
     }
 
@@ -143,8 +150,8 @@ final class MintListener {
         if (!plan.struck()) {
             Mint.State st = s.mint.state(player.getUUID(), today);
             if (plan.shortfall() == Mint.Shortfall.NEED_MORE_INGOTS) {
-                player.sendSystemMessage(Messages.body("A " + d.singular() + " costs "
-                        + Mint.ingotsPerCoin(st.ingotsToday, s.settings.mint) + " ingots now. "
+                player.sendSystemMessage(Messages.body(Mint.COINS_PER_STRIKE + " " + d.plural() + " cost "
+                        + Mint.ingotsPerStrike(st.ingotsToday, s.settings.mint) + " ingots now. "
                         + allowanceLine(st)));
             } else {
                 player.sendSystemMessage(Messages.body(allowanceLine(st)));
@@ -161,8 +168,19 @@ final class MintListener {
         String actor = player.getName().getString();
         long paid = s.mint.commit(player.getUUID(), plan, kingdom, actor, today);
 
+        // Ten coins an ingot outgrows a pocket fast: what fits is handed over, the rest
+        // goes straight into the bank rather than onto the floor.
+        long banked = 0;
         if (plan.coinsToPlayer() > 0) {
-            long dropped = ItemBank.give(player, CoinStacks.make(d, coin, 1), plan.coinsToPlayer());
+            ItemStack sample = CoinStacks.make(d, coin, 1);
+            long fits = Math.min(plan.coinsToPlayer(), ItemBank.freeCapacity(player, sample));
+            long rest = plan.coinsToPlayer() - fits;
+            if (rest > 0 && s.economy.deposit(player.getUUID(), coin, rest * d.value()).ok()) {
+                banked = rest;
+            } else {
+                fits = plan.coinsToPlayer();
+            }
+            long dropped = fits > 0 ? ItemBank.give(player, sample, fits) : 0;
             if (dropped > 0) {
                 CharterCurrencyMod.LOG.warn("Mint coins for {} overflowed capacity by {}", actor, dropped);
             }
@@ -182,6 +200,10 @@ final class MintListener {
         }
         line.append(". ").append(allowanceLine(s.mint.state(player.getUUID(), today)));
         player.sendSystemMessage(Messages.good(line.toString()));
+        if (banked > 0) {
+            player.sendSystemMessage(Messages.body("Your pockets were full, so " + banked + " "
+                    + (banked == 1 ? d.singular() : d.plural()) + " went straight into your bank."));
+        }
         if (kingdom == null && plan.coinsToKingdom() > 0) {
             player.sendSystemMessage(Messages.body(
                     "You are in no kingdom, so the taxed coin is not kept by anyone."));
@@ -189,6 +211,7 @@ final class MintListener {
 
         s.log.tx(actor + " struck " + plan.coinsStruck() + " " + d.id() + " (" + plan.marksStruck()
                 + " Marks, " + plan.ingotsUsed() + " ingots); to player " + plan.coinsToPlayer()
+                + (banked > 0 ? " (" + banked + " banked, pockets full)" : "")
                 + ", tax " + plan.marksToKingdom() + " Marks to "
                 + (kingdom == null ? "nobody (destroyed)" : kingdom));
     }

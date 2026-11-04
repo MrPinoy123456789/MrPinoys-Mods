@@ -8,9 +8,10 @@ import java.util.Map;
  * inventory and no clock. The fabric side removes the ingots, gives the coins and saves
  * the state; it asks this class what should happen.
  *
- * <p>A player's day is counted in ingots spent (owner, 2026-11-03). Up to the soft cap a
- * coin costs one ingot; past it the cost doubles every {@link Rules#falloffEvery} ingots,
- * up to {@link #MAX_INGOTS_PER_COIN}. There is no hard stop and no carry-over. The tax is
+ * <p>A player's day is counted in ingots spent (owner, 2026-11-03). Coins are struck
+ * {@link #COINS_PER_STRIKE} at a time. Up to the soft cap a strike costs one ingot; past
+ * it the cost doubles every {@link Rules#falloffEvery} ingots, up to
+ * {@link #MAX_INGOTS_PER_STRIKE}. There is no hard stop and no carry-over. The tax is
  * the owner's fixed rule (SPEC 8.3): every fifth coin struck goes to the kingdom, and it
  * is not configurable.
  */
@@ -19,8 +20,11 @@ public final class Mint {
     /** Every fifth coin is taxed: 2 in 10. Fixed in code on purpose. */
     public static final int TAX_EVERY = 5;
 
-    /** The most a coin ever costs, however far past the soft cap. */
-    public static final int MAX_INGOTS_PER_COIN = 64;
+    /** Coins one strike makes: one gold ingot is 10 Sovereigns at full rate (owner, 2026-11-03). */
+    public static final int COINS_PER_STRIKE = 10;
+
+    /** The most a strike ever costs, however far past the soft cap. */
+    public static final int MAX_INGOTS_PER_STRIKE = 64;
 
     /**
      * The one denomination the Mint strikes (owner, 2026-11-03). Copper and iron come out of mob farms without limit
@@ -39,8 +43,8 @@ public final class Mint {
     /**
      * The numbers that live in settings.json under {@code mint}.
      *
-     * @param softCapIngots ingots a player can strike at one ingot per coin each day
-     * @param falloffEvery  past the soft cap, the cost per coin doubles after every this many ingots
+     * @param softCapIngots ingots a player can strike at one ingot per strike each day
+     * @param falloffEvery  past the soft cap, the cost per strike doubles after every this many ingots
      */
     public record Rules(int softCapIngots, int falloffEvery) {
 
@@ -49,20 +53,23 @@ public final class Mint {
         }
     }
 
-    /** Ingots the next coin costs after {@code spentToday} ingots have been spent today. */
-    public static int ingotsPerCoin(long spentToday, Rules rules) {
+    /**
+     * Ingots the next strike of {@link #COINS_PER_STRIKE} coins costs after {@code spentToday}
+     * ingots have been spent today.
+     */
+    public static int ingotsPerStrike(long spentToday, Rules rules) {
         if (spentToday < rules.softCapIngots()) return 1;
         long steps = 1 + (spentToday - rules.softCapIngots()) / Math.max(1, rules.falloffEvery());
-        if (steps >= 6) return MAX_INGOTS_PER_COIN;
-        return (int) Math.min(MAX_INGOTS_PER_COIN, 1L << steps);
+        if (steps >= 6) return MAX_INGOTS_PER_STRIKE;
+        return (int) Math.min(MAX_INGOTS_PER_STRIKE, 1L << steps);
     }
 
     /**
-     * Ingots still to spend today before the cost per coin next rises, or -1 once it is at
-     * {@link #MAX_INGOTS_PER_COIN} and will not rise again.
+     * Ingots still to spend today before the cost per strike next rises, or -1 once it is at
+     * {@link #MAX_INGOTS_PER_STRIKE} and will not rise again.
      */
     public static long ingotsUntilFalloff(long spentToday, Rules rules) {
-        if (ingotsPerCoin(spentToday, rules) >= MAX_INGOTS_PER_COIN) return -1;
+        if (ingotsPerStrike(spentToday, rules) >= MAX_INGOTS_PER_STRIKE) return -1;
         if (spentToday < rules.softCapIngots()) return rules.softCapIngots() - spentToday;
         long every = Math.max(1, rules.falloffEvery());
         long past = spentToday - rules.softCapIngots();
@@ -73,7 +80,7 @@ public final class Mint {
     public enum Shortfall {
         /** Coins were struck. */
         NONE,
-        /** The ingots offered do not cover one coin at the current rate. */
+        /** The ingots offered do not cover one strike at the current rate. */
         NEED_MORE_INGOTS,
         /** Nothing was offered. */
         NOTHING_OFFERED
@@ -82,10 +89,10 @@ public final class Mint {
     /**
      * What a strike does.
      *
-     * @param ingotsUsed      ingots to remove; ingots short of the next coin's cost stay
-     * @param coinsStruck     every coin struck, taxed or not (all count against the day)
-     * @param coinsFull       of those, struck at one ingot each
-     * @param coinsReduced    of those, struck past the soft cap at more than one ingot each
+     * @param ingotsUsed      ingots to remove; ingots short of the next strike's cost stay
+     * @param coinsStruck     every coin struck, taxed or not (their ingots count against the day)
+     * @param coinsFull       of those, struck at one ingot per strike
+     * @param coinsReduced    of those, struck past the soft cap at more than one ingot per strike
      * @param coinsToPlayer   coins handed to the striker
      * @param coinsToKingdom  coins whose face value goes to the kingdom (or is destroyed)
      * @param marksStruck     face value of every coin struck
@@ -151,11 +158,11 @@ public final class Mint {
     /**
      * Plan a strike of one denomination.
      *
-     * <p>Coins are struck one at a time at the cost the day has reached: one ingot each up
-     * to the soft cap, then the falloff. A coin that starts below a step is struck at the
-     * lower cost. Ingots short of the next coin's cost are left with the player. The tax
-     * counter for the denomination advances by every coin struck, and every fifth coin is
-     * the kingdom's.
+     * <p>Strikes of {@link #COINS_PER_STRIKE} coins are made one at a time at the cost the
+     * day has reached: one ingot each up to the soft cap, then the falloff. A strike that
+     * starts below a step is made at the lower cost. Ingots short of the next strike's cost
+     * are left with the player. The tax counter for the denomination advances by every coin
+     * struck, and every fifth coin is the kingdom's.
      *
      * @param state          the state already rolled to today
      * @param denominationId keys the tax counter
@@ -173,12 +180,12 @@ public final class Mint {
         int coinsFull = 0;
         int coinsReduced = 0;
         while (true) {
-            int cost = ingotsPerCoin(spent, rules);
+            int cost = ingotsPerStrike(spent, rules);
             if (cost > left) break;
             left -= cost;
             spent += cost;
-            if (cost == 1) coinsFull++;
-            else coinsReduced++;
+            if (cost == 1) coinsFull += COINS_PER_STRIKE;
+            else coinsReduced += COINS_PER_STRIKE;
         }
 
         int coins = coinsFull + coinsReduced;

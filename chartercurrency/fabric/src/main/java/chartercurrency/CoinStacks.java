@@ -6,12 +6,15 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -26,6 +29,19 @@ final class CoinStacks {
 
     static final String ROOT = "chartercurrency";
     static final String KEY = "coin";
+
+    /**
+     * The coin looks Foundry's resource pack serves, by denomination id (owner, 2026-11-03).
+     * Stamped as {@code minecraft:item_model} only while {@link #models} is on: a client
+     * without the pack would draw the missing texture.
+     */
+    static final Map<String, Identifier> MODELS = Map.of(
+            "gold", Identifier.fromNamespaceAndPath(ROOT, "gold_sovereign"),
+            "iron", Identifier.fromNamespaceAndPath(ROOT, "iron_crown"),
+            "copper", Identifier.fromNamespaceAndPath(ROOT, "copper_mark"));
+
+    /** {@code coins.models} in settings.json: whether coins wear their own look. */
+    static volatile boolean models = false;
 
     private CoinStacks() {}
 
@@ -79,7 +95,19 @@ final class CoinStacks {
 
         stack.set(DataComponents.ITEM_NAME, Component.literal(denomination.singular()));
         stack.set(DataComponents.LORE, lore(denomination, coin));
+        stack.set(DataComponents.ITEM_MODEL, modelFor(denomination, item));
         return stack;
+    }
+
+    /**
+     * The look a coin should wear: its own model while {@link #models} is on, otherwise the
+     * nugget's. Setting the item's own default clears the component from the stack's patch,
+     * so a coin switched back stacks with coin that never had a look.
+     */
+    static Identifier modelFor(Denomination denomination, Item item) {
+        Identifier own = MODELS.get(denomination.id());
+        if (models && own != null) return own;
+        return item.components().get(DataComponents.ITEM_MODEL);
     }
 
     /**
@@ -102,19 +130,27 @@ final class CoinStacks {
     }
 
     /**
-     * Brings a coin made by an older release up to today's lore, so it stacks with new
-     * coin and shows the bank hint. Returns true if the stack was changed. The marker,
-     * the count and everything else are left alone.
+     * Brings a coin made by an older release up to today's lore and look, so it stacks
+     * with new coin and shows the bank hint. Returns true if the stack was changed. The
+     * marker, the count and everything else are left alone.
      */
     static boolean refresh(ItemStack stack, Currency coin) {
         Optional<String> marker = markerOf(stack);
         if (marker.isEmpty()) return false;
         for (Denomination d : coin.denominations()) {
             if (!d.id().equals(marker.get())) continue;
+            boolean changed = false;
             ItemLore want = lore(d, coin);
-            if (want.equals(stack.get(DataComponents.LORE))) return false;
-            stack.set(DataComponents.LORE, want);
-            return true;
+            if (!want.equals(stack.get(DataComponents.LORE))) {
+                stack.set(DataComponents.LORE, want);
+                changed = true;
+            }
+            Identifier look = modelFor(d, stack.getItem());
+            if (!Objects.equals(look, stack.get(DataComponents.ITEM_MODEL))) {
+                stack.set(DataComponents.ITEM_MODEL, look);
+                changed = true;
+            }
+            return changed;
         }
         return false;
     }
