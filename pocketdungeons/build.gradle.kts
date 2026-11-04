@@ -539,7 +539,9 @@ for ((taskName, testClass) in mapOf(
     "wildGoldTest" to "WildGoldTest",
     // Wild boss, ominous lodestones and who cleared it (decision 2026-11-04).
     "wildBossTest" to "WildBossTest",
-    "wildKingdomsTest" to "WildKingdomsTest"
+    "wildKingdomsTest" to "WildKingdomsTest",
+    // The wild marker's look (owner, 2026-11-04: a lodestone someone wants to right click).
+    "wildLookTest" to "WildLookTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -553,6 +555,7 @@ tasks.test {
     dependsOn("wildGoldTest")
     dependsOn("wildBossTest")
     dependsOn("wildKingdomsTest")
+    dependsOn("wildLookTest")
     dependsOn("wildClearGateTest")
     dependsOn("wildLootTest")
     dependsOn("dungeonThemeMetaTest")

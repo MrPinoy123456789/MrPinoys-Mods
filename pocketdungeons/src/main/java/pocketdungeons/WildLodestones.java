@@ -222,8 +222,9 @@ final class WildLodestones {
 
     /** Places an Exit jigsaw inside a dungeon and remembers it for the click handler. */
     static void placeExit(ServerLevel level, BlockPos pos, String lodestoneId, boolean clear) {
-        placeMarker(level, pos);
+        // Registered first, so the marker's display already knows it is an Exit.
         EXITS.put(pos.immutable(), new ExitRef(lodestoneId, clear));
+        placeMarker(level, pos);
     }
 
     /** Forgets every Exit block of one lodestone (its dungeon is being torn down). */
@@ -243,6 +244,17 @@ final class WildLodestones {
 
     static ExitRef exitAt(BlockPos pos) {
         return EXITS.get(pos);
+    }
+
+    /** What the marker at {@code pos} shows now: an Exit, or its lodestone's state. {@code null} when it is not ours. */
+    static WildLook lookAt(ServerLevel level, BlockPos pos) {
+        if (EXITS.containsKey(pos)) {
+            return WildLook.EXIT;
+        }
+        WildState state = WildStore.state();
+        WildState.Lodestone lodestone = state == null ? null
+                : state.atEntrance(dimensionKey(level), pos.getX(), pos.getY(), pos.getZ());
+        return lodestone == null ? null : WildLook.of(false, lodestone.phase, lodestone.ominous);
     }
 
     // ---- the marker block itself -------------------------------------------------
