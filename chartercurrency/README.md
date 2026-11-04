@@ -48,7 +48,9 @@ under `/chartercurrency shop`.
 
 ## The Mint and kingdom treasuries
 
-Coin enters the world only at a Mint. An op looks at a smithing table and runs
+Coin is struck at a Mint, and Gold Sovereigns also drop in Pocket Dungeons' wild
+dungeons (2026-11-04; the loot tables write the same marker, name and lore, so they
+bank and stack like struck ones). An op looks at a smithing table and runs
 `/chartercurrency mint bind` (also `unbind`, `list`; sites are in `mints.json`).
 Right-clicking a bound table never opens the smithing screen:
 

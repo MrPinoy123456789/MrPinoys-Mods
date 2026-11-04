@@ -4,7 +4,7 @@
   "name": "Deep Quarry",
   "dungeon": "pocketdungeons:deepslate",
   "node": "deep_quarry",
-  "promise": "Lapis. Redstone. Diamond.",
+  "promise": "Lapis. Diamond. Gold.",
   "cooldownMinutes": 480,
   "weight": 5,
   "minDistance": 2500,

@@ -4,7 +4,7 @@
   "name": "Boiler Hall",
   "dungeon": "pocketdungeons:copper_works",
   "node": "boiler_hall",
-  "promise": "Copper. Iron. Coal.",
+  "promise": "Copper. Iron. Gold.",
   "cooldownMinutes": 180,
   "weight": 10,
   "minDistance": 500,

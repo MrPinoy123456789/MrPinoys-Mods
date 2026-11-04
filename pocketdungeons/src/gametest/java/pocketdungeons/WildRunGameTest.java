@@ -80,6 +80,7 @@ public final class WildRunGameTest {
         List<WildDungeons.Offering> offerings = WildDungeons.all();
         helper.assertTrue(!offerings.isEmpty(), "the shipped offerings load");
         List<String> problems = new ArrayList<>();
+        int mostSpawners = 0;
         for (WildDungeons.Offering offering : offerings) {
             InstanceRecord record = null;
             try {
@@ -115,6 +116,12 @@ public final class WildRunGameTest {
                 if (offering.type().equals(WildDungeons.LONG_DUNGEON) && record.layout.roomCount() < 8) {
                     problems.add(offering.id() + ": a long dungeon has only " + record.layout.roomCount() + " rooms");
                 }
+                // Wild floors are longer than a campaign floor (owner, 2026-11-04).
+                int shortest = PocketDungeonsConfig.pathLengthMin() + offering.pathBonus();
+                if (record.layout.roomCount() < shortest) {
+                    problems.add(offering.id() + ": only " + record.layout.roomCount() + " rooms, wanted " + shortest);
+                }
+                mostSpawners = Math.max(mostSpawners, record.layout.trialSpawners().size());
                 for (WildDungeons.Bonus bonus : offering.bonusRewards()) {
                     var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
                             net.minecraft.resources.Identifier.parse(bonus.item()));
@@ -134,6 +141,9 @@ public final class WildRunGameTest {
             }
         }
         helper.assertTrue(problems.isEmpty(), "offering problems: " + problems);
+        // The campaign's first floor cap (two spawners) no longer reaches a wild floor (kingdom server, 2026-11-04).
+        helper.assertTrue(mostSpawners > PocketDungeonsConfig.firstFloorMaxEncounters(),
+                "no wild floor has more than " + PocketDungeonsConfig.firstFloorMaxEncounters() + " trial spawners");
         helper.succeed();
     }
 

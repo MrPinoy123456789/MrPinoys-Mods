@@ -972,3 +972,24 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Do:** Preview a door with two affixes, one on a resource dungeon, and a last floor. Read each board from the middle of the room, then right-click every icon. Ask a new player what the TNT and the clock mean before they click.
 - **Pass:** The board reads at a glance; each icon's click line matches it; nothing overlaps the doors, the ceiling or the left sheet; a last floor's long row stays inside the backdrop.
 - **Fail signs:** an icon floating off the backdrop or behind the wall, a click box that does not answer, a count too small to read, a deal line wrapping into the icons, a stale row left after the board goes idle.
+
+## L121: Explosions in a wild dungeon on the kingdom server (2026-11-04)
+- **Status:** owed (on `claude/stoic-wozniak-lfndcx`, not compiled, not deployed). Needs the Charter and PD jars from the same change, deployed together.
+- **Changed:** PD-226. Charter's and PD's explosion filters now chain (`@ModifyReturnValue`) instead of the first one cancelling the other.
+- **Do:** In a wild dungeon, set off TNT, let a creeper blow and fire a wind charge, each beside a rubble doorway, then each against a plain cell wall and a chest. Outside, on claimed land with `explosionsInKingdoms` off, set off TNT once.
+- **Pass:** All three clear the rubble and hurt nobody; walls, floors, chests and spawners stay whole; claimed land outside is still spared.
+- **Fail signs:** a hole in a wall, rubble that stays, a crater on claimed land, a mixin error naming `calculateExplodedPositions` in the log at start.
+
+## L122: Explosive affix mines flicker (2026-11-04)
+- **Status:** owed (same branch).
+- **Changed:** PD-227. A stepped mine shows a primed TNT over a barrier for its fuse, then puts its TNT block back.
+- **Do:** Step on a mine on Java and on Bedrock. Step off at once. Step on it again after it re-arms.
+- **Pass:** The white flash and swell show for the whole fuse, the floor holds, the blast breaks nothing, the TNT block is back afterwards, and the mine goes off again on the next step.
+- **Fail signs:** a hole where the mine was, a primed TNT left in the floor, a second blast, an invisible mine after it re-arms.
+
+## L123: Wild dungeons are longer, harder and pay gold (2026-11-04)
+- **Status:** owed (same branch).
+- **Changed:** decision 2026-11-04, "Wild dungeons: longer, more fights, paid in gold".
+- **Do:** Clear one wild mine and one long dungeon. Count the fights, dig into the walls of three rooms, open every chest and the vault, and bank the Sovereigns with `/bank all`.
+- **Pass:** More than two spawner rooms; gold ore in most rooms, of the right kind for the rock; the vault pays Sovereigns that bank and stack with minted ones; the clear takes noticeably longer than before.
+- **Fail signs:** "the planner found no layout" in the log for any offering, a Sovereign that `/bank` ignores or that will not stack with a struck one, a floor so long the cooldown feels wrong.

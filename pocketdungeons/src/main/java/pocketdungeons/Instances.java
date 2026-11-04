@@ -1093,6 +1093,19 @@ final class Instances {
      * The encounter cap a floor plans with: a gather floor has no spawners (-1 strips them), the last floor of
      * Act 0 has exactly one, and every other floor keeps {@code ordinary} (the first floor rule, or 0 for none).
      */
+    /**
+     * The encounter cap a floor plans with before its node has a say: the first floor of an interval runs
+     * about two spawners ({@code firstFloorMaxEncounters}), later floors are uncapped. A wild floor is always an
+     * interval's first floor by index, but it is the whole dungeon, not a warm up, so it uses
+     * {@link WildDungeons#MAX_ENCOUNTERS} instead (kingdom server, 2026-11-04: wild dungeons were two fights long).
+     */
+    static int ordinaryEncounterCap(InstanceRecord record) {
+        if (record.wild) {
+            return WildDungeons.MAX_ENCOUNTERS;
+        }
+        return record.interval.floorIndex == 0 ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0;
+    }
+
     static int encounterCap(Keystone.Offer offer, int ordinary) {
         if (offer == null || offer.door() == null) {
             return ordinary;
@@ -1339,8 +1352,7 @@ final class Instances {
                                     PocketDungeonsConfig.maxGridSpan(),
                                     proving ? 1 : nodeStories(offer)),
                             roomTheme, dungeonDoor, bagTags, recipePlan,
-                            encounterCap(offer, record.interval.floorIndex == 0
-                                    ? PocketDungeonsConfig.firstFloorMaxEncounters() : 0),
+                            encounterCap(offer, ordinaryEncounterCap(record)),
                             roomFloor)));
             plan = outcome.plan();
             lastSeed = outcome.finalSeed();

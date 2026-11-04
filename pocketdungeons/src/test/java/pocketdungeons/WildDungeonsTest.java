@@ -44,7 +44,12 @@ public class WildDungeonsTest {
                 "an empty variety is refused");
         check(parse(good.replace("mine", "long_dungeon")).pathBonus() == WildDungeons.LONG_PATH_BONUS,
                 "a long dungeon walks further");
-        check(parse(good).pathBonus() == 0, "a mine adds no path");
+        check(parse(good).pathBonus() == WildDungeons.PATH_BONUS && WildDungeons.PATH_BONUS > 0,
+                "a mine walks further than a campaign floor too");
+        check(WildDungeons.LONG_PATH_BONUS > WildDungeons.PATH_BONUS, "a long dungeon walks further than a mine");
+        check(WildDungeons.MAX_ENCOUNTERS == 0
+                        || WildDungeons.MAX_ENCOUNTERS > PocketDungeonsConfig.firstFloorMaxEncounters(),
+                "a wild floor is not capped like a campaign first floor");
         String bonus = good.replace("\"cooldownMinutes\":60", "\"cooldownMinutes\":60,\"bonusRewards\":"
                 + "[{\"item\":\"minecraft:elytra\",\"count\":1,\"chance\":0.03}]");
         check(WildDungeons.problems(parse(bonus), (d, n) -> true).isEmpty() && parse(bonus).bonusRewards().size() == 1,

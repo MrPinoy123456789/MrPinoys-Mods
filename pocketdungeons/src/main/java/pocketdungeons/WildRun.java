@@ -173,7 +173,8 @@ final class WildRun {
         try {
             layout = LayoutStamper.stampWild(level, planOrigin, plan, planned.offer().level(), planned.affixes(),
                     planned.themeId(), LootBands.of(planned.offer().dungeonId()),
-                    NodeStamper.contextFor(planned.offer().dungeonId(), planned.offer().nodeId(), false, 1));
+                    WildGold.enrich(NodeStamper.contextFor(planned.offer().dungeonId(), planned.offer().nodeId(),
+                            false, 1)));
         } catch (RuntimeException e) {
             PocketDungeonsMod.LOG.error("Stamping wild lodestone {} at {} failed; clearing whatever was written",
                     lodestone.id, planOrigin.toShortString(), e);

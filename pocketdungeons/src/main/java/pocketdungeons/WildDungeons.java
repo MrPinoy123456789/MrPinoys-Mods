@@ -41,9 +41,12 @@ final class WildDungeons {
             bonusRewards = bonusRewards == null ? List.of() : List.copyOf(bonusRewards);
         }
 
-        /** Extra path length on top of the configured range: a long dungeon is a longer walk. */
+        /**
+         * Extra path length on top of the configured range: every wild floor is the whole dungeon, so it walks
+         * {@link #PATH_BONUS} further than a campaign floor, and a long dungeon {@link #LONG_PATH_BONUS}.
+         */
         int pathBonus() {
-            return LONG_DUNGEON.equals(type) ? LONG_PATH_BONUS : 0;
+            return LONG_DUNGEON.equals(type) ? LONG_PATH_BONUS : PATH_BONUS;
         }
     }
 
@@ -59,8 +62,21 @@ final class WildDungeons {
     static final String LONG_DUNGEON = "long_dungeon";
     static final List<String> TYPES = List.of(MINE, DUNGEON, LONG_DUNGEON);
 
-    /** Cells added to the planner's min and max path for a long dungeon. */
-    static final int LONG_PATH_BONUS = 6;
+    /**
+     * Cells added to the planner's min and max path for a mine or a dungeon (owner, 2026-11-04: wild dungeons must be
+     * longer). With the default path of 8 to 12 cells a wild floor walks 12 to 16.
+     */
+    static final int PATH_BONUS = 4;
+
+    /** Cells added for a long dungeon: 16 to 20 with the default path (it was 6, so 14 to 18, before 2026-11-04). */
+    static final int LONG_PATH_BONUS = 8;
+
+    /**
+     * The encounter cap a wild floor plans with; 0 is no cap. A wild floor used to inherit the campaign's first floor
+     * cap ({@code firstFloorMaxEncounters}, two spawners, which also capped its loot rooms at two) because it is
+     * floor index 0, and that made every wild dungeon two fights long (kingdom server, 2026-11-04).
+     */
+    static final int MAX_ENCOUNTERS = 0;
 
     private static volatile Map<String, Offering> current = Map.of();
 

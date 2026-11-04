@@ -1483,3 +1483,60 @@ count of the five supplies (half up, never below 1); the war tier and trial keys
 table above are now roughly halved: a plain clear pays about 45 iron, 40 wart, 23 gold, 16 emeralds and 5 golden
 apples at tier 1, and 80 iron, 80 wart, 47 gold, 33 emeralds and 8 or 9 golden apples at tier 3. Set the scale back to
 1.0 to undo it.
+
+## 2026-11-04: Wild dungeons: longer, more fights, paid in gold
+
+Owner, 2026-11-04, from the kingdom server: *"The Pocket Dungeons: Wild dungeons are not difficult / engaging
+enough and need to compete with minecraft's vanilla Trial Chambers"*, and *"Gold being my main currency and also
+a sink with not many faucets ... we need to make the wilds version longer, more gold ore in dungeons, gold ingots
+and gold sovereign as rewards."* The direct asks are built; the wider ideas are proposed, not built, in
+`docs/plans/2026-11-04-wild-vs-trial-chambers.md`.
+
+The main cause of "not difficult": every wild floor is floor index 0, so it planned with the campaign's first floor
+cap (`firstFloorMaxEncounters`, 2). That cap also demotes loot rooms to the same count, so a wild dungeon was two
+spawner rooms and two loot rooms however long its path.
+
+| Thing | Before | Now | Lives in |
+|---|---|---|---|
+| Fights per floor | at most 2 spawner rooms (and 2 loot rooms) | no cap, like a campaign floor after the first | `WildDungeons.MAX_ENCOUNTERS`, `Instances.ordinaryEncounterCap` |
+| Path, mine or dungeon | 8 to 12 cells | 12 to 16 | `WildDungeons.PATH_BONUS` (4) |
+| Path, long dungeon | 14 to 18 | 16 to 20 | `WildDungeons.LONG_PATH_BONUS` (8) |
+| Hidden ore | the dungeon's own pockets | 2 more pockets a room (6 at most), about half of all pockets gold; plain, deepslate or nether gold ore to suit the rock; the End and the deep quarry, which bury nothing, get gold pockets | `WildGold` |
+| Gold ingots, plain clear | about 23 at tier 1, 47 at tier 3 | about 59 at tier 1, 123 at tier 3 (exempt from the 50 percent supply nerf, weigh heavier) | `tools/gen_wild_loot.py` (`GOLD_SCALE`, weights) |
+| Gold Sovereigns | none | about 5 a clear at tier 1, 7 at tier 2, 10 at tier 3, 16 at tier 4. Every vault always pays some (half again when ominous); chests and supply chests pay one now and then | same, `VAULT_SOVEREIGNS` and `SOVEREIGN` rows |
+| Promises | some offerings did not name gold | every promise names gold | `wild_dungeon/*.json` |
+
+The clear figures are the generator's estimate for its "typical clear" (6 chest rolls, 1 vault, 2 supply chests).
+With the cap gone a real clear has more loot rooms and so more chests than that, so real yields of every supply
+will be higher than the table; tune after a clear.
+
+### Rules
+
+1. A Gold Sovereign from a dungeon is Charter Currency's own coin: a gold nugget with the
+   `{"chartercurrency":{"coin":"gold"}}` marker, the item name "Gold Sovereign" and the Mint's lore line, so it banks,
+   pays and stacks like a struck one. Pocket Dungeons does not depend on Charter Currency; the loot tables write the
+   coin. Without Charter Currency installed it is a renamed gold nugget.
+2. This amends Charter Currency's "coin enters the world only at a Mint" (`chartercurrency/SPEC.md` 4.1) on the
+   owner's word: wild dungeons are the second source. They are capped by the lodestone cooldowns, not by the Mint
+   allowance, and pay no Mint tax.
+3. Campaign floors are untouched: the encounter cap, path bonus, gold pockets and tables apply to wild floors only.
+
+### Supersedes
+
+Amends "2026-11-02: Wild loot competes with farms" (gold ingots leave the 50 percent nerf; Sovereigns join the
+tables) and "2026-11-02: Wild loot is war supplies" (a gold nugget is allowed, as a Sovereign only). Amends
+`chartercurrency/SPEC.md` 4.1 as above. `WildDungeons.LONG_PATH_BONUS` was 6.
+
+### Knobs
+
+Constants, not config knobs, because the session that built this could not regenerate the config fixtures:
+`WildDungeons.PATH_BONUS`, `LONG_PATH_BONUS`, `MAX_ENCOUNTERS`; `WildGold.EXTRA_POCKETS`, `SIZE_MIN`, `SIZE_MAX`.
+In `tools/gen_wild_loot.py`: `GOLD_SCALE`, `SUPPLY_SCALE`, the `SOVEREIGN` rows and `VAULT_SOVEREIGNS`. Making
+the three `WildDungeons` numbers config knobs is a small follow up with `tools/new_knob.py --regen`.
+
+### Open until played
+
+Whether 12 to 20 cells plans every time for every offering (`WildRunGameTest.everyOfferingBuildsAFloorThatCanClear`
+checks it, not yet run); whether an uncapped floor is too long for its cooldown; real yields per clear with the
+extra chests; whether 5 to 16 Sovereigns a clear is right against the Mint's 3 a day per player; whether the gold
+ore is enough or too much once Fortune is used on it.

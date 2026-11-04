@@ -4,7 +4,7 @@
   "name": "The Chorus Orchard",
   "dungeon": "pocketdungeons:the_end",
   "node": "chorus_orchard",
-  "promise": "Chorus. End stone. Shulkers.",
+  "promise": "Chorus. Shulkers. Gold.",
   "cooldownMinutes": 720,
   "weight": 2,
   "minDistance": 5000,

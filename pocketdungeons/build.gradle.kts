@@ -532,7 +532,11 @@ for ((taskName, testClass) in mapOf(
     // Wild clear gate: asked on every watch tick, never tied to the world clock phase (playtest 2026-11-02).
     "wildClearGateTest" to "WildClearGateTest",
     // Wild loot: war supplies only, a wild twin for every table a wild floor resolves (owner, 2026-11-02).
-    "wildLootTest" to "WildLootTest"
+    "wildLootTest" to "WildLootTest",
+    // Explosion filters chain with Charter's (kingdom server, 2026-11-04: walls blew open, rubble never cleared).
+    "explosionFilterChainTest" to "ExplosionFilterChainTest",
+    // Wild gold: more hidden ore pockets, half of them gold that suits the rock (owner, 2026-11-04).
+    "wildGoldTest" to "WildGoldTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -542,6 +546,8 @@ for ((taskName, testClass) in mapOf(
 }
 
 tasks.test {
+    dependsOn("explosionFilterChainTest")
+    dependsOn("wildGoldTest")
     dependsOn("wildClearGateTest")
     dependsOn("wildLootTest")
     dependsOn("dungeonThemeMetaTest")

@@ -385,6 +385,11 @@ spent; an admin can refund with `renown add`). Commons is bought from by ops onl
 Coin enters the world only here. There is no crafting recipe for coins (a recipe
 cannot be capped, and recipe ingredients cannot check a marker).
 
+Amended 2026-11-04 (owner): Gold Sovereigns also come from Pocket Dungeons' wild
+dungeon loot tables, which write the same marker, name and lore. That source is
+capped by the lodestone cooldowns, not by the allowance, and pays no Mint tax. See
+`pocketdungeons/docs/DECISIONS.md`, 2026-11-04.
+
 ### 8.1 Mint blocks
 
 - An op looks at a smithing table and runs `/chartercurrency mint bind` (also
