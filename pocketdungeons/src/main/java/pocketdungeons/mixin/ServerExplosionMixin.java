@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ServerExplosion;
 import net.minecraft.world.phys.Vec3;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,7 +13,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import pocketdungeons.DungeonTools;
 import pocketdungeons.DungeonWorldRules;
 import pocketdungeons.RubbleOrdeal;
@@ -47,6 +47,11 @@ import java.util.List;
  * it can only trigger rubble clears. The explosive affix uses a separate
  * fake TNT path that also breaks no blocks.
  *
+ * <p>The filter is a {@code ModifyReturnValue}, not a cancelling {@code Inject} at RETURN. Charter filters the
+ * same list for claims. A cancelling inject returns at once, so whichever mod was applied first used to win and
+ * the other's filter never ran: on the kingdom server Charter's ran first, and dungeon walls blew open while
+ * rubble never cleared (2026-11-04). A modified return value chains, so both filters always run.
+ *
  * <p>After filtering, any destroyed position is removed from the
  * {@code playerPlaced} tracking via {@link DungeonTools#forgetPlayerPlacement},
  * so a natural block that later appears at the same position is not wrongly
@@ -63,10 +68,10 @@ public class ServerExplosionMixin {
     /** Set when this explosion reached rubble: it then breaks nothing and hurts nobody. */
     @Unique private boolean pocketdungeons$rubbleBlast;
 
-    @Inject(method = "calculateExplodedPositions", at = @At("RETURN"), cancellable = true)
-    private void pocketdungeons$filterExplosion(CallbackInfoReturnable<List<BlockPos>> cir) {
+    @ModifyReturnValue(method = "calculateExplodedPositions", at = @At("RETURN"))
+    private List<BlockPos> pocketdungeons$filterExplosion(List<BlockPos> original) {
         if (!DungeonWorldRules.inDungeon(level)) {
-            return;
+            return original;
         }
         // A blast that reaches a rubble doorway clears it (RubbleOrdeal) and
         // does nothing else: no blocks, and hurtEntities below is skipped.
@@ -74,12 +79,10 @@ public class ServerExplosionMixin {
         // may break nothing at all and must still count.
         if (RubbleOrdeal.blast(level, center, radius)) {
             pocketdungeons$rubbleBlast = true;
-            cir.setReturnValue(new ArrayList<>());
-            return;
+            return new ArrayList<>();
         }
-        List<BlockPos> original = cir.getReturnValue();
         if (original.isEmpty()) {
-            return;
+            return original;
         }
         List<BlockPos> filtered = new ArrayList<>(original.size());
         for (BlockPos pos : original) {
@@ -97,7 +100,7 @@ public class ServerExplosionMixin {
             // Clean up placement tracking for any block that will be destroyed.
             DungeonTools.forgetPlayerPlacement(immutable);
         }
-        cir.setReturnValue(filtered);
+        return filtered;
     }
 
     /** No damage and no knockback from a blast that cleared rubble. */

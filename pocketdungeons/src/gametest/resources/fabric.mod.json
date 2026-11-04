@@ -22,6 +22,7 @@
       "pocketdungeons.SituationGameTest",
       "pocketdungeons.HandlerGameTest",
       "pocketdungeons.OrdealGameTest",
+      "pocketdungeons.ExplosiveMineGameTest",
       "pocketdungeons.OmenGameTest",
       "pocketdungeons.FloorLoopGameTest",
       "pocketdungeons.DoorCommitGameTest",

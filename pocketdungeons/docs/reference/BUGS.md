@@ -552,3 +552,15 @@ A second live sighting on 2026-10-03: in `tripwire_hall` (frostworks floor 1, ke
 **Repro:** on a Kinetic remote, let latest.log grow past the editor limit, then run `node tools/playtest/playtest.mjs chat` or `cmd list`.
 **Found workarounds:** the daemon's `/websocket` client endpoint is 404 on this panel, and the signed `/files/download` URL ignores Range headers (always returns the whole file). Working: POST `/files/compress` on `latest.log`, read the small archive via `/files/contents`, then POST `/files/delete` (a scratch poller doing this is in `tools/playtest/.remote/ws-tail.mjs`).
 **Status:** Open. Give playtest.mjs a compress-and-diff fallback (or another tail path) when `panel.read` fails on size, so `wait`/`chat`/`cmd` keep working on long remote sessions.
+
+## 2026-11-04 (owner report from the kingdom server, wild mode)
+
+### PD-226: On the kingdom server, explosions break dungeon walls and never clear rubble (High, found live)
+**Reported:** 2026-11-04, owner: "the rubble walls that disappear normally with things like tnt, creeper, wind charge, they don't work at all. The 'protected' walls in the dungeon also don't seem to be protected properly, blowing up from tnt."
+**Cause:** Charter and Pocket Dungeons both filtered `ServerExplosion.calculateExplodedPositions` with a cancelling `@Inject` at RETURN that always called `setReturnValue`. A cancelling inject returns from the method at once, so only the mod applied first ever filtered. On the kingdom server Charter's ran first: its claim filter found nothing to spare in the dungeon dimension and returned, so `RubbleOrdeal.blast` was never asked and the cell protection never ran. The test server runs without Charter, which is why it worked there.
+**Status:** Fixed in code 2026-11-04, not compiled in the session that wrote it (no Minecraft or Fabric download there). Both mixins now use MixinExtras `@ModifyReturnValue`, which chains. `ExplosionFilterChainTest` fails if either mod goes back to a cancelling inject on that method. Needs a Charter and a PD jar deployed together. Live check owed: TNT, a creeper and a wind charge beside a rubble doorway and beside a cell wall, in a wild dungeon on the kingdom server.
+
+### PD-227: The Explosive affix's floor mines go off with no flicker (Medium, found live)
+**Reported:** 2026-11-04, owner: "the tnt affix that has special tnt looking blocks in the floor that explode, they explode but don't have the same tnt flicker".
+**Cause:** Since PD-124 a mine is a plain TNT block that the mod sets off itself, so nothing primes and the client never draws the white flash. Not a 26.3 change.
+**Status:** Fixed in code 2026-11-04, not compiled. For the fuse the block becomes a barrier (the floor still holds) with a primed TNT in its place, no gravity and a fuse 40 ticks longer than the mine's, so the client draws the flash and swell; the mine then removes it, puts the TNT block back and explodes as before (`RoomContent.AffixMine`). `ExplosiveMineGameTest` covers it. Live check owed: the flicker on Java and on Bedrock through Geyser.

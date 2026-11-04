@@ -14,6 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -449,9 +450,13 @@ final class RoomContent {
     }
 
     /** Ticks a fake TNT mine waits before it goes off once stepped on. */
-    private static final int MINE_FUSE_TICKS = 25;
+    static final int MINE_FUSE_TICKS = 25;
     /** Ticks before a triggered mine re-arms. */
     private static final int MINE_COOLDOWN_TICKS = 100;
+    /** How much longer the flickering primed TNT's own fuse is than the mine's, so it never goes off by itself. */
+    private static final int MINE_VISUAL_SLACK_TICKS = 40;
+    /** Tag on the primed TNT a mine shows during its fuse. */
+    static final String MINE_VISUAL_TAG = "pd_mine_fuse";
 
     /**
      * Whether the TNT at {@code pos} is one of the Explosive affix's floor
@@ -464,6 +469,24 @@ final class RoomContent {
             }
         }
         return false;
+    }
+
+    /** Test seam: lays one mine at {@code pos} on whatever floor block is there. */
+    static void placeMineForTesting(ServerLevel level, BlockPos pos) {
+        BlockState originalFloor = level.getBlockState(pos);
+        level.setBlock(pos, Blocks.TNT.defaultBlockState(), FLAGS);
+        PENDING_EXPLOSIVES.add(new AffixMine(level, pos, originalFloor));
+    }
+
+    /** Test seam: ticks the mines in {@code level} once; a gametest world is not the dungeon level the tick reads. */
+    static void tickMinesForTesting(ServerLevel level) {
+        long now = level.getServer().getTickCount();
+        PENDING_EXPLOSIVES.removeIf(pending -> pending.tick(level, now));
+    }
+
+    /** Test seam: forgets the mine at {@code pos} without touching the world. */
+    static void forgetMineForTesting(BlockPos pos) {
+        PENDING_EXPLOSIVES.removeIf(mine -> mine.tntPos.equals(pos));
     }
 
     /**
@@ -697,6 +720,16 @@ final class RoomContent {
      * cooldown so the hazard keeps working. If the TNT block is ever removed
      * (fire arrow, glitched ignition) the original floor block is restored and
      * the mine is discarded.
+     *
+     * <p>The fuse flickers like real TNT (kingdom server, 2026-11-04: the mines
+     * went off with no warning a player could see). For the fuse the block
+     * becomes a barrier, so the floor still holds whoever stands on it, and a
+     * primed TNT with no gravity sits in its place: the client draws the white
+     * flash and the swell from the primed TNT's own fuse, on Java and on
+     * Bedrock. That fuse is longer than the mine's, so the mine always goes off
+     * first; it then removes the primed TNT, puts the TNT block back and
+     * explodes as before. A primed TNT left behind by an unload is in the
+     * dungeon, where no explosion breaks a cell's blocks.
      */
     private static final class AffixMine {
         private final int dimension;
@@ -705,6 +738,8 @@ final class RoomContent {
         private final long deadline;
         private State state = State.ARMED;
         private int timer = 0;
+        /** The flickering primed TNT shown during the fuse, or {@code null}. */
+        private PrimedTnt fuseVisual;
 
         private enum State { ARMED, FUSE, COOLDOWN }
 
@@ -717,6 +752,7 @@ final class RoomContent {
 
         boolean tick(ServerLevel level, long now) {
             if (now > deadline) {
+                dropFuseVisual();
                 level.setBlock(tntPos, originalFloor, FLAGS);
                 return true;
             }
@@ -727,8 +763,10 @@ final class RoomContent {
                 return false;
             }
             BlockState stateAtPos = level.getBlockState(tntPos);
-            if (!stateAtPos.is(Blocks.TNT)) {
+            boolean intact = state == State.FUSE ? stateAtPos.is(Blocks.BARRIER) : stateAtPos.is(Blocks.TNT);
+            if (!intact) {
                 // Block was removed; restore floor so the hole does not persist.
+                dropFuseVisual();
                 level.setBlock(tntPos, originalFloor, FLAGS);
                 return true;
             }
@@ -740,11 +778,15 @@ final class RoomContent {
                                 SoundEvents.TNT_PRIMED, SoundSource.BLOCKS, 1.0f, 1.0f);
                         state = State.FUSE;
                         timer = MINE_FUSE_TICKS;
+                        showFuse(level);
                     }
                 }
                 case FUSE -> {
                     timer--;
+                    holdFuseVisual();
                     if (timer <= 0) {
+                        dropFuseVisual();
+                        level.setBlock(tntPos, Blocks.TNT.defaultBlockState(), FLAGS);
                         Vec3 center = Vec3.atCenterOf(tntPos);
                         level.explode(null, center.x(), center.y(), center.z(),
                                 4.0f, Level.ExplosionInteraction.NONE);
@@ -761,6 +803,34 @@ final class RoomContent {
                 }
             }
             return false;
+        }
+
+        /** Swaps the TNT block for a barrier and a primed TNT whose fuse the client draws as the flicker. */
+        private void showFuse(ServerLevel level) {
+            level.setBlock(tntPos, Blocks.BARRIER.defaultBlockState(), FLAGS);
+            PrimedTnt primed = new PrimedTnt(level, tntPos.getX() + 0.5, tntPos.getY(), tntPos.getZ() + 0.5, null);
+            primed.setFuse(MINE_FUSE_TICKS + MINE_VISUAL_SLACK_TICKS);
+            primed.setNoGravity(true);
+            primed.setDeltaMovement(Vec3.ZERO);
+            primed.addTag(MINE_VISUAL_TAG);
+            if (level.addFreshEntity(primed)) {
+                fuseVisual = primed;
+            }
+        }
+
+        /** Keeps the primed TNT where the block was, whatever pushed it (water, a blast). */
+        private void holdFuseVisual() {
+            if (fuseVisual != null && !fuseVisual.isRemoved()) {
+                fuseVisual.setDeltaMovement(Vec3.ZERO);
+                fuseVisual.setPos(tntPos.getX() + 0.5, tntPos.getY(), tntPos.getZ() + 0.5);
+            }
+        }
+
+        private void dropFuseVisual() {
+            if (fuseVisual != null) {
+                fuseVisual.discard();
+                fuseVisual = null;
+            }
         }
 
         private static boolean playerStandingOn(ServerLevel level, BlockPos pos) {

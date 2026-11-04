@@ -8,14 +8,13 @@ import net.minecraft.world.level.ServerExplosion;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
@@ -24,6 +23,10 @@ import java.util.List;
  * explosion will destroy is filtered on its way out: protected land and the mod's
  * objects are removed, unless a permitted player lit it (see Hazards.explodable).
  * In the spawn, entities are neither hurt nor pushed.
+ *
+ * <p>The list is changed with {@code ModifyReturnValue}, never a cancelling {@code Inject} at RETURN: a cancelling
+ * inject returns at once, so another mod's filter on the same list (Pocket Dungeons protects its dungeon walls and
+ * clears rubble there) never ran when this one was applied first (2026-11-04). A modified return value chains.
  */
 @Mixin(ServerExplosion.class)
 public abstract class ServerExplosionMixin {
@@ -31,9 +34,9 @@ public abstract class ServerExplosionMixin {
     @Shadow @Final private ServerLevel level;
     @Shadow @Final private Entity source;
 
-    @Inject(method = "calculateExplodedPositions", at = @At("RETURN"), cancellable = true)
-    private void charter$spareClaims(CallbackInfoReturnable<List<BlockPos>> cir) {
-        cir.setReturnValue(Hazards.explodable(level, source, cir.getReturnValue()));
+    @ModifyReturnValue(method = "calculateExplodedPositions", at = @At("RETURN"))
+    private List<BlockPos> charter$spareClaims(List<BlockPos> positions) {
+        return Hazards.explodable(level, source, positions);
     }
 
     /** The spawn: an explosion does not hurt what stands there, frames, carts and dropped items included. */
