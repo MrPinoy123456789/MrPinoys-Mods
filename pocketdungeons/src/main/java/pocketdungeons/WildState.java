@@ -67,6 +67,8 @@ final class WildState {
         int lastClearedColour = -1;
         /** When it was last cleared (epoch seconds), 0 when never. Unlike {@link #clearedAt} it outlives the reset. */
         long lastClearedAt;
+        /** Which ruin stands around it ({@code WildRuin.VERSION}); 1 is the old 5 by 5 ruin, the default of old files. */
+        int ruin = 1;
 
         Lodestone(String id, String dimension, int x, int y, int z, String dungeon, int level,
                   long createdAt, long expiresAt) {
@@ -237,6 +239,7 @@ final class WildState {
             o.addProperty("lastClearedBy", l.lastClearedBy);
             o.addProperty("lastClearedColour", l.lastClearedColour);
             o.addProperty("lastClearedAt", l.lastClearedAt);
+            o.addProperty("ruin", l.ruin);
             JsonArray chests = new JsonArray();
             for (int[] c : l.lostAndFound) {
                 JsonArray triple = new JsonArray();
@@ -301,6 +304,7 @@ final class WildState {
                 l.lastClearedBy = o.has("lastClearedBy") ? o.get("lastClearedBy").getAsString() : "";
                 l.lastClearedColour = o.has("lastClearedColour") ? o.get("lastClearedColour").getAsInt() : -1;
                 l.lastClearedAt = o.has("lastClearedAt") ? o.get("lastClearedAt").getAsLong() : 0L;
+                l.ruin = o.has("ruin") ? o.get("ruin").getAsInt() : 1;
                 for (JsonElement chest : o.getAsJsonArray("lostAndFound")) {
                     JsonArray t = chest.getAsJsonArray();
                     l.lostAndFound.add(new int[] {t.get(0).getAsInt(), t.get(1).getAsInt(), t.get(2).getAsInt()});

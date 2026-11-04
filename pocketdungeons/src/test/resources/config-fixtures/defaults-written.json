@@ -12,7 +12,7 @@
   "mode": "campaign",
   "wildGridSize": 800,
   "wildMinSeparation": 350,
-  "wildTargetActive": 30,
+  "wildTargetActive": 60,
   "wildMaxActive": 24,
   "wildMinSpawnDistance": 500,
   "wildMaxRadius": 6000,

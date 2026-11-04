@@ -91,16 +91,38 @@ final class DungeonCommands {
     /** The operator subtree, built whole before it is attached (Brigadier snapshots a child when it is added). */
     private static void registerAdmin(LiteralArgumentBuilder<CommandSourceStack> root,
                                       net.minecraft.commands.CommandBuildContext registry) {
+        // Bare /dungeon admin is the home screen (2026-11-04): the wild overview on a wild server, then the help;
+        // help [section] lists every admin command that applies here, each a click that types it.
         LiteralArgumentBuilder<CommandSourceStack> admin = Commands.literal("admin")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(ctx -> {
+                    if (WildMode.active()) {
+                        WildCommands.overview(ctx.getSource());
+                        return 1;
+                    }
+                    return AdminUi.help(ctx.getSource(), null);
+                })
+                .then(Commands.literal("help")
+                        .executes(ctx -> AdminUi.help(ctx.getSource(), null))
+                        .then(Commands.argument("section", StringArgumentType.word())
+                                .suggests((ctx, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                        AdminText.SECTIONS.stream().map(AdminText::helpWord).toList(), builder))
+                                .executes(ctx -> AdminUi.help(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "section")))));
         registerAdminReports(admin);
         registerAdminBuilds(admin);
         registerAdminRoomTools(admin);
-        registerAdminPlayerTools(admin);
+        // Compass, haul, room saves and keys are campaign state; a wild server has none of them, so they stay off its
+        // tab list (the help says the same).
+        if (!WildMode.active()) {
+            registerAdminPlayerTools(admin);
+        }
         registerAdminGlyphs(admin, registry);
         registerAdminModulesAndBias(admin);
         registerAdminPlansAndPacks(admin);
-        registerAdminSaves(admin);
+        if (!WildMode.active()) {
+            registerAdminSaves(admin);
+        }
         registerAdminManifestAndExperiment(admin);
         if (WildMode.active()) {
             WildCommands.register(admin);

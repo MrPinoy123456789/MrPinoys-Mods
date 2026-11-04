@@ -32,8 +32,11 @@ import java.util.Random;
 final class WildTopUp {
 
     static final int EVERY = 100;
-    /** Placement attempts per pass while below the target; rejected cells are common, so one try is too few. */
-    static final int ATTEMPTS_PER_PASS = 6;
+    /**
+     * Placement attempts per pass while below the target; rejected cells are common, so one try is too few. Doubled
+     * with the target (2026-11-04), so a fresh world fills as fast as before.
+     */
+    static final int ATTEMPTS_PER_PASS = 12;
     /** Blocks kept between a lodestone and the world border. */
     static final int BORDER_MARGIN = 48;
     /** Blocks around a point that must be free of player built blocks (a 9 by 9 area). */
@@ -216,7 +219,8 @@ final class WildTopUp {
         WildState.Lodestone lodestone = new WildState.Lodestone(id, WildLodestones.dimensionKey(level), x, y, z,
                 offering.id(), WildLevel.of(distance, offering.maxLevel()), now,
                 WildLifespan.expiresAt(now, PocketDungeonsConfig.wildLifespanDays(), id));
-        WildLodestones.stamp(level, pos);
+        WildLodestones.stamp(level, pos, WildRuin.Theme.of(offering.variety(), offering.type()));
+        lodestone.ruin = WildRuin.VERSION;
         state.add(lodestone);
         WildStore.save();
         PocketDungeonsMod.LOG.info("Wild lodestone {} placed at {} ({}, level {})", id, pos.toShortString(),

@@ -65,12 +65,19 @@ public final class WildLodestoneGameTest {
             level.explode(null, pos.getX() + 1.5, pos.getY() + 0.5, pos.getZ() + 0.5, 1.5F,
                     Level.ExplosionInteraction.TNT);
             helper.assertTrue(level.getBlockState(pos).is(Blocks.BEDROCK), "a blast beside it leaves it standing");
-            WildLodestones.rubble(level, pos);
+            // The version 2 ruin (owner, 2026-11-04): a floor under it, the gateway arch behind it, the banner pillar.
+            helper.assertTrue(!level.getBlockState(pos.below()).isAir(), "the lodestone stands on the plaza");
+            helper.assertTrue(!level.getBlockState(pos.offset(0, 4, -2)).isAir(), "the arch's lintel stands behind it");
+            int[] banner = WildRuin.bannerOffset(WildRuin.VERSION);
+            helper.assertTrue(!level.getBlockState(pos.offset(banner[0], banner[1] - 1, banner[2])).isAir()
+                    && level.getBlockState(pos.offset(banner[0], banner[1], banner[2])).isAir(),
+                    "the banner pillar is capped with room for the banner");
+            WildLodestones.rubble(level, pos, WildRuin.VERSION);
             helper.assertTrue(!level.getBlockState(pos).is(Blocks.BEDROCK), "rubble removes the marker");
             helper.assertTrue(!WildLodestones.POLYMER || !WildMarkerDisplays.attached(level, pos),
                     "and its jigsaw display");
         } finally {
-            WildLodestones.rubble(level, pos);
+            WildLodestones.rubble(level, pos, WildRuin.VERSION);
         }
         helper.succeed();
     }
@@ -103,7 +110,7 @@ public final class WildLodestoneGameTest {
         } finally {
             WildMode.setActiveForTesting(null);
             WildStore.setForTesting(null);
-            WildLodestones.rubble(level, pos);
+            WildLodestones.rubble(level, pos, WildRuin.VERSION);
             level.setBlock(other, Blocks.AIR.defaultBlockState(), 3);
         }
         helper.succeed();

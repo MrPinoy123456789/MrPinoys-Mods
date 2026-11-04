@@ -100,8 +100,8 @@ public final class PocketDungeonsConfig {
     /** Wild mode: the least distance in blocks between two active wild lodestones. */
     private static final Knob<Integer> WILD_MIN_SEPARATION = integer("wildMinSeparation", 350,
             v -> v >= 0, "must be >= 0");
-    /** Wild mode: how many wild lodestones the server keeps in the world at once. */
-    private static final Knob<Integer> WILD_TARGET_ACTIVE = integer("wildTargetActive", 30,
+    /** Wild mode: how many wild lodestones the server keeps in the world at once (doubled from 30, 2026-11-04). */
+    private static final Knob<Integer> WILD_TARGET_ACTIVE = integer("wildTargetActive", 60,
             v -> v >= 0, "must be >= 0");
     /**
      * Wild mode: the most live wild dungeons at once; entering one past this is refused with a try

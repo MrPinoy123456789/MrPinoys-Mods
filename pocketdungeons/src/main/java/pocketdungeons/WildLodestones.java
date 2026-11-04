@@ -173,32 +173,41 @@ final class WildLodestones {
 
     // ---- the entrance ruin --------------------------------------------------
 
-    /**
-     * Stamps the ruin: a 5 by 5 mossy brick floor, two broken pillars, a cobweb, and the entrance jigsaw at {@code pos}.
-     * The space above the floor is cleared so the block is never buried. The placer guarantees an open sky column; an
-     * operator placing by hand gets exactly where they stand.
-     */
+    /** Stamps the current ruin in plain stone; see {@link #stamp(ServerLevel, BlockPos, WildRuin.Theme)}. */
     static void stamp(ServerLevel level, BlockPos pos) {
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                boolean cracked = (Math.abs(dx) + Math.abs(dz)) % 2 == 1;
-                level.setBlock(pos.offset(dx, -1, dz),
-                        (cracked ? Blocks.CRACKED_STONE_BRICKS : Blocks.MOSSY_STONE_BRICKS).defaultBlockState(), 3);
-                for (int dy = 0; dy <= 3; dy++) {
-                    level.setBlock(pos.offset(dx, dy, dz), Blocks.AIR.defaultBlockState(), 3);
-                }
-            }
-        }
-        for (int dy = 0; dy <= 2; dy++) {
-            level.setBlock(pos.offset(-2, dy, -2), Blocks.STONE_BRICKS.defaultBlockState(), 3);
-        }
-        level.setBlock(pos.offset(2, 0, 2), Blocks.MOSSY_STONE_BRICKS.defaultBlockState(), 3);
-        level.setBlock(pos.offset(2, 1, 2), Blocks.CRACKED_STONE_BRICKS.defaultBlockState(), 3);
-        level.setBlock(pos.offset(2, 2, -2), Blocks.COBWEB.defaultBlockState(), 3);
+        stamp(level, pos, WildRuin.Theme.STONE);
+    }
+
+    /**
+     * Stamps the ruin ({@link WildRuin}, version {@link WildRuin#VERSION}: a themed 9 by 9 plaza with a gateway arch and
+     * corner pillars) and the entrance marker at {@code pos}. The caller records {@code ruin = WildRuin.VERSION} on the
+     * lodestone. The placer guarantees open ground with no player building within four blocks; an operator placing by
+     * hand gets exactly where they stand, and a player's blocks there are left alone.
+     */
+    static void stamp(ServerLevel level, BlockPos pos, WildRuin.Theme theme) {
+        WildRuinStamp.stamp(level, pos, theme);
         placeMarker(level, pos);
     }
 
-    /** Turns the ruin to rubble and removes the jigsaw (a collapse). */
+    /** The ruin theme of an offering, plain stone when it is unknown. */
+    static WildRuin.Theme themeOf(String offeringId) {
+        WildDungeons.Offering offering = WildDungeons.byId(offeringId);
+        return offering == null ? WildRuin.Theme.STONE : WildRuin.Theme.of(offering.variety(), offering.type());
+    }
+
+    /** Turns a ruin of this version to rubble and removes the marker (a collapse). */
+    static void rubble(ServerLevel level, BlockPos pos, int ruinVersion) {
+        if (ruinVersion < 2) {
+            rubble(level, pos);
+            return;
+        }
+        if (POLYMER) {
+            WildMarkerDisplays.detach(level, pos);
+        }
+        WildRuinStamp.rubble(level, pos);
+    }
+
+    /** Turns the old (version 1, 5 by 5) ruin to rubble and removes the marker (a collapse). */
     static void rubble(ServerLevel level, BlockPos pos) {
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {

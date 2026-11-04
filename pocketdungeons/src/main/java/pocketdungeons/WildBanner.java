@@ -8,17 +8,13 @@ import net.minecraft.world.level.block.Blocks;
 
 /**
  * The banner of the kingdom that last cleared a wild dungeon (decision 2026-11-04): a standing banner in the nearest
- * dye colour to the kingdom's tag colour, on top of the ruin's tall pillar (two blocks west and north of the lodestone,
- * three up). A real block, so Bedrock players see it too. Placed at the clear when the ruin's chunk is loaded, and
+ * dye colour to the kingdom's tag colour, on top of the ruin's tall pillar ({@link WildRuin#bannerOffset}, which differs
+ * between the old ruin and the current one). A real block, so Bedrock players see it too. Placed at the clear when the ruin's chunk is loaded, and
  * otherwise the next time the chunk loads. Nobody's colour (a clear by players in no kingdom) leaves the pillar bare.
  * The collapse's rubble clears it with the rest of the ruin.
  */
 final class WildBanner {
 
-    /** Where the banner stands, from the lodestone block. */
-    static final int DX = -2;
-    static final int DY = 3;
-    static final int DZ = -2;
 
     /** Vanilla's dye colours (the banner texture tints) in {@code DyeColor} id order, white 0 to black 15. */
     static final int[] DYE_RGB = {0xF9FFFE, 0xF9801D, 0xC74EBD, 0x3AB3DA, 0xFED83D, 0x80C71F, 0xF38BAA, 0x474F52,
@@ -48,7 +44,8 @@ final class WildBanner {
 
     /** Puts up (or changes, or takes down) the banner of a lodestone whose chunk is loaded. */
     static void ensure(ServerLevel level, WildState.Lodestone lodestone) {
-        BlockPos at = new BlockPos(lodestone.x + DX, lodestone.y + DY, lodestone.z + DZ);
+        int[] offset = WildRuin.bannerOffset(lodestone.ruin);
+        BlockPos at = new BlockPos(lodestone.x + offset[0], lodestone.y + offset[1], lodestone.z + offset[2]);
         if (!level.hasChunkAt(at)) {
             return;
         }

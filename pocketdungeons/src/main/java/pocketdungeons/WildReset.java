@@ -130,14 +130,19 @@ final class WildReset {
     /** A standable spot a few blocks from the lodestone: solid ground, two blocks of air above. */
     static ReturnPoint safePoint(ServerLevel level, WildState.Lodestone lodestone) {
         for (int ring = 2; ring <= 6; ring++) {
-            for (int dx = -ring; dx <= ring; dx++) {
-                for (int dz = -ring; dz <= ring; dz++) {
+            // South (the open front of the ruin) first, so nobody lands behind the arch.
+            for (int dz = ring; dz >= -ring; dz--) {
+                for (int dx = -ring; dx <= ring; dx++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) {
                         continue;
                     }
                     int x = lodestone.x + dx;
                     int z = lodestone.z + dz;
                     int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                    // Near the plaza's level: never on top of the arch, a pillar or a tree.
+                    if (y > lodestone.y + 1) {
+                        continue;
+                    }
                     BlockPos feet = new BlockPos(x, y, z);
                     if (level.getBlockState(feet.below()).isFaceSturdy(level, feet.below(), net.minecraft.core.Direction.UP) && level.getBlockState(feet).isAir()
                             && level.getBlockState(feet.above()).isAir() && level.getFluidState(feet).isEmpty()) {

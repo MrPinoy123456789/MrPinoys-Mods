@@ -118,6 +118,7 @@ public class WildStateTest {
         b.markCleared(5000L, 3600L);
         b.recordClear("Azrak", 0xFFD700, 5000L);
         a.ominous = true;
+        a.ruin = 2;
         b.lostAndFound.add(new int[] {1, 2, 3});
         b.lostAndFound.add(new int[] {4, 5, 6});
         UUID player = UUID.fromString("00000000-0000-0000-0000-000000000042");
@@ -133,13 +134,14 @@ public class WildStateTest {
         check(b2.dungeon.equals("copper_works") && b2.level == 4, "dungeon and level survive");
         check(back.get(a.id).phase == WildState.Phase.READY, "a ready lodestone stays ready");
         check(back.get(a.id).ominous && !b2.ominous, "the omen survives a restart");
+        check(back.get(a.id).ruin == 2 && b2.ruin == 1, "the ruin version survives, and defaults to the old ruin");
         check("Azrak".equals(b2.lastClearedBy) && b2.lastClearedColour == 0xFFD700 && b2.lastClearedAt == 5000L,
                 "the last clearer survives a restart");
         String old = state.toJson().replaceAll(",\"ominous\":(true|false),\"lastClearedBy\":\"[^\"]*\","
-                + "\"lastClearedColour\":-?\\d+,\"lastClearedAt\":\\d+", "");
+                + "\"lastClearedColour\":-?\\d+,\"lastClearedAt\":\\d+,\"ruin\":\\d+", "");
         check(!old.contains("ominous"), "the test stripped the new fields: " + old);
         WildState.Lodestone fromOld = WildState.fromJson(old).get(a.id);
-        check(!fromOld.ominous && fromOld.lastClearedBy.isEmpty() && fromOld.lastClearedColour == -1,
+        check(!fromOld.ominous && fromOld.lastClearedBy.isEmpty() && fromOld.lastClearedColour == -1 && fromOld.ruin == 1,
                 "a file written before 2026-11-04 still loads");
         check(a.id.equals(back.lastLodestoneOf(player)), "the player's last lodestone survives");
         check(back.toJson().equals(state.toJson()), "writing it again gives the same text");

@@ -82,7 +82,7 @@ final class WildCollapse {
         if (level != null) {
             BlockPos pos = new BlockPos(lodestone.x, lodestone.y, lodestone.z);
             level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
-            WildLodestones.rubble(level, pos);
+            WildLodestones.rubble(level, pos, lodestone.ruin);
         }
         WildLodestones.forgetExits(lodestone.id);
         state.retire(lodestone.id);

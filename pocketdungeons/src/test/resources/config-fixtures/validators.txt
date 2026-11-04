@@ -154,18 +154,18 @@ wildMinSeparation [int, default 350]
   odd empty array -> 350 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 350
   odd null -> 350 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 350
   odd empty object -> 350 | ERROR pocketdungeons.json field 'wildMinSeparation' is not a valid integer; using default 350
-wildTargetActive [int, default 30]
+wildTargetActive [int, default 60]
   probes nYYYYYYYYYYYYYYYYYYYYYYYYYY
-  values 30,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
-  rejected ERROR pocketdungeons.json field 'wildTargetActive' has invalid value -1; must be >= 0; using default 30
+  values 60,0,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000
+  rejected ERROR pocketdungeons.json field 'wildTargetActive' has invalid value -1; must be >= 0; using default 60
   disturbs (nothing else)
-  odd string abc -> 30 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 30
+  odd string abc -> 60 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 60
   odd string 7 -> 7 | (no warning)
-  odd boolean true -> 30 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 30
+  odd boolean true -> 60 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 60
   odd number 1.5 -> 1 | (no warning)
-  odd empty array -> 30 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 30
-  odd null -> 30 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 30
-  odd empty object -> 30 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 30
+  odd empty array -> 60 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 60
+  odd null -> 60 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 60
+  odd empty object -> 60 | ERROR pocketdungeons.json field 'wildTargetActive' is not a valid integer; using default 60
 wildMaxActive [int, default 24]
   probes nnYYYYYYYYYYYYYYYYYYYYYYYYY
   values 24,24,1,2,3,4,5,6,8,10,11,16,20,50,100,101,200,201,600,601,1000,1023,1024,1025,3600,3601,36000

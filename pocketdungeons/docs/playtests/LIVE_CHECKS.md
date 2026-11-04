@@ -1007,3 +1007,10 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Do:** Walk up to a Ready lodestone on Java, by day and by night. Use an Ominous Bottle on one, clear one and look at it while it cools, and look at the Exit blocks inside. Look at one from Bedrock.
 - **Pass:** The plinth sits flush on the block with no bedrock showing, the runes glow, the crystal turns and bobs smoothly, its colour follows the state within a second, and the particles show on Java and Bedrock.
 - **Fail signs:** a flat icon instead of the 3D model (wrong display context), the plinth floating or sunk, a jerky crystal, the old jigsaw on a server that has the Foundry content, a crystal that keeps its old colour.
+
+## L126: Entrance ruins, sixty lodestones and the admin screens (2026-11-04)
+- **Status:** owed (same branch). Deploy with `--pd --pd-set wildTargetActive=60`.
+- **Changed:** decision 2026-11-04, "Entrance ruins, twice the lodestones, and the admin screens".
+- **Do:** `/dungeon admin`, then List, a filter, a second page, Info on one, TP, Omen on and off, Rebuild ruin on an old one, and Reset on a cooled one (send the confirm). Visit a new lodestone of each kind, one on a slope. `/dungeon admin help` and click a few lines. Watch the count climb toward 60 over a few minutes of play.
+- **Pass:** Every button does what its hover says; the destructive ones only type the command; the ruins look themed and sit on their foundations; a rebuilt old ruin keeps nearby player blocks; reset ejects people in front of the ruin, not on the arch; the count reaches about 60.
+- **Fail signs:** a button that runs a destructive command at once, a ruin floating or buried, terrain chewed beyond the plaza, a player build damaged by a rebuild, lanterns hanging over a collapsed ruin, tab completion still offering compass or haul on the kingdom server.

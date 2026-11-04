@@ -212,6 +212,6 @@ wildMinSeparation = 350
 wildMinSpawnDistance = 500
 wildResetWarnSeconds = 120
 wildSpawnProtectionSeconds = 5
-wildTargetActive = 30
+wildTargetActive = 60
 witherMaxSeconds = 8
 module overrides = {}

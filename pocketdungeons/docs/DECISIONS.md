@@ -1635,3 +1635,66 @@ otherwise sees the bedrock block, as Geyser draws no item displays. The models a
 by id, so it still loads without Foundry and shows the old jigsaw look. Deploy the Foundry content (`--content`) with
 the PD jar, and restart: new items need one. Open until played: the FIXED display turn (the plinth may show turned
 half round, harmless), whether the runes glow, and how the halo reads.
+
+## 2026-11-04: Entrance ruins, twice the lodestones, and the admin screens
+
+Owner, 2026-11-04: *"upgrade the structures around the entrances to the dungeons. double the generation of the
+dungeons and improve the ui of the admin interface for the dungeons (all the slash commands)"*.
+
+### The ruin (version 2)
+
+Every lodestone placed from now on stands in a 9 by 9 plaza with its corners cut (`WildRuin`, placed by
+`WildRuinStamp`): a ring of edge stones, a carved inner square under the lodestone, a gateway arch two blocks behind
+it with a light hung from the lintel, and four corner pillars (the tallest carries the clearing kingdom's banner, one
+holds a light, two are broken, one wears a cobweb). Worn blocks are mixed in from a seed. The blocks follow the
+dungeon: stone bricks by default, cobblestone and spruce for the mines, waxed copper for the Boiler Hall, polished
+blackstone and soul lanterns for the Gilded Seam, end stone, purpur and end rods for the Chorus Orchard, deepslate for
+the deep quarry, the Deep Working Face and the Dive. The space above the plaza is cleared of terrain, a foundation is
+filled under it down to solid ground (at most 6 blocks), and a block in `pocketdungeons:wild_builder_blocks` is never
+replaced. Real blocks only, so Bedrock sees it all.
+
+Lodestones already standing keep their old 5 by 5 ruin (players may have built outposts around them) until an operator
+runs `/dungeon admin wild rebuild <id>` or `rebuild all`, which keeps player blocks. Each lodestone records its ruin
+(`WildState.Lodestone.ruin`, 1 old, 2 current); the banner spot and the collapse rubble follow it. Reset ejections
+and the admin teleport now land at the plaza's level, south side first, never on the arch.
+
+### Twice the lodestones
+
+`wildTargetActive` defaults to 60 (was 30) and `WildTopUp` makes 12 placement attempts a pass (was 6), so a fresh
+world fills as fast as before. **The kingdom server's `pocketdungeons.json` sets 30 explicitly**, so it needs
+`node tools/playtest/shipped-deploy.mjs --pd-set wildTargetActive=60` (new flag, below). With 800 block cells and the
+world border at 10000 across there are about 150 cells, so 60 fit. `wildMaxActive` (24 live dungeons at once) is
+unchanged; raise it with `--pd-set wildMaxActive=32` if players hit "try again" often, and keep `maxConcurrentInstances`
+above it.
+
+### The admin screens
+
+`/dungeon admin` alone opens the wild overview (on a campaign server, the help). Every screen is chat with buttons:
+aqua runs at once (teleport, pages, info), yellow and red put the command in the chat box to check and send (place,
+reset, collapse, remove). Hover shows what a button does and its command.
+
+| Command | What it shows or does |
+|---|---|
+| `/dungeon admin wild` | counts by state, live dungeons, players inside, collapsed, the nearest lodestone, the main buttons |
+| `wild list [ready\|progress\|cooling\|ominous\|all] [page]` | ten rows a page, nearest first, a coloured state dot, distance and direction, filter and page buttons, lost and found chests at the end |
+| `wild near` | the eight nearest |
+| `wild info <id>` | promise, kind, level, cooldown, place, state, omen, who is inside, last cleared by, ruin, lost and found, and buttons for every action |
+| `wild offerings` | what lodestones can hold, with a Place button each |
+| `wild omen <id> on\|off`, `wild reset <id> confirm`, `wild collapse <id> confirm`, `wild remove <id> confirm` | actions; the destructive ones without `confirm` explain what they will do first |
+| `wild rebuild <id>\|all`, `wild topup [attempts]`, `wild place [level] [offering]`, `wild tp <id>` | ruins, placement, travel |
+| `/dungeon admin help [wild\|reports\|testing\|content\|players]` | every admin command that applies on this server, grouped, each a click that types it |
+
+Ids and offerings tab complete. On a wild server the campaign player tools (`compass`, `haul`, `baserestore`,
+`resetroom`, `resetkey`) are no longer registered, as nothing in wild mode uses them. The help catalogue is
+`AdminText.CATALOGUE`; keep it in step with the command tree.
+
+### Deploying
+
+`tools/playtest/shipped-deploy.mjs` gained `--pd` (uploads the Pocket Dungeons jar) and `--pd-set key=value` (changes
+`config/pocketdungeons.json`, backed up first; it refuses `mode`).
+
+### Open until played
+
+How the themed ruins look on real terrain (steep slopes, water's edge, snow); whether the foundation fill reads as part
+of the ruin or as a pillar under it; whether 60 lodestones feel like enough or too many; whether the old ruins should
+all be rebuilt at once.

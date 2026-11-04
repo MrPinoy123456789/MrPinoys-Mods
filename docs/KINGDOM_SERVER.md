@@ -807,8 +807,10 @@ client can still work it out from what it sees. Keep the datapack and its salts 
 
 Pocket Dungeons runs here in `mode: wild` only (owner, 2026-11-04): wild lodestones scattered across the overworld,
 no campaign. Its config is `config/pocketdungeons.json`; never change `mode` here. Upload the jar with
-`node tools/playtest/shipped-deploy.mjs --jar pocketdungeons/build/libs/MrPinoys_Pocket_Dungeons-0.1.0.jar`, built from
-a branch on this server's Minecraft version. A change that touches both mods (the explosion filters, PD-226) ships the
+`node tools/playtest/shipped-deploy.mjs --pd` (built from a branch on this server's Minecraft version), and change its
+config with `--pd-set key=value` (for example `--pd-set wildTargetActive=60`, the doubled lodestone count of
+2026-11-04; the file sets 30 explicitly, so the new default alone changes nothing here). Operators run it from
+`/dungeon admin` (the wild overview) and `/dungeon admin help`. A change that touches both mods (the explosion filters, PD-226) ships the
 Charter and PD jars in one restart. The campaign test server is `714a0605` (`deploy-test-server`). Design and state:
 `pocketdungeons/docs/DECISIONS.md` (the wild sections) and `pocketdungeons/docs/plans/2026-10-30-wild-lodestones-*.md`.
 
