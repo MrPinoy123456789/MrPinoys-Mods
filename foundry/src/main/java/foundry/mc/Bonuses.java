@@ -73,7 +73,8 @@ final class Bonuses {
             if (def.kind() != BonusDef.Kind.FORTUNE || !holds(player, def) || !matchesBlock(def, state)) continue;
             int gain = BonusMath.gain(toolLevel, def.level(), def.cap());
             if (gain <= 0) continue;
-            for (ItemStack drop : Block.getDrops(state, level, pos, blockEntity, player, tool)) {
+            // The extra roll counts from the unenchanted drop, so the tool's own Fortune never compounds with the bonus.
+            for (ItemStack drop : Block.getDrops(state, level, pos, blockEntity, player, unenchanted(tool))) {
                 if (!allowed(def, drop)) continue;
                 int extra = BonusMath.extra(def.kind(), gain, drop.getCount(), player.getRandom().nextDouble());
                 if (extra > 0) Block.popResource(level, pos, drop.copyWithCount(extra));
@@ -101,6 +102,13 @@ final class Bonuses {
                 if (extra > 0) spawn(level, pos, stack.copyWithCount(extra));
             }));
         }
+    }
+
+    /** A copy of the tool with no enchantments, so a drop roll is the base count. */
+    private static ItemStack unenchanted(ItemStack tool) {
+        ItemStack plain = tool.copy();
+        plain.remove(net.minecraft.core.component.DataComponents.ENCHANTMENTS);
+        return plain;
     }
 
     /** The player's game mode itself: the gametest mock player answers isCreative() true whatever its mode. */

@@ -71,6 +71,26 @@ public final class BonusesGameTest {
         return sweep(helper).getOrDefault("minecraft:raw_iron", 0);
     }
 
+    /** Nether gold ore is no longer on the Dwarf Fortune list (about 10 Sovereigns a block with the War Pick), so it pays as vanilla. */
+    @GameTest(maxTicks = 200)
+    public void aDwarfGetsNoExtraFromNetherGoldOre(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer dwarf = player(helper, "race:azrak");
+        BlockPos pos = helper.absolutePos(new BlockPos(4, 2, 4));
+        dwarf.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_PICKAXE));
+        sweep(helper);
+        for (int i = 0; i < ORE_BREAKS; i++) {
+            level.setBlockAndUpdate(pos, Blocks.NETHER_GOLD_ORE.defaultBlockState());
+            dwarf.gameMode.destroyBlock(pos);
+        }
+        var counts = sweep(helper);
+        int nuggets = counts.getOrDefault("minecraft:gold_nugget", 0);
+        // vanilla: 2 to 6 nuggets an ore (avg 4), so at most 6 each; a Fortune bonus would push the average over 6
+        helper.assertTrue(nuggets <= ORE_BREAKS * 6, "No Fortune bonus on nether gold: " + nuggets + " nuggets");
+        helper.assertTrue(nuggets < ORE_BREAKS * 5, "Average stays near vanilla 4 a block: " + nuggets);
+        helper.succeed();
+    }
+
     @GameTest(maxTicks = 200)
     public void aDwarfGetsMoreOreThanAnyoneElse(GameTestHelper helper) {
         int plain = breakIronOre(helper, player(helper, null));

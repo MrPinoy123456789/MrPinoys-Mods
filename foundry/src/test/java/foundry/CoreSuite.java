@@ -31,6 +31,7 @@ public final class CoreSuite {
         packInputs();
         charging();
         weaponTiers();
+        generatorMatchesCommittedContent();
         itemLocks();
         bonuses();
         bedrockSkins();
@@ -962,6 +963,55 @@ public final class CoreSuite {
         var bad = ItemParser.parse("t.json", base + ", \"require_permission\": \"Not A Node\" }");
         check(bad.def() == null && bad.problems().stream().anyMatch(p -> p.blocking() && p.toString().contains("require_permission")),
                 "a malformed node is refused");
+    }
+
+    /**
+     * tools/gen_weapons.py is the source of the kingdom weapon files ("never hand edit"). Its --check mode regenerates
+     * everything in memory and compares it with the committed JSON, so a rebalance that was hand edited into a file, or a
+     * generator that forgot something (the War Pick's tool, its pickaxes tag), fails here. Skipped when no python is
+     * on the path; the parsed War Pick is checked either way.
+     */
+    private static void generatorMatchesCommittedContent() throws Exception {
+        for (int t = 1; t <= 3; t++) {
+            String name = "azrak_pick_" + t + ".json";
+            var r = ItemParser.parse(name, Files.readString(Path.of("examples/content/kingdoms/items", name)));
+            var def = r.def();
+            check(def != null && def.tool() != null && "pickaxe".equals(def.tool().kind()), name + " mines as a pickaxe");
+            check(def.enchantableAs().contains("minecraft:pickaxes"), name + " takes pickaxe enchantments");
+            check(def.lore().stream().anyMatch(l -> l.startsWith("Mines as ")), name + " says how it mines");
+        }
+        // the Oathblade's Weakness is a one in four chance on a hit, never every hit (audit FO-5)
+        for (int t = 1; t <= 3; t++) {
+            String name = "aurelia_oathblade_" + t + ".json";
+            var def = ItemParser.parse(name, Files.readString(Path.of("examples/content/kingdoms/items", name))).def();
+            for (var m : def.mechanics()) {
+                boolean weakens = m.actions().stream().anyMatch(a -> a.type().equals("apply_effect")
+                        && a.param("effect", "").equals("minecraft:weakness"));
+                if (weakens && m.trigger() == foundry.core.mechanics.Trigger.ON_HIT_ENTITY) {
+                    check(m.probability() <= 0.25, name + " Weakness on a hit has a chance of at most 0.25");
+                }
+            }
+        }
+        String python = null;
+        for (String candidate : new String[] {"python", "python3", "py"}) {
+            try {
+                Process probe = new ProcessBuilder(candidate, "--version").redirectErrorStream(true).start();
+                probe.getInputStream().readAllBytes();
+                if (probe.waitFor() == 0) {
+                    python = candidate;
+                    break;
+                }
+            } catch (java.io.IOException e) {
+                // not installed under this name
+            }
+        }
+        if (python == null) {
+            System.out.println("SKIP generator comparison: no python on the path");
+            return;
+        }
+        Process run = new ProcessBuilder(python, "tools/gen_weapons.py", "--check").redirectErrorStream(true).start();
+        String output = new String(run.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        check(run.waitFor() == 0, "the committed weapon content matches tools/gen_weapons.py: " + output.trim());
     }
 
     private static void weaponTiers() throws Exception {

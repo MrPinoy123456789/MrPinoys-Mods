@@ -571,14 +571,38 @@ public final class WeaponsGameTest {
     }
 
     @GameTest
-    public void theOathbladeSmiteAddsDamageAndWeakness(GameTestHelper helper) {
+    public void theOathbladeSmiteAddsDamage(GameTestHelper helper) {
         var player = holder(helper, "kingdoms:aurelia_oathblade_1");
         Mob zombie = still(helper, 1, 2, 3);
         zombie.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(player), 3f);
         float after = zombie.getHealth();
         item("kingdoms:aurelia_oathblade_1").hurtEnemy(player.getMainHandItem(), zombie, player);
-        helper.assertTrue(zombie.hasEffect(MobEffects.WEAKNESS), "Smite weakens the target");
-        helper.assertTrue(after - zombie.getHealth() >= 0.9f, "and adds its 1 damage inside the hit window");
+        helper.assertTrue(after - zombie.getHealth() >= 0.9f, "Smite adds its 1 damage inside the hit window");
+        helper.succeed();
+    }
+
+    /** The War Pick is a real tool, so its race lock has to cover mining too (audit FO-2), not just the hit. */
+    @GameTest
+    public void aNonDwarfCannotMineWithTheWarPick(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new net.minecraft.core.BlockPos(4, 2, 4));
+        var other = outsider(helper, "kingdoms:azrak_pick_3");
+        other.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+        var start = net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.invoker()
+                .interact(other, level, InteractionHand.MAIN_HAND, pos, net.minecraft.core.Direction.UP);
+        helper.assertTrue(start == net.minecraft.world.InteractionResult.FAIL, "starting a dig with a locked pick is refused: " + start);
+        other.gameMode.destroyBlock(pos);
+        helper.assertTrue(level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.STONE),
+                "a player who is not a Dwarf breaks nothing with the War Pick");
+        // a Dwarf still mines with it
+        var dwarf = holder(helper, "kingdoms:azrak_pick_3");
+        dwarf.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        var dig = net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.invoker()
+                .interact(dwarf, level, InteractionHand.MAIN_HAND, pos, net.minecraft.core.Direction.UP);
+        helper.assertTrue(dig != net.minecraft.world.InteractionResult.FAIL, "a Dwarf may start a dig");
+        dwarf.gameMode.destroyBlock(pos);
+        helper.assertTrue(level.getBlockState(pos).isAir(), "and breaks the block");
         helper.succeed();
     }
 

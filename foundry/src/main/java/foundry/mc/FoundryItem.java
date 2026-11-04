@@ -206,6 +206,16 @@ final class FoundryItem extends SimplePolymerItem {
         return viewer == null || drawShown(viewer);
     }
 
+    /** Whether the player this packet goes to may use the item (true when nobody is known, as in drawFor). */
+    private static boolean usableFor(PacketContext context, foundry.core.ItemDef def) {
+        if (context == null) return true;
+        var profile = context.get(PacketContext.GAME_PROFILE);
+        var server = context.get(PacketContext.SERVER_INSTANCE);
+        if (profile == null || server == null) return true;
+        ServerPlayer viewer = server.getPlayerList().getPlayer(profile.id());
+        return viewer == null || Gate.allowed(viewer, def);
+    }
+
     boolean hasCharge() {
         return mechanics().stream().anyMatch(MechanicDef::charged);
     }
@@ -254,7 +264,13 @@ final class FoundryItem extends SimplePolymerItem {
         // The client predicts mining from its own copy, so it gets the same tool as the server (a war pick of rank 3 mines
         // as diamond on screen too, not as its stone pickaxe base).
         var tool = stack.get(net.minecraft.core.component.DataComponents.TOOL);
-        if (def != null && def.tool() != null && tool != null) out.set(net.minecraft.core.component.DataComponents.TOOL, tool);
+        // Only for a player who may use it: a locked pick shows as a bare handed item to anyone else, so their client does
+        // not predict a dig the server refuses (Gate refuses it either way).
+        if (def != null && def.tool() != null && tool != null && usableFor(context, def)) {
+            out.set(net.minecraft.core.component.DataComponents.TOOL, tool);
+        } else if (def != null && def.tool() != null) {
+            out.remove(net.minecraft.core.component.DataComponents.TOOL);
+        }
         // Held for a "long" time on the client, so it never finishes by itself; the server decides at release. While the
         // charged ability recharges for the player this copy is for, it is left off, so their client draws no pose for a
         // press that cannot do anything (AbilityBar resends the inventory when it starts and when it is back).

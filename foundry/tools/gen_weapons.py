@@ -13,10 +13,12 @@ leads, the Merfolk's Tide Trident fights close, throws, drags foes in and is str
 poison and roots, and the Fairies' Everdelle Wand supports and harries. Projectiles carry a visible model for Java
 players (Bedrock players see the particle trail), and hits draw their own shapes.
 
-    python tools/gen_weapons.py
+    python tools/gen_weapons.py            rewrite the content
+    python tools/gen_weapons.py --check    regenerate in memory and compare with the committed content (exit 1 on drift)
 """
 import json
 import os
+import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples", "content")
 RARITY = ["uncommon", "rare", "epic"]
@@ -120,9 +122,12 @@ def azrak(t):
     skin = [120, 140, 160][t]
     skin_cd = [1800, 1700, 1600][t]
     stone = "#7A6A55"
+    tier = ["stone", "iron", "diamond"][t]
     return dict(
         key="azrak_pick", name="Runed War Pick", base="minecraft:stone_pickaxe", damage=[7, 8, 9][t], speed=1.0,
+        tool={"kind": "pickaxe", "tier": tier}, extra_tags=["minecraft:pickaxes"],
         lore=[f"Hit: {pierce} extra damage that ignores armour.",
+              f"Mines as {'an' if tier == 'iron' else 'a'} {tier} pickaxe.",
               f"Right click: Ground Slam, {slam} damage and a heavy shove to everything within 3 blocks. {secs(slam_cd)}s recharge.",
               f"Sneak and right click: Stone Skin, tough but slow for {secs(skin)}s. {secs(skin_cd)}s recharge."],
         mechanics=[
@@ -154,7 +159,7 @@ def aurelia(t):
     cut = [6, 7, 8][t]
     draw_cd = [240, 220, 200][t]
     silver, steel = "#C9CED8", "#F2F4F8"
-    lore = [f"Hit: {smite} extra damage and Weakness for {secs(weak)}s.",
+    lore = [f"Hit: {smite} extra damage, and a 1 in 4 chance of Weakness for {secs(weak)}s.",
             "Right click: Mikiri, a 0.75s parry. The next melee hit or arrow is stopped.",
             f"  You counter for {counter} damage, Weakness and Slowness. {secs(parry_cd)}s recharge, half back on a parry.",
             "Sneak, hold right click and let go: Quickdraw, a dash of up to 10 blocks.",
@@ -171,9 +176,10 @@ def aurelia(t):
         lore=lore,
         mechanics=[
             {"trigger": "on_hit_entity", "actions": [damage(smite, ignore_hit_delay=True),
-                                                     effect("minecraft:weakness", weak, 0, "hit"),
                                                      sound("minecraft:entity.player.attack.sweep", 0.7, 1.3),
                                                      shape("arc", 14, 1.6, colour=silver, size=0.9)]},
+            # Weakness on every swing made the Oathblade win duels on numbers alone (audit FO-5): one hit in four
+            {"trigger": "on_hit_entity", "chance": 0.25, "actions": [effect("minecraft:weakness", weak, 0, "hit")]},
             use("Mikiri", parry_cd, [{"type": "parry", "window": 15, "refund": 0.5},
                                      sound("minecraft:item.armor.equip_iron", 0.9, 1.5),
                                      shape("arc", 10, 1.0, colour=silver, size=0.8)], False),
@@ -379,7 +385,14 @@ def ident_texture(item_id):
     return f"{ns}:item/{path}"
 
 
+# When set (by --check) write() collects here instead of touching the disk.
+COLLECTED = None
+
+
 def write(path, data):
+    if COLLECTED is not None:
+        COLLECTED[os.path.normpath(path)] = data
+        return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf8", newline="\n") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -414,12 +427,15 @@ def main():
                 # Excellent Enchants' weapon ones (Decapitator, Ice Aspect, Thrifty, Thunder, Venom, Wisdom, Wither); the
                 # second tag only matters when Excellent Enchants is installed, and is harmless when it is not
                 item["enchantable"] = {"value": [10, 12, 15][t],
-                                       "as": ["minecraft:enchantable/melee_weapon", "excellentenchants:swords_axes"]}
+                                       "as": ["minecraft:enchantable/melee_weapon", "excellentenchants:swords_axes"]
+                                       + w.get("extra_tags", [])}
             else:
                 # the magic weapons' own: Spellpower, Quickcast and Potency (foundry/src/main/resources/data/foundry)
                 item["enchantable"] = {"value": [10, 12, 15][t], "as": ["foundry:enchantable/magic"]}
             node, people = GATES[w["key"]]
             item["handheld"] = True
+            if "tool" in w:
+                item["tool"] = w["tool"]
             item["require_permission"] = "race:" + node
             item["locked_message"] = "Only the " + people + " can wield this."
             item["keep_on_death"] = True
@@ -443,10 +459,34 @@ def main():
             "base_item": "minecraft:breeze_rod", "texture": ident_texture(new), "stack_size": 1, "rarity": "rare",
             "keep_on_death": True, "replaced_by": new})
         recipe = os.path.join(ROOT, ns, "recipes", path + ".json")
-        if os.path.exists(recipe):
+        if COLLECTED is None and os.path.exists(recipe):
             os.remove(recipe)
     print(f"wrote {count} items, {count} recipes and {len(MOVED)} moved placeholders")
 
 
+def check():
+    """Regenerates everything in memory and compares each file with the committed one. Returns the drifted paths."""
+    global COLLECTED
+    COLLECTED = {}
+    main()
+    drift = []
+    for path, data in sorted(COLLECTED.items()):
+        try:
+            with open(path, encoding="utf8") as f:
+                committed = json.load(f)
+        except (OSError, ValueError):
+            drift.append(path + " (missing or unreadable)")
+            continue
+        if committed != data:
+            drift.append(path)
+    return drift
+
+
 if __name__ == "__main__":
+    if "--check" in sys.argv:
+        bad = check()
+        for path in bad:
+            print("drift: " + path)
+        print("gen_weapons: " + ("in sync" if not bad else str(len(bad)) + " file(s) differ from the generator"))
+        sys.exit(1 if bad else 0)
     main()
