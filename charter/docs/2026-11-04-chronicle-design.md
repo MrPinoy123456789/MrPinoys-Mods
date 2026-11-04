@@ -15,7 +15,8 @@ Discord channel. The community study says what the second edition must be:
 
 - **The voice is a town crier who cannot keep a straight face.** Formal openings, plain
   punchlines, the players' own words. No swearing: minors play. On Discord the crier is
-  Lemon Berry (5.3); in the book the lines stay plain so a server can reword them.
+  Lemon Berry (5.3) for the Chronicle and the plain Town Crier for the owner's own
+  announcements (5.3a); in the book the lines stay plain so a server can reword them.
 - **Short.** They do not read. One line per happening, the name first. Ten lines is a
   long Herald.
 - **Their names, not ours.** Fishies, commoner, mercs, ruins, House Aurelia, the Dwarven
@@ -308,6 +309,32 @@ firsts, who is hiring, then one line of her own. Ten lines at most. Names in bol
 only. The owner reads every line before it posts. If a draft is funny at the expense of
 one of the sore spots, the owner strikes it and the skill learns nothing from it; the
 never-list is fixed text in the skill, not a preference it adjusts.
+
+### 5.3a Two voices: Lemon Berry tells, the Town Crier announces
+
+Decided 2026-11-04. The channel carries two voices, and the reader can always tell
+which one is speaking.
+
+- **Lemon Berry** tells the Chronicle: entries from the feed and the weekly Herald.
+  Everything in 5.3.
+- **The Town Crier** is the owner's own voice for announcements the owner writes or
+  asks for by hand: event notices, restarts and maintenance, rule changes, a new mod
+  going live, a call for sign-ups. The crier is the plain voice of section 1: a formal
+  opening, one plain punchline at most, the players' own words, names first, short. No
+  water, no weather, no third person; the crier does not have opinions about kings.
+
+The split keeps Lemon Berry honest: she only ever says what the feed holds, so when the
+owner needs to say something that is not a happening in the game (a date, a rule, an
+apology), it is the crier who says it. A Claude Code session drafting for the owner asks
+which voice is wanted when the request could be either; "post an announcement" means the
+crier, "what happened this week" means Lemon Berry.
+
+**Two crier lines, for the shape.**
+
+1. "Hear ye. Saturday at 21:00 UTC the Colosseum opens for the first Faeloria tourney.
+   Sign up on the Priority Board. Bring a sword, not an excuse."
+2. "Hear ye. The server restarts at 06:00 UTC for an update. Nothing you built will
+   move. Your villagers have been told; they did not listen."
 
 ### 5.4 What this removes from the Java side
 
