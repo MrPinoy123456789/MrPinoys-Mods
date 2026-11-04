@@ -33,7 +33,7 @@ public record Transfer(OrgId from, OrgId to, long marks) implements Action {
 
     @Override
     public Outcome check(ActionContext ctx) {
-        if (marks <= 0) return Outcome.refuse(new Reason("bad_amount", "Transfer at least one Mark."));
+        if (marks <= 0) return Outcome.refuse(new Reason("bad_amount", "Transfer an amount above nothing."));
         if (from.equals(to) || ctx.state.org(to).isEmpty()) return Outcome.refuse(Reason.NO_SUCH_ORG);
         if (!ctx.hasProvider()) return Outcome.refuse(Withdraw.NO_PROVIDER);
         if (!ctx.canPay(from, marks)) return Outcome.refuse(Withdraw.SHORT);

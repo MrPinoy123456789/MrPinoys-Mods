@@ -93,6 +93,8 @@ public final class EconomyTest {
         leaderboards();
         leaderboardMultiCurrency();
         analytics();
+        playerTextInSovereigns();
+        typedAmounts();
 
         System.out.println();
         for (String f : failures) System.out.println("FAIL  " + f);
@@ -607,17 +609,29 @@ public final class EconomyTest {
 
         check("shipped face values are 1, 8, 64",
                 java.util.Arrays.equals(COIN.faceValues(), new int[] {1, 8, 64}));
-        check("display spells out parts and the Marks total",
-                COIN.describe(213).equals("3 Sovereigns, 2 Crowns, 5 Marks (213 Marks)"));
-        check("zero parts are omitted", COIN.describe(16).equals("2 Crowns (16 Marks)"));
-        check("a Marks-only amount is not repeated", COIN.describe(5).equals("5 Marks"));
-        check("one Mark is singular", COIN.describe(1).equals("1 Mark"));
-        check("zero is shown", COIN.describe(0).equals("0 Marks"));
-        check("coins wording drops the Marks total", COIN.inCoins(512).equals("8 Sovereigns"));
-        check("coins wording spells out mixed coins",
-                COIN.inCoins(213).equals("3 Sovereigns, 2 Crowns, 5 Marks"));
-        check("coins wording uses Marks only when nothing larger fits", COIN.inCoins(5).equals("5 Marks"));
-        check("coins wording names zero in Sovereigns", COIN.inCoins(0).equals("0 Sovereigns"));
+        // Every coin amount a player reads is in Sovereigns (owner, 2026-11-04).
+        check("Sovereigns: whole amounts", Wallet.sovereigns(64).equals("1") && Wallet.sovereigns(640).equals("10")
+                && Wallet.sovereigns(144_704).equals("2,261"));
+        check("Sovereigns: a remainder is a decimal Sovereign, never Marks",
+                Wallet.sovereigns(144_736).equals("2,261.5") && Wallet.sovereigns(96).equals("1.5")
+                        && Wallet.sovereigns(80).equals("1.25") && Wallet.sovereigns(16).equals("0.25"));
+        check("Sovereigns: the decimal is cut, never rounded up",
+                Wallet.sovereigns(127).equals("1.98") && Wallet.sovereigns(63).equals("0.98")
+                        && Wallet.sovereigns(1).equals("0.01") && Wallet.sovereigns(500).equals("7.81"));
+        check("Sovereigns: large numbers group their digits",
+                Wallet.sovereigns(64L * 1_234_567_890L).equals("1,234,567,890")
+                        && Wallet.sovereigns(Long.MAX_VALUE).startsWith("144,115,188,075,855,871.98"));
+        check("Sovereigns: zero and below", Wallet.sovereigns(0).equals("0") && Wallet.sovereigns(-96).equals("-1.5"));
+        check("Sovereigns in words", Wallet.sovereignWords(64).equals("1 Sovereign")
+                && Wallet.sovereignWords(32).equals("0.5 Sovereigns") && Wallet.sovereignWords(0).equals("0 Sovereigns")
+                && Wallet.sovereignWords(144_704).equals("2,261 Sovereigns"));
+        check("coin is described in Sovereigns", COIN.describe(213).equals("3.32 Sovereigns")
+                && COIN.describe(512).equals("8 Sovereigns") && COIN.describe(64).equals("1 Sovereign"));
+        check("small coin is a decimal Sovereign, never Marks or Crowns",
+                COIN.describe(16).equals("0.25 Sovereigns") && COIN.describe(1).equals("0.01 Sovereigns"));
+        check("zero coin is shown in Sovereigns", COIN.describe(0).equals("0 Sovereigns"));
+        check("coins wording is the same Sovereigns", COIN.inCoins(512).equals("8 Sovereigns")
+                && COIN.inCoins(213).equals("3.32 Sovereigns") && COIN.inCoins(0).equals("0 Sovereigns"));
         check("denomination words resolve",
                 REGISTRY.resolveWord("Crowns").orElseThrow().denomination().id().equals("iron")
                         && REGISTRY.resolveWord("sov").orElseThrow().denomination().id().equals("gold")
@@ -1485,7 +1499,7 @@ public final class EconomyTest {
         ShopEntry compound = new ShopEntry("elytra", "minecraft:elytra", 1, both, "Premium", true);
         check("compound price renders both lines",
                 compound.describePrice().equals(
-                        "7 Sovereigns, 6 Crowns, 4 Marks + 1 gem"));
+                        "7.81 Sovereigns + 1 gem"));
 
         // Malformed entries are the server owner's typo, and must not crash /shop.
         catalog.put(new ShopEntry("broken", "minecraft:ice", 0, Map.of(COIN, 10L), "X", true));
@@ -1881,9 +1895,184 @@ public final class EconomyTest {
         // Sovereigns.
         check("Marks read as Sovereigns",
                 Analytics.sovereigns(64).equals("1") && Analytics.sovereigns(79_008).equals("1,234.5")
-                        && Analytics.sovereigns(96).equals("1.5") && Analytics.sovereigns(1).equals("0.02")
+                        && Analytics.sovereigns(96).equals("1.5") && Analytics.sovereigns(1).equals("0.01")
                         && Analytics.sovereigns(127).equals("1.98") && Analytics.sovereigns(0).equals("0")
                         && Analytics.sovereigns(640).equals("10"));
+    }
+
+    // ---- player text names coin in Sovereigns only ----------------------------
+
+    /**
+     * Every coin amount a player reads is in Gold Sovereigns (owner, 2026-11-04). This reads
+     * the fabric sources and fails on any string a player could see that names Marks or
+     * Crowns. Server log lines (transactions.log, LOG) keep Marks: they are the unit in code
+     * and files. Config defaults that name the base unit are data, not text.
+     */
+    private static void playerTextInSovereigns() {
+        section("Player text in Sovereigns");
+        java.nio.file.Path root = null;
+        for (String candidate : List.of("../fabric/src/main/java", "fabric/src/main/java",
+                "chartercurrency/fabric/src/main/java")) {
+            java.nio.file.Path p = java.nio.file.Path.of(candidate);
+            if (java.nio.file.Files.isDirectory(p)) {
+                root = p;
+                break;
+            }
+        }
+        check("the fabric sources are found for the scan", root != null);
+        if (root == null) return;
+        java.util.regex.Pattern unit = java.util.regex.Pattern.compile("\\b(Marks?|Crowns?)\\b");
+        List<String> found = new ArrayList<>();
+        int scanned = 0;
+        try (var files = java.nio.file.Files.walk(root)) {
+            for (java.nio.file.Path file : files.filter(f -> f.toString().endsWith(".java")).toList()) {
+                String name = file.getFileName().toString();
+                if (name.equals("CurrencyConfig.java")) continue; // the base unit's default name in currencies.json
+                scanned++;
+                String code = java.nio.file.Files.readString(file);
+                for (String statement : statements(code)) {
+                    if (statement.contains("LOG.") || statement.contains("log.tx(") || statement.contains("log.admin(")) continue;
+                    for (String literal : literals(statement)) {
+                        if (unit.matcher(literal).find()) found.add(name + ": \"" + literal + "\"");
+                    }
+                }
+            }
+        } catch (java.io.IOException e) {
+            found.add("could not read the sources: " + e);
+        }
+        check("the scan read the sources (" + scanned + " files)", scanned > 20);
+        check("no player text names Marks or Crowns" + (found.isEmpty() ? "" : ": " + found), found.isEmpty());
+        // The scan itself must catch what it is for.
+        check("the scan catches a player line that names Marks",
+                literals(statements("x.send(\"You paid 5 Marks.\");").get(0)).stream().anyMatch(l -> unit.matcher(l).find()));
+        check("the scan skips comments", statements("// 5 Marks\n/* 2 Crowns */ int a = 1;").stream()
+                .flatMap(s -> literals(s).stream()).noneMatch(l -> unit.matcher(l).find()));
+    }
+
+    /** The code cut at semicolons, with comments removed and string literals kept whole. */
+    private static List<String> statements(String code) {
+        List<String> out = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        int i = 0;
+        while (i < code.length()) {
+            char c = code.charAt(i);
+            if (c == '/' && i + 1 < code.length() && code.charAt(i + 1) == '/') {
+                while (i < code.length() && code.charAt(i) != '\n') i++;
+            } else if (c == '/' && i + 1 < code.length() && code.charAt(i + 1) == '*') {
+                int end = code.indexOf("*/", i + 2);
+                i = end < 0 ? code.length() : end + 2;
+            } else if (c == '"' || c == '\'') {
+                int j = i + 1;
+                if (c == '"' && code.startsWith("\"\"\"", i)) {
+                    int end = code.indexOf("\"\"\"", i + 3);
+                    j = end < 0 ? code.length() : end + 3;
+                } else {
+                    while (j < code.length() && code.charAt(j) != c) {
+                        if (code.charAt(j) == '\\') j++;
+                        j++;
+                    }
+                    j = Math.min(code.length(), j + 1);
+                }
+                cur.append(code, i, j);
+                i = j;
+            } else if (c == ';') {
+                out.add(cur.toString());
+                cur.setLength(0);
+                i++;
+            } else {
+                cur.append(c);
+                i++;
+            }
+        }
+        if (!cur.isEmpty()) out.add(cur.toString());
+        return out;
+    }
+
+    /** The double quoted string literals in one statement. */
+    private static List<String> literals(String statement) {
+        List<String> out = new ArrayList<>();
+        int i = 0;
+        while (i < statement.length()) {
+            char c = statement.charAt(i);
+            if (c == '"' || c == '\'') {
+                int j = i + 1;
+                while (j < statement.length() && statement.charAt(j) != c) {
+                    if (statement.charAt(j) == '\\') j++;
+                    j++;
+                }
+                if (c == '"') out.add(statement.substring(i + 1, Math.min(j, statement.length())));
+                i = j + 1;
+            } else {
+                i++;
+            }
+        }
+        return out;
+    }
+
+    // ---- typed amounts are whole Sovereigns ------------------------------------
+
+    /** The body of one method, from its signature to the next member. */
+    private static String method(String code, String signature) {
+        int start = code.indexOf(signature);
+        if (start < 0) return "";
+        int next = code.length();
+        for (String marker : List.of("\n    private ", "\n    static ", "\n    /**", "\n    public ")) {
+            int at = code.indexOf(marker, start + signature.length());
+            if (at >= 0) next = Math.min(next, at);
+        }
+        return code.substring(start, next);
+    }
+
+    private static void typedAmounts() {
+        section("Typed amounts");
+        Denomination copper = COIN.denominations().stream().filter(d -> d.id().equals("copper")).findFirst().orElseThrow();
+        Denomination iron = COIN.denominations().stream().filter(d -> d.id().equals("iron")).findFirst().orElseThrow();
+        Denomination gold = COIN.denominations().stream().filter(d -> d.id().equals("gold")).findFirst().orElseThrow();
+        check("a bare number is whole Sovereigns", CoinInput.marks(5, COIN, null) == 320);
+        check("one Sovereign is 64 Marks", CoinInput.marks(1, COIN, null) == 64);
+        check("a coin word still names its coin: 3 marks, 3 crowns, 3 sovereigns",
+                CoinInput.marks(3, COIN, copper) == 3 && CoinInput.marks(3, COIN, iron) == 24
+                        && CoinInput.marks(3, COIN, gold) == 192);
+        check("the word coin names the currency and reads as a bare number",
+                REGISTRY.resolveWord("coin").orElseThrow().denomination() == null
+                        && CoinInput.marks(5, COIN, REGISTRY.resolveWord("coin").orElseThrow().denomination()) == 320);
+        check("an amount too large for Marks is refused, not wrapped", CoinInput.marks(Long.MAX_VALUE / 2, COIN, null) == -1);
+        check("a currency with no coins counts in its own unit", CoinInput.marks(7, VALOR, null) == 7);
+
+        java.nio.file.Path root = null;
+        for (String candidate : List.of("../fabric/src/main/java/chartercurrency", "fabric/src/main/java/chartercurrency",
+                "chartercurrency/fabric/src/main/java/chartercurrency")) {
+            if (java.nio.file.Files.isDirectory(java.nio.file.Path.of(candidate))) {
+                root = java.nio.file.Path.of(candidate);
+                break;
+            }
+        }
+        check("the command sources are found", root != null);
+        if (root == null) return;
+        try {
+            String economy = java.nio.file.Files.readString(root.resolve("EconomyCommands.java"));
+            String treasury = java.nio.file.Files.readString(root.resolve("TreasuryCommands.java"));
+            String admin = java.nio.file.Files.readString(root.resolve("AdminCommands.java"));
+            String kingdomAdmin = java.nio.file.Files.readString(root.resolve("KingdomAdminCommands.java"));
+            String bare = "CoinInput.marks(parsed.getAsLong(), coin, null)";
+            check("/bank <n> reads n as Sovereigns", method(economy, "private int deposit(").contains(bare));
+            check("/withdraw <n> reads n as Sovereigns", method(economy, "private int withdraw(").contains(bare));
+            check("/pay <player> <n> reads n as Sovereigns, a coin word as its coin",
+                    method(economy, "private int pay(").contains("CoinInput.marks(parsed.getAsLong(), coin, per)"));
+            check("/treasury deposit <n> reads n as Sovereigns",
+                    method(treasury, "private int deposit(").contains("CoinInput.marks(parsed.getAsLong(), coin, null)"));
+            check("/treasury withdraw <n> reads n as Sovereigns", method(treasury, "private int withdraw(").contains(bare));
+            check("the player commands name their argument sovereigns, so tab completion says so",
+                    economy.split("Commands.argument\\(\"sovereigns\"", -1).length - 1 == 3
+                            && treasury.split("Commands.argument\\(\"sovereigns\"", -1).length - 1 == 2
+                            && !economy.contains("Commands.argument(\"amount\"") && !treasury.contains("Commands.argument(\"amount\""));
+            check("the operator commands other mods script stay in Marks",
+                    !admin.contains("CoinInput") && !kingdomAdmin.contains("CoinInput")
+                            && kingdomAdmin.contains("Commands.argument(\"amount\", LongArgumentType.longArg(1))")
+                            && method(kingdomAdmin, "private int treasuryAdjust(").contains("LongArgumentType.getLong(ctx, \"amount\")"));
+        } catch (java.io.IOException e) {
+            check("the command sources are readable: " + e, false);
+        }
     }
 
     private static void section(String name) {

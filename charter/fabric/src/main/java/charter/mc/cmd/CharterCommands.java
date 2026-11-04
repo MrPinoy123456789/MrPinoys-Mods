@@ -132,7 +132,8 @@ public final class CharterCommands {
     }
 
     private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, Integer> withdrawAmount() {
-        return Commands.argument("amount", IntegerArgumentType.integer(1)).executes(CharterCommands::withdraw);
+        // Whole Sovereigns: 1 to a million (64 million Marks), so the Marks never overflow.
+        return Commands.argument("amount", IntegerArgumentType.integer(1, 1_000_000)).executes(CharterCommands::withdraw);
     }
 
     // ---- shared ----
@@ -361,7 +362,8 @@ public final class CharterCommands {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         CharterRuntime rt = CharterServer.runtime();
         Optional<OrgId> org = orgOf(rt, player);
-        int amount = IntegerArgumentType.getInteger(ctx, "amount");
+        // Typed in whole Sovereigns (owner, 2026-11-04); the treasury is asked in Marks.
+        long amount = charter.api.Coin.marks(IntegerArgumentType.getInteger(ctx, "amount"));
         if (org.isEmpty()) {
             ctx.getSource().sendFailure(Chat.bad(Text.get("page.no_org")));
             return 0;
@@ -371,6 +373,6 @@ public final class CharterCommands {
             return 0;
         }
         // The coin reaches the player through the WithdrawnMarks event (Notices), the same way a vote's payout does.
-        return perform(player, new Withdraw(org.get(), amount, id(player)), Text.get("vault.withdrawn", "amount", amount));
+        return perform(player, new Withdraw(org.get(), amount, id(player)), Text.get("vault.withdrawn", "amount", charter.api.Coin.words(amount)));
     }
 }

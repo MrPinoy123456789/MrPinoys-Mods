@@ -161,7 +161,7 @@ public final class JusticePages {
                 BasisCaps.Checked checked = BasisCaps.check(Basis.CUSTODY, new Term.FineMarks(marks), rt.knobs);
                 if (!checked.ok()) continue;
                 long shown = ((Term.FineMarks) checked.term()).marks();
-                buttons.add(go(judge, Text.get("book.justice.fine", "count", shown), p -> run(p, new FineCustody(me, prisoner, marks),
+                buttons.add(go(judge, Text.get("book.justice.fine", "count", charter.api.Coin.words(shown)), p -> run(p, new FineCustody(me, prisoner, marks),
                         Text.get("justice.done_fine", "player", name), line -> home(p, line))).icon(BookIcons.TREASURY));
             }
         }

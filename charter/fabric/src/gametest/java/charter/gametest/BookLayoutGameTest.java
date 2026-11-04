@@ -408,16 +408,16 @@ public final class BookLayoutGameTest {
             ServerPlayer lord = kit.faction("Coin");
             OrgId org = kit.orgOf(lord);
             long before = kit.rt.state.payment.balance(org.toString());
-            helper.assertTrue(before >= 1, "The test treasury is empty");
+            helper.assertTrue(before >= charter.api.Coin.marks(1), "The test treasury holds less than a Sovereign: " + before);
             Presses presses = new Presses(helper, lord);
             presses.book();
             presses.press(Text.get("book.button.leader"));
             presses.press(Text.get("book.leader.treasury"));
-            presses.press(Text.get("book.leader.take", "n", 1));
+            presses.press(Text.get("book.leader.take", "n", charter.api.Coin.words(64)));
             // The payout itself runs through the currency mod's commands, absent here, so the page's answer is what is checked.
             BookScreen landed = presses.shown();
             helper.assertTrue(landed.title().equals(Text.get("book.leader.treasury")), "Take 1 did not land on the treasury: " + landed.title());
-            helper.assertTrue(landed.bodyText().get(0).equals(Text.get("vault.withdrawn", "amount", 1))
+            helper.assertTrue(landed.bodyText().get(0).equals(Text.get("vault.withdrawn", "amount", charter.api.Coin.words(64)))
                     && TextColor.fromLegacyFormat(ChatFormatting.GREEN).equals(landed.body().get(0).getStyle().getColor()),
                     "Take 1 was not reported as done: " + landed.bodyText() + " (balance " + before + ")");
             helper.assertTrue(presses.count == 4, "Taking Marks took " + presses.count + " presses");

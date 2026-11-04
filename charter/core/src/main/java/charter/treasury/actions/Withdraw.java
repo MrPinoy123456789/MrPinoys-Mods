@@ -42,7 +42,7 @@ public record Withdraw(OrgId org, long marks, PlayerId to) implements Action {
 
     @Override
     public Outcome check(ActionContext ctx) {
-        if (marks <= 0) return Outcome.refuse(new Reason("bad_amount", "Withdraw at least one Mark."));
+        if (marks <= 0) return Outcome.refuse(new Reason("bad_amount", "Withdraw an amount above nothing."));
         if (!ctx.hasProvider()) return Outcome.refuse(NO_PROVIDER);
         if (!ctx.canPay(org, marks)) return Outcome.refuse(SHORT);
         return Outcome.OK;

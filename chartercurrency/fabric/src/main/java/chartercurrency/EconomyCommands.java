@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.CoinInput;
 import chartercurrency.core.Analytics;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -93,7 +94,7 @@ public final class EconomyCommands {
                         .then(Commands.argument("denomination", StringArgumentType.word())
                                 .suggests(wordSuggestions())
                                 .executes(ctx -> deposit(ctx, true, "denomination"))))
-                .then(Commands.argument("amount", StringArgumentType.word())
+                .then(Commands.argument("sovereigns", StringArgumentType.word())
                         .executes(ctx -> deposit(ctx, false, null))
                         .then(Commands.argument("denomination", StringArgumentType.word())
                                 .suggests(wordSuggestions())
@@ -101,7 +102,7 @@ public final class EconomyCommands {
 
         // /withdraw <amount> [denomination]
         dispatcher.register(Commands.literal("withdraw")
-                .then(Commands.argument("amount", StringArgumentType.word())
+                .then(Commands.argument("sovereigns", StringArgumentType.word())
                         .executes(ctx -> withdraw(ctx, null))
                         .then(Commands.argument("denomination", StringArgumentType.word())
                                 .suggests(wordSuggestions())
@@ -111,7 +112,7 @@ public final class EconomyCommands {
         dispatcher.register(Commands.literal("pay")
                 .then(Commands.argument("player", StringArgumentType.word())
                         .suggests(playerSuggestions())
-                        .then(Commands.argument("amount", StringArgumentType.word())
+                        .then(Commands.argument("sovereigns", StringArgumentType.word())
                                 .executes(ctx -> pay(ctx, null))
                                 .then(Commands.argument("denomination", StringArgumentType.word())
                                         .suggests(wordSuggestions())
@@ -206,9 +207,9 @@ public final class EconomyCommands {
                 .append(Messages.priced(coin, carried)), false);
         source.sendSuccess(Messages::blank, false);
         source.sendSuccess(() -> Messages.helpLine("/bank all", "Deposit every coin you carry"), false);
-        source.sendSuccess(() -> Messages.helpLine("/bank <amount> [crowns]", "Deposit an amount"), false);
-        source.sendSuccess(() -> Messages.helpLine("/withdraw <amount> [crowns]", "Take coins out"), false);
-        source.sendSuccess(() -> Messages.helpLine("/pay <player> <amount> [crowns]", "Send coin"), false);
+        source.sendSuccess(() -> Messages.helpLine("/bank <sovereigns>", "Deposit that many Sovereigns"), false);
+        source.sendSuccess(() -> Messages.helpLine("/withdraw <sovereigns>", "Take that many Sovereigns out"), false);
+        source.sendSuccess(() -> Messages.helpLine("/pay <player> <sovereigns>", "Send Sovereigns"), false);
         source.sendSuccess(() -> Messages.helpLine("/shop", "What the server sells"), false);
         if (settings.leaderboardsEnabled) {
             source.sendSuccess(() -> Messages.helpLine("/baltop", "Richest players"), false);
@@ -270,7 +271,7 @@ public final class EconomyCommands {
             }
             plan = Wallet.planDeposit(usable, faces, amount);
         } else {
-            OptionalLong parsed = parseAmount(source, StringArgumentType.getString(ctx, "amount"));
+            OptionalLong parsed = parseAmount(source, StringArgumentType.getString(ctx, "sovereigns"));
             if (parsed.isEmpty()) return 0;
             if (only != null) {
                 // "3 crowns": exactly three Iron Crowns, no other coin touched.
@@ -285,7 +286,12 @@ public final class EconomyCommands {
                 amount = n * faces[idx];
                 plan = new Wallet.DepositPlan(take, amount, 0, new int[faces.length]);
             } else {
-                amount = parsed.getAsLong();
+                // A bare number is whole Sovereigns (CoinInput).
+                amount = CoinInput.marks(parsed.getAsLong(), coin, null);
+                if (amount < 0) {
+                    source.sendFailure(Messages.bad("That is not a valid amount."));
+                    return 0;
+                }
                 plan = Wallet.planDeposit(counts, faces, amount);
                 if (plan == null) {
                     long carried = carriedMarks(player);
@@ -383,7 +389,7 @@ public final class EconomyCommands {
             }
             named = word.get().denomination();
         }
-        OptionalLong parsed = parseAmount(source, StringArgumentType.getString(ctx, "amount"));
+        OptionalLong parsed = parseAmount(source, StringArgumentType.getString(ctx, "sovereigns"));
         if (parsed.isEmpty()) return 0;
 
         List<Denomination> denominations = coin.denominations();
@@ -400,7 +406,12 @@ public final class EconomyCommands {
             needed[idx] = (int) parsed.getAsLong();
             marks = parsed.getAsLong() * faces[idx];
         } else {
-            marks = parsed.getAsLong();
+            // A bare number is whole Sovereigns (CoinInput).
+            marks = CoinInput.marks(parsed.getAsLong(), coin, null);
+            if (marks < 0) {
+                source.sendFailure(Messages.bad("That is not a valid amount."));
+                return 0;
+            }
             needed = Wallet.makeChange(marks, faces);
         }
 
@@ -467,7 +478,7 @@ public final class EconomyCommands {
         ServerPlayer sender = ctx.getSource().getPlayerOrException();
         CommandSourceStack source = ctx.getSource();
 
-        long multiplier = 1;
+        Denomination per = null;
         if (wordArg != null) {
             Optional<CurrencyRegistry.Word> word = resolveWord(source,
                     StringArgumentType.getString(ctx, wordArg));
@@ -476,15 +487,17 @@ public final class EconomyCommands {
                 source.sendFailure(Messages.bad(VALOR_NOT_PAYABLE));
                 return 0;
             }
-            if (word.get().denomination() != null) multiplier = word.get().denomination().value();
+            per = word.get().denomination();
         }
 
         String targetName = StringArgumentType.getString(ctx, "player");
-        OptionalLong parsed = parseAmount(source, StringArgumentType.getString(ctx, "amount"));
+        OptionalLong parsed = parseAmount(source, StringArgumentType.getString(ctx, "sovereigns"));
         if (parsed.isEmpty()) return 0;
         long amount;
         try {
-            amount = Math.multiplyExact(parsed.getAsLong(), multiplier);
+            // A bare number, or the word coin, is whole Sovereigns (CoinInput).
+            amount = CoinInput.marks(parsed.getAsLong(), coin, per);
+            if (amount < 0) throw new ArithmeticException("overflow");
         } catch (ArithmeticException e) {
             source.sendFailure(Messages.bad("That is not a valid amount."));
             return 0;
@@ -595,7 +608,7 @@ public final class EconomyCommands {
         sendRows(source, currency, rows, viewer);
         source.sendSuccess(Messages::blank, false);
         source.sendSuccess(() -> Messages.body("Page " + page + " of " + totalPages
-                + "   Banked in total: " + Wallet.format(economy.totalSupply(currency))), false);
+                + "   Banked in total: " + currency.describe(economy.totalSupply(currency))), false);
         source.sendSuccess(Messages::rule, false);
         return 1;
     }
@@ -637,7 +650,7 @@ public final class EconomyCommands {
     }
 
     private static String boardTitle(Currency currency) {
-        return currency.displayName().toUpperCase(java.util.Locale.ROOT) + " TOP";
+        return Messages.heading(currency).toUpperCase(java.util.Locale.ROOT) + " TOP";
     }
 
     private static UUID viewerOf(CommandSourceStack source) {
@@ -677,7 +690,7 @@ public final class EconomyCommands {
         Optional<CurrencyRegistry.Word> word = currencies.resolveWord(raw);
         if (word.isEmpty()) {
             source.sendFailure(Messages.bad("Unknown denomination '" + raw
-                    + "'. Try: marks, crowns, sovereigns or coin."));
+                    + "'. Try: sovereigns, crowns or marks."));
         }
         return word;
     }

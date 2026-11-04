@@ -124,7 +124,7 @@ final class RuntimeTest {
         Outcome opened = rt.engine.propose(alice, new Withdraw(oak, 5, bob));
         check("runtime: the spend opens as a vote", opened instanceof Outcome.VoteOpened);
         check("runtime: the offline voter is told about it",
-                rt.mail.peek(bob).stream().anyMatch(m -> m.text().contains("A vote opened in Oakvale: pay 5 Marks to Bob")));
+                rt.mail.peek(bob).stream().anyMatch(m -> m.text().contains("A vote opened in Oakvale: pay 0.07 Sovereigns to Bob")));
         rt.engine.cast(bob, ((Outcome.VoteOpened) opened).vote(), Vote.Ballot.YES);
         check("runtime: the passed vote went to the payment provider as a payout", messenger.paidOut.equals(List.of(oak + ">" + bob + ":5")));
         check("runtime: the old item treasury was never touched", rt.state.org(oak).orElseThrow().ledger.snapshot().isEmpty());

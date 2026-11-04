@@ -19,7 +19,7 @@ public final class JusticeText {
             case Term.Tether t -> Text.get("term.tether", "time", Chat.duration(t.durationMillis()));
             case Term.Banishment b -> Text.get("term.banishment", "time", Chat.duration(b.durationMillis()));
             case Term.RespawnDelay r -> Text.get("term.respawn", "time", Chat.duration(r.durationMillis()));
-            case Term.FineMarks f -> Text.get("term.fine", "count", f.marks());
+            case Term.FineMarks f -> Text.get("term.fine", "count", charter.api.Coin.words(f.marks()));
             case Term.Fine f -> Text.get("term.fine_old", "count", f.diamonds());
             default -> Text.get("term.other");
         };

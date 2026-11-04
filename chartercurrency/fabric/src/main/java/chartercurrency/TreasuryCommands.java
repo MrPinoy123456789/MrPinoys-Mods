@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.CoinInput;
 import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
@@ -53,13 +54,13 @@ final class TreasuryCommands {
         dispatcher.register(Commands.literal("treasury")
                 .executes(ctx -> overview(ctx, null))
                 .then(Commands.literal("deposit")
-                        .then(Commands.argument("amount", StringArgumentType.word())
+                        .then(Commands.argument("sovereigns", StringArgumentType.word())
                                 .executes(ctx -> deposit(ctx, null))
                                 .then(Commands.argument("denomination", StringArgumentType.word())
                                         .suggests(words())
                                         .executes(ctx -> deposit(ctx, "denomination")))))
                 .then(Commands.literal("withdraw")
-                        .then(Commands.argument("amount", StringArgumentType.word())
+                        .then(Commands.argument("sovereigns", StringArgumentType.word())
                                 .executes(ctx -> withdraw(ctx, null, null))
                                 .then(Commands.argument("denomination", StringArgumentType.word())
                                         .suggests(words())
@@ -148,7 +149,7 @@ final class TreasuryCommands {
                 source.sendSuccess(() -> Messages.body("  " + line(e)), false);
             }
         }
-        source.sendSuccess(() -> Messages.body("/treasury deposit <amount> [crowns]   /treasury ledger"), false);
+        source.sendSuccess(() -> Messages.body("/treasury deposit <sovereigns>   /treasury ledger"), false);
         source.sendSuccess(Messages::rule, false);
         return 1;
     }
@@ -156,9 +157,10 @@ final class TreasuryCommands {
     /** One ledger line: when, signed amount and unit, kind, and who. The Bank menu shows the same lines. */
     static String line(Treasury.Entry e) {
         String when = WHEN.format(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()));
-        String unit = "renown".equals(e.currency) ? "Renown" : "Marks";
         String sign = e.delta >= 0 ? "+" : "";
-        return when + "  " + sign + Wallet.format(e.delta) + " " + unit + "  " + e.kind
+        String amount = "renown".equals(e.currency) ? Wallet.format(e.delta) + " Renown"
+                : Wallet.sovereignWords(e.delta);
+        return when + "  " + sign + amount + "  " + e.kind
                 + (e.actor == null || e.actor.isBlank() ? "" : " by " + e.actor);
     }
 
@@ -182,13 +184,18 @@ final class TreasuryCommands {
             only = word.get().denomination();
         }
 
-        String raw = StringArgumentType.getString(ctx, "amount");
+        String raw = StringArgumentType.getString(ctx, "sovereigns");
         boolean all = raw.equalsIgnoreCase("all");
         long amount = 0;
         if (!all) {
             OptionalLong parsed = EconomyCommands.parseAmount(source, raw);
             if (parsed.isEmpty()) return 0;
-            amount = parsed.getAsLong();
+            // A bare number is whole Sovereigns (CoinInput); with a coin word, that many of that coin.
+            amount = only == null ? CoinInput.marks(parsed.getAsLong(), coin, null) : parsed.getAsLong();
+            if (amount < 0) {
+                source.sendFailure(Messages.bad("That is not a valid amount."));
+                return 0;
+            }
         }
 
         String[] error = new String[1];
@@ -246,7 +253,7 @@ final class TreasuryCommands {
             }
             named = word.get().denomination();
         }
-        OptionalLong parsed = EconomyCommands.parseAmount(source, StringArgumentType.getString(ctx, "amount"));
+        OptionalLong parsed = EconomyCommands.parseAmount(source, StringArgumentType.getString(ctx, "sovereigns"));
         if (parsed.isEmpty()) return 0;
 
         int[] faces = coin.faceValues();
@@ -262,7 +269,12 @@ final class TreasuryCommands {
             needed[idx] = (int) parsed.getAsLong();
             marks = parsed.getAsLong() * faces[idx];
         } else {
-            marks = parsed.getAsLong();
+            // A bare number is whole Sovereigns (CoinInput).
+            marks = CoinInput.marks(parsed.getAsLong(), coin, null);
+            if (marks < 0) {
+                source.sendFailure(Messages.bad("That is not a valid amount."));
+                return 0;
+            }
             needed = Wallet.makeChange(marks, faces);
         }
 
@@ -324,7 +336,7 @@ final class TreasuryCommands {
         }
         java.util.OptionalLong limit = kingdomSource().spendLimit(org, player.getUUID());
         if (limit.isPresent()) {
-            return "That is over your spend limit of " + limit.getAsLong() + " Marks for " + name + ".";
+            return "That is over your spend limit of " + s.coin().describe(limit.getAsLong()) + " for " + name + ".";
         }
         return "Only the Lord of " + name + " can take coin from its treasury.";
     }

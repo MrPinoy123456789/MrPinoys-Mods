@@ -126,8 +126,8 @@ public final class ShopDialogs {
         for (Map.Entry<Currency, Long> owed : total.entrySet()) {
             Currency currency = owed.getKey();
             long balance = economy.getBalance(player.getUUID(), currency);
-            body.add(line(currency.displayName() + ": " + formatted(balance)
-                    + "  ->  " + formatted(Math.max(0, balance - owed.getValue())),
+            body.add(line(Messages.heading(currency) + ": " + Messages.number(currency, balance)
+                    + "  ->  " + Messages.number(currency, Math.max(0, balance - owed.getValue())),
                     Messages.colourOf(currency)));
         }
 
@@ -485,8 +485,4 @@ public final class ShopDialogs {
         return out.toString();
     }
 
-    /** {@code 12,481}. */
-    private static String formatted(long value) {
-        return chartercurrency.core.Wallet.format(value);
-    }
 }

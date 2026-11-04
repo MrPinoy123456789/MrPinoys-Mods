@@ -1,6 +1,5 @@
 package chartercurrency;
 
-import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.EarnService;
 import chartercurrency.core.MintService;
@@ -67,16 +66,16 @@ final class StatsCommands {
 
         long banked = s.economy.totalSupply(coin);
         long treasuries = s.treasury.totalSupply();
-        source.sendSuccess(() -> Messages.body("Coin supply: " + Wallet.format(banked + treasuries)
-                + " Marks (banked " + Wallet.format(banked) + ", kingdom treasuries "
-                + Wallet.format(treasuries) + "). Coin carried in inventories is not counted."), false);
-        source.sendSuccess(() -> Messages.body("Minted: " + Wallet.format(s.book.stat(MintService.STAT_MINTED, today, 1))
-                + " Marks today, " + Wallet.format(s.book.stat(MintService.STAT_MINTED, today, 7)) + " this week."), false);
+        source.sendSuccess(() -> Messages.body("Coin supply: " + coin.describe(banked + treasuries)
+                + " (banked " + coin.describe(banked) + ", kingdom treasuries "
+                + coin.describe(treasuries) + "). Coin carried in inventories is not counted."), false);
+        source.sendSuccess(() -> Messages.body("Minted: " + coin.describe(s.book.stat(MintService.STAT_MINTED, today, 1))
+                + " today, " + coin.describe(s.book.stat(MintService.STAT_MINTED, today, 7)) + " this week."), false);
         source.sendSuccess(() -> Messages.body("Mint tax: collected "
-                + Wallet.format(s.book.stat(MintService.STAT_TAX_PAID, today, 1)) + " today ("
-                + Wallet.format(s.book.stat(MintService.STAT_TAX_PAID, today, 7)) + " this week), destroyed "
-                + Wallet.format(s.book.stat(MintService.STAT_TAX_DESTROYED, today, 1)) + " today ("
-                + Wallet.format(s.book.stat(MintService.STAT_TAX_DESTROYED, today, 7)) + " this week)."), false);
+                + coin.describe(s.book.stat(MintService.STAT_TAX_PAID, today, 1)) + " today ("
+                + coin.describe(s.book.stat(MintService.STAT_TAX_PAID, today, 7)) + " this week), destroyed "
+                + coin.describe(s.book.stat(MintService.STAT_TAX_DESTROYED, today, 1)) + " today ("
+                + coin.describe(s.book.stat(MintService.STAT_TAX_DESTROYED, today, 7)) + " this week)."), false);
 
         Currency valor = s.currencies.byId("valor").orElse(null);
         if (valor != null) {
@@ -99,8 +98,8 @@ final class StatsCommands {
             String name = Treasury.COMMONS.equals(id) ? "Commons" : s.kingdoms.source().displayName(id);
             source.sendSuccess(() -> Messages.body("  " + name + ": Renown " + Wallet.format(s.treasury.renown(id))
                     + " (earned " + Wallet.format(s.treasury.renownLifetime(id)) + "), treasury "
-                    + Wallet.format(s.treasury.balance(id)) + " Marks, tax collected "
-                    + Wallet.format(s.treasury.taxCollected(id))), false);
+                    + coin.describe(s.treasury.balance(id)) + ", tax collected "
+                    + coin.describe(s.treasury.taxCollected(id))), false);
         }
         source.sendSuccess(Messages::rule, false);
         return 1;
@@ -108,8 +107,7 @@ final class StatsCommands {
 
     /**
      * {@code /chartercurrency stats history [days]}: the last snapshot lines from
-     * {@code analytics/snapshots.jsonl}, two lines each. Coin is quoted in Gold Sovereigns
-     * first, with Marks in brackets.
+     * {@code analytics/snapshots.jsonl}, two lines each. Coin is quoted in Gold Sovereigns.
      */
     private int history(CommandContext<CommandSourceStack> ctx, int count) {
         CommandSourceStack source = ctx.getSource();
@@ -132,7 +130,7 @@ final class StatsCommands {
                     : "No snapshot yet, and analytics is off in settings.json.";
             source.sendSuccess(() -> Messages.body(why), false);
         }
-        source.sendSuccess(() -> Messages.body("Sovereigns first, Marks in brackets. Carried coin counts online players only."), false);
+        source.sendSuccess(() -> Messages.body("Coin in Gold Sovereigns. Carried coin counts online players only."), false);
         for (JsonObject line : lines) {
             String day = text(line, "day") + ("startup".equals(text(line, "reason")) ? ", at startup" : ", end of day");
             JsonObject coin = line.getAsJsonObject("coin");
@@ -161,9 +159,9 @@ final class StatsCommands {
         return 1;
     }
 
-    /** Marks as {@code 1,234.5 Sovereigns (79,008 Marks)}. */
+    /** Marks as {@code 1,234.5 Sovereigns}. */
     private static String coin(long marks) {
-        return Analytics.sovereigns(marks) + " Sovereigns (" + Wallet.format(marks) + " Marks)";
+        return Wallet.sovereignWords(marks);
     }
 
     private static long num(JsonObject o, String key) {

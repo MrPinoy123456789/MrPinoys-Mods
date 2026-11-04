@@ -107,7 +107,7 @@ public final class Notices {
                 if (e.to() == null) return;
                 boolean paid = messenger.payOut(e.org(), e.to(), e.marks());
                 tell(e.at(), Set.of(e.to()), Text.get(paid ? "notice.paid" : "notice.pay_failed", "org", describe.org(e.org()),
-                        "amount", e.marks()));
+                        "amount", charter.api.Coin.words(e.marks())));
             }
             // ---- keep upkeep: to the whole faction, subordinates included, as alerts ----
             case SiegeEvents.WarDeclared e -> {
@@ -125,9 +125,9 @@ public final class Notices {
             }
             case SiegeEvents.OutpostCaptured e -> {
                 alert(e.at(), faction(e.defender()), Text.get("notice.outpost_lost", "org", describe.org(e.attacker()),
-                        "site", describe.core(e.outpost()), "deposit", e.depositMarks()));
+                        "site", describe.core(e.outpost()), "deposit", charter.api.Coin.words(e.depositMarks())));
                 alert(e.at(), faction(e.attacker()), Text.get("notice.outpost_taken", "org", describe.org(e.defender()),
-                        "site", describe.core(e.outpost()), "deposit", e.depositMarks()));
+                        "site", describe.core(e.outpost()), "deposit", charter.api.Coin.words(e.depositMarks())));
             }
             case SiegeEvents.WarLapsed e -> {
                 alert(e.at(), faction(e.defender()), Text.get("notice.war_lapsed", "org", describe.org(e.attacker()),
@@ -154,7 +154,7 @@ public final class Notices {
                         "player", describe.player(e.subject().player()), "terms", terms));
             }
             case charter.contract.ContractEvents.FinedMarks e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.fined",
-                    "org", describe.org(e.to()), "asked", e.asked(), "paid", e.paid()));
+                    "org", describe.org(e.to()), "asked", charter.api.Coin.words(e.asked()), "paid", charter.api.Coin.words(e.paid())));
             case charter.contract.ContractEvents.Escaped e -> tell(e.at(), faction(e.faction()), Text.get("notice.escaped",
                     "player", describe.player(e.prisoner())));
             case charter.contract.ContractEvents.Bailed e -> tell(e.at(), Set.of(e.prisoner()), Text.get("notice.bailed", "org", describe.org(e.payer()), "to", describe.org(e.to())));

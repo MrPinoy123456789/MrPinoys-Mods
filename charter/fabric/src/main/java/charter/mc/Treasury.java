@@ -22,11 +22,11 @@ public final class Treasury {
         return !(rt.state.payment instanceof NoPayment);
     }
 
-    /** "1250 Marks", or null when no provider is installed. */
+    /** "19.53 Sovereigns", or null when no provider is installed. */
     public static String balance(CharterRuntime rt, OrgId org) {
         if (!available(rt)) return null;
         long n = rt.state.payment.balance(org.toString());
-        return Text.get("vault.marks", "amount", n);
+        return Text.get("vault.marks", "amount", charter.api.Coin.words(n));
     }
 
     /**

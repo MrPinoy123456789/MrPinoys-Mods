@@ -81,15 +81,15 @@ public final class VoteCommandGameTest {
 
         // The vault.
         GamePort port = GamePort.of(rt);
-        port.fund(org, 10);
+        port.fund(org, 640); // 10 Sovereigns
         alice.getInventory().add(new ItemStack(Items.DIAMOND, 10));
         as(alice, "charter vault deposit");
-        helper.assertTrue(port.marks(org) == 10, "A vault deposit changed the treasury");
+        helper.assertTrue(port.marks(org) == 640, "A vault deposit changed the treasury");
         helper.assertTrue(diamonds(alice) == 10, "The vault took diamonds");
 
         // A spend needs a vote: propose it, then Bob votes yes from his vote page.
-        as(alice, "charter vault withdraw 4");
-        helper.assertTrue(port.marks(org) == 10, "A commune member spent without a vote");
+        as(alice, "charter vault withdraw 4"); // 4 Sovereigns
+        helper.assertTrue(port.marks(org) == 640, "A commune member spent without a vote");
         click(helper, alice, "link.propose");
         Vote vote = rt.state.votes().stream().filter(v -> v.org.equals(org) && v.open()).findFirst().orElse(null);
         helper.assertTrue(vote != null, "Proposing the spend opened no vote");

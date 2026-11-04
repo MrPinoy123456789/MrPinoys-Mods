@@ -269,6 +269,43 @@ public final class Wallet {
      * balance that reads like a decimal.
      */
     public static String format(long amount) {
+        return group(amount);
+    }
+
+    /** Marks in one Gold Sovereign. */
+    public static final long MARKS_PER_SOVEREIGN = 64;
+
+    /**
+     * Marks as Gold Sovereigns, the only unit a player sees (owner, 2026-11-04): whole
+     * Sovereigns with group separators, {@code 2,261}, and a remainder as a decimal of at
+     * most two places, {@code 2,261.5}. The decimal is cut, never rounded, so a balance is
+     * never shown as more than it is: 63 Marks read {@code 0.98}, and 1 Mark {@code 0.01}.
+     * A nonzero remainder never reads as {@code .00}. Marks stay the unit in code and files.
+     */
+    public static String sovereigns(long marks) {
+        return inUnits(marks, MARKS_PER_SOVEREIGN);
+    }
+
+    /** {@link #sovereigns} for a coin of any face value: whole coins and a cut two place decimal. */
+    public static String inUnits(long marks, long unit) {
+        long abs = marks == Long.MIN_VALUE ? Long.MAX_VALUE : Math.abs(marks);
+        long whole = abs / unit;
+        long hundredths = (abs % unit) * 100 / unit;
+        String out = group(whole);
+        if (hundredths > 0) {
+            String frac = hundredths < 10 ? "0" + hundredths : Long.toString(hundredths);
+            if (frac.endsWith("0")) frac = frac.substring(0, 1);
+            out += "." + frac;
+        }
+        return marks < 0 ? "-" + out : out;
+    }
+
+    /** {@code 1 Sovereign}, {@code 0.5 Sovereigns}, {@code 2,261 Sovereigns}. */
+    public static String sovereignWords(long marks) {
+        return sovereigns(marks) + (marks == MARKS_PER_SOVEREIGN ? " Sovereign" : " Sovereigns");
+    }
+
+    private static String group(long amount) {
         String digits = Long.toString(Math.abs(amount));
         StringBuilder out = new StringBuilder();
         int lead = digits.length() % 3;

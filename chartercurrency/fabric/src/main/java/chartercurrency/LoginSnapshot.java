@@ -106,7 +106,7 @@ public final class LoginSnapshot {
             List<LeaderboardService.Rank> rows = leaderboard.top(currency, limit);
             if (rows.isEmpty()) continue;
 
-            lines.add(Component.literal(symbolOf(currency) + " " + currency.displayName())
+            lines.add(Component.literal(symbolOf(currency) + " " + Messages.heading(currency))
                     .withStyle(Messages.HEADING));
             for (LeaderboardService.Rank row : rows) {
                 lines.add(Messages.rankLine(row.rank(), names.nameOf(row.player()),

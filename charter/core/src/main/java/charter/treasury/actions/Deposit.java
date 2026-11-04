@@ -33,7 +33,7 @@ public record Deposit(OrgId org, long marks) implements Action {
 
     @Override
     public Outcome check(ActionContext ctx) {
-        if (marks <= 0) return Outcome.refuse(new Reason("bad_amount", "Deposit at least one Mark."));
+        if (marks <= 0) return Outcome.refuse(new Reason("bad_amount", "Deposit an amount above nothing."));
         if (ctx.actor instanceof Actor.Player) return Outcome.refuse(NOT_BY_PLAYERS);
         return Outcome.OK;
     }
