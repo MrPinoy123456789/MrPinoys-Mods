@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import charter.api.KingdomView;
 import charter.api.PaymentPort;
 import charter.api.PaymentProvider;
@@ -27,7 +28,10 @@ public final class CharterPaymentProvider implements PaymentProvider {
             Services s = Services.current;
             if (s == null || marks <= 0) return false;
             boolean ok = s.treasury.charge(orgId, marks, "charter", "Charter", reason);
-            if (ok) s.log.tx("Charter charged " + marks + " Marks to the " + orgId + " treasury: " + reason);
+            if (ok) s.log.tx("Charter charged " + marks + " Marks to the " + orgId + " treasury: " + reason,
+                    Analytics.Event.of(Analytics.CHARTER_CHARGE).kingdom(orgId).currency(Analytics.COIN)
+                            .amount(marks).balanceAfter(s.treasury.balance(orgId))
+                            .put("from", "treasury").put("reason", reason));
             return ok;
         }
 
@@ -36,7 +40,10 @@ public final class CharterPaymentProvider implements PaymentProvider {
             Services s = Services.current;
             if (s == null || marks <= 0) return;
             if (s.treasury.credit(orgId, marks, "charter", "Charter", reason)) {
-                s.log.tx("Charter credited " + marks + " Marks to the " + orgId + " treasury: " + reason);
+                s.log.tx("Charter credited " + marks + " Marks to the " + orgId + " treasury: " + reason,
+                        Analytics.Event.of(Analytics.CHARTER_CREDIT).kingdom(orgId).currency(Analytics.COIN)
+                                .amount(marks).balanceAfter(s.treasury.balance(orgId))
+                                .put("to", "treasury").put("reason", reason));
             }
         }
 
@@ -52,7 +59,11 @@ public final class CharterPaymentProvider implements PaymentProvider {
             Services s = Services.current;
             if (s == null || player == null || marks <= 0) return false;
             boolean ok = s.economy.withdraw(player, s.coin(), marks).ok();
-            if (ok) s.log.tx("Charter charged " + marks + " Marks to the wallet of " + player + ": " + reason);
+            if (ok) s.log.tx("Charter charged " + marks + " Marks to the wallet of " + player + ": " + reason,
+                    Analytics.Event.of(Analytics.CHARTER_CHARGE).player(player, s.names.nameOf(player))
+                            .currency(Analytics.COIN).amount(marks)
+                            .balanceAfter(s.economy.getBalance(player, s.coin()))
+                            .put("from", "wallet").put("reason", reason));
             return ok;
         }
     };

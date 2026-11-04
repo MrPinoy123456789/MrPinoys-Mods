@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
@@ -217,6 +218,7 @@ public final class AdminCommands {
             amount = parsed.getAsLong();
         }
 
+        long before = economy.getBalance(id, currency);
         TxResult result = switch (op) {
             case SET -> economy.set(id, currency, amount);
             case ADD -> economy.deposit(id, currency, amount);
@@ -246,7 +248,11 @@ public final class AdminCommands {
 
         // The operator's name, not "an admin" -- on a server with several operators
         // "who did this" is the entire point of the line.
-        log.admin(source.getTextName() + " " + verb + " (balance " + finalBalance + ")");
+        log.admin(source.getTextName() + " " + verb + " (balance " + finalBalance + ")",
+                Analytics.Event.of(Analytics.ADMIN_BALANCE).player(id, display).currency(currency.id())
+                        .amount(amount).balanceAfter(finalBalance)
+                        .put("op", op.name().toLowerCase(java.util.Locale.ROOT))
+                        .put("delta", finalBalance - before).put("by", source.getTextName()));
 
         ServerPlayer online = source.getServer().getPlayerList().getPlayer(id);
         if (online != null) {

@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
 import chartercurrency.core.Denomination;
@@ -214,7 +215,10 @@ final class TreasuryCommands {
             source.sendSuccess(() -> Messages.body("Change: " + coin.describe(plan.change())), false);
         }
         s.log.tx(player.getName().getString() + " deposited " + credited + " Marks into the "
-                + org.get() + " treasury (balance " + s.treasury.balance(org.get()) + ")");
+                + org.get() + " treasury (balance " + s.treasury.balance(org.get()) + ")",
+                Analytics.Event.of(Analytics.TREASURY_DEPOSIT).player(player.getUUID(), player.getName().getString())
+                        .kingdom(org.get()).currency(Analytics.COIN).amount(credited)
+                        .balanceAfter(s.treasury.balance(org.get())).put("change", plan.change()));
         return 1;
     }
 
@@ -302,7 +306,10 @@ final class TreasuryCommands {
         source.sendSuccess(() -> Messages.body("Treasury now: ")
                 .append(Messages.priced(coin, s.treasury.balance(org.get()))), false);
         s.log.tx(player.getName().getString() + " withdrew " + marks + " Marks from the "
-                + org.get() + " treasury (balance " + s.treasury.balance(org.get()) + ")");
+                + org.get() + " treasury (balance " + s.treasury.balance(org.get()) + ")",
+                Analytics.Event.of(Analytics.TREASURY_WITHDRAW).player(player.getUUID(), player.getName().getString())
+                        .kingdom(org.get()).currency(Analytics.COIN).amount(marks)
+                        .balanceAfter(s.treasury.balance(org.get())));
         return 1;
     }
 

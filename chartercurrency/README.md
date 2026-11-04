@@ -200,6 +200,8 @@ a tier does belongs to Charter. Placeholders in commands: `%kingdom%`, `%kingdom
 | `players.json` | Mint state and tax counters, earn caps, probation clocks, daily totals. Refuses to load over a bad file |
 | `kingdoms_state.json` | Per organization: treasury, Renown, purchases, last 500 ledger lines. Refuses to load over a bad file |
 | `transactions.log` | Append-only audit trail of every movement |
+| `analytics/events-YYYY-MM-DD.jsonl` | The same movements as JSON lines, one file a day (`analytics.enabled` in `settings.json`, default on) |
+| `analytics/snapshots.jsonl` | One JSON line a day: supply, top ten, concentration, the day's flows, Valor, treasuries, shop sales. `/chartercurrency stats history [days]` shows them |
 
 All state files are written atomically on a 15 second debounce and at clean shutdown.
 

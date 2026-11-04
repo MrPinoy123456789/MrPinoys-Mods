@@ -1,5 +1,6 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.EarnService;
 import chartercurrency.core.KingdomSource;
 import chartercurrency.core.Treasury;
@@ -141,7 +142,13 @@ final class RenownCommands {
         source.sendSuccess(() -> Messages.good("Awarded " + display + ": " + line), true);
         s.log.tx(display + " earned " + r.valor() + " Valor from " + sourceKey
                 + (level > 0 ? " level " + level : "") + (run != null ? " run " + run : "")
-                + "; Renown " + r.renown() + " to " + r.renownTarget() + " (" + r.outcome() + ")");
+                + "; Renown " + r.renown() + " to " + r.renownTarget() + " (" + r.outcome() + ")",
+                Analytics.Event.of(Analytics.VALOR_EARN).player(id.get(), display).kingdom(kingdom)
+                        .currency("valor").amount(r.valor()).put("source", sourceKey)
+                        .put("level", level).put("run", run).put("valorRaw", r.valorRaw())
+                        .put("halved", r.halved()).put("hardCapped", r.hardCapped())
+                        .put("renown", r.renown()).put("renownTo", r.renownTarget())
+                        .put("outcome", String.valueOf(r.outcome())));
         return 1;
     }
 
@@ -188,7 +195,10 @@ final class RenownCommands {
                 + " Renown " + (add ? "to " : "from ") + org.get() + ". Now "
                 + Wallet.format(s.treasury.renown(org.get())) + "."), true);
         s.log.admin(source.getTextName() + (add ? " added " : " removed ") + amount + " Renown "
-                + (add ? "to " : "from ") + org.get());
+                + (add ? "to " : "from ") + org.get(),
+                Analytics.Event.of(Analytics.RENOWN_ADMIN).kingdom(org.get()).currency("renown")
+                        .amount(amount).balanceAfter(s.treasury.renown(org.get()))
+                        .put("delta", add ? amount : -amount).put("by", source.getTextName()));
         return 1;
     }
 
@@ -396,7 +406,10 @@ final class RenownCommands {
         source.sendSuccess(() -> Messages.good("Bought " + entry.name() + " for " + Wallet.format(entry.cost())
                 + " Renown."), false);
         s.log.tx(player.getName().getString() + " bought " + entry.key() + " for " + entry.cost()
-                + " Renown for " + org);
+                + " Renown for " + org,
+                Analytics.Event.of(Analytics.RENOWN_BUY).player(player.getUUID(), player.getName().getString())
+                        .kingdom(org).currency("renown").amount(entry.cost())
+                        .balanceAfter(s.treasury.renown(org)).put("item", entry.key()));
         runCommands(source.getServer(), entry, org, player.getName().getString());
         return 1;
     }
