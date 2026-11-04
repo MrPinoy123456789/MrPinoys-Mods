@@ -691,7 +691,7 @@ the day's flows) is `core/Analytics`, under test.
 | `strike` | The Mint | `denomination`, `ingots`, `coinsStruck`, `coinsToPlayer`, `coinsBanked` (pockets full), `coinsToKingdom`, `taxMarks`, `taxKept` (false: no kingdom, the tax is destroyed) |
 | `deposit`, `withdraw` | `/bank`, right-click deposit | `via`, `change`, `denomination`, `count` |
 | `pay` | `/pay` | `to`, `toName`, `toBalanceAfter` |
-| `shop_purchase` | The shop | `item` (listing key), `itemId`, `quantity` (items per purchase), `price` (currency to amount for one purchase) |
+| `shop_purchase` | The shop | `item` (listing key), `itemId`, `quantity` (items per purchase), `price` (currency to amount for one purchase), `unitPrice` (price per item, single currency prices only) |
 | `treasury_deposit`, `treasury_withdraw` | `/treasury` | `change` |
 | `treasury_pay`, `treasury_give` | `/chartercurrency treasury pay\|give` | `to`, `playerBalanceAfter`, `by` |
 | `treasury_admin` | `/chartercurrency treasury add\|remove` | `delta`, `by` |
@@ -706,7 +706,9 @@ carry them.
 **Snapshots.** `analytics/snapshots.jsonl` gets one line at each day rollover, for
 the day that ended (`"reason": "rollover"`), and one at startup when the file has no
 line for today yet (`"reason": "startup"`). A server that was down over midnight
-writes no rollover line for that night. Each line:
+writes no rollover line for that night. The new day is noticed by the server tick, so
+a server paused while empty (`pause-when-empty-seconds`) takes the rollover line when
+it next ticks; the line still belongs to the day that ended. Each line:
 
 - `coin`: `banked`, `treasuries`, `carriedOnline` and `onlinePlayers`, `counted` (their
   sum), and `carriedNote`. Carried coin is counted for players online at that moment

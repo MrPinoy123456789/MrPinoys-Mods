@@ -100,7 +100,8 @@ final class ShopPurchase {
                 .player(player.getUUID(), player.getName().getString());
         if (price.size() == 1) {
             var only = price.entrySet().iterator().next();
-            event.currency(only.getKey()).amount(only.getValue());
+            event.currency(only.getKey()).amount(only.getValue())
+                    .put("unitPrice", entry.quantity() > 0 ? (double) only.getValue() / entry.quantity() : null);
         } else {
             event.currency("compound");
         }
