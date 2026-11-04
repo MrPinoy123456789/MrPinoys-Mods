@@ -651,6 +651,36 @@ public final class WornGameTest {
         });
     }
 
+    /**
+     * A Fae with a mace in hand folds the wings for a dive: a burst looking straight up steers without climbing and keeps
+     * the fall so far (so the smash counts the whole drop); without the mace the same burst lifts and resets the fall.
+     */
+    @GameTest(maxTicks = 60)
+    public void aFaeWithAMaceDivesInsteadOfClimbing(GameTestHelper helper) {
+        ServerPlayer fae = player(helper, "race:faeloria");
+        helper.runAfterDelay(25, () -> {
+            var d = foundry.core.RaceTraits.Dash.DEFAULT;
+            helper.assertFalse(foundry.mc.DoubleJump.diving(fae), "An empty hand counts as a mace");
+            fae.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(net.minecraft.world.item.Items.MACE));
+            helper.assertTrue(foundry.mc.DoubleJump.diving(fae), "A mace in hand does not fold the wings");
+            fae.setYRot(0f);
+            fae.setXRot(-90f);
+            fae.setDeltaMovement(0, -0.6, 0);
+            fae.fallDistance = 8;
+            foundry.mc.DoubleJump.burst(fae, d);
+            var v = fae.getDeltaMovement();
+            helper.assertTrue(v.y <= -0.6 + 1e-6 && fae.fallDistance == 8,
+                    "Diving with a mace a burst climbed or broke the fall: " + v + ", fall " + fae.fallDistance);
+            fae.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(net.minecraft.world.item.Items.IRON_SWORD));
+            helper.assertFalse(foundry.mc.DoubleJump.diving(fae), "A sword counts as a mace");
+            fae.setDeltaMovement(0, -0.6, 0);
+            foundry.mc.DoubleJump.burst(fae, d);
+            helper.assertTrue(Math.abs(fae.getDeltaMovement().y - d.up()) < 1e-6 && fae.fallDistance == 0,
+                    "Without the mace a burst looking up should lift and reset the fall: " + fae.getDeltaMovement());
+            helper.succeed();
+        });
+    }
+
     /** Only a race with a double jump gets one. */
     @GameTest(maxTicks = 40)
     public void onlyTheFaeDoubleJump(GameTestHelper helper) {

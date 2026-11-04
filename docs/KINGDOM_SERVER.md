@@ -250,7 +250,9 @@ How the new traits work (Foundry, `config/foundry/race_traits.json`, built in de
 - The Fae fly by wing dash (`wing_dash` in `race_traits.json`; built 2026-11-02, see
   `docs/FAELORIA_FLIGHT_OPTIONS.md`): jump in the air beats the leaf wings, a burst the way they look (`forward` 1.2
   blocks a tick, `up` 0.8 looking straight up, half that looking level, none looking down). After a burst they fall
-  slowly (a short, hidden Slow Falling, renewed while it lasts) until they land or press sneak. `charges` 3, all back on
+  slowly (a short, hidden Slow Falling, renewed while it lasts) until they land or press sneak. A Fae holding a mace
+  folds the wings for a dive (added 2026-11-03): no slow fall, and a burst only steers; it never climbs or slows the
+  drop and keeps the fall so far, so the mace's smash counts the whole drop. `charges` 3, all back on
   landing and one back every `refill` 30 ticks in the air, at least `gap` 8 ticks apart, so a Fae who paces the bursts
   stays up: at one burst per refill, looking about half up gains about a block a beat and looking level loses about
   1.7 (a `refill` of 20 holds height looking level). The server runs with allow-flight off, so a Fae who has beaten
