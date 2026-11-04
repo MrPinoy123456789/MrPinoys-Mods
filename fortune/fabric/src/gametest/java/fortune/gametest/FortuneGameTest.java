@@ -238,7 +238,25 @@ public final class FortuneGameTest {
         helper.assertTrue(FortuneKit.BANK.chargesFor(rich.getUUID()) == 1 && FortuneKit.BANK.balance(rich.getUUID()) == 10 * 64L,
                 "The 5 Sovereign stake was not charged exactly five Sovereigns, once");
         helper.assertTrue(staked.spin().reward().level() >= staked.spin().outcome().row().level(), "A stake lowered the reward");
+        // The stake goes to the economy with its reason, which Charter Currency writes as the transactions.log line
+        // (EC-4; the line's words are pinned in its EconomyTest).
+        String reason = "fortune_stake (5 Sovereigns at Fantasy's Fortune)";
+        helper.assertTrue(FortuneKit.BANK.reasons.contains(reason),
+                "The stake was charged without the fortune_stake reason: " + FortuneKit.BANK.reasons);
         richGui.close();
+        helper.succeed();
+    }
+
+    @GameTest
+    public void aPayoutThatPaysNothingWarnsOnceNotOnEverySpin(GameTestHelper helper) {
+        FortuneService service = FortuneKit.service(helper);
+        int before = service.zeroPayCount();
+        service.noteEarnResult(1, "earn");
+        service.noteEarnResult(-1, "skipped");
+        helper.assertTrue(service.zeroPayCount() == before, "A payout that ran or was skipped counted as paying nothing");
+        service.noteEarnResult(0, "earn");
+        service.noteEarnResult(0, "earn");
+        helper.assertTrue(service.zeroPayCount() == before + 2, "Payouts that paid nothing were not counted");
         helper.succeed();
     }
 

@@ -4,14 +4,13 @@ import chartercurrency.EconomyApi;
 import chartercurrency.core.Currency;
 import chartercurrency.core.CurrencyRegistry;
 import chartercurrency.core.EconomyService;
-import fortune.core.Stake;
 
 import java.util.UUID;
 
 /**
  * The only class that touches Charter Currency. It is loaded only when that mod is present ({@link StakeBank#detect}),
- * so Fortune runs without it. The stake is a withdrawal from the player's banked Coin, logged here with the reason
- * {@code fortune_stake} (Charter Currency's own withdraw takes no reason) and in spins.jsonl.
+ * so Fortune runs without it. The stake is a withdrawal from the player's banked Coin through
+ * {@code EconomyApi.chargeExternal}, which logs it with the reason {@code fortune_stake}; spins.jsonl records it too.
  */
 final class CurrencyBank implements StakeBank {
 
@@ -32,13 +31,10 @@ final class CurrencyBank implements StakeBank {
     }
 
     @Override
-    public boolean charge(UUID player, String name, long marks) {
-        EconomyService economy = EconomyApi.economy();
-        if (economy == null || marks <= 0) return false;
-        boolean ok = economy.withdraw(player, coin(), marks).ok();
-        if (ok) FortuneMod.LOG.info("[Economy] fortune_stake: {} ({}) staked {} at Fantasy's Fortune ({} Marks)", name, player,
-                Stake.sovereignText(Stake.sovereigns(marks)), marks);
-        return ok;
+    public boolean charge(UUID player, String name, long marks, String reason) {
+        if (EconomyApi.economy() == null || marks <= 0) return false;
+        // Charter Currency writes the transactions.log line and the analytics event, and flushes the account file.
+        return EconomyApi.chargeExternal(player, name, marks, reason).ok();
     }
 
     private static Currency coin() {

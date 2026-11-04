@@ -44,6 +44,33 @@ repositories {
 
 loom {
     // No client source set: this mod is server-side only.
+    runs.configureEach {
+        if (name == "gameTest") {
+            // A JUnit style report of every gametest by name; the server log only prints a count.
+            vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory.get().asFile}/gametest-report.xml")
+            // A fixed, small heap: this machine runs out of commit space with larger ones.
+            vmArg("-Xmx1500m")
+        }
+    }
+}
+
+// The gametest harness, as in fortune. The source set carries its own fabric.mod.json (mod id
+// chartercurrency-gametest), so nothing test related enters the shipped jar. Every gametest class must be
+// listed there or it never runs. The classes sit in the package chartercurrency to reach its package private
+// services (coins, the Mint, the shop), the way a test of this mod's own code has to.
+fabricApi.configureTests {
+    createSourceSet = true
+    modId = "chartercurrency-gametest"
+    enableGameTests = true
+    enableClientGameTests = false
+}
+
+// Every gametest run starts from a fresh world and a fresh config.
+tasks.matching { it.name == "runGameTest" }.configureEach {
+    doFirst {
+        delete(layout.buildDirectory.dir("run/gameTest/world"))
+        delete(layout.buildDirectory.dir("run/gameTest/config/chartercurrency"))
+    }
 }
 
 java {

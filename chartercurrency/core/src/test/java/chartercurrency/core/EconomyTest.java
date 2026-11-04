@@ -79,6 +79,7 @@ public final class EconomyTest {
         mintTax();
         banks();
         treasury();
+        earnMerge();
         earnRules();
         renownRules();
         renownCatalogue();
@@ -925,6 +926,35 @@ public final class EconomyTest {
         check("the second of two Lords may withdraw", Treasury.mayWithdraw(twoLords, "pair", JAMIE, false));
         check("a member of a two Lord kingdom may not", !Treasury.mayWithdraw(twoLords, "pair", ALEX, false));
 
+        // The spend limit (EC-3): a Lord with a limit may take up to it and no more; an op is not limited.
+        KingdomSource limited = new KingdomSource() {
+            public java.util.Optional<String> kingdomOf(UUID player) { return java.util.Optional.of("ltd"); }
+            public java.util.Optional<UUID> lordOf(String id) { return java.util.Optional.of(STEVE); }
+            public String displayName(String id) { return id; }
+            public java.util.Collection<String> kingdomIds() { return java.util.List.of("ltd"); }
+            public java.util.OptionalLong spendLimit(String id, UUID player) {
+                return player.equals(STEVE) ? java.util.OptionalLong.of(640) : java.util.OptionalLong.empty();
+            }
+        };
+        check("a Lord may take exactly the limit", Treasury.mayWithdrawCoin(limited, "ltd", STEVE, false, 640));
+        check("a Lord may not take one Mark over the limit", !Treasury.mayWithdrawCoin(limited, "ltd", STEVE, false, 641));
+        check("a member with no spend right may not", !Treasury.mayWithdrawCoin(limited, "ltd", ALEX, false, 1));
+        check("an op is not held to the limit", Treasury.mayWithdrawCoin(limited, "ltd", JAMIE, true, 1_000_000));
+        check("with no limit set the Lord may take any amount (the live default of -1)",
+                Treasury.mayWithdrawCoin(k, "northreach", STEVE, false, Long.MAX_VALUE));
+        check("a member of a kingdom with no limit still may not", !Treasury.mayWithdrawCoin(k, "northreach", ALEX, false, 1));
+        KingdomSource governed = new KingdomSource() {
+            public java.util.Optional<String> kingdomOf(UUID player) { return java.util.Optional.of("g"); }
+            public java.util.Optional<UUID> lordOf(String id) { return java.util.Optional.of(STEVE); }
+            public String displayName(String id) { return id; }
+            public java.util.Collection<String> kingdomIds() { return java.util.List.of("g"); }
+            public boolean governsSpending() { return true; }
+        };
+        check("when Charter governs spending even the Lord is sent to Charter's Withdraw",
+                !Treasury.mayWithdrawCoin(governed, "g", STEVE, false, 1));
+        check("when Charter governs spending an op may still act", Treasury.mayWithdrawCoin(governed, "g", JAMIE, true, 1));
+        check("Renown spending keeps the plain Lord rule", Treasury.mayWithdraw(governed, "g", STEVE, false));
+
         // never negative under concurrent withdrawals
         Treasury race = new Treasury();
         race.credit("a", 1_000, "deposit", "x", "");
@@ -955,6 +985,41 @@ public final class EconomyTest {
         shutdown(pool2);
         check("800 racing tax credits are never lost", taxes.balance("a") == 6_400
                 && taxes.taxCollected("a") == 6_400);
+    }
+
+    // ---- earn defaults merge (EC-2) -----------------------------------------
+
+    private static void earnMerge() {
+        section("Earn defaults merge");
+        Map<String, EarnService.Source> shipped = new LinkedHashMap<>();
+        shipped.put("dungeon", new EarnService.Source("dungeon", 10, 2, 150, 0, 1.0));
+        shipped.put("fortune", new EarnService.Source("fortune", 4, 2, 60, 0, 0.5));
+        EarnService.Config defaults = new EarnService.Config(shipped, 120, 30, 7);
+
+        // The live file: fortune already there with an operator's renownMultiplier of 1.0.
+        Map<String, EarnService.Source> live = new LinkedHashMap<>();
+        live.put("dungeon", new EarnService.Source("dungeon", 99, 9, 999, 0, 1.0));
+        live.put("fortune", new EarnService.Source("fortune", 4, 2, 60, 0, 1.0));
+        EarnService.Config liveCfg = new EarnService.Config(live, 500, 30, 7);
+        check("a complete file reports nothing missing", liveCfg.missingFrom(defaults).isEmpty());
+        EarnService.Config same = liveCfg.withMissingFrom(defaults);
+        check("the operator's fortune renownMultiplier 1.0 is kept", same.sources().get("fortune").renownMultiplier() == 1.0);
+        check("the operator's dungeon tuning is kept", same.sources().get("dungeon").base() == 99);
+        check("the operator's settings outside sources are kept", same.perPlayerDailyCap() == 500);
+
+        // An older file with no fortune source gets the shipped one and nothing else changes.
+        Map<String, EarnService.Source> old = new LinkedHashMap<>();
+        old.put("dungeon", new EarnService.Source("dungeon", 99, 9, 999, 0, 1.0));
+        EarnService.Config oldCfg = new EarnService.Config(old, 500, 30, 7);
+        check("fortune is reported missing", oldCfg.missingFrom(defaults).equals(java.util.List.of("fortune")));
+        EarnService.Config merged = oldCfg.withMissingFrom(defaults);
+        EarnService.Source fortune = merged.sources().get("fortune");
+        check("the shipped fortune source is added", fortune != null && fortune.base() == 4 && fortune.perLevel() == 2
+                && fortune.softCap() == 60 && fortune.hardCap() == 0 && fortune.renownMultiplier() == 0.5);
+        check("merging does not touch what the operator set", merged.sources().get("dungeon").base() == 99);
+
+        check("the external charge line names the player, the Marks and the reason",
+                ExternalCharge.line("Alex", 320, "fortune_stake").equals("Alex was charged 320 Marks for fortune_stake"));
     }
 
     // ---- earn and renown ----------------------------------------------------

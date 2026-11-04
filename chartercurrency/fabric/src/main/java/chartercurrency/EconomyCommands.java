@@ -447,6 +447,8 @@ public final class EconomyCommands {
             }
         }
 
+        // The coins are in the inventory now: write the debit before a crash can keep both (EC-6).
+        if (services != null) services.flushMoney.run();
         long taken = marks;
         source.sendSuccess(() -> Messages.good("Withdrew ")
                 .append(Messages.priced(coin, taken))

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "chartercurrency-gametest",
+  "version": "1.0.0",
+  "name": "Charter Currency Gametests",
+  "description": "Development only gametests for Charter Currency. This lives in the gametest source set, never in the shipped mod jar.",
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-gametest": [
+      "chartercurrency.CoinGameTest",
+      "chartercurrency.MintAndShopGameTest",
+      "chartercurrency.EarnAndChargeGameTest"
+    ]
+  },
+  "depends": {
+    "chartercurrency": "*"
+  }
+}

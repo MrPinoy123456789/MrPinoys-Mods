@@ -220,7 +220,7 @@ public final class FortuneService {
         Settings.StakeTier chosen = stakeOffered() ? Stake.tier(settings, record.stakeTier) : null;
         boolean charged = false;
         if (chosen != null && Stake.affordable(chosen, bank.balance(id))) {
-            charged = bank.charge(id, record.name, Stake.costMarks(chosen));
+            charged = bank.charge(id, record.name, Stake.costMarks(chosen), Stake.reason(chosen));
         }
         Settings.StakeTier stake = Stake.applied(chosen, charged);
 
@@ -249,6 +249,27 @@ public final class FortuneService {
         }
         store.appendSpin(logLine(player, record, spin, stake, at));
         return new Pull.Spun(spin, milestone, chosen != null && stake == null);
+    }
+
+    private final java.util.concurrent.atomic.AtomicInteger zeroPayWarnings = new java.util.concurrent.atomic.AtomicInteger();
+
+    /**
+     * Called with the result of the payout command. A result of 0 means the Valor did not arrive (Charter Currency
+     * has no {@code fortune} earn source, or refused the player), while the reveal still says "+N Valor". Warns
+     * once per start so the operator finds out without a log flood. A result below 0 means the command did not run.
+     */
+    public void noteEarnResult(int result, String command) {
+        if (result != 0) return;
+        if (zeroPayWarnings.incrementAndGet() == 1) {
+            FortuneMod.LOG.warn("The payout command paid nothing: {} . Valor shown at the reveal is not arriving. "
+                    + "Check that Charter Currency's earn.json has a \"fortune\" source (newer versions add it by themselves).",
+                    command);
+        }
+    }
+
+    /** How many payouts paid nothing since start; the warning prints on the first. */
+    public int zeroPayCount() {
+        return zeroPayWarnings.get();
     }
 
     /** True when the stake buttons are shown: the knob is on and a bank (Charter Currency) is there. */

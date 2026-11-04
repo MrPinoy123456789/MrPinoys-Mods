@@ -40,6 +40,9 @@ final class EarnConfigFile {
         sources.put("buildoff_1st", new EarnService.Source("buildoff_1st", 100, 0, 0, 0, 1.0));
         sources.put("buildoff_2nd", new EarnService.Source("buildoff_2nd", 60, 0, 0, 0, 1.0));
         sources.put("buildoff_3rd", new EarnService.Source("buildoff_3rd", 30, 0, 0, 0, 1.0));
+        // Fantasy's Fortune pays its Valor through this source (base 4 + 2 per level, soft cap 60).
+        // The half Renown multiplier keeps alt accounts from farming a kingdom's Renown (EC-10).
+        sources.put("fortune", new EarnService.Source("fortune", 4, 2, 60, 0, 0.5));
         return new EarnService.Config(sources, 120, 30, 7);
     }
 
@@ -52,7 +55,8 @@ final class EarnConfigFile {
         try (Reader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             JsonObject root = JsonParser.parseReader(in).getAsJsonObject();
             Map<String, EarnService.Source> sources = new LinkedHashMap<>();
-            for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("sources").entrySet()) {
+            JsonObject fileSources = root.getAsJsonObject("sources");
+            for (Map.Entry<String, JsonElement> e : fileSources.entrySet()) {
                 JsonObject o = e.getValue().getAsJsonObject();
                 String key = e.getKey().toLowerCase(Locale.ROOT);
                 sources.put(key, new EarnService.Source(key,
@@ -69,23 +73,39 @@ final class EarnConfigFile {
                 window = Math.max(0, num(r, "runWindowSeconds", 30));
                 probation = (int) Math.max(0, num(r, "probationDays", 7));
             }
-            return new EarnService.Config(sources, perPlayer, window, probation);
+            EarnService.Config loaded = new EarnService.Config(sources, perPlayer, window, probation);
+            // A file written before a source existed (fortune) keeps its own values; only the
+            // missing sources are added, in memory and in the file, so the operator can see them.
+            EarnService.Config defaults = defaultsEarn();
+            List<String> missing = loaded.missingFrom(defaults);
+            if (missing.isEmpty()) return loaded;
+            for (String key : missing) {
+                fileSources.add(key, sourceJson(defaults.sources().get(key)));
+            }
+            write(file, root);
+            CharterCurrencyMod.LOG.info("earn.json was missing the default source(s) {}; added them with the shipped values",
+                    missing);
+            return loaded.withMissingFrom(defaults);
         } catch (Exception e) {
             CharterCurrencyMod.LOG.warn("earn.json could not be read; keeping the previous settings", e);
             return fallback;
         }
     }
 
+    private static JsonObject sourceJson(EarnService.Source s) {
+        JsonObject o = new JsonObject();
+        o.addProperty("base", s.base());
+        o.addProperty("perLevel", s.perLevel());
+        o.addProperty("softCap", s.softCap());
+        o.addProperty("hardCap", s.hardCap());
+        o.addProperty("renownMultiplier", s.renownMultiplier());
+        return o;
+    }
+
     private static void writeEarn(Path file, EarnService.Config cfg) {
         JsonObject sources = new JsonObject();
         for (EarnService.Source s : cfg.sources().values()) {
-            JsonObject o = new JsonObject();
-            o.addProperty("base", s.base());
-            o.addProperty("perLevel", s.perLevel());
-            o.addProperty("softCap", s.softCap());
-            o.addProperty("hardCap", s.hardCap());
-            o.addProperty("renownMultiplier", s.renownMultiplier());
-            sources.add(s.key(), o);
+            sources.add(s.key(), sourceJson(s));
         }
         JsonObject renown = new JsonObject();
         renown.addProperty("perPlayerDailyCap", cfg.perPlayerDailyCap());

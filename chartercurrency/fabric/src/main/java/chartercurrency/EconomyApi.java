@@ -1,6 +1,11 @@
 package chartercurrency;
 
+import chartercurrency.core.Analytics;
 import chartercurrency.core.CurrencyRegistry;
+import chartercurrency.core.ExternalCharge;
+import chartercurrency.core.TxResult;
+import chartercurrency.core.TxStatus;
+import java.util.UUID;
 import chartercurrency.core.EconomyService;
 import chartercurrency.core.LeaderboardService;
 import chartercurrency.core.ShopCatalog;
@@ -48,6 +53,34 @@ public final class EconomyApi {
     /** The live shop catalog, or null. */
     public static ShopCatalog shop() {
         return shop;
+    }
+
+    /**
+     * Takes marks of coin from a player's bank for another mod, and records it: a line in
+     * transactions.log and an analytics event, with the reason, then flushes the account file.
+     * This is what keeps supply snapshots balanced when Fortune stakes coin. Returns the
+     * withdrawal result; a failure changes and logs nothing.
+     */
+    public static TxResult chargeExternal(UUID player, String playerName, long marks, String reason) {
+        EconomyService service = economy;
+        Services s = Services.current;
+        if (service == null || s == null) {
+            return new TxResult(TxStatus.INVALID_AMOUNT, null, marks, 0, 0);
+        }
+        TxResult result = service.withdraw(player, s.coin(), marks);
+        if (!result.ok()) return result;
+        String name = playerName == null || playerName.isBlank() ? s.names.nameOf(player) : playerName;
+        s.log.tx(ExternalCharge.line(name, marks, reason),
+                Analytics.Event.of(Analytics.EXTERNAL_CHARGE).player(player, name)
+                        .currency(Analytics.COIN).amount(marks).balanceAfter(result.actorBalance())
+                        .put("reason", reason));
+        s.flushMoney.run();
+        return result;
+    }
+
+    /** The same, naming the player from the name cache. */
+    public static TxResult chargeExternal(UUID player, long marks, String reason) {
+        return chargeExternal(player, null, marks, reason);
     }
 
     /** Set once, during Charter Currency's own initialisation. */

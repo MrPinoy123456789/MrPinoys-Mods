@@ -29,6 +29,24 @@ public interface KingdomSource {
         return lordOf(kingdomId).map(java.util.List::of).orElse(java.util.List.of());
     }
 
+    /**
+     * True when another system (Charter) decides who may spend a treasury, so this mod must not
+     * run a second, ungoverned door to it. Ops still may. Default false (the manual stand-in).
+     */
+    default boolean governsSpending() {
+        return false;
+    }
+
+    /**
+     * The most Marks one action may take from the organization's treasury for this player, or
+     * empty when the player has no spend right. The default is the Lord rule with no limit; a
+     * source that knows a spend limit (Charter's {@code lordSpendLimitMarks}) overrides it.
+     */
+    default java.util.OptionalLong spendLimit(String kingdomId, UUID player) {
+        return lordsOf(kingdomId).contains(player)
+                ? java.util.OptionalLong.of(Long.MAX_VALUE) : java.util.OptionalLong.empty();
+    }
+
     /** A name for chat; falls back to the id for an unknown organization. */
     String displayName(String kingdomId);
 

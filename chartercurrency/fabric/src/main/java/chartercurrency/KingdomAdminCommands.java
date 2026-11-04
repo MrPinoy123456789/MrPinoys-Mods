@@ -416,6 +416,7 @@ final class KingdomAdminCommands {
         }
         if (!s.treasury.charge(org.get(), marks, "give", op(ctx), "to " + who)) return 0;
         CoinOps.give(online, coin, needed);
+        s.flushMoney.run();
         online.sendSystemMessage(Messages.good("Received ").append(Messages.priced(coin, marks))
                 .append(Messages.good(" from the " + s.kingdoms.source().displayName(org.get()) + " treasury.")));
         source.sendSuccess(() -> Messages.good("Handed " + coin.describe(marks) + " from " + org.get()

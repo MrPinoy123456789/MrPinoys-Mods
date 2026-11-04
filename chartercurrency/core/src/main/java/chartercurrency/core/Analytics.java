@@ -42,6 +42,8 @@ public final class Analytics {
     public static final String VALOR_EARN = "valor_earn";
     public static final String RENOWN_BUY = "renown_buy";
     public static final String RENOWN_ADMIN = "renown_admin";
+    /** Coin another mod took from a player (Fortune's stake). */
+    public static final String EXTERNAL_CHARGE = "external_charge";
 
     /** The coin currency id, as events and snapshots name it. */
     public static final String COIN = "coin";

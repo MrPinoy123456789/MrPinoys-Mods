@@ -43,6 +43,12 @@ final class CharterKingdomSource implements KingdomSource {
         }
     }
 
+    /** Charter decides who may spend: its Withdraw checks the spend right, limit and vote. */
+    @Override
+    public boolean governsSpending() {
+        return true;
+    }
+
     @Override
     public String displayName(String kingdomId) {
         String name = view.displayName(kingdomId);

@@ -235,21 +235,6 @@ final class TreasuryCommands {
                 kingdomArg == null ? null : StringArgumentType.getString(ctx, kingdomArg));
         if (org.isEmpty()) return 0;
 
-        // The one permission check: the Lord, or an op. Charter owns who the Lord is.
-        boolean allowed;
-        try {
-            allowed = Treasury.mayWithdraw(kingdomSource(), org.get(), player.getUUID(), op);
-        } catch (RuntimeException e) {
-            CharterCurrencyMod.LOG.warn("Lord lookup failed", e);
-            source.sendFailure(Messages.bad("The kingdom records cannot be reached right now."));
-            return 0;
-        }
-        if (!allowed) {
-            source.sendFailure(Messages.bad("Only the Lord of " + kingdomSource().displayName(org.get())
-                    + " can take coin from its treasury."));
-            return 0;
-        }
-
         Denomination named = null;
         if (wordArg != null) {
             Optional<CurrencyRegistry.Word> word = s.currencies.resolveWord(
@@ -280,6 +265,21 @@ final class TreasuryCommands {
             needed = Wallet.makeChange(marks, faces);
         }
 
+        // The one permission check. Charter owns who may spend; when it is bound the only door is
+        // Charter's Withdraw (EC-3), so a Lord cannot bypass its votes, limit and history here.
+        boolean allowed;
+        try {
+            allowed = Treasury.mayWithdrawCoin(kingdomSource(), org.get(), player.getUUID(), op, marks);
+        } catch (RuntimeException e) {
+            CharterCurrencyMod.LOG.warn("Lord lookup failed", e);
+            source.sendFailure(Messages.bad("The kingdom records cannot be reached right now."));
+            return 0;
+        }
+        if (!allowed) {
+            source.sendFailure(Messages.bad(withdrawRefusal(org.get(), player, marks)));
+            return 0;
+        }
+
         long balance = s.treasury.balance(org.get());
         if (balance < marks) {
             source.sendFailure(Messages.bad("The treasury holds only " + coin.describe(balance) + "."));
@@ -300,6 +300,7 @@ final class TreasuryCommands {
             CharterCurrencyMod.LOG.warn("Treasury withdrawal for {} overflowed capacity by {}",
                     player.getName().getString(), dropped);
         }
+        s.flushMoney.run();
         long taken = marks;
         source.sendSuccess(() -> Messages.good("Took ").append(Messages.priced(coin, taken))
                 .append(Messages.good(" from the " + kingdomSource().displayName(org.get()) + " treasury.")), false);
@@ -311,6 +312,20 @@ final class TreasuryCommands {
                         .kingdom(org.get()).currency(Analytics.COIN).amount(marks)
                         .balanceAfter(s.treasury.balance(org.get())));
         return 1;
+    }
+
+    /** Why a withdrawal was refused, in words that say where to go instead. */
+    private String withdrawRefusal(String org, ServerPlayer player, long marks) {
+        String name = kingdomSource().displayName(org);
+        if (kingdomSource().governsSpending()) {
+            return name + " spends its treasury through Charter. Use Charter's Withdraw (the treasury page of"
+                    + " your Charter book); it checks your spend right, your limit and the vote.";
+        }
+        java.util.OptionalLong limit = kingdomSource().spendLimit(org, player.getUUID());
+        if (limit.isPresent()) {
+            return "That is over your spend limit of " + limit.getAsLong() + " Marks for " + name + ".";
+        }
+        return "Only the Lord of " + name + " can take coin from its treasury.";
     }
 
     // ---- /treasury ledger ---------------------------------------------------
