@@ -4,6 +4,7 @@ import chartercurrency.core.Banks;
 import chartercurrency.core.Currency;
 import chartercurrency.core.Denomination;
 import chartercurrency.core.KingdomSource;
+import chartercurrency.core.Mint;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -313,6 +314,7 @@ final class BankStation {
         List<Component> mintLore = new ArrayList<>();
         mintLore.add(dim("Any smithing table in this chunk."));
         mintLore.add(dim("Hold gold ingots and right-click it."));
+        mintLore.add(dim("One gold ingot strikes " + Mint.COINS_PER_STRIKE + " Sovereigns."));
         mintLore.add(dim("Sneak and right-click: strike them all."));
         mintLore.add(Messages.body(mint.allowanceFor(player)));
         mintLore.add(dim("One coin in five goes to your kingdom."));

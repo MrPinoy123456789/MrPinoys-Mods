@@ -70,9 +70,11 @@ Right-clicking a bound table never opens the smithing screen:
 - an empty hand, or anything else, shows today's rate. `/mint` shows it anywhere.
 
 The soft cap is counted in gold ingots per player per day (owner, 2026-11-03: gold may
-be farmed, since it is the only thing farmed into money and has other sinks). The first
-320 ingots strike one Sovereign each; past that a Sovereign costs 2 ingots, then 4 after
-another 320, doubling every 320 to at most 64. There is no hard stop and nothing carries
+be farmed, since it is the only thing farmed into money and has other sinks). One gold
+ingot strikes 10 Sovereigns (`Mint.COINS_PER_STRIKE`, fixed in code). The first 320
+ingots strike at that rate; past that 10 Sovereigns cost 2 ingots, then 4 after another
+320, doubling every 320 to at most 64. Coins that do not fit in the player's pockets go
+straight into their bank. There is no hard stop and nothing carries
 over. `softCapIngots` and `falloffEvery` live in `settings.json` under `mint` (an old
 file with the band keys is rewritten at load); `timezone` there sets when the day turns
 over.

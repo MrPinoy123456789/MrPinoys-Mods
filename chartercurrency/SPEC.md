@@ -456,10 +456,12 @@ cannot be capped, and recipe ingredients cannot check a marker).
     gold only. Copper and iron are not money here.` (owner, 2026-11-03: mob farms
     make copper and iron without limit; this supersedes the copper and iron rates).
   - **Empty hand or anything else:** shows the player's rate for today.
-- Rate: 1 gold ingot = 1 Sovereign up to the daily soft cap. Copper Marks and Iron
-  Crowns are no longer struck; they still circulate as change.
-- Coins go into the inventory with `giveOrDrop`. A small sound on success (the
-  fork has a `Chime` class).
+- Rate: 1 gold ingot = 10 Sovereigns up to the daily soft cap (owner, 2026-11-03;
+  `Mint.COINS_PER_STRIKE`, fixed in code). Copper Marks and Iron Crowns are no
+  longer struck; they still circulate as change.
+- Coins go into the inventory. Whatever does not fit goes straight into the
+  player's bank, and the player is told; only if the bank refuses are they dropped
+  at the player's feet. A small sound on success (the fork has a `Chime` class).
 - Every strike is taxed for the striker's kingdom (section 8.3).
 - `/mint` anywhere shows the rate for today.
 
@@ -469,22 +471,22 @@ Owner, 2026-11-03: gold may be farmed, because it is the only thing farmed into 
 and it has many other sinks (golden apples, bartering, rails). The Mint therefore has
 a generous soft cap instead of a small allowance.
 
-| Ingots spent today | Cost of one Sovereign |
+| Ingots spent today | Cost of 10 Sovereigns (one strike) |
 |---|---|
 | 1 to 320 (the soft cap) | 1 ingot |
 | 321 to 640 | 2 ingots |
 | 641 to 960 | 4 ingots |
 | every further 320 | doubles, to at most 64 ingots |
 
-- There is no hard stop. A full inventory of gold (2304 ingots) strikes 636
-  Sovereigns in one day: 320 at full rate and 316 past it.
+- There is no hard stop. A full inventory of gold (2304 ingots) strikes 6360
+  Sovereigns in one day: 3200 at full rate and 3160 past it.
 - The count resets to 0 at midnight. Nothing carries over.
-- Coins are struck one at a time at the cost the day has reached, so a coin that
-  starts below a step is struck at the lower cost. Ingots short of the next coin's
-  cost stay with the player.
-- The day counts every coin struck, taxed or not (section 8.3).
+- Strikes of 10 are made one at a time at the cost the day has reached, so a strike
+  that starts below a step is made at the lower cost. Ingots short of the next
+  strike's cost stay with the player.
+- The day counts the ingots of every coin struck, taxed or not (section 8.3).
 - `softCapIngots` (320) and `falloffEvery` (320) live in `settings.json` under
-  `mint`. The 64 ingot ceiling is `Mint.MAX_INGOTS_PER_COIN`, fixed in code.
+  `mint`. The 64 ingot ceiling is `Mint.MAX_INGOTS_PER_STRIKE`, fixed in code.
 - This replaces the 192 Mark full band, the 192 Mark half band and their two day
   carry-over. A `settings.json` with the old keys is rewritten with the new ones
   at the next load, and a player's stored band numbers are ignored.
@@ -494,11 +496,13 @@ a generous soft cap instead of a small allowance.
   ingots, gives the coins and saves the state.
 
 Line examples:
-- `Struck 10 Gold Sovereigns: 8 to you, 2 to Northreach. Today: 310 of 320 gold ingots left at full rate, one Sovereign each.`
-- `Past today's full rate: 2 ingots per Sovereign, 4 after 200 more. Full rate again at midnight.`
-- `A Gold Sovereign costs 2 ingots now.` (when one ingot is offered past the soft cap)
+- `Struck 10 Gold Sovereigns: 8 to you, 2 to Northreach. Today: 319 of 320 gold ingots left at full rate, 10 Sovereigns each.`
+- `Past today's full rate: 2 ingots per 10 Sovereigns, 4 after 200 more. Full rate again at midnight.`
+- `10 Gold Sovereigns cost 2 ingots now.` (when one ingot is offered past the soft cap)
+- `Your pockets were full, so 300 Gold Sovereigns went straight into your bank.`
 
-Supply: one player at the soft cap strikes 20,480 Marks a day. Prices set for the old
+Supply: one player at the soft cap strikes 3200 Sovereigns (204,800 Marks) a day,
+ten times what the shop and Charter were priced for at one Sovereign an ingot. Prices set for the old
 allowance (about 154 Marks a day kept) are far too low for a gold farmer; the shop
 was repriced with this change (section 7.1), and Charter's Marks prices (a keep at
 2048) are Charter's to revisit.
@@ -513,9 +517,9 @@ rate is fixed in code at 20 percent and **is not configurable** (owner,
   counter that persists between strikes; each coin struck increments it, and every
   fifth coin is credited to the kingdom's treasury (as its face value in Marks)
   instead of being given to the player. This is exactly 2 in 10 over time, never
-  rounds, and works for a strike of one Sovereign as well as a stack of copper.
+  rounds. A strike of 10 coins always gives the kingdom exactly 2.
 - **The soft cap counts every coin struck, taxed or not.** The tax does not let
-  anyone mint more. A player's own take from the full rate is 256 Sovereigns a
+  anyone mint more. A player's own take from the full rate is 2560 Sovereigns a
   day, not 320.
 - **Players in no kingdom pay the same 20 percent, and it is destroyed** (never
   struck). Leaving a kingdom therefore never makes minting cheaper, and there is
@@ -528,9 +532,11 @@ rate is fixed in code at 20 percent and **is not configurable** (owner,
 
 ### 8.4 Melting
 
-Marked coins still fit the vanilla `9 nuggets -> 1 ingot` recipe. Leave it.
-Blocking it needs a mixin, and it loses value (nine Sovereigns become one gold
-ingot), so nobody does it for profit.
+Marked coins still fit the vanilla `9 nuggets -> 1 ingot` recipe. Blocking it needs
+a mixin. At 10 Sovereigns an ingot a lone player still loses by melting (9 coins in,
+8 kept after tax), but a Lord who withdraws the tax comes out 1 Sovereign ahead per
+ingot, within the soft cap: up to 320 Sovereigns a day made from nothing. Open
+question for the owner (2026-11-03): block coins in crafting, or accept it.
 
 ## 9. Config files (`config/chartercurrency/`)
 
@@ -648,9 +654,10 @@ Keep every forked test passing under the new names, then add:
 - **Denominations:** deposit counts mixed coins at face value; exact deposit;
   overpay with change; not enough in total returns null; `makeChange` gives the
   fewest coins; withdraw rolls back with no inventory space.
-- **Mint planner:** one ingot per coin up to the 320 ingot soft cap; the cost
-  doubles every 320 ingots past it, to at most 64; a coin starting below a step
-  costs the lower rate; ingots short of a coin are not consumed; a new day resets.
+- **Mint planner:** one ingot strikes 10 coins up to the 320 ingot soft cap; the
+  cost doubles every 320 ingots past it, to at most 64; a strike starting below a
+  step costs the lower rate; ingots short of a strike are not consumed; a new day
+  resets.
 - **Mint tax:** every fifth coin per denomination goes to the kingdom; the
   counter persists across strikes (strikes of 3 then 2 tax the fifth); exactly 20
   percent over 1,000 random strikes; the soft cap counts taxed coins; no kingdom
