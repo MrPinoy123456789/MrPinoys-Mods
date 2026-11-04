@@ -13,7 +13,8 @@ package foundry.core;
  *   still flies).</li>
  *   <li>A hit takes a charge and drops them for a moment.</li>
  *   <li>A mace in hand folds the wings for a dive ({@link #dive}): no slow fall, and bursts steer without climbing or
- *   breaking the fall, so the mace's smash gets the whole drop.</li>
+ *   breaking the fall. Height the wings gave is no smash: the smash counts only the drop below where the wings first
+ *   climbed this time in the air ({@link #credit}).</li>
  * </ul>
  */
 public final class WingDash {
@@ -24,6 +25,7 @@ public final class WingDash {
     private long lastBurst = Long.MIN_VALUE;
     private long refillAt = Long.MIN_VALUE;
     private long dropUntil = Long.MIN_VALUE;
+    private double climbFrom = Double.NaN;
     private boolean floating;
     private boolean burstThisAir;
     private boolean refused;
@@ -47,6 +49,7 @@ public final class WingDash {
             floating = false;
             burstThisAir = false;
             refillAt = Long.MIN_VALUE;
+            climbFrom = Double.NaN;
             return false;
         }
         airTicks++;
@@ -89,6 +92,20 @@ public final class WingDash {
         boolean was = floating;
         floating = false;
         return was;
+    }
+
+    /** A burst that may climb began at height {@code y}; the lowest this time in the air is kept (see {@link #credit}). */
+    public void climbedFrom(double y) {
+        climbFrom = Double.isNaN(climbFrom) ? y : Math.min(climbFrom, y);
+    }
+
+    /**
+     * The fall a mace smash may count at height {@code y}: the fall so far, but never more than the drop below the lowest
+     * point a burst climbed from this time in the air, so wing height is no smash. A drop off a cliff or after a wind
+     * charge, with no burst, counts in full.
+     */
+    public double credit(double fallDistance, double y) {
+        return Double.isNaN(climbFrom) ? fallDistance : Math.min(fallDistance, Math.max(0, climbFrom - y));
     }
 
     /** True while the slow fall should hold them: after a burst this time in the air, not cancelled, not just hit. */

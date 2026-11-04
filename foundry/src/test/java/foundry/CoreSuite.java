@@ -331,6 +331,17 @@ public final class CoreSuite {
         check(diveLevel[1] == -0.7 && diveLevel[2] == plainLevel[2] && diveLevel[0] == plainLevel[0],
                 "a dive burst steers across the ground as far as a plain one");
         check(foundry.core.WingDash.dive(0, 0.4, 0, 0f, -90f, d)[1] == 0.4, "rising when the mace comes out, a dive burst adds no lift");
+        // wing height is no smash: only the drop below where the wings first climbed counts
+        var smash = new foundry.core.WingDash();
+        check(smash.credit(9, 60) == 9, "a drop with no burst (a cliff, a wind charge) counts in full");
+        smash.climbedFrom(80);
+        smash.climbedFrom(76);
+        smash.climbedFrom(83);
+        check(smash.credit(12, 79) == 0, "climbed with the wings, then the mace out above the climb: no smash");
+        check(smash.credit(12, 70) == 6, "below the lowest climb only that drop counts: " + smash.credit(12, 70));
+        check(smash.credit(3, 60) == 3, "never more than the fall itself");
+        smash.tick(false, false, true, 100, d);
+        check(smash.credit(9, 60) == 9, "landing forgets the climb");
         double[] level = foundry.core.WingDash.burst(0, -0.3, 0, 0f, 0f, d, false);
         check(Math.abs(level[2] - d.forward()) < 1e-9 && Math.abs(level[0]) < 1e-9 && Math.abs(level[1] - d.up() / 2) < 1e-9,
                 "looking level (south): a push forward and half the lift");

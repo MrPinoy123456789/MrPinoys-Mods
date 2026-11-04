@@ -681,6 +681,40 @@ public final class WornGameTest {
         });
     }
 
+    /**
+     * Wing height is no smash: a Fae who climbed with the wings and then hits with a mace from above the climb gets no
+     * smash (the PlayerMaceDive mixin cuts the fall), while the same fall with no wing climb smashes as usual.
+     */
+    @GameTest(maxTicks = 60)
+    public void wingHeightGivesTheMaceNoSmash(GameTestHelper helper) {
+        ServerPlayer fae = player(helper, "race:faeloria");
+        var first = helper.spawn(net.minecraft.world.entity.EntityTypes.ZOMBIE, 4, 2, 2);
+        var second = helper.spawn(net.minecraft.world.entity.EntityTypes.ZOMBIE, 2, 2, 4);
+        helper.runAfterDelay(25, () -> {
+            var d = foundry.core.RaceTraits.Dash.DEFAULT;
+            var state = foundry.mc.DoubleJump.dashOf(fae.getUUID());
+            helper.assertTrue(state != null, "The Fae has no wing dash");
+            // a climbing burst from here, then the mace out with a long fall on the clock
+            foundry.mc.DoubleJump.burst(fae, d);
+            fae.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(net.minecraft.world.item.Items.MACE));
+            fae.fallDistance = 10;
+            float before = first.getHealth();
+            fae.attack(first);
+            float climbed = before - first.getHealth();
+            helper.assertTrue(fae.fallDistance < 1.5, "The wing climb still counted for the smash: fall " + fae.fallDistance);
+            // landed: the climb is forgotten, and the same fall smashes
+            state.tick(false, false, true, helper.getLevel().getServer().getTickCount(), d);
+            fae.fallDistance = 10;
+            before = second.getHealth();
+            fae.attack(second);
+            float dropped = before - second.getHealth();
+            helper.assertTrue(dropped > climbed + 3, "A plain fall should smash harder than wing height: " + dropped + " against " + climbed);
+            first.discard();
+            second.discard();
+            helper.succeed();
+        });
+    }
+
     /** Only a race with a double jump gets one. */
     @GameTest(maxTicks = 40)
     public void onlyTheFaeDoubleJump(GameTestHelper helper) {

@@ -6,7 +6,8 @@
     "CreativeSlotGuard",
     "LivingEntityGlide",
     "LivingEntityFall",
-    "MerchantDiscount"
+    "MerchantDiscount",
+    "PlayerMaceDive"
   ],
   "injectors": {
     "defaultRequire": 1

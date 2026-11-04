@@ -31,7 +31,8 @@ import net.minecraft.world.phys.Vec3;
  * marks the race as one that double jumps.
  *
  * <p>A Fae with a mace in the main hand folds their wings for a dive ({@link WingDash#dive}): no slow fall, and a
- * burst only steers, never climbing and never breaking the fall, so the mace's smash counts the whole drop.
+ * burst only steers, never climbing and never breaking the fall. The height the wings gave is no smash: a mace hit
+ * counts only the drop below where the wings first climbed this time in the air ({@link #creditFall}).
  *
  * <p>Until a Fae has done one double jump they are taught it: a chat line the first time they are seen each login, and
  * an action bar hint near the top of a plain jump, at most every 30 seconds (JumpTip). Who has learned it is kept in
@@ -152,9 +153,9 @@ public final class DoubleJump {
     }
 
     /**
-     * Beats a Fae's wings: a burst the way they look (see {@link WingDash#burst}). Diving with a mace the burst only
-     * steers ({@link WingDash#dive}): it never climbs or slows the drop, and keeps the fall so far, so the smash still counts the whole drop. Public so a test can
-     * drive it.
+     * Beats a Fae's wings: a burst the way they look (see {@link WingDash#burst}), noting where a climb began. Diving with
+     * a mace the burst only steers ({@link WingDash#dive}): it never climbs or slows the drop, and keeps the fall so far.
+     * Public so a test can drive it.
      */
     public static void burst(ServerPlayer player, RaceTraits.Dash dash) {
         boolean diving = diving(player);
@@ -163,8 +164,23 @@ public final class DoubleJump {
                 : WingDash.burst(v.x, v.y, v.z, player.getYRot(), player.getXRot(), dash, overCeiling(player, dash.ceiling()));
         player.setDeltaMovement(after[0], after[1], after[2]);
         player.syncVelocity = true;
-        if (!diving) player.resetFallDistance();
+        if (!diving) {
+            player.resetFallDistance();
+            WingDash state = DASH.get(player.getUUID());
+            if (state != null) state.climbedFrom(player.getY());
+        }
         flourish(player);
+    }
+
+    /**
+     * Just before a Fae with a mace in hand hits (the PlayerMaceDive mixin): the fall the smash counts is cut to the drop
+     * below where their wings first climbed this time in the air ({@link WingDash#credit}), so climbing with the wings and
+     * then taking out the mace gives no free smash. Other weapons are untouched, so a sword still crits. Public so a test
+     * can drive it.
+     */
+    public static void creditFall(ServerPlayer player) {
+        WingDash state = DASH.get(player.getUUID());
+        if (state != null && diving(player)) player.fallDistance = state.credit(player.fallDistance, player.getY());
     }
 
     /**
