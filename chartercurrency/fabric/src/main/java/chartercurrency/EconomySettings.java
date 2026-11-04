@@ -131,7 +131,7 @@ public final class EconomySettings {
         public int delayTicks = 40;
         public List<String> lines = List.of(
                 "Two things are money here.",
-                "  Coin: copper Marks, iron Crowns, gold Sovereigns. Bank them with /bank all",
+                "  Coin: Gold Sovereigns, struck at the Mint. Bank them with /bank all",
                 "  Valor: earned in dungeons and at events. It cannot be traded",
                 "Type /shop to see what the server sells.",
                 "  [ Open the shop ]");

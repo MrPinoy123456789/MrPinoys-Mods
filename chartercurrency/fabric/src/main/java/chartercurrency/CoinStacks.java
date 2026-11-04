@@ -121,7 +121,7 @@ final class CoinStacks {
         }
         String worth = below == null
                 ? "Charter coin"
-                : "Charter coin, worth " + below.describe(denomination.value() / below.value());
+                : "Charter coin, worth " + coin.describe(denomination.value());
         return new ItemLore(List.of(
                 Component.literal(worth)
                         .withStyle(style -> style.withItalic(false).applyFormat(ChatFormatting.GRAY)),

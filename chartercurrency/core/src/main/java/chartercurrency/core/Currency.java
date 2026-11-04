@@ -75,65 +75,24 @@ public record Currency(
     }
 
     /**
-     * {@code 24 Valor} for a plain currency. For coin, the denominations are spelled
-     * out with the base-unit total always shown: {@code 3 Sovereigns, 2 Crowns,
-     * 5 Marks (213 Marks)}. Zero parts are omitted. A balance that is only Marks is not
-     * repeated in brackets.
+     * {@code 24 Valor} for a plain currency. Coin is always told in its largest coin, the
+     * Gold Sovereign (owner, 2026-11-04): {@code 2,261.5 Sovereigns}, {@code 1 Sovereign},
+     * {@code 0 Sovereigns}. Smaller coin is never named in an amount; a remainder is a
+     * decimal Sovereign ({@link Wallet#sovereigns}).
      */
     public String describe(long amount) {
-        String total = Wallet.format(amount) + " " + (amount == 1 ? singular : plural);
-        if (!hasDenominations() || amount <= 0) return total;
-
-        StringBuilder out = new StringBuilder();
-        long remaining = amount;
-        int parts = 0;
-        boolean onlyBase = true;
-        for (Denomination d : largestFirst()) {
-            long count = remaining / d.value();
-            remaining -= count * d.value();
-            if (count <= 0) continue;
-            if (out.length() > 0) out.append(", ");
-            out.append(d.describe(count));
-            parts++;
-            if (d.value() != 1) onlyBase = false;
-        }
-        if (remaining > 0) {
-            // Only reachable when a config has no face value 1; keep the sum honest.
-            if (out.length() > 0) out.append(", ");
-            out.append(Wallet.format(remaining)).append(' ').append(remaining == 1 ? singular : plural);
-            parts++;
-            onlyBase = false;
-        }
-        if (parts == 0 || (parts == 1 && onlyBase)) return total;
-        return out + " (" + total + ")";
+        if (!hasDenominations()) return Wallet.format(amount) + " " + (amount == 1 ? singular : plural);
+        Denomination top = largestFirst().get(0);
+        return Wallet.inUnits(amount, top.value()) + " "
+                + (amount == top.value() ? top.shortSingular() : top.shortPlural());
     }
 
     /**
-     * The coins a player would actually hold for {@code amount}, without the Marks total:
-     * {@code 3 Sovereigns, 2 Crowns, 5 Marks}, or {@code 8 Sovereigns}. This is how the shop
-     * names prices and balances, since nobody counts in Marks once the Mint strikes gold
-     * only. Marks appear only when no larger coin fits. Zero is named in the largest coin
-     * ({@code 0 Sovereigns}) so it reads beside a price. A plain currency is
-     * {@link #describe} unchanged.
+     * How the shop and the Bank name a price or a balance. Since every coin amount is told
+     * in Sovereigns, this is {@link #describe}; it is kept as its own name for the call
+     * sites that mean "as coins".
      */
     public String inCoins(long amount) {
-        if (!hasDenominations()) return describe(amount);
-        if (amount <= 0) return Wallet.format(Math.max(0, amount)) + " " + largestFirst().get(0).shortPlural();
-
-        StringBuilder out = new StringBuilder();
-        long remaining = amount;
-        for (Denomination d : largestFirst()) {
-            long count = remaining / d.value();
-            remaining -= count * d.value();
-            if (count <= 0) continue;
-            if (out.length() > 0) out.append(", ");
-            out.append(d.describe(count));
-        }
-        if (remaining > 0) {
-            // Only reachable when a config has no face value 1; keep the sum honest.
-            if (out.length() > 0) out.append(", ");
-            out.append(Wallet.format(remaining)).append(' ').append(remaining == 1 ? singular : plural);
-        }
-        return out.toString();
+        return describe(amount);
     }
 }

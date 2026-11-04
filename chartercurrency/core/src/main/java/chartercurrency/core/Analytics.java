@@ -395,18 +395,7 @@ public final class Analytics {
      * {@code 79008} is {@code 1,234.5}. The owner's rule is to quote coin in Sovereigns.
      */
     public static String sovereigns(long marks) {
-        long whole = marks / MARKS_PER_SOVEREIGN;
-        long hundredths = Math.round(Math.abs(marks % MARKS_PER_SOVEREIGN) * 100.0 / MARKS_PER_SOVEREIGN);
-        if (hundredths == 100) {
-            whole += marks < 0 ? -1 : 1;
-            hundredths = 0;
-        }
-        String out = Wallet.format(whole);
-        if (marks < 0 && whole == 0) out = "-0";
-        if (hundredths == 0) return out;
-        String frac = hundredths < 10 ? "0" + hundredths : Long.toString(hundredths);
-        if (frac.endsWith("0")) frac = frac.substring(0, 1);
-        return out + "." + frac;
+        return Wallet.sovereigns(marks);
     }
 
     // ---- json ----

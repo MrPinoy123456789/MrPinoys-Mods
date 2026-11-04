@@ -155,9 +155,10 @@ final class TreasuryCommands {
 
     private static String line(Treasury.Entry e) {
         String when = WHEN.format(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()));
-        String unit = "renown".equals(e.currency) ? "Renown" : "Marks";
         String sign = e.delta >= 0 ? "+" : "";
-        return when + "  " + sign + Wallet.format(e.delta) + " " + unit + "  " + e.kind
+        String amount = "renown".equals(e.currency) ? Wallet.format(e.delta) + " Renown"
+                : Wallet.sovereignWords(e.delta);
+        return when + "  " + sign + amount + "  " + e.kind
                 + (e.actor == null || e.actor.isBlank() ? "" : " by " + e.actor);
     }
 
@@ -323,7 +324,7 @@ final class TreasuryCommands {
         }
         java.util.OptionalLong limit = kingdomSource().spendLimit(org, player.getUUID());
         if (limit.isPresent()) {
-            return "That is over your spend limit of " + limit.getAsLong() + " Marks for " + name + ".";
+            return "That is over your spend limit of " + s.coin().describe(limit.getAsLong()) + " for " + name + ".";
         }
         return "Only the Lord of " + name + " can take coin from its treasury.";
     }

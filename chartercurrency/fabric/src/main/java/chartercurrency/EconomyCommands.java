@@ -595,7 +595,7 @@ public final class EconomyCommands {
         sendRows(source, currency, rows, viewer);
         source.sendSuccess(Messages::blank, false);
         source.sendSuccess(() -> Messages.body("Page " + page + " of " + totalPages
-                + "   Banked in total: " + Wallet.format(economy.totalSupply(currency))), false);
+                + "   Banked in total: " + currency.describe(economy.totalSupply(currency))), false);
         source.sendSuccess(Messages::rule, false);
         return 1;
     }
@@ -637,7 +637,7 @@ public final class EconomyCommands {
     }
 
     private static String boardTitle(Currency currency) {
-        return currency.displayName().toUpperCase(java.util.Locale.ROOT) + " TOP";
+        return Messages.heading(currency).toUpperCase(java.util.Locale.ROOT) + " TOP";
     }
 
     private static UUID viewerOf(CommandSourceStack source) {

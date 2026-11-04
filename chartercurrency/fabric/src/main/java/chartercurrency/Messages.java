@@ -38,9 +38,28 @@ public final class Messages {
         };
     }
 
-    /** A formatted amount in its currency's colour, e.g. {@code 12,481}. */
+    /**
+     * A formatted amount in its currency's colour: {@code 12,481} Valor, and coin in its
+     * words, {@code 2,261.5 Sovereigns}, so a bare coin number never reads as Marks.
+     */
     public static MutableComponent amount(Currency currency, long value) {
-        return Component.literal(Wallet.format(value)).withStyle(colourOf(currency));
+        String text = currency.hasDenominations() ? currency.describe(value) : Wallet.format(value);
+        return Component.literal(text).withStyle(colourOf(currency));
+    }
+
+    /**
+     * The number alone, for columns: {@code 12,481} Valor, and coin as Sovereigns,
+     * {@code 2,261.5} (owner, 2026-11-04). The column's heading names the unit.
+     */
+    public static String number(Currency currency, long value) {
+        if (!currency.hasDenominations()) return Wallet.format(value);
+        return Wallet.inUnits(value, currency.largestFirst().get(0).value());
+    }
+
+    /** {@code Coin (Sovereigns)}: a heading over a column of {@link #number}s. */
+    public static String heading(Currency currency) {
+        if (!currency.hasDenominations()) return currency.displayName();
+        return currency.displayName() + " (" + currency.largestFirst().get(0).shortPlural() + ")";
     }
 
     /** {@code 640 cobblestone}, coloured. */
@@ -84,7 +103,8 @@ public final class Messages {
     }
 
     /**
-     * One leaderboard row: {@code  1. Steve          82,410}.
+     * One leaderboard row: {@code  1. Steve          2,261.5}, coin in Sovereigns under a
+     * {@link #heading} that says so.
      *
      * <p>The viewer's own row is marked with a trailing arrow rather than a different
      * colour, because a coloured row in a list of coloured amounts is noise. Section
@@ -95,7 +115,7 @@ public final class Messages {
         MutableComponent line = Component.literal(String.format("%2d. ", rank)).withStyle(RULE)
                 .append(Component.literal(padRight(name, 17))
                         .withStyle(isViewer ? YOU : ChatFormatting.WHITE))
-                .append(Component.literal(padLeft(Wallet.format(balance), 10))
+                .append(Component.literal(padLeft(number(currency, balance), 10))
                         .withStyle(colourOf(currency)));
         if (isViewer) {
             line.append(Component.literal("  \u2190 You").withStyle(YOU));
