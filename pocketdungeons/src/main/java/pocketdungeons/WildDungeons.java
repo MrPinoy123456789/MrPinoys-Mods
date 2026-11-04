@@ -62,6 +62,7 @@ final class WildDungeons {
     static final String LONG_DUNGEON = "long_dungeon";
     static final List<String> TYPES = List.of(MINE, DUNGEON, LONG_DUNGEON);
 
+    // Hardcoded for now: switch these to pocketdungeons.json knobs (tools/new_knob.py --regen) when available.
     /**
      * Cells added to the planner's min and max path for a mine or a dungeon (owner, 2026-11-04: wild dungeons must be
      * longer). With the default path of 8 to 12 cells a wild floor walks 12 to 16.

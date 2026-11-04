@@ -47,6 +47,11 @@ public class WildTextTest {
                 List.of("Iron. Deep.", "Ready.", "Collapses in 20h."));
         eq(WildText.outsideBody("Iron. Deep.", WildState.Phase.READY, 0, 0, 86400 + 1).size(), 2);
         eq(WildText.outsideBody("Iron. Deep.", WildState.Phase.READY, 0, 0, 86400).size(), 3);
+        eq(WildText.outsideBody("Iron. Deep.", WildState.Phase.READY, 0, 0, week, true),
+                List.of("Iron. Deep.", "Ominous. Ready."));
+        eq(WildText.lastCleared("Aurelia", 7200), "Last cleared by Aurelia, 2h ago.");
+        check(WildText.lastCleared("", 7200) == null, "nobody cleared it: no line");
+        eq(WildText.bossValor(12), "+12 Valor for the kill.");
         eq(WildText.clearExitBody(2700), "Cleared. Resets in 45m.");
     }
 

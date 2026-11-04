@@ -1,6 +1,7 @@
 # Wild dungeons against the Trial Chambers: proposals (2026-11-04)
 
-Proposals only. Nothing in this document is built; pick what to build and it gets its own decision record. What
+Proposals. **A, B1, B2 and a boss at the end were picked and built the same day**: see `docs/DECISIONS.md`,
+"2026-11-04: Wild bosses, ominous lodestones and kingdom stakes". The rest are still proposals. What
 was built on 2026-11-04 (the fixes, the longer floors, the lifted fight cap, the gold) is in `docs/DECISIONS.md`,
 "2026-11-04: Wild dungeons: longer, more fights, paid in gold".
 

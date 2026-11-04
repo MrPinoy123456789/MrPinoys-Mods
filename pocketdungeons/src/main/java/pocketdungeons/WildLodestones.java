@@ -116,6 +116,12 @@ final class WildLodestones {
         if (POLYMER && level.getBlockState(pos).is(Blocks.BEDROCK)) {
             WildMarkerDisplays.attach(level, pos);
         }
+        WildState state = WildStore.state();
+        WildState.Lodestone lodestone = state == null ? null
+                : state.atEntrance(dimensionKey(level), pos.getX(), pos.getY(), pos.getZ());
+        if (lodestone != null) {
+            WildBanner.ensure(level, lodestone);
+        }
     }
 
     static String dimensionKey(Level level) {
@@ -145,7 +151,9 @@ final class WildLodestones {
         // Both hands fire; only the main hand opens the screen, but neither may fall through to the vanilla jigsaw editor.
         if (hand == InteractionHand.MAIN_HAND) {
             if (entrance != null) {
-                WildDialogs.showOutside(serverPlayer, entrance);
+                if (!WildOmen.tryApply(serverPlayer, (ServerLevel) level, pos, entrance)) {
+                    WildDialogs.showOutside(serverPlayer, entrance);
+                }
             } else {
                 WildState.Lodestone owner = state == null ? null : state.get(exit.lodestoneId());
                 if (owner != null) {

@@ -1540,3 +1540,82 @@ Whether 12 to 20 cells plans every time for every offering (`WildRunGameTest.eve
 checks it, not yet run); whether an uncapped floor is too long for its cooldown; real yields per clear with the
 extra chests; whether 5 to 16 Sovereigns a clear is right against the Mint's 3 a day per player; whether the gold
 ore is enough or too much once Fortune is used on it.
+
+## 2026-11-04: Wild bosses, ominous lodestones and kingdom stakes
+
+Owner, 2026-11-04, picking from `docs/plans/2026-11-04-wild-vs-trial-chambers.md`: *"do 1 and 2 and a boss at the end
+that has a chance 7% chance to drop a heavy core, a chance to drop 0-4 ancient debris, 8-32 gold, 8-32 emeralds, 4-8
+diamonds, 20-80 sovereign, 5-20 valor. balance my suggested drops and suggest more."* Option 1 was B1 and B2 (Valor
+and Renown per clear, and who cleared it last), option 2 was A (ominous lodestones). The owner also asked for a
+custom lodestone look made with Foundry (below).
+
+### Every clear counts for a kingdom (B1, B2)
+
+1. Each player inside at the clear is paid through `payoutCommand`, as a campaign floor is. On the kingdom server set
+   `"payoutCommand": "chartercurrency earn %player% dungeon %level%"` in `pocketdungeons.json`: Charter Currency's
+   `dungeon` source pays 10 + 2 per level Valor (soft cap 150 a day) and the kingdom one Renown credit per run.
+2. The lodestone remembers who cleared it last: the kingdom with the most players inside (read from Charter's
+   `ct_<kingdom>` scoreboard team prefix, no Charter dependency; a tie goes to whoever was listed first, a kingdom
+   beats a lone name), else a player's name. The menu shows "Last cleared by Aurelia, 2h ago." in that kingdom's tag
+   colour, and a standing banner in the nearest dye colour goes up on the ruin's tall pillar (a real block, so
+   Bedrock sees it). It stays until the next clear; the collapse's rubble takes it. `WildKingdoms`, `WildBanner`.
+
+### Ominous lodestones (A)
+
+Right click a Ready lodestone holding an Ominous Bottle: the bottle is spent and the menu says "Ominous. Ready." The
+next run is 2 levels higher (it may pass the offering's `maxLevel`), carries the Ominous affix (ominous trial
+spawners, the `_ominous_wild` tables: one more chest roll, half again the vault Sovereigns), its boss pays the
+ominous boss table, and the cooldown after its clear is 150 percent. A lodestone that is In progress or Cooling
+refuses the bottle ("Only a Ready lodestone takes the omen."), and one that is already ominous takes no second
+("Already ominous."). The omen survives a restart and is spent by the clear. `WildOmen`, `WildState.Lodestone.ominous`.
+
+### The boss at the end
+
+Every wild dungeon ends in a boss: when the floor's spawners are cleared its dungeon's finale runs (the campaign's
+`FinaleWave` fight: the room stirs, a wave and a named elite with a boss bar, phased `BossFight` scripts where the
+dungeon has one), and the Exit and rewards wait until it is dead. A wild floor is never a dungeon's final node, so
+`FinaleWave.finaleOf` asks `WildBoss.finaleFor` instead. The elite gets 5 percent more health a level on top of the
+party scaling. The four dungeons with no finale of their own get one: The Pit Boss (the Working Face), The Deep
+Delver (the Deep Working Face), The Chartless (the Dive), The Orchard Warden (the Chorus Orchard).
+
+The kill pays on top of the clear: the boss table goes in the copper chest, each player inside gets Valor, and the
+won finale adds the campaign's finale reward chest to the barrel.
+
+| Per kill (shared) | Owner asked | Tier 1 (level 1 to 4) | Tier 2 (5 to 9) | Tier 3 (10 up) | Ominous |
+|---|---|---|---|---|---|
+| Gold ingots | 8 to 32 | 8 to 16 | 12 to 24 | 16 to 32 | half again |
+| Emeralds | 8 to 32 | 8 to 16 | 12 to 24 | 16 to 32 | half again |
+| Diamonds | 4 to 8 | 1 to 3 | 2 to 4 | 4 to 8 | half again |
+| Ancient debris | 0 to 4 | 0 to 1 | 0 to 2 | 1 to 3 | half again |
+| Gold Sovereigns | 20 to 80 | 8 to 20 | 12 to 32 | 20 to 48 | half again (30 to 72 at tier 3) |
+| Heavy core | 7 percent | 2 percent | 4 percent | 7 percent | half again (10.5 percent at tier 3) |
+| Valor, each player | 5 to 20 | 5 to 11 at level 1 | 7 to 15 at level 5 | 10 to 20 from level 10 | 2 levels more |
+
+Tier 4 (level 20, unreachable today) pays 24 to 48 gold and emeralds, 6 to 10 diamonds, 2 to 4 debris, 32 to 80
+Sovereigns and a 10 percent core. Why graded: the low tier lodestones are the shortest and cool down in 2 to 4 hours;
+at the owner's flat numbers one level 2 mine cleared every two hours would put about 600 Sovereigns a day into the
+economy, about 200 days of one player's full rate Mint allowance (3 a day). Tier 3 keeps the owner's numbers, a
+little trimmed at the top, because those dungeons are long and cool down for 5 to 12 hours. Diamonds and debris stay
+scarce below tier 3 because the chests pay none there (the war tier starts at level 10) and the Nether is off.
+
+Valor for the kill is paid by `WildBoss.VALOR_COMMAND` (`chartercurrency add %player% %amount% valor`): personal
+only, no Renown (the clear's `payoutCommand` already pays the kingdom) and outside the daily caps.
+
+### Knobs
+
+Constants, each marked "Hardcoded for now: switch these to pocketdungeons.json knobs when available":
+`WildOmen.EXTRA_LEVELS` (2), `COOLDOWN_PERCENT` (150); `WildBoss.HEALTH_PERCENT_PER_LEVEL` (5), `VALOR_COMMAND`,
+`VALOR_MAX` (20), `FALLBACK`, `DEFAULT`. The drops are `BOSS`, `BOSS_HEAVY_CORE` and `BOSS_OMINOUS_PERCENT` in
+`tools/gen_wild_loot.py`, written to `loot_table/boss/tier_N[_ominous]_wild.json`. The runtime knob that matters on
+the server is `payoutCommand`.
+
+### Supersedes
+
+The proposals A, B1 and B2 in `docs/plans/2026-11-04-wild-vs-trial-chambers.md` (built; B3, the tithe, is not).
+The finale's "final floor only" rule does not apply to wild floors.
+
+### Open until played
+
+Whether the bosses are hard enough at level 10 and up with full parties; whether the fallback bosses (a vindicator,
+an enderman) feel like bosses; whether ominous runs get used (bottles come from raid captains); whether the banner
+gets griefed off the pillar; the Sovereign flow once several kingdoms farm the bosses.

@@ -14,6 +14,7 @@ import java.util.List;
  */
 final class WildGold {
 
+    // Hardcoded for now: switch these to pocketdungeons.json knobs (tools/new_knob.py --regen) when available.
     /** Pockets added to each room's range, on top of what the dungeon declares (capped by HiddenOre.MAX_POCKETS). */
     static final int EXTRA_POCKETS = 2;
     /** Pocket size range for a dungeon that declares no hidden ore of its own. */

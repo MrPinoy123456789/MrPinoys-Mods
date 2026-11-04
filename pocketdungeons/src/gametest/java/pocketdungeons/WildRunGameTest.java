@@ -122,6 +122,10 @@ public final class WildRunGameTest {
                     problems.add(offering.id() + ": only " + record.layout.roomCount() + " rooms, wanted " + shortest);
                 }
                 mostSpawners = Math.max(mostSpawners, record.layout.trialSpawners().size());
+                // Every wild dungeon ends in a boss (decision 2026-11-04).
+                if (FinaleWave.finaleOf(record) == null && !FinaleScripts.has(offering.dungeon())) {
+                    problems.add(offering.id() + ": no boss at the end");
+                }
                 for (WildDungeons.Bonus bonus : offering.bonusRewards()) {
                     var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
                             net.minecraft.resources.Identifier.parse(bonus.item()));
@@ -144,6 +148,24 @@ public final class WildRunGameTest {
         // The campaign's first floor cap (two spawners) no longer reaches a wild floor (kingdom server, 2026-11-04).
         helper.assertTrue(mostSpawners > PocketDungeonsConfig.firstFloorMaxEncounters(),
                 "no wild floor has more than " + PocketDungeonsConfig.firstFloorMaxEncounters() + " trial spawners");
+        helper.succeed();
+    }
+
+    /** An ominous lodestone plans its next run higher and with the Ominous affix (decision 2026-11-04). */
+    @GameTest(maxTicks = 400)
+    public void anOminousLodestonePlansHigherAndOminous(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        WildDungeons.loadFrom(level.getServer());
+        WildDungeons.Offering offering = WildDungeons.all().get(0);
+        WildState.Lodestone lode = lodestone(level, offering, "t-omen", 3);
+        WildRun.PlannedFloor plain = WildRun.planFor(level, lode, offering);
+        lode.ominous = true;
+        WildRun.PlannedFloor ominous = WildRun.planFor(level, lode, offering);
+        helper.assertTrue(plain != null && ominous != null, "both plan: " + WildRun.lastRefusal());
+        helper.assertTrue(plain.offer().level() == 3, "a plain lodestone plans at its own level");
+        helper.assertTrue(ominous.affixes().contains(AffixIds.OMINOUS)
+                        && ominous.offer().level() == 3 + WildOmen.EXTRA_LEVELS,
+                "an ominous one plans " + WildOmen.EXTRA_LEVELS + " levels higher with the Ominous affix");
         helper.succeed();
     }
 

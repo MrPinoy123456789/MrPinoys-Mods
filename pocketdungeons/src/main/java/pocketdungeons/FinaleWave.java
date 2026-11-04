@@ -87,7 +87,14 @@ final class FinaleWave {
             return null;
         }
         DungeonDef def = TripView.def(record);
-        if (def == null || def.finale() == null || def.kind() == DungeonDef.Kind.CAPSTONE || !TripView.onFinal(record)) {
+        if (def == null || def.kind() == DungeonDef.Kind.CAPSTONE) {
+            return null;
+        }
+        // A wild floor is the whole dungeon, never its final node, and always ends in a boss (decision 2026-11-04).
+        if (record.wild) {
+            return WildBoss.finaleFor(def, record.layout.keystoneLevel());
+        }
+        if (def.finale() == null || !TripView.onFinal(record)) {
             return null;
         }
         return def.finale();
@@ -125,7 +132,7 @@ final class FinaleWave {
         }
         DungeonDef def = TripView.def(record);
         return def != null && def.finale() == null && def.kind() != DungeonDef.Kind.CAPSTONE
-                && TripView.onFinal(record) && FinaleScripts.has(record.interval.dungeonId);
+                && (TripView.onFinal(record) || record.wild) && FinaleScripts.has(record.interval.dungeonId);
     }
 
     /** Whether the script of this state owns the trigger, wrapped the way every hook is. */

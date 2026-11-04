@@ -71,6 +71,30 @@ public class WildStateTest {
         WildState.Lodestone zero = new WildState.Lodestone("z", "d", 0, 0, 0, "x", 1, 0L, 100L);
         zero.markCleared(10L, -5L);
         check(zero.resetAt == 10L, "a negative cooldown counts as none");
+        omen(state);
+    }
+
+    /** Ominous lodestones and the last clearer (decision 2026-11-04). */
+    private static void omen(WildState state) {
+        WildState.Lodestone l = sample(state, 30);
+        check(l.omenRefusal() == null, "a Ready lodestone takes a bottle");
+        l.ominous = true;
+        check(l.omenRefusal() == WildState.OmenRefusal.ALREADY, "an ominous lodestone takes no second bottle");
+        l.markInProgress();
+        check(l.ominous, "entering keeps the omen for the run");
+        l.markReady();
+        check(l.ominous, "a restart that sends a run back to Ready keeps the bottle");
+        l.markInProgress();
+        l.ominous = false;
+        check(l.omenRefusal() == WildState.OmenRefusal.NOT_READY, "no bottle while a dungeon stands");
+        l.ominous = true;
+        l.markCleared(100L, 60L);
+        check(!l.ominous, "the clear spends the omen");
+        check(l.omenRefusal() == WildState.OmenRefusal.NOT_READY, "no bottle while it cools");
+        l.recordClear("Aurelia", 0xFF6A1A, 100L);
+        l.markReady();
+        check("Aurelia".equals(l.lastClearedBy) && l.lastClearedColour == 0xFF6A1A && l.lastClearedAt == 100L,
+                "the last clearer outlives the reset");
     }
 
     private static void lookups() {
@@ -92,6 +116,8 @@ public class WildStateTest {
         WildState.Lodestone a = sample(state, 10);
         WildState.Lodestone b = sample(state, 20);
         b.markCleared(5000L, 3600L);
+        b.recordClear("Azrak", 0xFFD700, 5000L);
+        a.ominous = true;
         b.lostAndFound.add(new int[] {1, 2, 3});
         b.lostAndFound.add(new int[] {4, 5, 6});
         UUID player = UUID.fromString("00000000-0000-0000-0000-000000000042");
@@ -106,6 +132,15 @@ public class WildStateTest {
         check(b2.lostAndFound.size() == 2 && b2.lostAndFound.get(1)[2] == 6, "lost and found chests survive");
         check(b2.dungeon.equals("copper_works") && b2.level == 4, "dungeon and level survive");
         check(back.get(a.id).phase == WildState.Phase.READY, "a ready lodestone stays ready");
+        check(back.get(a.id).ominous && !b2.ominous, "the omen survives a restart");
+        check("Azrak".equals(b2.lastClearedBy) && b2.lastClearedColour == 0xFFD700 && b2.lastClearedAt == 5000L,
+                "the last clearer survives a restart");
+        String old = state.toJson().replaceAll(",\"ominous\":(true|false),\"lastClearedBy\":\"[^\"]*\","
+                + "\"lastClearedColour\":-?\\d+,\"lastClearedAt\":\\d+", "");
+        check(!old.contains("ominous"), "the test stripped the new fields: " + old);
+        WildState.Lodestone fromOld = WildState.fromJson(old).get(a.id);
+        check(!fromOld.ominous && fromOld.lastClearedBy.isEmpty() && fromOld.lastClearedColour == -1,
+                "a file written before 2026-11-04 still loads");
         check(a.id.equals(back.lastLodestoneOf(player)), "the player's last lodestone survives");
         check(back.toJson().equals(state.toJson()), "writing it again gives the same text");
         check(!back.nextId().equals(a.id) && !back.nextId().equals(b.id), "the id counter survives");

@@ -536,7 +536,10 @@ for ((taskName, testClass) in mapOf(
     // Explosion filters chain with Charter's (kingdom server, 2026-11-04: walls blew open, rubble never cleared).
     "explosionFilterChainTest" to "ExplosionFilterChainTest",
     // Wild gold: more hidden ore pockets, half of them gold that suits the rock (owner, 2026-11-04).
-    "wildGoldTest" to "WildGoldTest"
+    "wildGoldTest" to "WildGoldTest",
+    // Wild boss, ominous lodestones and who cleared it (decision 2026-11-04).
+    "wildBossTest" to "WildBossTest",
+    "wildKingdomsTest" to "WildKingdomsTest"
 )) {
     tasks.register<JavaExec>(taskName) {
         group = "verification"
@@ -548,6 +551,8 @@ for ((taskName, testClass) in mapOf(
 tasks.test {
     dependsOn("explosionFilterChainTest")
     dependsOn("wildGoldTest")
+    dependsOn("wildBossTest")
+    dependsOn("wildKingdomsTest")
     dependsOn("wildClearGateTest")
     dependsOn("wildLootTest")
     dependsOn("dungeonThemeMetaTest")

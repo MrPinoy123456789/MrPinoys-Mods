@@ -56,6 +56,17 @@ final class WildState {
         long resetAt;
         /** Chests placed at collapse for items left on the floor, as {x, y, z} triples. */
         final List<int[]> lostAndFound = new ArrayList<>();
+        /**
+         * An Ominous Bottle was spent on it while Ready (decision 2026-11-04): the next dungeon built here is ominous.
+         * Stays through a restart and through a run in progress; the clear spends it.
+         */
+        boolean ominous;
+        /** Who cleared it last ("Aurelia", or a player's name), empty when nobody has. Outlives the reset. */
+        String lastClearedBy = "";
+        /** That kingdom's tag colour as 0xRRGGBB, or -1 for none. */
+        int lastClearedColour = -1;
+        /** When it was last cleared (epoch seconds), 0 when never. Unlike {@link #clearedAt} it outlives the reset. */
+        long lastClearedAt;
 
         Lodestone(String id, String dimension, int x, int y, int z, String dungeon, int level,
                   long createdAt, long expiresAt) {
@@ -100,11 +111,27 @@ final class WildState {
             resetAt = 0L;
         }
 
-        /** The clear: the cooldown starts here. */
+        /** The clear: the cooldown starts here, and the run spent the omen if it had one. */
         void markCleared(long now, long cooldownSeconds) {
             phase = Phase.CLEARED;
             clearedAt = now;
             resetAt = now + Math.max(0L, cooldownSeconds);
+            ominous = false;
+        }
+
+        /** Who cleared it, kept for the menu and the banner until the next clear. */
+        void recordClear(String by, int colour, long now) {
+            lastClearedBy = by == null ? "" : by;
+            lastClearedColour = colour;
+            lastClearedAt = now;
+        }
+
+        /** Why an Ominous Bottle cannot be spent here now, or {@code null} when it can. */
+        OmenRefusal omenRefusal() {
+            if (ominous) {
+                return OmenRefusal.ALREADY;
+            }
+            return phase == Phase.READY ? null : OmenRefusal.NOT_READY;
         }
 
         void markReady() {
@@ -113,6 +140,9 @@ final class WildState {
             resetAt = 0L;
         }
     }
+
+    /** Why a bottle was refused: the lodestone is already ominous, or it is not Ready (a dungeon stands). */
+    enum OmenRefusal { ALREADY, NOT_READY }
 
     /** A collapsed lodestone: only where its lost and found chests stand is kept, so ops can still find them. */
     record Retired(String id, String dimension, int x, int y, int z, List<int[]> chests) {}
@@ -203,6 +233,10 @@ final class WildState {
             o.addProperty("phase", l.phase.name());
             o.addProperty("clearedAt", l.clearedAt);
             o.addProperty("resetAt", l.resetAt);
+            o.addProperty("ominous", l.ominous);
+            o.addProperty("lastClearedBy", l.lastClearedBy);
+            o.addProperty("lastClearedColour", l.lastClearedColour);
+            o.addProperty("lastClearedAt", l.lastClearedAt);
             JsonArray chests = new JsonArray();
             for (int[] c : l.lostAndFound) {
                 JsonArray triple = new JsonArray();
@@ -262,6 +296,11 @@ final class WildState {
                 l.phase = Phase.valueOf(o.get("phase").getAsString());
                 l.clearedAt = o.get("clearedAt").getAsLong();
                 l.resetAt = o.get("resetAt").getAsLong();
+                // Added 2026-11-04; a file written before has none of them.
+                l.ominous = o.has("ominous") && o.get("ominous").getAsBoolean();
+                l.lastClearedBy = o.has("lastClearedBy") ? o.get("lastClearedBy").getAsString() : "";
+                l.lastClearedColour = o.has("lastClearedColour") ? o.get("lastClearedColour").getAsInt() : -1;
+                l.lastClearedAt = o.has("lastClearedAt") ? o.get("lastClearedAt").getAsLong() : 0L;
                 for (JsonElement chest : o.getAsJsonArray("lostAndFound")) {
                     JsonArray t = chest.getAsJsonArray();
                     l.lostAndFound.add(new int[] {t.get(0).getAsInt(), t.get(1).getAsInt(), t.get(2).getAsInt()});

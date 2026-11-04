@@ -803,6 +803,15 @@ with a finder tool. It affects only chunks generated after it was installed; the
 files when it went in, so structures in that area stay at their vanilla positions. The seed itself is not hidden: a
 client can still work it out from what it sees. Keep the datapack and its salts private. Its README says how to update it.
 
+## Pocket Dungeons (wild mode)
+
+Pocket Dungeons runs here in `mode: wild` only (owner, 2026-11-04): wild lodestones scattered across the overworld,
+no campaign. Its config is `config/pocketdungeons.json`; never change `mode` here. Upload the jar with
+`node tools/playtest/shipped-deploy.mjs --jar pocketdungeons/build/libs/MrPinoys_Pocket_Dungeons-0.1.0.jar`, built from
+a branch on this server's Minecraft version. A change that touches both mods (the explosion filters, PD-226) ships the
+Charter and PD jars in one restart. The campaign test server is `714a0605` (`deploy-test-server`). Design and state:
+`pocketdungeons/docs/DECISIONS.md` (the wild sections) and `pocketdungeons/docs/plans/2026-10-30-wild-lodestones-*.md`.
+
 ## Branches and Minecraft versions
 
 Master is on Minecraft 26.3 (Charter, Lemon, Foundry). Pocket Dungeons and the rest are on their own schedule; check

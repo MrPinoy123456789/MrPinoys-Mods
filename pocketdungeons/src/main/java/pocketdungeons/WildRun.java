@@ -121,11 +121,11 @@ final class WildRun {
             return null;
         }
         TripDoors.Door door = new TripDoors.Door(def.id(), node.id(), 0, 0);
-        Keystone.Offer base = Keystone.fromDoor(defs, door, Math.max(1, lodestone.level),
-                PocketDungeonsConfig.keystoneMaxLevel());
-        // The floor runs at the lodestone's level, whatever the node's own floor level says.
-        Keystone.Offer offer = new Keystone.Offer(Math.max(1, lodestone.level), base.affixes(), 0, base.theme(),
-                Keystone.Tier.FREE, door);
+        // The floor runs at the lodestone's level, whatever the node's own floor level says; an ominous lodestone
+        // (an Ominous Bottle spent on it, decision 2026-11-04) runs a little higher.
+        int runLevel = WildOmen.level(lodestone.level, lodestone.ominous);
+        Keystone.Offer base = Keystone.fromDoor(defs, door, runLevel, PocketDungeonsConfig.keystoneMaxLevel());
+        Keystone.Offer offer = new Keystone.Offer(runLevel, base.affixes(), 0, base.theme(), Keystone.Tier.FREE, door);
         ThemeManifest.Entry theme = ThemeManifest.current().byId(offer.theme());
         String themeId = offer.theme();
 
@@ -144,6 +144,10 @@ final class WildRun {
             return null;
         }
         Set<String> affixes = recipePlan.effectiveAffixes(baseAffixes);
+        if (lodestone.ominous) {
+            affixes = new java.util.LinkedHashSet<>(affixes);
+            affixes.add(AffixIds.OMINOUS);
+        }
         RoomEligibility.Floor roomFloor = Instances.roomFloorOf(offer, themeId,
                 theme == null ? null : theme.meta().roomTheme);
         DungeonPlan plan = Instances.planFloor(level, record, offer, theme, recipePlan, bagTags, roomFloor);

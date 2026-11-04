@@ -70,20 +70,47 @@ final class WildClear {
         DungeonDef def = TripView.def(record);
         BlockPos terminal = record.layout.terminal();
         DoorMask.Direction entranceDir = CellGeometry.terminalEntranceDirection(record.layout.geometry(), terminal);
-        List<ItemStack> bonus = WildRewards.rollBonus(offering, level.getRandom());
+        List<ItemStack> bonus = new ArrayList<>(WildRewards.rollBonus(offering, level.getRandom()));
+        // The boss's own loot rides in the copper chest with the bonus (decision 2026-11-04).
+        boolean bossDown = record.floor.finaleWon;
+        if (bossDown) {
+            bonus.addAll(WildBoss.rollLoot(level, record));
+        }
         RunLifecycle.placeFloorRewards(server, level, record, def, false, terminal, entranceDir, 1, bonus);
         BlockPos exit = TrialContent.exitSpot(terminal, entranceDir);
         WildLodestones.placeExit(level, exit, lodestone.id, true);
 
-        long cooldown = (offering == null ? 60L : offering.cooldownMinutes()) * 60L;
-        lodestone.markCleared(WildClock.now(), cooldown);
-        WildStore.save();
+        boolean ominous = record.layout.ominous();
+        long cooldown = WildOmen.cooldownSeconds((offering == null ? 60L : offering.cooldownMinutes()) * 60L, ominous);
+        long now = WildClock.now();
+        lodestone.markCleared(now, cooldown);
 
         List<ServerPlayer> players = onlineMembers(server, record);
+        List<WildKingdoms.Side> sides = new ArrayList<>();
+        for (ServerPlayer player : players) {
+            sides.add(WildKingdoms.of(player));
+        }
+        WildKingdoms.Side winner = WildKingdoms.majority(sides);
+        if (winner != null) {
+            lodestone.recordClear(winner.name(), winner.colour(), now);
+            ServerLevel overworld = WildReset.levelOf(server, lodestone);
+            if (overworld != null) {
+                WildBanner.ensure(overworld, lodestone);
+            }
+        }
+        WildStore.save();
+
+        int runLevel = record.layout.keystoneLevel();
         for (ServerPlayer player : players) {
             player.sendSystemMessage(Component.literal(WildText.CLEARED).withStyle(ChatFormatting.GREEN));
+            // Valor and kingdom Renown, through the operator's payoutCommand (Charter Currency's earn), as a campaign
+            // floor pays (decision 2026-11-04).
+            Payout.runPayoutCommand(player, runLevel, 1);
         }
-        WildRewards.pay(new WildRewards.Payout(lodestone, offering, record.layout.keystoneLevel(), players));
+        if (bossDown) {
+            WildBoss.payValor(server, players, runLevel, level.getRandom());
+        }
+        WildRewards.pay(new WildRewards.Payout(lodestone, offering, runLevel, players));
         PocketDungeonsMod.LOG.info("Wild lodestone {} cleared; reset in {} seconds", lodestone.id, cooldown);
     }
 

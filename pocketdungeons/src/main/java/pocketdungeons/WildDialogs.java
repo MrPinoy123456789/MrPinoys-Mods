@@ -36,11 +36,18 @@ final class WildDialogs {
         String title = offering != null ? offering.name() : lodestone.dungeon;
         String promise = offering != null ? offering.promise() : "";
         List<String> lines = WildText.outsideBody(promise, lodestone.phase, inside,
-                lodestone.resetAt - now, lodestone.expiresAt - now);
+                lodestone.resetAt - now, lodestone.expiresAt - now, lodestone.ominous);
         if (promise.isEmpty()) {
             lines.remove(0);
         }
-        return DialogKit.confirm(title, body(lines),
+        List<DialogBody> body = body(lines);
+        // Who cleared it last, in their kingdom's colour (decision 2026-11-04).
+        String last = WildText.lastCleared(lodestone.lastClearedBy, now - lodestone.lastClearedAt);
+        if (last != null) {
+            body.add(DialogKit.text(Component.literal(last).withStyle(style -> lodestone.lastClearedColour >= 0
+                    ? style.withColor(lodestone.lastClearedColour) : style.withColor(ChatFormatting.GRAY))));
+        }
+        return DialogKit.confirm(title, body,
                 DialogKit.button(WildText.ENTER, null,
                         DialogKit.submit(DialogScreens.ACTION_WILD_ENTER, context(viewer, lodestone))),
                 DialogKit.closeButton(WildText.NOT_NOW));

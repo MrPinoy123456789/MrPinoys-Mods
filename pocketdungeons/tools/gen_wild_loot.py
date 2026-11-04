@@ -95,6 +95,49 @@ SUPPLIES = {'minecraft:iron_ingot', 'minecraft:emerald', 'minecraft:nether_wart'
 GOLD_SCALE = 1.0
 GOLD = 'minecraft:gold_ingot'
 
+# The boss at the end of every wild dungeon (owner, 2026-11-04), one roll per kill, shared by the party: the owner's
+# list (gold, emeralds, diamonds, ancient debris, Sovereigns, a heavy core now and then), graded by loot tier so a
+# level 2 mine on a two hour cooldown does not pay what a level 12 long dungeon does. Tier 3 matches the owner's
+# numbers most closely; tier 4 (level 20) is unreachable today. Counts are not touched by SUPPLY_SCALE or GOLD_SCALE.
+# Valor (5 to 20) is paid by WildBoss.VALOR_COMMAND, not here.
+BOSS = [
+    ('minecraft:gold_ingot', [(8, 16), (12, 24), (16, 32), (24, 48)]),
+    ('minecraft:emerald', [(8, 16), (12, 24), (16, 32), (24, 48)]),
+    ('minecraft:diamond', [(1, 3), (2, 4), (4, 8), (6, 10)]),
+    ('minecraft:ancient_debris', [(0, 1), (0, 2), (1, 3), (2, 4)]),
+    (SOVEREIGN, [(8, 20), (12, 32), (20, 48), (32, 80)]),
+]
+# The chance a kill drops a heavy core (the mace's core, which no farm makes) by tier.
+BOSS_HEAVY_CORE = [0.02, 0.04, 0.07, 0.10]
+# An ominous kill (an Ominous Bottle was spent on the lodestone) pays half again of every count and of the core chance.
+BOSS_OMINOUS_PERCENT = 150
+
+
+def boss_entry(item, lo, hi):
+    """One boss stack. Unlike entry(), a range that can be zero (no debris) still gets its count."""
+    sovereign = item == SOVEREIGN
+    out = {'type': 'minecraft:item', 'name': 'minecraft:gold_nugget' if sovereign else item}
+    modifiers = [dict(m) for m in SOVEREIGN_MODIFIERS] if sovereign else []
+    if (lo, hi) != (1, 1):
+        modifiers.append({'type': 'minecraft:set_count',
+                          'count': {'type': 'minecraft:uniform', 'min': lo, 'max': hi}})
+    if modifiers:
+        out['modifier'] = modifiers
+    return out
+
+
+def boss(tier, ominous):
+    pools = []
+    for item, counts in BOSS:
+        lo, hi = counts[tier - 1]
+        if ominous:
+            lo, hi = lo * BOSS_OMINOUS_PERCENT // 100, hi * BOSS_OMINOUS_PERCENT // 100
+        pools.append({'rolls': 1, 'entries': [boss_entry(item, lo, hi)]})
+    core = BOSS_HEAVY_CORE[tier - 1] * (BOSS_OMINOUS_PERCENT / 100 if ominous else 1.0)
+    pools.append(chance_pool(round(core, 4), {'rolls': 1, 'entries': [boss_entry('minecraft:heavy_core', 1, 1)]}))
+    return {'type': 'minecraft:chest', 'pools': pools}
+
+
 # A typical clear, for the printed estimate only: the barrel's chest rolls plus the room chests, one vault and
 # two supply chests.
 CLEAR_CHESTS, CLEAR_VAULTS, CLEAR_SUPPLIES = 6, 1, 2
@@ -188,7 +231,7 @@ def expected(table, out, times):
         r = pool['rolls']
         mean_rolls = r if isinstance(r, (int, float)) else (r['min'] + r['max']) / 2
         chance = pool.get('condition', {}).get('chance', 1.0)
-        total = sum(e['weight'] for e in pool['entries'])
+        total = sum(e.get('weight', 1) for e in pool['entries'])
         for e in pool['entries']:
             count = 1
             for m in e.get('modifier', []):
@@ -200,7 +243,7 @@ def expected(table, out, times):
             for m in e.get('modifier', []):
                 if m['type'] == 'minecraft:set_enchantments':
                     name = 'book (' + ', '.join(m['enchantments']) + ')'
-            out[name] = out.get(name, 0) + times * chance * mean_rolls * e['weight'] / total * count
+            out[name] = out.get(name, 0) + times * chance * mean_rolls * e.get('weight', 1) / total * count
 
 
 def estimate(tier):
@@ -225,13 +268,22 @@ def main():
         write(f'chests/supply_tier_{tier}_wild.json', supply(tier))
         write(f'vaults/tier_{tier}_wild.json', vault(tier, False))
         write(f'vaults/tier_{tier}_ominous_wild.json', vault(tier, True))
-    print('wrote 20 wild loot tables')
+        write(f'boss/tier_{tier}_wild.json', boss(tier, False))
+        write(f'boss/tier_{tier}_ominous_wild.json', boss(tier, True))
+    print('wrote 28 wild loot tables')
     print(f'expected yield of a plain clear ({CLEAR_CHESTS} chest rolls, {CLEAR_VAULTS} vault, '
           f'{CLEAR_SUPPLIES} supply chests):')
     for tier in range(1, 5):
         items = estimate(tier)
         print(f'  tier {tier}: ' + ', '.join(f'{name.removeprefix("minecraft:")} {n:.1f}'
                                             for name, n in sorted(items.items(), key=lambda kv: -kv[1])))
+    print('expected yield of one boss kill, plain then ominous:')
+    for tier in range(1, 5):
+        for ominous in (False, True):
+            items = {}
+            expected(boss(tier, ominous), items, 1)
+            print(f'  tier {tier}{" ominous" if ominous else ""}: ' + ', '.join(
+                f'{name.removeprefix("minecraft:")} {n:.2f}' for name, n in items.items()))
 
 
 if __name__ == '__main__':

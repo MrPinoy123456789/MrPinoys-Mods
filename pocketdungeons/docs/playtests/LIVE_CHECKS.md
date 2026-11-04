@@ -993,3 +993,10 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Do:** Clear one wild mine and one long dungeon. Count the fights, dig into the walls of three rooms, open every chest and the vault, and bank the Sovereigns with `/bank all`.
 - **Pass:** More than two spawner rooms; gold ore in most rooms, of the right kind for the rock; the vault pays Sovereigns that bank and stack with minted ones; the clear takes noticeably longer than before.
 - **Fail signs:** "the planner found no layout" in the log for any offering, a Sovereign that `/bank` ignores or that will not stack with a struck one, a floor so long the cooldown feels wrong.
+
+## L124: Wild bosses, ominous lodestones and the last clearer (2026-11-04)
+- **Status:** owed (on `claude/stoic-wozniak-lfndcx`, not compiled, not deployed). Set `payoutCommand` to `chartercurrency earn %player% dungeon %level%` on the kingdom server first.
+- **Changed:** decision 2026-11-04, "Wild bosses, ominous lodestones and kingdom stakes".
+- **Do:** Clear one wild dungeon of each kind with two players of one kingdom; kill the boss; open the copper chest; read `/balance` and `/renown`. Then right click a Ready lodestone with an Ominous Bottle, run it, and try a second bottle on it and a bottle on a cooling one.
+- **Pass:** The room stirs and a named boss with a bar comes after the last spawner; the Exit appears only when it dies; the copper chest has the boss loot and Sovereigns; each player is told their Valor; Valor and kingdom Renown rose; the menu says "Last cleared by" in the kingdom's colour and the banner stands on the pillar (check on Bedrock too); the ominous run is two levels higher with purple spawners and a longer cooldown; the refusals read as written.
+- **Fail signs:** a floor that clears with no boss, a boss that never comes (the clear then never happens), a boss table error in the log, the banner on a player's build, a bottle spent on a refused lodestone, Valor paid twice.
