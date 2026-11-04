@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "fortune",
+  "version": "${version}",
+  "name": "Fantasy's Fortune",
+  "description": "A daily slot machine login bonus for the kingdom server. One pull a day, a week strip with a Golden Spin, a forgiving streak and a coin stake. Server side: vanilla clients and Bedrock players through Geyser need nothing installed.",
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "fortune.mc.FortuneMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "chartercurrency": "*",
+    "charter": "*",
+    "floodgate": "*"
+  }
+}
