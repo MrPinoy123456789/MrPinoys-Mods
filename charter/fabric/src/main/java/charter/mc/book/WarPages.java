@@ -94,8 +94,8 @@ public final class WarPages {
         BookDialogs.show(player, BookDialogs.notice(Text.get("book.war.how"), List.of(
                 BookDialogs.text(Text.get("book.war.intro")),
                 BookDialogs.text(Text.get("book.war.confirm_notice", "hours", rt.knobs.warGoalNoticeHours,
-                        "minutes", rt.knobs.outpostCaptureMinutes, "total", rt.knobs.warGoalHours)),
-                BookDialogs.text(Text.get("book.war.confirm_lapse", "days", rt.knobs.truceDays))),
+                        "minutes", rt.knobs.outpostCaptureMinutes, "total", rt.knobs.warGoalHours, "attackers", rt.knobs.warMinAttackers)),
+                BookDialogs.text(Text.get("book.war.rules_lapse", "days", rt.knobs.truceDays, "percent", rt.knobs.warStakePercent))),
                 BookDialogs.back(player, p -> page(p, null))));
     }
 
@@ -152,8 +152,9 @@ public final class WarPages {
                         "from", from == null ? "?" : rt.describe.core(from.id))),
                 BookDialogs.text(Text.get("book.war.confirm_skin")),
                 BookDialogs.text(Text.get("book.war.confirm_notice", "hours", rt.knobs.warGoalNoticeHours, "minutes", rt.knobs.outpostCaptureMinutes,
-                        "total", rt.knobs.warGoalHours)),
-                BookDialogs.text(Text.get("book.war.confirm_lapse", "days", rt.knobs.truceDays)));
+                        "total", rt.knobs.warGoalHours, "attackers", rt.knobs.warMinAttackers)),
+                BookDialogs.text(Text.get("book.war.confirm_lapse", "days", rt.knobs.truceDays,
+                        "stake", charter.chronicle.ChronicleRenderer.coins(DeclareWar.stake(rt.knobs, target)), "org", org)));
         BookButton yes = BookDialogs.act(player, Text.get("book.war.declare_yes"), null, p -> {
             OrgId n = nation(p);
             if (n == null) {

@@ -204,6 +204,11 @@ public final class Placement {
                     else player.sendSystemMessage(Component.literal(Text.get("land.banner_stays")).withStyle(ChatFormatting.RED), true);
                     return false;
                 }
+                // An outpost named by a war cannot be pulled down, so a defender cannot dodge a capture by lifting it.
+                if (rt.state.wars.names(core.id)) {
+                    player.sendSystemMessage(Component.literal(Text.get("land.banner_stays")).withStyle(ChatFormatting.RED), true);
+                    return false;
+                }
                 // Anyone may pull a raising banner down, and that ends the camp.
                 rt.engine.run(new Actor.System(), new LoseCore(core.id));
                 player.sendSystemMessage(Component.literal(Text.get("land.camp_cut_down")).withStyle(ChatFormatting.YELLOW));

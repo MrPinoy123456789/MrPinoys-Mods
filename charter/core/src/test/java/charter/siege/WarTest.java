@@ -32,6 +32,13 @@ public final class WarTest {
         aGoalThatLapsesStartsACooldown();
         capturedOutpostsOnlyGoToTheCaptorsForAWhile();
         aWarIsFoughtBetweenTouchingOutposts();
+        openWarLiftsProtectionOnlyForTheAttackingNation();
+        declaringStakesHalfTheDepositAndALapseForfeitsIt();
+        aWarYouCannotAffordIsRefused();
+        captureNeedsTheMinimumNumberOfAttackers();
+        unattendedProgressHalvesEachHour();
+        aTargetLostOtherwiseEndsTheWarWithAnEventATruceAndTheStakeBack();
+        aNamedOutpostIsKnownToTheWarBook();
     }
 
     /** Presence the test sets by hand. */
@@ -117,7 +124,7 @@ public final class WarTest {
         p.w.advance(Durations.MINUTE);
         check("war: when the attackers' outpost is lost the war ends", p.w.f.state.wars.goals.isEmpty()
                 && p.w.f.state.history.has(SiegeEvents.WarLapsed.class));
-        check("war: with no truce, since nothing was fought over", !p.w.f.state.wars.truce(p.w.ashfall, p.w.brine, p.w.f.state.siegeClock.now()));
+        check("war: a war that ends this way still starts the truce", p.w.f.state.wars.truce(p.w.ashfall, p.w.brine, p.w.f.state.siegeClock.now()));
     }
 
     static void captureCannotBeginUntilTheNoticeIsOver() {
@@ -126,16 +133,17 @@ public final class WarTest {
         var claim = p.w.f.state.claimAt(p.theirs.center).orElseThrow();
         p.presence.attackers.put(p.theirs.id, 3);
         p.w.advance(Durations.hours(11));
-        check("war: before the notice is over the outpost is protected", p.w.rules().protectedClaim(claim));
+        check("war: before the notice is over the outpost is protected", p.w.rules().protectedClaimFor(claim, KRIS));
         eq("war: and nothing has been held", 0L, p.w.f.state.wars.goals.getFirst().progress);
         check("war: no opening yet", !p.w.f.state.history.has(SiegeEvents.WarOpened.class));
         p.w.advance(Durations.hours(1) + Durations.MINUTE);
         check("war: the notice runs out and capture opens", p.w.f.state.history.has(SiegeEvents.WarOpened.class));
-        check("war: an outpost named by an open war is not protected", !p.w.rules().protectedClaim(claim));
+        check("war: an outpost named by an open war is not protected from the attackers", !p.w.rules().protectedClaimFor(claim, KRIS));
     }
 
     static void holdingTheChunkWithNoDefenderCapturesIt() {
         Pair p = new Pair();
+        long stake = stakeOf(p);
         p.declare();
         long deposit = p.theirs.depositMarks;
         long before = p.w.f.marks(p.w.ashfall);
@@ -145,7 +153,7 @@ public final class WarTest {
         check("war: nine minutes is not enough", p.w.f.state.core(p.theirs.id).isPresent());
         p.w.advance(Durations.minutes(2));
         check("war: ten minutes captures it", p.w.f.state.core(p.theirs.id).isEmpty());
-        eq("war: its deposit goes to the attackers", before + deposit, p.w.f.marks(p.w.ashfall));
+        eq("war: its deposit goes to the attackers", before + stake + deposit, p.w.f.marks(p.w.ashfall));
         eq("war: the port saw one plunder credit to the attackers of exactly the deposit", java.util.List.of(deposit),
                 p.w.f.port.calls("credit", "plunder").stream().filter(c -> c.org().equals(p.w.ashfall.toString())).map(charter.FakePort.Call::marks).toList());
         check("war: its land is released", p.w.f.state.claimAt(p.theirs.center).isEmpty());
@@ -194,5 +202,147 @@ public final class WarTest {
         check("war: after the window the ground is plain wilderness again",
                 p.w.f.state.wars.windowHolder(p.theirs.center, p.w.f.state.siegeClock.now()).isEmpty());
         check("war: and anyone may plant there", p.w.f.as(ZED, new PlantCamp(p.w.brine, p.theirs.center)).done());
+    }
+
+    private static long stakeOf(Pair p) {
+        return p.theirs.depositMarks * p.w.f.knobs.warStakePercent / 100;
+    }
+
+    /** Only members of the attacking nation lose the protection; the defenders and every other nation keep it. */
+    static void openWarLiftsProtectionOnlyForTheAttackingNation() {
+        Pair p = new Pair();
+        p.declare();
+        p.w.advance(Durations.hours(12) + Durations.MINUTE);
+        var claim = p.w.f.state.claimAt(p.theirs.center).orElseThrow();
+        check("war: an attacker is not protected from at the named outpost", !p.w.rules().protectedClaimFor(claim, KRIS));
+        check("war: nor is any other member of the attacking nation", !p.w.rules().protectedClaimFor(claim, GIL));
+        check("war: the defenders keep their protection", p.w.rules().protectedClaimFor(claim, ZED));
+        check("war: a stranger with no nation is still kept out", p.w.rules().protectedClaimFor(claim, charter.Fixture.player("Stranger")));
+        check("war: a thing with no player behind it is still kept out", p.w.rules().protectedClaimFor(claim, null));
+        check("war: the war-blind question stays protected", p.w.rules().protectedClaim(claim));
+        Core mine = p.w.f.state.coresOf(p.w.ashfall).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
+        var ownClaim = p.w.f.state.claimAt(mine.center).orElseThrow();
+        check("war: the attackers' own outpost stays protected from the defenders", p.w.rules().protectedClaimFor(ownClaim, ZED));
+        var keepClaim = p.w.f.state.claimAt(p.w.keep.center).orElseThrow();
+        check("war: a keep stays protected from everyone", p.w.rules().protectedClaimFor(keepClaim, ZED) && p.w.rules().protectedClaimFor(keepClaim, KRIS));
+    }
+
+    /** Half the target's deposit is put up; it is forfeited to the defenders on a lapse and returned on a capture. */
+    static void declaringStakesHalfTheDepositAndALapseForfeitsIt() {
+        Pair lapse = new Pair();
+        long stake = stakeOf(lapse);
+        eq("war: the stake is half the target's deposit", lapse.theirs.depositMarks / 2, stake);
+        check("war: there is something at stake", stake > 0);
+        long attackers = lapse.w.f.marks(lapse.w.ashfall);
+        long defenders = lapse.w.f.marks(lapse.w.brine);
+        check("war: declared", lapse.declare().done());
+        eq("war: the attackers' treasury paid the stake", attackers - stake, lapse.w.f.marks(lapse.w.ashfall));
+        eq("war: the goal remembers it", stake, lapse.w.f.state.wars.goals.getFirst().stakeMarks);
+        lapse.w.advance(Durations.hours(48) + Durations.MINUTE);
+        check("war: the war lapsed", lapse.w.f.state.wars.goals.isEmpty());
+        eq("war: a lapse costs the attackers the stake", attackers - stake, lapse.w.f.marks(lapse.w.ashfall));
+        eq("war: and it goes to the defenders", defenders + stake, lapse.w.f.marks(lapse.w.brine));
+
+        Pair win = new Pair();
+        long before = win.w.f.marks(win.w.ashfall);
+        long deposit = win.theirs.depositMarks;
+        win.declare();
+        win.w.advance(Durations.hours(12) + Durations.MINUTE);
+        win.presence.attackers.put(win.theirs.id, 1);
+        win.w.advance(Durations.minutes(11));
+        check("war: captured", win.w.f.state.core(win.theirs.id).isEmpty());
+        eq("war: a capture returns the stake and adds the deposit", before + deposit, win.w.f.marks(win.w.ashfall));
+    }
+
+    static void aWarYouCannotAffordIsRefused() {
+        Pair p = new Pair();
+        p.w.f.port.balances.put(p.w.ashfall.toString(), stakeOf(p) - 1);
+        eq("war: a treasury below the stake cannot declare", DeclareWar.NO_STAKE.key(), p.declare().reasonKey());
+        check("war: and nothing is declared", p.w.f.state.wars.goals.isEmpty());
+        p.w.f.port.balances.put(p.w.ashfall.toString(), stakeOf(p));
+        check("war: exactly the stake is enough", p.declare().done());
+    }
+
+    /** warMinAttackers: with the default of one a lone attacker captures; raised to two, one is not enough. */
+    static void captureNeedsTheMinimumNumberOfAttackers() {
+        eq("war: the default is one attacker", 1, new charter.config.Knobs().warMinAttackers);
+        Pair p = new Pair();
+        p.w.f.knobs.warMinAttackers = 2;
+        p.declare();
+        p.w.advance(Durations.hours(12) + Durations.MINUTE);
+        p.presence.attackers.put(p.theirs.id, 1);
+        p.w.advance(Durations.minutes(30));
+        check("war: one attacker is too few when two are needed", p.w.f.state.core(p.theirs.id).isPresent());
+        eq("war: and nothing builds up", 0L, p.w.f.state.wars.goals.getFirst().progress);
+        p.presence.attackers.put(p.theirs.id, 2);
+        p.w.advance(Durations.minutes(11));
+        check("war: two attackers take it", p.w.f.state.core(p.theirs.id).isEmpty());
+
+        Pair lone = new Pair();
+        lone.declare();
+        lone.w.advance(Durations.hours(12) + Durations.MINUTE);
+        lone.presence.attackers.put(lone.theirs.id, 1);
+        lone.w.advance(Durations.minutes(11));
+        check("war: with the default one attacker is enough", lone.w.f.state.core(lone.theirs.id).isEmpty());
+    }
+
+    /** Progress halves for every siege hour nobody is holding the outpost, so a few minutes a day never adds up. */
+    static void unattendedProgressHalvesEachHour() {
+        Pair p = new Pair();
+        p.declare();
+        p.w.advance(Durations.hours(12) + Durations.MINUTE);
+        p.presence.attackers.put(p.theirs.id, 1);
+        p.w.advance(Durations.minutes(8));
+        long held = p.w.f.state.wars.goals.getFirst().progress;
+        check("war: eight minutes held", held >= Durations.minutes(7));
+        p.presence.attackers.put(p.theirs.id, 0);
+        p.w.advance(Durations.hours(1));
+        long half = p.w.f.state.wars.goals.getFirst().progress;
+        check("war: an hour unattended halves it: " + half + " of " + held, Math.abs(half - held / 2) <= 5000);
+        p.w.advance(Durations.hours(1));
+        long quarter = p.w.f.state.wars.goals.getFirst().progress;
+        check("war: and another hour halves it again", Math.abs(quarter - held / 4) <= 5000);
+
+        Pair drip = new Pair();
+        drip.declare();
+        drip.w.advance(Durations.hours(12) + Durations.MINUTE);
+        drip.presence.attackers.put(drip.theirs.id, 1);
+        drip.w.advance(Durations.minutes(3));
+        drip.presence.attackers.put(drip.theirs.id, 0);
+        drip.w.advance(Durations.hours(10));
+        drip.presence.attackers.put(drip.theirs.id, 1);
+        drip.w.advance(Durations.minutes(3));
+        check("war: a few minutes now and then do not capture", drip.w.f.state.core(drip.theirs.id).isPresent());
+    }
+
+    /** Both ways the war can end without its own timer record a line and a truce; the stake goes where it belongs. */
+    static void aTargetLostOtherwiseEndsTheWarWithAnEventATruceAndTheStakeBack() {
+        Pair gone = new Pair();
+        long before = gone.w.f.marks(gone.w.ashfall);
+        gone.declare();
+        gone.w.f.admin(new charter.land.actions.LoseCore(gone.theirs.id));
+        gone.w.advance(Durations.MINUTE);
+        check("war: the goal is closed", gone.w.f.state.wars.goals.isEmpty());
+        check("war: the ending is told", gone.w.f.state.history.has(SiegeEvents.WarLapsed.class));
+        check("war: the nations rest", gone.w.f.state.wars.truce(gone.w.ashfall, gone.w.brine, gone.w.f.state.siegeClock.now()));
+        eq("war: the attackers get their stake back when the target vanished", before, gone.w.f.marks(gone.w.ashfall));
+
+        Pair lost = new Pair();
+        long defenders = lost.w.f.marks(lost.w.brine);
+        long stake = stakeOf(lost);
+        lost.declare();
+        Core mine = lost.w.f.state.coresOf(lost.w.ashfall).stream().filter(c -> !c.isKeep()).findFirst().orElseThrow();
+        lost.w.f.admin(new charter.land.actions.LoseCore(mine.id));
+        lost.w.advance(Durations.MINUTE);
+        check("war: the attackers' outpost lost is told", lost.w.f.state.history.has(SiegeEvents.WarLapsed.class));
+        eq("war: and their stake is forfeited to the defenders", defenders + stake, lost.w.f.marks(lost.w.brine));
+    }
+
+    /** The banner of an outpost a war names cannot be pulled down by its owner; the fabric side asks this. */
+    static void aNamedOutpostIsKnownToTheWarBook() {
+        Pair p = new Pair();
+        check("war: nothing names the outpost before a war", !p.w.f.state.wars.names(p.theirs.id));
+        p.declare();
+        check("war: a declared war names it even before the notice is over", p.w.f.state.wars.names(p.theirs.id));
     }
 }

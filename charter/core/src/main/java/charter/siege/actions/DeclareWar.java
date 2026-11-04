@@ -39,6 +39,7 @@ public record DeclareWar(OrgId org, CoreId outpost, CoreId from) implements Acti
     public static final Reason NO_OUTPOST_OF_YOURS = new Reason("war_no_outpost", "You need a raised outpost of your own before you declare war.");
     public static final Reason ALREADY_NAMED = new Reason("war_already_named", "A war already names that outpost.");
     public static final Reason TOO_MANY = new Reason("war_too_many", "Your nation already has all the wars it may hold at once.");
+    public static final Reason NO_STAKE = new Reason("war_no_stake", "Declaring war puts up part of the other outpost's deposit and your treasury holds less.");
     public static final Reason TRUCE = new Reason("war_truce", "There was a war between your nations too recently. The truce has not run out.");
 
     @Override
@@ -68,7 +69,21 @@ public record DeclareWar(OrgId org, CoreId outpost, CoreId from) implements Acti
         if (ctx.state.wars.against(outpost).isPresent()) return Outcome.refuse(ALREADY_NAMED);
         if (ctx.state.wars.openBy(org) >= ctx.knobs.warGoalsPerWar) return Outcome.refuse(TOO_MANY);
         if (ctx.state.wars.truce(org, defender, ctx.state.siegeClock.now())) return Outcome.refuse(TRUCE);
+        long stake = stake(ctx, target);
+        if (!ctx.canPay(org, stake)) {
+            return Outcome.refuse(NO_STAKE.with("A war puts up " + stake + " Marks, " + ctx.knobs.warStakePercent
+                    + " percent of the other outpost's deposit. You get it back if you win and lose it if the war runs out."));
+        }
         return Outcome.OK;
+    }
+
+    /** What the attackers put up: {@code warStakePercent} of the target outpost's deposit. */
+    public static long stake(ActionContext ctx, Core target) {
+        return stake(ctx.knobs, target);
+    }
+
+    public static long stake(charter.config.Knobs knobs, Core target) {
+        return target.depositMarks * Math.max(0, knobs.warStakePercent) / 100;
     }
 
     /**
@@ -97,6 +112,9 @@ public record DeclareWar(OrgId org, CoreId outpost, CoreId from) implements Acti
         goal.defender = defender;
         goal.outpost = outpost;
         goal.from = fromCore == null ? null : fromCore.id;
+        long stake = stake(ctx, target);
+        ctx.pay(org, stake, "war_stake");
+        goal.stakeMarks = ctx.hasProvider() ? stake : 0;
         goal.declaredAt = now;
         goal.opensAt = now + Durations.hours(ctx.knobs.warGoalNoticeHours);
         goal.expiresAt = now + Durations.hours(ctx.knobs.warGoalHours);

@@ -1428,8 +1428,7 @@ attackers add to the hold, a defender resets it; at `outpostCaptureMinutes` (10)
 (`OutpostCaptured`): its deposit goes to the attackers' treasury, every claim of it is released, the banner and signal
 fire come down (`SiegeWorld.takeDownOutpost`), a truce of `truceDays` (3) starts, and for
 `outpostWinnerWindowMinutes` (30) only the captors may plant an outpost on that chunk (`LandReasons.WINDOW_HELD`). A goal
-that lapses also starts the truce (`WarLapsed`). A goal whose outpost is lost another way is dropped quietly (and the
-deposit is returned, `LandGraph.loseCore`). A player counts as present when online, alive, not a spectator, active
+that lapses also starts the truce (`WarLapsed`). A goal whose outpost is lost another way now ends with an event and a truce too (see War rules, 2026-11-04, below). A player counts as present when online, alive, not a spectator, active
 within `presenceAfkMinutes` (on Minecraft's clock, not the wall clock) and a member for `presenceMinMemberSeconds`.
 
 **Book.** A War button on the Charter home opens the War page: the wars against the nation (with the time capture
@@ -1457,3 +1456,21 @@ gametests still run on the shipped set and set the few values they need by hand.
 cooldown, the window), goldens for the four war events; gametest `WarGameTest` (the book flow and a real capture by a
 player in the chunk); the tutorial gametest now declares and captures. Deleted in 4a: the allowance and cart tests went
 with step 2's `SupplyGameTest`; nothing else.
+
+## War rules, 2026-11-04: a war that cannot be won while the enemy sleeps
+
+The owner chose these numbers on 2026-11-04 after the suite audit (CC-2, CC-3, CC-4, CC-8). Each is a `Knobs` field with a comment saying why.
+
+| Knob | Default | Rule |
+|---|---|---|
+| `warStakePercent` | 50 | Declaring puts up this percent of the target outpost's deposit (`DeclareWar.stake`, paid from the attackers' treasury). A capture, or the target vanishing, returns it. A lapse, or the attackers' own outpost being lost, forfeits it to the defenders. With no payment provider the stake is 0. |
+| `warMinAttackers` | 1 | Members of the attacking nation who must stand in the banner chunk for the capture clock to run. The audit proposed 2. The owner chose 1 because it is the easiest rule to explain. This is the number most likely to need changing after the first real war. |
+| `warDecayHalfLifeHours` | 1.0 | While fewer than `warMinAttackers` attackers are present, capture progress halves every siege hour. |
+
+Also in this change:
+
+- Protection is scoped. `SiegeRules.protectedClaim(claim)` no longer changes with a war. `SiegeRules.protectedClaimFor(claim, player)` is false only for a member of the attacking nation, at the outpost an opened goal names. The fabric `Protection.mayAct(Player, ...)` asks the player form. Things with no player behind them (fire, fluids, pistons, mobs) still see the outpost as protected; a TNT charge lit by an attacker still works because `Hazards.explodable` asks `mayAct` for the owner.
+- Defenders count anywhere in the outpost's claims (`WarPresence`), not only the banner chunk. Attackers still count in the banner chunk only.
+- A goal whose target outpost is gone, whose attacking outpost is gone, or whose time ran out, all end through `SiegeSim.end`: a `WarLapsed` event, a truce of `truceDays`, and the stake settled. `CharterState.removeCore` no longer drops the goal silently; the next siege step settles it. A save that loads a goal whose outpost is gone still drops it with a repair note, and the stake of that goal is not returned (rare; an operator can credit it by hand).
+- An outpost any goal names cannot be pulled down by its owner (`WarBook.names`, checked in `Placement`). Only a raising banner can be pulled down at all, and a raising outpost cannot be named, so this is a guard against a future path, not a live hole.
+- `InvariantTest` draws `DeclareWar` (steered at touching outposts, with a check that wars really get declared), gives the sim random presence, and checks that a goal never holds a negative stake or progress.

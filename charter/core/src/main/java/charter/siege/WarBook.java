@@ -29,6 +29,8 @@ public final class WarBook {
         public boolean opened;
         /** Siege milliseconds the attackers have held the outpost's chunk with no defender in it. */
         public long progress;
+        /** Marks the attackers staked when they declared; 0 when no payment provider was installed. */
+        public long stakeMarks;
     }
 
     /** No goal between these two nations, either way, until the siege clock passes {@code untilSiege}. */
@@ -51,6 +53,11 @@ public final class WarBook {
     /** True while a goal that names this outpost is open for capture: its claims are not protected. */
     public boolean opened(CoreId outpost) {
         return goals.stream().anyMatch(g -> g.opened && g.outpost.equals(outpost));
+    }
+
+    /** True while any declared goal, opened or not, names this outpost. */
+    public boolean names(CoreId outpost) {
+        return goals.stream().anyMatch(g -> g.outpost.equals(outpost));
     }
 
     /** True while a declared war names these two nations, either way round. */

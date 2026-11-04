@@ -195,19 +195,18 @@ public final class SiegeSim {
         for (WarBook.Goal goal : new ArrayList<>(wars.goals)) {
             Core outpost = state.core(goal.outpost).orElse(null);
             if (outpost == null) {
-                wars.goals.remove(goal);
+                // The target was lost some other way (the owner's nation was dissolved, an operator removed it): not the
+                // attackers' failure, so their stake comes back. Told, and the two nations rest for the truce.
+                end(goal, false, wall, now, events);
                 continue;
             }
             if (goal.from != null && state.core(goal.from).isEmpty()) {
                 // The war is between two outposts: when the attackers' one is lost, there is nothing left to fight from.
-                events.add(new SiegeEvents.WarLapsed(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
-                wars.goals.remove(goal);
+                end(goal, true, wall, now, events);
                 continue;
             }
             if (now >= goal.expiresAt) {
-                events.add(new SiegeEvents.WarLapsed(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
-                wars.truces.add(new WarBook.Truce(goal.attacker, goal.defender, now + Durations.days(knobs.truceDays)));
-                wars.goals.remove(goal);
+                end(goal, true, wall, now, events);
                 continue;
             }
             if (!goal.opened && now >= goal.opensAt) {
@@ -215,11 +214,35 @@ public final class SiegeSim {
                 events.add(new SiegeEvents.WarOpened(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
             }
             if (!goal.opened) continue;
-            // A defender in the chunk resets the hold; with none, attackers in it add to it.
+            // A defender anywhere in the outpost resets the hold. With none, enough attackers in the banner chunk add to
+            // it; fewer than warMinAttackers leave it unattended, and unattended progress halves every siege hour.
             if (warInputs.defenders(outpost) > 0) goal.progress = 0;
-            else if (warInputs.attackers(goal, outpost) > 0) goal.progress += dt;
+            else if (warInputs.attackers(goal, outpost) >= Math.max(1, knobs.warMinAttackers)) goal.progress += dt;
+            else goal.progress = decayed(goal.progress, dt);
             if (goal.progress >= Durations.minutes(knobs.outpostCaptureMinutes)) capture(rules, goal, outpost, wall, now, events);
         }
+    }
+
+    /** Capture progress after {@code dt} siege milliseconds with nobody holding the outpost: it halves every half-life. */
+    private long decayed(long progress, long dt) {
+        if (progress <= 0) return 0;
+        double halfLife = Math.max(0.01, knobs.warDecayHalfLifeHours) * Durations.HOUR;
+        return (long) Math.floor(progress * Math.pow(0.5, dt / halfLife));
+    }
+
+    /**
+     * A goal ends without a capture: told, a truce between the two nations, and the stake settled. {@code forfeit} is
+     * true when the war lapsed or the attackers' outpost was lost (the stake goes to the defenders) and false when
+     * the target vanished (it goes back to the attackers).
+     */
+    private void end(WarBook.Goal goal, boolean forfeit, long wall, long now, List<HistoryEvent> events) {
+        events.add(new SiegeEvents.WarLapsed(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost));
+        state.wars.truces.add(new WarBook.Truce(goal.attacker, goal.defender, now + Durations.days(knobs.truceDays)));
+        if (goal.stakeMarks > 0) {
+            state.payment.credit((forfeit ? goal.defender : goal.attacker).toString(), goal.stakeMarks, forfeit ? "war_stake_forfeit" : "war_stake_refund");
+            goal.stakeMarks = 0;
+        }
+        state.wars.goals.remove(goal);
     }
 
     /** The banner goes, the land is released, the deposit is the attackers', and they alone may plant there for a while. */
@@ -228,6 +251,10 @@ public final class SiegeSim {
         long deposit = outpost.depositMarks;
         outpost.depositMarks = 0;
         if (deposit > 0) state.payment.credit(goal.attacker.toString(), deposit, "plunder");
+        if (goal.stakeMarks > 0) {
+            state.payment.credit(goal.attacker.toString(), goal.stakeMarks, "war_stake_refund");
+            goal.stakeMarks = 0;
+        }
         events.add(new SiegeEvents.OutpostCaptured(wall, now, goal.id, goal.attacker, goal.defender, goal.outpost, outpost.center, 0, deposit));
         for (var claim : List.copyOf(state.claimsOf(outpost.owner))) {
             if (goal.outpost.equals(claim.core())) state.removeClaim(claim.id);

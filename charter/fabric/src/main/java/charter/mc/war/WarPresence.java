@@ -42,12 +42,23 @@ public final class WarPresence implements WarInputs {
             int cz = player.getBlockZ() >> 4;
             for (WarBook.Goal goal : rt.state.wars.goals) {
                 Core outpost = rt.state.core(goal.outpost).orElse(null);
-                if (outpost == null || !outpost.center.dimension().equals(dimension)
-                        || outpost.center.x() != cx || outpost.center.z() != cz) continue;
-                if (rt.state.root(member.org()).equals(goal.attacker)) attackers.merge(goal.outpost, 1, Integer::sum);
-                if (isUnder(rt, member.org(), outpost.owner)) defenders.merge(goal.outpost, 1, Integer::sum);
+                if (outpost == null) continue;
+                boolean inBannerChunk = outpost.center.dimension().equals(dimension)
+                        && outpost.center.x() == cx && outpost.center.z() == cz;
+                // Attackers must stand in the banner chunk; a defender counts anywhere in the outpost's own claims.
+                if (inBannerChunk && rt.state.root(member.org()).equals(goal.attacker)) attackers.merge(goal.outpost, 1, Integer::sum);
+                if (isUnder(rt, member.org(), outpost.owner) && (inBannerChunk || inOutpostClaims(rt, outpost, dimension, cx, cz))) {
+                    defenders.merge(goal.outpost, 1, Integer::sum);
+                }
             }
         }
+    }
+
+    /** Whether this chunk is one of the claims the outpost holds. */
+    private static boolean inOutpostClaims(CharterRuntime rt, Core outpost, String dimension, int cx, int cz) {
+        var ref = rt.claims.at(dimension, cx, cz);
+        if (ref == null) return false;
+        return rt.state.claim(ref.claim()).map(c -> outpost.id.equals(c.core())).orElse(false);
     }
 
     private static boolean isUnder(CharterRuntime rt, OrgId org, OrgId owner) {
