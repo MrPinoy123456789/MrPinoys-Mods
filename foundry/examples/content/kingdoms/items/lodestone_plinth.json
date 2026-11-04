@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:lodestone_plinth",
+  "display_name": "Wild Lodestone",
+  "lore": [
+    "The look of a wild lodestone."
+  ],
+  "base_item": "minecraft:paper",
+  "texture": "kingdoms:item/lodestone_plinth",
+  "held_model": "kingdoms:item/held/lodestone_plinth",
+  "stack_size": 1,
+  "rarity": "rare"
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:lodestone_crystal_exit",
+  "display_name": "Lodestone Crystal, Exit",
+  "lore": [
+    "The look of a dungeon Exit's crystal."
+  ],
+  "base_item": "minecraft:amethyst_shard",
+  "texture": "kingdoms:item/lodestone_crystal_exit",
+  "held_model": "kingdoms:item/held/lodestone_crystal_exit",
+  "stack_size": 1,
+  "rarity": "rare"
+}

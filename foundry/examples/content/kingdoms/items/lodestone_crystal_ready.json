@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:lodestone_crystal_ready",
+  "display_name": "Lodestone Crystal, Ready",
+  "lore": [
+    "The look of a wild lodestone's crystal: ready."
+  ],
+  "base_item": "minecraft:amethyst_shard",
+  "texture": "kingdoms:item/lodestone_crystal_ready",
+  "held_model": "kingdoms:item/held/lodestone_crystal_ready",
+  "stack_size": 1,
+  "rarity": "rare"
+}

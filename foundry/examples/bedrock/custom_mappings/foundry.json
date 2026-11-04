@@ -16,6 +16,21 @@
         "components": {
           "minecraft:max_stack_size": 16
         }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:lodestone_plinth",
+        "bedrock_identifier": "kingdoms:lodestone_plinth",
+        "display_name": "Wild Lodestone",
+        "bedrock_options": {
+          "icon": "kingdoms:lodestone_plinth",
+          "display_handheld": false,
+          "allow_offhand": true,
+          "creative_category": "items"
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
       }
     ],
     "minecraft:breeze_rod": [
@@ -124,6 +139,66 @@
         },
         "components": {
           "minecraft:max_stack_size": 16
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:lodestone_crystal_dim",
+        "bedrock_identifier": "kingdoms:lodestone_crystal_dim",
+        "display_name": "Lodestone Crystal, Spent",
+        "bedrock_options": {
+          "icon": "kingdoms:lodestone_crystal_dim",
+          "display_handheld": false,
+          "allow_offhand": true,
+          "creative_category": "items"
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:lodestone_crystal_exit",
+        "bedrock_identifier": "kingdoms:lodestone_crystal_exit",
+        "display_name": "Lodestone Crystal, Exit",
+        "bedrock_options": {
+          "icon": "kingdoms:lodestone_crystal_exit",
+          "display_handheld": false,
+          "allow_offhand": true,
+          "creative_category": "items"
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:lodestone_crystal_ominous",
+        "bedrock_identifier": "kingdoms:lodestone_crystal_ominous",
+        "display_name": "Lodestone Crystal, Ominous",
+        "bedrock_options": {
+          "icon": "kingdoms:lodestone_crystal_ominous",
+          "display_handheld": false,
+          "allow_offhand": true,
+          "creative_category": "items"
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
+        }
+      },
+      {
+        "type": "definition",
+        "model": "kingdoms:lodestone_crystal_ready",
+        "bedrock_identifier": "kingdoms:lodestone_crystal_ready",
+        "display_name": "Lodestone Crystal, Ready",
+        "bedrock_options": {
+          "icon": "kingdoms:lodestone_crystal_ready",
+          "display_handheld": false,
+          "allow_offhand": true,
+          "creative_category": "items"
+        },
+        "components": {
+          "minecraft:max_stack_size": 1
         }
       }
     ],

@@ -1000,3 +1000,10 @@ Play a Lush Caves run (or two, the pool is random) and check floors 1 and 2:
 - **Do:** Clear one wild dungeon of each kind with two players of one kingdom; kill the boss; open the copper chest; read `/balance` and `/renown`. Then right click a Ready lodestone with an Ominous Bottle, run it, and try a second bottle on it and a bottle on a cooling one.
 - **Pass:** The room stirs and a named boss with a bar comes after the last spawner; the Exit appears only when it dies; the copper chest has the boss loot and Sovereigns; each player is told their Valor; Valor and kingdom Renown rose; the menu says "Last cleared by" in the kingdom's colour and the banner stands on the pillar (check on Bedrock too); the ominous run is two levels higher with purple spawners and a longer cooldown; the refusals read as written.
 - **Fail signs:** a floor that clears with no boss, a boss that never comes (the clear then never happens), a boss table error in the log, the banner on a player's build, a bottle spent on a refused lodestone, Valor paid twice.
+
+## L125: The lodestone look (2026-11-04)
+- **Status:** owed (same branch). Needs the Foundry jar and content and the PD jar deployed together, with a restart.
+- **Changed:** decision 2026-11-04, "The lodestone look". A Foundry plinth and a floating crystal over each wild marker.
+- **Do:** Walk up to a Ready lodestone on Java, by day and by night. Use an Ominous Bottle on one, clear one and look at it while it cools, and look at the Exit blocks inside. Look at one from Bedrock.
+- **Pass:** The plinth sits flush on the block with no bedrock showing, the runes glow, the crystal turns and bobs smoothly, its colour follows the state within a second, and the particles show on Java and Bedrock.
+- **Fail signs:** a flat icon instead of the 3D model (wrong display context), the plinth floating or sunk, a jerky crystal, the old jigsaw on a server that has the Foundry content, a crystal that keeps its old colour.

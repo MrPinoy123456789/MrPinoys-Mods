@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "kingdoms:lodestone_crystal_dim",
+  "display_name": "Lodestone Crystal, Spent",
+  "lore": [
+    "The look of a wild lodestone's crystal: cleared, cooling down."
+  ],
+  "base_item": "minecraft:amethyst_shard",
+  "texture": "kingdoms:item/lodestone_crystal_dim",
+  "held_model": "kingdoms:item/held/lodestone_crystal_dim",
+  "stack_size": 1,
+  "rarity": "rare"
+}
