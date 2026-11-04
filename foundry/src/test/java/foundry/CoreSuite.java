@@ -467,6 +467,19 @@ public final class CoreSuite {
         check(total > 0 && missing == 0, "every Bedrock item mapping has a creative category, so its recipes show in the recipe book ("
                 + missing + " of " + total + " have none)");
         check(staff, "the race weapons are filed under equipment");
+        // the Charter Currency coins: vanilla nuggets stamped with an item_model the pack serves, mapped for Bedrock by it
+        for (String[] coin : new String[][] {{"minecraft:gold_nugget", "gold_sovereign"}, {"minecraft:iron_nugget", "iron_crown"},
+                {"minecraft:copper_nugget", "copper_mark"}}) {
+            String model = "chartercurrency:" + coin[1];
+            boolean mapped = false;
+            for (var e : root.getAsJsonObject("items").getAsJsonArray(coin[0])) mapped |= e.getAsJsonObject().get("model").getAsString().equals(model);
+            check(mapped, model + " is mapped for Bedrock on " + coin[0]);
+            var assets = java.nio.file.Path.of("examples/assets/chartercurrency");
+            check(java.nio.file.Files.isRegularFile(assets.resolve("items/" + coin[1] + ".json"))
+                    && java.nio.file.Files.isRegularFile(assets.resolve("models/item/" + coin[1] + ".json"))
+                    && java.nio.file.Files.isRegularFile(assets.resolve("textures/item/" + coin[1] + ".png")),
+                    model + " has its item definition, model and texture in the pack");
+        }
     }
 
     /**

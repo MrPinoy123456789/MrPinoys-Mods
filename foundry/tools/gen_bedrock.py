@@ -4,6 +4,8 @@ Run from the foundry folder: python tools/gen_bedrock.py. It reads every item in
 texture and writes, under examples/bedrock:
   custom_mappings/foundry.json   Geyser custom item mappings (format 2): Java item model to Bedrock item
   foundry_bedrock.mcpack         the Bedrock resource pack (manifest, item_texture.json, the PNGs)
+It also maps SKINS: vanilla items another mod stamps with an item_model that Foundry's pack serves (the Charter
+Currency coins), so Bedrock shows them too.
 Copy the first into config/Geyser-Fabric/custom_mappings and the second into config/Geyser-Fabric/packs, set
 enable-custom-content to true in Geyser's config.yml, and restart. Bedrock players then see the same icons, and a
 handheld item is held like a tool. Re-run after adding or changing a textured item.
@@ -21,6 +23,18 @@ PACK_NAME = "Foundry Items"
 # Fixed ids so a rebuilt pack replaces the old one on a player's device instead of stacking; the version (below) follows the content.
 PACK_UUID = "5b0e6d0e-2a0a-4c63-9f1d-6e0f0a7c1001"
 MODULE_UUID = "5b0e6d0e-2a0a-4c63-9f1d-6e0f0a7c1002"
+
+
+# Vanilla items shown with a model from Foundry's pack: another mod sets minecraft:item_model on the stack and keeps the
+# vanilla item, so Geyser matches on that model. The texture is the 16 by 16 icon under examples/assets.
+SKINS = [
+    {"base_item": "minecraft:gold_nugget", "model": "chartercurrency:gold_sovereign", "display_name": "Gold Sovereign",
+     "texture": "chartercurrency:item/gold_sovereign", "stack_size": 64},
+    {"base_item": "minecraft:iron_nugget", "model": "chartercurrency:iron_crown", "display_name": "Iron Crown",
+     "texture": "chartercurrency:item/iron_crown", "stack_size": 64},
+    {"base_item": "minecraft:copper_nugget", "model": "chartercurrency:copper_mark", "display_name": "Copper Mark",
+     "texture": "chartercurrency:item/copper_mark", "stack_size": 64},
+]
 
 
 def items():
@@ -81,6 +95,21 @@ def main():
                 "creative_category": creative_category(item),
             },
             "components": {"minecraft:max_stack_size": int(item.get("stack_size", 64))},
+        })
+    for skin in SKINS:
+        ident = skin["model"]
+        ns, path = ident.split(":")
+        key = f"{ns}_{path}"
+        with open(texture_file(skin), "rb") as f:
+            files[f"textures/items/{key}.png"] = f.read()
+        pack_textures[ident] = {"textures": [f"textures/items/{key}"]}
+        mappings.setdefault(skin["base_item"], []).append({
+            "type": "definition",
+            "model": ident,
+            "bedrock_identifier": ident,
+            "display_name": skin["display_name"],
+            "bedrock_options": {"icon": ident, "display_handheld": False, "allow_offhand": True, "creative_category": "items"},
+            "components": {"minecraft:max_stack_size": skin["stack_size"]},
         })
 
     os.makedirs(os.path.join(OUT, "custom_mappings"), exist_ok=True)

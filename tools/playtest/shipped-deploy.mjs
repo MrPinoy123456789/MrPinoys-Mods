@@ -89,6 +89,10 @@ const content = has('--content') ? [
   ['/config/foundry/assets/kingdoms/models/item/held', files(resolve(ex, 'assets/kingdoms/models/item/held'), /\.json$/)],
   ['/config/foundry/assets/kingdoms/textures/item/held', files(resolve(ex, 'assets/kingdoms/textures/item/held'), /\.png$/)],
   ['/config/foundry/assets/demo/textures/item', files(resolve(ex, 'assets/demo/textures/item'), /^fairy_wand.*\.png$/)],
+  // the Charter Currency coin looks: vanilla nuggets that Charter Currency stamps with these item models
+  ['/config/foundry/assets/chartercurrency/items', files(resolve(ex, 'assets/chartercurrency/items'), /\.json$/)],
+  ['/config/foundry/assets/chartercurrency/models/item', files(resolve(ex, 'assets/chartercurrency/models/item'), /\.json$/)],
+  ['/config/foundry/assets/chartercurrency/textures/item', files(resolve(ex, 'assets/chartercurrency/textures/item'), /\.png$/)],
 ] : []
 // --worn: the 3D worn trinket models, their textures (in the items atlas folder), the worn display placements and race traits, the
 // client item definitions of the antlers on each helmet and the atlas file that adds the vanilla helmet textures.
