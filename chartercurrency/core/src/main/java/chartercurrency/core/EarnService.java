@@ -34,6 +34,25 @@ public final class EarnService {
         public Config {
             sources = Map.copyOf(sources);
         }
+
+        /**
+         * This config plus every source of {@code defaults} it lacks. A source already here is
+         * kept exactly as it is, so an operator's tuning is never overwritten.
+         */
+        public Config withMissingFrom(Config defaults) {
+            Map<String, Source> merged = new java.util.LinkedHashMap<>(sources);
+            for (Map.Entry<String, Source> e : defaults.sources().entrySet()) {
+                merged.putIfAbsent(e.getKey(), e.getValue());
+            }
+            return new Config(merged, perPlayerDailyCap, runWindowSeconds, probationDays);
+        }
+
+        /** Keys of {@code defaults} this config lacks, in the defaults' order. */
+        public java.util.List<String> missingFrom(Config defaults) {
+            java.util.List<String> out = new java.util.ArrayList<>();
+            for (String key : defaults.sources().keySet()) if (!sources.containsKey(key)) out.add(key);
+            return out;
+        }
     }
 
     public enum Status { OK, UNKNOWN_SOURCE }

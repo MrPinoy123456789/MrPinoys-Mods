@@ -24,7 +24,8 @@ final class Payout {
 
     static void pay(FortuneService service, ServerPlayer player, PlayerRecord record) {
         Settings settings = service.settings();
-        runCommand(service.server(), settings.payoutCommand, player, record, null);
+        int paid = runCommand(service.server(), settings.payoutCommand, player, record, null);
+        service.noteEarnResult(paid, settings.payoutCommand);
         for (Settings.Extra extra : record.pendingExtras) give(player, ItemIds.stack(extra.item, extra.count));
         if (record.pendingKeepsake) {
             give(player, ItemIds.keepsake(settings.jackpotKeepsake.item, settings.jackpotKeepsake.name,
@@ -48,12 +49,12 @@ final class Payout {
      * Runs one configured command as the console. A command for Charter Currency is skipped when that mod is absent,
      * so the machine still pays its items.
      */
-    static void runCommand(MinecraftServer server, String template, ServerPlayer player, PlayerRecord record, String title) {
-        if (template == null || template.isBlank()) return;
+    static int runCommand(MinecraftServer server, String template, ServerPlayer player, PlayerRecord record, String title) {
+        if (template == null || template.isBlank()) return -1;
         String command = template.trim();
         if (command.startsWith("/")) command = command.substring(1);
         String first = command.split(" ", 2)[0].toLowerCase(Locale.ROOT);
-        if (first.equals("chartercurrency") && !FortuneService.currencyLoaded()) return;
+        if (first.equals("chartercurrency") && !FortuneService.currencyLoaded()) return -1;
         command = command
                 .replace("%player%", player.getPlainTextName())
                 .replace("%uuid%", player.getUUID().toString())
@@ -61,9 +62,14 @@ final class Payout {
                 .replace("%date%", Calendar.iso(record.lastClaimDay))
                 .replace("%title%", title == null ? "" : title);
         try {
-            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command);
+            // The command's own result: 0 when Charter Currency refused it (no `fortune` earn source, a bad name).
+            return server.getCommands().getDispatcher().execute(command, server.createCommandSourceStack());
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {
+            FortuneMod.LOG.warn("Fortune payout command was refused: {} ({})", command, e.getMessage());
+            return 0;
         } catch (RuntimeException e) {
             FortuneMod.LOG.error("Fortune payout command failed: {}", command, e);
+            return 0;
         }
     }
 

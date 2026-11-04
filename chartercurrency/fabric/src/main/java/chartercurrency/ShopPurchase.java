@@ -77,6 +77,8 @@ final class ShopPurchase {
                 });
 
         if (result.ok()) {
+            Services current = Services.current;
+            if (current != null) current.flushMoney.run();
             log.tx(player.getName().getString() + " purchased " + entry.quantity()
                     + " " + entry.key() + " for " + entry.describePrice(), purchaseEvent(player, entry));
             grantOnboarding(player);

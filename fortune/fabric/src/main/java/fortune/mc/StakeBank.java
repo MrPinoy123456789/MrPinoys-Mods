@@ -17,8 +17,11 @@ public interface StakeBank {
     /** Banked Marks, or 0 when unknown. */
     long balance(UUID player);
 
-    /** Takes {@code marks} from the player's bank, all or nothing. True when it went through. */
-    boolean charge(UUID player, String name, long marks);
+    /**
+     * Takes {@code marks} from the player's bank, all or nothing, and records it under {@code reason} in the
+     * economy's own log. True when it went through.
+     */
+    boolean charge(UUID player, String name, long marks, String reason);
 
     StakeBank NONE = new StakeBank() {
         @Override
@@ -32,7 +35,7 @@ public interface StakeBank {
         }
 
         @Override
-        public boolean charge(UUID player, String name, long marks) {
+        public boolean charge(UUID player, String name, long marks, String reason) {
             return false;
         }
     };

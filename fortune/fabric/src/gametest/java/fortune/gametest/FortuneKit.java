@@ -63,6 +63,7 @@ final class FortuneKit {
     /** Banked Coin per player, in the bank's unit (64 Marks to a Sovereign), and every charge made. Never deposits: there is nothing a stake pays back. */
     static final class FakeBank implements StakeBank {
         final Map<UUID, Long> balances = new ConcurrentHashMap<>();
+        final List<String> reasons = java.util.Collections.synchronizedList(new ArrayList<>());
         final List<UUID> charges = java.util.Collections.synchronizedList(new ArrayList<>());
 
         @Override
@@ -76,11 +77,12 @@ final class FortuneKit {
         }
 
         @Override
-        public boolean charge(UUID player, String name, long marks) {
+        public boolean charge(UUID player, String name, long marks, String reason) {
             long have = balance(player);
             if (have < marks) return false;
             balances.put(player, have - marks);
             charges.add(player);
+            reasons.add(reason);
             return true;
         }
 

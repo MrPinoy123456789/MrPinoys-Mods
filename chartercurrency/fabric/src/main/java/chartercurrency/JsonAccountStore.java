@@ -152,7 +152,16 @@ public final class JsonAccountStore implements AccountStore {
         flushIfDirty();
     }
 
+    private final Object writeLock = new Object();
+
     private void flushIfDirty() {
+        // One write at a time: the timer thread and a synchronous flush share one temp file.
+        synchronized (writeLock) {
+            writeOnce();
+        }
+    }
+
+    private void writeOnce() {
         if (!dirty.compareAndSet(true, false)) return;
 
         JsonObject accounts = new JsonObject();

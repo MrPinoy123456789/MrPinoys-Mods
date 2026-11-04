@@ -107,7 +107,15 @@ final class JsonStateFile<T> {
         flushIfDirty();
     }
 
+    private final Object writeLock = new Object();
+
     private void flushIfDirty() {
+        synchronized (writeLock) {
+            writeOnce();
+        }
+    }
+
+    private void writeOnce() {
         if (!dirty.compareAndSet(true, false)) return;
         try {
             // Serialise under the owning service's lock; write outside it.

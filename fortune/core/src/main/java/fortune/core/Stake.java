@@ -21,6 +21,11 @@ public final class Stake {
     private Stake() {
     }
 
+    /** The reason the economy log carries for a stake charge, for example {@code fortune_stake (5 Sovereigns at Fantasy's Fortune)}. */
+    public static String reason(Settings.StakeTier tier) {
+        return "fortune_stake (" + sovereignText(tier.sovereigns) + " at Fantasy's Fortune)";
+    }
+
     /** Valor for a level at the mirrored earn.json numbers (base + perLevel times level). */
     public static long valor(int level, Settings settings) {
         return settings.valorBase + (long) settings.valorPerLevel * level;

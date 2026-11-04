@@ -89,6 +89,20 @@ public final class Treasury {
         return kingdoms.lordsOf(orgId).contains(player);
     }
 
+    /**
+     * May this player take {@code marks} of coin out of the treasury? An op always may. When
+     * Charter governs spending the answer is no for everyone else: the one door is Charter's
+     * Withdraw. Otherwise the player needs a spend right whose limit covers the amount.
+     */
+    public static boolean mayWithdrawCoin(KingdomSource kingdoms, String orgId, UUID player, boolean op,
+                                          long marks) {
+        if (op) return true;
+        if (kingdoms == null || orgId == null || player == null) return false;
+        if (kingdoms.governsSpending()) return false;
+        java.util.OptionalLong limit = kingdoms.spendLimit(orgId, player);
+        return limit.isPresent() && marks <= limit.getAsLong();
+    }
+
     // ---- reads --------------------------------------------------------------
 
     public long balance(String orgId) {

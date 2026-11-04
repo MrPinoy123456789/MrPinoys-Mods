@@ -123,6 +123,10 @@ public final class CharterCurrencyMod implements ModInitializer {
         AnalyticsRecorder analytics = new AnalyticsRecorder(configDir, services, settings.analyticsEnabled);
         services.analytics = analytics;
         log.analytics = analytics;
+        services.flushMoney = () -> {
+            store.flushNow();
+            treasuryFile.flushNow();
+        };
         MintListener mintListener = new MintListener(services);
         mintListener.register();
         banksFile = new JsonStateFile<>(configDir, "banks.json", BankSites.File.class);
