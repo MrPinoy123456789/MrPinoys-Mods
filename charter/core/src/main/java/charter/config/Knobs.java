@@ -231,6 +231,12 @@ public final class Knobs {
      */
     public boolean requireAffiliation = true;
     /**
+     * With requireAffiliation on, a player whose request to join a kingdom is pending may still break, place, use and
+     * eat outside held land and outside spawn, so a small kingdom whose Lords are asleep does not strand them in spawn
+     * for hours. Held land and spawn keep refusing them. Off keeps the applicant a drifter until a Lord says yes.
+     */
+    public boolean applicantsActInWild = true;
+    /**
      * Bedrock players (through Floodgate) get the book as native forms with button icons. Off sends them the same
      * dialogs a Java player sees, translated by Geyser. A switch in case a Floodgate update breaks the forms.
      */
