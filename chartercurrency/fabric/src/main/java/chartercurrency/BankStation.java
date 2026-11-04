@@ -5,6 +5,7 @@ import chartercurrency.core.Currency;
 import chartercurrency.core.Denomination;
 import chartercurrency.core.KingdomSource;
 import chartercurrency.core.Mint;
+import chartercurrency.core.Treasury;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -275,13 +276,21 @@ final class BankStation {
         gui.open();
     }
 
+    /**
+     * Three rows, read top to bottom: your money, your kingdom's treasury, the services. Every button runs the
+     * command a player could type, so the menu and chat never disagree; the treasury Take buttons run the door of
+     * whoever governs spending (Charter's Withdraw when Charter is installed), and only show to a player that
+     * door would let through ({@link Banks#showsTreasuryTake}).
+     */
     private void draw(SimpleGui gui, ServerPlayer player) {
         Currency coin = s.coin();
+        Denomination top = coin.largestFirst().get(0);
         long banked = s.economy.getBalance(player.getUUID(), coin);
         long carried = 0;
         for (Denomination d : coin.denominations()) carried += CoinOps.carried(player, d) * d.value();
 
-        gui.setSlot(4, new GuiElementBuilder(Items.GOLD_INGOT)
+        // ---- row one: yours ----
+        gui.setSlot(0, new GuiElementBuilder(Items.GOLD_INGOT)
                 .setName(Component.literal("Your money").withStyle(ChatFormatting.GOLD))
                 .setLore(List.of(
                         line("In the bank: ", ShopDisplay.coins(coin, banked)),
@@ -289,28 +298,28 @@ final class BankStation {
                         dim("The shop spends what is in the bank."),
                         dim("Show me the money!")))
                 .build());
-
-        gui.setSlot(10, new GuiElementBuilder(Items.HOPPER)
+        gui.setSlot(2, new GuiElementBuilder(Items.HOPPER)
                 .setName(Component.literal("Bank all your coin").withStyle(ChatFormatting.GREEN))
-                .setLore(List.of(dim("Every coin you carry goes in the bank.")))
+                .setLore(List.of(dim("Every coin you carry goes in your bank.")))
                 .setCallback((i, t, a, g) -> run(gui, player, "bank all"))
                 .build());
-
-        Denomination top = coin.largestFirst().get(0);
         int[] amounts = {1, 8, 64};
         for (int n = 0; n < amounts.length; n++) {
             int count = amounts[n];
-            String what = top.describe(count);
-            gui.setSlot(12 + n, new GuiElementBuilder(ItemBank.resolve(top.itemId()).orElse(Items.GOLD_NUGGET))
+            gui.setSlot(4 + n, new GuiElementBuilder(coinItem(top))
                     .setCount(count)
-                    .setName(Component.literal("Take out " + what).withStyle(ChatFormatting.YELLOW))
+                    .setName(Component.literal("Take out " + top.describe(count)).withStyle(ChatFormatting.YELLOW))
                     .setLore(List.of(dim(banked >= (long) count * top.value()
-                            ? "From the bank into your pockets."
-                            : "Not enough in the bank.")))
+                            ? "From your bank into your pockets."
+                            : "Not enough in your bank.")))
                     .setCallback((i, t, a, g) -> run(gui, player, "withdraw " + count + " " + top.id()))
                     .build());
         }
 
+        // ---- row two: your kingdom's ----
+        drawTreasury(gui, player, coin, top, carried);
+
+        // ---- row three: the services ----
         List<Component> mintLore = new ArrayList<>();
         mintLore.add(dim("Any smithing table in this chunk."));
         mintLore.add(dim("Hold gold ingots and right-click it."));
@@ -318,21 +327,105 @@ final class BankStation {
         mintLore.add(dim("Sneak and right-click: strike them all."));
         mintLore.add(Messages.body(mint.allowanceFor(player)));
         mintLore.add(dim("One coin in five goes to your kingdom."));
-        gui.setSlot(16, new GuiElementBuilder(Items.SMITHING_TABLE)
+        gui.setSlot(18, new GuiElementBuilder(Items.SMITHING_TABLE)
                 .setName(Component.literal("The Mint").withStyle(ChatFormatting.GOLD))
                 .setLore(mintLore)
                 .build());
-
         gui.setSlot(22, new GuiElementBuilder(Items.EMERALD)
                 .setName(Component.literal("Open the shop").withStyle(ChatFormatting.GREEN))
-                .setLore(List.of(dim("Buy with what is in the bank.")))
+                .setLore(List.of(dim("Buy with what is in your bank.")))
                 .setCallback((i, t, a, g) -> command(player, "shop"))
                 .build());
-
         gui.setSlot(26, new GuiElementBuilder(Items.BARRIER)
                 .setName(Component.literal("Close").withStyle(ChatFormatting.RED))
                 .setCallback((i, t, a, g) -> g.close())
                 .build());
+    }
+
+    /** The middle row: the treasury of the player's kingdom, Give buttons for everyone in it, Take buttons for its spenders. */
+    private void drawTreasury(SimpleGui gui, ServerPlayer player, Currency coin, Denomination top, long carried) {
+        KingdomSource kingdoms = s.kingdoms.source();
+        Optional<String> kingdom;
+        try {
+            kingdom = kingdoms.kingdomOf(player.getUUID());
+        } catch (RuntimeException e) {
+            CharterCurrencyMod.LOG.warn("Kingdom lookup failed at the Bank", e);
+            kingdom = Optional.empty();
+        }
+        if (kingdom.isEmpty()) {
+            gui.setSlot(9, new GuiElementBuilder(Items.CHEST)
+                    .setName(Component.literal("Kingdom treasury").withStyle(ChatFormatting.GRAY))
+                    .setLore(List.of(dim("You are in no kingdom."), dim("Join one and its treasury shows here.")))
+                    .build());
+            return;
+        }
+        String org = kingdom.get();
+        String name = kingdoms.displayName(org);
+        long balance = s.treasury.balance(org);
+        boolean op = TreasuryCommands.isOp(player.createCommandSourceStack());
+        boolean spender = Banks.showsTreasuryTake(kingdoms, org, player.getUUID(), false, top.value());
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(line("Holds: ", ShopDisplay.coins(coin, balance)));
+        lore.add(line("Mint tax, all time: ", ShopDisplay.coins(coin, s.treasury.taxCollected(org))));
+        List<Treasury.Entry> recent = s.treasury.ledger(org, "coin");
+        if (!recent.isEmpty()) {
+            lore.add(dim("Lately:"));
+            for (int i = 0; i < Math.min(3, recent.size()); i++) lore.add(dim("  " + TreasuryCommands.line(recent.get(i))));
+        }
+        lore.add(dim(spender ? "You may take coin out." : "Your Lord, and anyone granted the spend right, take coin out."));
+        gui.setSlot(9, new GuiElementBuilder(Items.CHEST)
+                .setName(Component.literal(name + "'s treasury").withStyle(ChatFormatting.GOLD))
+                .setLore(lore)
+                .build());
+
+        gui.setSlot(11, new GuiElementBuilder(Items.HOPPER)
+                .setName(Component.literal("Give all your coin to " + name).withStyle(ChatFormatting.GREEN))
+                .setLore(List.of(dim("Every coin you carry goes to the treasury."),
+                        dim(carried > 0 ? "You carry " + coin.describe(carried) + "." : "You carry no coin.")))
+                .setCallback((i, t, a, g) -> run(gui, player, "treasury deposit all"))
+                .build());
+        for (int n = 0; n < Banks.TREASURY_GIVES.length; n++) {
+            int count = Banks.TREASURY_GIVES[n];
+            gui.setSlot(12 + n, new GuiElementBuilder(coinItem(top))
+                    .setCount(count)
+                    .setName(Component.literal("Give " + top.describe(count)).withStyle(ChatFormatting.GREEN))
+                    .setLore(List.of(dim(carried >= (long) count * top.value()
+                            ? "From your pockets to the treasury."
+                            : "You do not carry that much.")))
+                    .setCallback((i, t, a, g) -> run(gui, player, "treasury deposit " + count + " " + top.id()))
+                    .build());
+        }
+
+        for (int n = 0; n < Banks.TREASURY_TAKES.length; n++) {
+            int count = Banks.TREASURY_TAKES[n];
+            long marks = (long) count * top.value();
+            if (!Banks.showsTreasuryTake(kingdoms, org, player.getUUID(), op, marks)) continue;
+            // Charter's own door when Charter governs and recognises this spender; otherwise this mod's, which lets ops through.
+            String door = kingdoms.governsSpending() && kingdoms.maySpend(org, player.getUUID(), marks)
+                    ? "charter vault withdraw " + marks
+                    : "treasury withdraw " + count + " " + top.id();
+            gui.setSlot(15 + n, new GuiElementBuilder(coinItem(top))
+                    .setCount(count)
+                    .setName(Component.literal("Take " + top.describe(count) + " from the treasury").withStyle(ChatFormatting.YELLOW))
+                    .setLore(List.of(dim(balance >= marks ? "From the treasury into your pockets." : "The treasury does not hold that much."),
+                            dim("Written in the ledger under your name.")))
+                    .setCallback((i, t, a, g) -> run(gui, player, door))
+                    .build());
+        }
+
+        gui.setSlot(20, new GuiElementBuilder(Items.WRITABLE_BOOK)
+                .setName(Component.literal("The ledger").withStyle(ChatFormatting.GOLD))
+                .setLore(List.of(dim("Every coin in and out of the treasury, in chat."), dim("Follow the money.")))
+                .setCallback((i, t, a, g) -> {
+                    g.close();
+                    command(player, "treasury ledger");
+                })
+                .build());
+    }
+
+    private static net.minecraft.world.item.Item coinItem(Denomination d) {
+        return ItemBank.resolve(d.itemId()).orElse(Items.GOLD_NUGGET);
     }
 
     /** Runs the same command a player would type, so the menu and chat can never differ, then redraws. */

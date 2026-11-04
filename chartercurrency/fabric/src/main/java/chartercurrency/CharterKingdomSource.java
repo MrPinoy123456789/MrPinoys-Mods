@@ -49,6 +49,17 @@ final class CharterKingdomSource implements KingdomSource {
         return true;
     }
 
+    /** Charter's answer from its grants; a Charter jar from before the question falls back to the Lord rule. */
+    @Override
+    public boolean maySpend(String kingdomId, UUID player, long marks) {
+        if (marks <= 0) return false;
+        try {
+            return view.maySpend(kingdomId, player, marks);
+        } catch (NoSuchMethodError older) {
+            return lordsOf(kingdomId).contains(player);
+        }
+    }
+
     @Override
     public String displayName(String kingdomId) {
         String name = view.displayName(kingdomId);

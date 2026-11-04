@@ -21,7 +21,7 @@ public final class PaymentLookup {
     private PaymentLookup() {
     }
 
-    public static void install(CharterState state, Consumer<String> info, Consumer<String> warn) {
+    public static void install(CharterState state, charter.time.Clock clock, Consumer<String> info, Consumer<String> warn) {
         state.payment = new NoPayment(warn);
         List<PaymentProvider> found;
         try {
@@ -37,7 +37,7 @@ public final class PaymentLookup {
         if (found.size() > 1) warn.accept(found.size() + " payment providers are installed; only the first is used.");
         try {
             PaymentProvider provider = found.get(0);
-            provider.bind(new StateKingdomView(state));
+            provider.bind(new StateKingdomView(state, clock));
             state.payment = provider.port();
             info.accept("Charter pays through " + provider.getClass().getName() + ".");
         } catch (RuntimeException | LinkageError e) {

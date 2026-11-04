@@ -88,7 +88,7 @@ public final class CharterServer {
         server = s;
         runtime = CharterRuntime.open(charterDir(s), CharterMod.knobs(), System::currentTimeMillis, new Messenger(),
                 CharterMod.LOG::info, CharterMod.LOG::warn);
-        PaymentLookup.install(runtime.state, CharterMod.LOG::info, CharterMod.LOG::warn);
+        PaymentLookup.install(runtime.state, runtime.clock, CharterMod.LOG::info, CharterMod.LOG::warn);
         lastStepMillis = runtime.clock.now();
         ticks = 0;
         runtime.areas.flush();

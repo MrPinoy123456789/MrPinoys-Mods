@@ -21,6 +21,15 @@ public interface KingdomView {
         return lordOf(orgId).map(java.util.List::of).orElse(java.util.List.of());
     }
 
+    /**
+     * May this player take {@code marks} of coin from the organization's treasury in one action: a Lord within
+     * the Lord's limit, or a player holding a spend grant that covers the amount. The question only; the
+     * withdrawal itself still goes through Charter. Default false, so an older view refuses everyone.
+     */
+    default boolean maySpend(String orgId, UUID player, long marks) {
+        return false;
+    }
+
     String displayName(String orgId);
 
     Collection<String> orgIds();

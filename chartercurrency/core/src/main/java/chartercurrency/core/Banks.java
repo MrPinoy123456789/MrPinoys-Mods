@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * The Banks standing in the world and the rules for placing one (owner, 2026-11-03).
@@ -44,6 +45,26 @@ public final class Banks {
         public boolean allowed() {
             return refusal == Refusal.NONE;
         }
+    }
+
+    /** The treasury Take buttons on the Bank menu, in Sovereigns. */
+    public static final int[] TREASURY_TAKES = {1, 10, 100};
+
+    /** The treasury Give buttons on the Bank menu, in Sovereigns ("all" is a fourth). */
+    public static final int[] TREASURY_GIVES = {1, 10};
+
+    /**
+     * Whether the Bank menu shows this player a Take button for {@code marks} of their kingdom's treasury. An
+     * operator always sees it. Anyone else needs the spend right that whoever governs spending recognises
+     * ({@link KingdomSource#maySpend}); the button then runs that governor's own withdrawal, so a shown button
+     * is one that will work and a hidden one was never a door.
+     */
+    public static boolean showsTreasuryTake(KingdomSource kingdoms, String kingdomId, UUID player, boolean operator,
+                                            long marks) {
+        if (marks <= 0) return false;
+        if (operator) return true;
+        if (kingdoms == null || kingdomId == null || player == null) return false;
+        return kingdoms.maySpend(kingdomId, player, marks);
     }
 
     /** site key to kingdom id ("" for a Bank that belongs to no kingdom), in placing order. */

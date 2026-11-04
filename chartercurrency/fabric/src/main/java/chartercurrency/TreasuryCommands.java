@@ -153,7 +153,8 @@ final class TreasuryCommands {
         return 1;
     }
 
-    private static String line(Treasury.Entry e) {
+    /** One ledger line: when, signed amount and unit, kind, and who. The Bank menu shows the same lines. */
+    static String line(Treasury.Entry e) {
         String when = WHEN.format(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()));
         String unit = "renown".equals(e.currency) ? "Renown" : "Marks";
         String sign = e.delta >= 0 ? "+" : "";
@@ -318,8 +319,8 @@ final class TreasuryCommands {
     private String withdrawRefusal(String org, ServerPlayer player, long marks) {
         String name = kingdomSource().displayName(org);
         if (kingdomSource().governsSpending()) {
-            return name + " spends its treasury through Charter. Use Charter's Withdraw (the treasury page of"
-                    + " your Charter book); it checks your spend right, your limit and the vote.";
+            return name + " spends its treasury through Charter: take coin at your kingdom's Bank, or from the"
+                    + " treasury page of your Charter book. Both check your spend right, your limit and the vote.";
         }
         java.util.OptionalLong limit = kingdomSource().spendLimit(org, player.getUUID());
         if (limit.isPresent()) {

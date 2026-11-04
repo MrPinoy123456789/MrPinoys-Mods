@@ -17,6 +17,11 @@ public interface KingdomView {
         return lordOf(orgId).map(java.util.List::of).orElse(java.util.List.of());
     }
 
+    /** May this player take {@code marks} of coin from the organization's treasury in one action. Default false. */
+    default boolean maySpend(String orgId, UUID player, long marks) {
+        return false;
+    }
+
     String displayName(String orgId);
 
     Collection<String> orgIds();
