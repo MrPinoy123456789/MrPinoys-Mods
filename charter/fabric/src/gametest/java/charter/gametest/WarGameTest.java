@@ -76,6 +76,8 @@ public final class WarGameTest {
                         .filter(l -> l.startsWith(prefix)).findFirst().orElse("no target named " + prefix);
                 press(helper, attackerLord, button);
                 String confirm = String.join("\n", body(attackerLord));
+                helper.assertTrue(BookDialogs.LAST.get(attackerLord.getUUID()).violations().isEmpty(),
+                        "The declare confirm page breaks the screen rules: " + BookDialogs.LAST.get(attackerLord.getUUID()).violations());
                 helper.assertTrue(confirm.contains("touch"), "The confirm page does not say the war is between touching outposts: " + confirm);
                 helper.assertTrue(confirm.contains("12 hours"), "The confirm page does not give the notice: " + confirm);
                 press(helper, attackerLord, Text.get("book.war.declare_yes"));
