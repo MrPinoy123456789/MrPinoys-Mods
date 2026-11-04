@@ -93,7 +93,7 @@ public final class StandingText {
         String label = line.power() == null
                 ? Text.get("book.group." + line.group().name().toLowerCase(Locale.ROOT))
                 : Text.get("book.power." + line.power().name().toLowerCase(Locale.ROOT));
-        if (line.spendLimitMarks() >= 0) label += " (" + Text.get("book.limit", "n", line.spendLimitMarks()) + ")";
+        if (line.spendLimitMarks() >= 0) label += " (" + Text.get("book.limit", "n", charter.api.Coin.words(line.spendLimitMarks())) + ")";
         return label;
     }
 

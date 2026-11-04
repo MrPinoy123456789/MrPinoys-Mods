@@ -142,11 +142,11 @@ public final class ChronicleEditionTest {
     }
 
     static void coinsAreToldInSovereigns() {
-        eq("coins: under a Sovereign", "15 Marks", ChronicleRenderer.coins(15));
-        eq("coins: one Mark", "1 Mark", ChronicleRenderer.coins(1));
+        eq("coins: under a Sovereign", "0.23 Sovereigns", ChronicleRenderer.coins(15));
+        eq("coins: one Mark", "0.01 Sovereigns", ChronicleRenderer.coins(1));
         eq("coins: whole Sovereigns", "2 Sovereigns", ChronicleRenderer.coins(128));
         eq("coins: one Sovereign", "1 Sovereign", ChronicleRenderer.coins(64));
-        eq("coins: mixed", "1 Sovereign and 36 Marks", ChronicleRenderer.coins(100));
+        eq("coins: mixed", "1.56 Sovereigns", ChronicleRenderer.coins(100));
         eq("coins: in a line", "On day 1, the second week of Eclipse, Gil drew 2 Sovereigns from the treasury of Ashfall.",
                 renderer().render(entry(new TreasuryEvents.WithdrawnMarks(AT, ASHFALL, 128, GIL))).orElse(""));
     }

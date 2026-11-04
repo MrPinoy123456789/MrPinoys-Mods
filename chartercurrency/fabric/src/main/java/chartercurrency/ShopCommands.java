@@ -67,7 +67,7 @@ public final class ShopCommands {
                     source.sendSuccess(() -> Messages.helpLine("/buy <item>", "Purchase an item"), false);
                     source.sendSuccess(() -> Messages.helpLine("/bank", "Banking help"), false);
                     source.sendSuccess(() -> Messages.helpLine("/balance", "Check your balances"), false);
-                    source.sendSuccess(() -> Messages.helpLine("/pay <player> <amount> <currency>", "Send money"), false);
+                    source.sendSuccess(() -> Messages.helpLine("/pay <player> <sovereigns>", "Send Sovereigns"), false);
                     source.sendSuccess(Messages::rule, false);
                     return 1;
                 })));

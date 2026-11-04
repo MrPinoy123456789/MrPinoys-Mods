@@ -306,14 +306,14 @@ public final class JusticeCommands {
                             p -> run(p, new Execute(me, prisoner, EXECUTION_WAIT, EXECUTION_BANISH),
                                     Text.get("justice.done_execute", "player", name)))));
         }
-        // Fines, in Marks, charged to the prisoner's kingdom through the payment port when a provider is installed.
+        // Fines (Marks in code, Sovereigns on screen), charged to the prisoner's kingdom through the payment port when a provider is installed.
         if (!charter.mc.Treasury.available(rt)) return;
         MutableComponent fines = Chat.line(Text.get("justice.row_fine") + " ");
         for (long marks : FINES) {
             BasisCaps.Checked checked = BasisCaps.check(Basis.CUSTODY, new Term.FineMarks(marks), rt.knobs);
             if (!checked.ok()) continue;
             long shown = ((Term.FineMarks) checked.term()).marks();
-            fines.append(Chat.act(judge, Text.get("justice.link_fine", "count", shown), Text.get("justice.link_fine_hover", "player", name),
+            fines.append(Chat.act(judge, Text.get("justice.link_fine", "count", charter.api.Coin.words(shown)), Text.get("justice.link_fine_hover", "player", name),
                     p -> run(p, new FineCustody(me, prisoner, marks), Text.get("justice.done_fine", "player", name)))).append(Component.literal(" "));
         }
         judge.sendSystemMessage(fines);

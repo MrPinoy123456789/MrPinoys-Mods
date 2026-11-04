@@ -105,8 +105,8 @@ so a stray import fails the build). All money, mint and earn arithmetic lives in
   nugget is not coin.
 - Every coin the mod creates carries the marker plus `minecraft:item_name`
   (`Copper Mark`, `Iron Crown`, `Gold Sovereign`) and two lore lines: its worth in
-  the next coin down (`Charter coin, worth 8 Crowns`; a Mark says only `Charter coin`)
-  and `Right-click: bank this stack`. Carried coin from an older release is given
+  Sovereigns (`Charter coin, worth 1 Sovereign`, `worth 0.12 Sovereigns`; a Mark says
+  only `Charter coin`) and `Right-click: bank this stack`. Carried coin from an older release is given
   the current lore every 5 seconds so it keeps stacking with new coin.
 - **Coin looks** (owner, 2026-11-03): Foundry's resource pack draws each coin as a
   struck coin, not a nugget: `chartercurrency:gold_sovereign` (a sun),
@@ -118,11 +118,31 @@ so a stray import fails the build). All money, mint and earn arithmetic lives in
   missing texture. `/chartercurrency reload` applies a change.
 - The three are defined in `currencies.json` (section 9), not hard-coded, but the
   defaults above are what ships.
-- Display: `3 Sovereigns, 2 Crowns, 5 Marks (213 Marks)`. Always show the Marks
-  total. Zero parts are omitted (`2 Crowns (16 Marks)`).
-- The shop names prices and balances in coins only, with no Marks total:
-  `Price: 8 Sovereigns`, `You have: 3 Sovereigns (not enough)`. Marks appear only
-  when no larger coin fits. A mixed price reads `Price: 2 Sovereigns + 24 Valor`.
+- **Display: Gold Sovereigns only** (owner, 2026-11-04). Every coin amount a player
+  reads, in chat, menus, dialogs, lore, the wealth banner and `/baltop`, is in
+  Sovereigns; Marks, Crowns and Copper are never named in an amount (the coin items
+  keep their names). Marks stay the unit in code, config and state files and in the
+  server logs (`transactions.log`, analytics).
+  - Whole Sovereigns carry group separators: 144,704 Marks read `2,261 Sovereigns`.
+  - A remainder is a decimal Sovereign of at most two places, cut and never rounded,
+    so an amount never reads as more than it is: `2,261.5 Sovereigns` (144,736
+    Marks), `0.98` (63 Marks), `0.01` (1 Mark). A trailing zero is dropped.
+  - One formatter: `Wallet.sovereigns` (the number) and `Wallet.sovereignWords`
+    (`1 Sovereign`, `0.5 Sovereigns`). `Currency.describe` and `inCoins` use it, so
+    every price and balance follows. Columns (the banner, `/baltop`) show the number
+    under a `Coin (Sovereigns)` heading.
+  - Charter has the same rule in `charter.api.Coin` (it runs without this mod).
+  - A source scan in the core suite fails on any new player string naming Marks or
+    Crowns.
+- **Typed amounts are whole Sovereigns too** (owner, 2026-11-04). In `/bank`,
+  `/withdraw`, `/pay` and `/treasury deposit|withdraw` a bare number is Sovereigns
+  (`CoinInput`, times 64 inside), and the argument is named `<sovereigns>` so tab
+  completion says so. A coin word still names its coin (`3 marks`, `3 crowns`); the
+  word `coin` reads as a bare number. The operator commands other mods script
+  (`/chartercurrency set|add|remove`, `/chartercurrency treasury add|remove|pay|give`)
+  stay in Marks, so Charter's payouts are unchanged. Checks pin each command.
+- The shop reads `Price: 8 Sovereigns`, `You have: 3 Sovereigns (not enough)`. A
+  mixed price reads `Price: 2 Sovereigns + 24 Valor`.
 
 Fixed exchange between denominations is correct here even though Cobble Economy
 forbids exchange rates: every denomination comes from the same Mint under the
@@ -193,9 +213,9 @@ The forked commands, with these changes:
 | `/balance`, `/bal` | Coin (in the display format above) and Valor, with rank in each; plus the player's kingdom and its Renown |
 | Right-click a coin stack | Banks the whole stack in the main hand at face value. A block with its own use (a chest, a bound Mint table) takes the click first |
 | `/bank all` | Deposits every marked coin in the main 36 slots at face value. If plain (unmarked) copper, iron or gold nuggets are present, add one line: `Plain nuggets are not coin and were left alone.` |
-| `/bank <amount> [denomination]` | Deposit an amount. Amount is in Marks unless a denomination word follows |
-| `/withdraw <amount> [denomination]` | With a denomination, gives that many of it. Without one (or with `coin`), the amount is Marks and the mod gives the fewest coins (greedy: Sovereigns, then Crowns, then Marks). All-or-nothing on inventory space |
-| `/pay <player> <amount> [denomination]` | Coin only. Online or offline. Valor refused |
+| `/bank <sovereigns> [denomination]` | Deposit an amount. A bare number is whole Sovereigns (section 4.1); a coin word takes that many of that coin |
+| `/withdraw <sovereigns> [denomination]` | With a denomination, gives that many of it. Without one (or with `coin`), the amount is whole Sovereigns and the mod gives the fewest coins (greedy: Sovereigns, then Crowns, then Marks). All-or-nothing on inventory space |
+| `/pay <player> <sovereigns> [denomination]` | Coin only. A bare number is whole Sovereigns. Online or offline. Valor refused |
 | `/baltop [coin\|valor]` | Leaderboards from the fork |
 | `/shop`, `/buy` | Section 7.1 |
 
@@ -728,7 +748,7 @@ it next ticks; the line still belongs to the day that ended. Each line:
 - `shop`: per listing sold that day, `purchases`, `items`, `revenue` by currency.
 
 `/chartercurrency stats history [days]` prints the last snapshot lines, coin in Gold
-Sovereigns first with Marks in brackets.
+Sovereigns (section 4.1).
 
 ## 11. Admin commands (op level 2, `Commands.LEVEL_GAMEMASTERS`)
 
@@ -745,7 +765,7 @@ Sovereigns first with Marks in brackets.
 | `/chartercurrency mint bind\|unbind\|list` | Section 8.1 |
 | `/chartercurrency shop ...` | The fork's shop admin and editor |
 | `/chartercurrency stats` | Coin supply (banked plus a note that carried coin is not counted), Marks minted today and this week, Mint tax collected and destroyed, Valor earned today by source, Renown and treasury by kingdom |
-| `/chartercurrency stats history [days]` | The last snapshot lines (default 7, at most 60), coin in Gold Sovereigns with Marks in brackets (section 10.1) |
+| `/chartercurrency stats history [days]` | The last snapshot lines (default 7, at most 60), coin in Gold Sovereigns (section 10.1) |
 | `/chartercurrency reload` | Reload every config except accounts |
 
 Every admin action is logged with the operator's name. The startup log prints
@@ -777,6 +797,9 @@ Keep every forked test passing under the new names, then add:
   fork's multi-thread pattern).
 - **Concurrency:** eight threads awarding to one kingdom never lose or duplicate
   Renown.
+- **Sovereigns:** whole amounts, a remainder cut to two places, large numbers, zero
+  and below, the words (`1 Sovereign`), coin described in Sovereigns; and the scan of
+  the fabric sources for player text naming Marks or Crowns.
 - **Analytics:** the event line shape and field order; a kingdom the event names
   wins over the looked up one; escaping; concentration (equal balances, a known
   Gini, the top ten of twelve, no coin); the top list; the day's flows (shop sales,

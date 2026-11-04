@@ -113,7 +113,10 @@ public final class Describe {
         if (action.getClass().isRecord()) {
             for (RecordComponent c : action.getClass().getRecordComponents()) {
                 try {
-                    fields.put(c.getName(), value(c.getAccessor().invoke(action)));
+                    Object raw = c.getAccessor().invoke(action);
+                    // An action's coin is Marks in code; a motion reads it in Sovereigns.
+                    fields.put(c.getName(), c.getName().equals("marks") && raw instanceof Number n
+                            ? charter.api.Coin.words(n.longValue()) : value(raw));
                 } catch (ReflectiveOperationException e) {
                     fields.put(c.getName(), "?");
                 }

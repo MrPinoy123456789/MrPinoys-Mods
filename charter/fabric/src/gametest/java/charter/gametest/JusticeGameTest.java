@@ -566,7 +566,7 @@ public final class JusticeGameTest {
 
             r.arrest(r.prisoner, 5, 6);
             JusticeCommands.sentencePage(r.lord, r.rt, r.prisonerId);
-            r.click(r.lord, Text.get("justice.link_fine", "count", 64));
+            r.click(r.lord, Text.get("justice.link_fine", "count", charter.api.Coin.words(64)));
             r.check(port.marks(r.org) == treasury, "A fine on a player with no kingdom paid the treasury");
             r.check(r.diamonds(r.prisoner) == 30, "A fine took diamonds the prisoner carried");
             r.check(r.rt.state.contracts.custodyOf(r.prisonerId).isPresent(), "A refused fine freed the prisoner");

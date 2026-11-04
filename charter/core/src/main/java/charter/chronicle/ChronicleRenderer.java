@@ -345,7 +345,7 @@ public final class ChronicleRenderer {
         int hash = spec.indexOf('#');
         int q = spec.indexOf('?');
         if (hash >= 0 && (q < 0 || hash < q)) {
-            // {count#claim}: the number and the noun, "1 claim" or "3 claims"; {marks#coin}: Sovereigns and Marks
+            // {count#claim}: the number and the noun, "1 claim" or "3 claims"; {marks#coin}: the amount in Sovereigns
             Object n = lookup(spec.substring(0, hash), event, entry, fields);
             String noun = spec.substring(hash + 1);
             if (!(n instanceof Number number)) return "unknown";
@@ -361,13 +361,9 @@ public final class ChronicleRenderer {
         return value == null ? "unknown" : show(name, value);
     }
 
-    /** Marks told the owner's way: "2 Sovereigns", "1 Sovereign and 20 Marks", "15 Marks". */
+    /** Marks told the owner's way, in Sovereigns only: "2 Sovereigns", "1.56 Sovereigns" ({@link charter.api.Coin}). */
     public static String coins(long marks) {
-        long sovereigns = marks / MARKS_PER_SOVEREIGN;
-        long rest = marks % MARKS_PER_SOVEREIGN;
-        if (sovereigns == 0) return plural(rest, "Mark");
-        if (rest == 0) return plural(sovereigns, "Sovereign");
-        return plural(sovereigns, "Sovereign") + " and " + plural(rest, "Mark");
+        return charter.api.Coin.words(marks);
     }
 
     private Object lookup(String name, HistoryEvent event, History.Entry entry, Map<String, Object> fields) {

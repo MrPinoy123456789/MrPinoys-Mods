@@ -47,7 +47,7 @@ public record PlantCamp(OrgId org, ChunkKey center) implements Action {
         }
         long price = deposit(ctx.state, ctx.knobs, org);
         if (!ctx.canPay(org, price)) {
-            return Outcome.refuse(LandReasons.NO_FUNDS.with("An outpost needs a deposit of " + price + " Marks and the treasury holds fewer."));
+            return Outcome.refuse(LandReasons.NO_FUNDS.with("An outpost needs a deposit of " + charter.api.Coin.words(price) + " and the treasury holds less."));
         }
         return Outcome.OK;
     }

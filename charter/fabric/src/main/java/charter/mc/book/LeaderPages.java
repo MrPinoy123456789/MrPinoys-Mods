@@ -1,5 +1,6 @@
 package charter.mc.book;
 
+import charter.api.Coin;
 import charter.gov.Office;
 import charter.gov.Standing;
 import charter.grant.AuthorityResolver;
@@ -41,8 +42,10 @@ import java.util.function.Consumer;
  */
 public final class LeaderPages {
 
+    /** The most Sovereigns the slider offers. */
     private static final int PRESETS_MAX = 100_000;
-    private static final long[] PRESETS = {1, 10, 64};
+    /** 1, 10 and 64 Sovereigns, in Marks: the book names coin in Sovereigns only. */
+    private static final long[] PRESETS = {Coin.marks(1), Coin.marks(10), Coin.marks(64)};
 
     /** The powers a leader can give, grouped as the pages show them. Every power but AMEND and DISSOLVE is in exactly one. */
     public record Group(String key, List<Power> powers) {
@@ -377,9 +380,9 @@ public final class LeaderPages {
         List<BookButton> buttons = new ArrayList<>();
         for (long marks : PRESETS) {
             if (marks > balance) continue;
-            buttons.add(go(player, Text.get("book.leader.take", "n", marks), p -> take(p, (int) marks)).icon(BookIcons.TREASURY));
+            buttons.add(go(player, Text.get("book.leader.take", "n", Coin.words(marks)), p -> take(p, (int) marks)).icon(BookIcons.TREASURY));
         }
-        if (balance >= 2) buttons.add(go(player, Text.get("book.leader.take_other"), p -> takeSlider(p, null)).icon(BookIcons.TREASURY));
+        if (balance >= Coin.marks(2)) buttons.add(go(player, Text.get("book.leader.take_other"), p -> takeSlider(p, null)).icon(BookIcons.TREASURY));
         BookDialogs.show(player, BookDialogs.list(Text.get("book.leader.treasury"), BookDialogs.withNotice(notice, body), buttons, back));
     }
 
@@ -391,7 +394,7 @@ public final class LeaderPages {
             return;
         }
         BookRouter.run(p, new Withdraw(now, marks, me(p)),
-                line -> treasury(p, BookResult.of(line, Text.get("vault.withdrawn", "amount", marks))));
+                line -> treasury(p, BookResult.of(line, Text.get("vault.withdrawn", "amount", Coin.words(marks)))));
     }
 
     private static void takeSlider(ServerPlayer player, String notice) {
@@ -399,11 +402,12 @@ public final class LeaderPages {
         if (org == null) return;
         long balance = rt().state.payment.balance(org.toString());
         BookButton back = BookDialogs.back(player, p -> treasury(p, null));
-        if (balance < 2) {
+        if (balance < Coin.marks(2)) {
             treasury(player, null);
             return;
         }
-        int max = (int) Math.min(balance, PRESETS_MAX);
+        // The slider counts whole Sovereigns; the treasury is asked in Marks.
+        int max = (int) Math.min(balance / Coin.MARKS_PER_SOVEREIGN, PRESETS_MAX);
         List<BookInput> inputs = List.of(new BookInput.Slider("amount", Text.get("book.leader.withdraw_amount"), 1, max, 1, Math.min(10, max)));
         BookButton submit = BookDialogs.submit(player, Text.get("book.leader.withdraw_send"), null, inputs, form -> {
             var amount = FormValues.split(form.raw(), 1).map(v -> v.get(0)).filter(FormValues::clean)
@@ -412,7 +416,7 @@ public final class LeaderPages {
                 takeSlider(form.player(), Text.get("book.leader.form_bad"));
                 return;
             }
-            take(form.player(), amount.get());
+            take(form.player(), (int) Coin.marks(amount.get()));
         });
         BookDialogs.show(player, BookDialogs.form(Text.get("book.leader.take_other"),
                 BookDialogs.withNotice(notice, List.of(BookDialogs.text(Text.get("book.faction.treasury", "balances", Treasury.balance(rt(), org))))),

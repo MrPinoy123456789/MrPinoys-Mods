@@ -47,7 +47,7 @@ public record PlaceNexus(OrgId org, ChunkKey center) implements Action {
             return Outcome.refuse(LandReasons.ONE_KEEP);
         }
         if (!ctx.canPay(org, ctx.knobs.keepPriceMarks)) {
-            return Outcome.refuse(LandReasons.NO_FUNDS.with("A keep costs " + ctx.knobs.keepPriceMarks + " Marks and the treasury holds fewer."));
+            return Outcome.refuse(LandReasons.NO_FUNDS.with("A keep costs " + charter.api.Coin.words(ctx.knobs.keepPriceMarks) + " and the treasury holds less."));
         }
         return Outcome.OK;
     }

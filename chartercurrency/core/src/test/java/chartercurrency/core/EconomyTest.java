@@ -94,6 +94,7 @@ public final class EconomyTest {
         leaderboardMultiCurrency();
         analytics();
         playerTextInSovereigns();
+        typedAmounts();
 
         System.out.println();
         for (String f : failures) System.out.println("FAIL  " + f);
@@ -1971,6 +1972,72 @@ public final class EconomyTest {
             }
         }
         return out;
+    }
+
+    // ---- typed amounts are whole Sovereigns ------------------------------------
+
+    /** The body of one method, from its signature to the next member. */
+    private static String method(String code, String signature) {
+        int start = code.indexOf(signature);
+        if (start < 0) return "";
+        int next = code.length();
+        for (String marker : List.of("\n    private ", "\n    static ", "\n    /**", "\n    public ")) {
+            int at = code.indexOf(marker, start + signature.length());
+            if (at >= 0) next = Math.min(next, at);
+        }
+        return code.substring(start, next);
+    }
+
+    private static void typedAmounts() {
+        section("Typed amounts");
+        Denomination copper = COIN.denominations().stream().filter(d -> d.id().equals("copper")).findFirst().orElseThrow();
+        Denomination iron = COIN.denominations().stream().filter(d -> d.id().equals("iron")).findFirst().orElseThrow();
+        Denomination gold = COIN.denominations().stream().filter(d -> d.id().equals("gold")).findFirst().orElseThrow();
+        check("a bare number is whole Sovereigns", CoinInput.marks(5, COIN, null) == 320);
+        check("one Sovereign is 64 Marks", CoinInput.marks(1, COIN, null) == 64);
+        check("a coin word still names its coin: 3 marks, 3 crowns, 3 sovereigns",
+                CoinInput.marks(3, COIN, copper) == 3 && CoinInput.marks(3, COIN, iron) == 24
+                        && CoinInput.marks(3, COIN, gold) == 192);
+        check("the word coin names the currency and reads as a bare number",
+                REGISTRY.resolveWord("coin").orElseThrow().denomination() == null
+                        && CoinInput.marks(5, COIN, REGISTRY.resolveWord("coin").orElseThrow().denomination()) == 320);
+        check("an amount too large for Marks is refused, not wrapped", CoinInput.marks(Long.MAX_VALUE / 2, COIN, null) == -1);
+        check("a currency with no coins counts in its own unit", CoinInput.marks(7, VALOR, null) == 7);
+
+        java.nio.file.Path root = null;
+        for (String candidate : List.of("../fabric/src/main/java/chartercurrency", "fabric/src/main/java/chartercurrency",
+                "chartercurrency/fabric/src/main/java/chartercurrency")) {
+            if (java.nio.file.Files.isDirectory(java.nio.file.Path.of(candidate))) {
+                root = java.nio.file.Path.of(candidate);
+                break;
+            }
+        }
+        check("the command sources are found", root != null);
+        if (root == null) return;
+        try {
+            String economy = java.nio.file.Files.readString(root.resolve("EconomyCommands.java"));
+            String treasury = java.nio.file.Files.readString(root.resolve("TreasuryCommands.java"));
+            String admin = java.nio.file.Files.readString(root.resolve("AdminCommands.java"));
+            String kingdomAdmin = java.nio.file.Files.readString(root.resolve("KingdomAdminCommands.java"));
+            String bare = "CoinInput.marks(parsed.getAsLong(), coin, null)";
+            check("/bank <n> reads n as Sovereigns", method(economy, "private int deposit(").contains(bare));
+            check("/withdraw <n> reads n as Sovereigns", method(economy, "private int withdraw(").contains(bare));
+            check("/pay <player> <n> reads n as Sovereigns, a coin word as its coin",
+                    method(economy, "private int pay(").contains("CoinInput.marks(parsed.getAsLong(), coin, per)"));
+            check("/treasury deposit <n> reads n as Sovereigns",
+                    method(treasury, "private int deposit(").contains("CoinInput.marks(parsed.getAsLong(), coin, null)"));
+            check("/treasury withdraw <n> reads n as Sovereigns", method(treasury, "private int withdraw(").contains(bare));
+            check("the player commands name their argument sovereigns, so tab completion says so",
+                    economy.split("Commands.argument\\(\"sovereigns\"", -1).length - 1 == 3
+                            && treasury.split("Commands.argument\\(\"sovereigns\"", -1).length - 1 == 2
+                            && !economy.contains("Commands.argument(\"amount\"") && !treasury.contains("Commands.argument(\"amount\""));
+            check("the operator commands other mods script stay in Marks",
+                    !admin.contains("CoinInput") && !kingdomAdmin.contains("CoinInput")
+                            && kingdomAdmin.contains("Commands.argument(\"amount\", LongArgumentType.longArg(1))")
+                            && method(kingdomAdmin, "private int treasuryAdjust(").contains("LongArgumentType.getLong(ctx, \"amount\")"));
+        } catch (java.io.IOException e) {
+            check("the command sources are readable: " + e, false);
+        }
     }
 
     private static void section(String name) {

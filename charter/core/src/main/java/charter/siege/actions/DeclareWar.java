@@ -71,7 +71,7 @@ public record DeclareWar(OrgId org, CoreId outpost, CoreId from) implements Acti
         if (ctx.state.wars.truce(org, defender, ctx.state.siegeClock.now())) return Outcome.refuse(TRUCE);
         long stake = stake(ctx, target);
         if (!ctx.canPay(org, stake)) {
-            return Outcome.refuse(NO_STAKE.with("A war puts up " + stake + " Marks, " + ctx.knobs.warStakePercent
+            return Outcome.refuse(NO_STAKE.with("A war puts up " + charter.api.Coin.words(stake) + ", " + ctx.knobs.warStakePercent
                     + " percent of the other outpost's deposit. You get it back if you win and lose it if the war runs out."));
         }
         return Outcome.OK;

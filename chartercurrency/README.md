@@ -30,18 +30,30 @@ A coin is a nugget carrying `{"chartercurrency":{"coin":"<id>"}}` in custom_data
 plain nugget, or a renamed one, is not coin. Valor has no item: it is a balance that
 cannot be withdrawn or paid.
 
+Players only ever read coin in Gold Sovereigns: `2,261 Sovereigns`, and a remainder as
+a decimal cut to two places, `2,261.5 Sovereigns` (never rounded up). Marks stay the
+unit in code, config, state files and the logs. One formatter, `Wallet.sovereigns`,
+does it everywhere; a source scan in the core suite fails on any new player string
+that names Marks or Crowns.
+
 | Command | What it does |
 |---|---|
 | `/balance`, `/bal` | Coin and Valor, with rank |
 | `/bank all [denomination]` | Deposit every marked coin in the main 36 slots |
-| `/bank <amount> [denomination]` | Deposit; Marks unless a denomination word follows |
-| `/withdraw <amount> [denomination]` | Fewest coins for a Marks amount, or that many of one coin |
-| `/pay <player> <amount> [denomination]` | Pay coin, online or offline |
+| `/bank <sovereigns> [denomination]` | Deposit; whole Sovereigns unless a coin word follows |
+| `/withdraw <sovereigns> [denomination]` | Fewest coins for that many Sovereigns, or that many of one coin |
+| `/pay <player> <sovereigns> [denomination]` | Pay coin, online or offline |
 | `/baltop [coin\|valor]` | Leaderboards |
 | `/shop`, `/buy` | The shop; prices in coin, Valor or both |
 
+A bare number is whole Gold Sovereigns (`CoinInput`, owner 2026-11-04): `/pay Bob 5`
+pays 5 Sovereigns. A coin word still names its coin: `/pay Bob 3 marks` pays 3 Marks.
+The same holds for `/treasury deposit|withdraw` and Charter's `/charter vault withdraw`
+and book. The operator commands other mods script (`/chartercurrency set|add|remove`,
+`/chartercurrency treasury add|remove|pay|give`) stay in Marks.
+
 Denomination words: `mark marks copper`, `crown crowns iron`, `sovereign sovereigns
-gold sov`, `coin coins`.
+gold sov`, `coin coins` (the currency: read as Sovereigns).
 
 Admin (op level 2): `/chartercurrency balance|set|add|remove`, and the shop editor
 under `/chartercurrency shop` (including `shop restock`, which brings an existing shop
@@ -220,11 +232,8 @@ Places where the spec was silent or ambiguous, and the reading taken.
 - Suite items (SuiteItems, SuiteItemBrowser) are kept; the spec did not list them for
   removal. Their default price currency is now Valor.
 - No `REVIEW.md` was supplied, so none is in this folder.
-- A coin amount made only of Marks is shown as `5 Marks`, not `5 Marks (5 Marks)`.
-  Every other amount shows the Marks total in brackets.
-  The shop is the exception: its prices and its "You have:" balance line name the
-  coins alone (`8 Sovereigns`), since the Mint strikes gold only and nobody counts
-  in Marks. A shop listing reads: `Price`, `You have`, `Click: buy 16`,
+- Every coin amount is shown in Gold Sovereigns (owner, 2026-11-04; this replaces the
+  older Marks totals in brackets and the coin by coin breakdown). A shop listing reads: `Price`, `You have`, `Click: buy 16`,
   `Shift-click: buy all you can afford`, and `Asks you to confirm first` when a
   purchase needs confirming.
 - `/bank <amount> <denomination>` takes exactly that many of that coin and touches no

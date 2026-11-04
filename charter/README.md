@@ -9,6 +9,11 @@ break `INVARIANTS.md`.
 Charter holds no treasury of its own: every cost is paid in Marks through the payment API
 (`docs/PAYMENT_API.md`), which a currency mod implements. With none installed every cost is waived.
 
+Players read every amount in Gold Sovereigns, never Marks (owner, 2026-11-04): `charter.api.Coin` turns Marks into
+`2,261 Sovereigns`, a remainder into a decimal cut to two places (`2,261.5`). Knobs, state and logs stay in Marks.
+The Charter book's treasury buttons and slider count whole Sovereigns. `CoinTest` fails on any player string that
+names Marks or Crowns.
+
 ## Mixins, and why no Fabric API event covers each
 
 The suite rule: every Mixin is listed here with the reason an event would not do.
