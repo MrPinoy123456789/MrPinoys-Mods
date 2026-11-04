@@ -59,6 +59,8 @@ public final class Chronicles {
     private static TemplateSet templates = charter.chronicle.DefaultTemplates.get();
     private static int seenHistory = -1;
     private static long ticks;
+    /** The public feed for the Discord scribe (design 5.1); one per running server. */
+    private static ChronicleFeedFile feed;
 
     private Chronicles() {
     }
@@ -70,6 +72,20 @@ public final class Chronicles {
         RealmLecterns.registerBlock();
         ChronicleCommands.register();
         ServerTickEvents.END_SERVER_TICK.register(Chronicles::tick);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
+            if (feed != null) feed.close();
+            feed = null;
+            seenHistory = -1;
+        });
+    }
+
+    /** The feed file of the running server, started on first use so a long history behind it is not replayed. */
+    public static ChronicleFeedFile feed(MinecraftServer server, CharterRuntime rt) {
+        if (feed == null) {
+            feed = new ChronicleFeedFile(CharterServer.charterDir(server), CharterMod.LOG::warn);
+            feed.start(rt.state.history.size());
+        }
+        return feed;
     }
 
     /** The voice in use: the built in templates with the server's file over them. */
@@ -85,6 +101,7 @@ public final class Chronicles {
         if (ticks % FULL_CHECK_TICKS == 0 || (changed && ticks % CHANGE_CHECK_TICKS == 0)) {
             seenHistory = rt.state.history.size();
             refresh(server, rt);
+            if (rt.knobs.chronicleFeed) feed(server, rt).write(rt.state, templates);
         }
     }
 

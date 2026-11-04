@@ -34,6 +34,8 @@ final class ChronicleBookTest {
         adminEventsAreHiddenUnlessTheServerOptsIn();
         realmLecternsSurviveASave();
         playerTextHasNoDashes();
+        theVoiceFileHoldsHeadlinesAndTiers();
+        theFeedFileAppendsAndResumes();
     }
 
     static void theVoiceFileIsReadOrCreated() throws Exception {
@@ -126,6 +128,55 @@ final class ChronicleBookTest {
         check("realm: the lectern is remembered", RealmLecterns.of(back.state()).all().equals(List.of(new RealmLecterns.Spot(FullState.OW, 0, 64, 0))));
         store.save(back.state(), f.clock.now());
         check("realm: the same state writes the same snapshot", first.equals(Files.readString(dir.resolve("state.json"))));
+    }
+
+    static void theVoiceFileHoldsHeadlinesAndTiers() throws Exception {
+        Path dir = Files.createTempDirectory("charter-voice2");
+        ChronicleVoice.readOrCreate(dir, s -> { }, s -> { });
+        String written = Files.readString(dir.resolve(ChronicleVoice.FILE_NAME));
+        check("voice: the file holds headlines", written.contains("\"headline\""));
+        check("voice: the file holds tiers", written.contains("\"tier\": \"realm\""));
+        check("voice: the reserved lines stay plain strings", written.contains("\"_admin\": \"So it was done"));
+        Files.writeString(dir.resolve(ChronicleVoice.FILE_NAME), "{ \"SiegeEvents.WarDeclared\": { \"line\": \"On {when}, {attacker} came for {defender}.\", \"headline\": \"War: {attacker} on {defender}.\", \"tier\": \"kingdom\" },"
+                + " \"OrgEvents.Left\": \"{player} walked out of {org}.\", \"OrgEvents.Joined\": { \"line\": \"x\", \"tier\": \"nonsense\" } }");
+        List<String> warned = new ArrayList<>();
+        TemplateSet edited = ChronicleVoice.readOrCreate(dir, s -> { }, warned::add);
+        charter.chronicle.Template war = edited.get("SiegeEvents.WarDeclared").orElseThrow();
+        check("voice: an object sets all three", war.text().startsWith("On {when}, {attacker} came") && war.headline().startsWith("War:") && war.tier() == charter.chronicle.Tier.KINGDOM);
+        charter.chronicle.Template left = edited.get("OrgEvents.Left").orElseThrow();
+        check("voice: a string keeps the built in headline and tier", left.text().startsWith("{player} walked") && left.headline() != null && left.tier() == charter.chronicle.Tier.KINGDOM);
+        check("voice: an unknown tier is reported and the built in one kept", warned.stream().anyMatch(w -> w.contains("unknown tier"))
+                && edited.get("OrgEvents.Joined").orElseThrow().tier() == charter.chronicle.Tier.KINGDOM);
+    }
+
+    static void theFeedFileAppendsAndResumes() throws Exception {
+        FullState f = FullState.build();
+        Path dir = Files.createTempDirectory("charter-feed");
+        charter.mc.chronicle.ChronicleFeedFile feed = new charter.mc.chronicle.ChronicleFeedFile(dir, s -> { });
+        int size = f.state.history.size();
+        feed.start(size);
+        check("feed: with no file the feed starts from now", feed.cursor() == size);
+        check("feed: nothing old is written", feed.write(f.state, DefaultTemplates.get()) == 0 && !Files.exists(feed.file()));
+        long at = f.clock.now() + 1000;
+        f.state.history.record(new LandEvents.Rescued(at, f.oakvale, 7), "sim", false);
+        f.state.history.record(new LandEvents.Rescued(at + 1, f.oakvale, 42), "console", true);
+        f.state.history.record(new charter.org.OrgEvents.Asked(at + 2, f.oakvale, f.cara), "cara", false);
+        f.state.history.record(new SiegeEvents.WarDeclared(at + 3, 0, 1, f.oakvale, f.ironhold, f.camp.id, 99), "alice", false);
+        int written = feed.write(f.state, DefaultTemplates.get());
+        List<String> lines = Files.readAllLines(feed.file());
+        check("feed: told entries are appended, admin and quiet ones are not " + lines, written == 2 && lines.size() == 2
+                && lines.get(0).contains("7 claims") && !String.join("", lines).contains("42 claims") && lines.get(1).contains("\"tier\":\"realm\""));
+        check("feed: the cursor points past the last entry", lines.get(1).endsWith(",\"n\":" + (size + 3) + "}"));
+        check("feed: a second write with nothing new writes nothing", feed.write(f.state, DefaultTemplates.get()) == 0);
+        feed.close();
+
+        charter.mc.chronicle.ChronicleFeedFile again = new charter.mc.chronicle.ChronicleFeedFile(dir, s -> { });
+        again.start(f.state.history.size());
+        check("feed: a restart resumes after the last fed entry", again.cursor() == size + 4);
+        f.state.history.record(new LandEvents.Lapsed(at + 4, f.ironhold, 9), "sim", false);
+        check("feed: and feeds only what came after", again.write(f.state, DefaultTemplates.get()) == 1 && Files.readAllLines(feed.file()).size() == 3);
+        again.close();
+        check("feed: the knob defaults to on", new charter.config.Knobs().chronicleFeed);
     }
 
     static void playerTextHasNoDashes() {

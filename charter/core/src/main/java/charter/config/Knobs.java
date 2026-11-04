@@ -386,6 +386,12 @@ public final class Knobs {
     // ---- the Chronicle in the world (M13) ----
     /** Whether books also tell admin events, with the clerk's voice (PLAN.md section 3). Off keeps test scenarios out of the story. */
     public boolean chronicleShowAdmin = false;
+    /**
+     * Whether the told Chronicle is also appended to {@code <world>/charter/chronicle-feed.jsonl}, one JSON object per
+     * happening, for whoever drafts the Discord Chronicle (docs/2026-11-04-chronicle-design.md 5.1). Admin and quiet
+     * entries never reach it.
+     */
+    public boolean chronicleFeed = true;
 
     /**
      * Problems that would make the rules misbehave, one plain sentence each. An

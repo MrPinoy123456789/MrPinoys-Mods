@@ -32,6 +32,11 @@ public interface NameLookup {
         return false;
     }
 
+    /** True when the office is a faction's decision makers (its Lord or council), so filling it is a crowning. Default for lookups that do not know. */
+    default boolean isDeciders(OfficeId id) {
+        return false;
+    }
+
     /** Names read from the live state, including dissolved organizations. */
     static NameLookup from(CharterState state) {
         return new NameLookup() {
@@ -43,6 +48,11 @@ public interface NameLookup {
             @Override
             public String org(OrgId id) {
                 return state.orgIncludingDissolved(id).map(o -> o.name()).orElse("an unknown organization");
+            }
+
+            @Override
+            public boolean isDeciders(OfficeId id) {
+                return state.orgs().stream().anyMatch(o -> id.equals(o.governance.deciders));
             }
 
             @Override
